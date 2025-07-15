@@ -2,12 +2,12 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://moonwalker.onrender.com/"
+      "destination": "https://moonwalking.onrender.com/api/$1"
     }
   ],
   "build": {
     "env": {
-      "VITE_API_URL": "https://moonwalker.onrender.com/"
+      "VITE_API_URL": "https://moonwalking.onrender.com"
     }
   }
 }
