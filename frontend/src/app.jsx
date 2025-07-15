@@ -49,7 +49,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-dark text-white relative">
-      {/* Background Purple Rabbit - Centered */}
+      {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
         <img
           src="/purple-rabbit-bg.png"
@@ -58,30 +58,33 @@ export default function App() {
           style={{ opacity: 0.05 }}
         />
       </div>
-      {/* Move status/counter to top right */}
-      <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></span>
-            <span className="font-bold">{String(countdown).padStart(2, '0')}</span>
-          </div>
-          <button
-            onClick={refreshGainersAndLosers}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-            aria-label="Refresh"
-          >
-            <FiRefreshCw className="text-xl text-purple-500" />
-          </button>
+
+      {/* Countdown & Refresh stays in top-right */}
+      <div className="fixed top-6 right-4 z-50 flex items-center gap-4">
+        <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
+          <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></span>
+          <span className="font-bold">{String(countdown).padStart(2, '0')}</span>
         </div>
+        <button
+          onClick={refreshGainersAndLosers}
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+          aria-label="Refresh"
+        >
+          <FiRefreshCw className="text-xl text-purple-500" />
+        </button>
+      </div>
+
+      {/* Timestamp only at top-left */}
+      <div className="fixed top-6 left-4 z-50">
         <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
           <span className="text-gray-400">Latest:</span>
           <span className="font-bold">{lastUpdate.toLocaleTimeString()}</span>
           <span className="text-gray-400">on</span>
           <span className="font-bold">{lastUpdate.toLocaleDateString()}</span>
         </div>
-        {/* New Refresh Button in Top Right */}
       </div>
-      {/* Main Container with padding */}
+
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
         <header className="flex flex-col items-center justify-center pt-8 pb-6">
@@ -111,7 +114,7 @@ export default function App() {
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                GAINERS (1MIN)
+                1-MIN GAINERS
               </h2>
             </div>
             {/* Header underline decoration */}
@@ -121,13 +124,14 @@ export default function App() {
             <GainersTable1Min />
           </div>
         </div>
+
         {/* 3-Minute Gainers and Losers Tables - Side by Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Left Panel - Top Gainers (3min) */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                GAINERS (3MIN)
+                3-MIN GAINERS
               </h2>
             </div>
             {/* Header underline decoration */}
@@ -140,7 +144,7 @@ export default function App() {
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
-                LOSERS (3MIN)
+                3-MIN LOSERS
               </h2>
             </div>
             {/* Header underline decoration */}
