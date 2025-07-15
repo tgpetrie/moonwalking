@@ -16,7 +16,7 @@ BHABIT CBMOONERS is a real-time cryptocurrency tracking application that provide
 - 🎨 **Modern UI**: Beautiful Tailwind CSS interface with smooth animations
 - 📱 **Responsive Design**: Works seamlessly on desktop and mobile
 - 🔄 **Auto-refresh**: Automatic data updates with countdown timer
-- 🌐 **Production Ready**: Configured for deployment on Vercel and Render
+- 🌐 **Production Ready**: Configured for deployment any way you please(easy Vercel, Render)
 
 ## 🏗️ Architecture
 
@@ -253,4 +253,4 @@ If you encounter any issues:
 
 ---
 
-**Made with 🐰 by BHABIT CBMOONERS Team**# skywalker
+**Made with 🐰 by Tom Petrie ** GUISAN DESIGN ** bhabit ** moonwalking
