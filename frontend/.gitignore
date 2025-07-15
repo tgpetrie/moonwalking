@@ -1,0 +1,16 @@
+node_modules/
+.vercel
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+dist/
+build/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+BHABIT_CBMOONERS_backup_20250710_055654.zip

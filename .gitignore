@@ -1,0 +1,15 @@
+# Backup files
+BHABIT_CBMOONERS_backup_20250710_055654.zip
+
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+
+# Environment variables
+.env*
+.vercel
+
+# VS Code
+.vscode/

@@ -1,0 +1,149 @@
+@import url('https://fonts.googleapis.com/css2?family=Saira:ital,wght@0,100..900;1,100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary Colors */
+  --primary-orange: #FF6B00;
+  --primary-blue: #00BFFF;
+  --primary-pink: #FF69B4;
+  
+  /* Accent */
+  --accent-purple: #8A2BE2;
+  
+  /* Backgrounds */
+  --dark-bg: #000000;
+  --mid-bg: #111111;
+  --light-bg: #1a1a1a;
+  
+  /* Text */
+  --text-white: #ffffff;
+  --text-light: #cccccc;
+  --text-muted: #888888;
+  
+  /* Transitions */
+  --transition-smooth: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-quick: all 0.3s ease;
+  --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+body {
+  margin: 0;
+  font-family: 'Rubik', sans-serif;
+  background-color: var(--dark-bg);
+  color: var(--text-white);
+}
+
+/* Custom slow animations to override Tailwind */
+@keyframes slow-marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes continuous-scroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  animation: slow-marquee 28800s linear infinite !important;
+}
+
+.animate-scroll {
+  animation: continuous-scroll 120s linear infinite !important;
+}
+
+/* Typography Classes */
+.font-headline {
+  font-family: 'Syncopate', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.font-body {
+  font-family: 'Rubik', sans-serif;
+}
+
+.font-mono {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+
+
+@keyframes fade-in-up {
+  0% { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes breathing {
+  0%, 100% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+  50% { 
+    transform: scale(1.05); 
+    opacity: 0.9; 
+  }
+}
+
+
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
+}
+
+.animate-breathing {
+  animation: breathing 3s ease-in-out infinite;
+}
+
+/* Pill Hover Effects for Banners */
+.pill-hover {
+  transition: var(--transition-smooth);
+}
+
+.pill-hover:hover {
+  background: linear-gradient(45deg, var(--primary-purple), var(--primary-pink)); /* Adjusted gradient for purple */
+  background-size: 300% 300%;
+  animation: gradient 3s ease infinite;
+}
+
+
+.pill-hover:hover span,
+.pill-hover:hover div {
+  color: var(--primary-pink) !important;
+  text-shadow: 0 0 20px var(--primary-pink), 0 0 30px var(--primary-pink);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mid-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-orange);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-pink);
+}

@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://moonwalker.onrender.com/"
+    }
+  ],
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://moonwalker.onrender.com/"
+    }
+  }
+}
