@@ -1,4 +1,4 @@
-# 🐰 BHABIT CBMOONERS - Cryptocurrency Tracker
+# 🐰 BHABIT MOONWALKING - Cryptocurrency Tracker
 
 > *Real-time cryptocurrency market tracking with live gainers and losers data*
 
