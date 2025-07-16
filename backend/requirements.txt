@@ -26,6 +26,3 @@ flask-limiter==3.8.0
 
 # Security headers
 flask-talisman==1.1.0
-
-# Documentation
-docling==2.41.0
