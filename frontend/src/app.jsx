@@ -109,7 +109,7 @@ export default function App() {
         <div className="flex justify-center mb-8">
         </div>
         {/* Main Content - Side by Side Panels */}
-        {/* 1-Minute Gainers Table - Full Width */}
+        {/* 1-Minute Gainers Table */}
         <div className="mb-8">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -117,39 +117,55 @@ export default function App() {
                 1-MIN GAINERS
               </h2>
             </div>
-            {/* Header underline decoration */}
-            <div className="mb-4 flex justify-start">
-              <div className="w-32 h-0.5 bg-gradient-to-r from-blue-400 to-transparent rounded-full"></div>
+            {/* Line divider */}
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
             </div>
             <GainersTable1Min />
           </div>
         </div>
 
-        {/* 3-Minute Gainers and Losers Tables - Side by Side */}
+        {/* 3-Minute Gainers and Losers Tables */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Left Panel - Top Gainers (3min) */}
+          {/* Left Panel - 3-MIN GAINERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
                 3-MIN GAINERS
               </h2>
             </div>
-            {/* Header underline decoration */}
-            <div className="mb-4 flex justify-start">
-              <div className="w-36 h-0.5 bg-gradient-to-r from-blue-400 to-transparent rounded-full"></div>
+            {/* Line divider */}
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
             </div>
             <GainersTable refreshTrigger={lastUpdate} />
           </div>
-          {/* Right Panel - Top Losers */}
+
+          {/* Right Panel - 3-MIN LOSERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
                 3-MIN LOSERS
               </h2>
             </div>
-            {/* Header underline decoration */}
-            <div className="mb-4 flex justify-start">
-              <div className="w-32 h-0.5 bg-gradient-to-r from-pink-400 to-transparent rounded-full"></div>
+            {/* Line divider */}
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
             </div>
             <LosersTable refreshTrigger={lastUpdate} />
           </div>
