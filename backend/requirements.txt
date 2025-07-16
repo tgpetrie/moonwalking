@@ -1,11 +1,10 @@
-
 # Core Flask dependencies
 flask==3.1.1
 flask-cors==6.0.1
 flask-socketio==5.3.6
 
 # HTTP requests and data handling
-requests==2.31.0
+requests==2.32.2
 
 # Testing
 pytest==8.3.5
@@ -27,3 +26,6 @@ flask-limiter==3.8.0
 
 # Security headers
 flask-talisman==1.1.0
+
+# Documentation
+docling==2.41.0
