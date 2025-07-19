@@ -49,7 +49,7 @@ BHABIT CBMOONERS/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd "BHABIT CBMOONERS 2"
+   cd "BHABIT CBMOONERS 4"
    ```
 
 2. **Set up Python virtual environment**

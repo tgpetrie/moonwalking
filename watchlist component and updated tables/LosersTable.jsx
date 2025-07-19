@@ -1,0 +1,26 @@
+
+import React from 'react';
+
+export default function LosersTable({ toggleWatch, watchlist, data }) {
+  const dummyData = [
+    { asset: 'MATIC-USD', change_3m: -1.45, price: 0.89 },
+    { asset: 'XRP-USD', change_3m: -2.31, price: 0.52 },
+  ];
+
+  return (
+    <div className="container mx-auto">
+      
+      {data.map((coin, idx) => (
+        <div key={coin.asset} className="flex justify-between items-center border-b border-white/10 py-2">
+          <div className="text-sm font-mono">{coin.asset}</div>
+          <div className="text-pink-400 text-sm font-mono">{coin.change_3m.toFixed(2)}%</div>
+          <div className="text-sm text-gray-300">${coin.price.toFixed(2)}</div>
+          <button onClick={() => toggleWatch(coin.asset)} className="ml-2 text-yellow-400">
+            {watchlist.includes(coin.asset) ? "★" : "☆"}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+}
