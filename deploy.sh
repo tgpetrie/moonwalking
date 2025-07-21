@@ -87,12 +87,22 @@ deploy_vercel() {
         npm install -g vercel
     fi
     
+    # Prompt for SECRET_KEY if not set
+    if [ -z "$SECRET_KEY" ]; then
+        read -p "Enter SECRET_KEY for Vercel deployment (leave blank to auto-generate): " SECRET_KEY
+        if [ -z "$SECRET_KEY" ]; then
+            SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+            print_status "Generated SECRET_KEY: $SECRET_KEY"
+        fi
+    fi
+    export SECRET_KEY
+
     build_frontend
-    
+
     cd frontend
-    vercel --prod
+    vercel --prod --env SECRET_KEY=$SECRET_KEY
     cd ..
-    
+
     print_success "Frontend deployed to Vercel!"
 }
 
@@ -105,8 +115,18 @@ deploy_render() {
         # render.yaml is already created above
     fi
     
+    # Prompt for SECRET_KEY if not set
+    if [ -z "$SECRET_KEY" ]; then
+        read -p "Enter SECRET_KEY for Render deployment (leave blank to auto-generate): " SECRET_KEY
+        if [ -z "$SECRET_KEY" ]; then
+            SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+            print_status "Generated SECRET_KEY: $SECRET_KEY"
+        fi
+    fi
+    export SECRET_KEY
+
     print_status "Backend ready for Render deployment"
-    print_warning "Please connect your repository to Render.com manually"
+    print_warning "Please connect your repository to Render.com manually and set SECRET_KEY in the environment variables."
     print_status "Render will auto-deploy using render.yaml configuration"
 }
 
@@ -118,10 +138,20 @@ deploy_railway() {
         npm install -g @railway/cli
     fi
     
+    # Prompt for SECRET_KEY if not set
+    if [ -z "$SECRET_KEY" ]; then
+        read -p "Enter SECRET_KEY for Railway deployment (leave blank to auto-generate): " SECRET_KEY
+        if [ -z "$SECRET_KEY" ]; then
+            SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+            print_status "Generated SECRET_KEY: $SECRET_KEY"
+        fi
+    fi
+    export SECRET_KEY
+
     railway login
     railway init
-    railway up
-    
+    railway up --env SECRET_KEY=$SECRET_KEY
+
     print_success "Deployed to Railway!"
 }
 
@@ -164,9 +194,19 @@ deploy_docker() {
         exit 1
     fi
     
+    # Prompt for SECRET_KEY if not set
+    if [ -z "$SECRET_KEY" ]; then
+        read -p "Enter SECRET_KEY for Docker deployment (leave blank to auto-generate): " SECRET_KEY
+        if [ -z "$SECRET_KEY" ]; then
+            SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+            print_status "Generated SECRET_KEY: $SECRET_KEY"
+        fi
+    fi
+    export SECRET_KEY
+
     # Build and run
     docker-compose up --build -d
-    
+
     print_success "Docker containers running!"
     print_status "Frontend: http://localhost:3000"
     print_status "Backend: http://localhost:5001"
