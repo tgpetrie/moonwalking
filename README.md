@@ -1,173 +1,197 @@
+Here is your **refined README** with **all emojis removed** and replaced with natural, professional language **wherever it makes sense**, while retaining the BHABIT rabbit logo as an intentional stylistic element:
+
+---
+
 # 🐰 BHABIT MOONWALKING - Cryptocurrency Tracker
 
-> *Real-time cryptocurrency market tracking with live gainers and losers data*
+> Real-time cryptocurrency market tracking with live data on top gainers and losers
 
 ![BHABIT Logo](frontend/public/bhabit-logo.png)
 
-## 📖 Overview
+---
 
-BHABIT CBMOONERS is a real-time cryptocurrency tracking application that provides live market data, focusing on the biggest gainers and losers in the crypto market. The application features a modern React frontend with a Python Flask backend that fetches and processes cryptocurrency data.
+## Overview
 
-### ✨ Features
+**BHABIT CBMOONERS** is a live cryptocurrency tracking platform that displays real-time market data, highlighting the biggest gainers and losers across various timeframes. The app features a modern React-based frontend styled with Tailwind CSS and powered by a fast Flask backend that handles all data processing.
 
-- 🚀 **Real-time Data**: Live cryptocurrency price tracking with 30-second updates
-- 📈 **Gainers & Losers**: Track the biggest market movers
-- ⚡ **Fast Updates**: 1-minute and standard timeframe data
-- 🎨 **Modern UI**: Beautiful Tailwind CSS interface with smooth animations
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile
-- 🔄 **Auto-refresh**: Automatic data updates with countdown timer
-- 🌐 **Production Ready**: Configured for deployment any way you please(easy Vercel, Render)
+---
 
-## 🏗️ Architecture
+## Features
+
+* **Live Market Updates** — Cryptocurrency prices updated every 30 seconds
+* **Top Movers** — Displays the largest gainers and losers in real time
+* **Multiple Timeframes** — Includes 1-minute, 3-minute, and hourly metrics
+* **Polished User Interface** — Built with Tailwind CSS and smooth animations
+* **Fully Responsive** — Optimized for both desktop and mobile experiences
+* **Automatic Refresh** — Data updates with visual countdown timers
+* **Ready for Deployment** — Easily deploy to platforms like Vercel and Render
+
+---
+
+## Architecture
 
 ```
 BHABIT CBMOONERS/
-├── 🎨 frontend/          # React + Vite + Tailwind CSS
+├── frontend/             # React + Vite + Tailwind CSS
 │   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── utils/        # Utility functions
-│   │   └── api.js        # API integration
-│   └── public/           # Static assets
-├── 🐍 backend/           # Python Flask API
-│   ├── app.py           # Main Flask application
-│   ├── config.py        # Configuration settings
-│   ├── requirements.txt # Python dependencies
-│   └── utils.py         # Backend utilities
-└── 📝 docs/             # Documentation
+│   │   ├── components/   # React UI components
+│   │   ├── utils/        # Frontend utility functions
+│   │   └── api.js        # API integration logic
+│   └── public/           # Static files
+├── backend/              # Flask API server
+│   ├── app.py            # Main Flask app
+│   ├── config.py         # App configuration
+│   ├── requirements.txt  # Python package list
+│   └── utils.py          # Backend helper functions
+└── docs/                 # Additional documentation
 ```
 
-## 🚀 Quick Start
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- **Python 3.13+** (with pip)
-- **Node.js 22.17+** (with npm)
-- **Git**
+* Python 3.13 or newer
+* Node.js 22.17 or newer
+* Git
 
-### 🔧 Installation
+### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd "BHABIT CBMOONERS 2"
    ```
 
-2. **Set up Python virtual environment**
+2. **Create a virtual environment**
+
    ```bash
    python3 -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
    ```
 
 3. **Install backend dependencies**
+
    ```bash
    pip install --upgrade pip
    pip install -r backend/requirements.txt
    ```
 
 4. **Install frontend dependencies**
+
    ```bash
    cd frontend
    npm install
    cd ..
    ```
 
-5. **Configure environment variables**
+5. **Set up environment variables**
+
    ```bash
-   # Backend environment
+   # Backend
    cp backend/.env.example backend/.env.development
-   
-   # Frontend environment
+
+   # Frontend
    cp frontend/.env.example frontend/.env
    ```
 
-### 🏃‍♂️ Running the Application
+---
 
-#### Quick Start (Recommended)
+## Running the Application
 
-**First time setup:**
+### Recommended (All-in-One Setup)
+
+**First-time setup:**
+
 ```bash
 ./setup_dev.sh
 ```
 
 **Start the application:**
+
 ```bash
 ./start_app.sh
 ```
 
-**Alternative - Using the dev utility:**
+**Optional utility script:**
+
 ```bash
-./dev.sh setup    # First time setup
-./dev.sh start    # Start both servers
+./dev.sh setup     # First-time setup
+./dev.sh start     # Start backend and frontend
 ```
 
-#### Manual Development Mode
+### Manual Mode
 
 1. **Start the backend server**
+
    ```bash
    source .venv/bin/activate
    cd backend
    python app.py
    ```
-   Backend will run on `http://localhost:5001`
 
-2. **Start the frontend development server** (in a new terminal)
+   Runs on: `http://localhost:5001`
+
+2. **Start the frontend server**
+
    ```bash
    cd frontend
    npm run dev
    ```
-   Frontend will run on `http://localhost:5173`
 
-#### Development Scripts
+   Runs on: `http://localhost:5173`
 
-We provide several scripts to make development easier:
+---
 
-- `./setup_dev.sh` - Complete development environment setup
-- `./start_app.sh` - Start both backend and frontend servers
-- `./dev.sh` - Development utility with multiple commands
+## Development Scripts
 
-**Dev utility commands:**
+Available utility commands:
+
 ```bash
-./dev.sh setup        # Setup development environment
-./dev.sh start        # Start both servers
-./dev.sh backend      # Start only backend
-./dev.sh frontend     # Start only frontend
-./dev.sh test         # Run all tests
-./dev.sh build        # Build for production
-./dev.sh clean        # Clean build artifacts
-./dev.sh health       # Check application health
-./dev.sh help         # Show all commands
+./dev.sh setup        # One-time setup
+./dev.sh start        # Launch backend and frontend
+./dev.sh backend      # Start backend only
+./dev.sh frontend     # Start frontend only
+./dev.sh test         # Run full test suite
+./dev.sh build        # Build frontend for production
+./dev.sh clean        # Remove build artifacts
+./dev.sh health       # Check system status
+./dev.sh help         # View all available commands
 ```
 
-## 🛠️ Technology Stack
+---
+
+## Technology Stack
 
 ### Frontend
-- **React 18.2** - Modern React with hooks
-- **Vite 5.4** - Fast build tool and dev server
-- **Tailwind CSS 3.4** - Utility-first CSS framework
-- **React Icons** - Icon library
-- **Axios** - HTTP client for API calls
-- **Socket.IO Client** - Real-time communication
+
+* React 18.2 (with hooks)
+* Vite 5.4 (fast dev server)
+* Tailwind CSS 3.4 (utility-first styling)
+* React Icons (icon library)
+* Axios (HTTP requests)
+* Socket.IO Client (real-time updates)
 
 ### Backend
-- **Flask 3.1** - Lightweight Python web framework
-- **Flask-CORS** - Cross-origin resource sharing
-- **Flask-SocketIO** - Real-time WebSocket support
-- **Requests** - HTTP library for external APIs
-- **Gunicorn** - Production WSGI server
-- **Sentry** - Error tracking and monitoring
-- **Flask-Limiter** - Rate limiting
 
-### DevOps & Deployment
-- **Vercel** - Frontend deployment
-- **Render** - Backend deployment
-- **Docker** - Containerization support
-- **pytest** - Testing framework
+* Flask 3.1 (Python web framework)
+* Flask-CORS (cross-origin support)
+* Flask-SocketIO (WebSocket support)
+* Requests (HTTP API client)
+* Gunicorn (production WSGI server)
+* Sentry (error monitoring)
+* Flask-Limiter (rate limiting)
 
-## 🔧 Configuration
+---
 
-### Backend Configuration
+## Configuration
+
+### Backend
 
 Edit `backend/.env.development`:
+
 ```env
 FLASK_ENV=development
 FLASK_DEBUG=True
@@ -175,82 +199,107 @@ API_RATE_LIMIT=100
 SENTRY_DSN=your_sentry_dsn_here
 ```
 
-### Frontend Configuration
+### Frontend
 
 Edit `frontend/.env`:
+
 ```env
 VITE_API_URL=http://localhost:5001
 ```
 
-## 📊 API Endpoints
+---
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api` | GET | Health check |
-| `/api/gainers` | GET | Top cryptocurrency gainers |
-| `/api/losers` | GET | Top cryptocurrency losers |
-| `/api/gainers-1min` | GET | 1-minute timeframe gainers |
-| `/health` | GET | Application health status |
+## API Endpoints
 
-## 🚀 Deployment
+| Endpoint            | Method | Description                |
+| ------------------- | ------ | -------------------------- |
+| `/api`              | GET    | Health check               |
+| `/api/gainers`      | GET    | Top crypto gainers         |
+| `/api/losers`       | GET    | Top crypto losers          |
+| `/api/gainers-1min` | GET    | 1-minute timeframe gainers |
+| `/health`           | GET    | Full system health status  |
+
+---
+
+## Deployment
 
 ### Frontend (Vercel)
 
-1. Connect your repository to Vercel
-2. Set build settings:
-   - **Build Command**: `cd frontend && npm run build`
-   - **Output Directory**: `frontend/dist`
-   - **Install Command**: `cd frontend && npm install`
+1. Link your repository to Vercel
+2. Set the following build settings:
+
+   * **Build Command**: `cd frontend && npm run build`
+   * **Output Directory**: `frontend/dist`
+   * **Install Command**: `cd frontend && npm install`
 
 ### Backend (Render)
 
-1. Connect your repository to Render
-2. Set build settings:
-   - **Build Command**: `pip install -r backend/requirements.txt`
-   - **Start Command**: `cd backend && gunicorn app:app`
+1. Link your repository to Render
+2. Configure settings as follows:
 
-## 🧪 Testing
+   * **Build Command**: `pip install -r backend/requirements.txt`
+   * **Start Command**: `cd backend && gunicorn app:app`
 
-Run backend tests:
+---
+
+## Testing
+
+### Backend Tests
+
 ```bash
 source .venv/bin/activate
 cd backend
 pytest
 ```
 
-Run frontend tests:
+### Frontend Tests
+
 ```bash
 cd frontend
 npm test
 ```
 
-## 🤝 Contributing
+---
+
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues:
-
-1. Check the [Issues](issues) page
-2. Ensure all dependencies are properly installed
-3. Verify environment variables are correctly set
-4. Check that both frontend and backend servers are running
-
-## 🙏 Acknowledgments
-
-- Built with ❤️ by the BHABIT team
-- Special thanks to the cryptocurrency API providers
-- Inspired by the need for real-time market tracking
+2. Create a new branch
+   `git checkout -b feature/my-feature`
+3. Make your changes and commit
+   `git commit -m "Add my feature"`
+4. Push to your fork
+   `git push origin feature/my-feature`
+5. Submit a Pull Request for review
 
 ---
 
-**Made with 🐰 by Tom Petrie ** GUISAN DESIGN ** bhabit ** moonwalking
+## License
+
+This project is licensed under the MIT License.
+See the [LICENSE](LICENSE) file for full details.
+
+---
+
+## Troubleshooting and Support
+
+If you’re having issues:
+
+1. Check the GitHub Issues page
+2. Verify all dependencies are installed
+3. Confirm environment variables are correctly set
+4. Make sure both frontend and backend servers are running
+
+---
+
+## Acknowledgments
+
+* Created by Tom Petrie
+* Inspired by the need for real-time crypto visibility
+
+---
+
+**BHABIT — Profits Buy Impulse**
+**by Tom Petrie | GUISAN DESIGN**
+
+-
