@@ -4,11 +4,40 @@ import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
+  // Inject animation styles for pop/fade effects
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('gainers-1min-table-animations')) {
+      const style = document.createElement('style');
+      style.id = 'gainers-1min-table-animations';
+      style.innerHTML = `
+        @keyframes starPop {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.35); }
+          70% { transform: scale(0.92); }
+          100% { transform: scale(1); }
+        }
+        .animate-star-pop {
+          animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both;
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
+          10% { opacity: 1; transform: translateY(0) scale(1.05); }
+          80% { opacity: 1; transform: translateY(0) scale(1.05); }
+          100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
+        }
+        .animate-fade-in-out {
+          animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isExpanded, setIsExpanded] = useState(false); // New state for expansion
   const [watchlist, setWatchlist] = useState([]);
+  const [popStar, setPopStar] = useState(null); // symbol for pop animation
+  const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
   const getDotStyle = (badge) => {
     if (badge === 'STRONG HIGH') {
@@ -97,13 +126,18 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
   }, [refreshTrigger, setTopWatchlist]);
 
   const handleToggleWatchlist = async (symbol) => {
-    let updated;
-    if (watchlist.includes(symbol)) {
-      updated = await removeFromWatchlist(symbol);
+    if (!watchlist.includes(symbol)) {
+      setPopStar(symbol);
+      setAddedBadge(symbol);
+      setTimeout(() => setPopStar(null), 350);
+      setTimeout(() => setAddedBadge(null), 1200);
+      console.log('Adding to watchlist:', symbol);
+      const updated = await addToWatchlist(symbol);
+      console.log('Added to watchlist, new list:', updated);
+      setWatchlist(updated);
     } else {
-      updated = await addToWatchlist(symbol);
+      console.log('Symbol already in watchlist, not adding:', symbol);
     }
-    setWatchlist(updated);
   };
 
   if (loading && data.length === 0) {
@@ -130,53 +164,71 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
     );
   }
 
-  // Responsive, interactive, and consistent layout
+  // Determine if watchlist is present (from setTopWatchlist)
+  const isWatchlistVisible = watchlist && watchlist.length > 0;
+  // Show all rows if watchlist is hidden, else show top 3
+  const rowsToShow = isWatchlistVisible ? 3 : data.length;
+
   return (
-    <div className="flex flex-col space-y-2 sm:space-y-3 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch">
-      {data.slice(0, isExpanded ? data.length : 3).map((item, idx) => {
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch">
+      {data.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
+        const isPopping = popStar === item.symbol;
+        const showAdded = addedBadge === item.symbol;
         return (
           <React.Fragment key={item.symbol}>
-            <div className="relative group flex-1 min-h-[56px]">
+            <div className="relative group">
               <a
                 href={coinbaseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block group flex-1 h-full"
+                className="block group flex-1"
               >
                 <div
-                  className="flex flex-row items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-purple group-hover:text-shadow-purple group-hover:scale-[1.025] group-hover:shadow-2xl group-hover:z-10 h-full min-h-[56px]"
-                  style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.08)' }}
+                  className={
+                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:text-shadow-amber-500 ` +
+                    `group-hover:scale-[1.035] group-hover:z-10 ` +
+                    `will-change-transform`
+                  }
+                  style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}
                 >
-                  {/* Diamond inner glow effect (hover only) */}
+                  {/* Diamond inner glow effect (always visible, expands on hover) */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className="block w-[140%] h-[140%] rounded-xl opacity-0 group-hover:opacity-90 transition-opacity duration-1500"
+                      className={
+                        `block rounded-xl transition-all duration-500 ` +
+                        `opacity-0 group-hover:opacity-90 ` +
+                        `group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]`
+                      }
                       style={{
                         background:
-                          'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.16) 0%, rgba(129,9,150,0.08) 60%, transparent 100%)',
+                          'radial-gradient(circle at 50% 50%, rgba(255,193,7,0.16) 0%, rgba(255,193,7,0.08) 60%, transparent 100%)',
                         top: '-20%',
                         left: '-20%',
                         position: 'absolute',
                       }}
                     />
                   </span>
-                  <div className="flex items-center gap-4 w-[120px] min-w-[120px] text-left">
+                  <div className="flex items-center gap-4">
                     {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full text-blue font-bold text-sm hover:text-purple hover:text-shadow-light-purple border border-blue/40">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm hover:text-blue hover:text-shadow-light-blue">
                       {item.rank}
                     </div>
                     {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 text-left">
-                      <span className="font-bold text-white text-lg tracking-wide hover:text-purple hover:text-shadow-light-purple">
+                    <div className="flex-1 flex items-center gap-3 ml-4">
+                      <span className="font-bold text-white text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400">
                         {item.symbol}
                       </span>
+                      {showAdded && (
+                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex flex-row items-end gap-2 w-full sm:w-auto justify-end">
+
+                  <div className="flex items-center gap-2 ml-4">
                     {/* Price Column (current and previous price, teal, right-aligned) */}
-                    <div className="flex flex-col items-end min-w-[100px]">
+                    <div className="flex flex-col items-end min-w-[100px] ml-4">
                       <span className="text-lg font-bold text-teal">
                         {typeof item.price === 'number' && Number.isFinite(item.price)
                           ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
@@ -192,7 +244,7 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
                       </span>
                     </div>
                     {/* Change Percentage and Dot */}
-                    <div className="flex flex-col items-end min-w-[90px]">
+                    <div className="flex flex-col items-end">
                       <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
@@ -201,39 +253,28 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
                       </span>
                     </div>
                     <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                    <StarIcon
-                      filled={isInWatchlist}
-                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      className={isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                      style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer' }}
-                    />
+                    <span className="relative">
+                      <StarIcon
+                        filled={isInWatchlist}
+                        onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                        className={
+                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
+                          (isPopping ? ' animate-star-pop' : '')
+                        }
+                        style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer', transition: 'transform 0.2s' }}
+                      />
+                    </span>
                   </div>
                 </div>
               </a>
             </div>
             {/* Purple divider, not full width, only between cards */}
-            {idx < data.slice(0, isExpanded ? data.length : 3).length - 1 && (
+            {idx < rowsToShow - 1 && (
               <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(129,9,150,0.18) 0%,rgba(129,9,150,0.38) 50%,rgba(129,9,150,0.18) 100%)',borderRadius:'2px'}}></div>
             )}
           </React.Fragment>
         );
       })}
-      {data.length > 3 && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-1/3 py-2 text-blue font-bold rounded-xl bg-blue/10 hover:bg-blue/20 transition-colors duration-300 flex items-center justify-center gap-2 mx-auto"
-        >
-          {isExpanded ? (
-            <>
-              Show Less <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-            </>
-          ) : (
-            <>
-              Show More <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            </>
-          )}
-        </button>
-      )}
     </div>
   );
 };
