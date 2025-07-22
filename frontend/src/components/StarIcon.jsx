@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -7,15 +7,31 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Outlined purple star with gold/orange fill option
 export default function StarIcon({ filled, onClick, className = '' }) {
+  const svgRef = useRef(null);
+  // Animate scale on click
+  const handleClick = (e) => {
+    if (svgRef.current) {
+      svgRef.current.animate([
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.3)' },
+        { transform: 'scale(1)' }
+      ], {
+        duration: 250,
+        easing: 'cubic-bezier(.4,2,.6,1)'
+      });
+    }
+    if (onClick) onClick(e);
+  };
   return (
     <svg
-      onClick={onClick}
-      className={`w-6 h-6 cursor-pointer transition-all ${className}`}
+      ref={svgRef}
+      onClick={handleClick}
+      className={`w-4 h-4 cursor-pointer transition-all duration-200 hover:scale-125 active:scale-90 ${filled ? 'drop-shadow-[0_0_6px_#FEA400]' : ''} ${className}`}
       fill={filled ? 'url(#gold-gradient)' : 'none'}
       stroke="#a259ff" // purple border
       strokeWidth="2"
       viewBox="0 0 24 24"
-      style={{ filter: filled ? 'drop-shadow(0 0 4px #a259ff)' : undefined }}
+      style={{ filter: filled ? 'drop-shadow(0 0 4px #FEA400)' : undefined, transition: 'filter 0.2s' }}
     >
       <defs>
         <linearGradient id="gold-gradient" x1="0" y1="0" x2="0" y2="1">

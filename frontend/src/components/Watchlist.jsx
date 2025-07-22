@@ -38,24 +38,24 @@ const Watchlist = ({ onWatchlistChange }) => {
     }
   };
 
-  if (loading) return <div className="text-center text-gray-400">Loading Watchlist...</div>;
+  if (loading) return <div className="text-center text-gray-400 text-base sm:text-lg md:text-xl">Loading Watchlist...</div>;
 
   return (
-    <div className="w-full max-w-md p-4 bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg">
-      <h2 className="text-2xl font-bold text-white mb-4">My Watchlist</h2>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
+    <div className="space-y-3 w-full max-w-lg mx-auto px-2 sm:px-4 md:px-0">
+      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 text-center" style={{ color: '#FEA400', letterSpacing: '0.01em' }}>MY WATCHLIST</h2>
+      {error && <div className="text-red-500 mb-4 text-sm sm:text-base">{error}</div>}
       {watchlist.length > 0 ? (
-        <ul className="space-y-2">
+        <div className="flex flex-col gap-2">
           {watchlist.map((symbol) => (
-            <li key={symbol} className="flex justify-between items-center p-3 bg-gray-700/50 rounded-md">
-              <span className="font-mono text-lg text-white">{symbol}</span>
-              <button onClick={() => handleRemove(symbol)} className="text-red-500 hover:text-red-400 transition-colors">
-                <RiDeleteBinLine size={20} />
+            <div key={symbol} className="flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden bg-transparent border border-orange-200/30 hover:shadow-lg min-w-0">
+              <span className="font-mono text-base sm:text-lg md:text-xl text-white truncate">{symbol}</span>
+              <button onClick={() => handleRemove(symbol)} className="text-red-500 hover:text-red-400 transition-colors flex-shrink-0">
+                <RiDeleteBinLine size={18} />
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
-      ) : (<p className="text-gray-400">Add cryptocurrencies to your watchlist.</p>)}
+        </div>
+      ) : (<p className="text-gray-400 text-sm sm:text-base text-center">Add cryptocurrencies to your watchlist.</p>)}
     </div>
   );
 };

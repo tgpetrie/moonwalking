@@ -132,13 +132,7 @@ const LosersTable = ({ refreshTrigger }) => {
         const isInWatchlist = watchlist.includes(item.symbol);
         return (
           <React.Fragment key={item.symbol}>
-            <div className="flex items-center">
-              <StarIcon
-                filled={isInWatchlist}
-                onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                className={isInWatchlist ? 'hover:scale-110' : 'opacity-60 hover:opacity-100 hover:scale-110'}
-                style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer' }}
-              />
+            <div className="relative group">
               <a
                 href={coinbaseUrl}
                 target="_blank"
@@ -174,7 +168,7 @@ const LosersTable = ({ refreshTrigger }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-baseline gap-3">
+                  <div className="flex items-center gap-2 ml-4">
                     {/* Price Column (current and previous price, teal, right-aligned) */}
                     <div className="flex flex-col items-end min-w-[100px] ml-4">
                       <span className="text-lg font-bold text-teal">
@@ -192,19 +186,21 @@ const LosersTable = ({ refreshTrigger }) => {
                       </span>
                     </div>
                     {/* Change Percentage and Dot */}
-                    <div className="flex items-center gap-3 ml-4">
-                      <div className="flex flex-col items-end">
-                        <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
-                          <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                        </div>
-                        <span className="text-sm font-light text-gray-400">
-                          3min change
-                        </span>
+                    <div className="flex flex-col items-end">
+                      <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
+                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                      </div>
+                      <span className="text-sm font-light text-gray-400">
+                        3min change
+                      </span>
                     </div>
+                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
+                    <StarIcon
+                      filled={isInWatchlist}
+                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                      className={isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
+                      style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer' }}
+                    />
                   </div>
                 </div>
               </a>
