@@ -1,3 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
+
+// ...existing code...
+
 // API configuration for BHABIT CB4
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -27,3 +31,50 @@ export const fetchData = async (endpoint) => {
     throw error;
   }
 };
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --- Supabase Watchlist Functions ---
+// Assumes user authentication is handled and supabase.auth.getUser() returns the current user
+
+export async function getWatchlist() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from('watchlist')
+    .select('symbol')
+    .eq('user_id', user.id);
+  if (error) {
+    console.error('Supabase getWatchlist error:', error);
+    return [];
+  }
+  return data.map(row => row.symbol);
+}
+
+export async function addToWatchlist(symbol) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { error } = await supabase
+    .from('watchlist')
+    .insert([{ user_id: user.id, symbol }]);
+  if (error) {
+    console.error('Supabase addToWatchlist error:', error);
+  }
+  return getWatchlist();
+}
+
+export async function removeFromWatchlist(symbol) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { error } = await supabase
+    .from('watchlist')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('symbol', symbol);
+  if (error) {
+    console.error('Supabase removeFromWatchlist error:', error);
+  }
+  return getWatchlist();
+}

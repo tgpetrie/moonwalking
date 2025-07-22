@@ -5,6 +5,7 @@ import TopBannerScroll from './components/TopBannerScroll';
 import BottomBannerScroll from './components/BottomBannerScroll';
 import { FiRefreshCw } from 'react-icons/fi';
 import GainersTable1Min from './components/GainersTable1Min';
+import Watchlist from './components/Watchlist';
 
 // Live data polling interval (ms)
 const POLL_INTERVAL = 30000;
@@ -109,24 +110,32 @@ export default function App() {
         <div className="flex justify-center mb-8">
         </div>
         {/* Main Content - Side by Side Panels */}
-        {/* 1-Minute Gainers Table */}
+
+        {/* 1-Minute Gainers Table & Watchlist Side by Side */}
         <div className="mb-8">
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                1-MIN GAINERS
-              </h2>
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* 1-Minute Gainers Table */}
+            <div className="flex-1 p-6 bg-transparent">
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+                  1-MIN GAINERS
+                </h2>
+              </div>
+              {/* Line divider */}
+              <div className="flex justify-start mb-4">
+                <img
+                  src="/linediv.png"
+                  alt="Divider"
+                  className="w-48 h-auto"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
+              <GainersTable1Min />
             </div>
-            {/* Line divider */}
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
+            {/* Watchlist */}
+            <div className="flex-1 p-6 bg-transparent">
+              <Watchlist />
             </div>
-            <GainersTable1Min />
           </div>
         </div>
 
@@ -168,6 +177,26 @@ export default function App() {
               />
             </div>
             <LosersTable refreshTrigger={lastUpdate} />
+          </div>
+        </div>
+        {/* Watchlist Component */}
+        <div className="mb-8">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold text-green tracking-wide">
+                MY WATCHLIST
+              </h2>
+            </div>
+            {/* Line divider */}
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
+            </div>
+            <Watchlist />
           </div>
         </div>
         {/* Bottom Banner - 1H Volume */}
