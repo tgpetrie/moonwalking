@@ -28,9 +28,4 @@ def remove_from_watchlist(symbol):
         watchlist_db.remove(symbol)
         return jsonify({'message': f'{symbol} removed from watchlist', 'watchlist': list(watchlist_db)}), 200
     else:
-        return jsonify({'error': f'{symbol} not in watchlist'}), 404# In backend/app.py, add these lines:
-        
-        from watchlist import watchlist_bp
-        
-        # ... after you create the 'app' object
-        app.register_blueprint(watchlist_bp)
+        return jsonify({'error': f'{symbol} not in watchlist'}), 404
