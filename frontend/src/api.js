@@ -40,12 +40,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Assumes user authentication is handled and supabase.auth.getUser() returns the current user
 
 export async function getWatchlist() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('[DEBUG] getWatchlist: user', user, 'userError', userError);
+  if (!user) {
+    console.warn('[DEBUG] getWatchlist: No user found');
+    return [];
+  }
   const { data, error } = await supabase
     .from('watchlist')
     .select('symbol')
     .eq('user_id', user.id);
+  console.log('[DEBUG] getWatchlist: query result', data, 'error', error);
   if (error) {
     console.error('Supabase getWatchlist error:', error);
     return [];
@@ -54,13 +59,19 @@ export async function getWatchlist() {
 }
 
 export async function addToWatchlist(symbol) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('[DEBUG] addToWatchlist: user', user, 'userError', userError, 'symbol', symbol);
+  if (!user) {
+    console.warn('[DEBUG] addToWatchlist: No user found');
+    return [];
+  }
   const { error } = await supabase
     .from('watchlist')
     .insert([{ user_id: user.id, symbol }]);
   if (error) {
     console.error('Supabase addToWatchlist error:', error);
+  } else {
+    console.log('[DEBUG] addToWatchlist: Inserted', { user_id: user.id, symbol });
   }
   return getWatchlist();
 }
