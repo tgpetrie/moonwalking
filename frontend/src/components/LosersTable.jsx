@@ -126,7 +126,7 @@ const LosersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col space-y-2 sm:space-y-3 w-full h-full min-h-[420px] max-w-2xl mx-auto px-1 sm:px-3 md:px-0 align-stretch">
       {data.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);

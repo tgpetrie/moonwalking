@@ -11,13 +11,17 @@ import threading
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
-from datetime import datetime, timedelt# In backend/app.py, add these lines:
+from datetime import datetime, timedelta
 
 from watchlist import watchlist_bp
 
-# ... after you create the 'app' object
+# Flask App Setup
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
+
+# Register blueprints
 app.register_blueprint(watchlist_bp)
-a
+
 from config import CONFIG
 from logging_config import setup_logging
 from logging_config import log_config as log_config_with_param
