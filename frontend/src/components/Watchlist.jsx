@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api';
 import { RiDeleteBinLine } from 'react-icons/ri';
 
-const Watchlist = ({ onWatchlistChange }) => {
-  const [watchlist, setWatchlist] = useState([]);
+const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
+  // If topWatchlist is provided, use it as the source of truth
+  const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,9 +22,16 @@ const Watchlist = ({ onWatchlistChange }) => {
     }
   };
 
+  // If topWatchlist is provided, always sync local state to it
   useEffect(() => {
-    fetchWatchlist();
-  }, []);
+    if (typeof topWatchlist !== 'undefined') {
+      setWatchlist(topWatchlist);
+      setLoading(false);
+    } else {
+      fetchWatchlist();
+    }
+    // eslint-disable-next-line
+  }, [topWatchlist]);
 
   const handleRemove = async (symbol) => {
     try {

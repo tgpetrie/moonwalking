@@ -3,7 +3,8 @@ import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatch
 import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
-const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
+// Accept onWatchlistChange and topWatchlist for proper state sync
+const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) => {
   // Inject animation styles for pop/fade effects
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('gainers-1min-table-animations')) {
@@ -35,7 +36,8 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
+  // Only use local watchlist for UI feedback, but display logic uses topWatchlist from parent
+  const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
@@ -116,14 +118,20 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
     return () => { isMounted = false; clearInterval(interval); };
   }, [refreshTrigger]);
 
+  // Always sync local watchlist to topWatchlist if provided
   useEffect(() => {
-    async function fetchWatchlist() {
-      const data = await getWatchlist();
-      setWatchlist(data);
-      if (setTopWatchlist) setTopWatchlist(data);
+    if (typeof topWatchlist !== 'undefined') {
+      setWatchlist(topWatchlist);
+    } else {
+      async function fetchWatchlist() {
+        const data = await getWatchlist();
+        setWatchlist(data);
+        if (onWatchlistChange) onWatchlistChange(data);
+      }
+      fetchWatchlist();
     }
-    fetchWatchlist();
-  }, [refreshTrigger, setTopWatchlist]);
+    // eslint-disable-next-line
+  }, [refreshTrigger, topWatchlist]);
 
   const handleToggleWatchlist = async (symbol) => {
     if (!watchlist.includes(symbol)) {
@@ -135,6 +143,7 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
       const updated = await addToWatchlist(symbol);
       console.log('Added to watchlist, new list:', updated);
       setWatchlist(updated);
+      if (onWatchlistChange) onWatchlistChange(updated);
     } else {
       console.log('Symbol already in watchlist, not adding:', symbol);
     }
@@ -164,8 +173,8 @@ const GainersTable1Min = ({ refreshTrigger, setTopWatchlist }) => {
     );
   }
 
-  // Determine if watchlist is present (from setTopWatchlist)
-  const isWatchlistVisible = watchlist && watchlist.length > 0;
+  // Determine if watchlist is present (from topWatchlist)
+  const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
   // Show all rows if watchlist is hidden, else show top 3
   const rowsToShow = isWatchlistVisible ? 3 : data.length;
 

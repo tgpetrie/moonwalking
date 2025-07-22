@@ -4,10 +4,40 @@ import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const LosersTable = ({ refreshTrigger }) => {
+  // Inject animation styles for pop/fade effects
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('losers-table-animations')) {
+      const style = document.createElement('style');
+      style.id = 'losers-table-animations';
+      style.innerHTML = `
+        @keyframes starPop {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.35); }
+          70% { transform: scale(0.92); }
+          100% { transform: scale(1); }
+        }
+        .animate-star-pop {
+          animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both;
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
+          10% { opacity: 1; transform: translateY(0) scale(1.05); }
+          80% { opacity: 1; transform: translateY(0) scale(1.05); }
+          100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
+        }
+        .animate-fade-in-out {
+          animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
+  const [popStar, setPopStar] = useState(null); // symbol for pop animation
+  const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
   const getDotStyle = (badge) => {
     if (badge === 'STRONG HIGH') {
@@ -92,13 +122,18 @@ const LosersTable = ({ refreshTrigger }) => {
   }, [refreshTrigger]);
 
   const handleToggleWatchlist = async (symbol) => {
-    let updated;
-    if (watchlist.includes(symbol)) {
-      updated = await removeFromWatchlist(symbol);
+    if (!watchlist.includes(symbol)) {
+      setPopStar(symbol);
+      setAddedBadge(symbol);
+      setTimeout(() => setPopStar(null), 350);
+      setTimeout(() => setAddedBadge(null), 1200);
+      console.log('Adding to watchlist:', symbol);
+      const updated = await addToWatchlist(symbol);
+      console.log('Added to watchlist, new list:', updated);
+      setWatchlist(updated);
     } else {
-      updated = await addToWatchlist(symbol);
+      console.log('Symbol already in watchlist, not adding:', symbol);
     }
-    setWatchlist(updated);
   };
 
   if (loading && data.length === 0) {
@@ -126,10 +161,12 @@ const LosersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="flex flex-col space-y-2 sm:space-y-3 w-full h-full min-h-[420px] max-w-2xl mx-auto px-1 sm:px-3 md:px-0 align-stretch">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] max-w-2xl mx-auto px-1 sm:px-3 md:px-0 align-stretch">
       {data.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
+        const isPopping = popStar === item.symbol;
+        const showAdded = addedBadge === item.symbol;
         return (
           <React.Fragment key={item.symbol}>
             <div className="relative group">
@@ -140,12 +177,21 @@ const LosersTable = ({ refreshTrigger }) => {
                 className="block group flex-1"
               >
                 <div
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-pink group-hover:text-shadow-pink"
+                  className={
+                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-pink group-hover:text-shadow-pink ` +
+                    `group-hover:scale-[1.035] group-hover:z-10 ` +
+                    `will-change-transform`
+                  }
+                  style={{ boxShadow: '0 2px 16px 0 rgba(255,0,128,0.08)' }}
                 >
-                  {/* Diamond inner glow effect (always visible) */}
+                  {/* Diamond inner glow effect (always visible, expands on hover) */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className="block w-[140%] h-[140%] rounded-xl opacity-0 group-hover:opacity-90 transition-opacity duration-1500"
+                      className={
+                        `block rounded-xl transition-all duration-500 ` +
+                        `opacity-0 group-hover:opacity-90 ` +
+                        `group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]`
+                      }
                       style={{
                         background:
                           'radial-gradient(circle at 50% 50%, rgba(255,0,128,0.16) 0%, rgba(255,0,128,0.08) 60%, transparent 100%)',
@@ -165,6 +211,9 @@ const LosersTable = ({ refreshTrigger }) => {
                       <span className="font-bold text-white text-lg tracking-wide hover:text-pink hover:text-shadow-light-pink">
                         {item.symbol}
                       </span>
+                      {showAdded && (
+                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                      )}
                     </div>
                   </div>
 
@@ -187,7 +236,7 @@ const LosersTable = ({ refreshTrigger }) => {
                     </div>
                     {/* Change Percentage and Dot */}
                     <div className="flex flex-col items-end">
-                      <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
+                      <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
                       <span className="text-sm font-light text-gray-400">
@@ -195,12 +244,17 @@ const LosersTable = ({ refreshTrigger }) => {
                       </span>
                     </div>
                     <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                    <StarIcon
-                      filled={isInWatchlist}
-                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      className={isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                      style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer' }}
-                    />
+                    <span className="relative">
+                      <StarIcon
+                        filled={isInWatchlist}
+                        onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                        className={
+                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
+                          (isPopping ? ' animate-star-pop' : '')
+                        }
+                        style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer', transition: 'transform 0.2s' }}
+                      />
+                    </span>
                   </div>
                 </div>
               </a>
@@ -213,6 +267,9 @@ const LosersTable = ({ refreshTrigger }) => {
         );
       })}
     </div>
+// Inject animation styles for pop/fade effects
+
+
   );
 }
 

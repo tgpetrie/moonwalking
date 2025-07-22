@@ -1,4 +1,7 @@
+import './env-debug.js';
 import React, { useEffect, useState } from 'react';
+import { supabase } from './api';
+import AuthPanel from './components/AuthPanel';
 import GainersTable from './components/GainersTable';
 import LosersTable from './components/LosersTable';
 import TopBannerScroll from './components/TopBannerScroll';
@@ -15,8 +18,72 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
-  // New: topWatchlist state for top-right quickview
   const [topWatchlist, setTopWatchlist] = useState([]);
+  const [user, setUser] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Handle Supabase magic link callback (exchange code for session) and block auth check until done
+  useEffect(() => {
+    let didExchange = false;
+    const url = window.location.href;
+    const hasMagicLink = url.includes('type=') && url.includes('code=');
+    async function handleMagicLink() {
+      if (hasMagicLink) {
+        try {
+          console.log('[DEBUG] Detected magic link in URL, calling supabase.auth.exchangeCodeForSession...');
+          const { error } = await supabase.auth.exchangeCodeForSession();
+          if (error) {
+            console.error('[DEBUG] exchangeCodeForSession error:', error);
+          } else {
+            // Remove magic link params from URL (replaceState)
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            console.log('[DEBUG] Magic link session established, URL cleaned.');
+          }
+        } catch (err) {
+          console.error('[DEBUG] Exception in exchangeCodeForSession:', err);
+        }
+      }
+      didExchange = true;
+      setMagicLinkHandled(true);
+    }
+    handleMagicLink();
+  }, []);
+
+  // Block auth check until magic link is handled
+  const [magicLinkHandled, setMagicLinkHandled] = useState(false);
+
+  // Handler to sync watchlist state from children
+  const handleWatchlistChange = (list) => {
+    setTopWatchlist(list || []);
+  };
+
+  // Check auth on mount and on auth state change
+  useEffect(() => {
+    if (!magicLinkHandled) return;
+    let mounted = true;
+    console.log('[DEBUG] Supabase URL:', supabase?.supabaseUrl);
+    console.log('[DEBUG] Supabase Anon Key:', supabase?.supabaseKey ? '[REDACTED]' : 'undefined');
+    const getUser = async () => {
+      setCheckingAuth(true);
+      try {
+        console.log('[DEBUG] Calling supabase.auth.getUser()...');
+        const { data, error } = await supabase.auth.getUser();
+        console.log('[DEBUG] supabase.auth.getUser() result:', data, error);
+        if (mounted) setUser(data?.user || null);
+      } catch (err) {
+        console.error('[DEBUG] Error in supabase.auth.getUser:', err);
+        if (mounted) setUser(null);
+      }
+      setCheckingAuth(false);
+    };
+    getUser();
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[DEBUG] onAuthStateChange event:', event, session);
+      setUser(session?.user || null);
+    });
+    return () => { mounted = false; listener?.subscription?.unsubscribe?.(); };
+  }, [magicLinkHandled]);
 
   // Poll backend connection and update countdown
   useEffect(() => {
@@ -50,6 +117,17 @@ export default function App() {
     setCountdown(POLL_INTERVAL / 1000);
   };
 
+  if (checkingAuth) {
+    // If we are checking auth, but user is already null, show AuthPanel
+    if (!user) {
+      return <AuthPanel onAuth={() => window.location.reload()} />;
+    }
+    return <div className="min-h-screen flex items-center justify-center bg-dark text-white text-xl">Checking authentication...</div>;
+  }
+  if (!user) {
+    return <AuthPanel onAuth={() => window.location.reload()} />;
+  }
+
   return (
     <div className="min-h-screen bg-dark text-white relative">
       {/* Background Purple Rabbit */}
@@ -78,7 +156,7 @@ export default function App() {
         {/* Top-right Watchlist Quickview (conditional) */}
         {topWatchlist.length > 0 && (
           <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2">
-            <Watchlist quickview topWatchlist={topWatchlist} setTopWatchlist={setTopWatchlist} />
+            <Watchlist quickview topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
           </div>
         )}
       </div>
@@ -138,12 +216,12 @@ export default function App() {
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-              <GainersTable1Min setTopWatchlist={setTopWatchlist} />
+              <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} />
             </div>
             {/* Watchlist (hide if empty) */}
             {topWatchlist.length > 0 && (
               <div className="flex-1 p-6 bg-transparent">
-                <Watchlist setTopWatchlist={setTopWatchlist} />
+                <Watchlist onWatchlistChange={handleWatchlistChange} />
               </div>
             )}
           </div>
