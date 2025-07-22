@@ -15,6 +15,8 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
+  // New: topWatchlist state for top-right quickview
+  const [topWatchlist, setTopWatchlist] = useState([]);
 
   // Poll backend connection and update countdown
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function App() {
       </div>
 
       {/* Countdown & Refresh stays in top-right */}
-      <div className="fixed top-6 right-4 z-50 flex items-center gap-4">
+      <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">
         <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
           <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></span>
           <span className="font-bold">{String(countdown).padStart(2, '0')}</span>
@@ -73,6 +75,12 @@ export default function App() {
         >
           <FiRefreshCw className="text-xl text-purple-500" />
         </button>
+        {/* Top-right Watchlist Quickview (conditional) */}
+        {topWatchlist.length > 0 && (
+          <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2">
+            <Watchlist quickview topWatchlist={topWatchlist} setTopWatchlist={setTopWatchlist} />
+          </div>
+        )}
       </div>
 
       {/* Timestamp only at top-left */}
@@ -115,7 +123,7 @@ export default function App() {
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row gap-8">
             {/* 1-Minute Gainers Table */}
-            <div className="flex-1 p-6 bg-transparent">
+            <div className={`p-6 bg-transparent ${topWatchlist.length === 0 ? 'w-full' : 'flex-1'}`}>
               <div className="flex items-center gap-3 mb-6">
                 <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
                   1-MIN GAINERS
@@ -130,12 +138,14 @@ export default function App() {
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-              <GainersTable1Min />
+              <GainersTable1Min setTopWatchlist={setTopWatchlist} />
             </div>
-            {/* Watchlist */}
-            <div className="flex-1 p-6 bg-transparent">
-              <Watchlist />
-            </div>
+            {/* Watchlist (hide if empty) */}
+            {topWatchlist.length > 0 && (
+              <div className="flex-1 p-6 bg-transparent">
+                <Watchlist setTopWatchlist={setTopWatchlist} />
+              </div>
+            )}
           </div>
         </div>
 
