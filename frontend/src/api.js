@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+
 
 // ...existing code...
 
@@ -32,60 +32,43 @@ export const fetchData = async (endpoint) => {
   }
 };
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- Supabase Watchlist Functions ---
-// Assumes user authentication is handled and supabase.auth.getUser() returns the current user
+// --- Local Storage Watchlist Functions ---
+const WATCHLIST_KEY = 'crypto_watchlist';
 
 export async function getWatchlist() {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log('[DEBUG] getWatchlist: user', user, 'userError', userError);
-  if (!user) {
-    console.warn('[DEBUG] getWatchlist: No user found');
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('LocalStorage getWatchlist error:', e);
     return [];
   }
-  const { data, error } = await supabase
-    .from('watchlist')
-    .select('symbol')
-    .eq('user_id', user.id);
-  console.log('[DEBUG] getWatchlist: query result', data, 'error', error);
-  if (error) {
-    console.error('Supabase getWatchlist error:', error);
-    return [];
-  }
-  return data.map(row => row.symbol);
 }
 
 export async function addToWatchlist(symbol) {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log('[DEBUG] addToWatchlist: user', user, 'userError', userError, 'symbol', symbol);
-  if (!user) {
-    console.warn('[DEBUG] addToWatchlist: No user found');
-    return [];
+  try {
+    let list = await getWatchlist();
+    if (!list.includes(symbol)) {
+      list.push(symbol);
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+    }
+    return list;
+  } catch (e) {
+    console.error('LocalStorage addToWatchlist error:', e);
+    return await getWatchlist();
   }
-  const { error } = await supabase
-    .from('watchlist')
-    .insert([{ user_id: user.id, symbol }]);
-  if (error) {
-    console.error('Supabase addToWatchlist error:', error);
-  } else {
-    console.log('[DEBUG] addToWatchlist: Inserted', { user_id: user.id, symbol });
-  }
-  return getWatchlist();
 }
 
 export async function removeFromWatchlist(symbol) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-  const { error } = await supabase
-    .from('watchlist')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('symbol', symbol);
-  if (error) {
-    console.error('Supabase removeFromWatchlist error:', error);
+  try {
+    let list = await getWatchlist();
+    list = list.filter(s => s !== symbol);
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+    return list;
+  } catch (e) {
+    console.error('LocalStorage removeFromWatchlist error:', e);
+    return await getWatchlist();
   }
-  return getWatchlist();
 }
