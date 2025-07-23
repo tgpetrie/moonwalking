@@ -202,20 +202,7 @@ export default function App() {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* 1-Minute Gainers Table */}
             <div className={`p-6 bg-transparent ${topWatchlist.length === 0 ? 'w-full' : 'flex-1'}`}>
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                  1-MIN GAINERS
-                </h2>
-              </div>
-              {/* Line divider */}
-              <div className="flex justify-start mb-4">
-                <img
-                  src="/linediv.png"
-                  alt="Divider"
-                  className="w-48 h-auto"
-                  style={{ maxWidth: '100%' }}
-                />
-              </div>
+            {/* Grouped: search input and watchlist rows, no header or divider */}
               <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} />
             </div>
             {/* Watchlist (hide if empty) */}
@@ -236,7 +223,7 @@ export default function App() {
                 3-MIN GAINERS
               </h2>
             </div>
-            {/* Line divider */}
+            {/* Line divider directly under 3-MIN GAINERS header */}
             <div className="flex justify-start mb-4">
               <img
                 src="/linediv.png"
@@ -270,11 +257,7 @@ export default function App() {
         {/* Watchlist Component */}
         <div className="mb-8">
           <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-green tracking-wide">
-                MY WATCHLIST
-              </h2>
-            </div>
+            {/* Removed MY WATCHLIST header as requested */}
             {/* Line divider */}
             <div className="flex justify-start mb-4">
               <img
