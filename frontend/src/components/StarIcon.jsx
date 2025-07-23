@@ -1,9 +1,5 @@
-import React, { useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import React, { useRef } from 'react';
 
 // Outlined purple star with gold/orange fill option
 export default function StarIcon({ filled, onClick, className = '' }) {
