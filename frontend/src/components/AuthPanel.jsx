@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { supabase } from '../api';
 
 export default function AuthPanel({ onAuth }) {
   const [email, setEmail] = useState('');
@@ -10,13 +9,12 @@ export default function AuthPanel({ onAuth }) {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage('Check your email for the magic link!');
+    // Placeholder: No authentication, just simulate success
+    setTimeout(() => {
+      setMessage('Local mode: No authentication. Watchlist is saved only in your browser.');
       if (onAuth) onAuth();
-    }
+      setLoading(false);
+    }, 500);
     setLoading(false);
   };
 
