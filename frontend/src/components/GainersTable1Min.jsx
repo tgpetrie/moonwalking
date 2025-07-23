@@ -4,6 +4,8 @@ import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 // Accept onWatchlistChange and topWatchlist for proper state sync
+import PropTypes from 'prop-types';
+
 const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) => {
   // Inject animation styles for pop/fade effects
   useEffect(() => {
@@ -29,6 +31,14 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
         .animate-fade-in-out {
           animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
         }
+        @keyframes breatheCard {
+          0% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
+          50% { transform: scale(1.005); box-shadow: 0 2px 10px 0 rgba(0,176,255,0.08); }
+          100% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
+        }
+        .animate-breathe-card {
+          animation: breatheCard 5s cubic-bezier(.4,1.6,.6,1) infinite;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -40,6 +50,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
+  const [showAll, setShowAll] = useState(false); // expand/collapse for gainers list
 
   const getDotStyle = (badge) => {
     if (badge === 'STRONG HIGH') {
@@ -52,10 +63,8 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   };
 
   const getBadgeText = (change) => {
-    const absChange = Math.abs(change);
-    if (absChange >= 5) return 'STRONG HIGH';
-    if (absChange >= 2) return 'STRONG';
-    return 'MODERATE';
+    // Badge logic not needed for 1-min table (matching 3-min table format)
+    return null;
   };
 
   useEffect(() => {
@@ -64,28 +73,29 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
       try {
         const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const gainersWithRanks = response.data.map((item, index) => ({
-            rank: item.rank || (index + 1),
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_percentage_1min || 0, // Use 1min change
-            badge: getBadgeText(Math.abs(item.price_change_percentage_1min || 0))
-          }));
-          console.log("Raw API Response Data:", response.data); // Log raw data
-
+          // Sort by 1-min change descending, take top 10
+          const sorted = response.data
+            .sort((a, b) => (b.price_change_percentage_1min || 0) - (a.price_change_percentage_1min || 0))
+            .slice(0, 10)
+            .map((item, index) => ({
+              rank: item.rank || (index + 1),
+              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              price: item.current_price || 0,
+              change: item.price_change_percentage_1min || 0
+            }));
           if (isMounted) {
-            setData(gainersWithRanks.slice(0, 7)); // Set processed data
+            setData(sorted);
           }
         } else if (isMounted && data.length === 0) {
-          // Fallback data showing some crypto with positive/high gains
+          // Fallback data, top 7 only
           setData([
-            { rank: 1, symbol: 'BTC', price: 65000, change: 5.23, badge: 'STRONG HIGH' },
-            { rank: 2, symbol: 'ETH', price: 3500, change: 3.15, badge: 'STRONG' },
-            { rank: 3, symbol: 'ADA', price: 0.45, change: 1.89, badge: 'MODERATE' },
-            { rank: 4, symbol: 'SOL', price: 150, change: 2.50, badge: 'STRONG' },
-            { rank: 5, symbol: 'XRP', price: 0.52, change: 0.98, badge: 'MODERATE' },
-            { rank: 6, symbol: 'DOGE', price: 0.15, change: 1.20, badge: 'MODERATE' },
-            { rank: 7, symbol: 'LTC', price: 70, change: 0.75, badge: 'MODERATE' }
+            { rank: 1, symbol: 'BTC', price: 65000, change: 5.23 },
+            { rank: 2, symbol: 'ETH', price: 3500, change: 3.15 },
+            { rank: 3, symbol: 'ADA', price: 0.45, change: 1.89 },
+            { rank: 4, symbol: 'SOL', price: 150, change: 2.50 },
+            { rank: 5, symbol: 'XRP', price: 0.52, change: 0.98 },
+            { rank: 6, symbol: 'DOGE', price: 0.15, change: 1.20 },
+            { rank: 7, symbol: 'LTC', price: 70, change: 0.75 }
           ]);
         }
         if (isMounted) setLoading(false);
@@ -103,18 +113,18 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
             { rank: 5, symbol: 'XRP-USD', current_price: 0.52, price_change_percentage_1min: 0.98 },
             { rank: 6, symbol: 'DOGE-USD', current_price: 0.15, price_change_percentage_1min: 1.20 },
             { rank: 7, symbol: 'LTC-USD', current_price: 70, price_change_percentage_1min: 0.75 }
-          ].map(item => ({
-            ...item,
+          ].map((item, index) => ({
+            rank: item.rank || (index + 1),
+            symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price,
-            change: item.price_change_percentage_1min,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_1min))
+            change: item.price_change_percentage_1min
           }));
           setData(fallbackData);
         }
       }
     };
     fetchGainersData();
-    const interval = setInterval(fetchGainersData, 30000); // Revert to 30 seconds
+    const interval = setInterval(fetchGainersData, 30000);
     return () => { isMounted = false; clearInterval(interval); };
   }, [refreshTrigger]);
 
@@ -175,11 +185,11 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
 
   // Determine if watchlist is present (from topWatchlist)
   const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
-  // Show all rows if watchlist is hidden, else show top 3
-  const rowsToShow = isWatchlistVisible ? 3 : data.length;
+  // Show only top 4 gainers by default, expand/collapse for up to 10
+  const rowsToShow = showAll ? data.length : Math.min(4, data.length);
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[320px] max-w-full md:max-w-2xl mx-auto px-1 sm:px-2 md:px-4 align-stretch">
       {data.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
@@ -187,46 +197,40 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
         const showAdded = addedBadge === item.symbol;
         return (
           <React.Fragment key={item.symbol}>
-            <div className="relative group">
+            <div className="relative group w-full">
               <a
                 href={coinbaseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block group flex-1"
+                className="block group flex-1 w-full"
               >
                 <div
                   className={
-                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:text-shadow-amber-500 ` +
+                    `flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:text-shadow-amber-500 ` +
                     `group-hover:scale-[1.035] group-hover:z-10 ` +
                     `will-change-transform`
                   }
                   style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}
                 >
-                  {/* Diamond inner glow effect (always visible, expands on hover) */}
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className={
-                        `block rounded-xl transition-all duration-500 ` +
-                        `opacity-0 group-hover:opacity-90 ` +
-                        `group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]`
-                      }
-                      style={{
-                        background:
-                          'radial-gradient(circle at 50% 50%, rgba(255,193,7,0.16) 0%, rgba(255,193,7,0.08) 60%, transparent 100%)',
-                        top: '-20%',
-                        left: '-20%',
-                        position: 'absolute',
-                      }}
-                    />
-                  </span>
-                  <div className="flex items-center gap-4">
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+  <span
+    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]"
+    style={{
+      background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(222,52,157,0.12) 45%, transparent 100%)',
+      top: '-20%',
+      left: '-20%',
+      position: 'absolute',
+    }}
+  />
+</span>
+                  <div className="flex flex-row items-center gap-2 sm:gap-4 w-full">
                     {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm hover:text-blue hover:text-shadow-light-blue">
+                    <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue/40 text-blue font-bold text-xs sm:text-sm hover:text-blue hover:text-shadow-light-blue">
                       {item.rank}
                     </div>
                     {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400">
+                    <div className="flex-1 flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4 min-w-0">
+                      <span className="font-bold text-white text-base sm:text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400 truncate">
                         {item.symbol}
                       </span>
                       {showAdded && (
@@ -235,15 +239,15 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
                     {/* Price Column (current and previous price, teal, right-aligned) */}
-                    <div className="flex flex-col items-end min-w-[100px] ml-4">
-                      <span className="text-lg font-bold text-teal">
+                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                         {typeof item.price === 'number' && Number.isFinite(item.price)
                           ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
                           : 'N/A'}
                       </span>
-                      <span className="text-sm font-light text-gray-400">
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
                         {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
                           ? (() => {
                                const prevPrice = item.price / (1 + item.change / 100);
@@ -253,25 +257,39 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
                       </span>
                     </div>
                     {/* Change Percentage and Dot */}
-                    <div className="flex flex-col items-end">
-                      <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
+                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
+                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
-                      <span className="text-sm font-light text-gray-400">
-                        1min change
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
+                        1-Min
                       </span>
                     </div>
-                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
                     <span className="relative">
-                      <StarIcon
-                        filled={isInWatchlist}
+                      <span
                         onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                        className={
-                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                          (isPopping ? ' animate-star-pop' : '')
-                        }
-                        style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer', transition: 'transform 0.2s' }}
-                      />
+                        style={{ display: 'inline-block', minWidth: '24px', minHeight: '24px' }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                        aria-pressed={isInWatchlist}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleWatchlist(item.symbol);
+                          }
+                        }}
+                      >
+                        <StarIcon
+                          filled={isInWatchlist}
+                          className={
+                            (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
+                            (isPopping ? ' animate-star-pop' : '')
+                          }
+                          style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', cursor: 'pointer', transition: 'transform 0.2s' }}
+                          aria-hidden="true"
+                        />
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -284,8 +302,25 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
           </React.Fragment>
         );
       })}
+      {/* Show More/Show Less button if more than 4 gainers */}
+      {Array.isArray(data) && data.length > 4 && (
+        <div className="flex justify-center mt-2">
+          <button
+            className="px-4 py-2 rounded bg-blue-500 text-white font-bold shadow hover:bg-blue-600 transition-colors"
+            onClick={() => setShowAll(s => !s)}
+          >
+            {showAll ? 'Show Less' : 'Show More'}
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+GainersTable1Min.propTypes = {
+  refreshTrigger: PropTypes.any,
+  onWatchlistChange: PropTypes.func,
+  topWatchlist: PropTypes.array
 };
 
 export default GainersTable1Min;

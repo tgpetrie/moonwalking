@@ -48,8 +48,8 @@ const ContinuousScrollingBanner = ({ data }) => {
       <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/5 via-transparent to-black/20 rounded-3xl"></div>
       <div className="relative px-6 py-4">
         <div className="flex items-center gap-3">
-          <span className="text-xl">🔥</span>
-          <h3 className="text-base font-bold tracking-wide uppercase text-gray-200/90">
+          <span className="text-3xl md:text-4xl">🔥</span>
+          <h3 className="text-2xl md:text-4xl font-extrabold tracking-wide uppercase text-gray-200/90">
             1H Volume Change • Live Market Feed
           </h3>
         </div>
@@ -66,19 +66,19 @@ const ContinuousScrollingBanner = ({ data }) => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
                 >
-                  <div className="text-sm font-bold tracking-wide text-gray-300/90">
+                  <div className="text-2xl font-extrabold tracking-wide text-gray-300/90">
                     {coin.symbol}
                   </div>
-                  <div className="font-mono text-sm text-gray-100/95">
+                  <div className="font-mono text-2xl text-gray-100/95">
                     {formatCurrency(coin.current_price)}
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-bold ${
+                  <div className={`flex items-center gap-2 text-2xl font-extrabold ${
                     (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
                   }`}>
                     <span>{(coin.volume_change_1h || 0) >= 0 ? '🚀' : '📉'}</span>
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-base text-gray-400">
                     Vol: {formatCurrency(coin.volume_24h || 0)}
                   </div>
                 </a>

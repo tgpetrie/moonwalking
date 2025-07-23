@@ -207,15 +207,15 @@ const GainersTable = ({ refreshTrigger }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
                     {/* Price Column (current and previous price, teal, right-aligned) */}
-                    <div className="flex flex-col items-end min-w-[100px] ml-4">
-                      <span className="text-lg font-bold text-teal">
+                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                         {typeof item.price === 'number' && Number.isFinite(item.price)
                           ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
                           : 'N/A'}
                       </span>
-                      <span className="text-sm font-light text-gray-400">
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
                         {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
                           ? (() => {
                                const prevPrice = item.price / (1 + item.change / 100);
@@ -225,25 +225,40 @@ const GainersTable = ({ refreshTrigger }) => {
                       </span>
                     </div>
                     {/* Change Percentage and Dot */}
-                    <div className="flex flex-col items-end">
-                      <div className={`flex items-center gap-1 font-bold text-lg ${item.change > 0 ? 'text-blue' : 'text-pink'}`}>
+                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
+                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
-                      <span className="text-sm font-light text-gray-400">
-                        3min change
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
+                        3-Min
                       </span>
                     </div>
                     <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
                     <span className="relative">
-                      <StarIcon
-                        filled={isInWatchlist}
+                      <span
                         onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                        className={
-                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                          (isPopping ? ' animate-star-pop' : '')
-                        }
-                        style={{ minWidth: '20px', minHeight: '20px', cursor: 'pointer', transition: 'transform 0.2s' }}
-                      />
+                        style={{ display: 'inline-block', minWidth: '24px', minHeight: '24px' }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                        aria-pressed={isInWatchlist}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleWatchlist(item.symbol);
+                          }
+                        }}
+                      >
+                        <StarIcon
+                          filled={isInWatchlist}
+                          className={
+                            (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
+                            (isPopping ? ' animate-star-pop' : '')
+                          }
+                          style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', cursor: 'pointer', transition: 'transform 0.2s' }}
+                          aria-hidden="true"
+                        />
+                      </span>
                     </span>
                   </div>
                 </div>
