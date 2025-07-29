@@ -19,7 +19,7 @@ export default function AuthPanel({ onAuth }) {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-black/70 rounded-xl shadow-lg border border-purple-900 mt-8">
+    <div className="max-w-md mx-auto p-6 bg-black/70 rounded-xl border border-purple-900 mt-8">
       <h2 className="text-xl font-bold mb-4 text-center text-blue">Sign In to Save Your Watchlist</h2>
       <form onSubmit={handleSignIn} className="flex flex-col gap-4">
         <input

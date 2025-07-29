@@ -52,14 +52,12 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
   const [showAll, setShowAll] = useState(false); // expand/collapse for gainers list
 
-  const getDotStyle = (badge) => {
-    if (badge === 'STRONG HIGH') {
-      return 'bg-green-400 shadow-lg shadow-green-400/50';
-    } else if (badge === 'STRONG') {
-      return 'bg-blue-400 shadow-lg shadow-blue-400/50';
-    } else {
-      return 'bg-teal-400 shadow-lg shadow-teal-400/50';
-    }
+  // Return a purple dot style for strong signals only, else empty
+  const getDotStyle = (change) => {
+    const absChange = Math.abs(change);
+    if (absChange >= 5) return 'bg-green-400'; // Strong high (buy)
+    if (absChange >= 2) return 'bg-blue-400'; // Strong (buy)
+    return '';
   };
 
   const getBadgeText = (change) => {
@@ -199,15 +197,15 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
           <React.Fragment key={item.symbol}>
             <div className="relative group">
               <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
-                <div className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10" style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}>
+                <div className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10" style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.10)', background: 'rgba(24, 0, 36, 0.72)' }}>
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(129,9,150,0.38) 50%, transparent 100%)', top: '-20%', left: '-20%', position: 'absolute' }} />
+                    <span className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)', top: '-30%', left: '-30%', position: 'absolute', filter: 'blur(1.5px)' }} />
                   </span>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">{item.rank}</div>
                     <div className="flex-1 flex items-center gap-3 ml-4">
                       <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
-                      {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-blue-400/30">Added!</span>}
+                      {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>}
                     </div>
                   </div>
                   <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
@@ -229,7 +227,9 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                     </div>
-                    <div className={`w-3 h-3 rounded-full ${getDotStyle('STRONG')}`}></div>
+                    {getDotStyle(item.change) && (
+                      <div className={`w-3 h-3 rounded-full ${getDotStyle(item.change)}`}></div>
+                    )}
                     <button
                       onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
                       tabIndex={0}

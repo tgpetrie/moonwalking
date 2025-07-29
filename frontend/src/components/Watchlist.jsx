@@ -152,7 +152,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
             const priceNow = item.currentPrice ?? item.priceAtAdd;
             const change = ((priceNow - item.priceAtAdd) / item.priceAtAdd) * 100;
             return (
-              <div key={item.symbol} className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden bg-transparent border border-orange-200/30 hover:shadow-lg min-w-0">
+              <div key={item.symbol} className="flex items-center justify-between w-full p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden bg-transparent border border-orange-200/30 min-w-0">
                 <div className="flex flex-col items-start flex-1">
                   <span className="font-mono text-base sm:text-lg md:text-xl text-white truncate">{item.symbol}</span>
                   <span className="text-xs text-gray-400 block">Added: ${item.priceAtAdd.toFixed(2)} | Now: ${priceNow.toFixed(2)} | {change > 0 ? '+' : ''}{change.toFixed(2)}%</span>
