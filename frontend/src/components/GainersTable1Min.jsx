@@ -189,7 +189,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   const rowsToShow = showAll ? data.length : Math.min(4, data.length);
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[320px] max-w-full md:max-w-2xl mx-auto px-1 sm:px-2 md:px-4 align-stretch">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
       {data.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
@@ -197,50 +197,20 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
         const showAdded = addedBadge === item.symbol;
         return (
           <React.Fragment key={item.symbol}>
-            <div className="relative group w-full">
-              <a
-                href={coinbaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block group flex-1 w-full"
-              >
-                <div
-                  className={
-                    `flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:text-shadow-amber-500 ` +
-                    `group-hover:scale-[1.035] group-hover:z-10 ` +
-                    `will-change-transform`
-                  }
-                  style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}
-                >
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-  <span
-    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]"
-    style={{
-      background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(222,52,157,0.12) 45%, transparent 100%)',
-      top: '-20%',
-      left: '-20%',
-      position: 'absolute',
-    }}
-  />
-</span>
-                  <div className="flex flex-row items-center gap-2 sm:gap-4 w-full">
-                    {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue/40 text-blue font-bold text-xs sm:text-sm hover:text-blue hover:text-shadow-light-blue">
-                      {item.rank}
-                    </div>
-                    {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4 min-w-0">
-                      <span className="font-bold text-white text-base sm:text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400 truncate">
-                        {item.symbol}
-                      </span>
-                      {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
-                      )}
+            <div className="relative group">
+              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
+                <div className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10" style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}>
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                    <span className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(129,9,150,0.38) 50%, transparent 100%)', top: '-20%', left: '-20%', position: 'absolute' }} />
+                  </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">{item.rank}</div>
+                    <div className="flex-1 flex items-center gap-3 ml-4">
+                      <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
+                      {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-blue-400/30">Added!</span>}
                     </div>
                   </div>
-
                   <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    {/* Price Column (current and previous price, teal, right-aligned) */}
                     <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
                       <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                         {typeof item.price === 'number' && Number.isFinite(item.price)
@@ -249,69 +219,51 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
                       </span>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
                         {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? (() => {
-                               const prevPrice = item.price / (1 + item.change / 100);
-                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
-                             })()
+                          ? `$${(item.price / (1 + item.change / 100)).toFixed(2)}`
                           : '--'}
                       </span>
                     </div>
-                    {/* Change Percentage and Dot */}
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
                       <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
-                        1-Min
-                      </span>
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                     </div>
-                    <span className="relative">
-                      <span
-                        onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                        style={{ display: 'inline-block', minWidth: '24px', minHeight: '24px' }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                        aria-pressed={isInWatchlist}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleToggleWatchlist(item.symbol);
-                          }
-                        }}
-                      >
-                        <StarIcon
-                          filled={isInWatchlist}
-                          className={
-                            (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                            (isPopping ? ' animate-star-pop' : '')
-                          }
-                          style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', cursor: 'pointer', transition: 'transform 0.2s' }}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </span>
+                    <div className={`w-3 h-3 rounded-full ${getDotStyle('STRONG')}`}></div>
+                    <button
+                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                      tabIndex={0}
+                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                      aria-pressed={isInWatchlist}
+                      className="bg-transparent border-none p-0 m-0 cursor-pointer"
+                      style={{ minWidth: '24px', minHeight: '24px' }}
+                    >
+                      <StarIcon
+                        filled={isInWatchlist}
+                        className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
+                        aria-hidden="true"
+                      />
+                    </button>
                   </div>
                 </div>
               </a>
             </div>
-            {/* Purple divider, not full width, only between cards */}
             {idx < rowsToShow - 1 && (
-              <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(129,9,150,0.18) 0%,rgba(129,9,150,0.38) 50%,rgba(129,9,150,0.18) 100%)',borderRadius:'2px'}}></div>
+              <div className="mx-auto my-0.5" style={{ height: '2px', width: '60%', background: 'linear-gradient(90deg,rgba(129,9,150,0.18) 0%,rgba(129,9,150,0.38) 50%,rgba(129,9,150,0.18) 100%)', borderRadius: '2px' }}></div>
             )}
           </React.Fragment>
         );
       })}
-      {/* Show More/Show Less button if more than 4 gainers */}
+      {/* Show More/Show Less button if more than 4 items */}
       {Array.isArray(data) && data.length > 4 && (
-        <div className="flex justify-center mt-2">
-          <button
-            className="px-4 py-2 rounded bg-blue-500 text-white font-bold shadow hover:bg-blue-600 transition-colors"
-            onClick={() => setShowAll(s => !s)}
-          >
-            {showAll ? 'Show Less' : 'Show More'}
-          </button>
-        </div>
+        <button
+          className="mt-2 mx-auto px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+          style={{ width: 'fit-content' }}
+          onClick={() => setShowAll(s => !s)}
+        >
+          {showAll ? 'Show Less' : `Show More (${Math.min(10, data.length) - 4})`}
+        </button>
       )}
     </div>
   );

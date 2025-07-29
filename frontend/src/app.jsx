@@ -19,30 +19,13 @@ export default function App() {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
   const [topWatchlist, setTopWatchlist] = useState([]);
-  const [user, setUser] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  // Supabase magic link logic removed
-  useEffect(() => {
-    setMagicLinkHandled(true);
-  }, []);
-
-  // Block auth check until magic link is handled (local-only)
-  const [magicLinkHandled, setMagicLinkHandled] = useState(true);
+  const [user, setUser] = useState({ id: 'dev-bypass' });
+  const [checkingAuth, setCheckingAuth] = useState(false);
 
   // Handler to sync watchlist state from children
   const handleWatchlistChange = (list) => {
     setTopWatchlist(list || []);
   };
-
-  // Check auth on mount and on auth state change (local-only placeholder)
-  useEffect(() => {
-    if (!magicLinkHandled) return;
-    setCheckingAuth(true);
-    // Local-only: no real auth, just set user to null
-    setUser(null);
-    setCheckingAuth(false);
-  }, [magicLinkHandled]);
 
   // Poll backend connection and update countdown
   useEffect(() => {
