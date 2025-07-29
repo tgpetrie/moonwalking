@@ -168,11 +168,9 @@ const GainersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:text-shadow-amber-500 ` +
-                    `group-hover:scale-[1.035] group-hover:z-10 ` +
-                    `will-change-transform`
+                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10 will-change-transform`
                   }
-                  style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}
+                  style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.10)' }}
                 >
                   {/* Diamond inner glow effect (always visible, expands on hover) */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
@@ -184,7 +182,7 @@ const GainersTable = ({ refreshTrigger }) => {
                       }
                       style={{
                         background:
-                          'radial-gradient(circle at 50% 50%, rgba(255,193,7,0.16) 0%, rgba(255,193,7,0.08) 60%, transparent 100%)',
+                          'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(129,9,150,0.38) 50%, transparent 100%)',
                         top: '-20%',
                         left: '-20%',
                         position: 'absolute',
@@ -234,32 +232,24 @@ const GainersTable = ({ refreshTrigger }) => {
                       </span>
                     </div>
                     <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                    <span className="relative">
-                      <span
-                        onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                        style={{ display: 'inline-block', minWidth: '24px', minHeight: '24px' }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                        aria-pressed={isInWatchlist}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleToggleWatchlist(item.symbol);
-                          }
-                        }}
-                      >
-                        <StarIcon
-                          filled={isInWatchlist}
-                          className={
-                            (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                            (isPopping ? ' animate-star-pop' : '')
-                          }
-                          style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', cursor: 'pointer', transition: 'transform 0.2s' }}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </span>
+                    <button
+                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                      tabIndex={0}
+                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                      aria-pressed={isInWatchlist}
+                      className="bg-transparent border-none p-0 m-0 cursor-pointer"
+                      style={{ minWidth: '24px', minHeight: '24px' }}
+                    >
+                      <StarIcon
+                        filled={isInWatchlist}
+                        className={
+                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
+                          (isPopping ? ' animate-star-pop' : '')
+                        }
+                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
+                        aria-hidden="true"
+                      />
+                    </button>
                   </div>
                 </div>
               </a>
