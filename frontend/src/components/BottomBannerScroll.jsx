@@ -62,7 +62,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
 
   // Never show loading or empty states - always render the banner
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-dark/80 via-mid-dark/60 to-dark/80 rounded-3xl shadow-2xl" role="region" aria-label="Live 1H Volume Change Market Feed">
+    <div className="relative overflow-hidden bg-gradient-to-r from-dark/80 via-mid-dark/60 to-dark/80 rounded-3xl" role="region" aria-label="Live 1H Volume Change Market Feed">
       {/* Header */}
       <div className="px-6 py-4">
         <div className="flex items-center gap-3">

@@ -41,11 +41,11 @@ const GainersTable = ({ refreshTrigger }) => {
 
   const getDotStyle = (badge) => {
     if (badge === 'STRONG HIGH') {
-      return 'bg-green-400 shadow-lg shadow-green-400/50';
+      return 'bg-green-400 shadow-green-400/50';
     } else if (badge === 'STRONG') {
-      return 'bg-blue-400 shadow-lg shadow-blue-400/50';
+      return 'bg-blue-400 shadow-blue-400/50';
     } else {
-      return 'bg-teal-400 shadow-lg shadow-teal-400/50';
+      return 'bg-teal-400 shadow-teal-400/50';
     }
   };
 
@@ -176,16 +176,16 @@ const GainersTable = ({ refreshTrigger }) => {
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
                       className={
-                        `block rounded-xl transition-all duration-500 ` +
-                        `opacity-0 group-hover:opacity-90 ` +
-                        `group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]`
+                        `block rounded-2xl transition-all duration-150 ` +
+                        `opacity-0 group-hover:opacity-100 ` +
+                        `group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]`
                       }
                       style={{
-                        background:
-                          'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.18) 0%, rgba(129,9,150,0.38) 50%, transparent 100%)',
-                        top: '-20%',
-                        left: '-20%',
+                        background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
+                        top: '-30%',
+                        left: '-30%',
                         position: 'absolute',
+                        filter: 'blur(1.5px)'
                       }}
                     />
                   </span>
@@ -200,7 +200,7 @@ const GainersTable = ({ refreshTrigger }) => {
                         {item.symbol}
                       </span>
                       {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
                       )}
                     </div>
                   </div>

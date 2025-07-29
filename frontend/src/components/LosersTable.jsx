@@ -41,11 +41,11 @@ const LosersTable = ({ refreshTrigger }) => {
 
   const getDotStyle = (badge) => {
     if (badge === 'STRONG HIGH') {
-      return 'bg-red-400 shadow-lg shadow-red-400/50';
+      return 'bg-red-400 shadow-red-400/50';
     } else if (badge === 'STRONG') {
-      return 'bg-orange-400 shadow-lg shadow-orange-400/50';
+      return 'bg-orange-400 shadow-orange-400/50';
     } else {
-      return 'bg-yellow-400 shadow-lg shadow-yellow-400/50';
+      return 'bg-yellow-400 shadow-yellow-400/50';
     }
   };
 
@@ -212,7 +212,7 @@ const LosersTable = ({ refreshTrigger }) => {
                         {item.symbol}
                       </span>
                       {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
                       )}
                     </div>
                   </div>
