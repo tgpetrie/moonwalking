@@ -33,42 +33,58 @@ export const fetchData = async (endpoint) => {
 };
 
 
-// --- Local Storage Watchlist Functions ---
+// --- Watchlist Functions ---
 const WATCHLIST_KEY = 'crypto_watchlist';
 
 export async function getWatchlist() {
   try {
-    const raw = localStorage.getItem(WATCHLIST_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
+    const res = await fetch(`${API_BASE_URL}/api/watchlist`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(data));
+    return data;
   } catch (e) {
-    console.error('LocalStorage getWatchlist error:', e);
-    return [];
+    console.error('Watchlist fetch error:', e);
+    try {
+      const raw = localStorage.getItem(WATCHLIST_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
   }
 }
 
 export async function addToWatchlist(symbol) {
   try {
-    let list = await getWatchlist();
-    if (!list.includes(symbol)) {
-      list.push(symbol);
-      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
-    }
+    const res = await fetch(`${API_BASE_URL}/api/watchlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+    const list = result.watchlist || result;
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
     return list;
   } catch (e) {
-    console.error('LocalStorage addToWatchlist error:', e);
+    console.error('Add to watchlist error:', e);
     return await getWatchlist();
   }
 }
 
 export async function removeFromWatchlist(symbol) {
   try {
-    let list = await getWatchlist();
-    list = list.filter(s => s !== symbol);
+    const res = await fetch(
+      `${API_BASE_URL}/api/watchlist/${encodeURIComponent(symbol)}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+    const list = result.watchlist || result;
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
     return list;
   } catch (e) {
-    console.error('LocalStorage removeFromWatchlist error:', e);
+    console.error('Remove from watchlist error:', e);
     return await getWatchlist();
   }
 }
