@@ -86,6 +86,7 @@ fi
 # Install backend dependencies if needed
 if [ -f "backend/requirements.txt" ]; then
     print_status "Checking backend dependencies..."
+    pip install --upgrade pip setuptools
     cd backend
     pip install -q -r requirements.txt
     cd ..

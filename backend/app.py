@@ -13,9 +13,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime, timedelta
 
-from watchlist import watchlist_bp
+from watchlist import watchlist_bp, watchlist_db
+try:
+    # optional insight memory (may not exist early in startup)
+    from watchlist import _insights_memory as INSIGHTS_MEMORY
+except Exception:
+    INSIGHTS_MEMORY = None
 
-# Flask App Setup
+COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
+ERROR_NO_DATA = "No data available"
+INSIGHTS_MIN_NET_CHANGE_PCT = float(os.environ.get('INSIGHTS_MIN_NET_CHANGE_PCT', '3'))  # was 5
+INSIGHTS_MIN_STEP_CHANGE_PCT = float(os.environ.get('INSIGHTS_MIN_STEP_CHANGE_PCT', '1'))  # was 2
+VOLUME_SPIKE_THRESHOLD = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_THRESHOLD', '5000000'))  # 5M 24h vol
+VOLUME_SPIKE_MIN_CHANGE_PCT = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_MIN_CHANGE_PCT', '8'))  # 8% move + volume
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
 
@@ -29,10 +40,11 @@ from utils import find_available_port
 
 # Production-ready imports
 from dotenv import load_dotenv
+# Temporarily disable sentry for Python 3.13 compatibility
 try:
-    import sentry_sdk
-    from sentry_sdk.integrations.flask import FlaskIntegration
-    SENTRY_AVAILABLE = True
+    # import sentry_sdk
+    # from sentry_sdk.integrations.flask import FlaskIntegration
+    SENTRY_AVAILABLE = False  # Disabled for compatibility
 except ImportError:
     SENTRY_AVAILABLE = False
 
@@ -58,14 +70,14 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-# Initialize Sentry for error tracking in production
-if SENTRY_AVAILABLE and os.environ.get('SENTRY_DSN'):
-    sentry_sdk.init(
-        dsn=os.environ.get('SENTRY_DSN'),
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=0.1,
-        environment=os.environ.get('ENVIRONMENT', 'production')
-    )
+# Initialize Sentry for error tracking in production (disabled for compatibility)
+# if SENTRY_AVAILABLE and os.environ.get('SENTRY_DSN'):
+#     sentry_sdk.init(
+#         dsn=os.environ.get('SENTRY_DSN'),
+#         integrations=[FlaskIntegration()],
+#         traces_sample_rate=0.1,
+#         environment=os.environ.get('ENVIRONMENT', 'production')
+#     )
 # CBMo4ers Crypto Dashboard Backend
 # Data Sources: Public Coinbase Exchange API + CoinGecko (backup)
 # No API keys required - uses public market data only
@@ -106,6 +118,14 @@ CONFIG = {
     'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 1.0)),  # Minimum % change for banner
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
+    # 1-minute feature load controls
+    'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
+    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 30)),  # Throttle 1-min recompute
+    # 1-minute retention / hysteresis controls
+    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.15)),   # % change to ENTER list
+    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.05)),     # lower % to remain after entering
+    'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 25)),       # cap displayed coins
+    'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
 }
 
 # Cache and price history storage
@@ -118,6 +138,18 @@ cache = {
 # Store price history for interval calculations
 price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
 price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
+# Cache / state for 1-min data to prevent hammering APIs
+one_minute_cache = {"data": None, "timestamp": 0}
+last_current_prices = {"data": None, "timestamp": 0}
+# Persistence state for 1-min display logic
+one_minute_persistence = {
+    'entries': {},  # symbol -> {'entered_at': ts, 'enter_gain': pct}
+    'last_snapshot_symbols': set()
+}
+
+# Track rolling 60s peak percentage changes for 1-min logic to avoid rapid top churn
+# Structure: symbol -> {'peak_pct': float, 'peak_at': ts, 'last_seen': ts}
+one_minute_peaks = {}
 
 def log_config():
     """Log current configuration"""
@@ -219,8 +251,7 @@ def update_config(new_config):
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
     try:
-        products_url = "https://api.exchange.coinbase.com/products"
-        products_response = requests.get(products_url, timeout=CONFIG['API_TIMEOUT'])
+        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
         if products_response.status_code == 200:
             products = products_response.json()
             current_prices = {}
@@ -410,10 +441,9 @@ def get_24h_top_movers():
 
 
 def get_coinbase_24h_top_movers():
-    """Fetch 24h top movers from Coinbase as backup (OPTIMIZED)"""
+    """Fetch 24h top movers from Coinbase (optimized)."""
     try:
-        products_url = "https://api.exchange.coinbase.com/products"
-        products_response = requests.get(products_url, timeout=CONFIG['API_TIMEOUT'])
+        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
         if products_response.status_code != 200:
             return []
 
@@ -875,7 +905,7 @@ def get_top_banner_scroll():
         # Get 1-hour price change data from 24h movers API
         banner_data = get_24h_top_movers()
         if not banner_data:
-            return jsonify({"error": "No data available"}), 503
+            return jsonify({"error": ERROR_NO_DATA}), 503
             
         # Sort by 1-hour price change for top banner
         hour_sorted = sorted(banner_data, key=lambda x: abs(x.get("price_change_1h", 0)), reverse=True)
@@ -912,7 +942,7 @@ def get_bottom_banner_scroll():
         # Get 1-hour volume change data (24h banner data has volume info)
         banner_data = get_24h_top_movers()
         if not banner_data:
-            return jsonify({"error": "No data available"}), 503
+            return jsonify({"error": ERROR_NO_DATA}), 503
             
         # Sort by 24h volume for bottom banner (as we don't have hourly volume data)
         volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
@@ -951,7 +981,7 @@ def get_gainers_table():
     try:
         data = get_crypto_data()
         if not data:
-            return jsonify({"error": "No data available"}), 503
+            return jsonify({"error": ERROR_NO_DATA}), 503
             
         gainers = data.get('gainers', [])
         
@@ -988,7 +1018,7 @@ def get_losers_table():
     try:
         data = get_crypto_data()
         if not data:
-            return jsonify({"error": "No data available"}), 503
+            return jsonify({"error": ERROR_NO_DATA}), 503
             
         losers = data.get('losers', [])
         
@@ -1026,7 +1056,7 @@ def get_top_movers_bar():
         # Get 3-minute data
         data = get_crypto_data()
         if not data:
-            return jsonify({"error": "No data available"}), 503
+            return jsonify({"error": ERROR_NO_DATA}), 503
             
         # Use top24h which is already a mix of top gainers and losers from 3-min data
         top_movers_3min = data.get('top24h', [])
@@ -1062,40 +1092,138 @@ def get_top_movers_bar():
 
 def get_crypto_data_1min():
     """Main function to fetch and process 1-minute crypto data"""
+    if not CONFIG.get('ENABLE_1MIN', True):
+        return None
     current_time = time.time()
-    
-    # No cache for 1-min data, always fetch fresh
-    
+    # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot
+    refresh_window = CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)
+    if one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
+        return one_minute_cache['data']
     try:
-        # Get current prices for 1-minute calculations
-        current_prices = get_current_prices()
+        # Reuse prices from background thread if fetched recently (<10s) to avoid parallel bursts
+        prices_age_limit = 10
+        if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
+            current_prices = last_current_prices['data']
+        else:
+            current_prices = get_current_prices()
+            if current_prices:
+                last_current_prices['data'] = current_prices
+                last_current_prices['timestamp'] = current_time
         if not current_prices:
             logging.warning("No current prices available for 1-min data")
             return None
-            
-        # Calculate 1-minute interval changes
+
         crypto_data = calculate_1min_changes(current_prices)
-        
         if not crypto_data:
             logging.warning(f"No 1-min crypto data available after calculation - {len(current_prices)} current prices, {len(price_history_1min)} symbols with history")
             return None
-        
-        # Separate gainers and losers based on 1-minute changes
-        gainers = [coin for coin in crypto_data if coin.get("price_change_percentage_1min", 0) > 0]
-        losers = [coin for coin in crypto_data if coin.get("price_change_percentage_1min", 0) < 0]
-        
-        # Sort by 1-minute percentage change
-        gainers.sort(key=lambda x: x["price_change_percentage_1min"], reverse=True)
-        losers.sort(key=lambda x: x["price_change_percentage_1min"])
-        
+
+        # --- Retention / hysteresis logic ---
+        enter_pct = CONFIG.get('ONE_MIN_ENTER_PCT', 0.15)
+        stay_pct = CONFIG.get('ONE_MIN_STAY_PCT', 0.05)
+        dwell_seconds = CONFIG.get('ONE_MIN_DWELL_SECONDS', 90)
+        max_coins = CONFIG.get('ONE_MIN_MAX_COINS', 25)
+        now_ts = current_time
+        pers = one_minute_persistence['entries']
+
+        # Index by symbol for quick lookups and update rolling 60s peak table
+        data_by_symbol = {}
+        peak_window = 60  # seconds to hold a peak
+        for c in crypto_data:
+            sym = c['symbol']
+            pct_now = c.get('price_change_percentage_1min', 0)
+            data_by_symbol[sym] = c
+            peak = one_minute_peaks.get(sym)
+            if not peak or pct_now > peak.get('peak_pct', -999):
+                one_minute_peaks[sym] = {'peak_pct': pct_now, 'peak_at': now_ts, 'last_seen': now_ts}
+            else:
+                peak['last_seen'] = now_ts
+
+        # Decay / prune old peaks beyond window
+        to_prune = []
+        for sym, peak in one_minute_peaks.items():
+            if (now_ts - peak['peak_at']) > peak_window and (now_ts - peak['last_seen']) > peak_window:
+                to_prune.append(sym)
+        for sym in to_prune:
+            one_minute_peaks.pop(sym, None)
+
+        # Adjust effective pct used for ranking: hold peak within window if current dipped
+        for sym, coin in data_by_symbol.items():
+            peak = one_minute_peaks.get(sym)
+            if peak and (now_ts - peak['peak_at']) <= peak_window:
+                current_pct = coin.get('price_change_percentage_1min', 0)
+                if peak['peak_pct'] > current_pct > 0:
+                    coin['price_change_percentage_1min_peak'] = peak['peak_pct']
+                elif peak['peak_pct'] < current_pct < 0:  # for negative movers
+                    coin['price_change_percentage_1min_peak'] = peak['peak_pct']
+                else:
+                    coin['price_change_percentage_1min_peak'] = current_pct
+            else:
+                coin['price_change_percentage_1min_peak'] = coin.get('price_change_percentage_1min', 0)
+
+        # Update existing entries & drop those that lost momentum AND exceeded dwell time below stay threshold
+        to_delete = []
+        for sym, meta in pers.items():
+            coin = data_by_symbol.get(sym)
+            gain_pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0)) if coin else 0
+            if coin:
+                if abs(gain_pct) >= stay_pct:
+                    continue
+                if (now_ts - meta['entered_at']) < dwell_seconds:
+                    continue
+            to_delete.append(sym)
+        for sym in to_delete:
+            pers.pop(sym, None)
+
+        # Add new entries meeting enter threshold until capacity (using peak pct)
+        sorted_candidates = sorted(
+            crypto_data,
+            key=lambda x: abs(x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0))),
+            reverse=True
+        )
+        for coin in sorted_candidates:
+            if len(pers) >= max_coins:
+                break
+            pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
+            if abs(pct) >= enter_pct and coin['symbol'] not in pers:
+                pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
+
+        # Build separate gainers/losers lists from persistence set
+        retained_symbols = set(pers.keys())
+        retained_coins = [data_by_symbol[s] for s in retained_symbols if s in data_by_symbol]
+        gainers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) > 0]
+        losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
+        gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
+        losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+
+        # Attach peak values into formatted output
+        def attach_peak(list_):
+            out = []
+            for c in list_:
+                out.append({
+                    "symbol": c["symbol"],
+                    "current": c["current_price"],
+                    "initial_1min": c["initial_price_1min"],
+                    "gain": c["price_change_percentage_1min"],
+                    "interval_minutes": round(c.get("actual_interval_minutes", 1), 1),
+                    "peak_gain": c.get("price_change_percentage_1min_peak", c.get("price_change_percentage_1min", 0))
+                })
+            return out
+
         result = {
-            "gainers": format_crypto_data_1min(gainers[:15]),
-            "losers": format_crypto_data_1min(losers[:15]),
+            "gainers": attach_peak(gainers[:max_coins]),
+            "losers": attach_peak(losers[:max_coins]),
+            "throttled": True,
+            "refresh_seconds": refresh_window,
+            "enter_threshold_pct": enter_pct,
+            "stay_threshold_pct": stay_pct,
+            "dwell_seconds": dwell_seconds,
+            "retained": len(retained_symbols)
         }
-        
-        logging.info(f"Successfully processed 1-min data: {len(result['gainers'])} gainers, {len(result['losers'])} losers")
+        one_minute_cache['data'] = result
+        one_minute_cache['timestamp'] = current_time
+        logging.info(f"1-min data processed (throttle {refresh_window}s) retained={len(retained_symbols)} gainers={len(result['gainers'])} losers={len(result['losers'])}")
         return result
-        
     except Exception as e:
         logging.error(f"Error in get_crypto_data_1min: {e}")
         return None
@@ -1331,6 +1459,17 @@ def get_config():
         "price_history_status": {
             "symbols_tracked": len(price_history),
             "max_history_per_symbol": CONFIG['MAX_PRICE_HISTORY']
+        },
+        "one_minute_status": {
+            "enabled": CONFIG.get('ENABLE_1MIN', True),
+            "last_generated_age": time.time() - one_minute_cache['timestamp'] if one_minute_cache['timestamp'] else None,
+            "refresh_window_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS'),
+            "has_snapshot": one_minute_cache['data'] is not None,
+            "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT'),
+            "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT'),
+            "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS'),
+            "max_coins": CONFIG.get('ONE_MIN_MAX_COINS'),
+            "retained_symbols": len(one_minute_persistence['entries'])
         }
     })
 
@@ -1426,7 +1565,182 @@ def clear_cache():
     logging.info("Cache and price history cleared")
     return jsonify({"message": "Cache cleared successfully"})
 
+@app.route('/api/technical-analysis/<symbol>')
+def get_technical_analysis_endpoint(symbol):
+    """Get technical analysis for a specific cryptocurrency"""
+    try:
+        from technical_analysis import get_technical_analysis
+        
+        # Validate symbol format
+        symbol = symbol.upper().replace('-USD', '')
+        if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
+            return jsonify({"error": "Invalid symbol format"}), 400
+        
+        # Get technical analysis
+        analysis = get_technical_analysis(symbol)
+        
+        return jsonify({
+            "success": True,
+            "data": analysis,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except ImportError as e:
+        logging.error(f"Technical analysis module not available: {e}")
+        return jsonify({"error": "Technical analysis not available"}), 503
+    except Exception as e:
+        logging.error(f"Error getting technical analysis for {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/news/<symbol>')
+def get_crypto_news(symbol):
+    """Get news for a specific cryptocurrency (placeholder for now)"""
+    try:
+        # Placeholder implementation - in real app you'd integrate with news APIs
+        symbol = symbol.upper().replace('-USD', '')
+        
+        # Mock news data for demonstration
+        mock_news = [
+            {
+                "id": 1,
+                "title": f"{symbol} Shows Strong Technical Momentum",
+                "summary": f"Technical analysis suggests {symbol} may continue its current trend based on recent price action and volume indicators.",
+                "source": "Crypto Technical Analysis",
+                "published": (datetime.now() - timedelta(hours=2)).isoformat(),
+                "sentiment": "neutral",
+                "url": f"https://example.com/news/{symbol.lower()}-analysis"
+            },
+            {
+                "id": 2,
+                "title": f"Market Update: {symbol} Trading Volume Analysis",
+                "summary": f"Recent trading patterns in {symbol} indicate increased institutional interest and potential breakout scenarios.",
+                "source": "Market Insights",
+                "published": (datetime.now() - timedelta(hours=6)).isoformat(),
+                "sentiment": "positive",
+                "url": f"https://example.com/news/{symbol.lower()}-volume"
+            },
+            {
+                "id": 3,
+                "title": f"{symbol} Price Action Review",
+                "summary": f"Weekly review of {symbol} price movements and key support/resistance levels for traders to monitor.",
+                "source": "Trading Weekly",
+                "published": (datetime.now() - timedelta(days=1)).isoformat(),
+                "sentiment": "neutral",
+                "url": f"https://example.com/news/{symbol.lower()}-review"
+            }
+        ]
+        
+        return jsonify({
+            "success": True,
+            "symbol": symbol,
+            "articles": mock_news,
+            "count": len(mock_news),
+            "timestamp": datetime.now().isoformat(),
+            "note": "Demo data - integrate with real news API for production"
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting news for {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/social-sentiment/<symbol>')
+def get_social_sentiment_endpoint(symbol):
+    """Get social sentiment analysis for a specific cryptocurrency"""
+    try:
+        from social_sentiment import get_social_sentiment
+        
+        # Validate symbol format
+        symbol = symbol.upper().replace('-USD', '')
+        if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
+            return jsonify({"error": "Invalid symbol format"}), 400
+        
+        # Get social sentiment analysis
+        sentiment_data = get_social_sentiment(symbol)
+        
+        return jsonify({
+            "success": True,
+            "data": sentiment_data,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except ImportError as e:
+        logging.error(f"Social sentiment module not available: {e}")
+        return jsonify({"error": "Social sentiment analysis not available"}), 503
+    except Exception as e:
+        logging.error(f"Error getting social sentiment for {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # =============================================================================
+
+def _scan_insight_logs(insights_memory, lines=400):
+    """Scan recent insight log lines and reconstruct add/update maps for auto logging decisions."""
+    import re
+    from datetime import datetime
+    add_pattern = re.compile(r"User added (\w+) to their watchlist at \$([0-9.]+)")
+    update_pattern = re.compile(r"(\w+) is now at \$([0-9.]+) \(([+-]?[0-9.]+)%\)")
+    added_price, last_logged_price, last_logged_time = {}, {}, {}
+    for line in insights_memory.logs[-lines:]:
+        parts = line.split('|', 1)
+        ts = None
+        if len(parts) == 2:
+            ts_raw = parts[0].strip()
+            try:
+                ts = datetime.fromisoformat(ts_raw.replace('Z',''))
+            except Exception:
+                ts = None
+            entry = parts[1].strip()
+        else:
+            entry = line.strip()
+        m_add = add_pattern.search(entry)
+        if m_add:
+            sym = m_add.group(1)
+            added_price[sym] = float(m_add.group(2))
+            continue
+        m_upd = update_pattern.search(entry)
+        if m_upd:
+            sym = m_upd.group(1)
+            last_logged_price[sym] = float(m_upd.group(2))
+            if ts:
+                last_logged_time[sym] = ts
+    return added_price, last_logged_price, last_logged_time
+
+
+def _auto_log_watchlist_moves(current_prices, banner_data):
+    """Auto-log significant price & volume moves for watchlist symbols using configurable thresholds."""
+    if not INSIGHTS_MEMORY or not watchlist_db:
+        return
+    try:
+        from datetime import datetime, timedelta
+        added_price, last_logged_price, last_logged_time = _scan_insight_logs(INSIGHTS_MEMORY)
+        now = datetime.now().astimezone()
+        # Build quick lookup for banner volume and 24h change if available
+        banner_lookup = {c['symbol']: c for c in (banner_data or [])}
+        for sym in watchlist_db:
+            add_p = added_price.get(sym)
+            cur = current_prices.get(sym)
+            if not add_p or not cur:
+                continue
+            net_change_pct = (cur - add_p) / add_p * 100
+            if abs(net_change_pct) >= INSIGHTS_MIN_NET_CHANGE_PCT:
+                prev_price = last_logged_price.get(sym, add_p)
+                step_change_pct = (cur - prev_price) / prev_price * 100 if prev_price else net_change_pct
+                if abs(step_change_pct) >= INSIGHTS_MIN_STEP_CHANGE_PCT:
+                    last_ts = last_logged_time.get(sym)
+                    if not last_ts or now - last_ts >= timedelta(minutes=2):
+                        INSIGHTS_MEMORY.add(f"{sym} is now at ${cur:.2f} ({net_change_pct:+.2f}%)")
+                        continue  # avoid double logging volume same cycle if price just logged
+            # Volume spike condition (only if not just price-logged above)
+            banner = banner_lookup.get(sym)
+            if banner:
+                vol = banner.get('volume_24h', 0)
+                price_change_24h = banner.get('price_change_24h', 0)
+                if vol >= VOLUME_SPIKE_THRESHOLD and abs(price_change_24h) >= VOLUME_SPIKE_MIN_CHANGE_PCT:
+                    last_ts = last_logged_time.get(sym)
+                    if not last_ts or now - last_ts >= timedelta(minutes=10):
+                        INSIGHTS_MEMORY.add(f"{sym} volume spike {vol:,.0f} (24h change {price_change_24h:+.2f}%)")
+    except Exception as e:
+        logging.debug(f"Auto logging skipped: {e}")
+
 
 def background_crypto_updates():
     """Background thread to update cache periodically"""
@@ -1437,12 +1751,16 @@ def background_crypto_updates():
             if data_3min:
                 logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
 
-            # Also fetch current prices to update 1-min history
-            current_prices = get_current_prices()
-            if current_prices:
-                # This will update price_history_1min deque
-                calculate_1min_changes(current_prices)
-                logging.info(f"1-min price history updated with {len(current_prices)} new prices.")
+            # Respect config before doing 1-min related processing
+            if CONFIG.get('ENABLE_1MIN', True):
+                current_prices = get_current_prices()
+                if current_prices:
+                    # Store for reuse by on-demand endpoint
+                    last_current_prices['data'] = current_prices
+                    last_current_prices['timestamp'] = time.time()
+                    calculate_1min_changes(current_prices)
+                    logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
+                    _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
 
         except Exception as e:
             logging.error(f"Error in background update: {e}")
@@ -1525,9 +1843,9 @@ if __name__ == '__main__':
     except OSError as e:
         if "Address already in use" in str(e):
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")
-            logging.error(f"1. python3 app.py --kill-port")
-            logging.error(f"2. python3 app.py --auto-port")
-            logging.error(f"3. python3 app.py --port 5002")
+            logging.error("1. python3 app.py --kill-port")
+            logging.error("2. python3 app.py --auto-port")
+            logging.error("3. python3 app.py --port 5002")
         else:
             logging.error(f"Error starting server: {e}")
         exit(1)
