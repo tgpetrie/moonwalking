@@ -1,5 +1,6 @@
 import './env-debug.js';
 import React, { useEffect, useState } from 'react';
+import { WebSocketProvider } from './context/websocketcontext.jsx';
 // import { supabase } from './api'; // Supabase removed
 import AuthPanel from './components/AuthPanel';
 import GainersTable from './components/GainersTable';
@@ -9,9 +10,12 @@ import BottomBannerScroll from './components/BottomBannerScroll';
 import { FiRefreshCw } from 'react-icons/fi';
 import GainersTable1Min from './components/GainersTable1Min';
 import Watchlist from './components/Watchlist';
+import WatchlistInsightsPanel from './components/WatchlistInsightsPanel.jsx';
 
 // Live data polling interval (ms)
 const POLL_INTERVAL = 30000;
+// Feature toggles
+const ENABLE_WATCHLIST_QUICKVIEW = false; // disabled per request to hide mini watchlist
 
 
 export default function App() {
@@ -21,6 +25,7 @@ export default function App() {
   const [topWatchlist, setTopWatchlist] = useState([]);
   const [user, setUser] = useState({ id: 'dev-bypass' });
   const [checkingAuth, setCheckingAuth] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   // Handler to sync watchlist state from children
   const handleWatchlistChange = (list) => {
@@ -71,6 +76,7 @@ export default function App() {
   }
 
   return (
+    <WebSocketProvider>
     <div className="min-h-screen bg-dark text-white relative">
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
@@ -82,25 +88,48 @@ export default function App() {
         />
       </div>
 
-      {/* Countdown & Refresh stays in top-right */}
+      {/* Countdown & Refresh (mini watchlist removed) */}
       <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">
-        <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
-          <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1 animate-pulse"></span>
-          <span className="font-bold">{String(countdown).padStart(2, '0')}</span>
+        <div className="flex flex-col items-end gap-1 w-28">
+          <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700 w-full justify-between">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span className="font-bold tabular-nums">{String(countdown).padStart(2, '0')}</span>
+          </div>
+          {/* Progress bar for next refresh */}
+            <div className="w-full h-1 bg-gray-700/60 rounded overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-600 via-purple-400 to-purple-700 transition-all duration-1000 ease-linear"
+                style={{ width: `${((POLL_INTERVAL/1000 - countdown) / (POLL_INTERVAL/1000)) * 100}%` }}
+              />
+            </div>
         </div>
         <button
           onClick={refreshGainersAndLosers}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-purple-400"
           aria-label="Refresh"
         >
-          <FiRefreshCw className="text-xl text-purple-500" />
+          <FiRefreshCw className="text-xl text-purple-300" />
         </button>
-        {/* Top-right Watchlist Quickview (conditional) */}
-        {topWatchlist.length > 0 && (
-          <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2">
+        {/* Quickview removed (toggle retained if needed) */}
+        {ENABLE_WATCHLIST_QUICKVIEW && topWatchlist.length > 0 && (
+          <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2 animate-fade-in">
             <Watchlist quickview topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
           </div>
         )}
+      </div>
+
+      {/* Floating Insights Toggle */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {showInsights && (
+          <WatchlistInsightsPanel />
+        )}
+        <button
+          onClick={() => setShowInsights(s => !s)}
+          className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+          aria-pressed={showInsights}
+        >
+          {showInsights ? 'Hide Insights' : 'Insights'}
+        </button>
       </div>
 
       {/* Timestamp only at top-left */}
@@ -144,15 +173,23 @@ export default function App() {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* 1-Minute Gainers Table */}
             <div className={`p-6 bg-transparent ${topWatchlist.length === 0 ? 'w-full' : 'flex-1'}`}>
-            {/* Grouped: search input and watchlist rows, no header or divider */}
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+                  1-MIN GAINERS
+                </h2>
+              </div>
+              {/* Line divider directly under 1-MIN GAINERS header */}
+              <div className="flex justify-start mb-4">
+                <img
+                  src="/linediv.png"
+                  alt="Divider"
+                  className="w-48 h-auto"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
               <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} />
             </div>
-            {/* Watchlist (hide if empty) */}
-            {topWatchlist.length > 0 && (
-              <div className="flex-1 p-6 bg-transparent">
-                <Watchlist onWatchlistChange={handleWatchlistChange} />
-              </div>
-            )}
+            {/* Watchlist column removed intentionally for cleaner layout */}
           </div>
         </div>
 
@@ -196,22 +233,7 @@ export default function App() {
             <LosersTable refreshTrigger={lastUpdate} />
           </div>
         </div>
-        {/* Watchlist Component */}
-        <div className="mb-8">
-          <div className="p-6">
-            {/* Removed MY WATCHLIST header as requested */}
-            {/* Line divider */}
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
-            </div>
-            <Watchlist />
-          </div>
-        </div>
+  {/* Full watchlist section removed */}
         {/* Bottom Banner - 1H Volume */}
         <div className="mb-8 -mx-16 sm:-mx-24 lg:-mx-32 xl:-mx-40">
           <BottomBannerScroll refreshTrigger={lastUpdate} />
@@ -241,5 +263,6 @@ export default function App() {
         </footer>
       </div>
     </div>
+    </WebSocketProvider>
   );
 }

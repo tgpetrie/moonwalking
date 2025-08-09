@@ -28,11 +28,16 @@ const GainersTable = ({ refreshTrigger }) => {
         .animate-fade-in-out {
           animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
         }
+  @keyframes flashUp { 0% { background-color: rgba(16,185,129,0.35);} 100% { background-color: transparent;} }
+  @keyframes flashDown { 0% { background-color: rgba(244,63,94,0.35);} 100% { background-color: transparent;} }
+  .flash-up { animation: flashUp 0.9s ease-out; }
+  .flash-down { animation: flashDown 0.9s ease-out; }
       `;
       document.head.appendChild(style);
     }
   }, []);
   const [data, setData] = useState([]);
+  const [flashMap, setFlashMap] = useState({}); // symbol-> 'up' | 'down'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -62,16 +67,31 @@ const GainersTable = ({ refreshTrigger }) => {
       try {
         const response = await fetchData(API_ENDPOINTS.gainersTable);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const gainersWithRanks = response.data.map((item, index) => ({
+          const next = response.data.map((item, index) => ({
             rank: item.rank || (index + 1),
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
             badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
           }));
-          if (isMounted) setData(gainersWithRanks.slice(0, 7));
-        } else {
-          if (isMounted) setData([]);
+          if (isMounted) {
+            setData(prev => {
+              const flashes = {};
+              next.slice(0,7).forEach(n => {
+                const old = prev.find(p => p.symbol === n.symbol);
+                if (old && old.price !== n.price) {
+                  flashes[n.symbol] = n.price > old.price ? 'up' : 'down';
+                }
+              });
+              setFlashMap(flashes);
+              if (Object.keys(flashes).length) {
+                setTimeout(() => setFlashMap({}), 900);
+              }
+              return next.slice(0,7);
+            });
+          }
+        } else if (isMounted) {
+          setData([]);
         }
         if (isMounted) setLoading(false);
       } catch (err) {
@@ -79,22 +99,7 @@ const GainersTable = ({ refreshTrigger }) => {
         if (isMounted) {
           setLoading(false);
           setError(err.message);
-          // Fallback mock data when backend offline
-          const fallbackData = [
-            { rank: 1, symbol: 'BTC-USD', current_price: 65000, price_change_percentage_3m: 5.23 },
-            { rank: 2, symbol: 'ETH-USD', current_price: 3500, price_change_percentage_3m: 3.15 },
-            { rank: 3, symbol: 'ADA-USD', current_price: 0.45, price_change_percentage_3m: 1.89 },
-            { rank: 4, symbol: 'SOL-USD', current_price: 150, price_change_percentage_3m: 2.50 },
-            { rank: 5, symbol: 'XRP-USD', current_price: 0.52, price_change_percentage_3m: 0.98 },
-            { rank: 6, symbol: 'DOGE-USD', current_price: 0.15, price_change_percentage_3m: 1.20 },
-            { rank: 7, symbol: 'LTC-USD', current_price: 70, price_change_percentage_3m: 0.75 }
-          ].map(item => ({
-            ...item,
-            price: item.current_price,
-            change: item.price_change_percentage_3m,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3m))
-          }));
-          setData(fallbackData);
+          setData([]);
         }
       }
     };
@@ -137,7 +142,7 @@ const GainersTable = ({ refreshTrigger }) => {
   if (error && data.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-muted font-mono">Backend offline - using demo data</div>
+        <div className="text-muted font-mono">No data (backend error)</div>
       </div>
     );
   }
@@ -168,89 +173,70 @@ const GainersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10 will-change-transform`
+                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,16px,32px] ` +
+                    `group-hover:text-amber-500 ` +
+                    (flashMap[item.symbol] ? (flashMap[item.symbol] === 'up' ? 'flash-up' : 'flash-down') : '')
                   }
                   style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.10)' }}
                 >
-                  {/* Diamond inner glow effect (always visible, expands on hover) */}
+                  {/* Glow */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className={
-                        `block rounded-2xl transition-all duration-150 ` +
-                        `opacity-0 group-hover:opacity-100 ` +
-                        `group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]`
-                      }
+                      className="block rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-150 w-[120%] h-[120%] group-hover:w-[160%] group-hover:h-[160%]"
                       style={{
                         background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
-                        top: '-30%',
-                        left: '-30%',
-                        position: 'absolute',
-                        filter: 'blur(1.5px)'
+                        top: '-30%', left: '-30%', position: 'absolute', filter: 'blur(1.5px)'
                       }}
                     />
                   </span>
-                  <div className="flex items-center gap-4">
-                    {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm hover:text-blue hover:text-shadow-light-blue">
-                      {item.rank}
-                    </div>
-                    {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400">
-                        {item.symbol}
-                      </span>
-                      {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
-                      )}
-                    </div>
+                  {/* Rank */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">
+                    {item.rank}
                   </div>
-
-                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    {/* Price Column (current and previous price, teal, right-aligned) */}
-                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        {typeof item.price === 'number' && Number.isFinite(item.price)
-                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                          : 'N/A'}
-                      </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? (() => {
-                               const prevPrice = item.price / (1 + item.change / 100);
-                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
-                             })()
-                          : '--'}
-                      </span>
-                    </div>
-                    {/* Change Percentage and Dot */}
-                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
-                        3-Min
-                      </span>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                    <button
-                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      tabIndex={0}
-                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                      aria-pressed={isInWatchlist}
-                      className="bg-transparent border-none p-0 m-0 cursor-pointer"
-                      style={{ minWidth: '24px', minHeight: '24px' }}
-                    >
-                      <StarIcon
-                        filled={isInWatchlist}
-                        className={
-                          (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                          (isPopping ? ' animate-star-pop' : '')
-                        }
-                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
-                        aria-hidden="true"
-                      />
-                    </button>
+                  {/* Symbol + Added */}
+                  <div className="flex items-center gap-3 ml-2 min-w-0">
+                    <span className="font-bold text-white text-lg tracking-wide truncate hover:text-cyan-400 hover:text-shadow-cyan-400">{item.symbol}</span>
+                    {showAdded && (
+                      <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                    )}
                   </div>
+                  {/* Price */}
+                  <div className="flex flex-col items-end min-w-[110px]">
+                    <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
+                      {typeof item.price === 'number' && Number.isFinite(item.price)
+                        ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
+                        : 'N/A'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-light text-gray-400 select-text">
+                      {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
+                        ? (() => { const prevPrice = item.price / (1 + item.change / 100); return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`; })()
+                        : '--'}
+                    </span>
+                  </div>
+                  {/* Change */}
+                  <div className="flex flex-col items-end min-w-[80px]">
+                    <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                      <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
+                  </div>
+                  {/* Dot */}
+                  <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)} justify-self-center`}></div>
+                  {/* Star */}
+                  <button
+                    onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                    tabIndex={0}
+                    aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                    aria-pressed={isInWatchlist}
+                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-8 h-8 flex items-center justify-center"
+                  >
+                    <StarIcon
+                      filled={isInWatchlist}
+                      className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                      style={{ minWidth: '20px', minHeight: '20px', transition: 'transform 0.2s' }}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
               </a>
             </div>
