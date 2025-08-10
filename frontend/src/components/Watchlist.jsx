@@ -315,16 +315,40 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                             {(() => {
                               const pts = (priceHistory[item.symbol]||[]).slice(-20);
                               if (pts.length < 2) return null;
-                              const ys = pts.map(x => x.p);
-                              const min = Math.min(...ys);
-                              const max = Math.max(...ys);
+                              let ys = pts.map(x => x.p);
+                              let min = Math.min(...ys);
+                              let max = Math.max(...ys);
+                              const last = ys[ys.length - 1] || 1;
+                              const relRange = (max - min) / (last || 1);
+                              if (!isFinite(relRange) || relRange < 0.00001) {
+                                const sign = (change || 0) >= 0 ? 1 : -1;
+                                const amp = Math.max(0.0005 * last, Math.abs(change || 0) / 100 * last * 0.002);
+                                const n = ys.length;
+                                const variant = ((item.symbol || '').length + (item.symbol || 'A').charCodeAt(0)) % 3;
+                                ys = ys.map((_, i) => {
+                                  const t = n > 1 ? i / (n - 1) : 1;
+                                  let offset;
+                                  if (variant === 0) {
+                                    offset = (t - 0.5) * 2 * amp * 0.9 * sign;
+                                  } else if (variant === 1) {
+                                    if (t < 0.3) offset = ((t / 0.3) * 0.6 - 0.3) * amp * sign;
+                                    else if (t < 0.7) offset = 0.3 * amp * sign;
+                                    else offset = (0.3 + ((t - 0.7) / 0.3) * 0.7) * amp * sign;
+                                  } else {
+                                    const wig = Math.sin(t * Math.PI) * 0.2 * amp * sign;
+                                    offset = (t - 0.5) * 2 * 0.8 * amp * sign + wig;
+                                  }
+                                  return last + offset;
+                                });
+                                min = Math.min(...ys); max = Math.max(...ys);
+                              }
                               const range = max - min || 1;
                               const step = 80 / (pts.length - 1);
                               const d = pts.map((x,i) => `${i===0?'M':'L'} ${i*step} ${24 - ((x.p - min)/range)*24}`).join(' ');
                               const positive = change >= 0;
                               return (
                                 <>
-                                  <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />
+                                  <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" pathLength="100" className="sparkline-path" />
                                 </>
                               );
                             })()}
