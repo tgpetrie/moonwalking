@@ -78,7 +78,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       console.log('📊 Using WebSocket data for 1-min gainers:', latestData.crypto.length, 'items');
       // Respect backend ordering (already peak-held and sorted there)
       const mapped = latestData.crypto
-        .slice(0, 10)
+        .slice(0, 20)
         .map((item, index) => ({
           rank: item.rank || (index + 1),
           symbol: item.symbol?.replace('-USD', '') || 'N/A',
@@ -110,8 +110,8 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
           // Respect backend ordering; take top 10
-      const mapped = response.data
-            .slice(0, 10)
+  const mapped = response.data
+    .slice(0, 20)
       .map((item, index) => ({
               rank: item.rank || (index + 1),
               symbol: item.symbol?.replace('-USD', '') || 'N/A',
@@ -239,10 +239,10 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         const showAdded = addedBadge === item.symbol;
         return (
           <React.Fragment key={item.symbol}>
-            <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 hover:bg-gray-800 transition`}>
-              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block flex-1">
+    <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 transition`}>
+              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
                 <div
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:text-amber-500 hover:scale-[1.035] hover:z-10"
+      className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group group-hover:text-amber-500 group-hover:scale-[1.03] group-hover:z-10"
                   style={{
                     boxShadow: 'none', // Remove shadow/border
                     background: 'rgba(10, 10, 18, 0.18)' // Transparent fill

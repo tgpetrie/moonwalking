@@ -10,6 +10,7 @@ import TopBannerScroll from './components/TopBannerScroll';
 import BottomBannerScroll from './components/BottomBannerScroll';
 import { FiRefreshCw } from 'react-icons/fi';
 import GainersTable1Min from './components/GainersTable1Min';
+import SharedOneMinGainers from './components/SharedOneMinGainers.jsx';
 import Watchlist from './components/Watchlist';
 import WatchlistInsightsPanel from './components/WatchlistInsightsPanel.jsx';
 import AlertsIndicator from './components/AlertsIndicator.jsx';
@@ -29,6 +30,7 @@ export default function App() {
   const [user, setUser] = useState({ id: 'dev-bypass' });
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
+  const [oneMinExpanded, setOneMinExpanded] = useState(false);
 
   // Handler to sync watchlist state from children
   const handleWatchlistChange = (list) => {
@@ -174,7 +176,7 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers - Two side-by-side tables */}
+        {/* 1-Minute Gainers - Two side-by-side tables with one shared Show More */}
         <div className="mb-8">
           <div className="p-6 bg-transparent w-full">
             <div className="flex items-center gap-3 mb-6">
@@ -191,12 +193,22 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Shared Show More toggle */}
+            <div className="w-full flex justify-center">
+              <button
+                onClick={() => setOneMinExpanded(v => !v)}
+                className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+                aria-pressed={oneMinExpanded}
+              >
+                {oneMinExpanded ? 'Show Less' : 'Show More'}
+              </button>
+            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
               <div>
-        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={5} fixedRows={5} hideShowMore />
+        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={oneMinExpanded ? 10 : 5} fixedRows={5} hideShowMore />
               </div>
               <div>
-        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={10} fixedRows={5} hideShowMore />
+        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={oneMinExpanded ? 20 : 10} fixedRows={5} hideShowMore />
               </div>
             </div>
           </div>
