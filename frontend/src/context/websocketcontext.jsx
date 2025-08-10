@@ -21,6 +21,7 @@ export const WebSocketProvider = ({ children }) => {
     watchlist: null
   });
   const [isPolling, setIsPolling] = useState(false);
+  // Hold an object { id: timeoutId, abort: fn }
   const pollingIntervalRef = useRef(null);
 
   // Polling fallback function
@@ -30,11 +31,11 @@ export const WebSocketProvider = ({ children }) => {
     console.log('🔄 Starting REST API polling fallback');
     setIsPolling(true);
 
-    let inFlight = false;
-    let backoffMs = 5000; // start at 5s
+  let inFlight = false;
+  let backoffMs = 10000; // start at 10s to reduce churn
     let controller = null;
 
-    const poll = async () => {
+  const poll = async () => {
       if (inFlight) return; // concurrency guard
       inFlight = true;
       controller = new AbortController();
@@ -59,14 +60,14 @@ export const WebSocketProvider = ({ children }) => {
             prices: { ...prev.prices, ...pricesUpdate }
           }));
           // reset backoff on success
-          backoffMs = 5000;
+          backoffMs = 10000;
         }
       } catch (error) {
         if (error.name === 'AbortError') {
           // silent on abort
         } else {
           console.error('Polling error:', error);
-          backoffMs = Math.min(backoffMs * 1.5, 60000); // exponential up to 60s
+          backoffMs = Math.min(backoffMs * 1.5, 90000); // exponential up to 90s
         }
       } finally {
         inFlight = false;
@@ -75,30 +76,31 @@ export const WebSocketProvider = ({ children }) => {
 
     // Kick off loop using adaptive timeout instead of fixed setInterval to respect backoff
     const scheduleNext = () => {
-      pollingIntervalRef.current = setTimeout(async () => {
+      const timeoutId = setTimeout(async () => {
         await poll();
         scheduleNext();
       }, backoffMs);
+      // Store controller abort alongside timer id in a small control object
+      pollingIntervalRef.current = {
+        id: timeoutId,
+        abort: () => {
+          try { if (controller) controller.abort(); } catch (_) {}
+        }
+      };
     };
     poll();
     scheduleNext();
-
-    // store abort so stopPolling can cancel
-    pollingIntervalRef.current.abortController = () => {
-      if (controller) controller.abort();
-    };
   };
   
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
-      if (typeof pollingIntervalRef.current === 'number') {
-        clearTimeout(pollingIntervalRef.current);
-      } else {
-        clearTimeout(pollingIntervalRef.current.id);
-      }
-      if (pollingIntervalRef.current.abortController) {
-        pollingIntervalRef.current.abortController();
-      }
+      // Clear any scheduled timeout
+      const id = typeof pollingIntervalRef.current === 'number'
+        ? pollingIntervalRef.current
+        : pollingIntervalRef.current.id;
+      if (id) clearTimeout(id);
+      // Abort any in-flight fetch
+      if (pollingIntervalRef.current.abort) pollingIntervalRef.current.abort();
       pollingIntervalRef.current = null;
     }
     setIsPolling(false);
@@ -174,19 +176,30 @@ export const WebSocketProvider = ({ children }) => {
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 
-    // Attempt to connect WebSocket (fallback to REST polling if fails)
-    connectWebSocket();
-    
-    // Start polling immediately as fallback
-    const initialPollTimer = setTimeout(() => {
-      if (!isConnected) {
-        startPolling();
-      }
-    }, 3000); // Wait 3 seconds before starting polling if no WebSocket connection
+  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
+    if (disableWs) {
+      // Skip WS entirely and use polling
+      startPolling();
+    } else {
+      // Attempt to connect WebSocket (fallback to REST polling if fails)
+      connectWebSocket();
+      // Start polling if WS doesn't connect quickly
+      const initialPollTimer = setTimeout(() => {
+        if (!isConnected) startPolling();
+      }, 3000);
+      // track timer handle via ref so cleanup can clear it
+      pollingIntervalRef.current = pollingIntervalRef.current || {};
+      pollingIntervalRef.current._initialTimer = initialPollTimer;
+    }
 
     // Cleanup on unmount
     return () => {
-      clearTimeout(initialPollTimer);
+      try {
+        if (pollingIntervalRef.current?._initialTimer) {
+          clearTimeout(pollingIntervalRef.current._initialTimer);
+          delete pollingIntervalRef.current._initialTimer;
+        }
+      } catch (_) {}
       unsubscribeConnection();
       unsubscribeCrypto();
       unsubscribePrices();
@@ -202,6 +215,7 @@ export const WebSocketProvider = ({ children }) => {
     latestData,
     wsManager,
     isPolling,
+  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 7000,
     // Convenience methods
     subscribe: subscribeToWebSocket,
     getStatus: () => wsManager.getStatus(),

@@ -106,7 +106,11 @@ print_success "Frontend dependencies verified."
 # Start backend server
 print_status "Starting backend server on http://localhost:5001..."
 cd backend
-python app.py &
+if [ -x "../.venv/bin/python" ]; then
+    ../.venv/bin/python app.py &
+else
+    python app.py &
+fi
 BACKEND_PID=$!
 cd ..
 

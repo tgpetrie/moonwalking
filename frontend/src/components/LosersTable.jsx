@@ -38,6 +38,7 @@ const LosersTable = ({ refreshTrigger }) => {
   }, []);
   const [data, setData] = useState([]);
   const [flashMap, setFlashMap] = useState({});
+  const [priceHistory, setPriceHistory] = useState({}); // {SYM: number[]}
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -72,8 +73,23 @@ const LosersTable = ({ refreshTrigger }) => {
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
+            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0)),
+            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+            trendScore: item.trend_score ?? item.trendScore ?? 0
           }));
+          // Update rolling history for sparklines (cap 20 points)
+          setPriceHistory(prev => {
+            const out = { ...prev };
+            losersWithRanks.forEach(row => {
+              const arr = (out[row.symbol] || []).slice(-19);
+              if (typeof row.price === 'number' && Number.isFinite(row.price)) {
+                arr.push(row.price);
+                out[row.symbol] = arr;
+              }
+            });
+            return out;
+          });
           if (isMounted) {
             setData(prev => {
               const flashes = {};
@@ -161,6 +177,18 @@ const LosersTable = ({ refreshTrigger }) => {
         const isInWatchlist = watchlist.includes(item.symbol);
         const isPopping = popStar === item.symbol;
         const showAdded = addedBadge === item.symbol;
+        const getArrowStyle = (score, dir) => {
+          const s = Math.max(0, Math.min(3, Number(score) || 0));
+          let fontSize = '0.8em';
+          if (s >= 1.5) fontSize = '1.25em'; else if (s >= 0.5) fontSize = '1.05em';
+          let color;
+          if (dir === 'up') {
+            color = s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4';
+          } else {
+            color = s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2';
+          }
+          return { fontSize, color };
+        };
         return (
           <React.Fragment key={item.symbol}>
             <div className="relative group">
@@ -199,8 +227,24 @@ const LosersTable = ({ refreshTrigger }) => {
                       <span className="px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
                     )}
                   </div>
-                  {/* Price */}
+                  {/* Price + sparkline */}
                   <div className="flex flex-col items-end min-w-[110px]">
+                    {/* tiny sparkline above price on sm+ */}
+                    <div className="hidden sm:block mb-1">
+            <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
+                        {(() => {
+                          const ys = (priceHistory[item.symbol] || []).slice(-20);
+                          if (ys.length < 2) return null;
+                          const min = Math.min(...ys);
+                          const max = Math.max(...ys);
+                          const range = max - min || 1;
+                          const step = 80 / (ys.length - 1);
+                          const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
+              const positive = (item.change || 0) >= 0;
+              return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />;
+                        })()}
+                      </svg>
+                    </div>
                     <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                       {typeof item.price === 'number' && Number.isFinite(item.price)
                         ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
@@ -216,6 +260,19 @@ const LosersTable = ({ refreshTrigger }) => {
                   <div className="flex flex-col items-end min-w-[80px]">
                     <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                       <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                      {item.trendDirection && item.trendDirection !== 'flat' && (
+                        <span
+                          className="font-semibold"
+                          style={getArrowStyle(item.trendScore, item.trendDirection)}
+                          title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
+                          aria-label={`trend ${item.trendDirection}`}
+                        >
+                          {item.trendDirection === 'up' ? '↑' : '↓'}
+                        </span>
+                      )}
+                      {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
+                        <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{item.trendStreak}</span>
+                      )}
                     </div>
                     <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
                   </div>

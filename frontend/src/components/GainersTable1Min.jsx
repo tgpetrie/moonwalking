@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
@@ -7,8 +7,9 @@ import StarIcon from './StarIcon';
 // Accept onWatchlistChange and topWatchlist for proper state sync
 import PropTypes from 'prop-types';
 
-const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) => {
-  const { latestData, isConnected, isPolling } = useWebSocket();
+const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
+  const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
+  const lastRenderRef = useRef(0);
   // Inject animation styles for pop/fade effects
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('gainers-1min-table-animations')) {
@@ -70,17 +71,25 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   // Update data from WebSocket context when available
   useEffect(() => {
     if (latestData.crypto && Array.isArray(latestData.crypto)) {
+      const now = Date.now();
+  const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
+  if (now - (lastRenderRef.current || 0) < throttleMs) return; // throttle to reduce churn
+      lastRenderRef.current = now;
       console.log('📊 Using WebSocket data for 1-min gainers:', latestData.crypto.length, 'items');
-      const sorted = latestData.crypto
-        .sort((a, b) => (b.price_change_percentage_1min || 0) - (a.price_change_percentage_1min || 0))
+      // Respect backend ordering (already peak-held and sorted there)
+      const mapped = latestData.crypto
         .slice(0, 10)
         .map((item, index) => ({
           rank: item.rank || (index + 1),
           symbol: item.symbol?.replace('-USD', '') || 'N/A',
-          price: item.current_price || 0,
-          change: item.price_change_percentage_1min || 0
+          price: item.current_price ?? item.price ?? 0,
+          change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
+          isPeak: typeof item.peak_gain === 'number',
+          trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+          trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+          trendScore: item.trend_score ?? item.trendScore ?? 0
         }));
-      setData(sorted);
+      setData(mapped);
       setLoading(false);
       setError(null);
     }
@@ -100,18 +109,21 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
         console.log('🌐 Fetching 1-min gainers data via API');
         const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Sort by 1-min change descending, take top 10
-          const sorted = response.data
-            .sort((a, b) => (b.price_change_percentage_1min || 0) - (a.price_change_percentage_1min || 0))
+          // Respect backend ordering; take top 10
+      const mapped = response.data
             .slice(0, 10)
-            .map((item, index) => ({
+      .map((item, index) => ({
               rank: item.rank || (index + 1),
               symbol: item.symbol?.replace('-USD', '') || 'N/A',
-              price: item.current_price || 0,
-              change: item.price_change_percentage_1min || 0
+              price: item.current_price ?? item.price ?? 0,
+        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
+        isPeak: typeof item.peak_gain === 'number',
+    trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+    trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+    trendScore: item.trend_score ?? item.trendScore ?? 0
             }));
           if (isMounted) {
-            setData(sorted);
+            setData(mapped);
           }
   }
         if (isMounted) setLoading(false);
@@ -178,7 +190,14 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
     }
   };
 
-  if (loading && data.length === 0) {
+  // Apply optional slicing for two-column layouts
+  const visibleData = Array.isArray(data)
+    ? (typeof sliceStart === 'number' || typeof sliceEnd === 'number')
+      ? data.slice(sliceStart ?? 0, sliceEnd ?? data.length)
+      : data
+    : [];
+
+  if (loading && visibleData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="animate-pulse text-blue font-mono">Loading 1-min gainers...</div>
@@ -186,7 +205,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
     );
   }
 
-  if (error && data.length === 0) {
+  if (error && visibleData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="text-muted font-mono">Backend unavailable (no data)</div>
@@ -194,7 +213,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
     );
   }
 
-  if (data.length === 0) {
+  if (visibleData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="text-muted font-mono">No 1-min gainers data available</div>
@@ -205,11 +224,12 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
   // Determine if watchlist is present (from topWatchlist)
   const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
   // Show only top 4 gainers by default, expand/collapse for up to 10
-  const rowsToShow = showAll ? data.length : Math.min(4, data.length);
+  const desired = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : (showAll ? visibleData.length : Math.min(4, visibleData.length));
+  const rowsToShow = Math.min(desired, visibleData.length);
 
   return (
     <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
-      {data.slice(0, rowsToShow).map((item, idx) => {
+  {visibleData.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         // Check if symbol is in watchlist (handle both string and object formats)
         const isInWatchlist = watchlist.some(watchlistItem => 
@@ -261,8 +281,39 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
                       </span>
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                        {/* Trend arrow */}
+                        {item.trendDirection && item.trendDirection !== 'flat' && (() => {
+                          const s = Math.max(0, Math.min(3, Number(item.trendScore) || 0));
+                          let fontSize = '0.85em';
+                          if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
+                          const color = item.trendDirection === 'up'
+                            ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
+                            : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
+                          return (
+                            <span
+                              className="font-semibold"
+                              style={{ fontSize, color }}
+                              title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
+                              aria-label={`trend ${item.trendDirection}`}
+                            >
+                              {item.trendDirection === 'up' ? '↑' : '↓'}
+                            </span>
+                          );
+                        })()}
+                        {/* Peak badge */}
+                        {item.isPeak && (
+                          <span className="px-1.5 py-0.5 rounded bg-purple-700/40 text-purple-200 text-[10px] leading-none font-semibold align-middle">
+                            peak
+                          </span>
+                        )}
+                        {/* Streak chip (only if >=2) */}
+                        {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
+                          <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">
+                            x{item.trendStreak}
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                     </div>
@@ -303,13 +354,13 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
         );
       })}
       {/* Show More/Show Less button if more than 4 items */}
-      {Array.isArray(data) && data.length > 4 && (
+  {!hideShowMore && Array.isArray(visibleData) && visibleData.length > 4 && (
         <button
           className="mt-2 mx-auto px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
           style={{ width: 'fit-content' }}
           onClick={() => setShowAll(s => !s)}
         >
-          {showAll ? 'Show Less' : `Show More (${Math.min(10, data.length) - 4})`}
+      {showAll ? 'Show Less' : `Show More (${Math.min(10, visibleData.length) - 4})`}
         </button>
       )}
     </div>
@@ -319,7 +370,11 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist }) =
 GainersTable1Min.propTypes = {
   refreshTrigger: PropTypes.any,
   onWatchlistChange: PropTypes.func,
-  topWatchlist: PropTypes.array
+  topWatchlist: PropTypes.array,
+  sliceStart: PropTypes.number,
+  sliceEnd: PropTypes.number,
+  fixedRows: PropTypes.number,
+  hideShowMore: PropTypes.bool
 };
 
 export default GainersTable1Min;

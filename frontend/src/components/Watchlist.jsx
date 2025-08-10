@@ -11,6 +11,8 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   const [newSymbol, setNewSymbol] = useState('');
   const [search, setSearch] = useState('');
   const { latestData, fetchPricesForSymbols } = useWebSocket();
+  // Maintain a tiny rolling buffer of last few prices per symbol for sparkline/trend
+  const [priceHistory, setPriceHistory] = useState({}); // {SYM: [{t, p}, ...max 20]}
   const [latestAlerts, setLatestAlerts] = useState({});
 
   // Fetch watchlist on mount and when topWatchlist changes
@@ -74,6 +76,19 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
           currentPrice: latestData.prices[item.symbol]?.price || item.currentPrice
         }))
       );
+      // Update per-symbol history for sparkline/trend (cap 20 points)
+      setPriceHistory(prev => {
+        const next = { ...prev };
+        const now = Date.now();
+        for (const [sym, info] of Object.entries(latestData.prices)) {
+          const p = info?.price;
+          if (typeof p !== 'number') continue;
+          const arr = next[sym]?.slice(-19) || [];
+          arr.push({ t: now, p });
+          next[sym] = arr;
+        }
+        return next;
+      });
     }
   }, [latestData.prices]);
 
@@ -247,6 +262,11 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
             const priceAtAdd = item.priceAtAdd || 0;
             const priceNow = item.currentPrice ?? priceAtAdd;
             const change = priceAtAdd > 0 ? ((priceNow - priceAtAdd) / priceAtAdd) * 100 : 0;
+            // Compute micro-trend from last few points
+            const h = priceHistory[item.symbol] || [];
+            const head = h[h.length - 1]?.p;
+            const tail = h[Math.max(0, h.length - 5)]?.p;
+            const microTrend = head && tail ? Math.sign(head - tail) : 0; // -1, 0, 1
             return (
               <React.Fragment key={item.symbol}>
                 <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 hover:bg-gray-800 transition`}>
@@ -280,9 +300,36 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                               className="ml-1 px-2 py-0.5 rounded-full bg-purple-700/70 text-[10px] font-semibold text-white tracking-wider hover:bg-purple-600 cursor-help"
                             >ALERT</span>
                           )}
+                          {/* micro-trend arrow */}
+                          {microTrend !== 0 && (
+                            <span className={`text-xs font-semibold ${microTrend > 0 ? 'text-green-300' : 'text-red-300'}`} title={microTrend>0?'short-term up':'short-term down'}>
+                              {microTrend > 0 ? '↑' : '↓'}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
+                        {/* tiny sparkline */}
+                        <div className="hidden sm:block">
+                          <svg width="80" height="24" viewBox="0 0 80 24" className="opacity-70">
+                            {(() => {
+                              const pts = (priceHistory[item.symbol]||[]).slice(-20);
+                              if (pts.length < 2) return null;
+                              const ys = pts.map(x => x.p);
+                              const min = Math.min(...ys);
+                              const max = Math.max(...ys);
+                              const range = max - min || 1;
+                              const step = 80 / (pts.length - 1);
+                              const d = pts.map((x,i) => `${i===0?'M':'L'} ${i*step} ${24 - ((x.p - min)/range)*24}`).join(' ');
+                              const positive = change >= 0;
+                              return (
+                                <>
+                                  <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
                         <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
                           <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                             ${priceNow.toFixed(priceNow < 1 ? 4 : 2)}

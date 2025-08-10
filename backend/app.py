@@ -27,11 +27,7 @@ INSIGHTS_MIN_STEP_CHANGE_PCT = float(os.environ.get('INSIGHTS_MIN_STEP_CHANGE_PC
 VOLUME_SPIKE_THRESHOLD = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_THRESHOLD', '5000000'))  # 5M 24h vol
 VOLUME_SPIKE_MIN_CHANGE_PCT = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_MIN_CHANGE_PCT', '8'))  # 8% move + volume
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
-
-# Register blueprints
-app.register_blueprint(watchlist_bp)
+# (app is created later once logging/config are setup)
 
 from config import CONFIG
 from logging_config import setup_logging
@@ -88,7 +84,7 @@ setup_logging()
 # Log configuration
 log_config_with_param(CONFIG)
 
-# Flask App Setup
+# Flask App Setup (final app instance)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
 
@@ -103,6 +99,9 @@ else:
     cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
 
 CORS(app, origins=cors_origins)
+
+# Register blueprints after final app creation
+app.register_blueprint(watchlist_bp)
 
 # Dynamic Configuration with Environment Variables and Defaults
 CONFIG = {
@@ -120,12 +119,19 @@ CONFIG = {
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
     # 1-minute feature load controls
     'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
-    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 30)),  # Throttle 1-min recompute
+    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 45)),  # Throttle 1-min recompute (default 45s)
     # 1-minute retention / hysteresis controls
     'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.15)),   # % change to ENTER list
     'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.05)),     # lower % to remain after entering
     'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 25)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
+    # Alert hygiene (streak-triggered alerts with cooldown)
+    'ALERTS_COOLDOWN_SECONDS': int(os.environ.get('ALERTS_COOLDOWN_SECONDS', 300)),  # 5 minutes
+    # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
+    'ALERTS_STREAK_THRESHOLDS': [
+        int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
+        if x.strip().isdigit()
+    ] or [3, 5],
 }
 
 # Cache and price history storage
@@ -150,6 +156,59 @@ one_minute_persistence = {
 # Track rolling 60s peak percentage changes for 1-min logic to avoid rapid top churn
 # Structure: symbol -> {'peak_pct': float, 'peak_at': ts, 'last_seen': ts}
 one_minute_peaks = {}
+# Track simple trending stats for 1‑minute gains per symbol
+one_minute_trends = {}
+# New trend caches for other intervals/metrics
+three_minute_trends = {}
+one_hour_price_trends = {}
+one_hour_volume_trends = {}
+# Track 24h volume snapshots to estimate 1h volume deltas: symbol -> deque[(ts, vol_24h)]
+volume_history_24h = defaultdict(lambda: deque(maxlen=180))
+
+# -----------------------------------------------------------------------------
+# Trend Alert Hygiene: fire on streak thresholds with cooldown per scope/symbol
+# -----------------------------------------------------------------------------
+alerts_state = {
+    '1m': {},
+    '3m': {},
+    '1h_price': {},
+    '1h_volume': {},
+}
+alerts_log = deque(maxlen=200)
+
+def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
+    """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
+    try:
+        thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [3, 5])
+        if direction == 'flat' or not thresholds:
+            return
+        # Highest threshold reached (if any)
+        reached = max([t for t in thresholds if isinstance(t, int) and streak >= t], default=None)
+        if reached is None:
+            return
+        now = time.time()
+        last = alerts_state.get(scope, {}).get(symbol, 0)
+        if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 300):
+            msg = f"{scope} trend {direction} x{streak} on {symbol} (>= {reached}; score {float(score or 0.0):.2f})"
+            alerts_log.append({
+                'ts': datetime.now().isoformat(),
+                'scope': scope,
+                'symbol': symbol,
+                'direction': direction,
+                'streak': int(streak),
+                'score': round(float(score or 0.0), 3),
+                'message': msg
+            })
+            alerts_state.setdefault(scope, {})[symbol] = now
+            # Mirror into insights log if available (best-effort)
+            try:
+                if INSIGHTS_MEMORY:
+                    INSIGHTS_MEMORY.add(f"ALERT: {msg}")
+            except Exception:
+                pass
+    except Exception:
+        # Never block main flow on alert failures
+        pass
 
 def log_config():
     """Log current configuration"""
@@ -323,48 +382,76 @@ def get_coinbase_prices():
         return {}
 
 def calculate_interval_changes(current_prices):
-    """Calculate price changes over dynamic intervals"""
+    """Calculate price changes over configured interval (default 3 minutes) using interpolation for accuracy."""
     current_time = time.time()
     interval_seconds = CONFIG['INTERVAL_MINUTES'] * 60
-    
+
     # Update price history with current prices
     for symbol, price in current_prices.items():
         if price > 0:
             price_history[symbol].append((current_time, price))
-    
-    # Calculate changes for each symbol
+
     formatted_data = []
+    target_ts_offset = interval_seconds
+
     for symbol, price in current_prices.items():
         if price <= 0:
             continue
-            
+
         history = price_history[symbol]
         if len(history) < 2:
             continue
-            
-        # Find price from interval ago (or earliest available)
+
+        # Ensure chronological list
+        hist_list = list(history)
+        target_ts = current_time - target_ts_offset
+
         interval_price = None
         interval_time = None
-        
-        for timestamp, historical_price in history:
-            if current_time - timestamp >= interval_seconds:
-                interval_price = historical_price
-                interval_time = timestamp
-                break
-        
-        # If no interval data, use oldest available
-        if interval_price is None and len(history) >= 2:
-            interval_price = history[0][1]
-            interval_time = history[0][0]
-        
+
+        # Case A: All points newer than target -> use oldest available (short interval)
+        if hist_list[0][0] > target_ts:
+            interval_time, interval_price = hist_list[0]
+        # Case B: All points older than target -> use latest older (long interval)
+        elif hist_list[-1][0] <= target_ts:
+            interval_time, interval_price = hist_list[-1]
+        else:
+            # Case C: Interpolate between the two bracketing points around target_ts
+            left = None
+            right = None
+            for i in range(len(hist_list) - 1):
+                t0, p0 = hist_list[i]
+                t1, p1 = hist_list[i + 1]
+                if t0 <= target_ts <= t1:
+                    left = (t0, p0)
+                    right = (t1, p1)
+                    break
+            if left and right and right[0] > left[0] and all(x is not None for x in (left[1], right[1])):
+                t0, p0 = left
+                t1, p1 = right
+                # Linear interpolation
+                ratio = (target_ts - t0) / (t1 - t0)
+                interval_price = p0 + (p1 - p0) * ratio
+                interval_time = target_ts
+            else:
+                # Fallback to latest older point if interpolation failed
+                # Find latest point <= target_ts
+                for t, p in reversed(hist_list):
+                    if t <= target_ts:
+                        interval_time, interval_price = t, p
+                        break
+                # If still none, use oldest
+                if interval_price is None:
+                    interval_time, interval_price = hist_list[0]
+
         if interval_price is None or interval_price <= 0:
             continue
-            
-        # Calculate percentage change
+
         price_change = ((price - interval_price) / interval_price) * 100
-        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
-        
-        # Only include significant changes (configurable threshold)
+        actual_interval_minutes = (
+            CONFIG['INTERVAL_MINUTES'] if interval_time == target_ts else (current_time - interval_time) / 60
+        )
+
         if abs(price_change) >= 0.01:
             formatted_data.append({
                 "symbol": symbol,
@@ -373,7 +460,7 @@ def calculate_interval_changes(current_prices):
                 "price_change_percentage_3min": price_change,
                 "actual_interval_minutes": actual_interval_minutes
             })
-    
+
     return formatted_data
 
 def calculate_1min_changes(current_prices):
@@ -482,6 +569,11 @@ def get_coinbase_24h_top_movers():
                     
                     # Only include significant moves
                     if abs(price_change_24h) >= CONFIG['MIN_CHANGE_THRESHOLD'] and volume_24h > CONFIG['MIN_VOLUME_THRESHOLD']:
+                        # Record volume snapshot for later 1h delta computation
+                        try:
+                            volume_history_24h[product["id"]].append((time.time(), volume_24h))
+                        except Exception:
+                            pass
                         return {
                             "symbol": product["id"],
                             "current_price": current_price,
@@ -912,13 +1004,24 @@ def get_top_banner_scroll():
         
         top_scroll_data = []
         for coin in hour_sorted[:20]:  # Top 20 by 1-hour price change
+            sym = coin["symbol"]
+            ch = float(coin.get("price_change_1h", 0) or 0)
+            prev = one_hour_price_trends.get(sym, {"last": ch, "streak": 0, "last_dir": "flat", "score": 0.0})
+            direction = "up" if ch > prev["last"] else ("down" if ch < prev["last"] else "flat")
+            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            score = round(prev["score"] * 0.9 + ch * 0.1, 3)
+            one_hour_price_trends[sym] = {"last": ch, "streak": streak, "last_dir": direction, "score": score}
+            _maybe_fire_trend_alert('1h_price', sym, direction, streak, score)
             top_scroll_data.append({
                 "symbol": coin["symbol"],
                 "current_price": coin["current_price"],
                 "price_change_1h": coin["price_change_1h"],  # 1-hour price change
                 "initial_price_1h": coin["initial_price_1h"],
                 "market_cap": coin.get("market_cap", 0),
-                "sparkline_trend": "up" if coin["price_change_1h"] > 0 else "down"
+                "sparkline_trend": "up" if coin["price_change_1h"] > 0 else "down",
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score
             })
         
         return jsonify({
@@ -949,16 +1052,51 @@ def get_bottom_banner_scroll():
         
         bottom_scroll_data = []
         for coin in volume_sorted[:20]:  # Top 20 by volume
-            # Calculate estimated volume change (using price change as proxy)
-            volume_change_estimate = coin["price_change_1h"] * 0.5  # Volume often correlates with price movement
-            
+            sym = coin["symbol"]
+            vol_now = float(coin.get("volume_24h", 0) or 0)
+            # Compute 1h volume change from history (rolling 24h cumulative volume difference)
+            vol_change_1h = None
+            vol_change_1h_pct = None
+            try:
+                hist = volume_history_24h.get(sym, deque())
+                if hist:
+                    now_ts = time.time()
+                    # Find value about >=1h ago (oldest that is at least 3600s old)
+                    vol_then = None
+                    for ts, vol in hist:
+                        if now_ts - ts >= 3600:
+                            vol_then = vol
+                            break
+                    if vol_then is None and len(hist) >= 2:
+                        # Fallback: use oldest available
+                        vol_then = hist[0][1]
+                    if vol_then is not None:
+                        vol_change_1h = vol_now - vol_then
+                        if vol_then > 0:
+                            vol_change_1h_pct = (vol_change_1h / vol_then) * 100.0
+            except Exception:
+                pass
+            # Fallback metric for trend if we lack 1h volume delta
+            ch_metric = float(vol_change_1h_pct if vol_change_1h_pct is not None else (coin.get("price_change_1h", 0) or 0))
+            prev = one_hour_volume_trends.get(sym, {"last": ch_metric, "streak": 0, "last_dir": "flat", "score": 0.0})
+            direction = "up" if ch_metric > prev["last"] else ("down" if ch_metric < prev["last"] else "flat")
+            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            score = round(prev["score"] * 0.9 + abs(ch_metric) * 0.1, 3)
+            one_hour_volume_trends[sym] = {"last": ch_metric, "streak": streak, "last_dir": direction, "score": score}
+            _maybe_fire_trend_alert('1h_volume', sym, direction, streak, score)
+
             bottom_scroll_data.append({
-                "symbol": coin["symbol"],
+                "symbol": sym,
                 "current_price": coin["current_price"],
-                "volume_24h": coin["volume_24h"],
-                "price_change_1h": coin["price_change_1h"],  # 1-hour change
-                "volume_change_estimate": volume_change_estimate,
-                "volume_category": "high" if coin["volume_24h"] > 10000000 else "medium" if coin["volume_24h"] > 1000000 else "low"
+                "volume_24h": vol_now,
+                "price_change_1h": coin["price_change_1h"],
+                "volume_change_1h": vol_change_1h,
+                "volume_change_1h_pct": vol_change_1h_pct,
+                "volume_change_estimate": coin["price_change_1h"] * 0.5 if vol_change_1h_pct is None else None,
+                "volume_category": "high" if vol_now > 10000000 else "medium" if vol_now > 1000000 else "low",
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score
             })
         
         return jsonify({
@@ -988,6 +1126,15 @@ def get_gainers_table():
         # Enhanced formatting specifically for gainers table
         gainers_table_data = []
         for i, coin in enumerate(gainers[:20]):  # Top 20 gainers
+            # update 3-min trend cache
+            sym = coin["symbol"]
+            g = float(coin.get("gain", 0) or 0)
+            prev = three_minute_trends.get(sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0})
+            direction = "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
+            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            score = round(prev["score"] * 0.8 + g * 0.2, 3)
+            three_minute_trends[sym] = {"last": g, "streak": streak, "last_dir": direction, "score": score}
+            _maybe_fire_trend_alert('3m', sym, direction, streak, score)
             gainers_table_data.append({
                 "rank": i + 1,
                 "symbol": coin["symbol"],
@@ -995,6 +1142,9 @@ def get_gainers_table():
                 "price_change_percentage_3min": coin["gain"],  # Use correct field name
                 "initial_price_3min": coin["initial_3min"],  # Use correct field name
                 "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score,
                 "momentum": "strong" if coin["gain"] > 5 else "moderate",
                 "alert_level": "high" if coin["gain"] > 10 else "normal"
             })
@@ -1025,6 +1175,13 @@ def get_losers_table():
         # Enhanced formatting specifically for losers table
         losers_table_data = []
         for i, coin in enumerate(losers[:20]):  # Top 20 losers
+            sym = coin["symbol"]
+            g = float(coin.get("gain", 0) or 0)
+            prev = three_minute_trends.get(sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0})
+            direction = "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
+            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            score = round(prev["score"] * 0.8 + g * 0.2, 3)
+            three_minute_trends[sym] = {"last": g, "streak": streak, "last_dir": direction, "score": score}
             losers_table_data.append({
                 "rank": i + 1,
                 "symbol": coin["symbol"],
@@ -1032,6 +1189,9 @@ def get_losers_table():
                 "price_change_percentage_3min": coin["gain"],  # Use correct field name (negative for losers)
                 "initial_price_3min": coin["initial_3min"],  # Use correct field name
                 "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score,
                 "momentum": "strong" if coin["gain"] < -5 else "moderate",
                 "alert_level": "high" if coin["gain"] < -10 else "normal"
             })
@@ -1086,6 +1246,25 @@ def get_top_movers_bar():
     except Exception as e:
         logging.error(f"Error in top movers bar endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
+# -----------------------------------------------------------------------------
+# Alerts API: expose recent trend alerts with cooldown-based hygiene
+# -----------------------------------------------------------------------------
+@app.route('/api/alerts/recent')
+def get_recent_alerts():
+    try:
+        limit = int(request.args.get('limit', 50))
+        if limit <= 0:
+            limit = 50
+        items = list(alerts_log)[-limit:]
+        return jsonify({
+            'count': len(items),
+            'limit': limit,
+            'alerts': items
+        })
+    except Exception as e:
+        logging.error(f"Error in recent alerts endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # =============================================================================
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
@@ -1161,6 +1340,34 @@ def get_crypto_data_1min():
             else:
                 coin['price_change_percentage_1min_peak'] = coin.get('price_change_percentage_1min', 0)
 
+        # --- Trending logic: direction/streak/score based on effective gain deltas ---
+        trend_eps = CONFIG.get('ONE_MIN_TREND_EPS', 0.02)  # %. Minimal delta to count as movement
+        for sym, coin in data_by_symbol.items():
+            eff = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0)) or 0.0
+            prev = one_minute_trends.get(sym, {"last_gain": eff, "streak": 0, "last_dir": "flat", "score": 0.0})
+            delta = eff - prev.get('last_gain', 0.0)
+            if delta > trend_eps:
+                direction = 'up'
+                streak = prev['streak'] + 1 if prev.get('last_dir') == 'up' else 1
+            elif delta < -trend_eps:
+                direction = 'down'
+                streak = prev['streak'] + 1 if prev.get('last_dir') == 'down' else 1
+            else:
+                direction = 'flat'
+                streak = prev['streak'] + 1 if prev.get('last_dir') == 'flat' else 1
+                streak = min(streak, 5)
+            # Simple bounded trend score combining delta and streak
+            score = max(-10.0, min(10.0, round(delta * 3.0 + streak * (0.5 if direction != 'flat' else 0.1), 2)))
+            one_minute_trends[sym] = {
+                'last_gain': eff,
+                'last_dir': direction,
+                'streak': streak,
+                'score': score,
+                'updated_at': now_ts,
+                'delta': round(delta, 3),
+            }
+            _maybe_fire_trend_alert('1m', sym, direction, streak, score)
+
         # Update existing entries & drop those that lost momentum AND exceeded dwell time below stay threshold
         to_delete = []
         for sym, meta in pers.items():
@@ -1200,13 +1407,18 @@ def get_crypto_data_1min():
         def attach_peak(list_):
             out = []
             for c in list_:
+                t = one_minute_trends.get(c["symbol"], {})
                 out.append({
                     "symbol": c["symbol"],
                     "current": c["current_price"],
                     "initial_1min": c["initial_price_1min"],
                     "gain": c["price_change_percentage_1min"],
                     "interval_minutes": round(c.get("actual_interval_minutes", 1), 1),
-                    "peak_gain": c.get("price_change_percentage_1min_peak", c.get("price_change_percentage_1min", 0))
+                    "peak_gain": c.get("price_change_percentage_1min_peak", c.get("price_change_percentage_1min", 0)),
+                    "trend_direction": t.get('last_dir', 'flat'),
+                    "trend_streak": t.get('streak', 0),
+                    "trend_score": t.get('score', 0.0),
+                    "trend_delta": t.get('delta', 0.0),
                 })
             return out
 
@@ -1247,6 +1459,11 @@ def get_gainers_table_1min():
                 "price_change_percentage_1min": coin["gain"],
                 "initial_price_1min": coin["initial_1min"],
                 "actual_interval_minutes": coin.get("interval_minutes", 1),
+                "peak_gain": coin.get("peak_gain", coin["gain"]),
+                "trend_direction": coin.get("trend_direction", "flat"),
+                "trend_streak": coin.get("trend_streak", 0),
+                "trend_score": coin.get("trend_score", 0.0),
+                "trend_delta": coin.get("trend_delta", 0.0),
                 "momentum": "strong" if coin["gain"] > 5 else "moderate",
                 "alert_level": "high" if coin["gain"] > 10 else "normal"
             })
@@ -1368,8 +1585,8 @@ def get_chart(symbol):
         "analysis": analysis
     })
 
-@app.route('/api/watchlist')
-def get_watchlist():
+@app.route('/api/recommendations')
+def get_recommendations():
     """Get recommended coins to watch"""
     recommendations = get_trending_coins()
     
