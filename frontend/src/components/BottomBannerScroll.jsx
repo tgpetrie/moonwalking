@@ -14,9 +14,14 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             rank: index + 1,
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
-            volume_change: item.price_change_1h || 0,
+            volume_change: (typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct))
+              ? item.volume_change_1h_pct
+              : (typeof item.volume_change_estimate === 'number' ? item.volume_change_estimate : 0),
             volume_24h: item.volume_24h || 0,
-            badge: getBadgeStyle(item.volume_24h || 0)
+            badge: getBadgeStyle(item.volume_24h || 0),
+            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+            trendScore: item.trend_score ?? item.trendScore ?? 0
           }));
           if (isMounted) {
             // Update data with real live data
@@ -94,6 +99,27 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold">
                     <span className={coin.volume_change >= 0 ? 'text-blue' : 'text-pink'}>Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%</span>
+                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
+                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
+                      let fontSize = '0.85em';
+                      if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
+                      const color = coin.trendDirection === 'up'
+                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
+                        : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
+                      return (
+                        <span
+                          className="font-semibold"
+                          style={{ fontSize, color }}
+                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
+                          aria-label={`trend ${coin.trendDirection}`}
+                        >
+                          {coin.trendDirection === 'up' ? '↑' : '↓'}
+                        </span>
+                      );
+                    })()}
+                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
+                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{coin.trendStreak}</span>
+                    )}
                   </div>
                   <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
                     {coin.badge}
@@ -116,6 +142,27 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold">
                     <span className={coin.volume_change >= 0 ? 'text-blue' : 'text-pink'}>Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%</span>
+                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
+                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
+                      let fontSize = '0.85em';
+                      if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
+                      const color = coin.trendDirection === 'up'
+                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
+                        : (s >= 1.5 ? '#EF4444' : '#F87171');
+                      return (
+                        <span
+                          className="font-semibold"
+                          style={{ fontSize, color }}
+                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
+                          aria-label={`trend ${coin.trendDirection}`}
+                        >
+                          {coin.trendDirection === 'up' ? '↑' : '↓'}
+                        </span>
+                      );
+                    })()}
+                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
+                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{coin.trendStreak}</span>
+                    )}
                   </div>
                   <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
                     {coin.badge}

@@ -7,13 +7,20 @@ class WebSocketManager {
     this.subscribers = new Map();
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-  // Prefer explicit WS url, else reuse API url (avoids port mismatch 404s)
-  const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5003').replace(/\/$/, '');
-  const wsUrl = (import.meta.env.VITE_WS_URL || apiUrl).replace(/\/$/, '');
-  this.baseUrl = wsUrl;
+    // Prefer explicit WS url (VITE_WS_URL), else reuse API url (avoids port mismatch 404s)
+    const apiUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:5003').replace(/\/$/, '');
+    const wsUrl = (import.meta.env?.VITE_WS_URL || apiUrl).replace(/\/$/, '');
+    this.baseUrl = wsUrl;
+    // Allow opting out by default unless explicitly enabled server-side
+    this.disabled = String(import.meta.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
   }
 
   connect() {
+    if (this.disabled) {
+      console.info('WebSocket disabled by VITE_DISABLE_WS');
+      this.emit('connection', { status: 'failed', reason: 'disabled' });
+      return;
+    }
     if (this.socket && this.socket.connected) {
       return;
     }

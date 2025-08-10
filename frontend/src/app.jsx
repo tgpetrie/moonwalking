@@ -1,5 +1,6 @@
 import './env-debug.js';
 import React, { useEffect, useState } from 'react';
+import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
 // import { supabase } from './api'; // Supabase removed
 import AuthPanel from './components/AuthPanel';
@@ -11,6 +12,8 @@ import { FiRefreshCw } from 'react-icons/fi';
 import GainersTable1Min from './components/GainersTable1Min';
 import Watchlist from './components/Watchlist';
 import WatchlistInsightsPanel from './components/WatchlistInsightsPanel.jsx';
+import AlertsIndicator from './components/AlertsIndicator.jsx';
+import LastAlertTicker from './components/LastAlertTicker.jsx';
 
 // Live data polling interval (ms)
 const POLL_INTERVAL = 30000;
@@ -38,8 +41,8 @@ export default function App() {
     let countdownId;
     const checkConnection = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api`);
-        setIsConnected(response.ok);
+        const res = await fetchData(API_ENDPOINTS.serverInfo);
+        setIsConnected(!!res && res.status === 'running');
       } catch (error) {
         setIsConnected(false);
       }
@@ -65,11 +68,11 @@ export default function App() {
   };
 
   if (checkingAuth) {
-    // If we are checking auth, but user is already null, show AuthPanel
-    if (!user) {
-      return <AuthPanel onAuth={() => window.location.reload()} />;
-    }
-    return <div className="min-h-screen flex items-center justify-center bg-dark text-white text-xl">Checking authentication...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-dark text-white text-xl">
+        Checking authentication...
+      </div>
+    );
   }
   if (!user) {
     return <AuthPanel onAuth={() => window.location.reload()} />;
@@ -110,6 +113,9 @@ export default function App() {
         >
           <FiRefreshCw className="text-xl text-purple-300" />
         </button>
+        <div className="mt-1">
+          <AlertsIndicator />
+        </div>
         {/* Quickview removed (toggle retained if needed) */}
         {ENABLE_WATCHLIST_QUICKVIEW && topWatchlist.length > 0 && (
           <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2 animate-fade-in">
@@ -159,8 +165,8 @@ export default function App() {
             className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125"
           />
         </header>
-        {/* Top Banner - 1H Price */}
-        <div className="mb-8 -mx-16 sm:-mx-24 lg:-mx-32 xl:-mx-40">
+  {/* Top Banner - 1H Price */}
+  <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
           <TopBannerScroll refreshTrigger={lastUpdate} />
         </div>
         {/* Refresh Button */}
@@ -168,28 +174,31 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers Table & Watchlist Side by Side */}
+        {/* 1-Minute Gainers - Two side-by-side tables */}
         <div className="mb-8">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* 1-Minute Gainers Table */}
-            <div className={`p-6 bg-transparent ${topWatchlist.length === 0 ? 'w-full' : 'flex-1'}`}>
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                  1-MIN GAINERS
-                </h2>
-              </div>
-              {/* Line divider directly under 1-MIN GAINERS header */}
-              <div className="flex justify-start mb-4">
-                <img
-                  src="/linediv.png"
-                  alt="Divider"
-                  className="w-48 h-auto"
-                  style={{ maxWidth: '100%' }}
-                />
-              </div>
-              <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} />
+          <div className="p-6 bg-transparent w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+                1-MIN GAINERS
+              </h2>
             </div>
-            {/* Watchlist column removed intentionally for cleaner layout */}
+            {/* Line divider directly under 1-MIN GAINERS header */}
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
+            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={5} fixedRows={5} hideShowMore />
+              </div>
+              <div>
+        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={10} fixedRows={5} hideShowMore />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -233,9 +242,31 @@ export default function App() {
             <LosersTable refreshTrigger={lastUpdate} />
           </div>
         </div>
-  {/* Full watchlist section removed */}
-        {/* Bottom Banner - 1H Volume */}
-        <div className="mb-8 -mx-16 sm:-mx-24 lg:-mx-32 xl:-mx-40">
+
+        {/* Watchlist below 3-Min tables */}
+        <div className="mb-8">
+          <div className="p-6 bg-transparent w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold text-orange tracking-wide">
+                WATCHLIST
+              </h2>
+            </div>
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
+            </div>
+            <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
+          </div>
+        </div>
+        {/* Last Alert Ticker + Bottom Banner - 1H Volume */}
+        <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
+          <div className="mx-2 sm:mx-8 lg:mx-16 xl:mx-24">
+            <LastAlertTicker />
+          </div>
           <BottomBannerScroll refreshTrigger={lastUpdate} />
         </div>
         {/* Footer */}

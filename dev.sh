@@ -35,7 +35,8 @@ show_help() {
     echo "  start        - Start both backend and frontend servers"
     echo "  backend      - Start only the backend server"
     echo "  frontend     - Start only the frontend server"
-    echo "  test         - Run all tests"
+    echo "  test         - Run all backend tests (pytest)"
+    echo "  smoke        - Run backend smoke test against a base URL"
     echo "  test-backend - Run backend tests only"
     echo "  build        - Build frontend for production"
     echo "  clean        - Clean build artifacts and caches"
@@ -88,15 +89,11 @@ case "${1:-help}" in
         npm run dev
         ;;
     
-    "test")
+        "test")
         print_status "Running all tests..."
         activate_venv
         cd backend
-        if [ -f "test_app.py" ]; then
-            python -m pytest test_app.py -v
-        else
-            print_error "Backend tests not found!"
-        fi
+                python -m pytest -q || print_error "Backend tests failed"
         cd ../frontend
         if [ -f "package.json" ] && grep -q "test" package.json; then
             npm test
@@ -105,6 +102,15 @@ case "${1:-help}" in
         fi
         cd ..
         ;;
+    
+        "smoke")
+                print_status "Running backend smoke test..."
+                activate_venv
+                BASE_URL=${2:-"http://127.0.0.1:5001"}
+                SMOKE_START_DELAY=${SMOKE_START_DELAY:-0}
+                SMOKE_BASE_URL="$BASE_URL" SMOKE_START_DELAY="$SMOKE_START_DELAY" \
+                    python backend/smoke_test.py
+                ;;
     
     "test-backend")
         print_status "Running backend tests..."
