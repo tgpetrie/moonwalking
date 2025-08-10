@@ -250,13 +250,45 @@ VITE_ALERTS_POLL_MS=30000
    * **Output Directory**: `frontend/dist`
    * **Install Command**: `cd frontend && npm install`
 
+3. Routes/Env (already in `vercel.json`):
+   * Rewrites API: `/api/(.*)` → `https://moonwalker.onrender.com/api/$1`
+   * SPA fallback enabled
+   * Build env: `VITE_API_URL=https://moonwalker.onrender.com/`
+
 ### Backend (Render)
 
 1. Link your repository to Render
 2. Configure settings as follows:
 
    * **Build Command**: `pip install -r backend/requirements.txt`
-   * **Start Command**: `cd backend && gunicorn app:app`
+   * **Start Command**: `cd backend && gunicorn app:app --bind 0.0.0.0:$PORT`
+   * **Environment** (Render Blueprint `render.yaml`):
+
+```yaml
+services:
+   - type: web
+      name: bhabit-backend
+      runtime: python
+      buildCommand: pip install -r backend/requirements.txt
+      startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
+      healthCheckPath: /api/server-info
+      envVars:
+         - key: FLASK_ENV
+            value: production
+         - key: FLASK_DEBUG
+            value: "false"
+         - key: HOST
+            value: 0.0.0.0
+         - key: CORS_ALLOWED_ORIGINS
+            value: "*"
+         - key: API_RATE_LIMIT
+            value: "1000"
+         - key: CACHE_TTL
+            value: "60"
+```
+
+1. Health Check: set to `/api/server-info` in the Render service settings (if not using blueprint).
+2. CORS: `CORS_ALLOWED_ORIGINS="*"` is permissive; tighten it to your Vercel origin in production.
 
 ---
 

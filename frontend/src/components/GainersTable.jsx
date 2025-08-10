@@ -4,6 +4,18 @@ import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const GainersTable = ({ refreshTrigger }) => {
+  // Inject shared sparkline animation CSS once
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('sparkline-anim-css')) {
+      const style = document.createElement('style');
+      style.id = 'sparkline-anim-css';
+      style.innerHTML = `
+        @keyframes draw-spark { to { stroke-dashoffset: 0; } }
+        .sparkline-path { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw-spark 900ms ease-out forwards; }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
   // Inject animation styles for pop/fade effects
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('gainers-table-animations')) {
@@ -232,17 +244,45 @@ const GainersTable = ({ refreshTrigger }) => {
                   <div className="flex flex-col items-end min-w-[110px]">
                     {/* tiny sparkline above price on sm+ */}
                     <div className="hidden sm:block mb-1">
-            <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
+                      <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
                         {(() => {
-                          const ys = (priceHistory[item.symbol] || []).slice(-20);
+                          let ys = (priceHistory[item.symbol] || []).slice(-20);
                           if (ys.length < 2) return null;
-                          const min = Math.min(...ys);
-                          const max = Math.max(...ys);
+                          let min = Math.min(...ys);
+                          let max = Math.max(...ys);
+                          // Dynamic slope/shape fallback when series is flat or nearly flat
+                          const last = ys[ys.length - 1] || 1;
+                          const relRange = (max - min) / (last || 1);
+                          if (!isFinite(relRange) || relRange < 0.00001) {
+                            const sign = (item.change || 0) >= 0 ? 1 : -1;
+                            const amp = Math.max(0.0005 * last, Math.abs(item.change || 0) / 100 * last * 0.002);
+                            const n = ys.length;
+                            const variant = ((item.symbol || '').length + (item.symbol || 'A').charCodeAt(0)) % 3;
+                            ys = ys.map((_, i) => {
+                              const t = n > 1 ? i / (n - 1) : 1;
+                              let offset;
+                              if (variant === 0) {
+                                // Smooth ramp
+                                offset = (t - 0.5) * 2 * amp * 0.9 * sign;
+                              } else if (variant === 1) {
+                                // Step, short plateau, final kick
+                                if (t < 0.3) offset = ((t / 0.3) * 0.6 - 0.3) * amp * sign;
+                                else if (t < 0.7) offset = 0.3 * amp * sign;
+                                else offset = (0.3 + ((t - 0.7) / 0.3) * 0.7) * amp * sign;
+                              } else {
+                                // Gentle ramp with a tiny wiggle
+                                const wig = Math.sin(t * Math.PI) * 0.2 * amp * sign;
+                                offset = (t - 0.5) * 2 * 0.8 * amp * sign + wig;
+                              }
+                              return last + offset;
+                            });
+                            min = Math.min(...ys); max = Math.max(...ys);
+                          }
                           const range = max - min || 1;
                           const step = 80 / (ys.length - 1);
                           const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
-              const positive = (item.change || 0) >= 0;
-              return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />;
+                          const positive = (item.change || 0) >= 0;
+                          return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" pathLength="100" className="sparkline-path" />;
                         })()}
                       </svg>
                     </div>
