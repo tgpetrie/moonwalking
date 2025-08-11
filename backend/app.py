@@ -66,6 +66,22 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
+# ---------------------------------------------------------------------------------
+# Utility: best-effort commit SHA for diagnostics (/api/server-info)
+# ---------------------------------------------------------------------------------
+def _get_commit_sha() -> str:
+    """Return a short commit SHA if available via env or local git. Best effort only."""
+    try:
+        # Prefer explicit env (e.g., set by CI/CD)
+        sha = os.environ.get('COMMIT_SHA') or os.environ.get('GIT_COMMIT')
+        if sha:
+            return str(sha)[:12]
+        # Try git (may not exist in container)
+        out = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL)
+        return out.decode('utf-8').strip()
+    except Exception:
+        return 'unknown'
+
 # Initialize Sentry for error tracking in production (disabled for compatibility)
 # if SENTRY_AVAILABLE and os.environ.get('SENTRY_DSN'):
 #     sentry_sdk.init(
@@ -1294,8 +1310,21 @@ def get_crypto_data_1min():
 
         crypto_data = calculate_1min_changes(current_prices)
         if not crypto_data:
+            # On cold start we may have <2 samples per symbol; return an empty, cacheable payload instead of None (prevents 503s)
             logging.warning(f"No 1-min crypto data available after calculation - {len(current_prices)} current prices, {len(price_history_1min)} symbols with history")
-            return None
+            empty_result = {
+                "gainers": [],
+                "losers": [],
+                "throttled": True,
+                "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30),
+                "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
+                "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
+                "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
+                "retained": 0
+            }
+            one_minute_cache['data'] = empty_result
+            one_minute_cache['timestamp'] = current_time
+            return empty_result
 
         # --- Retention / hysteresis logic ---
         enter_pct = CONFIG.get('ONE_MIN_ENTER_PCT', 0.15)
@@ -1402,6 +1431,27 @@ def get_crypto_data_1min():
         losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
         gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
         losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+
+        # Seed fallback: on a cold or quiet period when nothing is retained yet,
+        # gently prefill with the top movers over a tiny threshold so UI isn't empty.
+        if not retained_symbols:
+            seed_pct = float(CONFIG.get('ONE_MIN_SEED_PCT', 0.02))  # 0.02% default
+            seed_count = int(CONFIG.get('ONE_MIN_SEED_COUNT', 6))
+            seeded = 0
+            for coin in sorted_candidates:
+                if seeded >= seed_count:
+                    break
+                pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
+                if abs(pct) >= seed_pct:
+                    pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
+                    seeded += 1
+            if seeded:
+                retained_symbols = set(pers.keys())
+                retained_coins = [data_by_symbol[s] for s in retained_symbols if s in data_by_symbol]
+                gainers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) > 0]
+                losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
+                gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
+                losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
 
         # Attach peak values into formatted output
         def attach_peak(list_):
@@ -1754,18 +1804,62 @@ def health_check():
 
 @app.route('/api/server-info')
 def server_info():
-    """Get server information including port and status"""
-    return jsonify({
-        "port": CONFIG['PORT'],
-        "host": CONFIG['HOST'],
-        "debug": CONFIG['DEBUG'],
-        "status": "running",
-        "cors_origins": cors_origins,
-        "cache_ttl": CONFIG['CACHE_TTL'],
-        "update_interval": CONFIG['UPDATE_INTERVAL'],
-        "version": "3.0.0",
-        "timestamp": datetime.now().isoformat()
-    })
+    """Get server information including port and status, uptime, commit and thresholds."""
+    try:
+        uptime_seconds = time.time() - startup_time
+        one_min_cfg = {
+            "enabled": CONFIG.get('ENABLE_1MIN', True),
+            "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS'),
+            "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT'),
+            "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT'),
+            "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS'),
+            "max_coins": CONFIG.get('ONE_MIN_MAX_COINS'),
+        }
+        alerts_cfg = {
+            "cooldown_seconds": CONFIG.get('ALERTS_COOLDOWN_SECONDS'),
+            "streak_thresholds": CONFIG.get('ALERTS_STREAK_THRESHOLDS'),
+        }
+        payload = {
+            "status": "running",
+            "timestamp": datetime.now().isoformat(),
+            "version": "3.0.0",
+            "commit": _get_commit_sha(),
+            "uptime_seconds": uptime_seconds,
+            "runtime": {
+                "python_version": sys.version.split(" ")[0] if hasattr(sys, 'version') else "unknown",
+                "platform": sys.platform if hasattr(sys, 'platform') else "unknown",
+                "env": os.environ.get('ENVIRONMENT', 'production')
+            },
+            "port": CONFIG['PORT'],
+            "host": CONFIG['HOST'],
+            "debug": CONFIG['DEBUG'],
+            "cors_origins": cors_origins,
+            "cache_ttl": CONFIG['CACHE_TTL'],
+            "update_interval": CONFIG['UPDATE_INTERVAL'],
+            "one_minute": one_min_cfg,
+            "alerts": alerts_cfg,
+            "cache_status": {
+                "data_cached": cache["data"] is not None,
+                "cache_age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
+                "ttl": cache["ttl"],
+            },
+        }
+        # Optionally include light system metrics if psutil is available
+        if PSUTIL_AVAILABLE:
+            try:
+                import psutil as _ps
+                process = _ps.Process()
+                payload["process"] = {
+                    "pid": process.pid,
+                    "cpu_percent": process.cpu_percent(interval=0.0),
+                    "rss_mb": round(process.memory_info().rss / (1024 * 1024), 2),
+                }
+            except Exception:
+                pass
+        return jsonify(payload), 200
+    except Exception as e:
+        logging.error(f"server-info error: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 200
 
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():

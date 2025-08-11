@@ -34,6 +34,28 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to wait for an HTTP 200 from a URL (readiness probe)
+wait_for_http_200() {
+    local url="$1"
+    local timeout="${2:-30}"
+    local interval="${3:-0.5}"
+    local end=$((SECONDS + timeout))
+    # Avoid exiting the whole script on curl failure inside this loop
+    set +e
+    while (( SECONDS < end )); do
+        # Only treat HTTP 200 as ready; suppress output
+        local code
+        code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null)
+        if [ "$code" = "200" ]; then
+            set -e
+            return 0
+        fi
+        sleep "$interval"
+    done
+    set -e
+    return 1
+}
+
 # Function to cleanup background processes on exit
 cleanup() {
     print_status "Shutting down servers..."
@@ -51,6 +73,25 @@ trap cleanup EXIT INT TERM
 
 print_status "Starting BHABIT CBMOONERS Application..."
 
+# Load root .env if present (export all vars)
+if [ -f ".env" ]; then
+    print_status "Loading environment from .env"
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+fi
+
+# 1‑minute movers thresholds (defaults if not provided)
+: "${ONE_MIN_ENTER_PCT:=0.15}"
+: "${ONE_MIN_STAY_PCT:=0.05}"
+: "${ONE_MIN_SEED_PCT:=0.02}"
+: "${ONE_MIN_SEED_COUNT:=6}"
+export ONE_MIN_ENTER_PCT ONE_MIN_STAY_PCT ONE_MIN_SEED_PCT ONE_MIN_SEED_COUNT
+
+print_status "1‑min thresholds:"
+echo "  ENTER_PCT=${ONE_MIN_ENTER_PCT}%  STAY_PCT=${ONE_MIN_STAY_PCT}%  SEED_PCT=${ONE_MIN_SEED_PCT}%  SEED_COUNT=${ONE_MIN_SEED_COUNT}"
+
 # Check required commands
 if ! command_exists python3; then
     print_error "Python 3 is not installed. Please install Python 3.13+ to continue."
@@ -59,6 +100,11 @@ fi
 
 if ! command_exists npm; then
     print_error "Node.js/npm is not installed. Please install Node.js 22.17+ to continue."
+    exit 1
+fi
+
+if ! command_exists curl; then
+    print_error "curl is required for readiness checks. Please install curl."
     exit 1
 fi
 
@@ -114,8 +160,15 @@ fi
 BACKEND_PID=$!
 cd ..
 
-# Wait a moment for backend to start
-sleep 3
+# Readiness: wait until backend reports HTTP 200
+# Allow overrides via env if needed
+: "${BACKEND_READY_URL:=http://localhost:5001/api/server-info}"
+: "${READY_TIMEOUT_SEC:=30}"
+print_status "Waiting for backend readiness at ${BACKEND_READY_URL} (timeout ${READY_TIMEOUT_SEC}s)..."
+if ! wait_for_http_200 "${BACKEND_READY_URL}" "${READY_TIMEOUT_SEC}"; then
+    print_error "Backend failed readiness check at ${BACKEND_READY_URL} within ${READY_TIMEOUT_SEC}s"
+    exit 1
+fi
 
 # Check if backend is running
 if ! ps -p $BACKEND_PID > /dev/null; then
@@ -131,8 +184,13 @@ npm run dev &
 FRONTEND_PID=$!
 cd ..
 
-# Wait a moment for frontend to start
-sleep 3
+# Readiness: wait until frontend dev server responds with HTTP 200
+: "${FRONTEND_READY_URL:=http://localhost:5173}"
+print_status "Waiting for frontend readiness at ${FRONTEND_READY_URL} (timeout ${READY_TIMEOUT_SEC}s)..."
+if ! wait_for_http_200 "${FRONTEND_READY_URL}" "${READY_TIMEOUT_SEC}"; then
+    print_error "Frontend failed readiness check at ${FRONTEND_READY_URL} within ${READY_TIMEOUT_SEC}s"
+    exit 1
+fi
 
 # Check if frontend is running
 if ! ps -p $FRONTEND_PID > /dev/null; then
