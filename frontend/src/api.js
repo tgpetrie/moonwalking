@@ -1,7 +1,7 @@
 
 
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
-let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5003').replace(/\/$/, '');
+let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/$/, '');
 const buildEndpoints = () => ({
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,

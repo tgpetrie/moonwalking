@@ -1,21 +1,17 @@
 {
   "builds": [
     {
-      "src": "frontend",
+      "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "outputDirectory": "dist",
-        "installCommand": "npm install",
-        "buildCommand": "npm run build"
+        "distDir": "dist"
       }
     }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "https://moonwalker.onrender.com/api/$1" },
     { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/" }
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
-  "build": {
-    "env": { "VITE_API_URL": "https://moonwalker.onrender.com/" }
-  }
+  "env": { "VITE_API_URL": "https://moonwalker.onrender.com" }
 }
