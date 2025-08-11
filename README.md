@@ -1,10 +1,6 @@
-Here is your **refined README** with **all emojis removed** and replaced with natural, professional language **wherever it makes sense**, while retaining the BHABIT rabbit logo as an intentional stylistic element:
+# BHABIT MOONWALKING – Cryptocurrency Tracker
 
----
-
-# 🐰 BHABIT MOONWALKING - Cryptocurrency Tracker
-
-> Real-time cryptocurrency market tracking with live data on top gainers and losers
+Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price/volume trends, and alert hygiene.
 
 ![BHABIT Logo](frontend/public/bhabit-logo.png)
 
@@ -12,25 +8,24 @@ Here is your **refined README** with **all emojis removed** and replaced with na
 
 ## Overview
 
-**BHABIT CBMOONERS** is a live cryptocurrency tracking platform that displays real-time market data, highlighting the biggest gainers and losers across various timeframes. The app features a modern React-based frontend styled with Tailwind CSS and powered by a fast Flask backend that handles all data processing.
+BHABIT CBMOONERS shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows, plus 1‑hour price and volume trend banners. The React + Vite frontend stays smooth via WebSocket with REST fallback; the Flask backend owns ranking, hysteresis/peak‑hold, and streak‑based alerts.
 
 ---
 
 ## Features
 
-* **Live Market Updates** — Cryptocurrency prices updated every 30 seconds
-* **Top Movers** — Displays the largest gainers and losers in real time
-* **Multiple Timeframes** — Includes 1-minute, 3-minute, and hourly metrics
-* **Polished User Interface** — Built with Tailwind CSS and smooth animations
-* **Fully Responsive** — Optimized for both desktop and mobile experiences
-* **Automatic Refresh** — Data updates with visual countdown timers
-* **Ready for Deployment** — Easily deploy to platforms like Vercel and Render
+* Server‑ordered top movers (no client resorting)
+* 1‑minute table stability: hysteresis + dwell + 60s peak‑hold
+* Trend metrics across scopes: direction, streak, score
+* True 1‑hour volume deltas (with price‑based fallback)
+* Alert hygiene: streak thresholds with cooldowns; recent alerts API
+* Smooth UI: tiny sparklines, trend‑strength arrows, WS + adaptive polling fallback
 
 ---
 
 ## Architecture
 
-```
+```text
 BHABIT CBMOONERS/
 ├── frontend/             # React + Vite + Tailwind CSS
 │   ├── src/
@@ -62,7 +57,7 @@ BHABIT CBMOONERS/
 
    ```bash
    git clone <repository-url>
-   cd "BHABIT CBMOONERS 2"
+   cd "BHABIT CBMOONERS 4"
    ```
 
 2. **Create a virtual environment**
@@ -75,8 +70,10 @@ BHABIT CBMOONERS/
 3. **Install backend dependencies**
 
    ```bash
-   pip install --upgrade pip
-   pip install -r backend/requirements.txt
+   python3 -m venv .venv
+   ".venv/bin/python" -m ensurepip --upgrade
+   ".venv/bin/python" -m pip install -U pip setuptools wheel
+   ".venv/bin/python" -m pip install -r backend/requirements.txt
    ```
 
 4. **Install frontend dependencies**
@@ -91,10 +88,10 @@ BHABIT CBMOONERS/
 
    ```bash
    # Backend
-   cp backend/.env.example backend/.env.development
+   [ -f backend/.env.example ] && cp backend/.env.example backend/.env.development || true
 
    # Frontend
-   cp frontend/.env.example frontend/.env
+   [ -f frontend/.env.example ] && cp frontend/.env.example frontend/.env || true
    ```
 
 ---
@@ -154,7 +151,8 @@ Available utility commands:
 ./dev.sh start        # Launch backend and frontend
 ./dev.sh backend      # Start backend only
 ./dev.sh frontend     # Start frontend only
-./dev.sh test         # Run full test suite
+./dev.sh test         # Run full backend tests (pytest)
+./dev.sh smoke        # Run backend smoke test against a base URL
 ./dev.sh build        # Build frontend for production
 ./dev.sh clean        # Remove build artifacts
 ./dev.sh health       # Check system status
@@ -167,7 +165,7 @@ Available utility commands:
 
 ### Frontend
 
-* React 18.2 (with hooks)
+* React 18 (with hooks)
 * Vite 5.4 (fast dev server)
 * Tailwind CSS 3.4 (utility-first styling)
 * React Icons (icon library)
@@ -176,7 +174,7 @@ Available utility commands:
 
 ### Backend
 
-* Flask 3.1 (Python web framework)
+* Flask 3.1 (API)
 * Flask-CORS (cross-origin support)
 * Flask-SocketIO (WebSocket support)
 * Requests (HTTP API client)
@@ -188,36 +186,56 @@ Available utility commands:
 
 ## Configuration
 
-### Backend
+### Backend config
 
-Edit `backend/.env.development`:
+Key backend environment variables (all optional, defaults applied when absent):
 
 ```env
-FLASK_ENV=development
-FLASK_DEBUG=True
-API_RATE_LIMIT=100
-SENTRY_DSN=your_sentry_dsn_here
+# 1‑minute table smoothing
+ONE_MIN_ENTER_THRESHOLD=0.8         # pct to enter list
+ONE_MIN_STAY_THRESHOLD=0.5          # pct to remain
+ONE_MIN_DWELL_SECONDS=25            # minimum dwell time
+ONE_MIN_REFRESH_SECONDS=45          # recompute cadence
+ONE_MIN_MAX_COINS=10                # cap list size
+
+# Alerts
+ALERTS_COOLDOWN_SECONDS=300         # per symbol/scope
+ALERTS_STREAK_THRESHOLDS=3,5        # trigger streak levels
+
+# Monitoring (optional)
+SENTRY_DSN=
 ```
 
-### Frontend
+### Frontend config
 
-Edit `frontend/.env`:
+Frontend `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:5001
+# Optional WS override; when omitted, components auto‑detect
+# VITE_WS_URL=ws://localhost:5001
+# 1‑min WS render throttle (ms). Defaults to 7000 when omitted.
+VITE_ONE_MIN_WS_THROTTLE_MS=7000
+# Alerts poll cadence (ms). Defaults to 30000; min 5000.
+VITE_ALERTS_POLL_MS=30000
 ```
 
 ---
 
 ## API Endpoints
 
-| Endpoint            | Method | Description                |
-| ------------------- | ------ | -------------------------- |
-| `/api`              | GET    | Health check               |
-| `/api/gainers`      | GET    | Top crypto gainers         |
-| `/api/losers`       | GET    | Top crypto losers          |
-| `/api/gainers-1min` | GET    | 1-minute timeframe gainers |
-| `/health`           | GET    | Full system health status  |
+| Endpoint                               | Method | Description                            |
+| -------------------------------------- | ------ | -------------------------------------- |
+| `/`                                    | GET    | Root info (component endpoints)        |
+| `/health`                              | GET    | Basic health                           |
+| `/api/component/top-banner-scroll`     | GET    | 1‑hour price trend banner              |
+| `/api/component/bottom-banner-scroll`  | GET    | 1‑hour volume trend banner (true delta)|
+| `/api/component/gainers-table`         | GET    | 3‑minute gainers                       |
+| `/api/component/losers-table`          | GET    | 3‑minute losers                        |
+| `/api/component/gainers-table-1min`    | GET    | 1‑minute gainers (hysteresis/peak‑hold)|
+| `/api/alerts/recent`                   | GET    | Recent streak‑based alerts             |
+| `/api/watchlist`                       | GET    | Current watchlist                      |
+| `/api/watchlist/insights`              | GET    | Watchlist insights and recent alerts   |
 
 ---
 
@@ -232,13 +250,45 @@ VITE_API_URL=http://localhost:5001
    * **Output Directory**: `frontend/dist`
    * **Install Command**: `cd frontend && npm install`
 
+3. Routes/Env (already in `vercel.json`):
+   * Rewrites API: `/api/(.*)` → `https://moonwalker.onrender.com/api/$1`
+   * SPA fallback enabled
+   * Build env: `VITE_API_URL=https://moonwalker.onrender.com/`
+
 ### Backend (Render)
 
 1. Link your repository to Render
 2. Configure settings as follows:
 
    * **Build Command**: `pip install -r backend/requirements.txt`
-   * **Start Command**: `cd backend && gunicorn app:app`
+   * **Start Command**: `cd backend && gunicorn app:app --bind 0.0.0.0:$PORT`
+   * **Environment** (Render Blueprint `render.yaml`):
+
+```yaml
+services:
+   - type: web
+      name: bhabit-backend
+      runtime: python
+      buildCommand: pip install -r backend/requirements.txt
+      startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
+      healthCheckPath: /api/server-info
+      envVars:
+         - key: FLASK_ENV
+            value: production
+         - key: FLASK_DEBUG
+            value: "false"
+         - key: HOST
+            value: 0.0.0.0
+         - key: CORS_ALLOWED_ORIGINS
+            value: "*"
+         - key: API_RATE_LIMIT
+            value: "1000"
+         - key: CACHE_TTL
+            value: "60"
+```
+
+1. Health Check: set to `/api/server-info` in the Render service settings (if not using blueprint).
+2. CORS: `CORS_ALLOWED_ORIGINS="*"` is permissive; tighten it to your Vercel origin in production.
 
 ---
 
@@ -249,15 +299,17 @@ VITE_API_URL=http://localhost:5001
 ```bash
 source .venv/bin/activate
 cd backend
-pytest
+pytest -q
 ```
 
-### Frontend Tests
+### Smoke Test (Backend)
 
 ```bash
-cd frontend
-npm test
+SMOKE_BASE_URL="http://127.0.0.1:5001" \
+   ".venv/bin/python" backend/smoke_test.py
 ```
+
+Exit 0 indicates pass; failures list missing/invalid endpoints.
 
 ---
 
@@ -302,4 +354,3 @@ If you’re having issues:
 **BHABIT — Profits Buy Impulse**
 **by Tom Petrie | GUISAN DESIGN**
 
--

@@ -4,12 +4,24 @@ import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const LosersTable = ({ refreshTrigger }) => {
+  // Ensure sparkline animation CSS exists
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('sparkline-anim-css')) {
+      const style = document.createElement('style');
+      style.id = 'sparkline-anim-css';
+      style.innerHTML = `
+        @keyframes draw-spark { to { stroke-dashoffset: 0; } }
+        .sparkline-path { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw-spark 900ms ease-out forwards; }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
   // Inject animation styles for pop/fade effects
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('losers-table-animations')) {
       const style = document.createElement('style');
       style.id = 'losers-table-animations';
-      style.innerHTML = `
+    style.innerHTML = `
         @keyframes starPop {
           0% { transform: scale(1); }
           40% { transform: scale(1.35); }
@@ -28,11 +40,17 @@ const LosersTable = ({ refreshTrigger }) => {
         .animate-fade-in-out {
           animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
         }
+  @keyframes flashUp { 0% { background-color: rgba(16,185,129,0.35);} 100% { background-color: transparent;} }
+  @keyframes flashDown { 0% { background-color: rgba(244,63,94,0.35);} 100% { background-color: transparent;} }
+  .flash-up { animation: flashUp 0.9s ease-out; }
+  .flash-down { animation: flashDown 0.9s ease-out; }
       `;
       document.head.appendChild(style);
     }
   }, []);
   const [data, setData] = useState([]);
+  const [flashMap, setFlashMap] = useState({});
+  const [priceHistory, setPriceHistory] = useState({}); // {SYM: number[]}
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -67,20 +85,39 @@ const LosersTable = ({ refreshTrigger }) => {
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
+            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0)),
+            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+            trendScore: item.trend_score ?? item.trendScore ?? 0
           }));
-          if (isMounted) setData(losersWithRanks.slice(0, 7));
+          // Update rolling history for sparklines (cap 20 points)
+          setPriceHistory(prev => {
+            const out = { ...prev };
+            losersWithRanks.forEach(row => {
+              const arr = (out[row.symbol] || []).slice(-19);
+              if (typeof row.price === 'number' && Number.isFinite(row.price)) {
+                arr.push(row.price);
+                out[row.symbol] = arr;
+              }
+            });
+            return out;
+          });
+          if (isMounted) {
+            setData(prev => {
+              const flashes = {};
+              losersWithRanks.slice(0,7).forEach(n => {
+                const old = prev.find(p => p.symbol === n.symbol);
+                if (old && old.price !== n.price) {
+                  flashes[n.symbol] = n.price > old.price ? 'up' : 'down';
+                }
+              });
+              setFlashMap(flashes);
+              if (Object.keys(flashes).length) setTimeout(()=>setFlashMap({}), 900);
+              return losersWithRanks.slice(0,7);
+            });
+          }
         } else if (isMounted && data.length === 0) {
-          // Fallback data showing some crypto with negative/low gains
-          setData([
-            { rank: 1, symbol: 'PEPE', price: 0.00000996, change: -2.45, badge: 'MODERATE' },
-            { rank: 2, symbol: 'SHIB', price: 0.00002156, change: -1.82, badge: 'MODERATE' },
-            { rank: 3, symbol: 'FLOKI', price: 0.000234, change: -0.95, badge: 'MODERATE' },
-            { rank: 4, symbol: 'BONK', price: 0.00001717, change: -0.67, badge: 'MODERATE' },
-            { rank: 5, symbol: 'WIF', price: 2.543, change: -0.23, badge: 'MODERATE' },
-            { rank: 6, symbol: 'NEW1', price: 1.234, change: -0.45, badge: 'MODERATE' },
-            { rank: 7, symbol: 'NEW2', price: 0.567, change: -0.32, badge: 'MODERATE' }
-          ]);
+          setData([]);
         }
         if (isMounted) setLoading(false);
       } catch (err) {
@@ -89,22 +126,7 @@ const LosersTable = ({ refreshTrigger }) => {
           setLoading(false);
           setError(err.message);
           
-          // Fallback mock data when backend is offline
-          const fallbackData = [
-            { rank: 1, symbol: 'SEI-USD', current_price: 0.2244, price_change_percentage_3m: -12.89 },
-            { rank: 2, symbol: 'AVAX-USD', current_price: 24.56, price_change_percentage_3m: -8.45 },
-            { rank: 3, symbol: 'DOT-USD', current_price: 4.78, price_change_percentage_3m: -6.23 },
-            { rank: 4, symbol: 'ATOM-USD', current_price: 7.89, price_change_percentage_3m: -9.34 },
-            { rank: 5, symbol: 'NEAR-USD', current_price: 3.45, price_change_percentage_3m: -5.67 },
-            { rank: 6, symbol: 'NEW1', current_price: 1.234, price_change_percentage_3m: -0.45 },
-            { rank: 7, symbol: 'NEW2', current_price: 0.567, price_change_percentage_3m: -0.32 }
-          ].map(item => ({
-            ...item,
-            price: item.current_price,
-            change: item.price_change_percentage_3m,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3m))
-          }));
-          setData(fallbackData);
+          setData([]);
         }
       }
     };
@@ -147,7 +169,7 @@ const LosersTable = ({ refreshTrigger }) => {
   if (error && data.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-muted font-mono">Backend offline - using demo data</div>
+        <div className="text-muted font-mono">No data (backend error)</div>
       </div>
     );
   }
@@ -167,6 +189,18 @@ const LosersTable = ({ refreshTrigger }) => {
         const isInWatchlist = watchlist.includes(item.symbol);
         const isPopping = popStar === item.symbol;
         const showAdded = addedBadge === item.symbol;
+        const getArrowStyle = (score, dir) => {
+          const s = Math.max(0, Math.min(3, Number(score) || 0));
+          let fontSize = '0.8em';
+          if (s >= 1.5) fontSize = '1.25em'; else if (s >= 0.5) fontSize = '1.05em';
+          let color;
+          if (dir === 'up') {
+            color = s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4';
+          } else {
+            color = s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2';
+          }
+          return { fontSize, color };
+        };
         return (
           <React.Fragment key={item.symbol}>
             <div className="relative group">
@@ -178,99 +212,124 @@ const LosersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-pink group-hover:text-shadow-pink ` +
-                    `group-hover:scale-[1.035] group-hover:z-10 ` +
-                    `will-change-transform`
+                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,16px,32px] ` +
+                    `group-hover:text-pink group-hover:text-shadow-pink ` +
+                    (flashMap[item.symbol] ? (flashMap[item.symbol] === 'up' ? 'flash-up' : 'flash-down') : '')
                   }
                   style={{ boxShadow: '0 2px 16px 0 rgba(255,0,128,0.08)' }}
                 >
-                  {/* Diamond inner glow effect (always visible, expands on hover) */}
+                  {/* Glow */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className={
-                        `block rounded-xl transition-all duration-500 ` +
-                        `opacity-0 group-hover:opacity-90 ` +
-                        `group-hover:w-[170%] group-hover:h-[170%] w-[140%] h-[140%]`
-                      }
+                      className="block rounded-xl opacity-0 group-hover:opacity-90 transition-all duration-500 w-[140%] h-[140%] group-hover:w-[170%] group-hover:h-[170%]"
                       style={{
-                        background:
-                          'radial-gradient(circle at 50% 50%, rgba(255,0,128,0.16) 0%, rgba(255,0,128,0.08) 60%, transparent 100%)',
-                        top: '-20%',
-                        left: '-20%',
-                        position: 'absolute',
+                        background: 'radial-gradient(circle at 50% 50%, rgba(255,0,128,0.16) 0%, rgba(255,0,128,0.08) 60%, transparent 100%)',
+                        top: '-20%', left: '-20%', position: 'absolute'
                       }}
                     />
                   </span>
-                  <div className="flex items-center gap-4">
-                    {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm hover:text-pink hover:text-shadow-light-pink">
-                      {item.rank}
-                    </div>
-                    {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide hover:text-pink hover:text-shadow-light-pink">
-                        {item.symbol}
-                      </span>
-                      {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
-                      )}
-                    </div>
+                  {/* Rank */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm">
+                    {item.rank}
                   </div>
-
-                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    {/* Price Column (current and previous price, teal, right-aligned) */}
-                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        {typeof item.price === 'number' && Number.isFinite(item.price)
-                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                          : 'N/A'}
-                      </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? (() => {
-                               const prevPrice = item.price / (1 + item.change / 100);
-                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
-                             })()
-                          : '--'}
-                      </span>
-                    </div>
-                    {/* Change Percentage and Dot */}
-                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
-                        3-Min
-                      </span>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
-                    <span className="relative">
-                      <span
-                        onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                        style={{ display: 'inline-block', minWidth: '24px', minHeight: '24px' }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                        aria-pressed={isInWatchlist}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleToggleWatchlist(item.symbol);
+                  {/* Symbol + Added */}
+                  <div className="flex items-center gap-3 ml-2 min-w-0">
+                    <span className="font-bold text-white text-lg tracking-wide truncate hover:text-pink hover:text-shadow-light-pink">{item.symbol}</span>
+                    {showAdded && (
+                      <span className="px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                    )}
+                  </div>
+                  {/* Price + sparkline */}
+                  <div className="flex flex-col items-end min-w-[110px]">
+                    {/* tiny sparkline above price on sm+ */}
+                    <div className="hidden sm:block mb-1">
+            <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
+                        {(() => {
+                          let ys = (priceHistory[item.symbol] || []).slice(-20);
+                          if (ys.length < 2) return null;
+                          let min = Math.min(...ys);
+                          let max = Math.max(...ys);
+                          const last = ys[ys.length - 1] || 1;
+                          const relRange = (max - min) / (last || 1);
+                          if (!isFinite(relRange) || relRange < 0.00001) {
+                            const isNeg = (item.change || 0) < 0;
+                            const sign = isNeg ? -1 : 1;
+                            const amp = Math.max(0.0005 * last, Math.abs(item.change || 0) / 100 * last * 0.002);
+                            const n = ys.length;
+                            const variant = ((item.symbol || '').length + (item.symbol || 'A').charCodeAt(0)) % 3;
+                            ys = ys.map((_, i) => {
+                              const t = n > 1 ? i / (n - 1) : 1;
+                              let offset;
+                              if (variant === 0) {
+                                offset = (t - 0.5) * 2 * amp * 0.9 * sign;
+                              } else if (variant === 1) {
+                                if (t < 0.3) offset = ((t / 0.3) * 0.6 - 0.3) * amp * sign;
+                                else if (t < 0.7) offset = 0.3 * amp * sign;
+                                else offset = (0.3 + ((t - 0.7) / 0.3) * 0.7) * amp * sign;
+                              } else {
+                                const wig = Math.sin(t * Math.PI) * 0.2 * amp * sign;
+                                offset = (t - 0.5) * 2 * 0.8 * amp * sign + wig;
+                              }
+                              return last + offset;
+                            });
+                            min = Math.min(...ys); max = Math.max(...ys);
                           }
-                        }}
-                      >
-                        <StarIcon
-                          filled={isInWatchlist}
-                          className={
-                            (isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') +
-                            (isPopping ? ' animate-star-pop' : '')
-                          }
-                          style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', cursor: 'pointer', transition: 'transform 0.2s' }}
-                          aria-hidden="true"
-                        />
-                      </span>
+                          const range = max - min || 1;
+                          const step = 80 / (ys.length - 1);
+                          const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
+                          // Always render losers sparkline in pink/red to indicate loss context
+                          return <path d={d} fill="none" stroke={'#FF7F98'} strokeWidth="2" pathLength="100" className="sparkline-path" />;
+                        })()}
+                      </svg>
+                    </div>
+                    <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
+                      {typeof item.price === 'number' && Number.isFinite(item.price)
+                        ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
+                        : 'N/A'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-light text-gray-400 select-text">
+                      {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
+                        ? (() => { const prevPrice = item.price / (1 + item.change / 100); return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`; })()
+                        : '--'}
                     </span>
                   </div>
+                  {/* Change */}
+                  <div className="flex flex-col items-end min-w-[80px]">
+                    <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                      <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                      {item.trendDirection && item.trendDirection !== 'flat' && (
+                        <span
+                          className="font-semibold"
+                          style={getArrowStyle(item.trendScore, item.trendDirection)}
+                          title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
+                          aria-label={`trend ${item.trendDirection}`}
+                        >
+                          {item.trendDirection === 'up' ? '↑' : '↓'}
+                        </span>
+                      )}
+                      {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
+                        <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{item.trendStreak}</span>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
+                  </div>
+                  {/* Dot */}
+                  <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)} justify-self-center`}></div>
+                  {/* Star */}
+                  <button
+                    onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                    tabIndex={0}
+                    aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                    aria-pressed={isInWatchlist}
+                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-8 h-8 flex items-center justify-center"
+                  >
+                    <StarIcon
+                      filled={isInWatchlist}
+                      className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                      style={{ minWidth: '20px', minHeight: '20px', transition: 'transform 0.2s' }}
+                      aria-hidden="true"
+                    />
+                  </button>
                 </div>
               </a>
             </div>
@@ -282,10 +341,7 @@ const LosersTable = ({ refreshTrigger }) => {
         );
       })}
     </div>
-// Inject animation styles for pop/fade effects
-
-
   );
-}
+};
 
 export default LosersTable;

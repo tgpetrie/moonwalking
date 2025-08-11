@@ -9,11 +9,19 @@ echo "📍 Looking for backend server..."
 if [ -f "../backend/app.py" ]; then
     echo "✅ Found backend in ../backend/"
     cd ../backend
-    python app.py
+    if [ -x "../.venv/bin/python" ]; then
+        ../.venv/bin/python app.py
+    else
+        python app.py
+    fi
 elif [ -f "../../backend/app.py" ]; then
     echo "✅ Found backend in ../../backend/"
     cd ../../backend
-    python app.py
+    if [ -x "../../.venv/bin/python" ]; then
+        ../../.venv/bin/python app.py
+    else
+        python app.py
+    fi
 else
     echo "❌ Backend server not found!"
     echo "Please make sure the backend directory with app.py exists"
