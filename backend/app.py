@@ -3,7 +3,7 @@ import argparse
 import socket
 import subprocess
 import sys
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 import requests
 import time
@@ -118,6 +118,31 @@ CORS(app, origins=cors_origins)
 
 # Register blueprints after final app creation
 app.register_blueprint(watchlist_bp)
+
+# ---------------- Health + Metrics -----------------
+_ERROR_STATS = { '5xx': 0 }
+
+@app.before_request
+def _before_req_metrics():
+    g._start_time = time.time()
+
+@app.after_request
+def _after_req_metrics(resp):
+    try:
+        if 500 <= resp.status_code < 600:
+            _ERROR_STATS['5xx'] += 1
+    except Exception:
+        pass
+    return resp
+
+@app.route('/api/health')
+def api_health():
+    """Lightweight health alias (faster than full server-info)."""
+    return jsonify({
+        'status': 'ok',
+        'uptime_seconds': round(time.time() - startup_time, 2),
+        'errors_5xx': _ERROR_STATS['5xx']
+    })
 
 # Dynamic Configuration with Environment Variables and Defaults
 CONFIG = {
