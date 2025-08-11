@@ -1,21 +1,24 @@
 import './env-debug.js';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
-// import { supabase } from './api'; // Supabase removed
-import AuthPanel from './components/AuthPanel';
-import GainersTable from './components/GainersTable';
-import LosersTable from './components/LosersTable';
-import TopBannerScroll from './components/TopBannerScroll';
-import BottomBannerScroll from './components/BottomBannerScroll';
 import { FiRefreshCw } from 'react-icons/fi';
-import GainersTable1Min from './components/GainersTable1Min';
+// Eager (tiny) components
+import AuthPanel from './components/AuthPanel';
 import IndicatorLegend from './components/IndicatorLegend.jsx';
-import SharedOneMinGainers from './components/SharedOneMinGainers.jsx';
-import Watchlist from './components/Watchlist';
-import WatchlistInsightsPanel from './components/WatchlistInsightsPanel.jsx';
 import AlertsIndicator from './components/AlertsIndicator.jsx';
-import LastAlertTicker from './components/LastAlertTicker.jsx';
+
+// Lazy-loaded (code split) heavier UI regions
+const TopBannerScroll = React.lazy(() => import('./components/TopBannerScroll'));
+const BottomBannerScroll = React.lazy(() => import('./components/BottomBannerScroll'));
+const GainersTable = React.lazy(() => import('./components/GainersTable'));
+const LosersTable = React.lazy(() => import('./components/LosersTable'));
+const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'));
+const Watchlist = React.lazy(() => import('./components/Watchlist'));
+const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
+const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
+// SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
+// const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
 // Live data polling interval (ms)
 const POLL_INTERVAL = 30000;
@@ -81,6 +84,10 @@ export default function App() {
   if (!user) {
     return <AuthPanel onAuth={() => window.location.reload()} />;
   }
+
+  const chunkFallback = (label = 'Loading...') => (
+    <div className="text-center text-xs text-gray-400 py-4 animate-pulse" aria-live="polite">{label}</div>
+  );
 
   return (
     <WebSocketProvider>
@@ -169,9 +176,11 @@ export default function App() {
             className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125"
           />
         </header>
-  {/* Top Banner - 1H Price */}
+  {/* Top Banner - 1H Price (lazy) */}
   <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
-          <TopBannerScroll refreshTrigger={lastUpdate} />
+          <Suspense fallback={chunkFallback('Loading price banner...')}>
+            <TopBannerScroll refreshTrigger={lastUpdate} />
+          </Suspense>
         </div>
         {/* Refresh Button */}
         <div className="flex justify-center mb-8">
@@ -203,9 +212,9 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            {showLegend && (
-              <IndicatorLegend onClose={() => setShowLegend(false)} />
-            )}
+                {showLegend && (
+                  <IndicatorLegend onClose={() => setShowLegend(false)} />
+                )}
             {/* Shared Show More toggle */}
             <div className="w-full flex justify-center">
               <button
@@ -216,13 +225,15 @@ export default function App() {
                 {oneMinExpanded ? 'Show Less' : 'Show More'}
               </button>
             </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-              <div>
-        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={oneMinExpanded ? 10 : 5} fixedRows={5} hideShowMore />
-              </div>
-              <div>
-        <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={oneMinExpanded ? 20 : 10} fixedRows={5} hideShowMore />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+                <div>
+                  <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={oneMinExpanded ? 10 : 5} fixedRows={5} hideShowMore />
+                </div>
+                <div>
+                  <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={oneMinExpanded ? 20 : 10} fixedRows={5} hideShowMore />
+                </div>
+              </Suspense>
             </div>
           </div>
         </div>
@@ -245,7 +256,9 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <GainersTable refreshTrigger={lastUpdate} />
+            <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
+              <GainersTable refreshTrigger={lastUpdate} />
+            </Suspense>
           </div>
 
           {/* Right Panel - 3-MIN LOSERS */}
@@ -264,7 +277,9 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <LosersTable refreshTrigger={lastUpdate} />
+            <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
+              <LosersTable refreshTrigger={lastUpdate} />
+            </Suspense>
           </div>
         </div>
 
@@ -284,15 +299,21 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
+            <Suspense fallback={chunkFallback('Loading watchlist...')}>
+              <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
+            </Suspense>
           </div>
         </div>
         {/* Last Alert Ticker + Bottom Banner - 1H Volume */}
         <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
           <div className="mx-2 sm:mx-8 lg:mx-16 xl:mx-24">
-            <LastAlertTicker />
+            <Suspense fallback={chunkFallback('Loading alerts...')}>
+              <LastAlertTicker />
+            </Suspense>
           </div>
-          <BottomBannerScroll refreshTrigger={lastUpdate} />
+          <Suspense fallback={chunkFallback('Loading volume banner...')}>
+            <BottomBannerScroll refreshTrigger={lastUpdate} />
+          </Suspense>
         </div>
         {/* Footer */}
         <footer className="text-center py-8 text-muted text-sm font-mono">
