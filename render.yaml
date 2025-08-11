@@ -1,22 +1,28 @@
 services:
   - type: web
     name: bhabit-backend
-    runtime: python3
+    runtime: python
     buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/server-info
     envVars:
       - key: FLASK_ENV
         value: production
       - key: FLASK_DEBUG
-        value: false
+        value: "false"
       - key: HOST
         value: 0.0.0.0
-      - key: PORT
-        fromService:
-          type: web
-          name: bhabit-backend
-          property: port
+      - key: ONE_MIN_ENTER_PCT
+        value: "0.10"
+      - key: ONE_MIN_STAY_PCT
+        value: "0.03"
+      - key: ONE_MIN_SEED_PCT
+        value: "0.02"
+      - key: ONE_MIN_SEED_COUNT
+        value: "8"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*"
       - key: API_RATE_LIMIT
-        value: 1000
+        value: "1000"
       - key: CACHE_TTL
-        value: 60
+        value: "60"

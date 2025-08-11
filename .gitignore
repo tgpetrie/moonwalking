@@ -7,6 +7,11 @@ node_modules/
 # Python cache
 __pycache__/
 
+# Logs
+backend/*.log
+backend/logs/*.log
+backend/watchlist_insights.log
+
 # Environment variables
 .env*
 .vercel
