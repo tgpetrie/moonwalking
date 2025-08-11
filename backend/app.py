@@ -144,6 +144,45 @@ def api_health():
         'errors_5xx': _ERROR_STATS['5xx']
     })
 
+# -------------------------------- Codex Assistant ---------------------------------
+@app.route('/api/ask-codex', methods=['POST'])
+def ask_codex():
+    """Proxy user query to OpenAI Chat Completions (server-side to protect API key)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        query = (data.get('query') or '').strip()
+        if not query:
+            return jsonify({'error': 'Missing query'}), 400
+        api_key = os.environ.get('OPENAI_API_KEY')
+        # Stub mode if no key, or explicit stub flag, or clearly fake key
+        if (not api_key) or os.environ.get('OPENAI_STUB') == '1' or str(api_key).lower() in {'fake','test','dummy'}:
+            demo = f"[stub] You asked: '{query}'. This is a local test response. Set OPENAI_API_KEY to use real model."
+            return jsonify({'reply': demo, 'stub': True})
+        payload = {
+            'model': os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
+            'messages': [
+                { 'role': 'system', 'content': 'You are a helpful React/JS/crypto assistant helping debug a WebSocket-based crypto dashboard.' },
+                { 'role': 'user', 'content': query }
+            ],
+            'temperature': 0.2
+        }
+        # Use requests directly (no extra dependency)
+        resp = requests.post('https://api.openai.com/v1/chat/completions',
+                              headers={
+                                  'Authorization': f'Bearer {api_key}',
+                                  'Content-Type': 'application/json'
+                              },
+                              json=payload, timeout=20)
+        if resp.status_code >= 400:
+            logging.warning(f"ask-codex upstream error {resp.status_code}: {resp.text[:200]}")
+            return jsonify({'reply': f'Upstream error {resp.status_code}'}), 502
+        data = resp.json()
+        reply = (data.get('choices') or [{}])[0].get('message', {}).get('content') or 'No reply received.'
+        return jsonify({'reply': reply})
+    except Exception as e:
+        logging.error(f"ask-codex error: {e}")
+        return jsonify({'reply': 'Internal error'}), 500
+
 # Dynamic Configuration with Environment Variables and Defaults
 CONFIG = {
     'CACHE_TTL': int(os.environ.get('CACHE_TTL', 60)),  # Cache for 60 seconds
