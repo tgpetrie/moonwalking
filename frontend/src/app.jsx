@@ -5,7 +5,7 @@ import { WebSocketProvider } from './context/websocketcontext.jsx';
 import { FiRefreshCw } from 'react-icons/fi';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
-import IndicatorLegend from './components/IndicatorLegend.jsx';
+const IndicatorLegend = React.lazy(() => import('./components/IndicatorLegend.jsx'));
 import AlertsIndicator from './components/AlertsIndicator.jsx';
 
 // Lazy-loaded (code split) heavier UI regions
@@ -213,7 +213,9 @@ export default function App() {
               />
             </div>
                 {showLegend && (
-                  <IndicatorLegend onClose={() => setShowLegend(false)} />
+                  <Suspense fallback={chunkFallback('Loading legend...')}>
+                    <IndicatorLegend onClose={() => setShowLegend(false)} />
+                  </Suspense>
                 )}
             {/* Shared Show More toggle */}
             <div className="w-full flex justify-center">
