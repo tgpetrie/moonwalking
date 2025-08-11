@@ -121,7 +121,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                       );
                     })()}
                     {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{coin.trendStreak}</span>
+                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
                   <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
@@ -164,7 +164,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                       );
                     })()}
                     {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{coin.trendStreak}</span>
+                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
                   <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 text-purple">

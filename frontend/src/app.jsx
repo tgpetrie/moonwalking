@@ -10,6 +10,7 @@ import TopBannerScroll from './components/TopBannerScroll';
 import BottomBannerScroll from './components/BottomBannerScroll';
 import { FiRefreshCw } from 'react-icons/fi';
 import GainersTable1Min from './components/GainersTable1Min';
+import IndicatorLegend from './components/IndicatorLegend.jsx';
 import SharedOneMinGainers from './components/SharedOneMinGainers.jsx';
 import Watchlist from './components/Watchlist';
 import WatchlistInsightsPanel from './components/WatchlistInsightsPanel.jsx';
@@ -31,6 +32,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [oneMinExpanded, setOneMinExpanded] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
 
   // Handler to sync watchlist state from children
   const handleWatchlistChange = (list) => {
@@ -183,6 +185,14 @@ export default function App() {
               <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
                 1-MIN GAINERS
               </h2>
+              <button
+                onClick={() => setShowLegend(v => !v)}
+                className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
+                aria-pressed={showLegend}
+                aria-label="Toggle indicator legend"
+              >
+                Legend
+              </button>
             </div>
             {/* Line divider directly under 1-MIN GAINERS header */}
             <div className="flex justify-start mb-4">
@@ -193,6 +203,9 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
+            {showLegend && (
+              <IndicatorLegend onClose={() => setShowLegend(false)} />
+            )}
             {/* Shared Show More toggle */}
             <div className="w-full flex justify-center">
               <button
