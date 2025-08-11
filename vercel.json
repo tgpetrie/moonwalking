@@ -13,5 +13,5 @@
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
-  "env": { "VITE_API_URL": "https://moonwalker.onrender.com" }
+  "env": { "VITE_API_URL": "relative" }
 }

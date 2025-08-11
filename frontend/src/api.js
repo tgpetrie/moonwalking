@@ -1,7 +1,17 @@
 
 
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
-let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+// Support special value 'relative' to use same-origin relative /api requests (works with Vercel rewrites)
+const RAW_ENV_BASE = import.meta.env.VITE_API_URL;
+let API_BASE_URL;
+if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
+  API_BASE_URL = RAW_ENV_BASE.trim();
+} else if (RAW_ENV_BASE === 'relative') {
+  API_BASE_URL = ''; // same-origin relative mode
+} else {
+  API_BASE_URL = 'http://localhost:5001'; // dev fallback
+}
+API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 const buildEndpoints = () => ({
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
