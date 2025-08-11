@@ -1077,15 +1077,13 @@ def get_bottom_banner_scroll():
                 hist = volume_history_24h.get(sym, deque())
                 if hist:
                     now_ts = time.time()
-                    # Find value about >=1h ago (oldest that is at least 3600s old)
+                    # Only compute a "real" 1h volume change if we have a snapshot at least 3600s old.
                     vol_then = None
                     for ts, vol in hist:
                         if now_ts - ts >= 3600:
                             vol_then = vol
                             break
-                    if vol_then is None and len(hist) >= 2:
-                        # Fallback: use oldest available
-                        vol_then = hist[0][1]
+                    # If we don't yet have >=1h history, leave vol_change_1h_pct as None
                     if vol_then is not None:
                         vol_change_1h = vol_now - vol_then
                         if vol_then > 0:
@@ -1109,6 +1107,7 @@ def get_bottom_banner_scroll():
                 "volume_change_1h": vol_change_1h,
                 "volume_change_1h_pct": vol_change_1h_pct,
                 "volume_change_estimate": coin["price_change_1h"] * 0.5 if vol_change_1h_pct is None else None,
+                "volume_change_is_estimated": vol_change_1h_pct is None,
                 "volume_category": "high" if vol_now > 10000000 else "medium" if vol_now > 1000000 else "low",
                 "trend_direction": direction,
                 "trend_streak": streak,
