@@ -1849,6 +1849,7 @@ def server_info():
             "version": "3.0.0",
             "commit": _get_commit_sha(),
             "uptime_seconds": uptime_seconds,
+            "errors_5xx": _ERROR_STATS.get('5xx', 0),
             "runtime": {
                 "python_version": sys.version.split(" ")[0] if hasattr(sys, 'version') else "unknown",
                 "platform": sys.platform if hasattr(sys, 'platform') else "unknown",
