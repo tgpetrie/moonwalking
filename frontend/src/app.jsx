@@ -17,6 +17,7 @@ const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'
 const Watchlist = React.lazy(() => import('./components/Watchlist'));
 const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
 const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
+const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'));
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
@@ -36,6 +37,7 @@ export default function App() {
   const [showInsights, setShowInsights] = useState(false);
   const [oneMinExpanded, setOneMinExpanded] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
+  const [showCodex, setShowCodex] = useState(false);
 
   // Handler to sync watchlist state from children
   const handleWatchlistChange = (list) => {
@@ -140,13 +142,21 @@ export default function App() {
         {showInsights && (
           <WatchlistInsightsPanel />
         )}
+        <div className="flex flex-col gap-2 items-end">
+          <button
+            onClick={() => setShowCodex(s => !s)}
+            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            aria-pressed={showCodex}
+          >{showCodex ? 'Close Codex' : 'Ask Codex'}</button>
+          <button
+            onClick={() => setShowInsights(s => !s)}
+            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            aria-pressed={showInsights}
+          >{showInsights ? 'Hide Insights' : 'Insights'}</button>
+        </div>
         <button
           onClick={() => setShowInsights(s => !s)}
-          className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-          aria-pressed={showInsights}
-        >
-          {showInsights ? 'Hide Insights' : 'Insights'}
-        </button>
+          className="hidden" aria-hidden="true" tabIndex={-1}>Insights</button>
       </div>
 
       {/* Timestamp only at top-left */}
@@ -341,6 +351,11 @@ export default function App() {
           </p>
         </footer>
       </div>
+      {showCodex && (
+        <Suspense fallback={chunkFallback('Loading Codex...')}>
+          <AskCodexPanel onClose={() => setShowCodex(false)} />
+        </Suspense>
+      )}
     </div>
     </WebSocketProvider>
   );
