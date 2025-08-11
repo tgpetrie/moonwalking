@@ -17,52 +17,77 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
 
   // Fetch watchlist on mount and when topWatchlist changes
   useEffect(() => {
-    if (typeof topWatchlist !== 'undefined') {
-      setWatchlist(topWatchlist);
-      setLoading(false);
-    } else {
-      setLoading(true);
-      async function fetchWatchlist() {
-        try {
-          const data = await getWatchlist();
-          console.log('📋 Fetched watchlist from localStorage:', data.length, 'items');
-          
-          // Get real prices for all symbols in watchlist
-          const symbols = data.map(item => typeof item === 'string' ? item : item.symbol);
+    const normalizeAndSet = async () => {
+      try {
+        // If parent provided a watchlist, prefer it only when it has items
+        if (Array.isArray(topWatchlist) && topWatchlist.length > 0) {
+          const symbols = topWatchlist.map((it) => (typeof it === 'string' ? it : it.symbol)).filter(Boolean);
+          // Lookup any stored priceAtAdd values
+          const stored = await getWatchlist();
+          const storedMap = {};
+          stored.forEach((it) => {
+            const sym = typeof it === 'string' ? it : it.symbol;
+            const pa = typeof it === 'object' ? it.priceAtAdd : undefined;
+            if (sym) storedMap[sym] = pa;
+          });
+          // Get current prices from context/polling cache
           const realPrices = await fetchPricesForSymbols(symbols);
-          console.log('💰 Fetched real prices for watchlist:', Object.keys(realPrices).length, 'symbols');
-          
-          const processedData = data.map((item) => {
-            const symbol = typeof item === 'string' ? item : item.symbol;
-            const priceAtAdd = typeof item === 'object' ? item.priceAtAdd : 0;
-            
-            // Get current price from real data or fallback
+          const processed = symbols.map((symbol) => {
+            const priceAtAdd = storedMap[symbol] ?? 0;
             let currentPrice = priceAtAdd;
             if (realPrices[symbol]) {
               currentPrice = realPrices[symbol].price;
             } else if (latestData.prices && latestData.prices[symbol]) {
               currentPrice = latestData.prices[symbol].price;
             }
-            
             return {
               symbol,
-              priceAtAdd: priceAtAdd || currentPrice || 100, // use current price as fallback
-              currentPrice: currentPrice || priceAtAdd || 100
+              priceAtAdd: priceAtAdd || currentPrice || 100,
+              currentPrice: currentPrice || priceAtAdd || 100,
             };
           });
-          
-          setWatchlist(processedData);
-          if (onWatchlistChange) onWatchlistChange(data);
+          setWatchlist(processed);
           setError(null);
-        } catch (error) {
-          console.error('Failed to fetch watchlist:', error);
-          setError('Failed to fetch watchlist');
-          setWatchlist([]);
+          setLoading(false);
+          // Always notify parent with string symbols for consistency across components
+          if (onWatchlistChange) onWatchlistChange(symbols);
+          return;
         }
+
+        // Otherwise, load from localStorage and build enriched objects
+        setLoading(true);
+        const data = await getWatchlist();
+        console.log('📋 Fetched watchlist from localStorage:', data.length, 'items');
+        const symbols = data.map((item) => (typeof item === 'string' ? item : item.symbol));
+        const realPrices = await fetchPricesForSymbols(symbols);
+        console.log('💰 Fetched real prices for watchlist:', Object.keys(realPrices).length, 'symbols');
+        const processedData = data.map((item) => {
+          const symbol = typeof item === 'string' ? item : item.symbol;
+          const priceAtAdd = typeof item === 'object' ? item.priceAtAdd : 0;
+          let currentPrice = priceAtAdd;
+          if (realPrices[symbol]) {
+            currentPrice = realPrices[symbol].price;
+          } else if (latestData.prices && latestData.prices[symbol]) {
+            currentPrice = latestData.prices[symbol].price;
+          }
+          return {
+            symbol,
+            priceAtAdd: priceAtAdd || currentPrice || 100, // use current price as fallback
+            currentPrice: currentPrice || priceAtAdd || 100,
+          };
+        });
+        setWatchlist(processedData);
+        if (onWatchlistChange) onWatchlistChange(symbols);
+        setError(null);
+      } catch (error) {
+        console.error('Failed to fetch watchlist:', error);
+        setError('Failed to fetch watchlist');
+        setWatchlist([]);
+      } finally {
         setLoading(false);
       }
-      fetchWatchlist();
-    }
+    };
+    normalizeAndSet();
     // eslint-disable-next-line
   }, [topWatchlist]);
 
@@ -159,8 +184,9 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
         };
       });
       
-      setWatchlist(processedData);
-      if (onWatchlistChange) onWatchlistChange(data);
+  setWatchlist(processedData);
+  // notify parent with symbols only
+  if (onWatchlistChange) onWatchlistChange(symbols);
       setError(null);
     } catch (error) {
       console.error(`Failed to remove ${symbol}:`, error);
@@ -185,10 +211,10 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
       }
       
       console.log('➕ Adding to watchlist:', symbol, 'at price:', currentPrice);
-      const updated = await addToWatchlist(symbol, currentPrice);
+  const updated = await addToWatchlist(symbol, currentPrice);
       
-      // Get real prices for all symbols in updated watchlist
-      const symbols = updated.map(item => typeof item === 'string' ? item : item.symbol);
+  // Get real prices for all symbols in updated watchlist
+  const symbols = updated.map(item => typeof item === 'string' ? item : item.symbol);
       const allRealPrices = await fetchPricesForSymbols(symbols);
       
       const processedData = updated.map((item) => {
@@ -210,8 +236,9 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
         };
       });
       
-      setWatchlist(processedData);
-      if (onWatchlistChange) onWatchlistChange(updated);
+  setWatchlist(processedData);
+  // notify parent with symbols only for cross-component includes()
+  if (onWatchlistChange) onWatchlistChange(symbols);
       setNewSymbol('');
       setError(null);
     } catch (error) {
