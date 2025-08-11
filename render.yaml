@@ -12,6 +12,14 @@ services:
         value: "false"
       - key: HOST
         value: 0.0.0.0
+      - key: ONE_MIN_ENTER_PCT
+        value: "0.10"
+      - key: ONE_MIN_STAY_PCT
+        value: "0.03"
+      - key: ONE_MIN_SEED_PCT
+        value: "0.02"
+      - key: ONE_MIN_SEED_COUNT
+        value: "8"
       - key: CORS_ALLOWED_ORIGINS
         value: "*"
       - key: API_RATE_LIMIT
