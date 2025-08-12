@@ -121,8 +121,9 @@ export default function App() {
         </div>
         <button
           onClick={refreshGainersAndLosers}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] focus:outline-none focus:ring-2 focus:ring-purple-400"
           aria-label="Refresh"
+          title="Refresh"
         >
           <FiRefreshCw className="text-xl text-purple-300" />
         </button>
@@ -197,61 +198,84 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers - Two side-by-side tables with one shared Show More */}
+        {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
         <div className="mb-8">
           <div className="p-6 bg-transparent w-full">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
-                1-MIN GAINERS
-              </h2>
-              <button
-                onClick={() => setShowLegend(v => !v)}
-                className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
-                aria-pressed={showLegend}
-                aria-label="Toggle indicator legend"
-              >
-                Legend
-              </button>
-            </div>
-            {/* Line divider directly under 1-MIN GAINERS header */}
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
-            </div>
-                {showLegend && (
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+                  1-MIN GAINERS
+                </h2>
+                <button
+                  onClick={() => setShowLegend(v => !v)}
+                  className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
+                  aria-pressed={showLegend}
+                  aria-label="Toggle indicator legend"
+                >
+                  {showLegend ? 'Hide Legend' : 'Legend'}
+                </button>
+              </div>
+              {/* Line divider under header */}
+              <div className="flex justify-start mb-4">
+                <img
+                  src="/linediv.png"
+                  alt="Divider"
+                  className="w-48 h-auto"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+                <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+                  <div>
+                    <GainersTable1Min
+                      refreshTrigger={lastUpdate}
+                      onWatchlistChange={handleWatchlistChange}
+                      topWatchlist={topWatchlist}
+                      sliceStart={0}
+                      sliceEnd={20}
+                      fixedRows={oneMinExpanded ? 6 : 4}
+                      hideShowMore
+                    />
+                  </div>
+                  <div>
+                    <GainersTable1Min
+                      refreshTrigger={lastUpdate}
+                      onWatchlistChange={handleWatchlistChange}
+                      topWatchlist={topWatchlist}
+                      sliceStart={oneMinExpanded ? 6 : 4}
+                      sliceEnd={20}
+                      fixedRows={oneMinExpanded ? 6 : 4}
+                      hideShowMore
+                    />
+                  </div>
+                </Suspense>
+              </div>
+              {/* Shared Show More below the two tables */}
+              <div className="w-full flex justify-center mt-3">
+                <button
+                  onClick={() => setOneMinExpanded(v => !v)}
+                  className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+                  aria-pressed={oneMinExpanded}
+                >
+                  {oneMinExpanded ? 'Show Less' : 'Show More'}
+                </button>
+              </div>
+              {/* Overlay Legend (does not affect layout) */}
+              {showLegend && (
+                <div className="absolute top-0 right-0 z-40 w-full md:w-[420px] lg:w-[480px] xl:w-[520px] drop-shadow-xl">
                   <Suspense fallback={chunkFallback('Loading legend...')}>
-                    <IndicatorLegend onClose={() => setShowLegend(false)} />
+                    <div className="font-raleway">
+                      <IndicatorLegend onClose={() => setShowLegend(false)} />
+                    </div>
                   </Suspense>
-                )}
-            {/* Shared Show More toggle */}
-            <div className="w-full flex justify-center">
-              <button
-                onClick={() => setOneMinExpanded(v => !v)}
-                className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
-                aria-pressed={oneMinExpanded}
-              >
-                {oneMinExpanded ? 'Show Less' : 'Show More'}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                <div>
-                  <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={0} sliceEnd={oneMinExpanded ? 10 : 5} fixedRows={5} hideShowMore />
                 </div>
-                <div>
-                  <GainersTable1Min onWatchlistChange={handleWatchlistChange} topWatchlist={topWatchlist} sliceStart={5} sliceEnd={oneMinExpanded ? 20 : 10} fixedRows={5} hideShowMore />
-                </div>
-              </Suspense>
+              )}
             </div>
           </div>
         </div>
 
         {/* 3-Minute Gainers and Losers Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Left Panel - 3-MIN GAINERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
