@@ -1,22 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
-import { formatPrice, formatPercentage } from '../utils/formatters.js';
+import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
+import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const GainersTable = ({ refreshTrigger }) => {
-  // Inject shared sparkline animation CSS once
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !document.getElementById('sparkline-anim-css')) {
-      const style = document.createElement('style');
-      style.id = 'sparkline-anim-css';
-      style.innerHTML = `
-        @keyframes draw-spark { to { stroke-dashoffset: 0; } }
-        .sparkline-path { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw-spark 900ms ease-out forwards; }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
-  // Inject animation styles for pop/fade effects
+  // Inject animation styles for pop/fade effects (watchlist add feedback)
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('gainers-table-animations')) {
       const style = document.createElement('style');
@@ -49,8 +37,6 @@ const GainersTable = ({ refreshTrigger }) => {
     }
   }, []);
   const [data, setData] = useState([]);
-  const [flashMap, setFlashMap] = useState({}); // symbol-> 'up' | 'down'
-  const [priceHistory, setPriceHistory] = useState({}); // {SYM: number[]}
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -85,38 +71,10 @@ const GainersTable = ({ refreshTrigger }) => {
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0)),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
+            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
           }));
-          // Update rolling history for sparklines (cap 20 points)
-          setPriceHistory(prev => {
-            const out = { ...prev };
-            next.forEach(row => {
-              const arr = (out[row.symbol] || []).slice(-19);
-              if (typeof row.price === 'number' && Number.isFinite(row.price)) {
-                arr.push(row.price);
-                out[row.symbol] = arr;
-              }
-            });
-            return out;
-          });
           if (isMounted) {
-            setData(prev => {
-              const flashes = {};
-              next.slice(0,7).forEach(n => {
-                const old = prev.find(p => p.symbol === n.symbol);
-                if (old && old.price !== n.price) {
-                  flashes[n.symbol] = n.price > old.price ? 'up' : 'down';
-                }
-              });
-              setFlashMap(flashes);
-              if (Object.keys(flashes).length) {
-                setTimeout(() => setFlashMap({}), 900);
-              }
-              return next.slice(0,7);
-            });
+            setData(next.slice(0,7));
           }
         } else if (isMounted) {
           setData([]);
@@ -190,18 +148,6 @@ const GainersTable = ({ refreshTrigger }) => {
         const isInWatchlist = watchlist.includes(item.symbol);
         const isPopping = popStar === item.symbol;
         const showAdded = addedBadge === item.symbol;
-        const getArrowStyle = (score, dir) => {
-          const s = Math.max(0, Math.min(3, Number(score) || 0));
-          let fontSize = '0.8em';
-          if (s >= 1.5) fontSize = '1.25em'; else if (s >= 0.5) fontSize = '1.05em';
-          let color;
-          if (dir === 'up') {
-            color = s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4';
-          } else {
-            color = s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2';
-          }
-          return { fontSize, color };
-        };
         return (
           <React.Fragment key={item.symbol}>
             <div className="relative group">
@@ -213,134 +159,76 @@ const GainersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,16px,32px] ` +
-                    `group-hover:text-amber-500 ` +
-                    (flashMap[item.symbol] ? (flashMap[item.symbol] === 'up' ? 'flash-up' : 'flash-down') : '')
+                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10 will-change-transform`
                   }
                   style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.10)' }}
                 >
-                  {/* Glow */}
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className="block rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-150 w-[120%] h-[120%] group-hover:w-[160%] group-hover:h-[160%]"
-                      style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
-                        top: '-30%', left: '-30%', position: 'absolute', filter: 'blur(1.5px)'
-                      }}
-                    />
-                  </span>
-                  {/* Rank */}
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">
-                    {item.rank}
-                  </div>
-                  {/* Symbol + Added */}
-                  <div className="flex items-center gap-3 ml-2 min-w-0">
-                    <span className="font-bold text-white text-lg tracking-wide truncate hover:text-cyan-400 hover:text-shadow-cyan-400">{item.symbol}</span>
-                    {showAdded && (
-                      <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
-                    )}
-                  </div>
-                  {/* Price + sparkline */}
-                  <div className="flex flex-col items-end min-w-[110px]">
-                    {/* tiny sparkline above price on sm+ */}
-                    <div className="hidden sm:block mb-1">
-                      <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
-                        {(() => {
-                          let ys = (priceHistory[item.symbol] || []).slice(-20);
-                          if (ys.length < 2) return null;
-                          let min = Math.min(...ys);
-                          let max = Math.max(...ys);
-                          // Dynamic slope/shape fallback when series is flat or nearly flat
-                          const last = ys[ys.length - 1] || 1;
-                          const relRange = (max - min) / (last || 1);
-                          if (!isFinite(relRange) || relRange < 0.00001) {
-                            const sign = (item.change || 0) >= 0 ? 1 : -1;
-                            const amp = Math.max(0.0005 * last, Math.abs(item.change || 0) / 100 * last * 0.002);
-                            const n = ys.length;
-                            const variant = ((item.symbol || '').length + (item.symbol || 'A').charCodeAt(0)) % 3;
-                            ys = ys.map((_, i) => {
-                              const t = n > 1 ? i / (n - 1) : 1;
-                              let offset;
-                              if (variant === 0) {
-                                // Smooth ramp
-                                offset = (t - 0.5) * 2 * amp * 0.9 * sign;
-                              } else if (variant === 1) {
-                                // Step, short plateau, final kick
-                                if (t < 0.3) offset = ((t / 0.3) * 0.6 - 0.3) * amp * sign;
-                                else if (t < 0.7) offset = 0.3 * amp * sign;
-                                else offset = (0.3 + ((t - 0.7) / 0.3) * 0.7) * amp * sign;
-                              } else {
-                                // Gentle ramp with a tiny wiggle
-                                const wig = Math.sin(t * Math.PI) * 0.2 * amp * sign;
-                                offset = (t - 0.5) * 2 * 0.8 * amp * sign + wig;
-                              }
-                              return last + offset;
-                            });
-                            min = Math.min(...ys); max = Math.max(...ys);
-                          }
-                          const range = max - min || 1;
-                          const step = 80 / (ys.length - 1);
-                          const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
-                          const positive = (item.change || 0) >= 0;
-                          return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" pathLength="100" className="sparkline-path" />;
-                        })()}
-                      </svg>
+                  <div className="flex items-center gap-4">
+                    {/* Rank Badge */}
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm hover:text-blue hover:text-shadow-light-blue">
+                      {item.rank}
                     </div>
-                    <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                      {typeof item.price === 'number' && Number.isFinite(item.price)
-                        ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                        : 'N/A'}
-                    </span>
-                    <span className="text-xs sm:text-sm font-light text-gray-400 select-text">
-                      {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                        ? (() => { const prevPrice = item.price / (1 + item.change / 100); return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`; })()
-                        : '--'}
-                    </span>
-                  </div>
-                  {/* Change */}
-                  <div className="flex flex-col items-end min-w-[80px]">
-                    <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                      <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                      {item.trendDirection && item.trendDirection !== 'flat' && (
-                        <span
-                          className="font-semibold"
-                          style={getArrowStyle(item.trendScore, item.trendDirection)}
-                          title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
-                          aria-label={`trend ${item.trendDirection}`}
-                        >
-                          {item.trendDirection === 'up' ? '↑' : '↓'}
-                        </span>
-                      )}
-                      {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
-                        <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{item.trendStreak}</span>
+                    {/* Symbol */}
+                    <div className="flex-1 flex items-center gap-3 ml-4">
+                      <span className="font-bold text-white text-lg tracking-wide hover:text-cyan-400 hover:text-shadow-cyan-400">
+                        {truncateSymbol(item.symbol, 6)}
+                      </span>
+                      {showAdded && (
+                        <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
                       )}
                     </div>
-                    <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
                   </div>
-                  {/* Dot */}
-                  <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)} justify-self-center`}></div>
-                  {/* Star */}
-                  <button
-                    onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                    tabIndex={0}
-                    aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                    aria-pressed={isInWatchlist}
-                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-8 h-8 flex items-center justify-center"
-                  >
-                    <StarIcon
-                      filled={isInWatchlist}
-                      className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
-                      style={{ minWidth: '20px', minHeight: '20px', transition: 'transform 0.2s' }}
-                      aria-hidden="true"
-                    />
-                  </button>
+
+                  {/* Fixed-width metrics area for consistent alignment */}
+                  <div className="ml-0 sm:ml-4 flex items-center gap-3 justify-end w-full md:w-[360px]">
+                    {/* Price Column (arrow + current and previous price, right-aligned) */}
+                    <div className="flex flex-col items-end w-[140px]">
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text flex items-center gap-1">
+                        <span className={`${item.change >= 0 ? 'text-blue' : 'text-pink'}`}>{item.change >= 0 ? '▲' : '▼'}</span>
+                        {typeof item.price === 'number' && Number.isFinite(item.price)
+                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
+                          : 'N/A'}
+                      </span>
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
+                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
+                          ? (() => {
+                               const prevPrice = item.price / (1 + item.change / 100);
+                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
+                             })()
+                          : '--'}
+                      </span>
+                    </div>
+                    {/* Change Percentage and timeframe */}
+                    <div className="flex flex-col items-end w-[88px]">
+                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                      </div>
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
+                        3-Min
+                      </span>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
+                    {/* Star */}
+                    <button
+                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                      tabIndex={0}
+                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                      aria-pressed={isInWatchlist}
+                      className="bg-transparent border-none p-0 m-0 cursor-pointer w-6 flex justify-end"
+                      style={{ minWidth: '24px', minHeight: '24px' }}
+                    >
+                      <StarIcon
+                        filled={isInWatchlist}
+                        className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
                 </div>
               </a>
             </div>
-            {/* Purple divider, not full width, only between cards */}
-            {idx < data.length - 1 && (
-              <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(129,9,150,0.18) 0%,rgba(129,9,150,0.38) 50%,rgba(129,9,150,0.18) 100%)',borderRadius:'2px'}}></div>
-            )}
+            {/* Removed in-row decorative divider to avoid sparkline/line-indicator visuals */}
           </React.Fragment>
         );
       })}

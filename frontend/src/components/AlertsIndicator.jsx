@@ -74,7 +74,14 @@ const AlertsIndicator = () => {
                   <span className="ml-2 px-1 py-0.5 rounded bg-gray-700 text-[10px]">{a.scope}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="font-bold">{a.symbol}</span>
+                  <a
+                    href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol||'').toLowerCase()}-USD`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold hover:text-amber-400"
+                  >
+                    {a.symbol}
+                  </a>
                   <span className={`${a.direction==='up'?'text-green-300':'text-red-300'}`}>{a.direction === 'up' ? '↑' : a.direction === 'down' ? '↓' : '·'}</span>
                   {typeof a.streak === 'number' && a.streak > 0 && (
                     <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none">x{a.streak}</span>

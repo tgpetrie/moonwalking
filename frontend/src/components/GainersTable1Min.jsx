@@ -223,9 +223,10 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
   // Determine if watchlist is present (from topWatchlist)
   const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
-  // Show only top 4 gainers by default, expand/collapse for up to 10
-  const desired = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : (showAll ? visibleData.length : Math.min(4, visibleData.length));
-  const rowsToShow = Math.min(desired, visibleData.length);
+  // Show a fixed count per instance when used in two-column layout
+  const rowsToShow = typeof fixedRows === 'number' && fixedRows > 0
+    ? Math.min(fixedRows, visibleData.length)
+    : Math.min(4, visibleData.length);
 
   return (
     <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
@@ -353,14 +354,14 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
           </React.Fragment>
         );
       })}
-      {/* Show More/Show Less button if more than 4 items */}
-  {!hideShowMore && Array.isArray(visibleData) && visibleData.length > 4 && (
+    {/* Show More/Show Less button is typically handled by the parent two-column section. Keep hidden unless explicitly enabled. */}
+  {!hideShowMore && Array.isArray(visibleData) && visibleData.length > 8 && (
         <button
           className="mt-2 mx-auto px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
           style={{ width: 'fit-content' }}
           onClick={() => setShowAll(s => !s)}
         >
-      {showAll ? 'Show Less' : `Show More (${Math.min(10, visibleData.length) - 4})`}
+    {showAll ? 'Show Less' : `Show More (${Math.min(12, visibleData.length) - 8})`}
         </button>
       )}
     </div>

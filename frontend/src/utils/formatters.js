@@ -41,3 +41,12 @@ export const formatPercentage = (percentage) => {
     return '0.00%';
   }
 };
+
+// Shorten long token symbols/names to avoid layout breaks.
+// Example: 'BITCOIN' -> 'BITCO…' when maxLen=6
+export const truncateSymbol = (text, maxLen = 6) => {
+  if (typeof text !== 'string') return String(text ?? '');
+  if (text.length <= maxLen) return text;
+  if (maxLen <= 1) return text.slice(0, maxLen);
+  return text.slice(0, maxLen - 1) + '…';
+};
