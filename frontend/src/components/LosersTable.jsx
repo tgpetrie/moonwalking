@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
-import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
+import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
+import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
 const LosersTable = ({ refreshTrigger }) => {
-  // Inject animation styles for pop/fade effects (watchlist add feedback)
+  // Inject animation styles for pop/fade effects
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('losers-table-animations')) {
       const style = document.createElement('style');
@@ -37,6 +37,8 @@ const LosersTable = ({ refreshTrigger }) => {
     }
   }, []);
   const [data, setData] = useState([]);
+  const [flashMap, setFlashMap] = useState({});
+  const [priceHistory, setPriceHistory] = useState({}); // {SYM: number[]}
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -71,10 +73,36 @@ const LosersTable = ({ refreshTrigger }) => {
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
+            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0)),
+            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+            trendScore: item.trend_score ?? item.trendScore ?? 0
           }));
+          // Update rolling history for sparklines (cap 20 points)
+          setPriceHistory(prev => {
+            const out = { ...prev };
+            losersWithRanks.forEach(row => {
+              const arr = (out[row.symbol] || []).slice(-19);
+              if (typeof row.price === 'number' && Number.isFinite(row.price)) {
+                arr.push(row.price);
+                out[row.symbol] = arr;
+              }
+            });
+            return out;
+          });
           if (isMounted) {
-            setData(losersWithRanks.slice(0,7));
+            setData(prev => {
+              const flashes = {};
+              losersWithRanks.slice(0,7).forEach(n => {
+                const old = prev.find(p => p.symbol === n.symbol);
+                if (old && old.price !== n.price) {
+                  flashes[n.symbol] = n.price > old.price ? 'up' : 'down';
+                }
+              });
+              setFlashMap(flashes);
+              if (Object.keys(flashes).length) setTimeout(()=>setFlashMap({}), 900);
+              return losersWithRanks.slice(0,7);
+            });
           }
         } else if (isMounted && data.length === 0) {
           setData([]);
@@ -143,12 +171,24 @@ const LosersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[380px] sm:min-h-[420px] max-w-full md:max-w-2xl mx-auto px-2 sm:px-3 md:px-0 align-stretch">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] max-w-2xl mx-auto px-1 sm:px-3 md:px-0 align-stretch">
       {data.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
         const isPopping = popStar === item.symbol;
         const showAdded = addedBadge === item.symbol;
+        const getArrowStyle = (score, dir) => {
+          const s = Math.max(0, Math.min(3, Number(score) || 0));
+          let fontSize = '0.8em';
+          if (s >= 1.5) fontSize = '1.25em'; else if (s >= 0.5) fontSize = '1.05em';
+          let color;
+          if (dir === 'up') {
+            color = s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4';
+          } else {
+            color = s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2';
+          }
+          return { fontSize, color };
+        };
         return (
           <React.Fragment key={item.symbol}>
             <div className="relative group">
@@ -160,90 +200,106 @@ const LosersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10 will-change-transform`
+                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,16px,32px] ` +
+                    `group-hover:text-pink group-hover:text-shadow-pink ` +
+                    (flashMap[item.symbol] ? (flashMap[item.symbol] === 'up' ? 'flash-up' : 'flash-down') : '')
                   }
-                  style={{ boxShadow: 'none' }}
+                  style={{ boxShadow: '0 2px 16px 0 rgba(255,0,128,0.08)' }}
                 >
-                  {/* Glow (orange-gold to match gainers) */}
+                  {/* Glow */}
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className={
-                        `block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]`
-                      }
+                      className="block rounded-xl opacity-0 group-hover:opacity-90 transition-all duration-500 w-[140%] h-[140%] group-hover:w-[170%] group-hover:h-[170%]"
                       style={{
-                        background:
-                          'radial-gradient(circle at 50% 50%, rgba(255,96,132,0.20) 0%, rgba(255,96,132,0.12) 45%, rgba(255,180,197,0.08) 70%, transparent 100%)',
-                        top: '-15%',
-                        left: '-15%',
-                        position: 'absolute',
-                        mixBlendMode: 'normal'
+                        background: 'radial-gradient(circle at 50% 50%, rgba(255,0,128,0.16) 0%, rgba(255,0,128,0.08) 60%, transparent 100%)',
+                        top: '-20%', left: '-20%', position: 'absolute'
                       }}
                     />
                   </span>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm">
-                      {item.rank}
+                  {/* Rank */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm">
+                    {item.rank}
+                  </div>
+                  {/* Symbol + Added */}
+                  <div className="flex items-center gap-3 ml-2 min-w-0">
+                    <span className="font-bold text-white text-lg tracking-wide truncate hover:text-pink hover:text-shadow-light-pink">{item.symbol}</span>
+                    {showAdded && (
+                      <span className="px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                    )}
+                  </div>
+                  {/* Price + sparkline */}
+                  <div className="flex flex-col items-end min-w-[110px]">
+                    {/* tiny sparkline above price on sm+ */}
+                    <div className="hidden sm:block mb-1">
+            <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
+                        {(() => {
+                          const ys = (priceHistory[item.symbol] || []).slice(-20);
+                          if (ys.length < 2) return null;
+                          const min = Math.min(...ys);
+                          const max = Math.max(...ys);
+                          const range = max - min || 1;
+                          const step = 80 / (ys.length - 1);
+                          const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
+              const positive = (item.change || 0) >= 0;
+              return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />;
+                        })()}
+                      </svg>
                     </div>
-                    {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide">
-                        {truncateSymbol(item.symbol, 6)}
-                      </span>
-                      {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
+                    <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
+                      {typeof item.price === 'number' && Number.isFinite(item.price)
+                        ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
+                        : 'N/A'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-light text-gray-400 select-text">
+                      {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
+                        ? (() => { const prevPrice = item.price / (1 + item.change / 100); return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`; })()
+                        : '--'}
+                    </span>
+                  </div>
+                  {/* Change */}
+                  <div className="flex flex-col items-end min-w-[80px]">
+                    <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                      <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                      {item.trendDirection && item.trendDirection !== 'flat' && (
+                        <span
+                          className="font-semibold"
+                          style={getArrowStyle(item.trendScore, item.trendDirection)}
+                          title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
+                          aria-label={`trend ${item.trendDirection}`}
+                        >
+                          {item.trendDirection === 'up' ? '↑' : '↓'}
+                        </span>
+                      )}
+                      {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
+                        <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">x{item.trendStreak}</span>
                       )}
                     </div>
+                    <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
                   </div>
-
-                  {/* Fixed-width metrics area (safe widths to match 1‑min) */}
-                  <div className="ml-0 sm:ml-4 flex items-center gap-2 sm:gap-3 justify-end w-full md:w-[360px]">
-                    {/* Price Column (current and previous price, right-aligned) */}
-                      <div className="flex flex-col items-end w-[130px] shrink-0">
-                        <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text tabular-nums whitespace-nowrap text-right">
-                          {typeof item.price === 'number' && Number.isFinite(item.price)
-                            ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                            : 'N/A'}
-                        </span>
-                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text tabular-nums whitespace-nowrap text-right">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? (() => {
-                               const prevPrice = item.price / (1 + item.change / 100);
-                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
-                             })()
-                          : '--'}
-                      </span>
-                    </div>
-                    {/* Change Percentage and timeframe */}
-                    <div className="flex flex-col items-end w-[160px] shrink-0">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span className="tabular-nums whitespace-nowrap font-mono">{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 whitespace-nowrap">
-                        3-Min
-                      </span>
-                    </div>
-                    {/* dot indicator removed */}
-                    {/* Star */}
-                    <button
+                  {/* Dot */}
+                  <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)} justify-self-center`}></div>
+                  {/* Star */}
+                  <button
                     onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
                     tabIndex={0}
                     aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
                     aria-pressed={isInWatchlist}
-                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-6 flex justify-end"
+                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-8 h-8 flex items-center justify-center"
                   >
                     <StarIcon
                       filled={isInWatchlist}
                       className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
-                      style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
+                      style={{ minWidth: '20px', minHeight: '20px', transition: 'transform 0.2s' }}
                       aria-hidden="true"
                     />
                   </button>
                 </div>
-                </div>
               </a>
             </div>
-            {/* Removed in-row decorative divider to avoid sparkline/line-indicator visuals */}
+            {/* Purple divider, not full width, only between cards */}
+            {idx < data.length - 1 && (
+              <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(129,9,150,0.18) 0%,rgba(129,9,150,0.38) 50%,rgba(129,9,150,0.18) 100%)',borderRadius:'2px'}}></div>
+            )}
           </React.Fragment>
         );
       })}
