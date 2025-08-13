@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './app.jsx';
 import '../index.css';
+import './styles/animations.css';
 
 // Responsive best practices: index.css already includes Tailwind and responsive settings.
 // No changes needed here, but ensure root element is used for hydration.
