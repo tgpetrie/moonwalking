@@ -1,0 +1,8 @@
+name = "moonwalking"
+compatibility_date = "2024-08-13"
+
+[pages_build_output_dir]
+directory = "frontend/dist"
+
+[pages.build]
+command = "cd frontend && npm install && npm run build"
