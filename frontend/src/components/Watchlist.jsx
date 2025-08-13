@@ -19,51 +19,26 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   useEffect(() => {
     const normalizeAndSet = async () => {
       try {
-        // If parent provided a watchlist, prefer it only when it has items
-        if (Array.isArray(topWatchlist) && topWatchlist.length > 0) {
-          const symbols = topWatchlist.map((it) => (typeof it === 'string' ? it : it.symbol)).filter(Boolean);
-          // Lookup any stored priceAtAdd values
-          const stored = await getWatchlist();
-          const storedMap = {};
-          stored.forEach((it) => {
-            const sym = typeof it === 'string' ? it : it.symbol;
-            const pa = typeof it === 'object' ? it.priceAtAdd : undefined;
-            if (sym) storedMap[sym] = pa;
-          });
-          // Get current prices from context/polling cache
-          const realPrices = await fetchPricesForSymbols(symbols);
-          const processed = symbols.map((symbol) => {
-            const priceAtAdd = storedMap[symbol] ?? 0;
-            let currentPrice = priceAtAdd;
-            if (realPrices[symbol]) {
-              currentPrice = realPrices[symbol].price;
-            } else if (latestData.prices && latestData.prices[symbol]) {
-              currentPrice = latestData.prices[symbol].price;
-            }
-            return {
-              symbol,
-              priceAtAdd: priceAtAdd || currentPrice || 100,
-              currentPrice: currentPrice || priceAtAdd || 100,
-            };
-          });
-          setWatchlist(processed);
-          setError(null);
-          setLoading(false);
-          // Always notify parent with string symbols for consistency across components
-          if (onWatchlistChange) onWatchlistChange(symbols);
-          return;
-        }
-
-        // Otherwise, load from localStorage and build enriched objects
         setLoading(true);
+        // Load from localStorage first
         const data = await getWatchlist();
         console.log('📋 Fetched watchlist from localStorage:', data.length, 'items');
-        const symbols = data.map((item) => (typeof item === 'string' ? item : item.symbol));
+        let symbols = data.map((item) => (typeof item === 'string' ? item : item.symbol));
+        // If parent provided additional symbols, merge them in
+        if (Array.isArray(topWatchlist) && topWatchlist.length > 0) {
+          const extra = topWatchlist.map((it) => (typeof it === 'string' ? it : it.symbol)).filter(Boolean);
+          symbols = Array.from(new Set([...symbols, ...extra]));
+        }
         const realPrices = await fetchPricesForSymbols(symbols);
         console.log('💰 Fetched real prices for watchlist:', Object.keys(realPrices).length, 'symbols');
-        const processedData = data.map((item) => {
-          const symbol = typeof item === 'string' ? item : item.symbol;
-          const priceAtAdd = typeof item === 'object' ? item.priceAtAdd : 0;
+        const storedMap = {};
+        data.forEach((it) => {
+          const sym = typeof it === 'string' ? it : it.symbol;
+          const pa = typeof it === 'object' ? it.priceAtAdd : undefined;
+          if (sym) storedMap[sym] = pa;
+        });
+        const processedData = symbols.map((symbol) => {
+          const priceAtAdd = storedMap[symbol] ?? 0;
           let currentPrice = priceAtAdd;
           if (realPrices[symbol]) {
             currentPrice = realPrices[symbol].price;
@@ -251,13 +226,16 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     ? watchlist.filter(item => item.symbol.toLowerCase().includes(search.trim().toLowerCase()))
     : watchlist;
 
-  if (loading) return <div className="text-center text-gray-400 text-base sm:text-lg md:text-xl">Loading Watchlist...</div>;
+  // Show inputs immediately; display a small inline loading hint instead of blocking UI
+  const LoadingHint = loading ? (
+    <div className="text-gray-400 text-xs ml-2">Syncing…</div>
+  ) : null;
 
   return (
     <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
       {/* Header now handled by parent app.jsx */}
       {/* Add search input and add symbol input/button */}
-      <div className="flex flex-col gap-2 mb-2">
+    <div className="flex flex-col gap-2 mb-2">
         <input
           type="text"
           value={search}
@@ -279,6 +257,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
           >
             Add
           </button>
+      {LoadingHint}
         </div>
       </div>
       {error && <div className="text-red-500 mb-4 text-sm sm:text-base">{error}</div>}

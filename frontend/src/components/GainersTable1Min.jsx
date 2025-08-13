@@ -200,15 +200,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
   if (loading && visibleData.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="animate-pulse text-blue font-mono">Loading 1-min gainers...</div>
-      </div>
-    );
-  }
-
-  if (error && visibleData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">Backend unavailable (no data)</div>
+        <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
       </div>
     );
   }
@@ -229,7 +221,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
     : Math.min(4, visibleData.length);
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[380px] sm:min-h-[420px] px-2 sm:px-3 md:px-0 align-stretch transition-all duration-300">
   {visibleData.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         // Check if symbol is in watchlist (handle both string and object formats)
@@ -243,51 +235,59 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
     <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 transition`}>
               <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
                 <div
-      className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group group-hover:text-amber-500 group-hover:scale-[1.03] group-hover:z-10"
+                  className="flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10"
                   style={{
-                    boxShadow: 'none', // Remove shadow/border
-                    background: 'rgba(10, 10, 18, 0.18)' // Transparent fill
+                    boxShadow: 'none',
+                    background: 'transparent'
                   }}
                 >
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                     <span
-                      className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]"
+                      className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
                       style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
-                        top: '-30%',
-                        left: '-30%',
+                        background: 'radial-gradient(circle at 50% 50%, rgba(236,167,155,0.18) 0%, rgba(236,167,155,0.10) 45%, rgba(255,209,180,0.06) 70%, transparent 100%)',
+                        top: '-15%',
+                        left: '-15%',
                         position: 'absolute',
-                        filter: 'blur(1.5px)'
+                        mixBlendMode: 'normal'
                       }}
                     />
                   </span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">{item.rank}</div>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">{item.rank}</div>
                     <div className="flex-1 flex items-center gap-3 ml-4">
                       <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
                       {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>}
                     </div>
                   </div>
-                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
+                  <div className="ml-0 sm:ml-4 flex items-center gap-3 justify-end w-full md:w-[360px]">
+                    {/* Price Column (current and previous price, right-aligned) */}
+                    <div className="flex flex-col items-end w-[110px] sm:w-[120px] md:w-[130px] shrink-0">
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text tabular-nums whitespace-nowrap font-mono text-right">
                         {typeof item.price === 'number' && Number.isFinite(item.price)
                           ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
                           : 'N/A'}
                       </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text tabular-nums whitespace-nowrap text-right">
                         {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? `$${(item.price / (1 + item.change / 100)).toFixed(2)}`
+                          ? (() => {
+                               const prevPrice = item.price / (1 + item.change / 100);
+                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
+                             })()
                           : '--'}
                       </span>
                     </div>
-                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                    {/* Change Percentage and timeframe (two-line: percent on top, arrow+chips+timeframe below) */}
+                    <div className="flex flex-col items-end w-[120px] sm:w-[140px] md:w-[160px] shrink-0">
+                      <div className={`font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
+                        {item.change > 0 && <span className="font-mono mr-0.5">+</span>}
+                        <span className="tabular-nums whitespace-nowrap font-mono">{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-end gap-1 mt-0.5 whitespace-nowrap">
                         {/* Trend arrow */}
                         {item.trendDirection && item.trendDirection !== 'flat' && (() => {
                           const s = Math.max(0, Math.min(3, Number(item.trendScore) || 0));
-                          let fontSize = '0.85em';
+                          let fontSize = '0.9em';
                           if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
                           const color = item.trendDirection === 'up'
                             ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
@@ -296,7 +296,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                             <span
                               className="font-semibold"
                               style={{ fontSize, color }}
-                              title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
+                              title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} \u2022 score ${Number(item.trendScore||0).toFixed(2)}`}
                               aria-label={`trend ${item.trendDirection}`}
                             >
                               {item.trendDirection === 'up' ? '↑' : '↓'}
@@ -311,16 +311,13 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                         )}
                         {/* Streak chip (only if >=2) */}
                         {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
-                          <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">
+                          <span className="px-1 py-0.5 rounded bg-[#6B0C86]/30 text-[#E9C5F2] text-[10px] leading-none font-semibold align-middle">
                             x{item.trendStreak}
                           </span>
                         )}
+                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                       </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                     </div>
-                    {getDotStyle(item.change) && (
-                      <div className={`w-3 h-3 rounded-full ${getDotStyle(item.change)}`}></div>
-                    )}
                     <button
                       onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
                       tabIndex={0}

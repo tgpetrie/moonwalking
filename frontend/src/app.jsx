@@ -14,7 +14,7 @@ const BottomBannerScroll = React.lazy(() => import('./components/BottomBannerScr
 const GainersTable = React.lazy(() => import('./components/GainersTable'));
 const LosersTable = React.lazy(() => import('./components/LosersTable'));
 const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'));
-const Watchlist = React.lazy(() => import('./components/Watchlist'));
+import Watchlist from './components/Watchlist';
 const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
 const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
 const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'));
@@ -203,7 +203,7 @@ export default function App() {
           <div className="p-6 bg-transparent w-full">
             <div className="relative">
               <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                   1-MIN GAINERS
                 </h2>
                 <button
@@ -279,7 +279,7 @@ export default function App() {
           {/* Left Panel - 3-MIN GAINERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-blue tracking-wide">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                 3-MIN GAINERS
               </h2>
             </div>
@@ -323,7 +323,7 @@ export default function App() {
         <div className="mb-8">
           <div className="p-6 bg-transparent w-full">
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-orange tracking-wide">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                 WATCHLIST
               </h2>
             </div>
@@ -335,9 +335,7 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <Suspense fallback={chunkFallback('Loading watchlist...')}>
-              <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
-            </Suspense>
+            <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
           </div>
         </div>
         {/* Last Alert Ticker + Bottom Banner - 1H Volume */}
