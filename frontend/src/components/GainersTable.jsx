@@ -45,22 +45,6 @@ const GainersTable = ({ refreshTrigger }) => {
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
-  const getDotStyle = (badge) => {
-    if (badge === 'STRONG HIGH') {
-      return 'bg-green-400 shadow-green-400/50';
-    } else if (badge === 'STRONG') {
-      return 'bg-blue-400 shadow-blue-400/50';
-    } else {
-      return 'bg-teal-400 shadow-teal-400/50';
-    }
-  };
-
-  const getBadgeText = (change) => {
-    const absChange = Math.abs(change);
-    if (absChange >= 5) return 'STRONG HIGH';
-    if (absChange >= 2) return 'STRONG';
-    return 'MODERATE';
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -73,7 +57,6 @@ const GainersTable = ({ refreshTrigger }) => {
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
             price: item.current_price || 0,
             change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0)),
             trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
             trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
             trendScore: item.trend_score ?? item.trendScore ?? 0
@@ -201,7 +184,7 @@ const GainersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,16px,32px] ` +
+                    `relative overflow-hidden p-4 rounded-xl transition-all duration-300 cursor-pointer group-hover:scale-[1.03] group-hover:z-10 will-change-transform grid items-center gap-4 grid-cols-[40px,1fr,110px,80px,32px] ` +
                     `group-hover:text-amber-500 ` +
                     (flashMap[item.symbol] ? (flashMap[item.symbol] === 'up' ? 'flash-up' : 'flash-down') : '')
                   }
@@ -228,24 +211,8 @@ const GainersTable = ({ refreshTrigger }) => {
                       <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
                     )}
                   </div>
-                  {/* Price + sparkline */}
+                  {/* Price */}
                   <div className="flex flex-col items-end min-w-[110px]">
-                    {/* tiny sparkline above price on sm+ */}
-                    <div className="hidden sm:block mb-1">
-            <svg width="80" height="20" viewBox="0 0 80 20" className="opacity-70">
-                        {(() => {
-                          const ys = (priceHistory[item.symbol] || []).slice(-20);
-                          if (ys.length < 2) return null;
-                          const min = Math.min(...ys);
-                          const max = Math.max(...ys);
-                          const range = max - min || 1;
-                          const step = 80 / (ys.length - 1);
-                          const d = ys.map((p,i)=>`${i===0?'M':'L'} ${i*step} ${20 - ((p - min)/range)*20}`).join(' ');
-              const positive = (item.change || 0) >= 0;
-              return <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" />;
-                        })()}
-                      </svg>
-                    </div>
                     <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
                       {typeof item.price === 'number' && Number.isFinite(item.price)
                         ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
@@ -277,8 +244,6 @@ const GainersTable = ({ refreshTrigger }) => {
                     </div>
                     <span className="text-xs sm:text-sm font-light text-gray-400">3-Min</span>
                   </div>
-                  {/* Dot */}
-                  <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)} justify-self-center`}></div>
                   {/* Star */}
                   <button
                     onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}

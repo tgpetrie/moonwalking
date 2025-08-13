@@ -55,18 +55,6 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
   const [showAll, setShowAll] = useState(false); // expand/collapse for gainers list
 
-  // Return a purple dot style for strong signals only, else empty
-  const getDotStyle = (change) => {
-    const absChange = Math.abs(change);
-    if (absChange >= 5) return 'bg-green-400'; // Strong high (buy)
-    if (absChange >= 2) return 'bg-blue-400'; // Strong (buy)
-    return '';
-  };
-
-  const getBadgeText = (change) => {
-    // Badge logic not needed for 1-min table (matching 3-min table format)
-    return null;
-  };
 
   // Update data from WebSocket context when available
   useEffect(() => {
@@ -317,9 +305,6 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
                     </div>
-                    {getDotStyle(item.change) && (
-                      <div className={`w-3 h-3 rounded-full ${getDotStyle(item.change)}`}></div>
-                    )}
                     <button
                       onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
                       tabIndex={0}
