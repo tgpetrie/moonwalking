@@ -120,15 +120,7 @@ const GainersTable = ({ refreshTrigger }) => {
   if (loading && data.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="animate-pulse text-blue font-mono">Loading gainers...</div>
-      </div>
-    );
-  }
-
-  if (error && data.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">No data (backend error)</div>
+        <div className="animate-pulse text-[#C026D3] font-mono">Loading gainers...</div>
       </div>
     );
   }
@@ -142,7 +134,7 @@ const GainersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] max-w-2xl mx-auto px-1 sm:px-3 md:px-0 align-stretch">
+    <div className="flex flex-col space-y-1 w-full h-full min-h-[380px] sm:min-h-[420px] max-w-full md:max-w-2xl mx-auto px-2 sm:px-3 md:px-0 align-stretch">
       {data.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.includes(item.symbol);
@@ -159,13 +151,29 @@ const GainersTable = ({ refreshTrigger }) => {
               >
                 <div
                   className={
-                    `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-amber-500 group-hover:scale-[1.035] group-hover:z-10 will-change-transform`
+                    `flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10 will-change-transform`
                   }
-                  style={{ boxShadow: '0 2px 16px 0 rgba(129,9,150,0.10)' }}
+                  style={{ boxShadow: 'none', background: 'transparent' }}
                 >
-                  <div className="flex items-center gap-4">
+                  {/* Orange-gold inner glow effect (match losers, recolored) */}
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                    <span
+                      className={
+                        `block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]`
+                      }
+                      style={{
+                        background:
+                          'radial-gradient(circle at 50% 50%, rgba(236,167,155,0.18) 0%, rgba(236,167,155,0.10) 45%, rgba(255,209,180,0.06) 70%, transparent 100%)',
+                        top: '-15%',
+                        left: '-15%',
+                        position: 'absolute',
+                        mixBlendMode: 'normal'
+                      }}
+                    />
+                  </span>
+                  <div className="flex items-center gap-3 sm:gap-4">
                     {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm hover:text-blue hover:text-shadow-light-blue">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
                       {item.rank}
                     </div>
                     {/* Symbol */}
@@ -179,17 +187,16 @@ const GainersTable = ({ refreshTrigger }) => {
                     </div>
                   </div>
 
-                  {/* Fixed-width metrics area for consistent alignment */}
-                  <div className="ml-0 sm:ml-4 flex items-center gap-3 justify-end w-full md:w-[360px]">
+                  {/* Fixed-width metrics area for consistent alignment (safe widths) */}
+                  <div className="ml-0 sm:ml-4 flex items-center gap-2 sm:gap-3 justify-end w-full md:w-[360px]">
                     {/* Price Column (arrow + current and previous price, right-aligned) */}
-                    <div className="flex flex-col items-end w-[140px]">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text flex items-center gap-1">
-                        <span className={`${item.change >= 0 ? 'text-blue' : 'text-pink'}`}>{item.change >= 0 ? '▲' : '▼'}</span>
-                        {typeof item.price === 'number' && Number.isFinite(item.price)
-                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                          : 'N/A'}
-                      </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
+            <div className="flex flex-col items-end w-[110px] sm:w-[120px] md:w-[130px] shrink-0">
+                        <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text tabular-nums whitespace-nowrap font-mono text-right">
+                          {typeof item.price === 'number' && Number.isFinite(item.price)
+                            ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
+                            : 'N/A'}
+                        </span>
+                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text tabular-nums whitespace-nowrap text-right">
                         {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
                           ? (() => {
                                const prevPrice = item.price / (1 + item.change / 100);
@@ -199,15 +206,16 @@ const GainersTable = ({ refreshTrigger }) => {
                       </span>
                     </div>
                     {/* Change Percentage and timeframe */}
-                    <div className="flex flex-col items-end w-[88px]">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
+                    <div className="flex flex-col items-end w-[120px] sm:w-[140px] md:w-[160px] shrink-0">
+                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
+                        {item.change > 0 && <span className="font-mono">+</span>}
+                        <span className="tabular-nums whitespace-nowrap font-mono">{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                       </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">
+                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 whitespace-nowrap">
                         3-Min
                       </span>
                     </div>
-                    <div className={`w-3 h-3 rounded-full ${getDotStyle(item.badge)}`}></div>
+                    {/* dot indicator removed for parity */}
                     {/* Star */}
                     <button
                       onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}

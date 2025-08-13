@@ -65,11 +65,11 @@ const TopBannerScroll = ({ refreshTrigger }) => {
 
   // Never show loading or empty states - always render the banner
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-dark/80 via-mid-dark/60 to-dark/80 rounded-3xl">
+    <div className="relative overflow-hidden rounded-3xl w-full max-w-full" style={{ background: 'transparent' }}>
       {/* Header */}
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: '#FEA400' }}>
+      <div className="px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: 'rgb(254, 164, 0)' }}>
             1H Price Change • Live Market Feed
           </h3>
         </div>
@@ -167,7 +167,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                       <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 text-purple">
+                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">
                     {coin.badge}
                   </div>
                 </div>
