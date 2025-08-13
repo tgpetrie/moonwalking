@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_ENDPOINTS, fetchData } from '../api.js';
 
 export default function AskCodexPanel({ onClose }) {
   const [query, setQuery] = useState('Explain how 1‑minute gainers trend streak is computed.');
@@ -11,16 +12,15 @@ export default function AskCodexPanel({ onClose }) {
     if (!query.trim()) return;
     setLoading(true); setError(''); setReply('');
     try {
-      const res = await fetch('/api/ask-codex', {
+      const endpoint = `${API_ENDPOINTS.serverInfo.replace('/api/server-info', '')}/api/ask-codex`;
+      const data = await fetchData(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.reply || 'Request failed');
-      setReply(data.reply || 'No reply');
+      setReply(data.reply || 'No reply available');
     } catch (e2) {
-      setError(e2.message);
+      setError(e2.message || 'Failed to get response from Codex');
     } finally {
       setLoading(false);
     }

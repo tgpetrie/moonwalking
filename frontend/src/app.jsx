@@ -121,11 +121,11 @@ export default function App() {
         </div>
         <button
           onClick={refreshGainersAndLosers}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] focus:outline-none focus:ring-2 focus:ring-purple-400 animate-pulse-glow hover:animate-bounce-subtle"
           aria-label="Refresh"
           title="Refresh"
         >
-          <FiRefreshCw className="text-xl text-purple-300" />
+          <FiRefreshCw className="text-xl text-purple-300 transition-transform duration-300 hover:rotate-180" />
         </button>
         <div className="mt-1">
           <AlertsIndicator />
@@ -146,12 +146,13 @@ export default function App() {
         <div className="flex flex-col gap-2 items-end">
           <button
             onClick={() => setShowCodex(s => !s)}
-            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-fade-in-up"
             aria-pressed={showCodex}
           >{showCodex ? 'Close Codex' : 'Ask Codex'}</button>
           <button
             onClick={() => setShowInsights(s => !s)}
-            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-fade-in-up"
+            style={{animationDelay: '0.1s'}}
             aria-pressed={showInsights}
           >{showInsights ? 'Hide Insights' : 'Insights'}</button>
         </div>
@@ -173,18 +174,19 @@ export default function App() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
-        <header className="flex flex-col items-center justify-center pt-8 pb-6">
+        <header className="flex flex-col items-center justify-center pt-8 pb-6 animate-fade-in-up">
           <div className="mb-4">
             <img
               src="/bhabit-logo.png"
               alt="BHABIT"
-              className="h-20 sm:h-24 lg:h-28 animate-breathing"
+              className="h-20 sm:h-24 lg:h-28 animate-breathing hover:animate-pulse-glow transition-all duration-500 cursor-pointer"
             />
           </div>
           <img
             src="/pbi.png"
             alt="PROFITS BY IMPULSE"
-            className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125"
+            className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125 animate-fade-in hover:animate-bounce-subtle"
+            style={{animationDelay: '0.2s'}}
           />
         </header>
   {/* Top Banner - 1H Price (lazy) */}
@@ -199,11 +201,11 @@ export default function App() {
         {/* Main Content - Side by Side Panels */}
 
         {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
-        <div className="mb-8">
+        <div className="mb-8 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
           <div className="p-6 bg-transparent w-full">
             <div className="relative">
               <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] hover:text-shadow-orange transition-all duration-300">
                   1-MIN GAINERS
                 </h2>
                 <button
@@ -254,7 +256,7 @@ export default function App() {
               <div className="w-full flex justify-center mt-3">
                 <button
                   onClick={() => setOneMinExpanded(v => !v)}
-                  className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+                  className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition-all duration-300 hover:scale-105 hover:shadow-lg animate-fade-in"
                   aria-pressed={oneMinExpanded}
                 >
                   {oneMinExpanded ? 'Show Less' : 'Show More'}
@@ -275,11 +277,11 @@ export default function App() {
         </div>
 
         {/* 3-Minute Gainers and Losers Tables */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 stagger-fade-in">
           {/* Left Panel - 3-MIN GAINERS */}
-          <div className="p-6">
+          <div className="p-6 hover:bg-purple-950/10 transition-all duration-500 rounded-lg">
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] hover:text-shadow-orange transition-all duration-300">
                 3-MIN GAINERS
               </h2>
             </div>
@@ -298,9 +300,9 @@ export default function App() {
           </div>
 
           {/* Right Panel - 3-MIN LOSERS */}
-          <div className="p-6">
+          <div className="p-6 hover:bg-pink-950/10 transition-all duration-500 rounded-lg">
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
+              <h2 className="text-xl font-headline font-bold text-pink tracking-wide hover:text-shadow-pink transition-all duration-300">
                 3-MIN LOSERS
               </h2>
             </div>
