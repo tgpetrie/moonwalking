@@ -143,108 +143,88 @@ const LosersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[380px] sm:min-h-[420px] max-w-full md:max-w-2xl mx-auto px-2 sm:px-3 md:px-0 align-stretch">
-      {data.map((item, idx) => {
-        const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
-        const isInWatchlist = watchlist.includes(item.symbol);
-        const isPopping = popStar === item.symbol;
-        const showAdded = addedBadge === item.symbol;
+    <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
+      {data.map((r) => {
+        const isInWatchlist = watchlist.includes(r.symbol);
+        const isPopping = popStar === r.symbol;
+        const showAdded = addedBadge === r.symbol;
+        const prev = (typeof r.price === 'number' && typeof r.change === 'number' && r.change !== 0)
+          ? (r.price / (1 + r.change / 100))
+          : null;
+        const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
+
         return (
-          <React.Fragment key={item.symbol}>
-            <div className="relative group">
-              <a
-                href={coinbaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block group flex-1"
-              >
-                <div
-                  className={
-                    `flex items-center justify-between p-3 sm:p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10 will-change-transform`
-                  }
-                  style={{ boxShadow: 'none' }}
-                >
-                  {/* Glow (orange-gold to match gainers) */}
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className={
-                        `block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]`
-                      }
-                      style={{
-                        background:
-                          'radial-gradient(circle at 50% 50%, rgba(255,96,132,0.20) 0%, rgba(255,96,132,0.12) 45%, rgba(255,180,197,0.08) 70%, transparent 100%)',
-                        top: '-15%',
-                        left: '-15%',
-                        position: 'absolute',
-                        mixBlendMode: 'normal'
-                      }}
-                    />
-                  </span>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    {/* Rank Badge */}
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm">
-                      {item.rank}
-                    </div>
-                    {/* Symbol */}
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide">
-                        {truncateSymbol(item.symbol, 6)}
-                      </span>
-                      {showAdded && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-pink/80 text-white text-xs font-bold animate-fade-in-out shadow-pink-400/30" style={{animation:'fadeInOut 1.2s'}}>Added!</span>
-                      )}
+          <div key={r.symbol} className="px-2 py-1 mb-1">
+            <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+              <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
+
+                {/* Glow (orange-gold to match gainers) */}
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                  <span
+                    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+                    style={{
+                      background: 'radial-gradient(circle at 50% 50%, rgba(255,96,132,0.20) 0%, rgba(255,96,132,0.12) 45%, rgba(255,180,197,0.08) 70%, transparent 100%)',
+                      position: 'absolute', top: '-15%', left: '-15%'
+                    }}
+                  />
+                </span>
+
+                {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
+                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+
+                  {/* LEFT flexible: rank + symbol */}
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm shrink-0">{r.rank}</div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
                     </div>
                   </div>
 
-                  {/* Fixed-width metrics area (safe widths to match 1‑min) */}
-                  <div className="ml-0 sm:ml-4 flex items-center gap-2 sm:gap-3 justify-end w-full md:w-[360px]">
-                    {/* Price Column (current and previous price, right-aligned) */}
-                      <div className="flex flex-col items-end w-[130px] shrink-0">
-                        <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text tabular-nums whitespace-nowrap text-right">
-                          {typeof item.price === 'number' && Number.isFinite(item.price)
-                            ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                            : 'N/A'}
-                        </span>
-                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text tabular-nums whitespace-nowrap text-right">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? (() => {
-                               const prevPrice = item.price / (1 + item.change / 100);
-                               return `$${prevPrice < 1 && prevPrice > 0 ? prevPrice.toFixed(4) : prevPrice.toFixed(2)}`;
-                             })()
-                          : '--'}
-                      </span>
+                  {/* Col2: Price (stack current + previous) */}
+                  <div className="w-[152px] pr-6 text-right">
+                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                      {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
                     </div>
-                    {/* Change Percentage and timeframe */}
-                    <div className="flex flex-col items-end w-[160px] shrink-0">
-                      <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span className="tabular-nums whitespace-nowrap font-mono">{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 whitespace-nowrap">
-                        3-Min
-                      </span>
+                    <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
+                      {prev !== null
+                        ? `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
+                        : '--'}
                     </div>
-                    {/* dot indicator removed */}
-                    {/* Star */}
+                  </div>
+
+                  {/* Col3: % (stack % → Peak → interval) */}
+                  <div className="w-[108px] pr-1.5 text-right align-top">
+                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${r.change > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
+                      {r.change > 0 && '+'}{typeof r.change === 'number' ? formatPercentage(r.change) : 'N/A'}
+                    </div>
+                    {typeof r.peakCount === 'number' && r.peakCount > 0 && (
+                      <div className="text-xs text-gray-400 leading-tight">Peak x{r.peakCount}</div>
+                    )}
+                    <div className="text-xs text-gray-400 leading-tight">3-min</div>
+                  </div>
+
+                  {/* Col4: Star (tight) */}
+                  <div className="w-[28px] text-right">
                     <button
-                    onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                    tabIndex={0}
-                    aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                    aria-pressed={isInWatchlist}
-                    className="bg-transparent border-none p-0 m-0 cursor-pointer w-6 flex justify-end"
-                  >
-                    <StarIcon
-                      filled={isInWatchlist}
-                      className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
-                      style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
-                      aria-hidden="true"
-                    />
-                  </button>
+                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol, r.price);}}
+                      className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
+                      style={{ minWidth:'24px', minHeight:'24px' }}
+                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                    >
+                      <StarIcon
+                        filled={isInWatchlist}
+                        className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                        style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                      />
+                    </button>
+                  </div>
                 </div>
-                </div>
-              </a>
-            </div>
-            {/* Removed in-row decorative divider to avoid sparkline/line-indicator visuals */}
-          </React.Fragment>
+
+                {/* meta strip removed; info moved into main cells */}
+
+              </div>
+            </a>
+          </div>
         );
       })}
     </div>

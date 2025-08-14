@@ -232,7 +232,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   ) : null;
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
+    <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
       {/* Header now handled by parent app.jsx */}
       {/* Add search input and add symbol input/button */}
     <div className="flex flex-col gap-2 mb-2">
@@ -263,119 +263,68 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
       {error && <div className="text-red-500 mb-4 text-sm sm:text-base">{error}</div>}
       {filteredWatchlist.length > 0 ? (
         <>
-          {filteredWatchlist.map((item, idx) => {
+          {filteredWatchlist.map((r, idx) => {
             // Safe access with fallback values
-            const priceAtAdd = item.priceAtAdd || 0;
-            const priceNow = item.currentPrice ?? priceAtAdd;
+            const priceAtAdd = r.priceAtAdd || 0;
+            const priceNow = r.currentPrice ?? priceAtAdd;
             const change = priceAtAdd > 0 ? ((priceNow - priceAtAdd) / priceAtAdd) * 100 : 0;
             // Compute micro-trend from last few points
-            const h = priceHistory[item.symbol] || [];
+            const h = priceHistory[r.symbol] || [];
             const head = h[h.length - 1]?.p;
             const tail = h[Math.max(0, h.length - 5)]?.p;
             const microTrend = head && tail ? Math.sign(head - tail) : 0; // -1, 0, 1
+            const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
+
             return (
-              <React.Fragment key={item.symbol}>
-                <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 hover:bg-gray-800 transition`}>
-                  <div className="block flex-1">
-                    <div
-                      className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:text-amber-500 hover:scale-[1.035] hover:z-10"
-                      style={{
-                        boxShadow: 'none', // Remove shadow/border
-                        background: 'rgba(10, 10, 18, 0.18)' // Transparent fill
-                      }}
-                    >
-                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                        <span
-                          className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]"
-                          style={{
-                            background: 'radial-gradient(circle at 50% 50%, rgba(255,165,0,0.28) 0%, rgba(255,165,0,0.18) 35%, rgba(255,165,0,0.10) 60%, rgba(255,165,0,0.04) 80%, transparent 100%)',
-                            top: '-30%',
-                            left: '-30%',
-                            position: 'absolute',
-                            filter: 'blur(1.5px)'
-                          }}
-                        />
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange/40 text-orange font-bold text-sm">★</div>
-                        <div className="flex-1 flex items-center gap-3 ml-4 relative">
-                          <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
-                          {latestAlerts[item.symbol] && (
-                            <span
-                              title={latestAlerts[item.symbol]}
-                              className="ml-1 px-2 py-0.5 rounded-full bg-purple-700/70 text-[10px] font-semibold text-white tracking-wider hover:bg-purple-600 cursor-help"
-                            >ALERT</span>
-                          )}
-                          {/* micro-trend arrow */}
-                          {microTrend !== 0 && (
-                            <span className={`text-xs font-semibold ${microTrend > 0 ? 'text-green-300' : 'text-red-300'}`} title={microTrend>0?'short-term up':'short-term down'}>
-                              {microTrend > 0 ? '↑' : '↓'}
-                            </span>
-                          )}
+              <div key={r.symbol} className="px-2 py-1 mb-1">
+                <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+                  <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
+
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                      <span
+                        className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]"
+                        style={{
+                          background: 'radial-gradient(circle at 50% 50%, rgba(255,165,0,0.28) 0%, rgba(255,165,0,0.18) 35%, rgba(255,165,0,0.10) 60%, rgba(255,165,0,0.04) 80%, transparent 100%)',
+                          top: '-30%',
+                          left: '-30%',
+                          position: 'absolute',
+                          filter: 'blur(1.5px)'
+                        }}
+                      />
+                    </span>
+
+                    <div className="relative z-10 grid grid-cols-[1fr_140px_88px_72px] items-center gap-2 sm:gap-3">
+
+                      {/* LEFT flexible: rank + symbol */}
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange/40 text-orange font-bold text-sm shrink-0">★</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
                         </div>
                       </div>
-                      <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                        {/* tiny sparkline */}
-                        <div className="hidden sm:block">
-                          <svg width="80" height="24" viewBox="0 0 80 24" className="opacity-70">
-                            {(() => {
-                              const pts = (priceHistory[item.symbol]||[]).slice(-20);
-                              if (pts.length < 2) return null;
-                              let ys = pts.map(x => x.p);
-                              let min = Math.min(...ys);
-                              let max = Math.max(...ys);
-                              const last = ys[ys.length - 1] || 1;
-                              const relRange = (max - min) / (last || 1);
-                              if (!isFinite(relRange) || relRange < 0.00001) {
-                                const sign = (change || 0) >= 0 ? 1 : -1;
-                                const amp = Math.max(0.0005 * last, Math.abs(change || 0) / 100 * last * 0.002);
-                                const n = ys.length;
-                                const variant = ((item.symbol || '').length + (item.symbol || 'A').charCodeAt(0)) % 3;
-                                ys = ys.map((_, i) => {
-                                  const t = n > 1 ? i / (n - 1) : 1;
-                                  let offset;
-                                  if (variant === 0) {
-                                    offset = (t - 0.5) * 2 * amp * 0.9 * sign;
-                                  } else if (variant === 1) {
-                                    if (t < 0.3) offset = ((t / 0.3) * 0.6 - 0.3) * amp * sign;
-                                    else if (t < 0.7) offset = 0.3 * amp * sign;
-                                    else offset = (0.3 + ((t - 0.7) / 0.3) * 0.7) * amp * sign;
-                                  } else {
-                                    const wig = Math.sin(t * Math.PI) * 0.2 * amp * sign;
-                                    offset = (t - 0.5) * 2 * 0.8 * amp * sign + wig;
-                                  }
-                                  return last + offset;
-                                });
-                                min = Math.min(...ys); max = Math.max(...ys);
-                              }
-                              const range = max - min || 1;
-                              const step = 80 / (pts.length - 1);
-                              const d = pts.map((x,i) => `${i===0?'M':'L'} ${i*step} ${24 - ((x.p - min)/range)*24}`).join(' ');
-                              const positive = change >= 0;
-                              return (
-                                <>
-                                  <path d={d} fill="none" stroke={positive ? '#7FFFD4' : '#FF7F98'} strokeWidth="2" pathLength="100" className="sparkline-path" />
-                                </>
-                              );
-                            })()}
-                          </svg>
+
+                      {/* PRICE (140px) */}
+                      <div className="flex flex-col items-end w-[140px] tabular-nums whitespace-nowrap">
+                        <span className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono">
+                          {Number.isFinite(priceNow) ? `${priceNow < 1 && priceNow > 0 ? priceNow.toFixed(4) : priceNow.toFixed(2)}` : 'N/A'}
+                        </span>
+                        <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 font-mono">
+                          {Number.isFinite(priceAtAdd) ? `${priceAtAdd < 1 && priceAtAdd > 0 ? priceAtAdd.toFixed(4) : priceAtAdd.toFixed(2)}` : '--'}
+                        </span>
+                      </div>
+
+                      {/* % CHANGE (88px) */}
+                      <div className="flex flex-col items-end w-[88px] tabular-nums whitespace-nowrap">
+                        <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${change > 0 ? 'text-blue' : 'text-pink'}`}>
+                          {change > 0 && <span className="font-mono">+</span>}
+                          <span className="font-mono">{typeof change === 'number' ? formatPercentage(change) : 'N/A'}</span>
                         </div>
-                        <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                          <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                            ${priceNow.toFixed(priceNow < 1 ? 4 : 2)}
-                          </span>
-                          <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                            ${priceAtAdd.toFixed(priceAtAdd < 1 ? 4 : 2)}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                          <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                            <span>{change > 0 ? '+' : ''}{change.toFixed(2)}%</span>
-                          </div>
-                          <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">Total</span>
-                        </div>
+                      </div>
+
+                      {/* Delete Button (72px) */}
+                      <div className="flex items-center justify-end w-[72px]">
                         <button
-                          onClick={() => handleRemove(item.symbol)}
+                          onClick={(e) => {e.preventDefault(); handleRemove(r.symbol);}}
                           className="text-red-500 hover:text-red-400 transition-colors flex-shrink-0 p-2"
                           aria-label="Remove from watchlist"
                         >
@@ -383,20 +332,17 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                         </button>
                       </div>
                     </div>
+
+                    <div className="mt-1 relative z-10 flex items-center justify-between min-h-[16px]">
+                      <span className="uppercase tracking-wide text-gray-400 text-[10px]">TOTAL</span>
+                      <div className="flex items-center gap-2">
+                        {/* Sparkline can go here */}
+                      </div>
+                    </div>
+
                   </div>
-                </div>
-                {idx < filteredWatchlist.length - 1 && (
-                  <div
-                    className="mx-auto my-0.5"
-                    style={{
-                      height: '2px',
-                      width: '60%',
-                      background: 'linear-gradient(90deg,rgba(255,165,0,0.10) 0%,rgba(10,10,18,0.38) 50%,rgba(255,165,0,0.10) 100%)',
-                      borderRadius: '2px'
-                    }}
-                  ></div>
-                )}
-              </React.Fragment>
+                </a>
+              </div>
             );
           })}
         </>
