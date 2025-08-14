@@ -198,8 +198,8 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
-        <div className="mb-8">
+  {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
+  <div className="mb-4">
           <div className="p-6 bg-transparent w-full">
             <div className="relative">
               <div className="flex items-center gap-3 mb-6">
@@ -224,9 +224,9 @@ export default function App() {
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
                 <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                  <div>
+          <div className="p-6">
                     <GainersTable1Min
                       refreshTrigger={lastUpdate}
                       onWatchlistChange={handleWatchlistChange}
@@ -237,7 +237,7 @@ export default function App() {
                       hideShowMore
                     />
                   </div>
-                  <div>
+          <div className="p-6">
                     <GainersTable1Min
                       refreshTrigger={lastUpdate}
                       onWatchlistChange={handleWatchlistChange}
@@ -251,7 +251,7 @@ export default function App() {
                 </Suspense>
               </div>
               {/* Shared Show More below the two tables */}
-              <div className="w-full flex justify-center mt-3">
+              <div className="w-full flex justify-center mt-2 mb-1">
                 <button
                   onClick={() => setOneMinExpanded(v => !v)}
                   className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
@@ -274,10 +274,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* 3-Minute Gainers and Losers Tables */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  {/* 3-Minute Gainers and Losers Tables (treat as single paired component for equal sizing) */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-stretch content-stretch">
           {/* Left Panel - 3-MIN GAINERS */}
-          <div className="p-6">
+    <div className="p-6 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                 3-MIN GAINERS
@@ -292,13 +292,15 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
-              <GainersTable refreshTrigger={lastUpdate} />
-            </Suspense>
+            <div className="flex-1 flex flex-col">
+              <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
+                <GainersTable refreshTrigger={lastUpdate} />
+              </Suspense>
+            </div>
           </div>
 
           {/* Right Panel - 3-MIN LOSERS */}
-          <div className="p-6">
+          <div className="p-6 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
                 3-MIN LOSERS
@@ -313,9 +315,11 @@ export default function App() {
                 style={{ maxWidth: '100%' }}
               />
             </div>
-            <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
-              <LosersTable refreshTrigger={lastUpdate} />
-            </Suspense>
+            <div className="flex-1 flex flex-col">
+              <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
+                <LosersTable refreshTrigger={lastUpdate} />
+              </Suspense>
+            </div>
           </div>
         </div>
 

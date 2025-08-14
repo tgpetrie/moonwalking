@@ -2021,28 +2021,6 @@ def get_crypto_news(symbol):
 
 @app.route('/api/social-sentiment/<symbol>')
 def get_social_sentiment_endpoint(symbol):
-    """Get social sentiment for a specific cryptocurrency"""
-    try:
-        # Validate symbol format
-        symbol = symbol.upper().replace('-USD', '')
-        if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
-            return jsonify({"error": "Invalid symbol format"}), 400
-
-        # Get social sentiment
-        sentiment = get_social_sentiment(symbol)
-
-        return jsonify({
-            "success": True,
-            "data": sentiment,
-            "timestamp": datetime.now().isoformat()
-        })
-
-    except Exception as e:
-        logging.error(f"Error getting social sentiment for {symbol}: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/social-sentiment/<symbol>')
-def get_social_sentiment_endpoint(symbol):
     """Get social sentiment analysis for a specific cryptocurrency"""
     try:
         from social_sentiment import get_social_sentiment
