@@ -163,7 +163,7 @@ const GainersTable = ({ refreshTrigger }) => {
                       }
                       style={{
                         background:
-                          'radial-gradient(circle at 50% 50%, rgba(236,167,155,0.18) 0%, rgba(236,167,155,0.10) 45%, rgba(255,209,180,0.06) 70%, transparent 100%)',
+                          'radial-gradient(circle at 50% 50%, rgba(192, 38, 211, 0.2) 0%, rgba(192, 38, 211, 0.12) 45%, rgba(192, 38, 211, 0.06) 70%, transparent 100%)',
                         top: '-15%',
                         left: '-15%',
                         position: 'absolute',

@@ -245,7 +245,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                     <span
                       className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
                       style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(236,167,155,0.18) 0%, rgba(236,167,155,0.10) 45%, rgba(255,209,180,0.06) 70%, transparent 100%)',
+                        background: 'radial-gradient(circle at 50% 50%, rgba(192, 38, 211, 0.2) 0%, rgba(192, 38, 211, 0.12) 45%, rgba(192, 38, 211, 0.06) 70%, transparent 100%)',
                         top: '-15%',
                         left: '-15%',
                         position: 'absolute',

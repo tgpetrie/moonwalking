@@ -198,92 +198,15 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
-        <div className="mb-8">
-          <div className="p-6 bg-transparent w-full">
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
-                  1-MIN GAINERS
-                </h2>
-                <button
-                  onClick={() => setShowLegend(v => !v)}
-                  className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
-                  aria-pressed={showLegend}
-                  aria-label="Toggle indicator legend"
-                >
-                  {showLegend ? 'Hide Legend' : 'Legend'}
-                </button>
-              </div>
-              {/* Line divider under header */}
-              <div className="flex justify-start mb-4">
-                <img
-                  src="/linediv.png"
-                  alt="Divider"
-                  className="w-48 h-auto"
-                  style={{ maxWidth: '100%' }}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                  <div>
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={0}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
-                  <div>
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={oneMinExpanded ? 6 : 4}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
-                </Suspense>
-              </div>
-              {/* Shared Show More below the two tables */}
-              <div className="w-full flex justify-center mt-3">
-                <button
-                  onClick={() => setOneMinExpanded(v => !v)}
-                  className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
-                  aria-pressed={oneMinExpanded}
-                >
-                  {oneMinExpanded ? 'Show Less' : 'Show More'}
-                </button>
-              </div>
-              {/* Overlay Legend (does not affect layout) */}
-              {showLegend && (
-                <div className="absolute top-0 right-0 z-40 w-full md:w-[420px] lg:w-[480px] xl:w-[520px] drop-shadow-xl">
-                  <Suspense fallback={chunkFallback('Loading legend...')}>
-                    <div className="font-raleway">
-                      <IndicatorLegend onClose={() => setShowLegend(false)} />
-                    </div>
-                  </Suspense>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 3-Minute Gainers and Losers Tables */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Left Panel - 3-MIN GAINERS */}
+        {/* 1-Minute and 3-Minute Gainers and Losers Tables */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* 3-MIN GAINERS aligned with first 1-MIN GAINERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                 3-MIN GAINERS
               </h2>
             </div>
-            {/* Line divider directly under 3-MIN GAINERS header */}
             <div className="flex justify-start mb-4">
               <img
                 src="/linediv.png"
@@ -297,14 +220,40 @@ export default function App() {
             </Suspense>
           </div>
 
-          {/* Right Panel - 3-MIN LOSERS */}
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+                1-MIN GAINERS
+              </h2>
+            </div>
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
+            </div>
+            <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+              <GainersTable1Min
+                refreshTrigger={lastUpdate}
+                onWatchlistChange={handleWatchlistChange}
+                topWatchlist={topWatchlist}
+                sliceStart={0}
+                sliceEnd={7}
+                fixedRows={7}
+                hideShowMore
+              />
+            </Suspense>
+          </div>
+
+          {/* 3-MIN LOSERS aligned with second 1-MIN GAINERS */}
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
                 3-MIN LOSERS
               </h2>
             </div>
-            {/* Line divider */}
             <div className="flex justify-start mb-4">
               <img
                 src="/linediv.png"
@@ -315,6 +264,33 @@ export default function App() {
             </div>
             <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
               <LosersTable refreshTrigger={lastUpdate} />
+            </Suspense>
+          </div>
+
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+                1-MIN GAINERS (Cont.)
+              </h2>
+            </div>
+            <div className="flex justify-start mb-4">
+              <img
+                src="/linediv.png"
+                alt="Divider"
+                className="w-48 h-auto"
+                style={{ maxWidth: '100%' }}
+              />
+            </div>
+            <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+              <GainersTable1Min
+                refreshTrigger={lastUpdate}
+                onWatchlistChange={handleWatchlistChange}
+                topWatchlist={topWatchlist}
+                sliceStart={7}
+                sliceEnd={14}
+                fixedRows={7}
+                hideShowMore
+              />
             </Suspense>
           </div>
         </div>
