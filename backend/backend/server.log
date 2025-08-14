@@ -832,3 +832,11 @@
 2025-08-14 09:54:05,193 - INFO - 127.0.0.1 - - [14/Aug/2025 09:54:05] "GET /api/alerts/recent?limit=1 HTTP/1.1" 200 -
 2025-08-14 09:54:07,370 - WARNING - Error processing Coinbase 24h data for WCT-USD: float() argument must be a string or a real number, not 'NoneType'
 2025-08-14 09:54:07,410 - WARNING - Error processing Coinbase 24h data for WCT-USD: float() argument must be a string or a real number, not 'NoneType'
+2025-08-14 09:54:07,514 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 10 losers
+2025-08-14 09:54:07,519 - INFO - 127.0.0.1 - - [14/Aug/2025 09:54:07] "GET /api/component/bottom-banner-scroll HTTP/1.1" 200 -
+2025-08-14 09:54:07,577 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 10 losers
+2025-08-14 09:54:07,609 - INFO - 127.0.0.1 - - [14/Aug/2025 09:54:07] "GET /api/component/top-banner-scroll HTTP/1.1" 200 -
+2025-08-14 09:54:13,707 - INFO - Successfully fetched 50 prices from Coinbase
+2025-08-14 09:54:13,714 - INFO - 1-min data processed (throttle 45s) retained=25 gainers=16 losers=9
+2025-08-14 09:54:13,721 - INFO - 127.0.0.1 - - [14/Aug/2025 09:54:13] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-08-14 09:54:23,739 - INFO - 127.0.0.1 - - [14/Aug/2025 09:54:23] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
