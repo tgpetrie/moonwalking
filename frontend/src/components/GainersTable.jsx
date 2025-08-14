@@ -70,9 +70,10 @@ const GainersTable = ({ refreshTrigger }) => {
           const next = response.data.map((item, index) => ({
             rank: item.rank || (index + 1),
             symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
+            price: item.current_price ?? item.price ?? 0,
+            change3m: item.price_change_percentage_3min ?? item.change3m ?? item.change ?? 0,
+            peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+            badge: getBadgeText(Math.abs((item.price_change_percentage_3min ?? 0)))
           }));
           if (isMounted) {
             setData(next.slice(0,7));
@@ -140,8 +141,9 @@ const GainersTable = ({ refreshTrigger }) => {
         const isInWatchlist = watchlist.includes(r.symbol);
         const isPopping = popStar === r.symbol;
         const showAdded = addedBadge === r.symbol;
-        const prev = (typeof r.price === 'number' && typeof r.change === 'number' && r.change !== 0)
-          ? (r.price / (1 + r.change / 100))
+        // compute previous price using 3-min change
+        const prev = (typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
+          ? (r.price / (1 + r.change3m / 100))
           : null;
         const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
 
@@ -178,8 +180,8 @@ const GainersTable = ({ refreshTrigger }) => {
                       {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0
-                        ? (() => { const prev = r.price / (1 + r.change3m / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
+                      {prev !== null
+                        ? `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
                         : '--'}
                     </div>
                   </div>
