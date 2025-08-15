@@ -103,35 +103,41 @@ cd ..
 print_success "Frontend dependencies verified."
 
 # Start backend server
-print_status "Starting backend server on http://localhost:5001..."
+print_status "Preparing log files..."
+# Truncate previous logs so tail shows fresh output
+: > backend.log
+: > frontend.log
+
+print_status "Starting backend server on http://localhost:5001 (logs -> backend.log)..."
 cd backend
-python app.py &
+# use python3 (we checked earlier) and redirect stdout/stderr to a log file
+python3 app.py > ../backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
 # Wait a moment for backend to start
 sleep 3
 
-# Check if backend is running
 if ! ps -p $BACKEND_PID > /dev/null; then
-  print_error "Backend server failed to start!"
+  print_error "Backend server failed to start! See backend.log for details."
+  tail -n +1 backend.log || true
   exit 1
 fi
 print_success "Backend server started successfully (PID: $BACKEND_PID)"
 
-# Start frontend server
-print_status "Starting frontend development server..."
+print_status "Starting frontend development server (logs -> frontend.log)..."
 cd frontend
-npm run dev &
+# run npm in non-interactive mode and capture output
+npm run dev > ../frontend.log 2>&1 &
 FRONTEND_PID=$!
 cd ..
 
 # Wait a moment for frontend to start
 sleep 3
 
-# Check if frontend is running
 if ! ps -p $FRONTEND_PID > /dev/null; then
-  print_error "Frontend server failed to start!"
+  print_error "Frontend server failed to start! See frontend.log for details."
+  tail -n +1 frontend.log || true
   exit 1
 fi
 print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
@@ -141,5 +147,11 @@ print_status "Backend API: http://localhost:5001"
 print_status "Frontend App: http://localhost:5173"
 print_status "Press Ctrl+C to stop both servers"
 
-# Wait for user interrupt
+print_status "Streaming backend and frontend logs (press Ctrl+C to stop):"
+
+# Stream both logs in the foreground so the user sees live output.
+# When the user presses Ctrl+C this tail will exit and the trap will run cleanup().
+tail -f backend.log frontend.log
+
+# If tail exits for any reason, wait for background processes to exit as well
 wait

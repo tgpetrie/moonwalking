@@ -3,7 +3,6 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
-import PeakBadge from './PeakBadge.jsx';
 
 const GainersTable = ({ refreshTrigger }) => {
   const shouldReduce = useReducedMotion();
@@ -41,7 +40,6 @@ const GainersTable = ({ refreshTrigger }) => {
   }, []);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
@@ -88,7 +86,6 @@ const GainersTable = ({ refreshTrigger }) => {
         console.error('Error fetching gainers data:', err);
         if (isMounted) {
           setLoading(false);
-          setError(err.message);
           setData([]);
         }
       }
@@ -112,12 +109,8 @@ const GainersTable = ({ refreshTrigger }) => {
       setAddedBadge(symbol);
       setTimeout(() => setPopStar(null), 350);
       setTimeout(() => setAddedBadge(null), 1200);
-      console.log('Adding to watchlist:', symbol);
       const updated = await addToWatchlist(symbol);
-      console.log('Added to watchlist, new list:', updated);
       setWatchlist(updated);
-    } else {
-      console.log('Symbol already in watchlist, not adding:', symbol);
     }
   };
 
@@ -138,7 +131,7 @@ const GainersTable = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
+    <div className="w-full h-full min-h-[420px] px-0">
       {data.map((r, idx) => {
         const rowIndex = idx;
         const entranceDelay = (rowIndex % 12) * 0.035;
@@ -154,10 +147,10 @@ const GainersTable = ({ refreshTrigger }) => {
         const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
 
         return (
-          <div key={r.symbol} className="px-2 py-1 mb-1">
+          <div key={r.symbol} className="px-0 py-1 mb-1">
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
               <motion.div
-                className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
+                className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
                 initial={shouldReduce ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut', delay: entranceDelay }}
@@ -207,19 +200,21 @@ const GainersTable = ({ refreshTrigger }) => {
 
                   {/* Col3: % (stack % → Peak → interval) */}
                   <div className="w-[108px] pr-1.5 text-right align-top">
-                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
                       {r.change3m > 0 && '+'}{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
                     </div>
-                    {typeof r.peakCount === 'number' && r.peakCount > 0 && (
-                      <div className="text-xs text-gray-400 leading-tight">Peak x{r.peakCount}</div>
-                    )}
+                    <div className="text-xs text-gray-400 leading-tight">
+                      {typeof r.peakCount === 'number' && r.peakCount > 0
+                        ? `Peak x${r.peakCount}`
+                        : <span className="opacity-0 select-none">Peak x0</span>}
+                    </div>
                     <div className="text-xs text-gray-400 leading-tight">3-min</div>
                   </div>
 
                   {/* Col4: Star (tight) */}
                   <div className="w-[28px] text-right">
                     <button
-                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol, r.price);}}
+                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol);}}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
                       style={{ minWidth:'24px', minHeight:'24px' }}
                       aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}

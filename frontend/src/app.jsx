@@ -200,7 +200,7 @@ export default function App() {
 
   {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
   <div className="mb-4">
-          <div className="p-6 bg-transparent w-full">
+          <div className="px-0 py-6 bg-transparent w-full">
             <div className="relative">
               <div className="flex items-center gap-3 mb-6">
                 <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
@@ -224,30 +224,26 @@ export default function App() {
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mt-3">
                 <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-          <div className="p-6">
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={0}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
-          <div className="p-6">
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={oneMinExpanded ? 6 : 4}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
+                  <GainersTable1Min
+                    refreshTrigger={lastUpdate}
+                    onWatchlistChange={handleWatchlistChange}
+                    topWatchlist={topWatchlist}
+                    startRank={1}
+                    endRank={oneMinExpanded ? 7 : 5}
+                    fixedRows={oneMinExpanded ? 6 : 4}
+                    hideShowMore
+                  />
+                  <GainersTable1Min
+                    refreshTrigger={lastUpdate}
+                    onWatchlistChange={handleWatchlistChange}
+                    topWatchlist={topWatchlist}
+                    startRank={oneMinExpanded ? 7 : 6}
+                    endRank={oneMinExpanded ? 13 : 10}
+                    fixedRows={oneMinExpanded ? 6 : 4}
+                    hideShowMore
+                  />
                 </Suspense>
               </div>
               {/* Shared Show More below the two tables */}
@@ -275,9 +271,9 @@ export default function App() {
         </div>
 
   {/* 3-Minute Gainers and Losers Tables (treat as single paired component for equal sizing) */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-stretch content-stretch">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-8 items-stretch content-stretch">
           {/* Left Panel - 3-MIN GAINERS */}
-    <div className="p-6 flex flex-col h-full">
+    <div className="pt-6 pb-6 px-0 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                 3-MIN GAINERS
@@ -300,7 +296,7 @@ export default function App() {
           </div>
 
           {/* Right Panel - 3-MIN LOSERS */}
-          <div className="p-6 flex flex-col h-full">
+          <div className="pt-6 pb-6 px-0 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
                 3-MIN LOSERS
