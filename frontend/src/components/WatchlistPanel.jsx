@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getWatchlist, removeFromWatchlist } from '../api.js';
+import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 
@@ -142,20 +143,16 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                   </div>
                   <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
                     <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        ${item.currentPrice > 0 
-                          ? (item.currentPrice < 1 && item.currentPrice > 0 
-                             ? item.currentPrice.toFixed(4) 
-                             : item.currentPrice.toFixed(2))
-                          : 'N/A'}
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text font-mono tabular-nums">
+                        {Number.isFinite(item.currentPrice) ? formatPrice(item.currentPrice) : 'N/A'}
                       </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        ${item.priceAtAdd > 0 ? item.priceAtAdd.toFixed(2) : '--'}
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text font-mono tabular-nums">
+                        {Number.isFinite(item.priceAtAdd) ? formatPrice(item.priceAtAdd) : '--'}
                       </span>
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[80px]">
                       <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${changeColor}`}>
-                        <span>{item.change !== 0 ? `${item.change > 0 ? '+' : ''}${item.change.toFixed(2)}%` : '--'}</span>
+                        <span className="font-mono tabular-nums">{Number.isFinite(item.change) ? formatPercentage(item.change) : '--'}</span>
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">Since Add</span>
                     </div>

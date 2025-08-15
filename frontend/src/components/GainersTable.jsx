@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
-import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
+import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 import PeakBadge from './PeakBadge.jsx';
 
@@ -198,12 +198,10 @@ const GainersTable = ({ refreshTrigger }) => {
                   {/* Col2: Price (stack current + previous) */}
                   <div className="w-[152px] pr-6 text-right">
                     <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {Number.isFinite(r.price) ? `${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
+                      {Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {prev !== null
-                        ? `${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
-                        : '--'}
+                      {prev !== null ? formatPrice(prev) : '--'}
                     </div>
                   </div>
 
