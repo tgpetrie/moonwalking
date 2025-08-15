@@ -1,7 +1,9 @@
+import { formatPercentage } from '../utils/formatters.js';
 import React, { useState, useEffect } from 'react';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { getWatchlist, addToWatchlist, removeFromWatchlist, fetchLatestAlerts } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
+import { truncateSymbol } from '../utils/formatters.js';
 
 const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   // All hooks must be called unconditionally

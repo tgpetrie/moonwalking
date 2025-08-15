@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
@@ -15,6 +16,7 @@ import PropTypes from 'prop-types';
  */
 const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
   const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
+  const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
 
   // inject minimal animations only once
@@ -151,7 +153,11 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
   return (
     <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 transition-all duration-300">
-      {visibleData.slice(0, rowsToShow).map((item) => {
+      {visibleData.slice(0, rowsToShow).map((item, idx) => {
+        const rowIndex = idx;
+        const entranceDelay = (rowIndex % 12) * 0.035;
+        const loopDelay = ((rowIndex % 8) * 0.12);
+        const breathAmt = 0.006; // ~0.6%
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isInWatchlist = watchlist.some((w) => (typeof w === 'string' ? w === item.symbol : w.symbol === item.symbol));
         const isPopping = popStar === item.symbol;
@@ -162,88 +168,106 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         const toggleWatch = (sym) => handleToggleWatchlist(sym);
 
         return (
-          <div key={item.symbol} className="crypto-row flex items-center px-2 py-1 rounded-lg mb-1 transition">
-            <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
-              <div
-                className="flex flex-col"
-              >
+          <motion.div
+            key={item.symbol}
+            className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
+            initial={shouldReduce ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut', delay: entranceDelay }}
+            whileHover={shouldReduce ? {} : { scale: 1.012 }}
+            whileTap={shouldReduce ? {} : { scale: 0.985 }}
+          >
+            {!shouldReduce && (
+              <motion.div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                animate={{ scale: [1, 1 + breathAmt, 1] }}
+                transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: loopDelay }}
+              />
+            )}
+            <div className="crypto-row flex items-center px-2 py-1 rounded-lg mb-1 transition">
+              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
                 <div
-                  className="p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10"
-                  style={{ background: 'transparent' }}
+                  className="flex flex-col"
                 >
-                  {/* PURPLE INNER GLOW (#C026D3) */}
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
-                      style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
-                        top: '-15%',
-                        left: '-15%',
-                        position: 'absolute',
-                        mixBlendMode: 'normal',
-                      }}
-                    />
-                  </span>
+                  <div
+                    className="p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10"
+                    style={{ background: 'transparent' }}
+                  >
+                    {/* PURPLE INNER GLOW (#C026D3) */}
+                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                      <span
+                        className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+                        style={{
+                          background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
+                          top: '-15%',
+                          left: '-15%',
+                          position: 'absolute',
+                          mixBlendMode: 'normal',
+                        }}
+                      />
+                    </span>
 
-                  {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                  <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
-                    {/* LEFT flexible: rank + symbol */}
-                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{item.rank}</div>
-                      <div className="min-w-0 flex items-center gap-3">
-                        <span className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 6)}</span>
-                        {showAdded && (
-                          <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>
+                    {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
+                    <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                      {/* LEFT flexible: rank + symbol */}
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{item.rank}</div>
+                        <div className="min-w-0 flex items-center gap-3">
+                          <span className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 6)}</span>
+                          {showAdded && (
+                            <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Col2: Price (stack current + previous) */}
+                      <div className="w-[152px] pr-6 text-right">
+                        <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                          {Number.isFinite(item.price) ? `${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
+                        </div>
+                        <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
+                          {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
+                            ? (() => { const prev = item.price / (1 + PCT / 100); return `${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
+                            : '--'}
+                        </div>
+                      </div>
+
+                      {/* Col3: % (stack % → Peak → interval) */}
+                      <div className="w-[108px] pr-1.5 text-right align-top">
+                        <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
+                          {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : 'N/A'}
+                        </div>
+                        {typeof item.peakCount === 'number' && item.peakCount > 0 && (
+                          <div className="text-xs text-gray-400 leading-tight">Peak x{item.peakCount}</div>
                         )}
+                        <div className="text-xs text-gray-400 leading-tight">{INTERVAL_LABEL}</div>
                       </div>
-                    </div>
 
-                    {/* Col2: Price (stack current + previous) */}
-                    <div className="w-[152px] pr-6 text-right">
-                      <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                        {Number.isFinite(item.price) ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
+                      {/* Col4: Star (tight) */}
+                      <div className="w-[28px] text-right">
+                        <button
+                          onClick={(e)=>{e.preventDefault(); toggleWatch(item.symbol);}}
+                          className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
+                          style={{ minWidth:'24px', minHeight:'24px' }}
+                          aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
+                          aria-pressed={inWatch}
+                        >
+                          <StarIcon
+                            filled={inWatch}
+                            className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
+                            style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                            aria-hidden="true"
+                          />
+                        </button>
                       </div>
-                      <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                        {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                          ? (() => { const prev = item.price / (1 + PCT / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
-                          : '--'}
-                      </div>
-                    </div>
-
-                    {/* Col3: % (stack % → Peak → interval) */}
-                    <div className="w-[108px] pr-1.5 text-right align-top">
-                      <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
-                        {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : 'N/A'}
-                      </div>
-                      {typeof item.peakCount === 'number' && item.peakCount > 0 && (
-                        <div className="text-xs text-gray-400 leading-tight">Peak x{item.peakCount}</div>
-                      )}
-                      <div className="text-xs text-gray-400 leading-tight">{INTERVAL_LABEL}</div>
-                    </div>
-
-                    {/* Col4: Star (tight) */}
-                    <div className="w-[28px] text-right">
-                      <button
-                        onClick={(e)=>{e.preventDefault(); toggleWatch(item.symbol);}}
-                        className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
-                        style={{ minWidth:'24px', minHeight:'24px' }}
-                        aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
-                        aria-pressed={inWatch}
-                      >
-                        <StarIcon
-                          filled={inWatch}
-                          className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                          style={{ width:'16px', height:'16px', transition:'transform .2s' }}
-                          aria-hidden="true"
-                        />
-                      </button>
                     </div>
                   </div>
-                </div>
 
-              </div>
-            </a>
-          </div>
+                </div>
+              </a>
+            </div>
+          </motion.div>
         );
       })}
 
