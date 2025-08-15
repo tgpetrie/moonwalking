@@ -33,6 +33,8 @@ show_help() {
     echo "Commands:"
     echo "  setup        - Run full development environment setup"
     echo "  start        - Start both backend and frontend servers"
+    echo "  stop         - Stop both backend and frontend servers"
+    echo "  status       - Show status of running servers"
     echo "  backend      - Start only the backend server"
     echo "  frontend     - Start only the frontend server"
     echo "  test         - Run all backend tests (pytest)"
@@ -50,6 +52,8 @@ show_help() {
     echo "Examples:"
     echo "  ./dev.sh setup        # First time setup"
     echo "  ./dev.sh start        # Start development servers"
+    echo "  ./dev.sh stop         # Stop all servers"
+    echo "  ./dev.sh status       # Check which servers are running"
     echo "  ./dev.sh diagnose     # Fix frontend data issues"
     echo "  ./dev.sh deploy       # View deployment options"
     echo "  ./dev.sh test         # Run tests"
@@ -95,7 +99,8 @@ case "${1:-help}" in
         cd backend
                 python -m pytest -q || print_error "Backend tests failed"
         cd ../frontend
-        if [ -f "package.json" ] && grep -q "test" package.json; then
+        if [ -f "package.json" ] && grep -q "test" package.json;
+ then
             npm test
         else
             print_status "No frontend tests configured."
@@ -248,6 +253,44 @@ case "${1:-help}" in
         echo "For detailed instructions, see the Deployment section in README.md"
         ;;
     
+    "status")
+        print_status "Checking server status..."
+        BACKEND_PID=$(lsof -t -i:5001 || true)
+        FRONTEND_PID=$(lsof -t -i:5173 || true)
+
+        if [ -n "$BACKEND_PID" ]; then
+            print_success "Backend server is running (PID: $BACKEND_PID)"
+        else
+            print_error "Backend server is not running."
+        fi
+
+        if [ -n "$FRONTEND_PID" ]; then
+            print_success "Frontend server is running (PID: $FRONTEND_PID)"
+        else
+            print_error "Frontend server is not running."
+        fi
+        ;;
+
+    "stop")
+        print_status "Stopping servers..."
+        BACKEND_PID=$(lsof -t -i:5001 || true)
+        FRONTEND_PID=$(lsof -t -i:5173 || true)
+
+        if [ -n "$BACKEND_PID" ]; then
+            kill -9 $BACKEND_PID
+            print_success "Backend server stopped."
+        else
+            print_error "Backend server is not running."
+        fi
+
+        if [ -n "$FRONTEND_PID" ]; then
+            kill -9 $FRONTEND_PID
+            print_success "Frontend server stopped."
+        else
+            print_error "Frontend server is not running."
+        fi
+        ;;
+
     "help"|*)
         show_help
         ;;
