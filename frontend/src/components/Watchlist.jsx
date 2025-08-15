@@ -1,4 +1,4 @@
-import { formatPercentage } from '../utils/formatters.js';
+import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import React, { useState, useEffect } from 'react';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { getWatchlist, addToWatchlist, removeFromWatchlist, fetchLatestAlerts } from '../api.js';
@@ -308,10 +308,10 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                       {/* PRICE (140px) */}
                       <div className="flex flex-col items-end w-[140px] tabular-nums whitespace-nowrap">
                         <span className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono">
-                          {Number.isFinite(priceNow) ? `${priceNow < 1 && priceNow > 0 ? priceNow.toFixed(4) : priceNow.toFixed(2)}` : 'N/A'}
+                          {Number.isFinite(priceNow) ? formatPrice(priceNow) : 'N/A'}
                         </span>
                         <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 font-mono">
-                          {Number.isFinite(priceAtAdd) ? `${priceAtAdd < 1 && priceAtAdd > 0 ? priceAtAdd.toFixed(4) : priceAtAdd.toFixed(2)}` : '--'}
+                          {Number.isFinite(priceAtAdd) ? formatPrice(priceAtAdd) : '--'}
                         </span>
                       </div>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
-import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
+import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 import PeakBadge from './PeakBadge.jsx';
@@ -224,11 +224,11 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                       {/* Col2: Price (stack current + previous) */}
                       <div className="w-[152px] pr-6 text-right">
                         <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                          {Number.isFinite(item.price) ? `${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
+                          {Number.isFinite(item.price) ? formatPrice(item.price) : 'N/A'}
                         </div>
                         <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                           {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                            ? (() => { const prev = item.price / (1 + PCT / 100); return `${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
+                            ? (() => { const prev = item.price / (1 + PCT / 100); return formatPrice(prev); })()
                             : '--'}
                         </div>
                       </div>
