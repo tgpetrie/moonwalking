@@ -22,24 +22,15 @@ export const formatPrice = (price) => {
   }
 };
 
-export const formatPercentage = (percentage) => {
-  if (!Number.isFinite(percentage)) return 'N/A';
-  
-  const absPercentage = Math.abs(percentage);
-  
-  if (absPercentage >= 10) {
-    return `${percentage.toFixed(1)}%`;
-  } else if (absPercentage >= 1) {
-    return `${percentage.toFixed(2)}%`;
-  } else if (absPercentage >= 0.1) {
-    return `${percentage.toFixed(3)}%`;
-  } else if (absPercentage >= 0.01) {
-    return `${percentage.toFixed(4)}%`;
-  } else if (absPercentage > 0) {
-    return `${percentage.toFixed(5)}%`;
-  } else {
-    return '0.00%';
-  }
+export const formatPercentage = (
+  value,
+  { decimals = 2, sign = false, fraction = false } = {}
+) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  const pct = fraction ? n * 100 : n; // set fraction:true if your data is 0..1
+  const s = sign && pct > 0 ? '+' : '';
+  return `${s}${pct.toFixed(decimals)}%`;
 };
 
 // Shorten long token symbols/names to avoid layout breaks.

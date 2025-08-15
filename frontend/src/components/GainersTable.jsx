@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 import PeakBadge from './PeakBadge.jsx';
 
 const GainersTable = ({ refreshTrigger }) => {
+  const shouldReduce = useReducedMotion();
   // Inject animation styles for pop/fade effects (watchlist add feedback)
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('gainers-table-animations')) {
@@ -137,7 +139,11 @@ const GainersTable = ({ refreshTrigger }) => {
 
   return (
     <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
-      {data.map((r) => {
+      {data.map((r, idx) => {
+        const rowIndex = idx;
+        const entranceDelay = (rowIndex % 12) * 0.035;
+        const loopDelay = ((rowIndex % 8) * 0.12);
+        const breathAmt = 0.006;
         const isInWatchlist = watchlist.includes(r.symbol);
         const isPopping = popStar === r.symbol;
         const showAdded = addedBadge === r.symbol;
@@ -150,7 +156,22 @@ const GainersTable = ({ refreshTrigger }) => {
         return (
           <div key={r.symbol} className="px-2 py-1 mb-1">
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
-              <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
+              <motion.div
+                className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
+                initial={shouldReduce ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut', delay: entranceDelay }}
+                whileHover={shouldReduce ? {} : { scale: 1.012 }}
+                whileTap={shouldReduce ? {} : { scale: 0.985 }}
+              >
+                {!shouldReduce && (
+                  <motion.div
+                    aria-hidden
+                    className="absolute inset-0 pointer-events-none"
+                    animate={{ scale: [1, 1 + breathAmt, 1] }}
+                    transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: loopDelay }}
+                  />
+                )}
 
                 {/* PURPLE inner glow (#C026D3) */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
@@ -177,11 +198,11 @@ const GainersTable = ({ refreshTrigger }) => {
                   {/* Col2: Price (stack current + previous) */}
                   <div className="w-[152px] pr-6 text-right">
                     <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
+                      {Number.isFinite(r.price) ? `${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                       {prev !== null
-                        ? `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
+                        ? `${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
                         : '--'}
                     </div>
                   </div>
@@ -216,7 +237,7 @@ const GainersTable = ({ refreshTrigger }) => {
 
                 {/* meta strip removed; info moved into main cells */}
 
-              </div>
+              </motion.div>
             </a>
           </div>
         );
