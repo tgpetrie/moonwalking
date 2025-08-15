@@ -1,2 +1,3 @@
-# Redirects for SPA
-/* /index.html 200
+# Redirects for SPA and API proxy (Cloudflare Pages)
+/*      /index.html           200
+/api/*  /functions/api/:splat 200
