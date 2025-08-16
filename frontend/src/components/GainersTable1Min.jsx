@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
+import { useCodex } from '../context/CodexContext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 import PropTypes from 'prop-types';
@@ -25,6 +26,7 @@ export default function GainersTable1Min({
   hideShowMore,
 }) {
   const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
+  const { process } = useCodex();
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
 
@@ -57,18 +59,27 @@ export default function GainersTable1Min({
       if (now - (lastRenderRef.current || 0) < throttleMs) return;
       lastRenderRef.current = now;
 
-      const mapped = latestData.crypto.slice(0, 20).map((item, idx) => ({
-        rank: item.rank || idx + 1,
-        symbol: item.symbol?.replace('-USD', '') || 'N/A',
-        price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
-      }));
-      setData(mapped);
+      setData(prev => {
+        const prevMap = Object.fromEntries((prev || []).map(d => [d.symbol, d]));
+        const next = [];
+        latestData.crypto.slice(0, 20).forEach((item, idx) => {
+          const symbol = item.symbol?.replace('-USD', '') || 'N/A';
+          const change = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0;
+          const { shouldUpdate, trendScore } = process(symbol, change, { minDeltaToUpdate: 0.15 });
+          const price = item.current_price ?? item.price ?? 0;
+          const peakCount = typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0);
+          if (!shouldUpdate && prevMap[symbol]) {
+            next.push(prevMap[symbol]);
+          } else {
+            next.push({ rank: item.rank || idx + 1, symbol, price, change, peakCount, trendScore });
+          }
+        });
+        return next;
+      });
       setLoading(false);
       setError(null);
     }
-  }, [latestData.crypto, oneMinThrottleMs]);
+  }, [latestData.crypto, oneMinThrottleMs, process]);
 
   // REST fallback when WS is empty/inactive
   useEffect(() => {
