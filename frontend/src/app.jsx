@@ -2,11 +2,13 @@ import './env-debug.js';
 import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
+import { CodexProvider } from './context/CodexContext.jsx';
 import { FiRefreshCw } from 'react-icons/fi';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
 const IndicatorLegend = React.lazy(() => import('./components/IndicatorLegend.jsx'));
 import AlertsIndicator from './components/AlertsIndicator.jsx';
+import CodexToggle from './components/CodexToggle.jsx';
 
 // Lazy-loaded (code split) heavier UI regions
 const TopBannerScroll = React.lazy(() => import('./components/TopBannerScroll'));
@@ -93,6 +95,7 @@ export default function App() {
 
   return (
     <WebSocketProvider>
+    <CodexProvider>
     <div className="min-h-screen bg-dark text-white relative">
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
@@ -379,6 +382,8 @@ export default function App() {
         </Suspense>
       )}
     </div>
+    <CodexToggle />
+    </CodexProvider>
     </WebSocketProvider>
   );
 }
