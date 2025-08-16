@@ -107,12 +107,13 @@ export const WebSocketProvider = ({ children }) => {
     console.log('⏹️ Stopped REST API polling');
   };
 
-  // Fetch real-time prices for specific symbols from cached data
+  // Fetch real-time prices for specific symbols, supplementing with Coinbase spot API
   const fetchPricesForSymbols = async (symbols) => {
     try {
-      // Use already cached data from polling instead of making new API call
+      const prices = {};
+      const missing = [];
+
       if (latestData.crypto && latestData.crypto.length > 0) {
-        const prices = {};
         latestData.crypto.forEach(coin => {
           if (symbols.includes(coin.symbol)) {
             prices[coin.symbol] = {
@@ -123,21 +124,50 @@ export const WebSocketProvider = ({ children }) => {
             };
           }
         });
-        return prices;
       }
-      
-      // Fallback: use cached prices data
-      const prices = {};
+
       symbols.forEach(symbol => {
-        if (latestData.prices[symbol]) {
-          prices[symbol] = latestData.prices[symbol];
+        if (!prices[symbol]) {
+          if (latestData.prices[symbol]) {
+            prices[symbol] = latestData.prices[symbol];
+          } else {
+            missing.push(symbol);
+          }
         }
       });
+
+      if (missing.length > 0) {
+        await Promise.all(missing.map(async sym => {
+          try {
+            const res = await fetch(`https://api.coinbase.com/v2/prices/${sym}-USD/spot`);
+            if (!res.ok) return;
+            const j = await res.json();
+            const amount = parseFloat(j?.data?.amount);
+            if (Number.isFinite(amount)) {
+              prices[sym] = {
+                price: amount,
+                change: 0,
+                changePercent: 0,
+                timestamp: Date.now()
+              };
+            }
+          } catch (err) {
+            console.error('Coinbase price fetch error', err);
+          }
+        }));
+      }
+
+      if (Object.keys(prices).length > 0) {
+        setLatestData(prev => ({
+          ...prev,
+          prices: { ...prev.prices, ...prices }
+        }));
+      }
       return prices;
     } catch (error) {
       console.error('Error fetching prices for symbols:', error);
+      return {};
     }
-    return {};
   };
 
   useEffect(() => {

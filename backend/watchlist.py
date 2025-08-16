@@ -107,3 +107,21 @@ def latest_alerts_for_symbols():
         if last:
             result[sym] = last
     return jsonify({'latest': result})
+
+
+@watchlist_bp.route('/api/watchlist/visible', methods=['POST'])
+def log_visible_watchlist():
+    """Record which symbols are currently visible to the user."""
+    if not _insights_memory:
+        return jsonify({'error': INSIGHTS_UNAVAILABLE}), 503
+    data = request.get_json() or {}
+    symbols = data.get('symbols')
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'error': 'symbols (list) required'}), 400
+    try:
+        cleaned = [str(s).upper() for s in symbols][:100]
+        entry = f"Visible watchlist: {', '.join(cleaned)}"
+        _insights_memory.add(entry)
+    except Exception:
+        return jsonify({'error': 'log failed'}), 500
+    return jsonify({'message': 'visible watchlist logged'}), 201

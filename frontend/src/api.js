@@ -190,7 +190,7 @@ export async function removeFromWatchlist(symbol) {
   try {
     let list = await getWatchlist();
     // Filter by symbol (handle both string and object formats)
-    list = list.filter(item => 
+    list = list.filter(item =>
       typeof item === 'string' ? item !== symbol : item.symbol !== symbol
     );
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
@@ -198,5 +198,42 @@ export async function removeFromWatchlist(symbol) {
   } catch (e) {
     console.error('LocalStorage removeFromWatchlist error:', e);
     return await getWatchlist();
+  }
+}
+
+// --- Watchlist utility helpers ---
+let _coinbaseProducts = null;
+
+export async function searchCoinbaseSpot(query = '') {
+  try {
+    const q = String(query).trim().toLowerCase();
+    if (!q) return [];
+    if (!_coinbaseProducts) {
+      const res = await fetch('https://api.exchange.coinbase.com/products');
+      if (!res.ok) return [];
+      _coinbaseProducts = await res.json();
+    }
+    const matches = _coinbaseProducts.filter(p =>
+      p?.quote_currency === 'USD' &&
+      typeof p.base_currency === 'string' &&
+      p.base_currency.toLowerCase().includes(q)
+    );
+    return matches.map(m => m.base_currency).slice(0, 8);
+  } catch (e) {
+    console.error('searchCoinbaseSpot error', e);
+    return [];
+  }
+}
+
+export async function logVisibleWatchlist(symbols = []) {
+  if (!Array.isArray(symbols) || symbols.length === 0) return;
+  try {
+    await fetch(`${API_BASE_URL}/api/watchlist/visible`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols })
+    });
+  } catch (e) {
+    console.error('logVisibleWatchlist error', e);
   }
 }
