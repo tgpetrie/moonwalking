@@ -80,6 +80,18 @@ def _apply_updates(tracked, update_entries):
             tracked[symbol]["updates"].append({"price": price, "delta": delta})
 
 
+def _calculate_volatility(updates):
+    """Return standard deviation of percentage deltas for given updates."""
+    if not updates or len(updates) < 2:
+        return 0.0
+    import statistics
+    deltas = [u["delta"] for u in updates]
+    try:
+        return statistics.stdev(deltas)
+    except statistics.StatisticsError:
+        return 0.0
+
+
 def _build_risk_alerts(tracked):
     alerts = []
     for symbol, data in tracked.items():
@@ -96,6 +108,9 @@ def _build_risk_alerts(tracked):
         tail = updates[-3:]
         if tail and all(abs(u["delta"]) < 0.2 for u in tail):
             alerts.append(f"😐 {symbol} has shown minimal change in recent updates — might be stagnating.")
+        volatility = _calculate_volatility(updates)
+        if volatility > 5:
+            alerts.append(f"⚠️ {symbol} is highly volatile (σ={volatility:.2f}%).")
     return alerts
 
 
@@ -108,6 +123,13 @@ def _build_suggestions(tracked):
             f"🤖 You’re tracking mostly large-cap tokens ({', '.join(high_cap)}). "
             "Want to explore low-cap movers like WIF, PEPE, or FIS?"
         )
+    for symbol, data in tracked.items():
+        updates = data.get("updates")
+        if updates:
+            volatility = _calculate_volatility(updates)
+            if volatility > 5:
+                suggestions.append(f"🤖 {symbol} shows high volatility — consider stop-loss or hedging.")
+
     return suggestions
 
 
