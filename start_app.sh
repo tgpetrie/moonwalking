@@ -95,7 +95,8 @@ print_status "Starting BHABIT CBMOONERS Application..."
 if [[ "$1" == "--clean" ]]; then
   print_status "Cleaning default ports :5001 and :5173..."
   lsof -ti :5001 | xargs kill -9 2>/dev/null || true
-  lsof -ti :5173 | xargs kill -9 2>/dev/null || true
+  kill_port_processes 5001
+  kill_port_processes 5173
 fi
 
 # Check required commands
