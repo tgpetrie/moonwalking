@@ -185,6 +185,6 @@ npx concurrently \
   --kill-others \
   --names "backend,frontend" \
   --prefix-colors "magenta,cyan" \
-  "cd backend && python3 app.py --port ${BACKEND_PORT}" \
+  "cd backend && PORT=${BACKEND_PORT} python3 app.py" \
   "cd frontend && VITE_API_URL=${API_BASE} VITE_WS_URL=${SOCKET_URL} npm run dev -- --port ${FRONTEND_PORT}"
 
