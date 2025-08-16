@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getWatchlist, removeFromWatchlist } from '../api.js';
+import { getWatchlist, removeFromWatchlist, addToWatchlist, searchCoinbaseSpot, logVisibleWatchlist } from '../api.js';
 import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
@@ -7,7 +7,10 @@ import StarIcon from './StarIcon';
 const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [animatingRemoval, setAnimatingRemoval] = useState(null);
-  const { latestData, fetchPricesForSymbols, isConnected, isPolling } = useWebSocket();
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchError, setSearchError] = useState(null);
+  const { latestData, fetchPricesForSymbols, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
 
   // Sync with parent watchlist
   useEffect(() => {
@@ -18,6 +21,42 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       getWatchlist().then(setWatchlist);
     }
   }, [topWatchlist]);
+
+  // Search Coinbase spot markets
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      if (!search) {
+        setSearchResults([]);
+        setSearchError(null);
+        return;
+      }
+      const results = await searchCoinbaseSpot(search);
+      if (!active) return;
+      const existingSymbols = watchlist.map(item => typeof item === 'string' ? item : item.symbol);
+      const filtered = results.filter(r => !existingSymbols.includes(r));
+      setSearchResults(filtered);
+      setSearchError(filtered.length === 0 ? 'No coins found or already in watchlist.' : null);
+    };
+    run();
+    return () => { active = false; };
+  }, [search, watchlist]);
+
+  // Periodically fetch prices for watchlist symbols
+  useEffect(() => {
+    const symbols = watchlist.map(item => typeof item === 'string' ? item : item.symbol);
+    if (symbols.length === 0) return;
+    const fetcher = () => fetchPricesForSymbols(symbols);
+    fetcher();
+    const interval = setInterval(fetcher, oneMinThrottleMs);
+    return () => clearInterval(interval);
+  }, [watchlist, fetchPricesForSymbols, oneMinThrottleMs]);
+
+  // Log visible watchlist to backend
+  useEffect(() => {
+    const symbols = watchlist.map(item => typeof item === 'string' ? item : item.symbol);
+    logVisibleWatchlist(symbols);
+  }, [watchlist]);
 
   // Get real-time prices for watchlist symbols
   const getWatchlistWithPrices = () => {
@@ -63,6 +102,15 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
     }, 300);
   };
 
+  const handleAddFromSearch = async (symbol) => {
+    const updated = await addToWatchlist(symbol);
+    setWatchlist(updated);
+    if (onWatchlistChange) onWatchlistChange(updated);
+    setSearch('');
+    setSearchResults([]);
+    setSearchError(null);
+  };
+
   const watchlistWithPrices = getWatchlistWithPrices();
 
   // Connection status indicator
@@ -75,17 +123,6 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       return { text: 'Offline', color: 'text-red-400', icon: '📡' };
     }
   };
-
-  if (!watchlist || watchlist.length === 0) {
-    return (
-      <div className="flex flex-col space-y-4 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
-        <div className="text-center py-8">
-          <div className="text-muted font-mono text-sm">No coins in watchlist</div>
-          <div className="text-muted font-mono text-xs mt-2">Click ⭐ to add coins</div>
-        </div>
-      </div>
-    );
-  }
 
   const status = getConnectionStatus();
 
@@ -104,8 +141,38 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
           {watchlistWithPrices.length} coin{watchlistWithPrices.length !== 1 ? 's' : ''}
         </div>
       </div>
+      {/* Search box */}
+      <div className="mb-2 w-full max-w-xs">
+        <input
+          type="text"
+          className="w-full rounded-lg border border-gray-600 bg-black/40 px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          placeholder="Search Coinbase spot (e.g. BTC)"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <div className="w-full bg-black/90 border border-gray-700 rounded-lg mt-1 max-h-48 overflow-y-auto z-10">
+            {searchResults.map(sym => (
+              <div
+                key={sym}
+                className="px-2 py-1 hover:bg-purple-500/20 cursor-pointer text-white text-sm"
+                onClick={() => handleAddFromSearch(sym)}
+              >
+                {sym}
+              </div>
+            ))}
+            {searchError && <div className="px-2 py-1 text-purple-300 text-xs">{searchError}</div>}
+          </div>
+        )}
+      </div>
 
-      {watchlistWithPrices.map((item, idx) => {
+      {watchlistWithPrices.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-muted font-mono text-sm">No coins in watchlist</div>
+          <div className="text-muted font-mono text-xs mt-2">Use search or click ⭐ to add coins</div>
+        </div>
+      ) : (
+      watchlistWithPrices.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isRemoving = animatingRemoval === item.symbol;
         const changeColor = item.change > 0 ? 'text-blue' : item.change < 0 ? 'text-pink' : 'text-gray-400';
@@ -193,7 +260,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
             )}
           </React.Fragment>
         );
-      })}
+      }))}
     </div>
   );
 };
