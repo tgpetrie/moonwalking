@@ -215,7 +215,8 @@ export const WebSocketProvider = ({ children }) => {
     latestData,
     wsManager,
     isPolling,
-  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 7000,
+  // throttle 1‑min gainer WS updates; default 15s per design
+  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 15000,
     // Convenience methods
     subscribe: subscribeToWebSocket,
     getStatus: () => wsManager.getStatus(),
