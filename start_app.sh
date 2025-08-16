@@ -102,56 +102,105 @@ fi
 cd ..
 print_success "Frontend dependencies verified."
 
-# Start backend server
+## Start services either in foreground (tmux / macOS Terminal) or fallback to background+tail
 print_status "Preparing log files..."
 # Truncate previous logs so tail shows fresh output
 : > backend.log
 : > frontend.log
 
-print_status "Starting backend server on http://localhost:5001 (logs -> backend.log)..."
-cd backend
-# use python3 (we checked earlier) and redirect stdout/stderr to a log file
-python3 app.py > ../backend.log 2>&1 &
-BACKEND_PID=$!
-cd ..
-
-# Wait a moment for backend to start
-sleep 3
-
-if ! ps -p $BACKEND_PID > /dev/null; then
-  print_error "Backend server failed to start! See backend.log for details."
-  tail -n +1 backend.log || true
-  exit 1
+# Determine foreground mode: prefer tmux, then macOS Terminal.app, else fallback
+MODE="fallback"
+if command_exists tmux; then
+  MODE="tmux"
+elif [[ "$(uname)" == "Darwin" ]] && command_exists osascript; then
+  MODE="mac_terminal"
 fi
-print_success "Backend server started successfully (PID: $BACKEND_PID)"
 
-print_status "Starting frontend development server (logs -> frontend.log)..."
-cd frontend
-# run npm in non-interactive mode and capture output
-npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
-cd ..
-
-# Wait a moment for frontend to start
-sleep 3
-
-if ! ps -p $FRONTEND_PID > /dev/null; then
-  print_error "Frontend server failed to start! See frontend.log for details."
-  tail -n +1 frontend.log || true
-  exit 1
+# Allow overriding via --foreground flag
+if [ "$1" == "--foreground" ]; then
+  if command_exists tmux; then
+    MODE="tmux"
+  elif [[ "$(uname)" == "Darwin" ]] && command_exists osascript; then
+    MODE="mac_terminal"
+  else
+    MODE="fallback"
+  fi
 fi
-print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
 
-print_success "🐰 BHABIT CBMOONERS is now running!"
-print_status "Backend API: http://localhost:5001"
-print_status "Frontend App: http://localhost:5173"
-print_status "Press Ctrl+C to stop both servers"
+if [ "$MODE" = "tmux" ]; then
+  SESSION="bhabit"
+  print_status "Starting services inside tmux session: $SESSION"
+  # Kill existing session to ensure a clean start
+  if tmux has-session -t "$SESSION" 2>/dev/null; then
+    tmux kill-session -t "$SESSION"
+  fi
 
-print_status "Streaming backend and frontend logs (press Ctrl+C to stop):"
+  # Start backend and frontend in separate panes
+  tmux new-session -d -s "$SESSION" -n backend "cd '$(pwd)/backend' && python3 app.py"
+  tmux split-window -h -t "$SESSION" "cd '$(pwd)/frontend' && npm run dev"
+  tmux select-layout -t "$SESSION" tiled
 
-# Stream both logs in the foreground so the user sees live output.
-# When the user presses Ctrl+C this tail will exit and the trap will run cleanup().
-tail -f backend.log frontend.log
+  print_success "Tmux session created. Attaching to $SESSION (Ctrl+B D to detach)."
+  tmux attach -t "$SESSION"
+  exit 0
+elif [ "$MODE" = "mac_terminal" ]; then
+  print_status "Opening separate Terminal windows for backend and frontend (macOS)."
+  # Backend window
+  osascript -e 'tell application "Terminal" to do script "cd \"'"$(pwd)/backend"\"; python3 app.py"'
+  # Frontend window
+  osascript -e 'tell application "Terminal" to do script "cd \"'"$(pwd)/frontend"\"; npm run dev"'
 
-# If tail exits for any reason, wait for background processes to exit as well
-wait
+  print_success "Terminal windows opened. You should see each service running in its own window."
+  print_status "Streaming combined logs here as well (press Ctrl+C to stop):"
+  tail -f backend.log frontend.log
+  exit 0
+else
+  # Fallback: previous behavior (background + logs)
+  print_status "Starting backend server on http://localhost:5001 (logs -> backend.log)..."
+  cd backend
+  # use python3 (we checked earlier) and redirect stdout/stderr to a log file
+  python3 app.py > ../backend.log 2>&1 &
+  BACKEND_PID=$!
+  cd ..
+
+  # Wait a moment for backend to start
+  sleep 3
+
+  if ! ps -p $BACKEND_PID > /dev/null; then
+    print_error "Backend server failed to start! See backend.log for details."
+    tail -n +1 backend.log || true
+    exit 1
+  fi
+  print_success "Backend server started successfully (PID: $BACKEND_PID)"
+
+  print_status "Starting frontend development server (logs -> frontend.log)..."
+  cd frontend
+  # run npm in non-interactive mode and capture output
+  npm run dev > ../frontend.log 2>&1 &
+  FRONTEND_PID=$!
+  cd ..
+
+  # Wait a moment for frontend to start
+  sleep 3
+
+  if ! ps -p $FRONTEND_PID > /dev/null; then
+    print_error "Frontend server failed to start! See frontend.log for details."
+    tail -n +1 frontend.log || true
+    exit 1
+  fi
+  print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
+
+  print_success "🐰 BHABIT CBMOONERS is now running!"
+  print_status "Backend API: http://localhost:5001"
+  print_status "Frontend App: http://localhost:5173"
+  print_status "Press Ctrl+C to stop both servers"
+
+  print_status "Streaming backend and frontend logs (press Ctrl+C to stop):"
+
+  # Stream both logs in the foreground so the user sees live output.
+  # When the user presses Ctrl+C this tail will exit and the trap will run cleanup().
+  tail -f backend.log frontend.log
+
+  # If tail exits for any reason, wait for background processes to exit as well
+  wait
+fi

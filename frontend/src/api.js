@@ -149,13 +149,22 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
 
 
 // --- Local Storage Watchlist Functions ---
-const WATCHLIST_KEY = 'crypto_watchlist';
+// Use the same key as the Watchlist component to avoid cross-contamination
+const WATCHLIST_KEY = 'watchlist_v2';
+const BASELINE_KEY = 'watchlist_baselines_v2';
+
+// Helper: normalize a stored list to an array of symbol strings.
+function _normalizeList(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  return rawList.map(item => (typeof item === 'string' ? item : (item && item.symbol) ? item.symbol : null)).filter(Boolean);
+}
 
 export async function getWatchlist() {
   try {
     const raw = localStorage.getItem(WATCHLIST_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return _normalizeList(parsed);
   } catch (e) {
     console.error('LocalStorage getWatchlist error:', e);
     return [];
@@ -164,20 +173,20 @@ export async function getWatchlist() {
 
 export async function addToWatchlist(symbol, price = null) {
   try {
-    let list = await getWatchlist();
-    // Check if symbol already exists (handle both string and object formats)
-    const existingItem = list.find(item => 
-      typeof item === 'string' ? item === symbol : item.symbol === symbol
-    );
-    
-    if (!existingItem) {
-      // Add as object with price info
-      const newItem = { 
-        symbol, 
-        priceAtAdd: price || Math.random() * 1000 // fallback random price if not provided
-      };
-      list.push(newItem);
+    let list = _normalizeList(JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'));
+    if (!list.includes(symbol)) {
+      list.push(symbol);
       localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+    }
+    // Maintain baseline price map for Watchlist component compatibility
+    try {
+      const baselineRaw = JSON.parse(localStorage.getItem(BASELINE_KEY) || '{}');
+      if (baselineRaw[symbol] == null && Number.isFinite(Number(price))) {
+        baselineRaw[symbol] = Number(price);
+        localStorage.setItem(BASELINE_KEY, JSON.stringify(baselineRaw));
+      }
+    } catch (_) {
+      // ignore baseline write errors
     }
     return list;
   } catch (e) {
@@ -188,12 +197,15 @@ export async function addToWatchlist(symbol, price = null) {
 
 export async function removeFromWatchlist(symbol) {
   try {
-    let list = await getWatchlist();
-    // Filter by symbol (handle both string and object formats)
-    list = list.filter(item => 
-      typeof item === 'string' ? item !== symbol : item.symbol !== symbol
-    );
+    let list = _normalizeList(JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'));
+    list = list.filter(s => s !== symbol);
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+    // Remove baseline entry as well
+    try {
+      const baseline = JSON.parse(localStorage.getItem(BASELINE_KEY) || '{}');
+      delete baseline[symbol];
+      localStorage.setItem(BASELINE_KEY, JSON.stringify(baseline));
+    } catch (_) {}
     return list;
   } catch (e) {
     console.error('LocalStorage removeFromWatchlist error:', e);

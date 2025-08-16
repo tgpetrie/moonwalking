@@ -1,5 +1,17 @@
 from flask import Blueprint, jsonify, request
 import os
+import traceback
+import logging
+
+# Simple debug logger to a file for tracing who/what adds to the watchlist
+debug_logger = logging.getLogger('watchlist_debug')
+if not debug_logger.handlers:
+    fh = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'watchlist_debug.log'))
+    fh.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(fmt)
+    debug_logger.addHandler(fh)
+    debug_logger.setLevel(logging.INFO)
 
 try:
     from watchlist_insights import Memory, smart_watchlist_insights
@@ -27,8 +39,46 @@ def add_to_watchlist():
     data = request.get_json()
     if not data or 'symbol' not in data:
         return jsonify({'error': 'Symbol is required'}), 400
-    
     symbol = data['symbol'].upper()
+    # debug: log incoming add requests with remote addr and stack
+    try:
+        remote = request.remote_addr
+    except Exception:
+        remote = 'unknown'
+    try:
+        debug_logger.info(f"ADD_REQUEST from {remote}: {data}")
+        debug_logger.info('Call stack:\n' + ''.join(traceback.format_stack(limit=10)))
+    except Exception:
+        logging.exception('Failed to write watchlist debug log')
+    # If caller indicates this is an internal auto-seed (server-side) flow,
+    # do NOT mutate the user's watchlist. Instead record the attempt into
+    # the insights memory (or debug log) so it can be inspected later.
+    # Internal flows should set header 'X-Auto-Seed: 1' or 'X-Internal-Source'.
+    internal_seed = False
+    try:
+        if request.headers.get('X-Auto-Seed') == '1' or request.headers.get('X-Internal-Source'):
+            internal_seed = True
+    except Exception:
+        internal_seed = False
+
+    if internal_seed:
+        src = request.headers.get('X-Internal-Source') or 'auto-seed'
+        try:
+            msg = f"AUTO-SEED attempt: {symbol} from {src} by {remote}"
+            debug_logger.info(msg + f" payload={data}")
+            if _insights_memory:
+                price_str = ''
+                if 'price' in data:
+                    try:
+                        price_str = f" at ${float(data['price']):.2f}"
+                    except Exception:
+                        price_str = ''
+                _insights_memory.add(f"Auto-seed: {symbol}{price_str} (source={src})")
+        except Exception:
+            logging.exception('Failed to record auto-seed as insight')
+        return jsonify({'message': f'{symbol} recorded as insight (internal add)', 'watchlist': list(watchlist_db)}), 202
+
+    # Normal user-driven add: mutate the watchlist
     watchlist_db.add(symbol)
     # Optionally record a structured log entry if price provided
     if _insights_memory and 'price' in data:
