@@ -43,6 +43,12 @@ cleanup() {
   if [ ! -z "$FRONTEND_PID" ]; then
     kill $FRONTEND_PID 2>/dev/null || true
   fi
+  if [ ! -z "$TAIL_BACKEND_PID" ]; then
+    kill $TAIL_BACKEND_PID 2>/dev/null || true
+  fi
+  if [ ! -z "$TAIL_FRONTEND_PID" ]; then
+    kill $TAIL_FRONTEND_PID 2>/dev/null || true
+  fi
   print_success "Servers stopped."
 }
 
@@ -149,9 +155,11 @@ print_status "Press Ctrl+C to stop both servers"
 
 print_status "Streaming backend and frontend logs (press Ctrl+C to stop):"
 
-# Stream both logs in the foreground so the user sees live output.
-# When the user presses Ctrl+C this tail will exit and the trap will run cleanup().
-tail -f backend.log frontend.log
+# Stream both logs with prefixes so output is identifiable
+tail -n +1 -f backend.log | sed -u 's/^/[backend] /' &
+TAIL_BACKEND_PID=$!
+tail -n +1 -f frontend.log | sed -u 's/^/[frontend] /' &
+TAIL_FRONTEND_PID=$!
 
-# If tail exits for any reason, wait for background processes to exit as well
-wait
+# Wait for both tail processes
+wait $TAIL_BACKEND_PID $TAIL_FRONTEND_PID
