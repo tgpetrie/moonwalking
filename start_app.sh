@@ -34,15 +34,55 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# --- Robust port probing (lsof -> nc -> actual bind) ---
+is_port_free() {
+  local p="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    # busy if any PID is listening
+    if lsof -ti ":${p}" >/dev/null 2>&1; then
+      return 1  # busy
+    else
+      return 0  # free
+    fi
+  elif command -v nc >/dev/null 2>&1; then
+    # nc returns 0 if something accepts the connection (busy)
+    if nc -z -w 1 127.0.0.1 "$p" >/dev/null 2>&1; then
+      return 1  # busy
+    else
+      return 0  # free
+    fi
+  else
+    # final sanity: try to bind with Python
+    python3 - <<PY >/dev/null 2>&1
+import socket, sys
+s = socket.socket()
+try:
+    s.bind(("127.0.0.1", $p))
+    s.close()
+    sys.exit(0)  # free
+except OSError:
+    sys.exit(1)  # busy
+PY
+    return $?
+  fi
+}
+
+pick_port() {
+  local start="$1"
+  local end="$2"
+  for ((p=start; p<=end; p++)); do
+    if is_port_free "$p"; then
+      echo "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Function to cleanup background processes on exit
 cleanup() {
   print_status "Shutting down servers..."
-  if [ ! -z "$BACKEND_PID" ]; then
-    kill $BACKEND_PID 2>/dev/null || true
-  fi
-  if [ ! -z "$FRONTEND_PID" ]; then
-    kill $FRONTEND_PID 2>/dev/null || true
-  fi
+  # concurrently handles its children; nothing to kill here
   print_success "Servers stopped."
 }
 
@@ -50,6 +90,13 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 print_status "Starting BHABIT CBMOONERS Application..."
+
+# Optional: kill default dev ports before starting
+if [[ "$1" == "--clean" ]]; then
+  print_status "Cleaning default ports :5001 and :5173..."
+  lsof -ti :5001 | xargs kill -9 2>/dev/null || true
+  lsof -ti :5173 | xargs kill -9 2>/dev/null || true
+fi
 
 # Check required commands
 if ! command_exists python3; then
@@ -102,56 +149,41 @@ fi
 cd ..
 print_success "Frontend dependencies verified."
 
-# Start backend server
-print_status "Preparing log files..."
-# Truncate previous logs so tail shows fresh output
-: > backend.log
-: > frontend.log
+print_status "Selecting ports..."
+BACKEND_PORT=$(pick_port 5001 5010 || true)
+FRONTEND_PORT=$(pick_port 5173 5183 || true)
 
-print_status "Starting backend server on http://localhost:5001 (logs -> backend.log)..."
-cd backend
-# use python3 (we checked earlier) and redirect stdout/stderr to a log file
-python3 app.py > ../backend.log 2>&1 &
-BACKEND_PID=$!
-cd ..
-
-# Wait a moment for backend to start
-sleep 3
-
-if ! ps -p $BACKEND_PID > /dev/null; then
-  print_error "Backend server failed to start! See backend.log for details."
-  tail -n +1 backend.log || true
+if [[ -z "$BACKEND_PORT" || -z "$FRONTEND_PORT" ]]; then
+  print_error "Could not find free ports for backend (5001-5010) or frontend (5173-5183)."
   exit 1
 fi
-print_success "Backend server started successfully (PID: $BACKEND_PID)"
 
-print_status "Starting frontend development server (logs -> frontend.log)..."
-cd frontend
-# run npm in non-interactive mode and capture output
-npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
-cd ..
+API_BASE="http://localhost:${BACKEND_PORT}"
+SOCKET_URL="ws://localhost:${BACKEND_PORT}"
 
-# Wait a moment for frontend to start
-sleep 3
-
-if ! ps -p $FRONTEND_PID > /dev/null; then
-  print_error "Frontend server failed to start! See frontend.log for details."
-  tail -n +1 frontend.log || true
-  exit 1
+# Final check in case port got occupied between probe and start
+if ! is_port_free "$BACKEND_PORT"; then
+  ALT=$(pick_port $((BACKEND_PORT+1)) 5010 || true)
+  if [[ -n "$ALT" ]]; then
+    print_warning "Port ${BACKEND_PORT} became busy; switching backend to :${ALT}"
+    BACKEND_PORT="$ALT"
+    API_BASE="http://localhost:${BACKEND_PORT}"
+    SOCKET_URL="ws://localhost:${BACKEND_PORT}"
+  else
+    print_error "No free backend port available (5001–5010)."
+    exit 1
+  fi
 fi
-print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
 
-print_success "🐰 BHABIT CBMOONERS is now running!"
-print_status "Backend API: http://localhost:5001"
-print_status "Frontend App: http://localhost:5173"
-print_status "Press Ctrl+C to stop both servers"
+print_status "Backend API will target: ${API_BASE}"
+print_status "WebSockets will target:  ${SOCKET_URL}"
+print_status "Frontend dev server will run on http://localhost:${FRONTEND_PORT} (and call backend/WebSockets on :${BACKEND_PORT})"
 
-print_status "Streaming backend and frontend logs (press Ctrl+C to stop):"
+print_status "Launching backend and frontend..."
+npx concurrently \
+  --kill-others \
+  --names "backend,frontend" \
+  --prefix-colors "magenta,cyan" \
+  "cd backend && python3 app.py --port ${BACKEND_PORT}" \
+  "cd frontend && VITE_API_URL=${API_BASE} VITE_WS_URL=${SOCKET_URL} npm run dev -- --port ${FRONTEND_PORT}"
 
-# Stream both logs in the foreground so the user sees live output.
-# When the user presses Ctrl+C this tail will exit and the trap will run cleanup().
-tail -f backend.log frontend.log
-
-# If tail exits for any reason, wait for background processes to exit as well
-wait
