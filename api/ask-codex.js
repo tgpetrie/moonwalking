@@ -14,6 +14,72 @@ const ENABLE_CACHE = false; // flip to true later if desired
 const CACHE_TTL_MS = 30_000;
 const cacheStore = new Map(); // key -> { expires, data }
 
+const BACKEND_URL =
+  process.env.BACKEND_ORIGIN || 'https://moonwalker.onrender.com';
+
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_watchlist',
+      description: 'Retrieve the current watchlist symbols',
+      parameters: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_to_watchlist',
+      description: 'Add a symbol to the watchlist',
+      parameters: {
+        type: 'object',
+        properties: {
+          symbol: {
+            type: 'string',
+            description: 'Crypto symbol like BTC'
+          }
+        },
+        required: ['symbol'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_from_watchlist',
+      description: 'Remove a symbol from the watchlist',
+      parameters: {
+        type: 'object',
+        properties: {
+          symbol: {
+            type: 'string',
+            description: 'Crypto symbol like BTC'
+          }
+        },
+        required: ['symbol'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_watchlist_insights',
+      description: 'Return insights and recent alerts for watchlist symbols',
+      parameters: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false
+      }
+    }
+  }
+];
+
 function cacheKey(model, query) {
   return model + '::' + query.trim().toLowerCase();
 }
@@ -33,6 +99,40 @@ function getCached(model, query) {
 function setCached(model, query, data) {
   if (!ENABLE_CACHE) return;
   cacheStore.set(cacheKey(model, query), { expires: Date.now() + CACHE_TTL_MS, data });
+}
+
+async function callTool(name, args = {}) {
+  try {
+    switch (name) {
+      case 'get_watchlist': {
+        const r = await fetch(`${BACKEND_URL}/api/watchlist`);
+        return await r.json();
+      }
+      case 'add_to_watchlist': {
+        const r = await fetch(`${BACKEND_URL}/api/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: args.symbol })
+        });
+        return await r.json();
+      }
+      case 'remove_from_watchlist': {
+        const r = await fetch(
+          `${BACKEND_URL}/api/watchlist/${encodeURIComponent(args.symbol)}`,
+          { method: 'DELETE' }
+        );
+        return await r.json();
+      }
+      case 'get_watchlist_insights': {
+        const r = await fetch(`${BACKEND_URL}/api/watchlist/insights`);
+        return await r.json();
+      }
+      default:
+        return { error: `Unknown tool ${name}` };
+    }
+  } catch (err) {
+    return { error: err.message || 'Tool call failed' };
+  }
 }
 
 export default async function handler(req, res) {
@@ -93,7 +193,9 @@ export default async function handler(req, res) {
       { role: 'user', content: query }
     ],
     temperature,
-    stream
+    stream,
+    tools: TOOLS,
+    tool_choice: 'auto'
   };
 
   try {
@@ -155,7 +257,58 @@ export default async function handler(req, res) {
     }
 
     const data = await upstream.json();
-    const reply = data.choices?.[0]?.message?.content || 'No reply received';
+    const message = data.choices?.[0]?.message;
+
+    if (message?.tool_calls?.length) {
+      const toolMessages = [];
+      for (const tc of message.tool_calls) {
+        let args = {};
+        try {
+          args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {};
+        } catch (_) {}
+        const result = await callTool(tc.function.name, args);
+        toolMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.function.name,
+          content: JSON.stringify(result)
+        });
+      }
+
+      const followUpPayload = {
+        ...payload,
+        messages: [...payload.messages, message, ...toolMessages],
+        stream: false
+      };
+
+      const followUp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(followUpPayload),
+        signal: controller.signal
+      });
+
+      if (!followUp.ok) {
+        const errText = await followUp.text().catch(() => '');
+        return res
+          .status(followUp.status)
+          .json({ error: 'Upstream error', detail: errText.slice(0, 300) });
+      }
+
+      const followData = await followUp.json();
+      const finalReply =
+        followData.choices?.[0]?.message?.content || 'No reply received';
+
+      setCached(model, query, { reply: finalReply });
+
+      const latencyMs = Date.now() - started;
+      return res.status(200).json({ reply: finalReply, model, latencyMs });
+    }
+
+    const reply = message?.content || 'No reply received';
 
     setCached(model, query, { reply });
 
