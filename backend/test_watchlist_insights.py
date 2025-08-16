@@ -21,6 +21,16 @@ class TestSmartWatchlistInsights(unittest.TestCase):
         result = smart_watchlist_insights(mem)
         self.assertIn("large-cap tokens", result)
 
+    def test_volatility_alert_and_suggestion(self):
+        mem = Memory()
+        mem.add("User added BTC to their watchlist at $100")
+        mem.add("BTC is now at $110 (10.00%)")
+        mem.add("BTC is now at $90 (-18.18%)")
+        mem.add("BTC is now at $105 (16.67%)")
+        result = smart_watchlist_insights(mem)
+        self.assertIn("highly volatile", result)
+        self.assertIn("stop-loss", result)
+
 
 if __name__ == '__main__':
     unittest.main()
