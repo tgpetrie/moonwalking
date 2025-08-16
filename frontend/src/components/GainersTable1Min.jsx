@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
+import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
@@ -24,16 +24,17 @@ export default function GainersTable1Min({
   fixedRows,
   hideShowMore,
 }) {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
+  const { latestData, isConnected, isPolling, oneMinThrottleMs, send } = useWebSocket();
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
+  const prevDataRef = useRef([]);
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [popStar, setPopStar] = useState(null);
-  const [addedBadge, setAddedBadge] = useState(null);
+  const [actionBadge, setActionBadge] = useState(null); // {symbol,text}
 
   // Prime watchlist
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function GainersTable1Min({
   useEffect(() => {
     if (latestData.crypto && Array.isArray(latestData.crypto)) {
       const now = Date.now();
-      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
+      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 15000;
       if (now - (lastRenderRef.current || 0) < throttleMs) return;
       lastRenderRef.current = now;
 
@@ -64,7 +65,11 @@ export default function GainersTable1Min({
         change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
         peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
       }));
-      setData(mapped);
+      const prev = prevDataRef.current || [];
+      const keepPrev = prev.filter(p => !mapped.some(m => m.symbol === p.symbol) && p.change > 0);
+      const combined = [...mapped, ...keepPrev].sort((a, b) => b.change - a.change).slice(0, 20);
+      prevDataRef.current = combined;
+      setData(combined);
       setLoading(false);
       setError(null);
     }
@@ -95,7 +100,7 @@ export default function GainersTable1Min({
 
     if (!isConnected && !isPolling) {
       fetch1m();
-      const id = setInterval(fetch1m, 30000);
+      const id = setInterval(fetch1m, 15000);
       return () => { cancelled = true; clearInterval(id); };
     } else {
       if (data.length === 0) fetch1m();
@@ -105,14 +110,22 @@ export default function GainersTable1Min({
 
   const handleToggleWatchlist = async (symbol) => {
     const exists = watchlist.some((it) => (typeof it === 'string' ? it === symbol : it.symbol === symbol));
-    if (exists) return;
     setPopStar(symbol);
-    setAddedBadge(symbol);
     setTimeout(() => setPopStar(null), 350);
-    setTimeout(() => setAddedBadge(null), 1200);
-    const coin = data.find((c) => c.symbol === symbol);
-    const currentPrice = coin ? coin.price : null;
-    const updated = await addToWatchlist(symbol, currentPrice);
+    let updated;
+    if (exists) {
+      setActionBadge({ symbol, text: 'Removed!' });
+      setTimeout(() => setActionBadge(null), 1200);
+      updated = await removeFromWatchlist(symbol);
+      send && send('watchlist_update', { action: 'remove', symbol });
+    } else {
+      const coin = data.find((c) => c.symbol === symbol);
+      const currentPrice = coin ? coin.price : null;
+      setActionBadge({ symbol, text: 'Added!' });
+      setTimeout(() => setActionBadge(null), 1200);
+      updated = await addToWatchlist(symbol, currentPrice);
+      send && send('watchlist_update', { action: 'add', symbol, price: currentPrice });
+    }
     setWatchlist(updated);
     onWatchlistChange && onWatchlistChange(updated);
   };
@@ -201,10 +214,17 @@ export default function GainersTable1Min({
                     <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
                       {item ? item.rank : 0}
                     </div>
-                    <div className={"min-w-0 flex items-center gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
+                    <div className={"min-w-0 flex items-center gap-2 sm:gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
                       <span className="font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
-                      {addedBadge === (item && item.symbol) && (
-                        <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>
+                      {item && item.peakCount > 1 && (
+                        <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
+                          {Array.from({ length: Math.min(3, item.peakCount) }).map((_, i) => (
+                            <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#C026D3]"></span>
+                          ))}
+                        </span>
+                      )}
+                      {actionBadge && actionBadge.symbol === (item && item.symbol) && (
+                        <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">{actionBadge.text}</span>
                       )}
                     </div>
                   </div>

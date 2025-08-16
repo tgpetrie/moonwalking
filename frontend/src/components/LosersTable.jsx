@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
+import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
+import { useWebSocket } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
@@ -20,10 +21,12 @@ const LosersTable = ({ refreshTrigger }) => {
     }
   }, []);
 
+  const { send } = useWebSocket();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null);
+  const [actionBadge, setActionBadge] = useState(null); // {symbol,text}
 
   useEffect(() => {
     let isMounted = true;
@@ -58,12 +61,22 @@ const LosersTable = ({ refreshTrigger }) => {
   }, [refreshTrigger]);
 
   const handleToggleWatchlist = async (symbol) => {
-    if (!watchlist.includes(symbol)) {
-      setPopStar(symbol);
-      setTimeout(() => setPopStar(null), 350);
-      const updated = await addToWatchlist(symbol);
-      setWatchlist(updated);
+    const exists = watchlist.some(it => (typeof it === 'string' ? it === symbol : it.symbol === symbol));
+    setPopStar(symbol);
+    setTimeout(() => setPopStar(null), 350);
+    let updated;
+    if (exists) {
+      setActionBadge({ symbol, text: 'Removed!' });
+      setTimeout(() => setActionBadge(null), 1200);
+      updated = await removeFromWatchlist(symbol);
+      send && send('watchlist_update', { action: 'remove', symbol });
+    } else {
+      setActionBadge({ symbol, text: 'Added!' });
+      setTimeout(() => setActionBadge(null), 1200);
+      updated = await addToWatchlist(symbol);
+      send && send('watchlist_update', { action: 'add', symbol });
     }
+    setWatchlist(updated);
   };
 
   if (loading && data.length === 0) {
@@ -88,7 +101,8 @@ const LosersTable = ({ refreshTrigger }) => {
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
         const breathAmt = 0.006;
-        const isInWatchlist = watchlist.includes(r.symbol);
+        const isInWatchlist = watchlist.some(it => (typeof it === 'string' ? it === r.symbol : it.symbol === r.symbol));
+        const showBadge = actionBadge && actionBadge.symbol === r.symbol;
         const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
         const prev = (typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
           ? (r.price / (1 + r.change3m / 100))
@@ -130,8 +144,11 @@ const LosersTable = ({ refreshTrigger }) => {
                   {/* Col1: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/30 text-pink font-bold text-sm shrink-0">{r.rank}</div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex items-center gap-2">
                       <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
+                      {showBadge && (
+                        <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">{actionBadge.text}</span>
+                      )}
                     </div>
                   </div>
 
