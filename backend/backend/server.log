@@ -21118,3 +21118,67 @@
 2025-08-13 23:48:48,172 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:48] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
 2025-08-13 23:48:51,923 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=1 HTTP/1.1" 200 -
 2025-08-13 23:48:51,925 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=25 HTTP/1.1" 200 -
+2025-08-17 15:36:00,403 - INFO - === CBMo4ers Configuration ===
+2025-08-17 15:36:00,403 - INFO - CACHE_TTL: 60
+2025-08-17 15:36:00,403 - INFO - INTERVAL_MINUTES: 3
+2025-08-17 15:36:00,403 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-17 15:36:00,403 - INFO - PORT: 5001
+2025-08-17 15:36:00,403 - INFO - HOST: 0.0.0.0
+2025-08-17 15:36:00,403 - INFO - DEBUG: False
+2025-08-17 15:36:00,404 - INFO - UPDATE_INTERVAL: 60
+2025-08-17 15:36:00,404 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-17 15:36:00,404 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-17 15:36:00,404 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-17 15:36:00,404 - INFO - API_TIMEOUT: 10
+2025-08-17 15:36:00,404 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-17 15:36:00,404 - INFO - ===============================
+2025-08-17 15:36:00,413 - INFO - === CBMo4ers Configuration ===
+2025-08-17 15:36:00,413 - INFO - CACHE_TTL: 60
+2025-08-17 15:36:00,413 - INFO - INTERVAL_MINUTES: 3
+2025-08-17 15:36:00,413 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-17 15:36:00,414 - INFO - PORT: 5001
+2025-08-17 15:36:00,414 - INFO - HOST: 0.0.0.0
+2025-08-17 15:36:00,414 - INFO - DEBUG: False
+2025-08-17 15:36:00,414 - INFO - UPDATE_INTERVAL: 60
+2025-08-17 15:36:00,414 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-17 15:36:00,414 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-17 15:36:00,414 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-17 15:36:00,414 - INFO - API_TIMEOUT: 10
+2025-08-17 15:36:00,414 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-17 15:36:00,414 - INFO - ENABLE_1MIN: True
+2025-08-17 15:36:00,414 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-08-17 15:36:00,414 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-08-17 15:36:00,414 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-08-17 15:36:00,414 - INFO - ONE_MIN_MAX_COINS: 25
+2025-08-17 15:36:00,414 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-08-17 15:36:00,414 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-08-17 15:36:00,414 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-08-17 15:36:00,414 - INFO - ===============================
+2025-08-17 15:36:00,414 - WARNING - Port 5001 is in use, trying next...
+2025-08-17 15:36:00,414 - WARNING - Port 5002 is in use, trying next...
+2025-08-17 15:36:00,414 - WARNING - Port 5003 is in use, trying next...
+2025-08-17 15:36:00,415 - WARNING - Port 5004 is in use, trying next...
+2025-08-17 15:36:00,415 - WARNING - Port 5005 is in use, trying next...
+2025-08-17 15:36:00,415 - INFO - Found available port: 5006
+2025-08-17 15:36:00,415 - INFO - Using available port: 5006
+2025-08-17 15:36:00,415 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-08-17 15:36:00,415 - INFO - Background update thread started
+2025-08-17 15:36:00,416 - INFO - Server starting on http://0.0.0.0:5006
+2025-08-17 15:36:00,448 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5006
+ * Running on http://192.168.1.117:5006
+2025-08-17 15:36:00,449 - INFO - [33mPress CTRL+C to quit[0m
+2025-08-17 15:36:01,279 - INFO - Successfully fetched 23 prices from Coinbase
+2025-08-17 15:36:01,280 - WARNING - No crypto data available - 23 current prices, 23 symbols with history
+2025-08-17 15:36:02,485 - INFO - Successfully fetched 27 prices from Coinbase
+2025-08-17 15:37:03,895 - INFO - Successfully fetched 27 prices from Coinbase
+2025-08-17 15:37:04,693 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-08-17 15:37:04,696 - INFO - Successfully processed data: 3 gainers, 3 losers, 2 banner items
+2025-08-17 15:37:04,697 - INFO - 3-min cache updated: 3 gainers, 3 losers, 2 banner items
+2025-08-17 15:37:05,720 - INFO - Successfully fetched 29 prices from Coinbase
+2025-08-17 15:38:06,627 - INFO - Successfully fetched 24 prices from Coinbase
+2025-08-17 15:38:07,446 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 0 losers
+2025-08-17 15:38:07,448 - INFO - Successfully processed data: 5 gainers, 4 losers, 1 banner items
+2025-08-17 15:38:07,448 - INFO - 3-min cache updated: 5 gainers, 4 losers, 1 banner items
+2025-08-17 15:38:08,719 - INFO - Successfully fetched 28 prices from Coinbase

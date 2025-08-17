@@ -2,7 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
-import PeakBadge from './PeakBadge.jsx';
+
+// --- helpers to robustly read fields regardless of backend aliasing ---
+const toNum = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') {
+    const x = parseFloat(v);
+    return Number.isFinite(x) ? x : null;
+  }
+  return null;
+};
+
+const pickNumber = (obj, keys) => {
+  for (const k of keys) {
+    const v = toNum(obj?.[k]);
+    if (v != null) return v;
+  }
+  return null;
+};
 
 const GainersTable = ({ refreshTrigger }) => {
   // Inject animation styles for pop/fade effects (watchlist add feedback)
@@ -11,32 +28,19 @@ const GainersTable = ({ refreshTrigger }) => {
       const style = document.createElement('style');
       style.id = 'gainers-table-animations';
       style.innerHTML = `
-        @keyframes starPop {
-          0% { transform: scale(1); }
-          40% { transform: scale(1.35); }
-          70% { transform: scale(0.92); }
-          100% { transform: scale(1); }
-        }
-        .animate-star-pop {
-          animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both;
-        }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-          10% { opacity: 1; transform: translateY(0) scale(1.05); }
-          80% { opacity: 1; transform: translateY(0) scale(1.05); }
-          100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-        }
-        .animate-fade-in-out {
-          animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
-        }
-  @keyframes flashUp { 0% { background-color: rgba(16,185,129,0.35);} 100% { background-color: transparent;} }
-  @keyframes flashDown { 0% { background-color: rgba(244,63,94,0.35);} 100% { background-color: transparent;} }
-  .flash-up { animation: flashUp 0.9s ease-out; }
-  .flash-down { animation: flashDown 0.9s ease-out; }
+        @keyframes starPop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 70% { transform: scale(0.92); } 100% { transform: scale(1); } }
+        .animate-star-pop { animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-8px) scale(0.9); } 10% { opacity: 1; transform: translateY(0) scale(1.05); } 80% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 0; transform: translateY(-8px) scale(0.9); } }
+        .animate-fade-in-out { animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both; }
+        @keyframes flashUp { 0% { background-color: rgba(16,185,129,0.35);} 100% { background-color: transparent;} }
+        @keyframes flashDown { 0% { background-color: rgba(244,63,94,0.35);} 100% { background-color: transparent;} }
+        .flash-up { animation: flashUp 0.9s ease-out; }
+        .flash-down { animation: flashDown 0.9s ease-out; }
       `;
       document.head.appendChild(style);
     }
   }, []);
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,39 +48,45 @@ const GainersTable = ({ refreshTrigger }) => {
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
-  const getDotStyle = (badge) => {
-    if (badge === 'STRONG HIGH') {
-      return 'bg-green-400 shadow-green-400/50';
-    } else if (badge === 'STRONG') {
-      return 'bg-blue-400 shadow-blue-400/50';
-    } else {
-      return 'bg-teal-400 shadow-teal-400/50';
-    }
-  };
-
-  const getBadgeText = (change) => {
-    const absChange = Math.abs(change);
-    if (absChange >= 5) return 'STRONG HIGH';
-    if (absChange >= 2) return 'STRONG';
-    return 'MODERATE';
-  };
-
   useEffect(() => {
     let isMounted = true;
     const fetchGainersData = async () => {
       try {
         const response = await fetchData(API_ENDPOINTS.gainersTable);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const next = response.data.map((item, index) => ({
-            rank: item.rank || (index + 1),
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
-          }));
-          if (isMounted) {
-            setData(next.slice(0,7));
-          }
+          const next = response.data
+            .map((item, index) => {
+              const symbol = (item.symbol || '').replace('-USD', '') || 'N/A';
+              const price = pickNumber(item, ['current_price', 'price']);
+              const prev3mRaw = pickNumber(item, ['initial_price_3min', 'prev_price_3m', 'prev3m', 'previous']);
+              let pct3m = pickNumber(item, ['price_change_percentage_3min', 'pct_change_3m', 'change3m', 'gain', 'percentage']);
+
+              // If backend provided N/A or omitted percent, derive it from price & prev
+              if (pct3m == null && typeof price === 'number' && typeof prev3mRaw === 'number' && prev3mRaw !== 0) {
+                pct3m = ((price - prev3mRaw) / prev3mRaw) * 100;
+              }
+
+              // Resolve previous price from given prev or reverse the percent math
+              const prev3m = (typeof prev3mRaw === 'number')
+                ? prev3mRaw
+                : (typeof price === 'number' && typeof pct3m === 'number' && pct3m !== 0
+                    ? price / (1 + pct3m / 100)
+                    : null);
+
+              return {
+                rank: item.rank || (index + 1),
+                symbol,
+                price,
+                change3m: (typeof pct3m === 'number' && !Number.isNaN(pct3m)) ? pct3m : null,
+                prev3m: (typeof prev3m === 'number' && Number.isFinite(prev3m)) ? prev3m : null,
+                peakCount: item.peak_count ?? item.peaks ?? null,
+              };
+            })
+            // keep GAINERS positive only and sort desc
+            .filter(r => typeof r.change3m === 'number' && r.change3m > 0)
+            .sort((a, b) => b.change3m - a.change3m);
+
+          if (isMounted) setData(next.slice(0, 7));
         } else if (isMounted) {
           setData([]);
         }
@@ -90,6 +100,7 @@ const GainersTable = ({ refreshTrigger }) => {
         }
       }
     };
+
     fetchGainersData();
     const interval = setInterval(fetchGainersData, 30000);
     return () => { isMounted = false; clearInterval(interval); };
@@ -109,12 +120,8 @@ const GainersTable = ({ refreshTrigger }) => {
       setAddedBadge(symbol);
       setTimeout(() => setPopStar(null), 350);
       setTimeout(() => setAddedBadge(null), 1200);
-      console.log('Adding to watchlist:', symbol);
       const updated = await addToWatchlist(symbol);
-      console.log('Added to watchlist, new list:', updated);
       setWatchlist(updated);
-    } else {
-      console.log('Symbol already in watchlist, not adding:', symbol);
     }
   };
 
@@ -139,17 +146,12 @@ const GainersTable = ({ refreshTrigger }) => {
       {data.map((r) => {
         const isInWatchlist = watchlist.includes(r.symbol);
         const isPopping = popStar === r.symbol;
-        const showAdded = addedBadge === r.symbol;
-        const prev = (typeof r.price === 'number' && typeof r.change === 'number' && r.change !== 0)
-          ? (r.price / (1 + r.change / 100))
-          : null;
         const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
 
         return (
           <div key={r.symbol} className="px-2 py-1 mb-1">
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
               <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
-
                 {/* PURPLE inner glow (#C026D3) */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                   <span
@@ -178,16 +180,16 @@ const GainersTable = ({ refreshTrigger }) => {
                       {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0
-                        ? (() => { const prev = r.price / (1 + r.change3m / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
+                      {typeof r.prev3m === 'number'
+                        ? `$${r.prev3m < 1 && r.prev3m > 0 ? r.prev3m.toFixed(4) : r.prev3m.toFixed(2)}`
                         : '--'}
                     </div>
                   </div>
 
-                  {/* Col3: % (stack % → Peak → interval) */}
-                  <div className="w-[108px] pr-1.5 text-right align-top">
-                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
-                      {r.change3m > 0 && '+'}{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
+                  {/* Col3: % change over 3-minutes */}
+                  <div className={`w-[108px] pr-1.5 text-right align-top`}>
+                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${r.change3m != null && r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>
+                      {typeof r.change3m === 'number' ? `${r.change3m > 0 ? '+' : ''}${formatPercentage(r.change3m)}` : 'N/A'}
                     </div>
                     {typeof r.peakCount === 'number' && r.peakCount > 0 && (
                       <div className="text-xs text-gray-400 leading-tight">Peak x{r.peakCount}</div>
@@ -198,7 +200,7 @@ const GainersTable = ({ refreshTrigger }) => {
                   {/* Col4: Star (tight) */}
                   <div className="w-[28px] text-right">
                     <button
-                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol, r.price);}}
+                      onClick={(e)=>{e.preventDefault(); /* symbol only for now */ setPopStar(r.symbol); setTimeout(()=>setPopStar(null), 350); }}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
                       style={{ minWidth:'24px', minHeight:'24px' }}
                       aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
@@ -211,9 +213,6 @@ const GainersTable = ({ refreshTrigger }) => {
                     </button>
                   </div>
                 </div>
-
-                {/* meta strip removed; info moved into main cells */}
-
               </div>
             </a>
           </div>

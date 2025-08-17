@@ -724,27 +724,44 @@ def process_product_data(products, stats_data, ticker_data):
     return processed_data
 
 def format_crypto_data(crypto_data):
-    """Format 3-minute crypto data for frontend with detailed price tracking"""
+    """Format 3-minute crypto data for frontend with detailed price tracking.
+    Includes legacy aliases (change3m, prev3m, current_price, initial_price_3min, price_change_percentage_3min)
+    so older frontend code continues to work.
+    """
     return [
         {
             "symbol": coin["symbol"],
+            # canonical keys used by newer components
             "current": coin["current_price"],
             "initial_3min": coin["initial_price_3min"],
             "gain": coin["price_change_percentage_3min"],
-            "interval_minutes": round(coin["actual_interval_minutes"], 1)
+            "interval_minutes": round(coin["actual_interval_minutes"], 1),
+            # aliases for backward-compat with earlier frontend mapping
+            "current_price": coin["current_price"],
+            "initial_price_3min": coin["initial_price_3min"],
+            "price_change_percentage_3min": coin["price_change_percentage_3min"],
+            "change3m": coin["price_change_percentage_3min"],
+            "prev3m": coin["initial_price_3min"],
         }
         for coin in crypto_data
     ]
 
 def format_crypto_data_1min(crypto_data):
-    """Format 1-minute crypto data for frontend with detailed price tracking"""
+    """Format 1-minute crypto data with legacy aliases for compatibility."""
     return [
         {
             "symbol": coin["symbol"],
+            # canonical keys
             "current": coin["current_price"],
             "initial_1min": coin["initial_price_1min"],
             "gain": coin["price_change_percentage_1min"],
-            "interval_minutes": round(coin["actual_interval_minutes"], 1)
+            "interval_minutes": round(coin["actual_interval_minutes"], 1),
+            # aliases for older frontend
+            "current_price": coin["current_price"],
+            "initial_price_1min": coin["initial_price_1min"],
+            "price_change_percentage_1min": coin["price_change_percentage_1min"],
+            "change1m": coin["price_change_percentage_1min"],
+            "prev1m": coin["initial_price_1min"],
         }
         for coin in crypto_data
     ]
@@ -1220,13 +1237,23 @@ def get_gainers_table():
                 "symbol": coin["symbol"],
                 "current_price": coin["current"],  # Use correct field name
                 "price_change_percentage_3min": coin["gain"],  # Use correct field name
+                "change3m": coin["gain"],  # legacy alias for older frontend
                 "initial_price_3min": coin["initial_3min"],  # Use correct field name
+                "prev3m": coin["initial_3min"],  # legacy alias for older frontend
                 "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
                 "trend_direction": direction,
                 "trend_streak": streak,
                 "trend_score": score,
                 "momentum": "strong" if coin["gain"] > 5 else "moderate",
-                "alert_level": "high" if coin["gain"] > 10 else "normal"
+                "alert_level": "high" if coin["gain"] > 10 else "normal",
+                # additional alias fields
+                "price": coin["current"],
+                "prev": coin["initial_3min"],
+                "change": coin["gain"],
+                "percent_change_3m": coin["gain"],
+                "prev_price_3m": coin["initial_3min"],
+                "percentage": coin["gain"],
+                "previous": coin["initial_3min"],
             })
         
         return jsonify({
@@ -1267,13 +1294,23 @@ def get_losers_table():
                 "symbol": coin["symbol"],
                 "current_price": coin["current"],  # Use correct field name
                 "price_change_percentage_3min": coin["gain"],  # Use correct field name (negative for losers)
+                "change3m": coin["gain"],  # legacy alias for older frontend
                 "initial_price_3min": coin["initial_3min"],  # Use correct field name
+                "prev3m": coin["initial_3min"],  # legacy alias for older frontend
                 "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
                 "trend_direction": direction,
                 "trend_streak": streak,
                 "trend_score": score,
                 "momentum": "strong" if coin["gain"] < -5 else "moderate",
-                "alert_level": "high" if coin["gain"] < -10 else "normal"
+                "alert_level": "high" if coin["gain"] < -10 else "normal",
+                # additional alias fields
+                "price": coin["current"],
+                "prev": coin["initial_3min"],
+                "change": coin["gain"],
+                "percent_change_3m": coin["gain"],
+                "prev_price_3m": coin["initial_3min"],
+                "percentage": coin["gain"],
+                "previous": coin["initial_3min"],
             })
         
         return jsonify({
