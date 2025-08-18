@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import useSWR from 'swr';
+import { API_ENDPOINTS, swrFetcher, getWatchlist, addToWatchlist, fetchData } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
+import { WebSocketContext } from '../context/websocketcontext.jsx';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 import PeakBadge from './PeakBadge.jsx';
@@ -14,7 +16,8 @@ import PropTypes from 'prop-types';
  * - Meta strip below numbers hosts PeakBadge (keeps top row perfectly aligned)
  */
 const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
+  const { latestData } = useContext(WebSocketContext);
+  const { isConnected, isPolling, oneMinThrottleMs, getPrice } = useWebSocket();
   const lastRenderRef = useRef(0);
 
   // inject minimal animations only once
@@ -32,23 +35,48 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
     }
   }, []);
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: initialResponse, error: initialError } = useSWR(API_ENDPOINTS.gainers1Min, swrFetcher, {
+    refreshInterval: 60000,
+    revalidateOnFocus: false
+  });
+  const initialData = initialResponse?.data ?? [];
+  const wsData = latestData?.prices ?? {};
+
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [popStar, setPopStar] = useState(null);
   const [addedBadge, setAddedBadge] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // throttle WebSocket updates for stability
   useEffect(() => {
-    if (latestData.crypto && Array.isArray(latestData.crypto)) {
-      const now = Date.now();
-      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
-      if (now - (lastRenderRef.current || 0) < throttleMs) return;
-      lastRenderRef.current = now;
+    const now = Date.now();
+    const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
+    if (now - (lastRenderRef.current || 0) < throttleMs) return;
+    lastRenderRef.current = now;
 
-      const mapped = latestData.crypto.slice(0, 20).map((item, index) => ({
+    // For 1-minute gainers, prefer the compact `latestData.prices` map emitted by backend (lightweight)
+    // Fallbacks: structured payload crypto_meta.gainers or legacy latestData.crypto array
+    const pricesMap = latestData?.prices ?? {};
+    const wsGainersFromPrices = Object.keys(pricesMap).length > 0
+      ? Object.keys(pricesMap).map((sym, idx) => ({
+          rank: idx + 1,
+          symbol: sym.replace('-USD', ''),
+          current_price: pricesMap[sym].price ?? pricesMap[sym].current ?? 0,
+          price_change_percentage_1min: pricesMap[sym].change ?? 0,
+        }))
+      : [];
+
+    const cryptoArr = wsGainersFromPrices.length > 0
+      ? wsGainersFromPrices
+      : (Array.isArray(latestData?.crypto_meta?.gainers)
+          ? latestData.crypto_meta.gainers
+          : (Array.isArray(latestData?.crypto) ? latestData.crypto : []));
+
+    if (cryptoArr && Array.isArray(cryptoArr)) {
+      const mapped = cryptoArr.slice(0, 20).map((item, index) => ({
         rank: item.rank || index + 1,
         symbol: item.symbol?.replace('-USD', '') || 'N/A',
         price: item.current_price ?? item.price ?? 0,
@@ -59,13 +87,14 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       setLoading(false);
       setError(null);
     }
-  }, [latestData.crypto, oneMinThrottleMs]);
+  }, [latestData.prices, oneMinThrottleMs]);
 
   // Fallback REST polling when WS not active
   useEffect(() => {
     let isMounted = true;
     const fetchGainersData = async () => {
-      if (latestData.crypto && latestData.crypto.length > 0) return;
+      // If compact prices map is present from WS, skip REST polling
+      if (latestData.prices && Object.keys(latestData.prices).length > 0) return;
       try {
         const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (response?.data?.length) {
@@ -92,7 +121,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       if (data.length === 0) fetchGainersData();
     }
     return () => { isMounted = false; };
-  }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
+  }, [refreshTrigger, isConnected, isPolling, latestData.prices]);
 
   useEffect(() => {
     if (typeof topWatchlist !== 'undefined') {
@@ -123,25 +152,31 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
     }
   };
 
-  const visibleData = Array.isArray(data)
-    ? typeof sliceStart === 'number' || typeof sliceEnd === 'number'
-      ? data.slice(sliceStart ?? 0, sliceEnd ?? data.length)
-      : data
-    : [];
+  // If WS prices map exists, prefer it; convert map -> array
+  let wsArray = [];
+  if (latestData?.prices && Object.keys(latestData.prices).length > 0) {
+    wsArray = Object.keys(latestData.prices).map((sym, idx) => ({
+      rank: idx + 1,
+      symbol: sym.replace('-USD', ''),
+      price: latestData.prices[sym].price ?? latestData.prices[sym].current ?? 0,
+      change: latestData.prices[sym].change ?? 0,
+      peakCount: latestData.prices[sym].peak_count ?? 0
+    }));
+  }
+
+  const sourceData = wsArray.length > 0 ? wsArray : (Array.isArray(data) && data.length > 0 ? data : initialData);
+  const visibleData = typeof sliceStart === 'number' || typeof sliceEnd === 'number'
+    ? sourceData.slice(sliceStart ?? 0, sliceEnd ?? sourceData.length)
+    : sourceData;
 
   const rowsToShow = typeof fixedRows === 'number' && fixedRows > 0
     ? Math.min(fixedRows, visibleData.length)
     : Math.min(4, visibleData.length);
 
-  if (loading && visibleData.length === 0) {
-    return (
-      <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 transition-all duration-300 flex items-center justify-center">
-        <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
-      </div>
-    );
-  }
+  // Always render table; SWR handles loading state
+  const displayData = sourceData;
 
-  if (visibleData.length === 0) {
+  if (!Array.isArray(visibleData) || visibleData.length === 0) {
     return (
       <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 transition-all duration-300 flex items-center justify-center">
         <div className="text-muted font-mono">No 1-min gainers data available</div>
@@ -162,85 +197,72 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         const toggleWatch = (sym) => handleToggleWatchlist(sym);
 
         return (
-          <div key={item.symbol} className="crypto-row flex items-center px-2 py-1 rounded-lg mb-1 transition">
-            <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group flex-1">
-              <div
-                className="flex flex-col"
-              >
-                <div
-                  className="p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:scale-[1.02] sm:hover:scale-[1.035] hover:z-10"
-                  style={{ background: 'transparent' }}
-                >
-                  {/* PURPLE INNER GLOW (#C026D3) */}
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
-                      style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
-                        top: '-15%',
-                        left: '-15%',
-                        position: 'absolute',
-                        mixBlendMode: 'normal',
-                      }}
-                    />
-                  </span>
+          <div key={item.symbol} className="px-2 py-1 mb-1">
+            <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group">
+              <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
 
-                  {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                  <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
-                    {/* LEFT flexible: rank + symbol */}
-                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{item.rank}</div>
-                      <div className="min-w-0 flex items-center gap-3">
-                        <span className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 6)}</span>
-                        {showAdded && (
-                          <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>
-                        )}
-                      </div>
-                    </div>
+                {/* PURPLE INNER GLOW (#C026D3) */}
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                  <span
+                    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+                    style={{
+                      background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
+                      position: 'absolute', top: '-15%', left: '-15%'
+                    }}
+                  />
+                </span>
 
-                    {/* Col2: Price (stack current + previous) */}
-                    <div className="w-[152px] pr-6 text-right">
-                      <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                        {Number.isFinite(item.price) ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
-                      </div>
-                      <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                        {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                          ? (() => { const prev = item.price / (1 + PCT / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
-                          : '--'}
-                      </div>
-                    </div>
+                {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
+                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
 
-                    {/* Col3: % (stack % → Peak → interval) */}
-                    <div className="w-[108px] pr-1.5 text-right align-top">
-                      <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
-                        {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : 'N/A'}
-                      </div>
-                      {typeof item.peakCount === 'number' && item.peakCount > 0 && (
-                        <div className="text-xs text-gray-400 leading-tight">Peak x{item.peakCount}</div>
-                      )}
-                      <div className="text-xs text-gray-400 leading-tight">{INTERVAL_LABEL}</div>
-                    </div>
-
-                    {/* Col4: Star (tight) */}
-                    <div className="w-[28px] text-right">
-                      <button
-                        onClick={(e)=>{e.preventDefault(); toggleWatch(item.symbol);}}
-                        className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
-                        style={{ minWidth:'24px', minHeight:'24px' }}
-                        aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
-                        aria-pressed={inWatch}
-                      >
-                        <StarIcon
-                          filled={inWatch}
-                          className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                          style={{ width:'16px', height:'16px', transition:'transform .2s' }}
-                          aria-hidden="true"
-                        />
-                      </button>
+                  {/* LEFT flexible: rank + symbol */}
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{item.rank}</div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 6)}</div>
                     </div>
                   </div>
-                </div>
 
+                  {/* Col2: Price (stack current + previous) */}
+                  <div className="w-[152px] pr-6 text-right">
+                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                      {Number.isFinite(item.price) ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
+                    </div>
+                    <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
+                      {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
+                        ? (() => { const prev = item.price / (1 + PCT / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
+                        : '--'}
+                    </div>
+                  </div>
+
+                  {/* Col3: % (stack % → Peak → interval) */}
+                  <div className="w-[108px] pr-1.5 text-right align-top">
+                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
+                      {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : 'N/A'}
+                    </div>
+                    {typeof item.peakCount === 'number' && item.peakCount > 0 && (
+                      <div className="text-xs text-gray-400 leading-tight">Peak x{item.peakCount}</div>
+                    )}
+                    <div className="text-xs text-gray-400 leading-tight">{INTERVAL_LABEL}</div>
+                  </div>
+
+                  {/* Col4: Star (tight) */}
+                  <div className="w-[28px] flex items-center justify-end">
+                    <button
+                      onClick={(e)=>{e.preventDefault(); toggleWatch(item.symbol);}}
+                      className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
+                      style={{ minWidth:'24px', minHeight:'24px' }}
+                      aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
+                      aria-pressed={inWatch}
+                    >
+                      <StarIcon
+                        filled={inWatch}
+                        className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
+                        style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
             </a>
           </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
+import { useWebSocket } from '../context/websocketcontext.jsx';
 
 // --- helpers to robustly read fields regardless of backend aliasing ---
 const toNum = (v) => {
@@ -41,70 +42,59 @@ const GainersTable = ({ refreshTrigger }) => {
     }
   }, []);
 
+  // safely grab latestData from context (default to empty object)
+  const ws = useWebSocket() || {};
+  const latestData = ws.latestData || {};
+
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchGainersData = async () => {
-      try {
-        const response = await fetchData(API_ENDPOINTS.gainersTable);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const next = response.data
-            .map((item, index) => {
-              const symbol = (item.symbol || '').replace('-USD', '') || 'N/A';
-              const price = pickNumber(item, ['current_price', 'price']);
-              const prev3mRaw = pickNumber(item, ['initial_price_3min', 'prev_price_3m', 'prev3m', 'previous']);
-              let pct3m = pickNumber(item, ['price_change_percentage_3min', 'pct_change_3m', 'change3m', 'gain', 'percentage']);
+    // Accept multiple shapes from backend: array, { crypto: [...] }, or structured { gainers, losers, banner }
+    const cryptoArr = Array.isArray(latestData?.crypto)
+      ? latestData.crypto
+      : Array.isArray(latestData?.crypto_meta?.gainers)
+        ? latestData.crypto_meta.gainers
+        : Array.isArray(latestData?.crypto?.crypto)
+          ? latestData.crypto.crypto
+          : [];
+    if (!Array.isArray(cryptoArr) || cryptoArr.length === 0) return;
+    const next = cryptoArr
+      .map((item, index) => {
+        const symbol = (item.symbol || '').replace('-USD', '') || 'N/A';
+        const price = pickNumber(item, ['current_price', 'price']);
+        const prev3mRaw = pickNumber(item, ['initial_price_3min', 'prev_price_3m', 'prev3m', 'previous']);
+        let pct3m = pickNumber(item, ['price_change_percentage_3min', 'pct_change_3m', 'change3m', 'gain', 'percentage']);
 
-              // If backend provided N/A or omitted percent, derive it from price & prev
-              if (pct3m == null && typeof price === 'number' && typeof prev3mRaw === 'number' && prev3mRaw !== 0) {
-                pct3m = ((price - prev3mRaw) / prev3mRaw) * 100;
-              }
-
-              // Resolve previous price from given prev or reverse the percent math
-              const prev3m = (typeof prev3mRaw === 'number')
-                ? prev3mRaw
-                : (typeof price === 'number' && typeof pct3m === 'number' && pct3m !== 0
-                    ? price / (1 + pct3m / 100)
-                    : null);
-
-              return {
-                rank: item.rank || (index + 1),
-                symbol,
-                price,
-                change3m: (typeof pct3m === 'number' && !Number.isNaN(pct3m)) ? pct3m : null,
-                prev3m: (typeof prev3m === 'number' && Number.isFinite(prev3m)) ? prev3m : null,
-                peakCount: item.peak_count ?? item.peaks ?? null,
-              };
-            })
-            // keep GAINERS positive only and sort desc
-            .filter(r => typeof r.change3m === 'number' && r.change3m > 0)
-            .sort((a, b) => b.change3m - a.change3m);
-
-          if (isMounted) setData(next.slice(0, 7));
-        } else if (isMounted) {
-          setData([]);
+        // If backend provided N/A or omitted percent, derive it from price & prev
+        if (pct3m == null && typeof price === 'number' && typeof prev3mRaw === 'number' && prev3mRaw !== 0) {
+          pct3m = ((price - prev3mRaw) / prev3mRaw) * 100;
         }
-        if (isMounted) setLoading(false);
-      } catch (err) {
-        console.error('Error fetching gainers data:', err);
-        if (isMounted) {
-          setLoading(false);
-          setError(err.message);
-          setData([]);
-        }
-      }
-    };
 
-    fetchGainersData();
-    const interval = setInterval(fetchGainersData, 30000);
-    return () => { isMounted = false; clearInterval(interval); };
-  }, [refreshTrigger]);
+        // Resolve previous price from given prev or reverse the percent math
+        const prev3m = (typeof prev3mRaw === 'number')
+          ? prev3mRaw
+          : (typeof price === 'number' && typeof pct3m === 'number' && pct3m !== 0
+              ? price / (1 + pct3m / 100)
+              : null);
+
+        return {
+          rank: item.rank || (index + 1),
+          symbol,
+          price,
+          change3m: (typeof pct3m === 'number' && !Number.isNaN(pct3m)) ? pct3m : null,
+          prev3m: (typeof prev3m === 'number' && Number.isFinite(prev3m)) ? prev3m : null,
+          peakCount: item.peak_count ?? item.peaks ?? null,
+        };
+      })
+      // keep GAINERS positive only and sort desc
+      .filter(r => typeof r.change3m === 'number' && r.change3m > 0)
+      .sort((a, b) => b.change3m - a.change3m);
+
+    setData(next.slice(0, 7));
+  }, [latestData.crypto_meta, latestData.prices]);
 
   useEffect(() => {
     async function fetchWatchlist() {
@@ -125,14 +115,6 @@ const GainersTable = ({ refreshTrigger }) => {
     }
   };
 
-  if (loading && data.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-pulse text-[#C026D3] font-mono">Loading gainers...</div>
-      </div>
-    );
-  }
-
   if (data.length === 0) {
     return (
       <div className="text-center py-8">
@@ -151,7 +133,7 @@ const GainersTable = ({ refreshTrigger }) => {
         return (
           <div key={r.symbol} className="px-2 py-1 mb-1">
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
-              <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
+              <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
                 {/* PURPLE inner glow (#C026D3) */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                   <span
@@ -164,7 +146,7 @@ const GainersTable = ({ refreshTrigger }) => {
                 </span>
 
                 {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
 
                   {/* LEFT flexible: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -198,7 +180,7 @@ const GainersTable = ({ refreshTrigger }) => {
                   </div>
 
                   {/* Col4: Star (tight) */}
-                  <div className="w-[28px] text-right">
+                  <div className="w-[28px] flex items-center justify-end">
                     <button
                       onClick={(e)=>{e.preventDefault(); /* symbol only for now */ setPopStar(r.symbol); setTimeout(()=>setPopStar(null), 350); }}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"

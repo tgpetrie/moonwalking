@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
+import React, { useContext, useEffect, useState } from 'react';
+import useSWR from 'swr';
+import { API_ENDPOINTS, swrFetcher, getWatchlist, addToWatchlist } from '../api.js';
+import { WebSocketContext } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 
@@ -36,9 +38,23 @@ const LosersTable = ({ refreshTrigger }) => {
       document.head.appendChild(style);
     }
   }, []);
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Fetch initial losers data via SWR
+  const { data: initialResponse, error: initialError } = useSWR(
+    API_ENDPOINTS.losersTable,
+    swrFetcher,
+    { refreshInterval: 60000, revalidateOnFocus: false }
+  );
+  const initialData = initialResponse?.data ?? [];
+  // Use WebSocketContext for real-time updates if available
+  const { latestData } = useContext(WebSocketContext) || {};
+  // Prefer structured losers payload when backend sends { gainers, losers, banner }
+  const wsLosers = Array.isArray(latestData?.crypto_meta?.losers)
+    ? latestData.crypto_meta.losers
+    : [];
+  const mergedData = wsLosers.length > 0 ? wsLosers : initialData;
+  // loading when there's no initial REST response and no WS losers data yet
+  const loading = !initialResponse && mergedData.length === 0;
+  const error = initialError;
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
   const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
@@ -60,40 +76,14 @@ const LosersTable = ({ refreshTrigger }) => {
     return 'MODERATE';
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchLosersData = async () => {
-      try {
-        const response = await fetchData(API_ENDPOINTS.losersTable);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const losersWithRanks = response.data.map((item, index) => ({
-            rank: item.rank || (index + 1),
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_percentage_3min || 0,
-            badge: getBadgeText(Math.abs(item.price_change_percentage_3min || 0))
-          }));
-          if (isMounted) {
-            setData(losersWithRanks.slice(0,7));
-          }
-        } else if (isMounted && data.length === 0) {
-          setData([]);
-        }
-        if (isMounted) setLoading(false);
-      } catch (err) {
-        console.error('Error fetching losers data:', err);
-        if (isMounted) {
-          setLoading(false);
-          setError(err.message);
-          
-          setData([]);
-        }
-      }
-    };
-    fetchLosersData();
-    const interval = setInterval(fetchLosersData, 30000);
-    return () => { isMounted = false; clearInterval(interval); };
-  }, [refreshTrigger]);
+  // Data for display
+  const displayData = mergedData.slice(0, 7).map((item, index) => ({
+    rank: item.rank || index + 1,
+    symbol: item.symbol?.replace('-USD', '') || 'N/A',
+    price: item.current_price ?? item.price ?? 0,
+    change: item.price_change_percentage_3min ?? item.change ?? 0,
+    badge: getBadgeText(Math.abs(item.price_change_percentage_3min ?? item.change ?? 0))
+  }));
 
   useEffect(() => {
     async function fetchWatchlist() {
@@ -118,7 +108,7 @@ const LosersTable = ({ refreshTrigger }) => {
     }
   };
 
-  if (loading && data.length === 0) {
+  if (loading && displayData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="animate-pulse text-pink font-mono">Loading losers...</div>
@@ -126,7 +116,7 @@ const LosersTable = ({ refreshTrigger }) => {
     );
   }
 
-  if (error && data.length === 0) {
+  if (error && displayData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="text-muted font-mono">No data (backend error)</div>
@@ -134,7 +124,7 @@ const LosersTable = ({ refreshTrigger }) => {
     );
   }
 
-  if (data.length === 0) {
+  if (!loading && displayData.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="text-muted font-mono">No losers data available</div>
@@ -144,7 +134,7 @@ const LosersTable = ({ refreshTrigger }) => {
 
   return (
     <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
-      {data.map((r) => {
+      {displayData.map((r) => {
         const isInWatchlist = watchlist.includes(r.symbol);
         const isPopping = popStar === r.symbol;
         const showAdded = addedBadge === r.symbol;
@@ -156,7 +146,7 @@ const LosersTable = ({ refreshTrigger }) => {
         return (
           <div key={r.symbol} className="px-2 py-1 mb-1">
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
-              <div className="relative overflow-hidden rounded-xl p-4 hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
+              <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
 
                 {/* Glow (orange-gold to match gainers) */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
@@ -170,7 +160,7 @@ const LosersTable = ({ refreshTrigger }) => {
                 </span>
 
                 {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
 
                   {/* LEFT flexible: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -204,7 +194,7 @@ const LosersTable = ({ refreshTrigger }) => {
                   </div>
 
                   {/* Col4: Star (tight) */}
-                  <div className="w-[28px] text-right">
+                  <div className="w-[28px] flex items-center justify-end">
                     <button
                       onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol, r.price);}}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
