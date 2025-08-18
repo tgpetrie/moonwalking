@@ -74,7 +74,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 mx-8 group block"
+                className={SCROLL_ANCHOR_CLASSNAME}
                 role="listitem"
                 tabIndex={0}
                 aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}
