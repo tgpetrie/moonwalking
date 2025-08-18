@@ -35,7 +35,8 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
     }
   }, []);
 
-  const { data: initialResponse, error: initialError } = useSWR(API_ENDPOINTS.gainers1Min, swrFetcher, {
+  // Note: API_ENDPOINTS key is `gainersTable1Min` (not `gainers1Min`) — use correct key so REST fallback works.
+  const { data: initialResponse, error: initialError } = useSWR(API_ENDPOINTS.gainersTable1Min, swrFetcher, {
     refreshInterval: 60000,
     revalidateOnFocus: false
   });
@@ -83,7 +84,13 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
         peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
       }));
-      setData(mapped);
+
+      // Keep only positive 1-min gainers and sort descending (match GainersTable behavior)
+      const positive = mapped
+        .filter((it) => typeof it.change === 'number' && it.change > 0)
+        .sort((a, b) => b.change - a.change);
+
+      setData(positive);
       setLoading(false);
       setError(null);
     }
@@ -161,7 +168,10 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       price: latestData.prices[sym].price ?? latestData.prices[sym].current ?? 0,
       change: latestData.prices[sym].change ?? 0,
       peakCount: latestData.prices[sym].peak_count ?? 0
-    }));
+    }))
+    // keep only positive 1-min gainers and sort descending
+    .filter(it => typeof it.change === 'number' && it.change > 0)
+    .sort((a, b) => b.change - a.change);
   }
 
   const sourceData = wsArray.length > 0 ? wsArray : (Array.isArray(data) && data.length > 0 ? data : initialData);
@@ -203,11 +213,12 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
                 {/* PURPLE INNER GLOW (#C026D3) */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+                  {/* contained inner glow: use inset with transform scale on hover to avoid overflowing neighboring columns */}
                   <span
-                    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+                    className="block rounded-xl transition-transform duration-500 opacity-0 group-hover:opacity-90 transform-gpu scale-100 group-hover:scale-105 w-full h-full"
                     style={{
                       background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
-                      position: 'absolute', top: '-15%', left: '-15%'
+                      position: 'absolute', inset: 0
                     }}
                   />
                 </span>
