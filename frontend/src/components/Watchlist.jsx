@@ -36,6 +36,7 @@ function RowSkeleton() {
     <div className="flex items-center justify-between gap-3 py-2 border-b border-gray-800/40 animate-pulse">
       <div className="h-4 w-24 bg-gray-700/60 rounded" />
       <div className="h-4 w-20 bg-gray-700/60 rounded" />
+      <div className="h-4 w-20 bg-gray-700/60 rounded" />
       <div className="h-4 w-16 bg-gray-700/60 rounded" />
       <div className="h-6 w-12 bg-gray-700/60 rounded" />
     </div>
@@ -66,35 +67,67 @@ export default function Watchlist({ initialSymbols }) {
 
   const [input, setInput] = useState('')
 
+  // Track price at time of adding symbol
+  const [meta, setMeta] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('watchlist_meta') || '{}') } catch { return {} }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('watchlist_meta', JSON.stringify(meta)) } catch {}
+  }, [meta])
+
   const rows = useMemo(() => {
     return (symbols.length ? symbols : DEFAULT_SYMBOLS).map(sym => {
       const p = pricesObj[sym]
-      // allow either {price, change24h} or a raw number
       const last = (p && typeof p === 'object') ? p.price : (typeof p === 'number' ? p : null)
-      const change24h = (p && typeof p === 'object' && typeof p.change24h === 'number') ? p.change24h : null
-      return { symbol: sym, last, change24h }
+      const addedPrice = meta[sym]?.priceAtAdd ?? null
+      const changeSince = (addedPrice != null && last != null && addedPrice !== 0)
+        ? ((last - addedPrice) / addedPrice) * 100
+        : null
+      return { symbol: sym, last, addedPrice, changeSince }
     })
-  }, [symbols, pricesObj])
+  }, [symbols, pricesObj, meta])
 
   const hasAnyPrice = rows.some(r => r.last != null)
+
+  // Log visible coins for debugging/analytics
+  useEffect(() => {
+    console.log('Visible watchlist coins:', rows.map(r => r.symbol))
+  }, [rows])
 
   function addSymbol() {
     const sym = sanitizeSymbol(input)
     if (!sym) return
-    if (!symbols.includes(sym)) setSymbols(prev => [...prev, sym])
+    if (!symbols.includes(sym)) {
+      setSymbols(prev => [...prev, sym])
+      const p = pricesObj[sym]
+      const last = (p && typeof p === 'object') ? p.price : (typeof p === 'number' ? p : null)
+      setMeta(prev => ({ ...prev, [sym]: { priceAtAdd: last, addedAt: Date.now() } }))
+    }
     setInput('')
   }
 
   function removeSymbol(sym) {
     setSymbols(prev => prev.filter(s => s !== sym))
+    setMeta(prev => { const { [sym]: _, ...rest } = prev; return rest })
   }
 
   function onKeyDown(e) {
     if (e.key === 'Enter') addSymbol()
   }
 
+  // Auto-capture price for existing symbols when price becomes available
+  useEffect(() => {
+    rows.forEach(r => {
+      if (r.last != null && !meta[r.symbol]) {
+        setMeta(prev => ({ ...prev, [r.symbol]: { priceAtAdd: r.last, addedAt: Date.now() } }))
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
+
   return (
-    <div className="p-4 rounded-2xl bg-transparent shadow-inner border border-white/4 backdrop-blur-sm transition-all duration-200 ease-out hover:shadow-[inset_0_0_24px_rgba(128,0,255,0.12)] hover:scale-[1.002] w-full md:col-span-2">
+    <div className="p-4 rounded-2xl bg-transparent shadow-inner backdrop-blur-sm transition-all duration-200 ease-out hover:shadow-[inset_0_0_24px_rgba(128,0,255,0.12)] hover:scale-[1.002] w-full md:col-span-2">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-headline font-bold tracking-wide">Watchlist</h2>
         <div className={`text-xs px-2 py-1 rounded ${connected ? 'bg-green-600/20 text-green-300' : 'bg-gray-600/20 text-gray-300'}`}>
@@ -120,10 +153,11 @@ export default function Watchlist({ initialSymbols }) {
       </div>
 
       {/* Header */}
-  <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_152px_108px_28px] items-center gap-x-4 px-1 text-xs text-gray-400 mb-1">
+      <div className="hidden sm:grid grid-cols-[minmax(0,1fr)_152px_152px_108px_28px] items-center gap-x-4 px-1 text-xs text-gray-400 mb-1">
         <div>Symbol</div>
-        <div className="text-right">Last</div>
-        <div className="text-right">24h</div>
+        <div className="text-right">Current</div>
+        <div className="text-right">Added</div>
+        <div className="text-right">Since Added</div>
         <div className="text-right"> </div>
       </div>
 
@@ -135,10 +169,10 @@ export default function Watchlist({ initialSymbols }) {
         </>
       ) : (
         <div>
-          {rows.map(({ symbol, last, change24h }) => (
+          {rows.map(({ symbol, last, addedPrice, changeSince }) => (
             <div key={symbol} className="px-2 py-1 mb-1">
               <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.01] transition-transform">
-                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_152px_108px_28px] gap-x-4 items-start">
                   <div className="min-w-0">
                     <div className="font-headline font-bold text-white text-lg tracking-wide truncate">{symbol.replace('-USD','')}</div>
                   </div>
@@ -149,11 +183,17 @@ export default function Watchlist({ initialSymbols }) {
                     </div>
                   </div>
 
-                  <div className="w-[108px] pr-1.5 text-right">
-                    <div className={`text-base sm:text-lg font-bold font-mono leading-none whitespace-nowrap ${pctClass(change24h)}`}>
-                      {change24h == null || Number.isNaN(+change24h) ? '—' : `${(+change24h).toFixed(2)}%`}
+                  <div className="w-[152px] pr-6 text-right">
+                    <div className="text-base sm:text-lg font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                      {formatPrice(addedPrice)}
                     </div>
-                    <div className="text-xs text-gray-400">24h</div>
+                  </div>
+
+                  <div className="w-[108px] pr-1.5 text-right">
+                    <div className={`text-base sm:text-lg font-bold font-mono leading-none whitespace-nowrap ${pctClass(changeSince)}`}>
+                      {changeSince == null || Number.isNaN(+changeSince) ? '—' : `${(+changeSince).toFixed(2)}%`}
+                    </div>
+                    <div className="text-xs text-gray-400">since add</div>
                   </div>
 
                   <div className="w-[28px] flex items-center justify-end">

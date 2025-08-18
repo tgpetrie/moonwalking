@@ -757,24 +757,14 @@ def process_product_data(products, stats_data, ticker_data):
     return processed_data
 
 def format_crypto_data(crypto_data):
-    """Format 3-minute crypto data for frontend with detailed price tracking.
-    Includes legacy aliases (change3m, prev3m, current_price, initial_price_3min, price_change_percentage_3min)
-    so older frontend code continues to work.
-    """
+    """Format 3-minute crypto data for frontend with concise keys."""
     return [
         {
             "symbol": coin["symbol"],
-            # canonical keys used by newer components
             "current": coin["current_price"],
             "initial_3min": coin["initial_price_3min"],
             "gain": coin["price_change_percentage_3min"],
             "interval_minutes": round(coin["actual_interval_minutes"], 1),
-            # aliases for backward-compat with earlier frontend mapping
-            "current_price": coin["current_price"],
-            "initial_price_3min": coin["initial_price_3min"],
-            "price_change_percentage_3min": coin["price_change_percentage_3min"],
-            "change3m": coin["price_change_percentage_3min"],
-            "prev3m": coin["initial_price_3min"],
         }
         for coin in crypto_data
     ]
