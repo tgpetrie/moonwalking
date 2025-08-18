@@ -148,13 +148,13 @@ const LosersTable = ({ refreshTrigger }) => {
             <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
               <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
 
-                {/* Glow (orange-gold to match gainers) */}
+                {/* Glow (orange-gold to match gainers) - contained inset to avoid overflow */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                   <span
-                    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+                    className="block rounded-xl transition-transform duration-500 opacity-0 group-hover:opacity-90 transform-gpu scale-100 group-hover:scale-105 w-full h-full"
                     style={{
                       background: 'radial-gradient(circle at 50% 50%, rgba(255,96,132,0.20) 0%, rgba(255,96,132,0.12) 45%, rgba(255,180,197,0.08) 70%, transparent 100%)',
-                      position: 'absolute', top: '-15%', left: '-15%'
+                      position: 'absolute', inset: 0
                     }}
                   />
                 </span>

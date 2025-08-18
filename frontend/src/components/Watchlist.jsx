@@ -138,7 +138,7 @@ export default function Watchlist({ initialSymbols }) {
           {rows.map(({ symbol, last, change24h }) => (
             <div key={symbol} className="px-2 py-1 mb-1">
               <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.01] transition-transform">
-                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-center">
+                <div className="relative z-10 w-full grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
                   <div className="min-w-0">
                     <div className="font-headline font-bold text-white text-lg tracking-wide truncate">{symbol.replace('-USD','')}</div>
                   </div>
