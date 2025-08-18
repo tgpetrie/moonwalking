@@ -1,0 +1,68 @@
+// src/context/websocketcontext.jsx
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { io } from 'socket.io-client'
+
+export const WebSocketContext = createContext({
+  socket: null,
+  connected: false,
+  emit: () => {},
+  on: () => {},
+  off: () => {},
+})
+
+export function useWebSocket() {
+  return useContext(WebSocketContext)
+}
+
+function WebSocketProvider({ children }) {
+  const [connected, setConnected] = useState(false)
+  const socketRef = useRef(null)
+
+  useEffect(() => {
+    const base =
+      import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, '') ||
+      `${window.location.protocol}//${window.location.hostname}:5001`
+
+    let socket
+    try {
+      socket = io(base, {
+        transports: ['websocket'],
+        path: '/socket.io',
+        withCredentials: true,
+      })
+    } catch (e) {
+      console.error('socket.io init failed', e)
+      setConnected(false)
+      return
+    }
+
+    socketRef.current = socket
+    const onConnect = () => setConnected(true)
+    const onDisconnect = () => setConnected(false)
+
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+
+    return () => {
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+      socket.close()
+    }
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      socket: socketRef.current,
+      connected,
+      emit: (...args) => socketRef.current?.emit?.(...args),
+      on: (ev, fn) => socketRef.current?.on?.(ev, fn),
+      off: (ev, fn) => socketRef.current?.off?.(ev, fn),
+    }),
+    [connected]
+  )
+
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>
+}
+
+export { WebSocketProvider }      // named export
+export default WebSocketProvider  // default export

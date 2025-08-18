@@ -1,72 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import React from 'react';
+import useSWR from 'swr';
+import { API_ENDPOINTS, swrFetcher } from '../api.js';
+import { useWebSocket } from '../context/websocketcontext.jsx';
 
 const BottomBannerScroll = ({ refreshTrigger }) => {
-  const [data, setData] = useState([]);
+  // Use SWR for data fetching with caching and periodic refresh
+  const { data: response } = useSWR([API_ENDPOINTS.bottomBanner, refreshTrigger], swrFetcher, {
+    refreshInterval: 60000,
+    keepPreviousData: true
+  });
+  const { latestData } = useWebSocket() || {};
+  // Prefer WS banner if available (provider sets crypto_meta.banner when backend sends structured payload)
+  const wsBanner = Array.isArray(latestData?.crypto_meta?.banner) && latestData.crypto_meta.banner.length > 0
+    ? latestData.crypto_meta.banner
+    : null;
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchBottomBannerData = async () => {
-      try {
-        const response = await fetchData(API_ENDPOINTS.bottomBanner);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const dataWithRanks = response.data.map((item, index) => ({
-            rank: index + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            volume_change: (typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct))
-              ? item.volume_change_1h_pct
-              : (typeof item.volume_change_estimate === 'number' ? item.volume_change_estimate : 0),
-            isEstimated: (typeof item.volume_change_is_estimated === 'boolean')
-              ? item.volume_change_is_estimated
-              : (!(typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct)) && (typeof item.volume_change_estimate === 'number')),
-            volume_24h: item.volume_24h || 0,
-            badge: getBadgeStyle(item.volume_24h || 0),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
-          }));
-          if (isMounted) {
-            // Update data with real live data
-            setData(dataWithRanks.slice(0, 20));
-          }
-        } else if (isMounted && data.length === 0) {
-          // Only use fallback if we have no data at all
-          const fallbackData = [
-            { rank: 1, symbol: 'SUKU', price: 0.0295, volume_change: 3.51, volume_24h: 25000000, badge: 'MODERATE' },
-            { rank: 2, symbol: 'HNT', price: 2.30, volume_change: 0.97, volume_24h: 18000000, badge: 'MODERATE' },
-            { rank: 3, symbol: 'OCEAN', price: 0.3162, volume_change: 0.60, volume_24h: 15000000, badge: 'MODERATE' },
-            { rank: 4, symbol: 'PENGU', price: 0.01605, volume_change: 0.56, volume_24h: 12000000, badge: 'MODERATE' },
-            { rank: 5, symbol: 'MUSE', price: 7.586, volume_change: 0.53, volume_24h: 10000000, badge: 'MODERATE' }
-          ];
-          setData(fallbackData);
-        }
-      } catch (err) {
-        console.error('Error fetching bottom banner data:', err);
-        if (isMounted && data.length === 0) {
-          const fallbackData = [
-            { rank: 1, symbol: 'SUKU', price: 0.0295, volume_change: 3.51, volume_24h: 25000000, badge: 'MODERATE' },
-            { rank: 2, symbol: 'HNT', price: 2.30, volume_change: 0.97, volume_24h: 18000000, badge: 'MODERATE' },
-            { rank: 3, symbol: 'OCEAN', price: 0.3162, volume_change: 0.60, volume_24h: 15000000, badge: 'MODERATE' },
-            { rank: 4, symbol: 'PENGU', price: 0.01605, volume_change: 0.56, volume_24h: 12000000, badge: 'MODERATE' },
-            { rank: 5, symbol: 'MUSE', price: 7.586, volume_change: 0.53, volume_24h: 10000000, badge: 'MODERATE' }
-          ];
-          setData(fallbackData);
-        }
-      }
-    };
-    
-    // Fetch data immediately
-    fetchBottomBannerData();
-    return () => { isMounted = false; };
-  }, [refreshTrigger]);
-
-  const getBadgeStyle = (volume) => {
+  const items = wsBanner || (Array.isArray(response?.data) && response.data.length > 0
+    ? response.data
+    : [
+      { rank: 1, symbol: 'SUKU', price: 0.0295, volume_change: 3.51, volume_24h: 25000000, badge: 'MODERATE' },
+      { rank: 2, symbol: 'HNT', price: 2.30, volume_change: 0.97, volume_24h: 18000000, badge: 'MODERATE' },
+      { rank: 3, symbol: 'OCEAN', price: 0.3162, volume_change: 0.60, volume_24h: 15000000, badge: 'MODERATE' },
+      { rank: 4, symbol: 'PENGU', price: 0.01605, volume_change: 0.56, volume_24h: 12000000, badge: 'MODERATE' },
+    { rank: 5, symbol: 'MUSE', price: 7.586, volume_change: 0.53, volume_24h: 10000000, badge: 'MODERATE' }
+    ]);
+  // determine badge style based on 24h volume
+  function getBadgeStyle(volume) {
     if (volume >= 10000000) return 'HIGH VOL';
     if (volume >= 1000000) return 'MODERATE';
     if (volume >= 100000) return 'STRONG';
     return 'LOW VOL';
-  };
+  }
+  const dataWithRanks = items.map((item, index) => ({
+    rank: item.rank || index + 1,
+    symbol: item.symbol.replace('-USD', '') || 'N/A',
+    price: item.current_price ?? item.price ?? 0,
+    volume_change: item.volume_change_1h_pct ?? item.volume_change ?? 0,
+    isEstimated: item.volume_change_is_estimated ?? false,
+    volume_24h: item.volume_24h ?? 0,
+    badge: getBadgeStyle(item.volume_24h ?? 0),
+    trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+    trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+    trendScore: item.trend_score ?? item.trendScore ?? 0
+  }));
+  const scrollData = dataWithRanks.slice(0, 20);
+
 
   // Never show loading or empty states - always render the banner
   return (
@@ -88,7 +66,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
         <div className="absolute inset-0 flex items-center">
           <div className="flex whitespace-nowrap animate-scroll" role="list">
             {/* First set of data */}
-            {data.map((coin) => (
+            {scrollData.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple bg-transparent">
                   <div className="flex items-center gap-2">
@@ -136,7 +114,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
               </div>
             ))}
             {/* Duplicate set for seamless scrolling */}
-            {data.map((coin) => (
+            {scrollData.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">

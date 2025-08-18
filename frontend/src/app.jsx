@@ -226,27 +226,32 @@ export default function App() {
               </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
                 <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-          <div className="p-6">
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={0}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
+                  <div className="p-6 flex flex-col h-full">
+                    <div className="flex-1 flex flex-col">
+                      <GainersTable1Min
+                        refreshTrigger={lastUpdate}
+                        onWatchlistChange={handleWatchlistChange}
+                        topWatchlist={topWatchlist}
+                        sliceStart={0}
+                        sliceEnd={20}
+                        fixedRows={oneMinExpanded ? 6 : 4}
+                        hideShowMore
+                      />
+                    </div>
                   </div>
-          <div className="p-6">
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={oneMinExpanded ? 6 : 4}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
+
+                  <div className="p-6 flex flex-col h-full">
+                    <div className="flex-1 flex flex-col">
+                      <GainersTable1Min
+                        refreshTrigger={lastUpdate}
+                        onWatchlistChange={handleWatchlistChange}
+                        topWatchlist={topWatchlist}
+                        sliceStart={oneMinExpanded ? 6 : 4}
+                        sliceEnd={20}
+                        fixedRows={oneMinExpanded ? 6 : 4}
+                        hideShowMore
+                      />
+                    </div>
                   </div>
                 </Suspense>
               </div>

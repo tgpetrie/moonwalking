@@ -1,3 +1,4 @@
+from cache_utils import cache_and_dedupe
 import os
 import argparse
 import socket
@@ -9,9 +10,11 @@ import requests
 import time
 import threading
 from collections import defaultdict, deque
+from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime, timedelta
+from flask_socketio import SocketIO
 
 from watchlist import watchlist_bp, watchlist_db
 try:
@@ -66,6 +69,19 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
+# Requests Session with retries for Coinbase endpoints
+from requests.adapters import HTTPAdapter, Retry
+
+SESSION = requests.Session()
+retries = Retry(
+    total=int(os.environ.get('COINBASE_RETRIES', 3)),
+    backoff_factor=0.3,
+    status_forcelist=(429, 500, 502, 503, 504),
+    raise_on_status=False,
+)
+SESSION.mount("https://", HTTPAdapter(max_retries=retries, pool_connections=50, pool_maxsize=50))
+SESSION.headers.update({"User-Agent": os.environ.get('USER_AGENT', 'cbmo4ers/1.0')})
+
 # ---------------------------------------------------------------------------------
 # Utility: best-effort commit SHA for diagnostics (/api/server-info)
 # ---------------------------------------------------------------------------------
@@ -104,6 +120,12 @@ log_config_with_param(CONFIG)
 # Flask App Setup (final app instance)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
+
+# Initialize SocketIO
+# Prefer the 'threading' async mode on Python 3.13 to avoid importing eventlet/gevent
+# which are incompatible with newer ssl internals (see runtime traceback). Threading
+# is safe for the low-to-moderate concurrency this app uses locally.
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Add startup time tracking
 startup_time = time.time()
@@ -197,6 +219,8 @@ CONFIG = {
     'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 1000000)),  # Minimum volume for banner
     'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 1.0)),  # Minimum % change for banner
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
+    'COINBASE_CONNECT_TIMEOUT': int(os.environ.get('COINBASE_CONNECT_TIMEOUT', 2)),
+    'COINBASE_READ_TIMEOUT': int(os.environ.get('COINBASE_READ_TIMEOUT', 5)),
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
     # 1-minute feature load controls
     'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
@@ -608,14 +632,18 @@ def get_24h_top_movers():
     return get_coinbase_24h_top_movers()
 
 
+@lru_cache(maxsize=1)
+def _get_coinbase_products_cached(cache_key: int):
+    # cache_key should be int(time.time() // 30) for 30-second buckets
+    resp = SESSION.get(COINBASE_PRODUCTS_URL, timeout=(CONFIG['COINBASE_CONNECT_TIMEOUT'], CONFIG['COINBASE_READ_TIMEOUT']))
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_coinbase_24h_top_movers():
     """Fetch 24h top movers from Coinbase (optimized)."""
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
-        if products_response.status_code != 200:
-            return []
-
-        products = products_response.json()
+        products = _get_coinbase_products_cached(int(time.time() // 30))
         usd_products = [p for p in products if p["quote_currency"] == "USD" and p["status"] == "online"]
         formatted_data = []
 
@@ -624,18 +652,23 @@ def get_coinbase_24h_top_movers():
             try:
                 # Get 24h stats
                 stats_url = f"https://api.exchange.coinbase.com/products/{product['id']}/stats"
-                stats_response = requests.get(stats_url, timeout=3)
-                if stats_response.status_code != 200:
+                try:
+                    stats_response = SESSION.get(stats_url, timeout=(CONFIG['COINBASE_CONNECT_TIMEOUT'], CONFIG['COINBASE_READ_TIMEOUT']))
+                    stats_response.raise_for_status()
+                    stats_data = stats_response.json()
+                except Exception as _e:
+                    logging.warning(f"Coinbase stats fetch failed for {product['id']}: {_e}")
                     return None
 
                 # Get current price
                 ticker_url = f"https://api.exchange.coinbase.com/products/{product['id']}/ticker"
-                ticker_response = requests.get(ticker_url, timeout=2)
-                if ticker_response.status_code != 200:
+                try:
+                    ticker_response = SESSION.get(ticker_url, timeout=(CONFIG['COINBASE_CONNECT_TIMEOUT'], CONFIG['COINBASE_READ_TIMEOUT']))
+                    ticker_response.raise_for_status()
+                    ticker_data = ticker_response.json()
+                except Exception as _e:
+                    logging.warning(f"Coinbase ticker fetch failed for {product['id']}: {_e}")
                     return None
-
-                stats_data = stats_response.json()
-                ticker_data = ticker_response.json()
 
                 current_price = float(ticker_data.get('price', 0))
                 volume_24h = float(stats_data.get('volume', 0))
@@ -693,7 +726,7 @@ def get_coinbase_24h_top_movers():
                 banner_mix.append(gainers_24h[i])
             if i < len(losers_24h):
                 banner_mix.append(losers_24h[i])
-        
+
         logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers")
         return banner_mix[:20]
     except Exception as e:
@@ -998,7 +1031,8 @@ def get_top_banner():
         banner_data = get_24h_top_movers()
         
         if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
+            logging.warning("Top banner: no banner data available from Coinbase; returning empty array")
+            banner_data = []
             
         # Format specifically for top banner - current price and 1h change focus
         top_banner_data = []
@@ -1028,7 +1062,8 @@ def get_bottom_banner():
         banner_data = get_24h_top_movers()
         
         if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
+            logging.warning("Bottom banner: no banner data available from Coinbase; returning empty array")
+            banner_data = []
             
         # Sort by volume for bottom banner
         volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
@@ -1089,13 +1124,15 @@ def get_tables_3min():
 # =============================================================================
 
 @app.route('/api/component/top-banner-scroll')
+@cache_and_dedupe(ttl=1.0)
 def get_top_banner_scroll():
     """Individual endpoint for top scrolling banner - 1-hour price change data"""
     try:
         # Get 1-hour price change data from 24h movers API
         banner_data = get_24h_top_movers()
         if not banner_data:
-            return jsonify({"error": ERROR_NO_DATA}), 503
+            logging.warning("get_top_banner_scroll: no 24h movers; returning empty component payload")
+            banner_data = []
             
         # Sort by 1-hour price change for top banner
         hour_sorted = sorted(banner_data, key=lambda x: abs(x.get("price_change_1h", 0)), reverse=True)
@@ -1137,13 +1174,15 @@ def get_top_banner_scroll():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/component/bottom-banner-scroll')
+@cache_and_dedupe(ttl=1.0)
 def get_bottom_banner_scroll():
     """Individual endpoint for bottom scrolling banner - 1-hour volume change data"""
     try:
         # Get 1-hour volume change data (24h banner data has volume info)
         banner_data = get_24h_top_movers()
         if not banner_data:
-            return jsonify({"error": ERROR_NO_DATA}), 503
+            logging.warning("get_bottom_banner_scroll: no 24h movers; returning empty component payload")
+            banner_data = []
             
         # Sort by 24h volume for bottom banner (as we don't have hourly volume data)
         volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
@@ -1211,6 +1250,7 @@ def get_bottom_banner_scroll():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/component/gainers-table')
+@cache_and_dedupe(ttl=0.8)
 def get_gainers_table():
     """Individual endpoint for gainers table - 3-minute data only"""
     try:
@@ -1270,6 +1310,7 @@ def get_gainers_table():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/component/losers-table')
+@cache_and_dedupe(ttl=0.8)
 def get_losers_table():
     """Individual endpoint for losers table - 3-minute data only"""
     try:
@@ -1327,6 +1368,7 @@ def get_losers_table():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/component/top-movers-bar')
+@cache_and_dedupe(ttl=0.8)
 def get_top_movers_bar():
     """Individual endpoint for top movers horizontal bar - 3min focus"""
     try:
@@ -1346,7 +1388,7 @@ def get_top_movers_bar():
                 "current_price": coin["current"],
                 "price_change_3min": coin["gain"],  # 3-minute change
                 "initial_price_3min": coin["initial_3min"],
-                "interval_minutes": coin.get("interval_minutes", 3),
+                "interval_minutes": coin.get("actual_interval_minutes", 3),
                 "bar_color": "green" if coin["gain"] > 0 else "red",
                 "momentum": "strong" if abs(coin["gain"]) > 5 else "moderate"
             })
@@ -1411,21 +1453,60 @@ def get_crypto_data_1min():
 
         crypto_data = calculate_1min_changes(current_prices)
         if not crypto_data:
-            # On cold start we may have <2 samples per symbol; return an empty, cacheable payload instead of None (prevents 503s)
+            # On cold start we may have <2 samples per symbol; try a best-effort seed so the UI
+            # doesn't show empty tables while price history warms up. Prefer a short list of
+            # well-known/major coins, falling back to the first N symbols available.
             logging.warning(f"No 1-min crypto data available after calculation - {len(current_prices)} current prices, {len(price_history_1min)} symbols with history")
-            empty_result = {
-                "gainers": [],
-                "losers": [],
-                "throttled": True,
-                "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30),
-                "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
-                "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
-                "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
-                "retained": 0
-            }
-            one_minute_cache['data'] = empty_result
-            one_minute_cache['timestamp'] = current_time
-            return empty_result
+            # Prioritized seed list (kept small and conservative)
+            major_seed = [
+                'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'MATIC-USD', 'LINK-USD',
+                'DOT-USD', 'XRP-USD', 'DOGE-USD', 'AVAX-USD'
+            ]
+            seeded_data = []
+            # Fill from prioritized list first
+            for sym in major_seed:
+                if sym in current_prices:
+                    p = current_prices.get(sym)
+                    seeded_data.append({
+                        'symbol': sym,
+                        'current_price': p,
+                        'initial_price_1min': p,
+                        'price_change_percentage_1min': 0.0,
+                        'actual_interval_minutes': 0
+                    })
+
+            # If still empty, take the first few symbols from current_prices
+            if not seeded_data and current_prices:
+                seed_count = min(6, len(current_prices))
+                for i, (sym, p) in enumerate(current_prices.items()):
+                    if i >= seed_count:
+                        break
+                    seeded_data.append({
+                        'symbol': sym,
+                        'current_price': p,
+                        'initial_price_1min': p,
+                        'price_change_percentage_1min': 0.0,
+                        'actual_interval_minutes': 0
+                    })
+
+            if not seeded_data:
+                # Nothing to show; return a cacheable empty payload
+                empty_result = {
+                    "gainers": [],
+                    "losers": [],
+                    "throttled": True,
+                    "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30),
+                    "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
+                    "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
+                    "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
+                    "retained": 0
+                }
+                one_minute_cache['data'] = empty_result
+                one_minute_cache['timestamp'] = current_time
+                return empty_result
+
+            # Use the seeded_data as the crypto_data to continue with retention/hysteresis
+            crypto_data = seeded_data
 
         # --- Retention / hysteresis logic ---
         enter_pct = CONFIG.get('ONE_MIN_ENTER_PCT', 0.15)
@@ -1443,10 +1524,6 @@ def get_crypto_data_1min():
             pct_now = c.get('price_change_percentage_1min', 0)
             data_by_symbol[sym] = c
             peak = one_minute_peaks.get(sym)
-            if not peak or pct_now > peak.get('peak_pct', -999):
-                one_minute_peaks[sym] = {'peak_pct': pct_now, 'peak_at': now_ts, 'last_seen': now_ts}
-            else:
-                peak['last_seen'] = now_ts
 
         # Decay / prune old peaks beyond window
         to_prune = []
@@ -1592,6 +1669,7 @@ def get_crypto_data_1min():
         return None
 
 @app.route('/api/component/gainers-table-1min')
+@cache_and_dedupe(ttl=0.5)
 def get_gainers_table_1min():
     """Individual endpoint for 1-minute gainers table"""
     try:
@@ -2163,6 +2241,30 @@ def background_crypto_updates():
             data_3min = get_crypto_data()
             if data_3min:
                 logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
+                # Emit both modern and legacy event names so older frontends continue to work
+                try:
+                    # Log a compact summary of the crypto payload before emitting for easier verification
+                    try:
+                        gainers_count = len(data_3min.get('gainers', []))
+                        losers_count = len(data_3min.get('losers', []))
+                        banner_count = len(data_3min.get('banner', []))
+                        logging.info(f"[WS EMIT] crypto: gainers={gainers_count} losers={losers_count} banner={banner_count}")
+                        # Log a small sample of gainers symbols to help eyeballing in logs
+                        sample_gainers = [g.get('symbol') for g in data_3min.get('gainers', [])[:3]]
+                        logging.info(f"[WS EMIT] crypto sample_gainers={sample_gainers}")
+                    except Exception:
+                        # Defensive: don't let logging break the emit path
+                        logging.debug('Failed to compute crypto emit summary', exc_info=True)
+                    socketio.emit('crypto', data_3min)
+                    socketio.emit('crypto_update', data_3min)
+                except Exception:
+                    logging.debug('Failed to emit crypto updates to socket clients', exc_info=True)
+
+                # Also push recent alerts list for clients that listen to 'alerts'
+                try:
+                    socketio.emit('alerts', list(alerts_log))
+                except Exception:
+                    logging.debug('Failed to emit alerts to socket clients', exc_info=True)
 
             # Respect config before doing 1-min related processing
             if CONFIG.get('ENABLE_1MIN', True):
@@ -2171,7 +2273,29 @@ def background_crypto_updates():
                     # Store for reuse by on-demand endpoint
                     last_current_prices['data'] = current_prices
                     last_current_prices['timestamp'] = time.time()
-                    calculate_1min_changes(current_prices)
+                    # Calculate 1-minute changes and emit price update payloads
+                    one_min_data = calculate_1min_changes(current_prices)
+                    if one_min_data:
+                        try:
+                            # Build compact updates map keyed by symbol for lightweight pushes
+                            updates = {
+                                item['symbol']: {
+                                    'price': item.get('current_price'),
+                                    'change': item.get('price_change_percentage_1min') or item.get('price_change_percentage_1min_peak') or item.get('price_change_percentage_1min', 0),
+                                    'timestamp': time.time()
+                                }
+                                for item in one_min_data
+                            }
+                            # Log updates summary to backend logs to confirm delivery shape and size
+                            try:
+                                logging.info(f"[WS EMIT] prices: updates_count={len(updates)} sample_symbols={list(updates.keys())[:5]}")
+                            except Exception:
+                                logging.debug('Failed to compute prices emit summary', exc_info=True)
+                            socketio.emit('prices', updates)
+                            socketio.emit('price_update', updates)
+                        except Exception:
+                            logging.debug('Failed to emit price updates to socket clients', exc_info=True)
+
                     logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
                     _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
 
@@ -2250,9 +2374,11 @@ if __name__ == '__main__':
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
     
     try:
-        app.run(debug=CONFIG['DEBUG'], 
-                host=CONFIG['HOST'], 
-                port=CONFIG['PORT'])
+        # Use socketio.run so the Flask-SocketIO server handles websocket transports
+        socketio.run(app,
+                     debug=CONFIG['DEBUG'],
+                     host=CONFIG['HOST'],
+                     port=CONFIG['PORT'])
     except OSError as e:
         if "Address already in use" in str(e):
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")

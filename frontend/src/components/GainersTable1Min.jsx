@@ -206,7 +206,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         const inWatch = isInWatchlist;
         const toggleWatch = (sym) => handleToggleWatchlist(sym);
 
-        return (
+  return (
           <div key={item.symbol} className="px-2 py-1 mb-1">
             <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block group">
               <div className="relative overflow-hidden rounded-xl p-4 box-border hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform">
@@ -274,6 +274,25 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                     </button>
                   </div>
                 </div>
+                {/* subtle, soft underline — thin and edge-faded so it's gentle */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none"
+                  style={{
+                    zIndex: 9,
+                    left: '1rem',
+                    right: '1rem',
+                    bottom: '0.5rem',
+                    height: '2px',
+                    position: 'absolute',
+                    borderRadius: '999px',
+                    background: (PCT > 0)
+                      ? 'linear-gradient(90deg, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.12) 30%, rgba(192,38,211,0.06) 60%, rgba(192,38,211,0.02) 80%, transparent 100%)'
+                      : 'linear-gradient(90deg, rgba(236,72,153,0.14) 0%, rgba(236,72,153,0.10) 30%, rgba(236,72,153,0.05) 60%, rgba(236,72,153,0.02) 80%, transparent 100%)',
+                    opacity: 0.85,
+                    transition: 'opacity .25s ease'
+                  }}
+                />
               </div>
             </a>
           </div>

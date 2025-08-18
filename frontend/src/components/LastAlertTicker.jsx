@@ -1,38 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import React, { useMemo, useRef } from 'react';
+import useSWR from 'swr';
+import { API_ENDPOINTS, swrFetcher } from '../api.js';
 
 const LastAlertTicker = () => {
-  const [last, setLast] = useState(null);
-  const [error, setError] = useState(null);
   const pollMs = useMemo(() => {
     const v = Number(import.meta?.env?.VITE_ALERTS_POLL_MS);
     return Number.isFinite(v) && v >= 5000 ? v : 30000;
   }, []);
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const poll = async () => {
-      try {
-        const res = await fetchData((API_ENDPOINTS.alertsRecent || '/api/alerts/recent') + '?limit=1');
-        if (!mounted) return;
-        if (res && Array.isArray(res.alerts) && res.alerts.length) {
-          setLast(res.alerts[res.alerts.length - 1]);
-          setError(null);
-        }
-      } catch (e) {
-        if (!mounted) return;
-        setError('alerts offline');
-      } finally {
-        timerRef.current = setTimeout(poll, pollMs);
-      }
-    };
-    poll();
-    return () => {
-      mounted = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [pollMs]);
+  // Use SWR to fetch last alert
+  const url = (API_ENDPOINTS.alertsRecent || '/api/alerts/recent') + '?limit=1';
+  const { data: res, error } = useSWR([url], swrFetcher, { refreshInterval: pollMs });
+  const last = res?.alerts?.[res.alerts.length - 1] ?? null;
 
   if (!last) return null;
 

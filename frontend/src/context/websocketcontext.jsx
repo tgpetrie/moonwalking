@@ -1,235 +1,179 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket } from '../services/websocket.js';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+// src/context/websocketcontext.jsx
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { io } from 'socket.io-client'
 
-const WebSocketContext = createContext(null);
+// Robust WebSocket context with safe defaults and state management
+const initialState = {
+  connected: false,
+  prices: {},         // latest prices by symbol
+  crypto: [],         // latest crypto array (gain/loss payloads)
+  alerts: [],         // alert array
+  server: null,       // server info
+}
+export const WebSocketContext = createContext({
+  state: initialState,
+  latestData: initialState,
+  isConnected: false,
+  isPolling: false,
+  oneMinThrottleMs: 7000,
+  getPrice: () => null,
+})
 
-export const useWebSocket = () => {
-  const context = useContext(WebSocketContext);
-  if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
-  }
-  return context;
-};
+export function useWebSocket() {
+  return useContext(WebSocketContext)
+}
 
-export const WebSocketProvider = ({ children }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [latestData, setLatestData] = useState({
-    crypto: null,
-    prices: {},
-    watchlist: null
-  });
-  const [isPolling, setIsPolling] = useState(false);
-  // Hold an object { id: timeoutId, abort: fn }
-  const pollingIntervalRef = useRef(null);
-
-  // Polling fallback function
-  const startPolling = () => {
-    if (isPolling) return;
-
-    console.log('🔄 Starting REST API polling fallback');
-    setIsPolling(true);
-
-  let inFlight = false;
-  let backoffMs = 10000; // start at 10s to reduce churn
-    let controller = null;
-
-  const poll = async () => {
-      if (inFlight) return; // concurrency guard
-      inFlight = true;
-      controller = new AbortController();
-      try {
-        const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
-        if (gainersData && gainersData.data) {
-          const pricesUpdate = {};
-            gainersData.data.forEach(coin => {
-              if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
-                const priceVal = coin.price ?? coin.current_price;
-                pricesUpdate[coin.symbol] = {
-                  price: priceVal,
-                  change: coin.price_change_percentage_1min || coin.change || 0,
-                  changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-                  timestamp: Date.now()
-                };
-              }
-            });
-          setLatestData(prev => ({
-            ...prev,
-            crypto: gainersData.data,
-            prices: { ...prev.prices, ...pricesUpdate }
-          }));
-          // reset backoff on success
-          backoffMs = 10000;
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          // silent on abort
-        } else {
-          console.error('Polling error:', error);
-          backoffMs = Math.min(backoffMs * 1.5, 90000); // exponential up to 90s
-        }
-      } finally {
-        inFlight = false;
-      }
-    };
-
-    // Kick off loop using adaptive timeout instead of fixed setInterval to respect backoff
-    const scheduleNext = () => {
-      const timeoutId = setTimeout(async () => {
-        await poll();
-        scheduleNext();
-      }, backoffMs);
-      // Store controller abort alongside timer id in a small control object
-      pollingIntervalRef.current = {
-        id: timeoutId,
-        abort: () => {
-          try { if (controller) controller.abort(); } catch (_) {}
-        }
-      };
-    };
-    poll();
-    scheduleNext();
-  };
-  
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      // Clear any scheduled timeout
-      const id = typeof pollingIntervalRef.current === 'number'
-        ? pollingIntervalRef.current
-        : pollingIntervalRef.current.id;
-      if (id) clearTimeout(id);
-      // Abort any in-flight fetch
-      if (pollingIntervalRef.current.abort) pollingIntervalRef.current.abort();
-      pollingIntervalRef.current = null;
-    }
-    setIsPolling(false);
-    console.log('⏹️ Stopped REST API polling');
-  };
-
-  // Fetch real-time prices for specific symbols from cached data
-  const fetchPricesForSymbols = async (symbols) => {
-    try {
-      // Use already cached data from polling instead of making new API call
-      if (latestData.crypto && latestData.crypto.length > 0) {
-        const prices = {};
-        latestData.crypto.forEach(coin => {
-          if (symbols.includes(coin.symbol)) {
-            prices[coin.symbol] = {
-              price: coin.current_price || coin.price,
-              change: coin.price_change_percentage_1min || coin.change || 0,
-              changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-              timestamp: Date.now()
-            };
-          }
-        });
-        return prices;
-      }
-      
-      // Fallback: use cached prices data
-      const prices = {};
-      symbols.forEach(symbol => {
-        if (latestData.prices[symbol]) {
-          prices[symbol] = latestData.prices[symbol];
-        }
-      });
-      return prices;
-    } catch (error) {
-      console.error('Error fetching prices for symbols:', error);
-    }
-    return {};
-  };
+export function WebSocketProvider({ children }) {
+  const [state, setState] = useState(initialState)
+  const socketRef = useRef(null)
 
   useEffect(() => {
-    // Subscribe to connection status changes
-    const unsubscribeConnection = subscribeToWebSocket('connection', (data) => {
-      setIsConnected(data.status === 'connected');
-      setConnectionStatus(data.status);
-      
-      if (data.status === 'connected') {
-        console.log('✅ WebSocket connected successfully');
-        stopPolling(); // Stop polling if WebSocket connects
-      } else if (data.status === 'error') {
-        console.warn('⚠️ WebSocket connection error:', data.error);
-      } else if (data.status === 'failed') {
-        console.error('❌ WebSocket connection failed after', data.attempts, 'attempts');
-        startPolling(); // Start polling fallback
+    let canceled = false
+  // Prefer an explicit WS/API env var if provided (Vite: VITE_*). Support multiple names used historically.
+  const envBackend = import.meta.env.VITE_WS_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL
+
+    // Helper: probe a candidate baseUrl by hitting /api/health
+    const probe = async (candidate) => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1200);
+        const resp = await fetch(`${candidate.replace(/\/$/, '')}/api/health`, { signal: controller.signal });
+        clearTimeout(id);
+        return resp.ok;
+      } catch (e) {
+        return false;
       }
-    });
-
-    // Subscribe to real-time data updates
-    const unsubscribeCrypto = subscribeToWebSocket('crypto_update', (data) => {
-      console.log('📈 Received crypto update via WebSocket:', data);
-      setLatestData(prev => ({ ...prev, crypto: data }));
-    });
-
-    const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
-      console.log('💰 Received price update via WebSocket:', data);
-      setLatestData(prev => ({ 
-        ...prev, 
-        prices: { ...prev.prices, ...data } 
-      }));
-    });
-
-    const unsubscribeWatchlist = subscribeToWebSocket('watchlist_update', (data) => {
-      console.log('⭐ Received watchlist update via WebSocket:', data);
-      setLatestData(prev => ({ ...prev, watchlist: data }));
-    });
-
-  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
-    if (disableWs) {
-      // Skip WS entirely and use polling
-      startPolling();
-    } else {
-      // Attempt to connect WebSocket (fallback to REST polling if fails)
-      connectWebSocket();
-      // Start polling if WS doesn't connect quickly
-      const initialPollTimer = setTimeout(() => {
-        if (!isConnected) startPolling();
-      }, 3000);
-      // track timer handle via ref so cleanup can clear it
-      pollingIntervalRef.current = pollingIntervalRef.current || {};
-      pollingIntervalRef.current._initialTimer = initialPollTimer;
     }
 
-    // Cleanup on unmount
-    return () => {
-      try {
-        if (pollingIntervalRef.current?._initialTimer) {
-          clearTimeout(pollingIntervalRef.current._initialTimer);
-          delete pollingIntervalRef.current._initialTimer;
+    const startSocket = async () => {
+      if (canceled) return;
+      let baseUrl = null;
+      if (envBackend) baseUrl = String(envBackend).replace(/\/+$/, '');
+      else {
+        // Prefer the exact current origin first (handles dev server ports like :5177)
+        const origin = window.location.origin;
+        const hostNoPort = `${window.location.protocol}//${window.location.hostname}`;
+        // Try origin first. If the current origin has no port, also try common backend ports on the host.
+        const candidates = [origin];
+        if (!window.location.port) {
+          candidates.push(`${hostNoPort}:5001`, `${hostNoPort}:5002`);
         }
-      } catch (_) {}
-      unsubscribeConnection();
-      unsubscribeCrypto();
-      unsubscribePrices();
-      unsubscribeWatchlist();
-      disconnectWebSocket();
-      stopPolling();
-    };
-  }, []);
+        // Localhost fallbacks
+        candidates.push('http://127.0.0.1:5001', 'http://127.0.0.1:5002');
+        for (const c of candidates) {
+          if (canceled) break;
+          // eslint-disable-next-line no-await-in-loop
+          const ok = await probe(c);
+          if (ok) { baseUrl = c; break; }
+        }
+      }
+      // Fallback to default (non-probed) if nothing responsive found
+      if (!baseUrl) baseUrl = envBackend ? String(envBackend).replace(/\/+$/, '') : `${window.location.protocol}//${window.location.hostname}:5001`;
 
-  const contextValue = {
-    isConnected,
-    connectionStatus,
-    latestData,
-    wsManager,
-    isPolling,
-  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 7000,
-    // Convenience methods
-    subscribe: subscribeToWebSocket,
-    getStatus: () => wsManager.getStatus(),
-    send: (event, data) => wsManager.send(event, data),
-    fetchPricesForSymbols,
-    startPolling,
-    stopPolling
-  };
+      try {
+        // Debug: surface which backend we ended up choosing (helps diagnose connection-refused issues)
+        try { console.debug('[WS] selected backend baseUrl ->', baseUrl) } catch (e) {}
+        const socket = io(baseUrl, { transports: ['websocket', 'polling'], path: '/socket.io' })
+        socketRef.current = socket
+      const onConnect = () => { if (!canceled) setState(prev => ({ ...prev, connected: true })) }
+      const onDisconnect = () => { if (!canceled) setState(prev => ({ ...prev, connected: false })) }
+      const onPrices = payload => { 
+        if (canceled) return
+        try {
+          // Normalize payload shapes:
+          // - server may send { prices: { 'BTC-USD': {...} } }
+          // - or a compact map { 'BTC-USD': { price, change, timestamp }}
+          // - or a flat numeric mapping { 'BTC-USD': 12345 }
+          let normalized = {}
+          if (!payload) normalized = {}
+          else if (payload.prices && typeof payload.prices === 'object') {
+            normalized = payload.prices
+          } else if (typeof payload === 'object' && !Array.isArray(payload)) {
+            // assume keyed by symbol
+            normalized = payload
+          } else {
+            normalized = {}
+          }
+          // Map compact keys to a consistent shape: { price, change24h }
+          const mapped = {}
+          Object.keys(normalized).forEach(sym => {
+            const v = normalized[sym]
+            if (v == null) return
+            if (typeof v === 'number') mapped[sym] = { price: v }
+            else if (typeof v === 'object') {
+              // Prioritize common keys
+              const price = v.price ?? v.current_price ?? v.currentPrice ?? v.p ?? v.last ?? v.value
+              const change24h = v.change24h ?? v.change_24h ?? v['24h'] ?? v.change
+              mapped[sym] = { price, change24h, ...v }
+            }
+          })
+          // Temporary debug: surface compact arrival info for quick verification in browser DevTools
+          try {
+            const keys = Object.keys(mapped)
+            console.debug('[WS] prices arrived', { count: keys.length, sample: keys.slice(0, 5) })
+          } catch (d) {}
+          if (!canceled) setState(prev => ({ ...prev, prices: mapped }))
+        } catch (e) {
+          // If normalization fails, keep previous prices
+        }
+      }
+      const onCrypto = payload => {
+        if (canceled) return
+        try {
+          // payload may be:
+          // - an array of coin objects (legacy)
+          // - an object { crypto: [...] }
+          // - an object { gainers: [...], losers: [...], banner: [...], top24h: [...] }
+          if (Array.isArray(payload)) {
+            // log arrival (array legacy shape)
+            try { console.debug('[WS] crypto arrived (array)', { count: payload.length }) } catch (d) {}
+            setState(prev => ({ ...prev, crypto: payload, crypto_meta: null }))
+            return
+          }
+          if (Array.isArray(payload?.crypto)) {
+            try { console.debug('[WS] crypto arrived (payload.crypto)', { count: payload.crypto.length }) } catch (d) {}
+            setState(prev => ({ ...prev, crypto: payload.crypto, crypto_meta: null }))
+            return
+          }
+          // If backend sends structured object with categories
+          if (payload && (Array.isArray(payload.gainers) || Array.isArray(payload.losers))) {
+            const gainers = Array.isArray(payload.gainers) ? payload.gainers : []
+            try { console.debug('[WS] crypto arrived (structured)', { gainers: gainers.length, losers: Array.isArray(payload.losers) ? payload.losers.length : 0 }) } catch (d) {}
+            setState(prev => ({ ...prev, crypto: gainers, crypto_meta: payload }))
+            return
+          }
+        } catch (e) {
+          // ignore and keep previous crypto state
+        }
+      }
+      const onAlerts = payload => { if (!canceled) setState(prev => ({ ...prev, alerts: Array.isArray(payload) ? payload : prev.alerts })) }
+      socket.on('connect', onConnect)
+      socket.on('disconnect', onDisconnect)
+  socket.on('prices', onPrices)
+  socket.on('crypto', onCrypto)
+  socket.on('alerts', onAlerts)
+      // seed server info if available
+      import('../lib/api').then(({ getJSON }) => getJSON('/api/server-info')
+        .then(server => { if (!canceled) setState(prev => ({ ...prev, server })) })
+        .catch(() => {})
+      )
+      return () => { canceled = true; try { socketRef.current && socketRef.current.off('prices', onPrices); socketRef.current && socketRef.current.off('crypto', onCrypto); socketRef.current && socketRef.current.off('alerts', onAlerts); socketRef.current && socketRef.current.off('connect'); socketRef.current && socketRef.current.off('disconnect'); } catch {} ; socketRef.current && socketRef.current.close() }
+      } catch {
+        setState(prev => ({ ...prev, connected: false }))
+      }
+    }
+    startSocket()
+  }, [])
 
-  return (
-    <WebSocketContext.Provider value={contextValue}>
-      {children}
-    </WebSocketContext.Provider>
-  );
-};
-
-export default WebSocketContext;
+  const value = useMemo(() => ({
+    state,
+    latestData: state,
+    isConnected: !!state.connected,
+    isPolling: false,
+    oneMinThrottleMs: state.server?.oneMinThrottleMs ?? 7000,
+    // small helpers
+    getPrice: (sym) => state.prices?.[sym] ?? null,
+  }), [state])
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>
+}
+export default WebSocketProvider

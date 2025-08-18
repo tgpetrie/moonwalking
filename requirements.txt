@@ -54,6 +54,7 @@ openpyxl==3.1.5
 ordered-set==4.1.0
 packaging==25.0
 pandas==2.3.1
+orjson==3.9.9
 pillow==11.3.0
 pluggy==1.6.0
 psutil==6.1.1

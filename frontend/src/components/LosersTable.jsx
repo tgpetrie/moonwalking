@@ -78,7 +78,10 @@ const LosersTable = ({ refreshTrigger }) => {
 
   // Data for display
   const displayData = mergedData.slice(0, 7).map((item, index) => ({
-    rank: item.rank || index + 1,
+    // visible rank normalized to 1..7 for the displayed slice
+    rank: index + 1,
+    // preserve backend global rank separately
+    backendRank: item.rank ?? null,
     symbol: item.symbol?.replace('-USD', '') || 'N/A',
     price: item.current_price ?? item.price ?? 0,
     change: item.price_change_percentage_3min ?? item.change ?? 0,
@@ -210,8 +213,27 @@ const LosersTable = ({ refreshTrigger }) => {
                   </div>
                 </div>
 
-                {/* meta strip removed; info moved into main cells */}
+                {/* subtle, soft underline — thin and edge-faded so it's gentle */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none"
+                  style={{
+                    zIndex: 9,
+                    left: '1rem',
+                    right: '1rem',
+                    bottom: '0.5rem',
+                    height: '2px',
+                    position: 'absolute',
+                    borderRadius: '999px',
+                    background: (r.change > 0)
+                      ? 'linear-gradient(90deg, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.12) 30%, rgba(192,38,211,0.06) 60%, rgba(192,38,211,0.02) 80%, transparent 100%)'
+                      : 'linear-gradient(90deg, rgba(236,72,153,0.14) 0%, rgba(236,72,153,0.10) 30%, rgba(236,72,153,0.05) 60%, rgba(236,72,153,0.02) 80%, transparent 100%)',
+                    opacity: 0.85,
+                    transition: 'opacity .25s ease'
+                  }}
+                />
 
+                {/* meta strip removed; info moved into main cells */}
               </div>
             </a>
           </div>

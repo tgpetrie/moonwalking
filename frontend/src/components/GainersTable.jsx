@@ -81,27 +81,20 @@ const GainersTable = ({ refreshTrigger }) => {
               : null);
 
         return {
-          rank: item.rank || (index + 1),
+          // visible rank (1..N) normalized to the displayed slice
+          rank: (index + 1),
+          // preserve any backend-provided global rank in case we want to show it
+          backendRank: item.rank ?? null,
           symbol,
           price,
           change3m: (typeof pct3m === 'number' && !Number.isNaN(pct3m)) ? pct3m : null,
           prev3m: (typeof prev3m === 'number' && Number.isFinite(prev3m)) ? prev3m : null,
           peakCount: item.peak_count ?? item.peaks ?? null,
         };
-      })
-      // keep GAINERS positive only and sort desc
-      .filter(r => typeof r.change3m === 'number' && r.change3m > 0)
-      .sort((a, b) => b.change3m - a.change3m);
+      });
 
-    setData(next.slice(0, 7));
-  }, [latestData.crypto_meta, latestData.prices]);
-
-  useEffect(() => {
-    async function fetchWatchlist() {
-      const data = await getWatchlist();
-      setWatchlist(data);
-    }
-    fetchWatchlist();
+    // commit computed list to state
+    setData(next);
   }, [refreshTrigger]);
 
   const handleToggleWatchlist = async (symbol) => {
@@ -125,7 +118,7 @@ const GainersTable = ({ refreshTrigger }) => {
 
   return (
     <div className="w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0">
-      {data.map((r) => {
+  {data.slice(0, 7).map((r) => {
         const isInWatchlist = watchlist.includes(r.symbol);
         const isPopping = popStar === r.symbol;
         const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
@@ -195,6 +188,25 @@ const GainersTable = ({ refreshTrigger }) => {
                     </button>
                   </div>
                 </div>
+                {/* subtle colored underline matching percent color (purple for +, pink for -). absolute but contained so layout unaffected */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none"
+                    style={{
+                      zIndex: 9,
+                      left: '1rem',
+                      right: '1rem',
+                      bottom: '0.5rem',
+                      height: '2px',
+                      position: 'absolute',
+                      borderRadius: '999px',
+                      background: (r.change > 0)
+                        ? 'linear-gradient(90deg, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.12) 30%, rgba(192,38,211,0.06) 60%, rgba(192,38,211,0.02) 80%, transparent 100%)'
+                        : 'linear-gradient(90deg, rgba(236,72,153,0.14) 0%, rgba(236,72,153,0.10) 30%, rgba(236,72,153,0.05) 60%, rgba(236,72,153,0.02) 80%, transparent 100%)',
+                      opacity: 0.85,
+                      transition: 'opacity .25s ease'
+                    }}
+                  />
               </div>
             </a>
           </div>

@@ -7,21 +7,19 @@
     <link rel="icon" type="image/png" href="/bhabit-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BHABITS CB INSIGHT</title>
-    <!-- Preload critical shared chunks (react core); names rely on manualChunks config -->
-    <link rel="preload" as="script" href="/assets/react.js" />
+    <!-- Preload shared chunks as needed (react core preload removed due to missing asset) -->
         <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
         <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
         <script>
             (function(){
                 try {
-                    var api = (window.__VITE_API_URL__ || (window.importMeta && window.importMeta.env && window.importMeta.env.VITE_API_URL) || '').trim();
-                    // If Vite exposes import.meta.env on window at runtime, use it; otherwise fall back to build-time replacement via Vite.
+                    var api = (window.__VITE_BACKEND_URL__ || (window.importMeta && window.importMeta.env && window.importMeta.env.VITE_BACKEND_URL) || '').trim();
                 } catch(e) {}
             })();
         </script>
         <script type="module">
             // Vite exposes import.meta.env within modules; use that to inject preconnect hints dynamically.
-            const api = (import.meta.env && import.meta.env.VITE_API_URL) ? String(import.meta.env.VITE_API_URL) : '';
+            const api = (import.meta.env && import.meta.env.VITE_BACKEND_URL) ? String(import.meta.env.VITE_BACKEND_URL) : '';
             const url = api ? api.replace(/\/$/, '') : '';
             const host = url ? new URL(url).origin : '';
             if (host) {
