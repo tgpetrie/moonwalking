@@ -66,8 +66,19 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
         <div className="absolute inset-0 flex items-center">
           <div className="flex whitespace-nowrap animate-scroll" role="list">
             {/* First set of data */}
-            {scrollData.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}>
+            {scrollData.map((coin) => {
+              const url = `https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-usd`;
+              return (
+              <a
+                key={`first-${coin.symbol}`}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={SCROLL_ANCHOR_CLASSNAME}
+                role="listitem"
+                tabIndex={0}
+                aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}
+              >
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple bg-transparent">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-purple">#{coin.rank}</span>
@@ -111,11 +122,23 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     {coin.badge}
                   </div>
                 </div>
-              </div>
-            ))}
+              </a>
+              );
+            })}
             {/* Duplicate set for seamless scrolling */}
-            {scrollData.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}>
+            {scrollData.map((coin) => {
+              const url = `https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-usd`;
+              return (
+              <a
+                key={`second-${coin.symbol}`}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 mx-8 group block"
+                role="listitem"
+                tabIndex={0}
+                aria-label={`#${coin.rank} ${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%, ${coin.badge}`}
+              >
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-purple">#{coin.rank}</span>
@@ -159,8 +182,9 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     {coin.badge}
                   </div>
                 </div>
-              </div>
-            ))}
+              </a>
+              );
+            })}
           </div>
         </div>
       </div>

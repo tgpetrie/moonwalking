@@ -68,13 +68,21 @@ export default function TopBannerScroll() {
       {rows.map((it, idx) => {
         const symbol = it.symbol ?? it.ticker ?? it.name ?? `#${idx}`;
         const changePct = Number(it.change_pct ?? it.changePct ?? it.pct ?? it.change);
+        const baseSymbol = symbol.replace(/-USD$/i, '').toLowerCase();
+        const url = `https://www.coinbase.com/advanced-trade/spot/${baseSymbol}-usd`;
         return (
-          <span key={`${symbol}-${idx}`} className="inline-flex items-center gap-2">
+          <a
+            key={`${symbol}-${idx}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2"
+          >
             <span className="text-zinc-300">{symbol}</span>
             <span className={`px-2 py-0.5 rounded-full text-[10px] text-white ${getBadgeStyle(changePct)}`}>
               {formatPct(changePct)}
             </span>
-          </span>
+          </a>
         );
       })}
     </div>
