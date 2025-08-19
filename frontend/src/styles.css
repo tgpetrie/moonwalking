@@ -1,0 +1,12 @@
+:root { font-family: ui-sans-serif, system-ui; }
+body { margin: 0; background: #0c0f14; color: #e7edf3; }
+.container { padding: 16px; max-width: 1200px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: #121722; border-radius: 12px; padding: 12px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 8px; border-bottom: 1px solid #1f2735; }
+.badge { font-size: 12px; opacity: .8; }
+.row-up { color: #33d17a; }
+.row-down { color: #ff616e; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.scroller { display: flex; gap: 12px; overflow-x: auto; padding: 8px 0; }
