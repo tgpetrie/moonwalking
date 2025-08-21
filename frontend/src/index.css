@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&family=Fragment+Mono:wght@400;600&display=swap');
+@tailwind base; @tailwind components; @tailwind utilities;
+
+:root{ --bhblack:#0B0B0D; --bhpurple:#8B00FF; --bhorange:#FF5E00; --bhpink:#FF3B9F; --bhblue:#00CFFF; --bhtext:#EDEDED; }
+html,body,#root{height:100%}
+body{background:var(--bhblack); color:var(--bhtext); font-family:Raleway, ui-sans-serif, system-ui; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+.mono{font-family:"Fragment Mono", ui-monospace, SFMono-Regular}
+
+/* Cards wrapping each table */
+.card{ @apply rounded-2xl overflow-hidden bg-white/0 ring-1 ring-white/10; transition:filter .25s ease; }
+
+/* Header bars */
+.header-purple{ @apply bg-bhpurple text-black font-semibold uppercase tracking-wide text-sm; }
+.header-pink{   @apply bg-bhpink   text-black font-semibold uppercase tracking-wide text-sm; }
+.header-inner{ @apply h-11 md:h-12 flex items-center px-4 relative; }
+
+/* Universal table styling */
+.u-table{ @apply w-full text-sm; border-collapse: separate; border-spacing: 0; }
+.u-thead th{ @apply text-xs uppercase opacity-80; }
+.u-thead th, .u-tbody td{ @apply py-3 px-4; }
+.u-tbody tr{ @apply border-b border-white/10; }
+.u-tbody tr:last-child{ border-bottom: 0; }
+.u-tbody tr:hover{ background-color: rgba(255,255,255,0.03); }
+
+/* Column widths */
+.col-rank   { width: 40px; }
+.col-symbol { width: auto; }
+.col-price  { width: 120px; }
+.col-pct    { width: 100px; }
+@media (max-width: 479.98px){
+  .col-rank{ width:32px; }
+  .col-price{ width:96px; }
+  .col-pct{ width:84px; }
+}
+
+/* Numbers */
+.num{ @apply mono tabular-nums text-right; }
+
+/* Peak badge */
+.badge-peak{ @apply mono text-[10px] md:text-xs font-semibold rounded-full px-1.5 py-0.5 border border-white/15 bg-black/30 ml-2; }
+
+/* Banner pills */
+.pill{ @apply inline-flex items-center rounded-2xl px-3 py-1 whitespace-nowrap; background:rgba(255,255,255,0.06); }
+
+/* ====== VISUAL EFFECTS ====== */
+.ring-focus:focus-visible { outline:none; box-shadow:0 0 0 2px rgba(0,0,0,0.6),0 0 0 4px transparent,0 0 0 4px; border-radius:12px; position:relative; }
+.ring-focus:focus-visible::after{ content:""; position:absolute; inset:-2px; border-radius:inherit; padding:2px; background:linear-gradient(90deg, var(--bhorange), var(--bhblue), var(--bhpink)); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }
+
+/* neon-ish card glow on hover */
+.card:hover { filter: drop-shadow(0 0 12px rgba(139,0,255,.18)); }
+
+/* header subtle pulse */
+@keyframes glowPulse { 0%,100%{opacity:1} 50%{opacity:.9} }
+.header-purple, .header-pink { animation: glowPulse 4s ease-in-out infinite; }
+
+/* marquee */
+@keyframes marqueeScroll { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.fx-marquee { display:flex; width:max-content; animation: marqueeScroll 16s linear infinite; }
+.fx-marquee-wrap { overflow:hidden; }
+.fx-marquee:hover { animation-play-state: paused; }
+
+/* skeleton shimmer */
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.fx-skel { background:linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.12) 37%, rgba(255,255,255,.06) 63%); background-size:400% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+
+/* live status dot */
+@keyframes livePulse { 0%{transform:scale(.9); opacity:.6} 50%{transform:scale(1.15); opacity:1} 100%{transform:scale(.9); opacity:.6} }
+.fx-live { width:10px; height:10px; border-radius:9999px; background:#2ecc71; box-shadow:0 0 8px #2ecc71; animation: livePulse 1.6s ease-in-out infinite; }
+.fx-live.off { background:#e74c3c; box-shadow:0 0 8px #e74c3c; }
+
+/* row flash */
+@keyframes flashBgUp { 0%{background:rgba(139,0,255,.25)} 100%{background:transparent} }
+@keyframes flashBgDown { 0%{background:rgba(255,59,159,.25)} 100%{background:transparent} }
+.fx-flash-up { animation: flashBgUp .8s ease-out 1; }
+.fx-flash-down { animation: flashBgDown .8s ease-out 1; }
+
+/* pop-in */
+@keyframes riseIn { from{transform:translateY(4px); opacity:0} to{transform:translateY(0); opacity:1} }
+.fx-pop { animation: riseIn .18s ease-out 1; }
+
+/* reduce motion */
+@media (prefers-reduced-motion: reduce){
+  .header-purple, .header-pink, .fx-marquee, .fx-skel, .fx-live,
+  .fx-flash-up, .fx-flash-down, .fx-pop { animation: none !important; }
+}
+
+/* gradient separator (optional) */
+.header-inner::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; background: linear-gradient(90deg, var(--bhorange), var(--bhblue), var(--bhpink)); opacity:.35; }
