@@ -1,0 +1,31 @@
+# Production environment configuration
+PORT=5001
+HOST=0.0.0.0
+DEBUG=false
+
+# CORS - Restrict to production domains
+CORS_ALLOWED_ORIGINS=https://moonwalking.vercel.app,https://moonwalking.onrender.com,https://bhabit.net,http://bhabit.net
+
+# Cache and Performance - Stable working configuration
+CACHE_TTL=30
+UPDATE_INTERVAL=30
+INTERVAL_MINUTES=3
+MAX_PRICE_HISTORY=100
+
+# Monitoring and Logging
+LOG_LEVEL=INFO
+SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+
+# Security - Use strong secret key
+SECRET_KEY=c64b37120137045bfad8a01aabdd5f04f7ceb788e49a48982948f7fbfd601f91
+
+# Rate Limiting - Strict for production
+RATELIMIT_DEFAULT=100 per hour
+RATELIMIT_STORAGE_URL=memory://
+
+# Health Check Configuration
+HEALTH_CHECK_TIMEOUT=5
+
+# Feature flags
+ENABLE_RATE_LIMITING=true
+ENABLE_SECURITY_HEADERS=true

@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CBMOONERS</title>
     <link rel="icon" href="/favicon.ico" />
+    <script type="module">
+      // Inject a safe preconnect only when VITE_API_URL is absolute http(s)
+      try {
+        const api = (import.meta?.env?.VITE_API_URL) || '';
+        if (/^https?:\/\//i.test(api)) {
+          const link = document.createElement('link');
+          link.rel = 'preconnect';
+          link.href = api;
+          document.head.appendChild(link);
+        }
+      } catch (e) { /* ignore */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

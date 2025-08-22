@@ -1,0 +1,48 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_BASE: ${{ secrets.RENDER_BASE }}
+      VERCEL_BASE: ${{ secrets.VERCEL_BASE }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Probe Render /api/server-info
+        if: env.RENDER_BASE != ''
+        run: |
+          set -euo pipefail
+          URL="$RENDER_BASE/api/server-info"
+          echo "Checking $URL"
+          http_code=$(curl -s -o /tmp/out.json -w '%{http_code}' --max-time 20 "$URL" || true)
+          echo "HTTP $http_code"
+          head -c 400 /tmp/out.json || true; echo
+          test "$http_code" -eq 200
+
+      - name: Probe Render 1-min endpoint (non-blocking)
+        if: env.RENDER_BASE != ''
+        run: |
+          set -euo pipefail
+          URL="$RENDER_BASE/api/component/gainers-table-1min"
+          echo "Checking $URL"
+          http_code=$(curl -s -o /tmp/out.json -w '%{http_code}' --max-time 25 "$URL" || true)
+          echo "HTTP $http_code"
+          head -c 200 /tmp/out.json || true; echo
+          exit 0
+
+      - name: Probe Vercel /api/server-info via rewrite (non-blocking)
+        if: env.VERCEL_BASE != ''
+        run: |
+          set -euo pipefail
+          URL="$VERCEL_BASE/api/server-info"
+          echo "Checking $URL"
+          http_code=$(curl -s -o /tmp/out.html -w '%{http_code}' --max-time 20 "$URL" || true)
+          echo "HTTP $http_code"; head -c 200 /tmp/out.html || true; echo
+          exit 0

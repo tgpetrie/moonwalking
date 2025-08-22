@@ -1,0 +1,5 @@
+[
+  "test_app.py::TestCalculateIntervalChanges::test_calculate_interval_changes",
+  "test_app.py::TestFormatCryptoData::test_format_crypto_data",
+  "test_app.py::TestProcessProductData::test_process_product_data"
+]

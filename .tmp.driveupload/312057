@@ -1,0 +1,25 @@
+# Development environment configuration
+PORT=5001
+HOST=0.0.0.0
+DEBUG=true
+
+# CORS - Allow localhost for development
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173
+
+# Cache and Performance - More aggressive in dev
+CACHE_TTL=30
+UPDATE_INTERVAL=30
+INTERVAL_MINUTES=3
+MAX_PRICE_HISTORY=50
+
+# Logging
+LOG_LEVEL=DEBUG
+
+# Security - Dev key (change for production)
+SECRET_KEY=dev-secret-key-change-in-production
+
+# Rate Limiting - More lenient for development
+RATELIMIT_DEFAULT=1000 per hour
+
+# Health Check Configuration
+HEALTH_CHECK_TIMEOUT=10

@@ -1,0 +1,9 @@
+# Cloudflare Pages/Vite production config
+# Set this in Cloudflare Pages Project -> Settings -> Environment Variables
+
+# Backend Configuration for Cloudflare Pages Functions
+# This is used by functions/api/[...path].js to proxy API calls
+BACKEND_ORIGIN=https://bhabit-moonwalkers-backend.onrender.com
+
+# Frontend API URL (use relative for Pages Functions proxy)
+VITE_API_URL=/api

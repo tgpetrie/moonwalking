@@ -1,171 +1,57 @@
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+import React, { useMemo } from 'react';
+import { API_ENDPOINTS } from '../lib/api';
+import useEndpoint from '../hooks/useEndpoint';
+import { fmtUSD, fmtPct, clsDelta } from '../lib/format';
 
-async function handleRequest(request) {
-  try {
-    const url = new URL(request.url)
-    // path after /api/
-    const path = url.pathname.replace(/^\/api\//, '')
-
-    // Determine backend origin from environment variables
-    const env = GLOBAL_ENV || {};
-    const backendOrigin = env.BACKEND_ORIGIN || env.PUBLIC_API_BASE_URL || env.API_BASE_URL || null;
-    if (!backendOrigin) {
-      return new Response(JSON.stringify({ error: 'No backend origin configured. Set BACKEND_ORIGIN or PUBLIC_API_BASE_URL.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    // Construct proxied URL
-    const target = new URL(backendOrigin.replace(/\/$/, ''))
-    target.pathname = `/api/${path}`
-    target.search = url.search
-
-    // Forward request method, headers, and body
-    const init = {
-      method: request.method,
-      headers: request.headers,
-      body: request.method === 'GET' || request.method === 'HEAD' ? null : await request.clone().arrayBuffer()
-    }
-
-    const resp = await fetch(target.toString(), init)
-
-    // If backend returns 503 for banners, convert to empty payload for UX
-    if (resp.status === 503 && /banner/i.test(path)) {
-      const body = JSON.stringify({ items: [], updatedAt: Date.now() })
-      return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
-    }
-
-    // Pass through status and headers
-    const headers = new Headers(resp.headers)
-    return new Response(resp.body, { status: resp.status, headers })
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } })
-  }
-}
-
-// Helper to access environment in Cloudflare Pages Functions compatibility
-const GLOBAL_ENV = typeof __STATIC_CONTENT_MANIFEST !== 'undefined' ? process.env : (typeof globalThis !== 'undefined' ? globalThis.__ENV__ : undefined)
-// Request throttling to prevent resource exhaustion
-export const config = { runtime: 'edge' };
-
-const requestCache = new Map();
-const CACHE_DURATION = 10000; // 10 seconds
-const CACHE_DURATION_1MIN = 3000; // 3 seconds for fast 1-min panel
-
-// Optional: only show custom-defined alerts (enable with VITE_ALERTS_CUSTOM_ONLY=1)
-const ALERTS_CUSTOM_ONLY = (() => {
-  const v = String(import.meta.env.VITE_ALERTS_CUSTOM_ONLY ?? "").toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
-})();
-
-// If enabled, filter /api/alerts/recent payloads down to "custom" alerts only
-// Supports a few common shapes: array, {items:[]}, or {alerts:[]}
-const maybeFilterCustomAlerts = (endpoint, data) => {
-  try {
-    if (!ALERTS_CUSTOM_ONLY) return data;
-    if (!/\/api\/alerts\/recent(?:\b|\/|\?)/.test(endpoint)) return data;
-
-    const pickArray = (obj) => {
-      if (Array.isArray(obj)) return obj;
-      if (obj && Array.isArray(obj.items)) return obj.items;
-      if (obj && Array.isArray(obj.alerts)) return obj.alerts;
-      return null;
-    };
-
-    const arr = pickArray(data);
-    if (!arr) return data;
-
-    const isCustom = (a) =>
-      (a && (a.custom === true)) ||
-      (a && a.kind === "custom") ||
-      (a && a.source === "custom") ||
-      (Array.isArray(a?.tags) && a.tags.includes("custom"));
-
-    const filtered = arr.filter(isCustom);
-
-    // Rebuild in the original shape
-    if (Array.isArray(data)) return filtered;
-    if (Array.isArray(data.items)) return { ...data, items: filtered };
-    if (Array.isArray(data.alerts)) return { ...data, alerts: filtered };
-    return data;
-  } catch {
-    return data;
-  }
+const normalize = (raw = []) => {
+  const rows = Array.isArray(raw) ? raw : (raw?.data || raw?.items || raw?.losers || []);
+  if (!Array.isArray(rows)) return [];
+  return rows.map((r, i) => ({
+    symbol: r.symbol || r.ticker || r.asset || '',
+    price: r.price ?? r.last ?? r.close,
+    d3m: r.delta_3m ?? r.t3m ?? r.change_3m ?? r.delta ?? null,
+  }));
 };
 
-async function fetchData(endpoint) {
-  const now = Date.now();
+export default function LosersTable() {
+  const { data, loading, error } = useEndpoint(API_ENDPOINTS.losersTable, { pollMs: 15000 });
+  const items = useMemo(() => normalize(data), [data]);
 
-  // Check cache first with per-endpoint TTL
-  if (requestCache.has(endpoint)) {
-    const cached = requestCache.get(endpoint);
-    // Use shorter TTL for 1-minute table requests
-    const ttl = endpoint.includes('gainers-table-1min') ? CACHE_DURATION_1MIN : CACHE_DURATION;
-    if (now - cached.timestamp < ttl) {
-      return cached.data;
-    }
+  const asPct = (v) => {
+    const n = Number(v);
+    const pct = Math.abs(n) <= 1 ? n * 100 : n;
+    return fmtPct(pct, 2);
+  };
+
+  if (loading) return <div className="app-panel p-4 text-zinc-400 text-sm">Loading 3-min losers…</div>;
+  if (error)   return <div className="app-panel p-4 text-red-400 text-sm">Error loading 3-min losers.</div>;
+  if (!items.length) {
+    return <div className="app-panel p-4 text-sm text-zinc-400">No 3-min losers data.</div>;
   }
 
-  // Fetch from API base URL
-  const apiBase = getApiBaseUrl();
-  const fullUrl = apiBase + endpoint;
-
-  try {
-    const response = await fetch(fullUrl);
-
-    if (response.ok) {
-      const raw = await response.json();
-      const data = maybeFilterCustomAlerts(endpoint, raw);
-      requestCache.set(endpoint, { data, timestamp: now });
-      return data;
-    }
-
-    // If API base fails, try fallback
-    const fallbackBase = getFallbackApiBaseUrl();
-    if (fallbackBase && fallbackBase !== apiBase) {
-      const newEndpoint = fallbackBase + endpoint;
-      const retryRes = await fetch(newEndpoint);
-
-      if (retryRes.ok) {
-        // Commit base change only after endpoint success
-        setApiBaseUrl(fallbackBase);
-        const raw = await retryRes.json();
-        const data = maybeFilterCustomAlerts(newEndpoint, raw);
-        requestCache.set(newEndpoint, { data, timestamp: Date.now() });
-        return data;
-      }
-    }
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-
-  throw new Error("Failed to fetch data");
-}
-
-// Default handler: proxy request, apply edge-cache headers, and return JSON response
-export default async function handler(request, context) {
-  const { params } = context;
-  // Build endpoint from catch-all `path` parameter
-  const segments = Array.isArray(params.path)
-    ? params.path
-    : params.path
-    ? [params.path]
-    : [];
-  const endpoint = segments.length ? '/' + segments.join('/') : '/';
-
-  try {
-    const data = await fetchData(endpoint);
-    const body = JSON.stringify(data);
-    const headers = new Headers({
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=10, stale-while-revalidate=59'
-    });
-    return new Response(body, { headers });
-  } catch (err) {
-    console.error('Proxy handler error:', err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-  }
+  return (
+    <div className="app-panel overflow-hidden">
+      <div className="px-4 py-3 border-b border-zinc-800/60">
+        <h3 className="text-sm font-semibold tracking-wide text-[color:var(--ink)]">3-MIN LOSERS</h3>
+      </div>
+      <table className="app-table">
+        <thead>
+          <tr>
+            <th className="text-left pl-4">Asset</th>
+            <th className="text-right pr-4">Price</th>
+            <th className="w-28 text-right pr-4">3-m %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((r, idx) => (
+            <tr key={`${r.symbol}-${idx}`} className={idx % 2 ? 'bg-zinc-900/20' : ''}>
+              <td className="pl-4 font-medium">{(r.symbol || '').toUpperCase()}</td>
+              <td className="text-right pr-4 tabular-nums">{fmtUSD(r.price, 2, 6)}</td>
+              <td className={`text-right pr-4 tabular-nums ${clsDelta(r.d3m)}`}>{asPct(r.d3m)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

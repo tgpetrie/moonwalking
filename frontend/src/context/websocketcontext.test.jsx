@@ -1,6 +1,6 @@
 
 import React from 'react'
-import { render, waitFor } from '@testing-library/react'
+import { render, waitFor, act } from '@testing-library/react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 
 function createMockSocket() {
@@ -57,8 +57,8 @@ test('handles tables:update and persists + notifies', async () => {
 
   // trigger a tables:update from the mock socket
   const payload = { t3m: [{ symbol: 'BTC', price: 100, delta_3m: 0.05 }] }
-  // simulate server sending event
-  mockSocket.__handlers['tables:update']?.(payload)
+  // simulate server sending event (wrap in act to avoid warnings)
+  act(() => { mockSocket.__handlers['tables:update']?.(payload) })
 
   // wait for provider to process update and re-render
   await waitFor(() => {

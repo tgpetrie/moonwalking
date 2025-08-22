@@ -1,0 +1,29 @@
+# Example environment configuration for CBMo4ers Crypto Dashboard
+
+# Server Configuration
+PORT=5001
+HOST=0.0.0.0
+DEBUG=false
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS=*
+
+# Cache and Performance
+CACHE_TTL=60
+UPDATE_INTERVAL=60
+INTERVAL_MINUTES=3
+MAX_PRICE_HISTORY=20
+
+# Monitoring and Logging
+SENTRY_DSN=
+LOG_LEVEL=INFO
+
+# Security
+SECRET_KEY=your-secret-key-here
+
+# Rate Limiting
+RATELIMIT_STORAGE_URL=memory://
+RATELIMIT_DEFAULT=100 per hour
+
+# Health Check Configuration
+HEALTH_CHECK_TIMEOUT=5

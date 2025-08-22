@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Minimal src-level CSS consumed by the app entry (keeps Tailwind separated from project root index.css) */
+body { @apply antialiased; }
+
+/* IMPORT LEGACY OVERRIDES LAST */
+@import "./styles/theme-legacy.css";

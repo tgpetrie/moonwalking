@@ -10,6 +10,7 @@ if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
   API_BASE_URL = 'http://localhost:5001'; // dev fallback
 }
 API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
+
 const buildEndpoints = () => ({
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
@@ -31,12 +32,15 @@ const buildEndpoints = () => ({
 });
 
 export let API_ENDPOINTS = buildEndpoints();
+
 // In production (Cloudflare Pages), proxy /api/* via Functions, so relative routing is fine
 // Env var provided only in CF Pages Functions
 export const API_BASE = typeof import.meta.env.PUBLIC_API_BASE_URL === 'string'
   ? import.meta.env.PUBLIC_API_BASE_URL
   : API_BASE_URL;
+
 export const getApiBaseUrl = () => API_BASE_URL;
+
 export const setApiBaseUrl = (url) => {
   if (!url) return;
   API_BASE_URL = url.replace(/\/$/, '');
@@ -65,6 +69,7 @@ export async function fetchLatestAlerts(symbols = []) {
 const requestCache = new Map();
 // add in-flight dedupe map and per-route TTLs
 const inflight = new Map();
+
 export const CACHE_DURATION_1MIN = 3000;
 const TTL = {
   "/api/alerts/recent": 5000,
@@ -75,6 +80,7 @@ const TTL = {
   "/api/component/bottom-banner-scroll": 15000,
   default: 8000
 };
+
 // ±12% jitter to avoid thundering herds
 const JITTER_FRAC = 0.12;
 const withJitter = (ms, frac = JITTER_FRAC) => {
@@ -189,6 +195,10 @@ export const swrFetcher = (key) => {
   const endpoint = Array.isArray(key) ? key[0] : key;
   return fetchData(endpoint);
 };
+
+// Backwards-compatible alias: some components import `fetchWithSWR` from `src/api`.
+// Provide a thin alias to the existing `swrFetcher` to avoid build-time import errors.
+export const fetchWithSWR = swrFetcher;
 
 // --- Local Storage Watchlist Functions ---
 const WATCHLIST_KEY = 'crypto_watchlist';

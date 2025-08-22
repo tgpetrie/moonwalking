@@ -1,147 +1,189 @@
-import { useEffect, useState } from 'react'
+// Lightweight API helpers used by the frontend.
+export const API_BASE =
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/+$/, '') ||
+  `${window.location.protocol}//${window.location.hostname}:5001`;
 
 export const API_ENDPOINTS = {
-  t1m: '/api/component/gainers-table-1min',
-  t3m: '/api/component/gainers-table',
-  losers1m: '/api/component/losers-table-1min',
-  losers3m: '/api/component/losers-table',
-  topBanner: '/api/component/top-banner-scroll',
-  bottomBanner: '/api/component/bottom-banner-scroll',
-  watchlist: '/api/component/watchlist',
-}
+  alertsRecent: `${API_BASE}/api/alerts/recent?limit=25`,
+  topBanner: `${API_BASE}/api/component/top-banner-scroll`,
+  bottomBanner: `${API_BASE}/api/component/bottom-banner-scroll`,
+  t1m: `${API_BASE}/api/component/gainers-table-1min`,
+  t3m: `${API_BASE}/api/component/gainers-table`,
+};
 
-export async function fetchJSON(url, opts) {
-  const res = await fetch(url, opts)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-export function getApiBaseUrl() {
-  if (typeof window === 'undefined') return ''
-  return window.location.origin || ''
-}
-
-let _bc = null
-if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-  try { _bc = new BroadcastChannel('ws-bus') } catch (e) { _bc = null }
-}
-
-export const bus = (() => {
-  // internal list of "message" listeners for BroadcastChannel-like API
-  const listeners = new Set()
-  // helper to dispatch raw message objects to listeners
-  function dispatchRaw(msg) {
-    try {
-      for (const h of Array.from(listeners)) {
-        try { h({ data: msg }) } catch (e) { /* swallow handler errors */ }
-      }
-    } catch (e) {}
+export async function getJSON(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      `HTTP ${res.status} ${url}${text ? ` — ${text.slice(0, 120)}` : ''}`,
+    );
   }
+  return res.json();
+}
 
-  // emit: high-level helper that broadcasts {type,payload}
-  function emit(type, payload) {
+// simple in-memory de-dupe for concurrent calls
+const inflight = new Map();
+
+export async function fetchWithSWR(url) {
+  const key = `cache:${url}`;
+  const cached = sessionStorage.getItem(key);
+  if (cached) {
+    // revalidate in background, but don't block paint
+    getJSON(url)
+      .then((data) => sessionStorage.setItem(key, JSON.stringify(data)))
+      .catch(() => {});
     try {
-      const msg = { type, payload }
-      if (_bc) _bc.postMessage(msg)
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        const ev = new CustomEvent('ws-bus', { detail: msg })
-        window.dispatchEvent(ev)
-      }
-      // also dispatch to in-process listeners in the same shape as BroadcastChannel
-      dispatchRaw(msg)
-    } catch (e) {}
-  }
-
-  // on: convenience listener for the high-level emit API — receives the message object
-  function on(cb) {
-    if (typeof window === 'undefined') return () => {}
-    const handler = (ev) => cb(ev.detail)
-    window.addEventListener('ws-bus', handler)
-    // also subscribe to in-memory listeners so bus.on works even without BroadcastChannel
-    listeners.add((raw) => cb(raw.data))
-    return () => {
-      try { window.removeEventListener('ws-bus', handler) } catch (_) {}
-      // remove the in-memory listener we added (best-effort)
-      for (const h of Array.from(listeners)) {
-        try {
-          // compare by function string as proxy; remove first matching
-          if (h.toString() === ((m)=>cb(m)).toString()) { listeners.delete(h); break }
-        } catch (_) {}
-      }
+      const parsed = JSON.parse(cached);
+      return parsed.data || parsed;
+    } catch (e) {
+      // fallthrough to live fetch
     }
   }
 
-  // postMessage / addEventListener / removeEventListener / onmessage: BroadcastChannel-compatible surface
-  function postMessage(msg) {
+  // de-dupe concurrent fetches
+  if (!inflight.has(url)) {
+    inflight.set(
+      url,
+      getJSON(url).finally(() => {
+        inflight.delete(url);
+      }),
+    );
+  }
+  const data = await inflight.get(url);
+  sessionStorage.setItem(key, JSON.stringify(data));
+  return data;
+}
+
+// Lightweight React hook for components. Named export for tests and direct imports.
+import React, { useEffect, useState } from 'react'
+
+export function useEndpoint(endpoint, { pollMs = 0, normalizer = null } = {}) {
+  const key = `cache:${endpoint}`
+  const initial = (() => {
     try {
-      if (_bc) _bc.postMessage(msg)
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        const ev = new CustomEvent('ws-bus', { detail: msg })
-        window.dispatchEvent(ev)
-      }
-      dispatchRaw(msg)
-    } catch (e) {}
-  }
+      const snap = sessionStorage.getItem(key)
+      if (!snap) return null
+      const parsed = JSON.parse(snap)
+      return parsed?.data ?? parsed
+    } catch (e) {
+      return null
+    }
+  })()
 
-  function addEventListener(type, handler) {
-    if (type !== 'message') return
-    listeners.add(handler)
-  }
-
-  function removeEventListener(type, handler) {
-    if (type !== 'message') return
-    listeners.delete(handler)
-  }
-
-  // onmessage setter/getter backed by a single handler
-  let _onmessage = null
-  function setOnMessage(fn) {
-    if (typeof _onmessage === 'function') listeners.delete(_onmessage)
-    _onmessage = fn
-    if (typeof fn === 'function') listeners.add(fn)
-  }
-
-  return {
-    emit,
-    on,
-    postMessage,
-    addEventListener,
-    removeEventListener,
-    get onmessage() { return _onmessage },
-    set onmessage(fn) { setOnMessage(fn) },
-  }
-})()
-
-export function shareTables(tables) {
-  try { bus.emit('tables:update', tables ?? {}) } catch {}
-}
-
-export function shareAlerts(alerts) {
-  try { bus.emit('alerts:update', alerts ?? { items: [] }) } catch {}
-}
-
-export function useTablesFromSocket() {
-  const [tables, setTables] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('tables:last') || '{}') } catch { return {} }
-  })
+  const [data, setData] = useState(initial)
+  // if we have an initial cached snapshot, tests expect loading to be false
+  const [loading, setLoading] = useState(initial == null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!bus) return () => {}
-    const unsub = bus.on((msg) => {
-      if (!msg) return
-      if (msg.type === 'tables:update') setTables(msg.payload ?? {})
-    })
-    return unsub
-  }, [])
+    let alive = true
 
-  return tables
+    async function doFetch() {
+      setLoading(true)
+      setError(null)
+      try {
+        const raw = await fetchWithSWR(endpoint)
+        if (!alive) return
+        const out = typeof normalizer === 'function' ? normalizer(raw) : raw
+        setData(out)
+        setLoading(false)
+      } catch (e) {
+        if (!alive) return
+        setError(e)
+        setLoading(false)
+      }
+    }
+
+    doFetch()
+
+    let id
+    if (pollMs > 0) {
+      id = setInterval(() => { doFetch() }, pollMs)
+    }
+
+    return () => { alive = false; if (id) clearInterval(id) }
+  }, [endpoint, pollMs])
+
+  // historic consumers (tests) expect tuple [data, loading, error]
+  return [data, loading, error]
 }
 
-export default {
-  API_ENDPOINTS,
-  fetchJSON,
-  getApiBaseUrl,
-  bus,
-  shareTables,
-  shareAlerts,
+// Provide getApiBaseUrl and a tiny in-page bus and share helpers for other modules/tests that expect them
+export function getApiBaseUrl() {
+  return API_BASE
+}
+
+const _eventListeners = new Map()
+const _globalListeners = new Set()
+
+export const bus = {
+  // bus.on(fn) -> global listener (receives { type, payload })
+  // bus.on(evt, fn) -> event-specific listener (receives payload)
+  on(a, b) {
+    if (typeof a === 'function' && b === undefined) {
+      _globalListeners.add(a)
+      return () => { _globalListeners.delete(a) }
+    }
+    const evt = a
+    const fn = b
+    const arr = _eventListeners.get(evt) || []
+    arr.push(fn)
+    _eventListeners.set(evt, arr)
+    return () => {
+      const a2 = _eventListeners.get(evt) || []
+      _eventListeners.set(evt, a2.filter(f => f !== fn))
+    }
+  },
+  emit(evt, payload) {
+    // call event-specific listeners with payload
+    const arr = _eventListeners.get(evt) || []
+    for (const fn of arr) {
+      try { fn(payload) } catch (e) { try { console.error('[bus]', evt, e) } catch (_) {} }
+    }
+    // call global listeners with envelope
+    const envelope = { type: evt, payload }
+    for (const g of Array.from(_globalListeners)) {
+      try { g(envelope) } catch (e) { try { console.error('[bus] global', e) } catch (_) {} }
+    }
+  }
+}
+
+export function shareTables(payload) {
+  try { sessionStorage.setItem('tables:last', JSON.stringify(payload || {})) } catch (_){ }
+}
+
+export function shareAlerts(payload) {
+  try { sessionStorage.setItem('alerts:last', JSON.stringify(payload || { items: [] })) } catch (_){ }
+}
+
+export async function fetchJSON(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (err) {
+    // non-JSON response
+    const e = new Error("Invalid JSON response");
+    e.responseText = text;
+    e.originalError = err;
+    throw e;
+  }
+
+  if (!res.ok) {
+    const e = new Error(data?.message || `HTTP ${res.status}`);
+    e.status = res.status;
+    e.data = data;
+    throw e;
+  }
+
+  return data;
 }

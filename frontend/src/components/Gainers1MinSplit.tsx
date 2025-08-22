@@ -33,10 +33,11 @@ export default function Gainers1MinSplit(){
   const left = rows.slice(0,4), right = rows.slice(4,8);
   const avgPct = rows.length? (rows.reduce((a,r)=> a + parseFloat(r.pct),0)/rows.length).toFixed(2)+'%':'—';
 
+  const loading = !latestData || left.length===0;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <TableShell variant="gainers" title="1–4 Minute Gainers" totalPct={avgPct} rows={left} columns={{ pctLabel:'1m %' }} />
-      <TableShell variant="gainers" title="5–8 Minute Gainers" totalPct={avgPct} rows={right} columns={{ pctLabel:'1m %' }} />
+      <TableShell variant="gainers" title="1–4 Minute Gainers" totalPct={avgPct} rows={left} columns={{ pctLabel:'1m %' }} loading={loading} emptyMessage="No 1m gainers yet" />
+      <TableShell variant="gainers" title="5–8 Minute Gainers" totalPct={avgPct} rows={right} columns={{ pctLabel:'1m %' }} loading={loading} emptyMessage="No 1m gainers yet" />
     </div>
   );
 }

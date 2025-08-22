@@ -1,3 +1,2 @@
-// Thin compatibility shim: some older imports reference GainersTable1m.jsx
-// Forward to the canonical GainersTable1Min component.
-export { default } from './GainersTable1Min.jsx';
+// Deprecated legacy losers table misfiled under gainers naming.
+export default function GainersTable1m(){ return null }

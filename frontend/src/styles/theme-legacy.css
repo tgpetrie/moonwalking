@@ -1,0 +1,111 @@
+/* src/styles/theme-legacy.css
+   Restores legacy “ink/purple” design on top of app-panel/app-table structure. */
+
+/* --- Core tokens --- */
+:root {
+  --bg:       #0a0a0f;      /* page background */
+  --panel:    #0e0e16;      /* card/panel background */
+  --panel-2:  #0f0f1a;      /* slightly lighter for zebra/hover */
+  --border:   #26263a;      /* subtle purple-ish border */
+  --ink:      #e7e7f3;      /* primary text */
+  --muted:    #9aa0b2;      /* secondary text */
+
+  --accent:   #7c3aed;      /* purple accent */
+  --accent-2: #6d28d9;      /* deeper purple */
+  --gain:     #4ade80;      /* green */
+  --loss:     #ef4444;      /* red */
+  --warn:     #f59e0b;
+
+  --row-h:    38px;         /* compact row height */
+  --radius:   10px;
+}
+
+/* --- Page shell --- */
+body, #root, .app-shell {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* --- Panels (cards) --- */
+.app-panel {
+  background: linear-gradient(0deg, rgba(124,58,237,0.04), rgba(124,58,237,0.04)) , var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(124,58,237,.08) inset, 0 10px 18px rgba(0,0,0,.35);
+}
+
+/* panel titles (the small caps bars at the top) */
+.app-panel .border-b {
+  background: linear-gradient(90deg, rgba(124,58,237,.10), transparent 45%),
+              linear-gradient(0deg, rgba(255,255,255,.02), rgba(255,255,255,.02));
+}
+
+/* --- Tables --- */
+.app-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.app-table thead th {
+  height: calc(var(--row-h) - 6px);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: 11px;
+  color: var(--muted);
+  /* modern mix for newer browsers */
+  color: color-mix(in oklab, var(--muted) 85%, white 15%);
+  background: color-mix(in oklab, var(--panel) 80%, black 20%);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-table tbody td {
+  height: var(--row-h);
+  border-bottom: 1px solid var(--border);
+  /* modern mix for newer browsers */
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, black 40%);
+  color: var(--ink);
+}
+
+/* zebra + hover */
+.app-table tbody tr:nth-child(odd) td {
+  background: color-mix(in oklab, var(--panel) 88%, var(--accent) 4%);
+}
+.app-table tbody tr:hover td {
+  background: color-mix(in oklab, var(--panel-2) 85%, white 3%);
+}
+
+/* numbers */
+.tabular-nums { font-variant-numeric: tabular-nums slashed-zero; }
+
+/* deltas */
+.text-gain { color: var(--gain); font-weight: 700; }
+.text-loss { color: var(--loss); font-weight: 700; }
+
+/* mini tables (Top 1-min left/right) get a tighter look */
+.app-panel .mini th,
+.app-panel .mini td { height: 34px; font-size: 12.5px; }
+.app-panel .mini thead th { font-size: 10.5px; }
+
+/* --- Banners --- */
+.banner__track {
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(124,58,237,.12), transparent 50%),
+              color-mix(in oklab, var(--panel) 92%, black 8%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.banner__item {
+  color: var(--ink);
+  opacity: .95;
+}
+
+/* --- Watchlist alignment to match tables --- */
+.watchlist .app-table thead th,
+.watchlist .app-table tbody td {
+  padding-left: 14px;
+  padding-right: 14px;
+}

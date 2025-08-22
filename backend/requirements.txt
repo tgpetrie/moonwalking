@@ -1,16 +1,16 @@
 # Core Flask dependencies
-flask==3.1.1
-flask-cors==6.0.1
+flask==3.0.3
+flask-cors==4.0.1
 flask-socketio==5.3.6
 
 # HTTP requests and data handling
 requests==2.32.2
 
 # Testing
-pytest==8.3.5
+pytest==8.3.3
 
 # Production server
-gunicorn==21.2.0
+gunicorn==23.0.0
 
 # Environment management
 python-dotenv==1.0.1
@@ -19,7 +19,7 @@ python-dotenv==1.0.1
 sentry-sdk[flask]==2.21.0
 
 # Health checks and monitoring
-psutil==6.1.1
+psutil==7.0.0
 
 # Rate limiting for production
 flask-limiter==3.8.0

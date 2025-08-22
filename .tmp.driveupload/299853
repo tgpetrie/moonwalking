@@ -1,0 +1,9 @@
+[
+  "backend/test_app.py::TestCalculateIntervalChanges::test_calculate_interval_changes",
+  "backend/test_app.py::TestFormatCryptoData::test_format_crypto_data",
+  "backend/test_app.py::TestProcessProductData::test_process_product_data",
+  "backend/test_emit_ticks.py::test_emit_ticks_compute_60m_from_history",
+  "backend/test_emit_ticks.py::test_emit_ticks_with_explicit_60m_metrics",
+  "backend/test_watchlist_insights.py::TestSmartWatchlistInsights::test_drop_alert",
+  "backend/test_watchlist_insights.py::TestSmartWatchlistInsights::test_large_cap_suggestion"
+]

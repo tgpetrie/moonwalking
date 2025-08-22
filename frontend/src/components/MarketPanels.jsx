@@ -2,13 +2,14 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import TopBannerScroll from './TopBannerScroll.jsx';
 import BottomBannerScroll from './BottomBannerScroll.jsx';
 
-const TopOneMinGainers = lazy(() => import('./TopOneMinGainers.jsx'));
-const Gainers3Min      = lazy(() => import('./Gainers3Min.jsx'));
-const Losers3Min       = lazy(() => import('./Losers3Min.jsx'));
-const Watchlist        = lazy(() => import('./Watchlist.jsx'));
+// Unified 1m gainers split component replaces legacy TopOneMinGainers
+const Gainers1MinSplit = lazy(() => import('./Gainers1MinSplit.tsx'));
+const Gainers3Min      = lazy(() => import('./Gainers3Min.tsx'));
+const Losers3Min       = lazy(() => import('./Losers3Min.tsx'));
+const Watchlist        = lazy(() => import('./Watchlist.tsx'));
 
 const TABS = [
-  { key: 'g1', label: '1m Gainers', Component: TopOneMinGainers },
+  { key: 'g1', label: '1m Gainers', Component: Gainers1MinSplit },
   { key: 'g3', label: '3m Gainers', Component: Gainers3Min },
   { key: 'l3', label: '3m Losers',  Component: Losers3Min },
 ];
@@ -47,9 +48,9 @@ export default function MarketPanels() {
       </div>
 
       <div className="only-desktop mp__grid-3">
-        <Suspense fallback={<PanelLoading />}><TopOneMinGainers /></Suspense>
-        <Suspense fallback={<PanelLoading />}><Gainers3Min /></Suspense>
-        <Suspense fallback={<PanelLoading />}><Losers3Min /></Suspense>
+        <Suspense fallback={<PanelLoading />}>\<Gainers1MinSplit /></Suspense>
+        <Suspense fallback={<PanelLoading />}>\<Gainers3Min /></Suspense>
+        <Suspense fallback={<PanelLoading />}>\<Losers3Min /></Suspense>
       </div>
 
       <div className="only-desktop">

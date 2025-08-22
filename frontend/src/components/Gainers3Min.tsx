@@ -13,5 +13,6 @@ export default function Gainers3Min(){
     .sort((a,b)=> b.delta_3m - a.delta_3m)
     .map((r,i)=> ({ rank:i+1, symbol:r.symbol.toUpperCase(), price:'$'+r.price.toFixed(2), pct:(r.delta_3m>=0?'+':'')+(r.delta_3m*100).toFixed(2)+'%', peak:r.peak, flash: flashes.get(r.symbol) })), [list, flashes]);
   const headline = rows.length? rows[0].pct:'—';
-  return <TableShell variant='gainers' title='3-Minute Gainers' totalPct={headline} rows={rows} columns={{ pctLabel:'3m %' }} />
+  const loading = !latestData || rows.length===0;
+  return <TableShell variant='gainers' title='3-Minute Gainers' totalPct={headline} rows={rows} columns={{ pctLabel:'3m %' }} loading={loading} emptyMessage='No 3m gainers yet' />
 }

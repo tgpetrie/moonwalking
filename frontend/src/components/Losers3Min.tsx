@@ -15,5 +15,6 @@ export default function Losers3Min(){
     .slice(0,8)
     .map((r,i)=> ({ rank:i+1, symbol:r.symbol.toUpperCase(), price:'$'+r.price.toFixed(2), pct:(r.delta_3m>=0?'+':'')+(r.delta_3m*100).toFixed(2)+'%', peak:r.peak, flash: flashes.get(r.symbol) })), [list, flashes]);
   const headline = rows.length? rows[0].pct:'—';
-  return <TableShell variant='losers' title='3-Minute Losers' totalPct={headline} rows={rows} columns={{ pctLabel:'3m %' }} />
+  const loading = !latestData || rows.length===0;
+  return <TableShell variant='losers' title='3-Minute Losers' totalPct={headline} rows={rows} columns={{ pctLabel:'3m %' }} loading={loading} emptyMessage='No 3m losers yet' />
 }
