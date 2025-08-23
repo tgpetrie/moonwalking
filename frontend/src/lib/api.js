@@ -77,6 +77,9 @@ export async function fetchWithSWR(url, options = {}) {
   return performFetch(url, options);
 }
 
+// Backwards-compatible alias some components import
+export const fetchData = fetchWithSWR;
+
 // Background revalidation for SWR
 async function backgroundRevalidate(url) {
   try {

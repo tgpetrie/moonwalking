@@ -1,0 +1,98 @@
+/* --- subtle breathing animation for panels --- */
+.app-panel.breathe {
+  animation: breathe 7s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes breathe {
+  0%, 100% { transform: translateZ(0) scale(1); }
+  50%      { transform: translateZ(0) scale(1.012); }
+}
+
+/* Column widths and base table layout are defined below in the consolidated block */
+
+/* ✨ Shared table frame */
+.app-panel { background: var(--panel, #0b0b0f); border: 1px solid var(--border, #262626); border-radius: 10px; overflow: hidden; }
+
+/* ✨ Uniform tables */
+.app-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.app-table th, .app-table td { padding: 10px 12px; }
+.app-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink, #e7e7ea); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.app-table tbody td { font-size: 13px; }
+.app-table .col-rank   { width: 44px; }
+.app-table .col-asset  { width: auto; }
+.app-table .col-price  { width: 120px; }
+.app-table .col-change { width: 92px; }
+
+/* ✨ Subtle row hover — same as banners */
+.app-table tbody tr:hover {
+  background: color-mix(in oklab, var(--panel) 70%, white 4%);
+}
+
+/* ✨ Breathe animation (very gentle) */
+.table-breathe {
+  animation: table-breathe 4.8s ease-in-out infinite;
+}
+@keyframes table-breathe {
+  0%   { box-shadow: 0 0 0 0 rgba(139,92,246,0.0); }
+  50%  { box-shadow: 0 0 0 1px rgba(139,92,246,0.07); }
+  100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.0); }
+}
+
+/* ✨ Numerals */
+.tabular-nums { font-variant-numeric: tabular-nums slashed-zero; }
+
+/* (gain/loss colors and banner hover are defined later in this file) */
+
+/* ✨ Peak badge small */
+.peak-badge { color:#c084fc; background:transparent; padding: 2px 8px; border-radius: 999px; font-weight:700; font-size:10px; border:1px solid rgba(255,255,255,0.08); }
+
+/* ✨ Diamond glow rail helper */
+.diamond-rail { position: absolute; left:50%; transform: translateX(-50%); height:2px; width:80%; pointer-events:none; background: radial-gradient(closest-side, rgba(139,92,246,0.45), transparent 65%); filter: blur(2px); }
+
+/* ✨ Pulse for percentage only (optional) */
+/* pct-pulse is declared later */
+
+/* --- diamond rail and pct pulse from user patch --- */
+.rail--row {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.rail--row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 60%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, currentColor 0%, transparent 55%);
+  filter: blur(4px);
+  transform: translateZ(0);
+}
+.rail-purple { color: #7c3aed; }
+.rail-pink { color: #ec4899; }
+
+/* Signed percent helpers */
+.text-gain { color: #22c55e; }
+.text-loss { color: #ef4444; }
+
+@keyframes pct-breathe {
+  0%, 100% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+  50%      { text-shadow: 0 0 6px rgba(255,255,255,0.06); }
+}
+.pct-pulse { animation: pct-breathe 2.6s ease-in-out infinite; }
+
+/* Rubik-styled amount: currency and percent renderer */
+.rubik-amount { font-family: 'Rubik', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; display: inline-flex; align-items: baseline; gap: 0.12rem; }
+.rubik-amount .rubik-number { -webkit-font-variant-numeric: tabular-nums; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+.rubik-amount .rubik-symbol { opacity: 0.9; font-size: 0.85em; transform: translateY(-1px); }
+.rubik-amount[data-amount-type='percent'] .rubik-symbol { color: inherit; }
+.rubik-amount.rubik-pulse .rubik-number { animation: pct-pulse 1.6s ease-in-out infinite; }
+
+
+/* Banner/table hover parity */
+.banner-pill { background: transparent; }
+.banner-pill:hover,
+.app-table tbody tr:hover { background: color-mix(in oklab, var(--panel, #0b0b0f) 70%, white 4%); }

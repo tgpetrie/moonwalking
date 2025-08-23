@@ -246,6 +246,13 @@ CONFIG = {
         int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
         if x.strip().isdigit()
     ] or [3, 5],
+    # Adaptive thresholds and sizing (percent values)
+    'MIN_DELTA_1M': float(os.environ.get('MIN_DELTA_1M', 0.10)),
+    'MIN_DELTA_3M': float(os.environ.get('MIN_DELTA_3M', 0.15)),
+    'TOP_N_1M': int(os.environ.get('TOP_N_1M', 16)),
+    'TOP_N_3M': int(os.environ.get('TOP_N_3M', 16)),
+    'VOL_K': float(os.environ.get('VOL_K', 2.5)),
+    'MIN_FALLBACK': float(os.environ.get('MIN_FALLBACK', 0.02)),
 }
 
 # Cache and price history storage
@@ -351,6 +358,25 @@ def find_available_port(start_port=5001, max_attempts=10):
     
     logging.error(f"Could not find available port in range {start_port}-{start_port + max_attempts}")
     return None
+
+
+# ---------------- Adaptive threshold helper ----------------
+def dynamic_floor(changes_pct, base_floor, k=None, min_floor=None):
+    """Return adaptive dynamic floor based on median + k*MAD with sensible bounds."""
+    try:
+        import math, statistics
+        k = float(k) if k is not None else float(CONFIG.get('VOL_K', 2.5))
+        min_floor = float(min_floor) if min_floor is not None else float(CONFIG.get('MIN_FALLBACK', 0.02))
+        base_floor = float(base_floor)
+        xs = [abs(float(x)) for x in (changes_pct or []) if x is not None and math.isfinite(float(x))]
+        if not xs:
+            return round(max(base_floor, min_floor), 3)
+        med = statistics.median(xs)
+        mad = statistics.median([abs(x - med) for x in xs]) or 0.0
+        floor = max(base_floor, min_floor, med + k * mad)
+        return round(min(floor, 5.0), 3)
+    except Exception:
+        return round(float(base_floor), 3)
 
 def kill_process_on_port(port):
     """Kill process using the specified port"""
@@ -1099,15 +1125,50 @@ def get_tables_3min():
         # Extract gainers and losers from the main data
         gainers = data.get('gainers', [])
         losers = data.get('losers', [])
-        
+
+        # Adaptive thresholding for 3-minute movers
+        base_floor_3m = CONFIG.get('MIN_DELTA_3M', 0.15)
+        top_n_3m = CONFIG.get('TOP_N_3M', 16)
+        vol_k = CONFIG.get('VOL_K', 2.5)
+        min_fallback = CONFIG.get('MIN_FALLBACK', 0.02)
+
+        # Build lists as rows with numeric change values
+        three_all = [type('R', (), {'symbol': g.get('symbol'), 'change_3m': float(g.get('gain', 0))}) for g in gainers]
+        # Only use adaptive/dynamic floors in development by default. Set FORCE_ADAPTIVE=true to override.
+        adaptive_enabled = bool(CONFIG.get('DEBUG', False)) or os.environ.get('FORCE_ADAPTIVE', 'false').lower() == 'true'
+        if adaptive_enabled:
+            thr3 = dynamic_floor([r.change_3m for r in three_all], base_floor_3m, vol_k, min_fallback)
+        else:
+            thr3 = float(base_floor_3m)
+        t3m = [r for r in three_all if abs(r.change_3m) >= thr3]
+        # sort by magnitude and limit
+        t3m = sorted(t3m, key=lambda r: r.change_3m, reverse=True)[:top_n_3m]
+
+        # guarantee at least 8 entries to avoid empty UI
+        if len(t3m) < 8 and three_all:
+            t3m = sorted(three_all, key=lambda r: r.change_3m, reverse=True)[:max(8, top_n_3m)]
+
+        # Map back to formatted objects using existing gainers list
+        selected_symbols_3m = {r.symbol for r in t3m}
+        selected_gainers = [g for g in gainers if g.get('symbol') in selected_symbols_3m][:15]
+
+        # For losers, apply threshold similarly (use negatives from gainers list)
+        three_all_l = [type('R', (), {'symbol': l.get('symbol'), 'change_3m': float(l.get('gain', 0))}) for l in losers]
+        t3m_l = [r for r in three_all_l if abs(r.change_3m) >= thr3]
+        t3m_l = sorted(t3m_l, key=lambda r: r.change_3m)[:top_n_3m]
+        if len(t3m_l) < 8 and three_all_l:
+            t3m_l = sorted(three_all_l, key=lambda r: r.change_3m)[:max(8, top_n_3m)]
+        selected_symbols_3m_l = {r.symbol for r in t3m_l}
+        selected_losers = [l for l in losers if l.get('symbol') in selected_symbols_3m_l][:15]
+
         # Format specifically for tables with 3-minute data
         tables_data = {
-            "gainers": gainers[:15],  # Top 15 gainers
-            "losers": losers[:15],    # Top 15 losers
+            "gainers": selected_gainers,
+            "losers": selected_losers,
             "type": "tables_3min",
             "count": {
-                "gainers": len(gainers[:15]),
-                "losers": len(losers[:15])
+                "gainers": len(selected_gainers),
+                "losers": len(selected_losers)
             },
             "last_updated": datetime.now().isoformat()
         }
@@ -1545,17 +1606,31 @@ def get_crypto_data_1min():
         for sym in to_delete:
             pers.pop(sym, None)
 
-        # Add new entries meeting enter threshold until capacity (using peak pct)
+        # Adaptive selection: compute dynamic floor and pick top candidates
+        base_floor_1m = CONFIG.get('MIN_DELTA_1M', 0.10)
+        top_n_1m = CONFIG.get('TOP_N_1M', 16)
+        vol_k = CONFIG.get('VOL_K', 2.5)
+        min_fallback = CONFIG.get('MIN_FALLBACK', 0.02)
+
         sorted_candidates = sorted(
             crypto_data,
             key=lambda x: abs(x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0))),
             reverse=True
         )
+
+        # Only use adaptive/dynamic floors in development by default. Set FORCE_ADAPTIVE=true to override.
+        adaptive_enabled_1m = bool(CONFIG.get('DEBUG', False)) or os.environ.get('FORCE_ADAPTIVE', 'false').lower() == 'true'
+        if adaptive_enabled_1m:
+            thr1 = dynamic_floor([c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) for c in sorted_candidates], base_floor_1m, vol_k, min_fallback)
+        else:
+            thr1 = float(base_floor_1m)
+
+        # Fill persistence with items above adaptive threshold up to capacity
         for coin in sorted_candidates:
             if len(pers) >= max_coins:
                 break
             pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
-            if abs(pct) >= enter_pct and coin['symbol'] not in pers:
+            if abs(pct) >= max(enter_pct, thr1) and coin['symbol'] not in pers:
                 pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
 
         # Build separate gainers/losers lists from persistence set
@@ -1567,17 +1642,26 @@ def get_crypto_data_1min():
         losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
 
         # Seed fallback: on a cold or quiet period when nothing is retained yet,
-        # gently prefill with the top movers over a tiny threshold so UI isn't empty.
+        # use adaptive threshold or a small seed threshold to avoid empty UI.
         if not retained_symbols:
             seed_pct = float(CONFIG.get('ONE_MIN_SEED_PCT', 0.02))  # 0.02% default
             seed_count = int(CONFIG.get('ONE_MIN_SEED_COUNT', 6))
             seeded = 0
-            for coin in sorted_candidates:
+            # Prefer thr1 if it yields enough items, otherwise fallback to seed_pct
+            seed_source = sorted_candidates
+            for coin in seed_source:
                 if seeded >= seed_count:
                     break
                 pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
-                if abs(pct) >= seed_pct:
+                if abs(pct) >= max(seed_pct, thr1):
                     pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
+                    seeded += 1
+            # If still empty, force top N fallback
+            if not seeded and sorted_candidates:
+                for coin in sorted_candidates[:max(8, top_n_1m)]:
+                    if seeded >= seed_count:
+                        break
+                    pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))}
                     seeded += 1
             if seeded:
                 retained_symbols = set(pers.keys())
