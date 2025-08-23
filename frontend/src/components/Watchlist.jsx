@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { getWatchlist, addToWatchlist, removeFromWatchlist, fetchLatestAlerts } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
+import PriceFlash from './PriceFlash';
+import TableShell from './TableShell';
 
 const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   // All hooks must be called unconditionally
@@ -293,28 +295,35 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                       />
                     </span>
 
-                    <div className="relative z-10 grid grid-cols-[1fr_140px_88px_72px] items-center gap-2 sm:gap-3">
+                    <div className="relative z-10">
+                      <TableShell>
 
                       {/* LEFT flexible: rank + symbol */}
                       <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange/40 text-orange font-bold text-sm shrink-0">★</div>
                         <div className="min-w-0">
-                          <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
+                          <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 8)}</div>
                         </div>
                       </div>
 
-                      {/* PRICE (140px) */}
-                      <div className="flex flex-col items-end w-[140px] tabular-nums whitespace-nowrap">
-                        <span className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono">
-                          {Number.isFinite(priceNow) ? `${priceNow < 1 && priceNow > 0 ? priceNow.toFixed(4) : priceNow.toFixed(2)}` : 'N/A'}
-                        </span>
+                      {/* PRICE (152px) */}
+                      <div className="flex flex-col items-end w-[152px] tabular-nums whitespace-nowrap">
+                        {Number.isFinite(priceNow) ? (
+                          <PriceFlash
+                            value={priceNow}
+                            precision={priceNow < 1 && priceNow > 0 ? 4 : 2}
+                            className="text-teal font-mono text-base sm:text-lg md:text-xl font-bold"
+                          />
+                        ) : (
+                          <span className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono">N/A</span>
+                        )}
                         <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 font-mono">
                           {Number.isFinite(priceAtAdd) ? `${priceAtAdd < 1 && priceAtAdd > 0 ? priceAtAdd.toFixed(4) : priceAtAdd.toFixed(2)}` : '--'}
                         </span>
                       </div>
 
-                      {/* % CHANGE (88px) */}
-                      <div className="flex flex-col items-end w-[88px] tabular-nums whitespace-nowrap">
+                      {/* % CHANGE (108px) */}
+                      <div className="flex flex-col items-end w-[108px] tabular-nums whitespace-nowrap">
                         <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${change > 0 ? 'text-blue' : 'text-pink'}`}>
                           {change > 0 && <span className="font-mono">+</span>}
                           <span className="font-mono">{typeof change === 'number' ? formatPercentage(change) : 'N/A'}</span>
@@ -322,7 +331,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                       </div>
 
                       {/* Delete Button (72px) */}
-                      <div className="flex items-center justify-end w-[72px]">
+                      <div className="flex items-center justify-end w-[48px]">
                         <button
                           onClick={(e) => {e.preventDefault(); handleRemove(r.symbol);}}
                           className="text-red-500 hover:text-red-400 transition-colors flex-shrink-0 p-2"
@@ -331,7 +340,8 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                           <RiDeleteBinLine size={20} />
                         </button>
                       </div>
-                    </div>
+                      </TableShell>
+                      </div>
 
                     <div className="mt-1 relative z-10 flex items-center justify-between min-h-[16px]">
                       <span className="uppercase tracking-wide text-gray-400 text-[10px]">TOTAL</span>

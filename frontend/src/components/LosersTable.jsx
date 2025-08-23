@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
+import TableShell from './TableShell';
+import PriceFlash from './PriceFlash';
 
 const LosersTable = ({ refreshTrigger }) => {
   // Inject animation styles for pop/fade effects (watchlist add feedback)
@@ -169,22 +171,28 @@ const LosersTable = ({ refreshTrigger }) => {
                   />
                 </span>
 
-                {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                {/* MAIN ROW — use TableShell for consistent column sizing */}
+                <TableShell>
 
                   {/* LEFT flexible: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/40 text-pink font-bold text-sm shrink-0">{r.rank}</div>
                     <div className="min-w-0">
-                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
+                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 8)}</div>
                     </div>
                   </div>
 
                   {/* Col2: Price (stack current + previous) */}
                   <div className="w-[152px] pr-6 text-right">
-                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
-                    </div>
+                    {Number.isFinite(r.price) ? (
+                      <PriceFlash
+                        value={r.price}
+                        precision={r.price < 1 && r.price > 0 ? 4 : 2}
+                        className="text-teal font-mono text-base sm:text-lg md:text-xl font-bold tabular-nums leading-none"
+                      />
+                    ) : (
+                      <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none">N/A</div>
+                    )}
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                       {prev !== null
                         ? `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`
@@ -198,13 +206,13 @@ const LosersTable = ({ refreshTrigger }) => {
                       {r.change > 0 && '+'}{typeof r.change === 'number' ? formatPercentage(r.change) : 'N/A'}
                     </div>
                     {typeof r.peakCount === 'number' && r.peakCount > 0 && (
-                      <div className="text-xs text-gray-400 leading-tight">Peak x{r.peakCount}</div>
+                      <span className="badge-peak badge-peak--compact" aria-hidden>{r.peakCount <= 1 ? 'x' : `x${r.peakCount}`}</span>
                     )}
                     <div className="text-xs text-gray-400 leading-tight">3-min</div>
                   </div>
 
-                  {/* Col4: Star (tight) */}
-                  <div className="w-[28px] text-right">
+                  {/* Col4: Star (action area) */}
+                  <div className="w-[48px] text-right">
                     <button
                       onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol, r.price);}}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
@@ -218,7 +226,7 @@ const LosersTable = ({ refreshTrigger }) => {
                       />
                     </button>
                   </div>
-                </div>
+                </TableShell>
 
                 {/* meta strip removed; info moved into main cells */}
 

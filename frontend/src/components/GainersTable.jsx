@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.js';
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
+import TableShell from './TableShell';
+import PriceFlash from './PriceFlash';
 
 // --- helpers to robustly read fields regardless of backend aliasing ---
 const toNum = (v) => {
@@ -163,22 +165,28 @@ const GainersTable = ({ refreshTrigger }) => {
                   />
                 </span>
 
-                {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                {/* MAIN ROW — use TableShell for consistent column sizing */}
+                <TableShell>
 
                   {/* LEFT flexible: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{r.rank}</div>
                     <div className="min-w-0">
-                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
+                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 8)}</div>
                     </div>
                   </div>
 
                   {/* Col2: Price (stack current + previous) */}
                   <div className="w-[152px] pr-6 text-right">
-                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {Number.isFinite(r.price) ? `$${r.price < 1 && r.price > 0 ? r.price.toFixed(4) : r.price.toFixed(2)}` : 'N/A'}
-                    </div>
+                    {Number.isFinite(r.price) ? (
+                      <PriceFlash
+                        value={r.price}
+                        precision={r.price < 1 && r.price > 0 ? 4 : 2}
+                        className="text-teal font-mono text-base sm:text-lg md:text-xl font-bold tabular-nums leading-none"
+                      />
+                    ) : (
+                      <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none">N/A</div>
+                    )}
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                       {typeof r.prev3m === 'number'
                         ? `$${r.prev3m < 1 && r.prev3m > 0 ? r.prev3m.toFixed(4) : r.prev3m.toFixed(2)}`
@@ -192,13 +200,13 @@ const GainersTable = ({ refreshTrigger }) => {
                       {typeof r.change3m === 'number' ? `${r.change3m > 0 ? '+' : ''}${formatPercentage(r.change3m)}` : 'N/A'}
                     </div>
                     {typeof r.peakCount === 'number' && r.peakCount > 0 && (
-                      <div className="text-xs text-gray-400 leading-tight">Peak x{r.peakCount}</div>
+                      <span className="badge-peak badge-peak--compact" aria-hidden>{r.peakCount <= 1 ? 'x' : `x${r.peakCount}`}</span>
                     )}
                     <div className="text-xs text-gray-400 leading-tight">3-min</div>
                   </div>
 
-                  {/* Col4: Star (tight) */}
-                  <div className="w-[28px] text-right">
+                  {/* Col4: Star (action area) */}
+                  <div className="w-[48px] text-right">
                     <button
                       onClick={(e)=>{e.preventDefault(); /* symbol only for now */ setPopStar(r.symbol); setTimeout(()=>setPopStar(null), 350); }}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
@@ -212,7 +220,7 @@ const GainersTable = ({ refreshTrigger }) => {
                       />
                     </button>
                   </div>
-                </div>
+                </TableShell>
               </div>
             </a>
           </div>

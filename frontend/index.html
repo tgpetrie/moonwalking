@@ -7,8 +7,7 @@
     <link rel="icon" type="image/png" href="/bhabit-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BHABITS CB INSIGHT</title>
-    <!-- Preload critical shared chunks (react core); names rely on manualChunks config -->
-    <link rel="preload" as="script" href="/assets/react.js" />
+    <!-- Production-only preloads removed for dev to avoid 404s; Vite serves ESM modules directly in dev. -->
         <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
         <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
         <script>
@@ -35,6 +34,21 @@
                 link2.href = '//' + new URL(host).host;
                 document.head.appendChild(link2);
             }
+
+            // Load Montserrat for headings and badges with strong weights
+            const mx1 = document.createElement('link');
+            mx1.rel = 'preconnect';
+            mx1.href = 'https://fonts.googleapis.com';
+            document.head.appendChild(mx1);
+            const mx2 = document.createElement('link');
+            mx2.rel = 'preconnect';
+            mx2.href = 'https://fonts.gstatic.com';
+            mx2.crossOrigin = 'anonymous';
+            document.head.appendChild(mx2);
+            const mlink = document.createElement('link');
+            mlink.rel = 'stylesheet';
+            mlink.href = 'https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,800;1,700&display=swap';
+            document.head.appendChild(mlink);
         </script>
 </head>
 

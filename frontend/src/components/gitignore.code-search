@@ -1,0 +1,9 @@
+# Query: gitignore
+# ContextLines: 1
+
+#!/bin/sh
+# Block staging Google Drive or Vercel junk
+if git diff --cached --name-only | grep -E '^(\.tmp\.driveupload/|\.vercel/)' >/dev/null; then
+  echo "❌ ERROR: Attempted to commit Drive/Vercel temp files. Commit aborted."
+  exit 1
+fi

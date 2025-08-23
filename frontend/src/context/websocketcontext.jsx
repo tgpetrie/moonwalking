@@ -18,7 +18,9 @@ export const WebSocketProvider = ({ children }) => {
   const [latestData, setLatestData] = useState({
     crypto: null,
     prices: {},
-    watchlist: null
+    watchlist: null,
+    tables: null,
+    alerts: null
   });
   const [isPolling, setIsPolling] = useState(false);
   // Hold an object { id: timeoutId, abort: fn }
@@ -176,7 +178,39 @@ export const WebSocketProvider = ({ children }) => {
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 
-  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
+    // Subscribe to new table and alert events
+    const unsubscribeTables = subscribeToWebSocket('tables:update', (data) => {
+      console.log('📊 Received tables update via WebSocket:', data);
+      setLatestData(prev => ({ ...prev, tables: data }));
+      
+      // Store in sessionStorage for SWR
+      if (data.t1m) {
+        sessionStorage.setItem('cache:tables:t1m', JSON.stringify({
+          data: data.t1m,
+          timestamp: Date.now()
+        }));
+      }
+      if (data.t3m) {
+        sessionStorage.setItem('cache:tables:t3m', JSON.stringify({
+          data: data.t3m,
+          timestamp: Date.now()
+        }));
+      }
+    });
+
+    const unsubscribeAlerts = subscribeToWebSocket('alerts:update', (data) => {
+      console.log('🚨 Received alerts update via WebSocket:', data);
+      setLatestData(prev => ({ ...prev, alerts: data }));
+      
+      // Store in sessionStorage for centralized alerts
+      sessionStorage.setItem('cache:alerts:recent', JSON.stringify({
+        data: data,
+        timestamp: Date.now()
+      }));
+    });
+
+  // Default to enabling WebSocket in dev unless explicitly disabled via env
+  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'false').toLowerCase() === 'true';
     if (disableWs) {
       // Skip WS entirely and use polling
       startPolling();
@@ -204,9 +238,51 @@ export const WebSocketProvider = ({ children }) => {
       unsubscribeCrypto();
       unsubscribePrices();
       unsubscribeWatchlist();
+      unsubscribeTables();
+      unsubscribeAlerts();
       disconnectWebSocket();
       stopPolling();
     };
+  }, []);
+
+  // Developer fixture: inject sample table data for visual preview when enabled.
+  // Controlled by VITE_DEV_FILL_TABLES=true (useful when backend/ws are not available).
+  useEffect(() => {
+    const enabled = String(import.meta?.env?.VITE_DEV_FILL_TABLES || '').toLowerCase() === 'true';
+    if (!enabled) return;
+
+    // A lightweight, realistic-looking fixture used purely for visual previews.
+    const sampleCrypto = [
+      { symbol: 'TNSR', current_price: 0.1260, price_change_percentage_1min: 2.44 },
+      { symbol: 'SUKU', current_price: 0.0383, price_change_percentage_1min: 2.13 },
+      { symbol: 'CVX', current_price: 4.2, price_change_percentage_1min: 1.82 },
+      { symbol: 'HIGH', current_price: 0.5650, price_change_percentage_1min: 1.62 },
+      { symbol: 'XTZ', current_price: 0.8520, price_change_percentage_1min: 1.07 },
+      { symbol: 'MINA', current_price: 0.19, price_change_percentage_1min: 1.06 },
+      { symbol: 'RARE', current_price: 0.0554, price_change_percentage_1min: 0.911 },
+      // Right-column losers (still included in array so components can pick slices)
+      { symbol: 'HOPR', current_price: 0.0611, price_change_percentage_1min: -1.93 },
+      { symbol: 'NCT', current_price: 0.0207, price_change_percentage_1min: -1.57 },
+      { symbol: 'AVAX', current_price: 23.79, price_change_percentage_1min: -0.335 },
+      { symbol: 'ALGO', current_price: 0.2557, price_change_percentage_1min: -0.156 },
+      { symbol: 'ATOM', current_price: 4.55, price_change_percentage_1min: -0.154 },
+      { symbol: 'INJ', current_price: 15.3, price_change_percentage_1min: -0.111 },
+      { symbol: 'SKY', current_price: 0.0775, price_change_percentage_1min: -0.103 }
+    ];
+
+    const pricesMap = {};
+    sampleCrypto.forEach(c => {
+      pricesMap[c.symbol] = {
+        price: c.current_price,
+        change: (c.price_change_percentage_1min || 0) * (c.current_price / 100),
+        changePercent: c.price_change_percentage_1min || 0,
+        timestamp: Date.now()
+      };
+    });
+
+    // Inject fixture and stop polling so fixture is stable
+    setLatestData(prev => ({ ...prev, crypto: sampleCrypto, prices: { ...prev.prices, ...pricesMap } }));
+    try { stopPolling(); } catch (_) {}
   }, []);
 
   const contextValue = {

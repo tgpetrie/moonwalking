@@ -3,17 +3,18 @@ import React from 'react';
 // tone: 'purple' (gainers) | 'pink' (losers)
 export default function PeakBadge({ count = 0, tone = 'purple' }) {
   const toneClasses = tone === 'pink'
-    ? 'bg-pink/30 text-pink-100'
-    : 'bg-purple-900/40 text-purple-100';
+  ? 'bg-pink/30 text-pink-100'
+  : 'bg-purple-900/40 text-purple-100';
 
-  const base = 'px-1.5 py-[1px] rounded text-[10px] font-bold tracking-wide';
+  const base = 'px-2 py-[2px] rounded text-[11px] font-bold tracking-wide inline-block';
 
   if (!count || count <= 0) {
-    return <span className={`${base} opacity-0 select-none`}>peak x0</span>;
+    return <span className={`${base} opacity-0 select-none`} aria-hidden> </span>;
   }
+  const label = count <= 1 ? 'x' : `x${count}`;
   return (
-    <span className={`${base} ${toneClasses}`} title="Peak count (local max magnitude in window)">
-      peak&nbsp;<span className="font-extrabold">x{count}</span>
+    <span className={`${base} ${toneClasses} badge-peak`} title="Peak count (local max magnitude in window)">
+      {label}
     </span>
   );
 }

@@ -3,7 +3,10 @@ import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist } from '../api.j
 import { formatPercentage, truncateSymbol } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
+import TableShell from './TableShell';
+import PriceFlash from './PriceFlash';
 import PeakBadge from './PeakBadge.jsx';
+import OneMinPercentCell from './OneMinPercentCell.jsx';
 import PropTypes from 'prop-types';
 
 /**
@@ -185,13 +188,13 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                     />
                   </span>
 
-                  {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                  <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                  {/* MAIN ROW — use TableShell for consistent column sizing */}
+                  <TableShell>
                     {/* LEFT flexible: rank + symbol */}
                     <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{item.rank}</div>
                       <div className="min-w-0 flex items-center gap-3">
-                        <span className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 6)}</span>
+                        <span className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(item.symbol, 8)}</span>
                         {showAdded && (
                           <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>
                         )}
@@ -200,9 +203,15 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
                     {/* Col2: Price (stack current + previous) */}
                     <div className="w-[152px] pr-6 text-right">
-                      <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                        {Number.isFinite(item.price) ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}` : 'N/A'}
-                      </div>
+                      {Number.isFinite(item.price) ? (
+                        <PriceFlash
+                          value={item.price}
+                          precision={item.price < 1 && item.price > 0 ? 4 : 2}
+                          className="text-teal font-mono text-base sm:text-lg md:text-xl font-bold tabular-nums leading-none"
+                        />
+                      ) : (
+                        <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none">N/A</div>
+                      )}
                       <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                         {typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
                           ? (() => { const prev = item.price / (1 + PCT / 100); return `$${prev < 1 && prev > 0 ? prev.toFixed(4) : prev.toFixed(2)}`; })()
@@ -212,17 +221,11 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
 
                     {/* Col3: % (stack % → Peak → interval) */}
                     <div className="w-[108px] pr-1.5 text-right align-top">
-                      <div className={`text-base sm:text-lg md:text-xl font-bold font-mono leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}> 
-                        {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : 'N/A'}
-                      </div>
-                      {typeof item.peakCount === 'number' && item.peakCount > 0 && (
-                        <div className="text-xs text-gray-400 leading-tight">Peak x{item.peakCount}</div>
-                      )}
-                      <div className="text-xs text-gray-400 leading-tight">{INTERVAL_LABEL}</div>
+                      <OneMinPercentCell value={PCT} peak={item.peakCount} interval={INTERVAL_LABEL} />
                     </div>
 
-                    {/* Col4: Star (tight) */}
-                    <div className="w-[28px] text-right">
+                    {/* Col4: Star (action area) */}
+                    <div className="w-[48px] text-right">
                       <button
                         onClick={(e)=>{e.preventDefault(); toggleWatch(item.symbol);}}
                         className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
@@ -238,7 +241,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                         />
                       </button>
                     </div>
-                  </div>
+                  </TableShell>
                 </div>
 
               </div>

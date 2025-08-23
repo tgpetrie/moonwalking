@@ -5,7 +5,10 @@ import subprocess
 import sys
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import time
 import threading
 from collections import defaultdict, deque
@@ -105,6 +108,9 @@ log_config_with_param(CONFIG)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
 
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
 # Add startup time tracking
 startup_time = time.time()
 
@@ -116,6 +122,33 @@ else:
     cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
 
 CORS(app, origins=cors_origins)
+
+# Setup pooled requests session with retries for Coinbase API
+def create_session():
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"],
+        backoff_factor=1,
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(
+        max_retries=retry_strategy,
+        pool_connections=10,
+        pool_maxsize=20
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    session.headers.update({
+        'User-Agent': 'CBMo4ers/1.0',
+        'Accept': 'application/json',
+        'Connection': 'keep-alive'
+    })
+    return session
+
+# Global session for API requests
+api_session = create_session()
 
 # Register blueprints after final app creation
 app.register_blueprint(watchlist_bp)
@@ -391,7 +424,7 @@ def update_config(new_config):
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        products_response = api_session.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
         if products_response.status_code == 200:
             products = products_response.json()
             current_prices = {}
@@ -431,7 +464,7 @@ def get_coinbase_prices():
                 symbol = product["id"]
                 ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
                 try:
-                    ticker_response = requests.get(ticker_url, timeout=1.5)
+                    ticker_response = api_session.get(ticker_url, timeout=1.5)
                     if ticker_response.status_code == 200:
                         ticker_data = ticker_response.json()
                         price = float(ticker_data.get('price', 0))
@@ -611,7 +644,7 @@ def get_24h_top_movers():
 def get_coinbase_24h_top_movers():
     """Fetch 24h top movers from Coinbase (optimized)."""
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        products_response = api_session.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
         if products_response.status_code != 200:
             return []
 
@@ -624,13 +657,13 @@ def get_coinbase_24h_top_movers():
             try:
                 # Get 24h stats
                 stats_url = f"https://api.exchange.coinbase.com/products/{product['id']}/stats"
-                stats_response = requests.get(stats_url, timeout=3)
+                stats_response = api_session.get(stats_url, timeout=3)
                 if stats_response.status_code != 200:
                     return None
 
                 # Get current price
                 ticker_url = f"https://api.exchange.coinbase.com/products/{product['id']}/ticker"
-                ticker_response = requests.get(ticker_url, timeout=2)
+                ticker_response = api_session.get(ticker_url, timeout=2)
                 if ticker_response.status_code != 200:
                     return None
 
@@ -869,7 +902,7 @@ def get_historical_chart_data(symbol, days=7):
             'granularity': granularity
         }
 
-        response = requests.get(url, params=params, timeout=CONFIG['API_TIMEOUT'])
+        response = api_session.get(url, params=params, timeout=CONFIG['API_TIMEOUT'])
 
         if response.status_code == 200:
             data = response.json()
@@ -1866,7 +1899,7 @@ def health_check():
         coinbase_status = "unknown"
         
         try:
-            coinbase_response = requests.get("https://api.exchange.coinbase.com/products", timeout=5)
+            coinbase_response = api_session.get("https://api.exchange.coinbase.com/products", timeout=5)
             coinbase_status = "up" if coinbase_response.status_code == 200 else "down"
         except:
             coinbase_status = "down"
@@ -2161,8 +2194,15 @@ def background_crypto_updates():
         try:
             # Update 3-min data cache
             data_3min = get_crypto_data()
+            tables_update = {}
+            
             if data_3min:
                 logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
+                tables_update['t3m'] = {
+                    'gainers': data_3min['gainers'],
+                    'losers': data_3min['losers'],
+                    'banner': data_3min['banner']
+                }
 
             # Respect config before doing 1-min related processing
             if CONFIG.get('ENABLE_1MIN', True):
@@ -2171,9 +2211,31 @@ def background_crypto_updates():
                     # Store for reuse by on-demand endpoint
                     last_current_prices['data'] = current_prices
                     last_current_prices['timestamp'] = time.time()
+                    
+                    # Get 1-min data
+                    data_1min = get_crypto_data_1min()
+                    if data_1min:
+                        tables_update['t1m'] = data_1min['gainers']
+                        logging.debug(f"1-min cache updated: {len(data_1min['gainers'])} gainers")
+                    
                     calculate_1min_changes(current_prices)
                     logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
                     _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+            
+            # Emit SocketIO events
+            if tables_update:
+                socketio.emit('tables:update', tables_update)
+                logging.debug(f"📊 Emitted tables:update with {len(tables_update)} datasets")
+            
+            # Emit alerts update
+            recent_alerts = list(alerts_log)[-10:]  # Last 10 alerts
+            if recent_alerts:
+                socketio.emit('alerts:update', {
+                    'alerts': recent_alerts,
+                    'count': len(recent_alerts),
+                    'timestamp': time.time()
+                })
+                logging.debug(f"🚨 Emitted alerts:update with {len(recent_alerts)} alerts")
 
         except Exception as e:
             logging.error(f"Error in background update: {e}")
@@ -2250,9 +2312,11 @@ if __name__ == '__main__':
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
     
     try:
-        app.run(debug=CONFIG['DEBUG'], 
-                host=CONFIG['HOST'], 
-                port=CONFIG['PORT'])
+        socketio.run(app,
+                    debug=CONFIG['DEBUG'], 
+                    host=CONFIG['HOST'], 
+                    port=CONFIG['PORT'],
+                    allow_unsafe_werkzeug=True)
     except OSError as e:
         if "Address already in use" in str(e):
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")

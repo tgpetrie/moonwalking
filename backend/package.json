@@ -1,5 +1,6 @@
 {
-  "dependencies": {
-    "tailwindcss-animate": "^1.0.7"
-  }
+  "name": "bhabit-backend",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {}
 }

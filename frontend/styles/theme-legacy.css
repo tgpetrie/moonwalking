@@ -1,0 +1,120 @@
+/* Legacy theme tweaks and overrides */
+
+/* === Uniform numeric typography (prices, % change) === */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&family=Fragment+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,800;1,700&display=swap');
+
+/* Force monospaced tabular numerals for numeric cells */
+.num,
+td.num,
+td.price,
+td.pct,
+.price,
+.pct {
+  /* numeric values use Fragment Mono (tabular) for perfect alignment */
+  font-family: "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  text-align: right;
+  font-weight: 600; /* slightly bolder for legibility */
+}
+
+/* Symbol column: guarantee at least 8 visible characters before ellipsis */
+td.symbol,
+.col-symbol {
+  min-width: 8ch;           /* show at least ~8 characters */
+  max-width: 24ch;          /* guard column growth */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Keep non-numeric body text on Raleway */
+body, .table, .card, .header, .header-purple, .header-pink {
+  font-family: Raleway, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+
+/* columns already fixed via colgroup + table-layout: fixed; */
+
+.table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* 1m-only “Peak ×N” tag */
+.badge-peak {
+  display: inline-block;
+  padding: 0 .5rem;
+  border-radius: 9999px;
+  font-size: 11px;            /* slightly larger for readability */
+  line-height: 1.25rem;
+  border: 1px solid rgba(146,57,166,0.18);
+  background: rgba(146,57,166,0.12);
+  color: #C026D3; /* purple label color (high contrast) */
+  font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  white-space: nowrap;        /* never wraps */
+}
+
+.badge-peak--compact {
+  display: block;
+  margin-left: auto; /* push to the right edge */
+  margin-top: 0.25rem;
+  padding: 0 .4rem;
+  font-weight: 700;
+}
+
+/* Ensure badge doesn't bump layout in one-min scope */
+.one-min td.pct,
+.one-min td.num {
+  vertical-align: middle;
+}
+
+/* Right align the peak badge and put it on its own line beneath the percent */
+.one-min .pct .badge-peak {
+  /* kept for compatibility; compact modifier handles visual tweaks */
+  display: block;
+  margin-left: auto;
+  margin-top: 0.25rem;
+}
+
+/* Explicit color tokens for percent positive/negative classes */
+.text-pct-positive { color: #C026D3; }
+.text-pct-negative { color: #FF5DA2; }
+
+/* Optional subtle hover that doesn't shift layout */
+.table tbody tr:hover td {
+  background: rgba(255,255,255,0.03);
+}
+
+/* Montserrat utility classes: use .montserrat-<weight> or .montserrat-badge */
+.montserrat-700 {
+  font-family: "Montserrat", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.montserrat-800 {
+  font-family: "Montserrat", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* Compact helper for badges using Montserrat */
+.montserrat-badge {
+  font-family: "Montserrat", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* app-panel wrapper and subtle breathe animation */
+.app-panel { display: block; }
+.breathe { animation: breathe 7s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: translateZ(0) scale(1); box-shadow: 0 0 0 rgba(0,0,0,0); }
+  50%      { transform: translateZ(0) scale(1.012); box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}

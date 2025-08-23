@@ -9,7 +9,7 @@ if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
 } else if (RAW_ENV_BASE === 'relative') {
   API_BASE_URL = ''; // same-origin relative mode
 } else {
-  API_BASE_URL = 'http://localhost:5001'; // dev fallback
+  API_BASE_URL = 'http://localhost:5002'; // dev fallback
 }
 API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 const buildEndpoints = () => ({

@@ -3,8 +3,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Saira', 'sans-serif'], // Use Saira as the default sans-serif font
-        mono: ['Saira', 'monospace'], // Use Saira for mono as well, or keep a monospace if needed
+        sans: ['Saira', 'sans-serif'],
+        mono: ['Saira', 'monospace']
       },
       colors: {
         orange: '#FF6B00',
@@ -16,7 +16,7 @@ export default {
         dark: '#000000',
         'mid-dark': '#111111',
         'light-dark': '#1a1a1a',
-        muted: '#888888',
+        muted: '#888888'
       },
       keyframes: {
         marquee: {
