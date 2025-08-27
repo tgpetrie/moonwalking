@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" href="/bhabit-logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BHABITS CB INSIGHT</title>
+    <!-- Preload critical shared chunks removed to avoid missing asset 404 during dev -->
+        <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
+        <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
+        <script>
+            (function(){
+                try {
+                    var api = (window.__VITE_API_URL__ || (window.importMeta && window.importMeta.env && window.importMeta.env.VITE_API_URL) || '').trim();
+                    // If Vite exposes import.meta.env on window at runtime, use it; otherwise fall back to build-time replacement via Vite.
+                } catch(e) {}
+            })();
+        </script>
+        <script type="module">
+            // Vite exposes import.meta.env within modules; use that to inject preconnect hints dynamically.
+            const api = (import.meta.env && import.meta.env.VITE_API_URL) ? String(import.meta.env.VITE_API_URL) : '';
+            const url = api ? api.replace(/\/$/, '') : '';
+            const host = url ? new URL(url).origin : '';
+            if (host) {
+                const link1 = document.createElement('link');
+                link1.rel = 'preconnect';
+                link1.href = host;
+                link1.crossOrigin = '';
+                document.head.appendChild(link1);
+                const link2 = document.createElement('link');
+                link2.rel = 'dns-prefetch';
+                link2.href = '//' + new URL(host).host;
+                document.head.appendChild(link2);
+            }
+        </script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

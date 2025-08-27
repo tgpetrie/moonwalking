@@ -1,0 +1,220 @@
+(node:72220) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+up to date, audited 52 packages in 1s
+
+6 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+(node:72257) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+npm warn exec The following package was not found and will be installed: vite@7.1.3
+Requirement already satisfied: flask==3.1.1 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 2)) (3.1.1)
+Requirement already satisfied: flask-cors==6.0.1 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 3)) (6.0.1)
+Requirement already satisfied: flask-socketio==5.3.6 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 4)) (5.3.6)
+Requirement already satisfied: requests==2.32.2 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 7)) (2.32.2)
+Requirement already satisfied: pytest==8.3.5 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 10)) (8.3.5)
+Requirement already satisfied: gunicorn==21.2.0 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 13)) (21.2.0)
+Requirement already satisfied: python-dotenv==1.0.1 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 16)) (1.0.1)
+Requirement already satisfied: sentry-sdk==2.21.0 in ./.venv/lib/python3.13/site-packages (from sentry-sdk[flask]==2.21.0->-r requirements.txt (line 19)) (2.21.0)
+Requirement already satisfied: psutil==6.1.1 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 22)) (6.1.1)
+Requirement already satisfied: flask-limiter==3.8.0 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 25)) (3.8.0)
+Requirement already satisfied: flask-talisman==1.1.0 in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 28)) (1.1.0)
+Requirement already satisfied: numpy in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 31)) (2.3.2)
+Requirement already satisfied: pandas in ./.venv/lib/python3.13/site-packages (from -r requirements.txt (line 32)) (2.3.2)
+Requirement already satisfied: blinker>=1.9.0 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (1.9.0)
+Requirement already satisfied: click>=8.1.3 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (8.2.1)
+Requirement already satisfied: itsdangerous>=2.2.0 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (2.2.0)
+Requirement already satisfied: jinja2>=3.1.2 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (3.1.6)
+Requirement already satisfied: markupsafe>=2.1.1 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (3.0.2)
+Requirement already satisfied: werkzeug>=3.1.0 in ./.venv/lib/python3.13/site-packages (from flask==3.1.1->-r requirements.txt (line 2)) (3.1.3)
+Requirement already satisfied: python-socketio>=5.0.2 in ./.venv/lib/python3.13/site-packages (from flask-socketio==5.3.6->-r requirements.txt (line 4)) (5.13.0)
+Requirement already satisfied: charset-normalizer<4,>=2 in ./.venv/lib/python3.13/site-packages (from requests==2.32.2->-r requirements.txt (line 7)) (3.4.3)
+Requirement already satisfied: idna<4,>=2.5 in ./.venv/lib/python3.13/site-packages (from requests==2.32.2->-r requirements.txt (line 7)) (3.10)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./.venv/lib/python3.13/site-packages (from requests==2.32.2->-r requirements.txt (line 7)) (2.5.0)
+Requirement already satisfied: certifi>=2017.4.17 in ./.venv/lib/python3.13/site-packages (from requests==2.32.2->-r requirements.txt (line 7)) (2025.8.3)
+Requirement already satisfied: iniconfig in ./.venv/lib/python3.13/site-packages (from pytest==8.3.5->-r requirements.txt (line 10)) (2.1.0)
+Requirement already satisfied: packaging in ./.venv/lib/python3.13/site-packages (from pytest==8.3.5->-r requirements.txt (line 10)) (25.0)
+Requirement already satisfied: pluggy<2,>=1.5 in ./.venv/lib/python3.13/site-packages (from pytest==8.3.5->-r requirements.txt (line 10)) (1.6.0)
+Requirement already satisfied: limits>=3.13 in ./.venv/lib/python3.13/site-packages (from flask-limiter==3.8.0->-r requirements.txt (line 25)) (5.5.0)
+Requirement already satisfied: ordered-set<5,>4 in ./.venv/lib/python3.13/site-packages (from flask-limiter==3.8.0->-r requirements.txt (line 25)) (4.1.0)
+Requirement already satisfied: rich<14,>=12 in ./.venv/lib/python3.13/site-packages (from flask-limiter==3.8.0->-r requirements.txt (line 25)) (13.9.4)
+Requirement already satisfied: typing-extensions>=4 in ./.venv/lib/python3.13/site-packages (from flask-limiter==3.8.0->-r requirements.txt (line 25)) (4.14.1)
+Requirement already satisfied: markdown-it-py>=2.2.0 in ./.venv/lib/python3.13/site-packages (from rich<14,>=12->flask-limiter==3.8.0->-r requirements.txt (line 25)) (4.0.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in ./.venv/lib/python3.13/site-packages (from rich<14,>=12->flask-limiter==3.8.0->-r requirements.txt (line 25)) (2.19.2)
+Requirement already satisfied: python-dateutil>=2.8.2 in ./.venv/lib/python3.13/site-packages (from pandas->-r requirements.txt (line 32)) (2.9.0.post0)
+Requirement already satisfied: pytz>=2020.1 in ./.venv/lib/python3.13/site-packages (from pandas->-r requirements.txt (line 32)) (2025.2)
+Requirement already satisfied: tzdata>=2022.7 in ./.venv/lib/python3.13/site-packages (from pandas->-r requirements.txt (line 32)) (2025.2)
+Requirement already satisfied: deprecated>=1.2 in ./.venv/lib/python3.13/site-packages (from limits>=3.13->flask-limiter==3.8.0->-r requirements.txt (line 25)) (1.2.18)
+Requirement already satisfied: wrapt<2,>=1.10 in ./.venv/lib/python3.13/site-packages (from deprecated>=1.2->limits>=3.13->flask-limiter==3.8.0->-r requirements.txt (line 25)) (1.17.3)
+Requirement already satisfied: mdurl~=0.1 in ./.venv/lib/python3.13/site-packages (from markdown-it-py>=2.2.0->rich<14,>=12->flask-limiter==3.8.0->-r requirements.txt (line 25)) (0.1.2)
+Requirement already satisfied: six>=1.5 in ./.venv/lib/python3.13/site-packages (from python-dateutil>=2.8.2->pandas->-r requirements.txt (line 32)) (1.17.0)
+Requirement already satisfied: bidict>=0.21.0 in ./.venv/lib/python3.13/site-packages (from python-socketio>=5.0.2->flask-socketio==5.3.6->-r requirements.txt (line 4)) (0.23.1)
+Requirement already satisfied: python-engineio>=4.11.0 in ./.venv/lib/python3.13/site-packages (from python-socketio>=5.0.2->flask-socketio==5.3.6->-r requirements.txt (line 4)) (4.12.2)
+Requirement already satisfied: simple-websocket>=0.10.0 in ./.venv/lib/python3.13/site-packages (from python-engineio>=4.11.0->python-socketio>=5.0.2->flask-socketio==5.3.6->-r requirements.txt (line 4)) (1.1.0)
+Requirement already satisfied: wsproto in ./.venv/lib/python3.13/site-packages (from simple-websocket>=0.10.0->python-engineio>=4.11.0->python-socketio>=5.0.2->flask-socketio==5.3.6->-r requirements.txt (line 4)) (1.2.0)
+Requirement already satisfied: h11<1,>=0.9.0 in ./.venv/lib/python3.13/site-packages (from wsproto->simple-websocket>=0.10.0->python-engineio>=4.11.0->python-socketio>=5.0.2->flask-socketio==5.3.6->-r requirements.txt (line 4)) (0.16.0)
+2025-08-23 00:26:41,254 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:26:41,255 - INFO - CACHE_TTL: 60
+2025-08-23 00:26:41,255 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:26:41,255 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:26:41,255 - INFO - PORT: 5001
+2025-08-23 00:26:41,255 - INFO - HOST: 0.0.0.0
+2025-08-23 00:26:41,255 - INFO - DEBUG: False
+2025-08-23 00:26:41,255 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:26:41,255 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:26:41,255 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:26:41,255 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:26:41,255 - INFO - API_TIMEOUT: 10
+2025-08-23 00:26:41,255 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:26:41,255 - INFO - ===============================
+2025-08-23 00:26:41,287 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:26:41,287 - INFO - CACHE_TTL: 60
+2025-08-23 00:26:41,287 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:26:41,287 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:26:41,287 - INFO - PORT: 5001
+2025-08-23 00:26:41,287 - INFO - HOST: 0.0.0.0
+2025-08-23 00:26:41,287 - INFO - DEBUG: False
+2025-08-23 00:26:41,287 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:26:41,287 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:26:41,287 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:26:41,287 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:26:41,287 - INFO - API_TIMEOUT: 10
+2025-08-23 00:26:41,287 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:26:41,287 - INFO - ENABLE_1MIN: True
+2025-08-23 00:26:41,287 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-08-23 00:26:41,287 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-08-23 00:26:41,287 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-08-23 00:26:41,287 - INFO - ONE_MIN_MAX_COINS: 25
+2025-08-23 00:26:41,287 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-08-23 00:26:41,287 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-08-23 00:26:41,287 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-08-23 00:26:41,287 - INFO - MIN_DELTA_1M: 0.1
+2025-08-23 00:26:41,287 - INFO - MIN_DELTA_3M: 0.15
+2025-08-23 00:26:41,287 - INFO - TOP_N_1M: 16
+2025-08-23 00:26:41,287 - INFO - TOP_N_3M: 16
+2025-08-23 00:26:41,287 - INFO - VOL_K: 2.5
+2025-08-23 00:26:41,287 - INFO - MIN_FALLBACK: 0.02
+2025-08-23 00:26:41,287 - INFO - ===============================
+2025-08-23 00:26:41,287 - INFO - Running in production mode (Vercel)
+ * Serving Flask app 'app:app'
+ * Debug mode: on
+2025-08-23 00:26:41,451 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-08-23 00:26:41,451 - INFO - [33mPress CTRL+C to quit[0m
+2025-08-23 00:26:41,451 - INFO -  * Restarting with stat
+2025-08-23 00:26:41,982 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:26:41,982 - INFO - CACHE_TTL: 60
+2025-08-23 00:26:41,982 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:26:41,982 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:26:41,982 - INFO - PORT: 5001
+2025-08-23 00:26:41,982 - INFO - HOST: 0.0.0.0
+2025-08-23 00:26:41,982 - INFO - DEBUG: False
+2025-08-23 00:26:41,982 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:26:41,983 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:26:41,983 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:26:41,983 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:26:41,983 - INFO - API_TIMEOUT: 10
+2025-08-23 00:26:41,983 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:26:41,983 - INFO - ===============================
+2025-08-23 00:26:42,003 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:26:42,003 - INFO - CACHE_TTL: 60
+2025-08-23 00:26:42,003 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:26:42,003 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:26:42,003 - INFO - PORT: 5001
+2025-08-23 00:26:42,003 - INFO - HOST: 0.0.0.0
+2025-08-23 00:26:42,003 - INFO - DEBUG: False
+2025-08-23 00:26:42,003 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:26:42,003 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:26:42,003 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:26:42,003 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:26:42,003 - INFO - API_TIMEOUT: 10
+2025-08-23 00:26:42,003 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:26:42,003 - INFO - ENABLE_1MIN: True
+2025-08-23 00:26:42,003 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-08-23 00:26:42,003 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-08-23 00:26:42,004 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-08-23 00:26:42,004 - INFO - ONE_MIN_MAX_COINS: 25
+2025-08-23 00:26:42,004 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-08-23 00:26:42,004 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-08-23 00:26:42,004 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-08-23 00:26:42,004 - INFO - MIN_DELTA_1M: 0.1
+2025-08-23 00:26:42,004 - INFO - MIN_DELTA_3M: 0.15
+2025-08-23 00:26:42,004 - INFO - TOP_N_1M: 16
+2025-08-23 00:26:42,004 - INFO - TOP_N_3M: 16
+2025-08-23 00:26:42,004 - INFO - VOL_K: 2.5
+2025-08-23 00:26:42,004 - INFO - MIN_FALLBACK: 0.02
+2025-08-23 00:26:42,004 - INFO - ===============================
+2025-08-23 00:26:42,004 - INFO - Running in production mode (Vercel)
+2025-08-23 00:26:42,026 - WARNING -  * Debugger is active!
+2025-08-23 00:26:42,042 - INFO -  * Debugger PIN: 600-228-959
+failed to load config from /Users/cdmxx/BHABIT CBMOONERS 4/frontend/vite.config.js
+error when starting dev server:
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /Users/cdmxx/BHABIT CBMOONERS 4/frontend/node_modules/.vite-temp/vite.config.js.timestamp-1755930402855-b14a3690c633e.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:256:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:854:18)
+    at defaultResolve (node:internal/modules/esm/resolve:984:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:175:49)
+./backend/start.sh: line 15: 72273 Killed: 9               flask --debug run --port 5001
+/opt/homebrew/Cellar/python@3.13/3.13.7/Frameworks/Python.framework/Versions/3.13/lib/python3.13/multiprocessing/resource_tracker.py:324: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-75qidorc'}
+  warnings.warn(
+/opt/homebrew/Cellar/python@3.13/3.13.7/Frameworks/Python.framework/Versions/3.13/lib/python3.13/multiprocessing/resource_tracker.py:324: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-1y5m4yy1'}
+  warnings.warn(
+2025-08-23 00:58:24,964 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:58:24,964 - INFO - CACHE_TTL: 60
+2025-08-23 00:58:24,964 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:58:24,964 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:58:24,964 - INFO - PORT: 5001
+2025-08-23 00:58:24,964 - INFO - HOST: 0.0.0.0
+2025-08-23 00:58:24,964 - INFO - DEBUG: False
+2025-08-23 00:58:24,964 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:58:24,964 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:58:24,964 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:58:24,964 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:58:24,964 - INFO - API_TIMEOUT: 10
+2025-08-23 00:58:24,964 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:58:24,964 - INFO - ===============================
+2025-08-23 00:58:25,020 - INFO - === CBMo4ers Configuration ===
+2025-08-23 00:58:25,021 - INFO - CACHE_TTL: 60
+2025-08-23 00:58:25,021 - INFO - INTERVAL_MINUTES: 3
+2025-08-23 00:58:25,021 - INFO - MAX_PRICE_HISTORY: 20
+2025-08-23 00:58:25,021 - INFO - PORT: 5001
+2025-08-23 00:58:25,021 - INFO - HOST: 0.0.0.0
+2025-08-23 00:58:25,021 - INFO - DEBUG: False
+2025-08-23 00:58:25,021 - INFO - UPDATE_INTERVAL: 60
+2025-08-23 00:58:25,021 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-08-23 00:58:25,021 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-08-23 00:58:25,021 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-08-23 00:58:25,021 - INFO - API_TIMEOUT: 10
+2025-08-23 00:58:25,021 - INFO - CHART_DAYS_LIMIT: 30
+2025-08-23 00:58:25,021 - INFO - ENABLE_1MIN: True
+2025-08-23 00:58:25,021 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-08-23 00:58:25,021 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-08-23 00:58:25,021 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-08-23 00:58:25,021 - INFO - ONE_MIN_MAX_COINS: 25
+2025-08-23 00:58:25,021 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-08-23 00:58:25,021 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-08-23 00:58:25,021 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-08-23 00:58:25,021 - INFO - MIN_DELTA_1M: 0.1
+2025-08-23 00:58:25,022 - INFO - MIN_DELTA_3M: 0.15
+2025-08-23 00:58:25,022 - INFO - TOP_N_1M: 16
+2025-08-23 00:58:25,022 - INFO - TOP_N_3M: 16
+2025-08-23 00:58:25,022 - INFO - VOL_K: 2.5
+2025-08-23 00:58:25,022 - INFO - MIN_FALLBACK: 0.02
+2025-08-23 00:58:25,022 - INFO - ===============================
+2025-08-23 00:58:25,022 - INFO - Found available port: 5001
+2025-08-23 00:58:25,022 - INFO - Using available port: 5001
+2025-08-23 00:58:25,022 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-08-23 00:58:25,022 - INFO - Background update thread started
+2025-08-23 00:58:25,022 - INFO - Server starting on http://0.0.0.0:5001
+2025-08-23 00:58:25,022 - WARNING - Werkzeug appears to be used in a production deployment. Consider switching to a production web server instead.
+ * Serving Flask app 'app'
+ * Debug mode: off
+Address already in use
+Port 5001 is in use by another program. Either identify and stop that program, or start the server with a different port.
