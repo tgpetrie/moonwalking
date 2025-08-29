@@ -5344,3 +5344,27 @@
 2025-08-26 19:31:28,078 - INFO - Successfully processed data: 15 gainers, 3 losers, 1 banner items
 2025-08-26 19:31:28,078 - INFO - 3-min cache updated: 15 gainers, 3 losers, 1 banner items
 2025-08-26 19:31:29,082 - INFO - Successfully fetched 30 prices from Coinbase
+2025-08-26 19:32:29,432 - ERROR - Coinbase products API Error: 429
+2025-08-26 19:32:29,444 - WARNING - No current prices available
+2025-08-26 19:32:30,960 - INFO - Successfully fetched 22 prices from Coinbase
+2025-08-26 19:33:32,916 - INFO - Successfully fetched 35 prices from Coinbase
+2025-08-26 19:33:33,972 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-08-26 19:33:33,973 - INFO - Successfully processed data: 14 gainers, 12 losers, 4 banner items
+2025-08-26 19:33:33,974 - INFO - 3-min cache updated: 14 gainers, 12 losers, 4 banner items
+2025-08-26 19:33:35,227 - INFO - Successfully fetched 19 prices from Coinbase
+2025-08-26 19:34:37,119 - INFO - Successfully fetched 32 prices from Coinbase
+2025-08-26 19:34:38,415 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-08-26 19:34:38,416 - INFO - Successfully processed data: 15 gainers, 8 losers, 2 banner items
+2025-08-26 19:34:38,417 - INFO - 3-min cache updated: 15 gainers, 8 losers, 2 banner items
+2025-08-26 19:34:40,107 - INFO - Successfully fetched 41 prices from Coinbase
+2025-08-26 19:35:41,598 - INFO - Successfully fetched 15 prices from Coinbase
+2025-08-26 19:35:42,470 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 0 losers
+2025-08-26 19:35:42,470 - INFO - Successfully processed data: 12 gainers, 2 losers, 1 banner items
+2025-08-26 19:35:42,470 - INFO - 3-min cache updated: 12 gainers, 2 losers, 1 banner items
+2025-08-26 19:35:43,663 - INFO - Successfully fetched 26 prices from Coinbase
+2025-08-26 19:36:45,179 - INFO - Successfully fetched 34 prices from Coinbase
+2025-08-26 19:36:46,664 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-08-26 19:36:46,665 - INFO - Successfully processed data: 15 gainers, 3 losers, 4 banner items
+2025-08-26 19:36:46,665 - INFO - 3-min cache updated: 15 gainers, 3 losers, 4 banner items
+2025-08-26 19:36:47,689 - INFO - Successfully fetched 23 prices from Coinbase
+2025-08-26 19:37:48,040 - ERROR - Coinbase products API Error: 429
