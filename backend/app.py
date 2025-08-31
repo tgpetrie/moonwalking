@@ -693,9 +693,23 @@ def get_coinbase_24h_top_movers():
                 banner_mix.append(gainers_24h[i])
             if i < len(losers_24h):
                 banner_mix.append(losers_24h[i])
-        
-        logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers")
-        return banner_mix[:20]
+
+        # Ensure banner has a minimum number of items to avoid choppy/constant refreshes
+        MIN_BANNER_ITEMS = 15
+        if len(banner_mix) < MIN_BANNER_ITEMS:
+            logging.debug(f"Banner has {len(banner_mix)} items; attempting to pad to {MIN_BANNER_ITEMS}")
+            # Use additional items from formatted_data not already included
+            existing_symbols = {c['symbol'] for c in banner_mix}
+            for coin in formatted_data:
+                if len(banner_mix) >= MIN_BANNER_ITEMS:
+                    break
+                if coin['symbol'] not in existing_symbols:
+                    banner_mix.append(coin)
+                    existing_symbols.add(coin['symbol'])
+
+        logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers; banner items={len(banner_mix)}")
+        # Cap banner to a reasonable max (keep existing behavior but ensure minimum)
+        return banner_mix[:max(20, MIN_BANNER_ITEMS)]
     except Exception as e:
         logging.error(f"Error fetching 24h top movers from Coinbase: {e}")
         return []

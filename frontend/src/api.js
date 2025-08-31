@@ -149,35 +149,52 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
 
 
 // --- Local Storage Watchlist Functions ---
+// Store watchlist as an array of objects: { symbol, priceAtAdd, addedAt }
+// Backwards-compatible: reads legacy arrays of strings and upgrades them in memory
 const WATCHLIST_KEY = 'crypto_watchlist';
 
 export async function getWatchlist() {
   try {
     const raw = localStorage.getItem(WATCHLIST_KEY);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Normalize to objects
+    const normalized = parsed
+      .map((item) => {
+        if (typeof item === 'string') {
+          return { symbol: item, priceAtAdd: 0, addedAt: 0 };
+        }
+        if (item && typeof item === 'object' && item.symbol) {
+          return {
+            symbol: item.symbol,
+            priceAtAdd: Number(item.priceAtAdd) || 0,
+            addedAt: Number(item.addedAt) || 0,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+    return normalized;
   } catch (e) {
     console.error('LocalStorage getWatchlist error:', e);
     return [];
   }
 }
 
-export async function addToWatchlist(symbol, price = null) {
+export async function addToWatchlist(symbol, priceAtAdd = null) {
   try {
-    let list = await getWatchlist();
-    // Check if symbol already exists (handle both string and object formats)
-    const existingItem = list.find(item => 
-      typeof item === 'string' ? item === symbol : item.symbol === symbol
-    );
-    
-    if (!existingItem) {
-      // Add as object with price info
-      const newItem = { 
-        symbol, 
-        priceAtAdd: price || Math.random() * 1000 // fallback random price if not provided
+    const list = await getWatchlist();
+    const exists = list.some((it) => it && it.symbol === symbol);
+    if (!exists) {
+      const entry = {
+        symbol,
+        priceAtAdd: Number(priceAtAdd) || 0,
+        addedAt: Date.now(),
       };
-      list.push(newItem);
-      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+      const next = [...list, entry];
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(next));
+      return next;
     }
     return list;
   } catch (e) {
@@ -188,13 +205,10 @@ export async function addToWatchlist(symbol, price = null) {
 
 export async function removeFromWatchlist(symbol) {
   try {
-    let list = await getWatchlist();
-    // Filter by symbol (handle both string and object formats)
-    list = list.filter(item => 
-      typeof item === 'string' ? item !== symbol : item.symbol !== symbol
-    );
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
-    return list;
+    const list = await getWatchlist();
+    const next = list.filter((it) => it && it.symbol !== symbol);
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(next));
+    return next;
   } catch (e) {
     console.error('LocalStorage removeFromWatchlist error:', e);
     return await getWatchlist();
