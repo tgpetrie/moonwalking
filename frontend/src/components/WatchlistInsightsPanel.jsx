@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { API_ENDPOINTS, getWatchlist } from '../api.js';
+import { API_ENDPOINTS, getWatchlist, fetchLatestAlerts } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 
 export default function WatchlistInsightsPanel() {
@@ -9,6 +9,14 @@ export default function WatchlistInsightsPanel() {
   const [error, setError] = useState(null);
   const [auto, setAuto] = useState(true);
   const { latestData } = useWebSocket();
+  const [showAlerts, setShowAlerts] = useState(() => {
+    try { return localStorage.getItem('insights:showAlerts') === '1'; } catch { return false; }
+  });
+  const [maxAlerts, setMaxAlerts] = useState(() => {
+    const v = Number(localStorage.getItem('insights:maxAlerts') || '3');
+    return Number.isFinite(v) && v > 0 ? v : 3;
+  });
+  const [latest, setLatest] = useState({});
 
   // Local helper: derive insights from WS + local watchlist when server is unavailable
   const buildClientInsights = useCallback(async () => {
@@ -78,6 +86,28 @@ export default function WatchlistInsightsPanel() {
     }
   }, [buildClientInsights]);
 
+  // Optional: fetch minimal latest alerts on demand
+  const fetchLatest = useCallback(async () => {
+    try {
+      const wl = await getWatchlist();
+      const symbols = (Array.isArray(wl) ? wl : []).map((it) => typeof it === 'string' ? it : it.symbol).filter(Boolean);
+      if (!symbols.length) { setLatest({}); return; }
+      const data = await fetchLatestAlerts(symbols.slice(0, 30)); // cap payload
+      setLatest(data || {});
+    } catch {
+      setLatest({});
+    }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('insights:showAlerts', showAlerts ? '1' : '0'); } catch {}
+    if (showAlerts) fetchLatest();
+  }, [showAlerts, fetchLatest]);
+
+  useEffect(() => {
+    try { localStorage.setItem('insights:maxAlerts', String(maxAlerts)); } catch {}
+  }, [maxAlerts]);
+
   useEffect(() => {
     fetchInsights();
   }, [fetchInsights]);
@@ -96,6 +126,10 @@ export default function WatchlistInsightsPanel() {
           <label className="flex items-center gap-1 cursor-pointer">
             <input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />
             <span className="text-[10px] uppercase tracking-wider">Auto</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" checked={showAlerts} onChange={e => setShowAlerts(e.target.checked)} />
+            <span className="text-[10px] uppercase tracking-wider">Alerts</span>
           </label>
           <button
             onClick={fetchInsights}
@@ -119,6 +153,35 @@ export default function WatchlistInsightsPanel() {
           </li>
         ))}
       </ul>
+
+      {showAlerts && (
+        <div className="mt-3 pt-2 border-t border-purple-900/40">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] text-purple-200">Latest Alerts</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-gray-400">max</span>
+              <select
+                className="bg-black/40 border border-purple-900 text-[10px] rounded px-1 py-0.5 text-gray-200"
+                value={maxAlerts}
+                onChange={e => setMaxAlerts(Number(e.target.value))}
+              >
+                {[3,5,10].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <button onClick={fetchLatest} className="px-1.5 py-0.5 rounded bg-purple-700 hover:bg-purple-600 text-white text-[10px]">Refresh</button>
+            </div>
+          </div>
+          <ul className="space-y-1 max-h-32 overflow-auto pr-1">
+            {Object.entries(latest).slice(0, maxAlerts).map(([sym, msg]) => (
+              <li key={sym} className="leading-snug">
+                <span className="text-gray-300">{sym}:</span> <span className="text-gray-200">{String(msg)}</span>
+              </li>
+            ))}
+            {Object.keys(latest || {}).length === 0 && (
+              <li className="text-gray-500">No recent alerts.</li>
+            )}
+          </ul>
+        </div>
+      )}
       {raw && (
         <details className="mt-3 opacity-60 hover:opacity-100 transition">
           <summary className="cursor-pointer select-none">Raw</summary>
