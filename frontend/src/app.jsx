@@ -146,7 +146,7 @@ export default function App() {
             onClick={() => setShowCodex(s => !s)}
             className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
             aria-pressed={showCodex}
-          >{showCodex ? 'Close Codex' : 'Ask Codex'}</button>
+          >{showCodex ? 'Close BHABIT' : 'Ask BHABIT'}</button>
           <button
             onClick={() => setShowInsights(s => !s)}
             className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
