@@ -4,6 +4,7 @@ import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatch
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
+import { updateStreaks } from '../logic/streaks';
 import PropTypes from 'prop-types';
 
 /**
@@ -141,6 +142,10 @@ export default function GainersTable1Min({
   const desiredRows = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : 4;
   const rows = Array.from({ length: desiredRows }, (_, i) => sliced[i] ?? null);
 
+  // Update 1m streaks for visible rows (only non-null rows)
+  const visibleRows = rows.filter(Boolean).map(r => ({ symbol: r.symbol }));
+  const get1m = updateStreaks('1m', visibleRows);
+
   if (loading && sliced.length === 0) {
     return (
       <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
@@ -252,6 +257,19 @@ export default function GainersTable1Min({
                         : <span className="opacity-0 select-none">Peak x0</span>}
                     </div>
                     <div className="text-xs text-gray-400 leading-tight">1-min</div>
+                    {/* Streak Px subline */}
+                    <div className="text-xs text-gray-300 leading-tight">
+                      {item ? (() => {
+                        const { level } = get1m(item.symbol);
+                        if (level === 0) {
+                          return (<div className="mt-1 opacity-0 select-none subline-badge num"></div>);
+                        }
+                        if (level === 1) {
+                          return (<div className="mt-1 subline-badge num">Px</div>);
+                        }
+                        return (<div className="mt-1 subline-badge num">Px{level}</div>);
+                      })() : (<div className="mt-1 opacity-0 select-none subline-badge num"></div>)}
+                    </div>
                   </div>
 
                   {/* Col4: star */}

@@ -5,7 +5,6 @@ import { WebSocketProvider } from './context/websocketcontext.jsx';
 import { FiRefreshCw } from 'react-icons/fi';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
-const IndicatorLegend = React.lazy(() => import('./components/IndicatorLegend.jsx'));
 import AlertsIndicator from './components/AlertsIndicator.jsx';
 
 // Lazy-loaded (code split) heavier UI regions
@@ -36,7 +35,6 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [oneMinExpanded, setOneMinExpanded] = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
 
   // Handler to sync watchlist state from children
@@ -206,14 +204,6 @@ export default function App() {
                 <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                   1-MIN GAINERS
                 </h2>
-                <button
-                  onClick={() => setShowLegend(v => !v)}
-                  className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
-                  aria-pressed={showLegend}
-                  aria-label="Toggle indicator legend"
-                >
-                  {showLegend ? 'Hide Legend' : 'Legend'}
-                </button>
               </div>
               {/* Line divider under header */}
               <div className="flex justify-start mb-4">
@@ -256,16 +246,6 @@ export default function App() {
                   {oneMinExpanded ? 'Show Less' : 'Show More'}
                 </button>
               </div>
-              {/* Overlay Legend (does not affect layout) */}
-              {showLegend && (
-                <div className="absolute top-0 right-0 z-40 w-full md:w-[420px] lg:w-[480px] xl:w-[520px] drop-shadow-xl">
-                  <Suspense fallback={chunkFallback('Loading legend...')}>
-                    <div className="font-raleway">
-                      <IndicatorLegend onClose={() => setShowLegend(false)} />
-                    </div>
-                  </Suspense>
-                </div>
-              )}
             </div>
           </div>
         </div>

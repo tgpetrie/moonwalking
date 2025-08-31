@@ -4,6 +4,7 @@ import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatch
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
+import { updateStreaks } from '../logic/streaks';
 
 const GainersTable = ({ refreshTrigger }) => {
   const shouldReduce = useReducedMotion();
@@ -60,7 +61,7 @@ const GainersTable = ({ refreshTrigger }) => {
     const absChange = Math.abs(change);
     if (absChange >= 5) return 'STRONG HIGH';
     if (absChange >= 2) return 'STRONG';
-    return 'MODERATE';
+  return '';
   };
 
   useEffect(() => {
@@ -118,7 +119,7 @@ const GainersTable = ({ refreshTrigger }) => {
     } else {
       setActionBadge({ symbol, text: 'Added!' });
       setTimeout(() => setActionBadge(null), 1200);
-      updated = await addToWatchlist(symbol);
+      updated = await addToWatchlist(symbol, r.price);
       send && send('watchlist_update', { action: 'add', symbol });
     }
     setWatchlist(updated);
@@ -139,6 +140,9 @@ const GainersTable = ({ refreshTrigger }) => {
       </div>
     );
   }
+
+  // Update 3m streaks for current gainers set
+  const get3m = updateStreaks('3m', data.map(d => ({ symbol: d.symbol })));
 
   return (
     <div className="w-full h-full min-h-[420px] px-0">
@@ -222,6 +226,18 @@ const GainersTable = ({ refreshTrigger }) => {
                         : <span className="opacity-0 select-none">Peak x0</span>}
                     </div>
                     <div className="text-xs text-gray-400 leading-tight">3-min</div>
+                    <div className="text-xs text-gray-300 leading-tight">
+                      {(() => {
+                        const { level } = get3m(r.symbol);
+                        if (level === 0) {
+                          return (<div className="mt-1 opacity-0 select-none subline-badge num"></div>);
+                        }
+                        if (level === 1) {
+                          return (<div className="mt-1 subline-badge num">Px</div>);
+                        }
+                        return (<div className="mt-1 subline-badge num">Px{level}</div>);
+                      })()}
+                    </div>
                   </div>
 
                   {/* Col4: Star (tight) */}
