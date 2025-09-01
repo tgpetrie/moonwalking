@@ -110,9 +110,15 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     ensureCatalog();
 
     const list = allSymbols;
-    const results = list
+    let results = list
       .filter(c => typeof c === 'string' && c.toLowerCase().includes(term))
       .slice(0, 8);
+    // Fallback: allow direct symbol entry when not found in catalog
+    const candidate = term.toUpperCase();
+    const validCandidate = /^[A-Z0-9]{2,10}$/.test(candidate);
+    if (results.length === 0 && validCandidate && !inSet.has(candidate)) {
+      results = [candidate];
+    }
     setSearchResults(results);
     setSearchError(results.length === 0 ? 'No coins found or already in watchlist.' : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
