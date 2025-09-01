@@ -1,4 +1,3 @@
-
 # What is Volume Z-Score?
 
 **Definition:** Standardize current volume vs a rolling 60-min mean/std.

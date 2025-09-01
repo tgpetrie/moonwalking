@@ -5,18 +5,22 @@ compatibility_date = "2024-12-01"
 
 [[kv_namespaces]]
 binding = "MW_KV"
-id = "replace-with-your-kv-id"
+id = "f42fa8c46b6748139ce790a49433b48b"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WatchlistDO"]
 
 [[durable_objects.bindings]]
 name = "WATCHLIST_DO"
 class_name = "WatchlistDO"
 
-[[queues.producers]]
-binding = "ALERTS_Q"
-queue = "moonwalking-alerts"
-
-[[queues.consumers]]
-queue = "moonwalking-alerts"
+# Queues commented out (Free plan). Uncomment when upgrading plan.
+# [[queues.producers]]
+# binding = "ALERTS_Q"
+# queue = "moonwalking-alerts"
+# [[queues.consumers]]
+# queue = "moonwalking-alerts"
 
 [vars]
 CRON_SECRET = "set-a-strong-random-value"

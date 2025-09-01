@@ -222,6 +222,32 @@ cache = {
     "ttl": CONFIG['CACHE_TTL']
 }
 
+# Light cache for Coinbase products list to avoid hammering /products and hitting 429
+_products_cache = {
+    'items': None,
+    'fetched_at': 0,
+    'ttl': int(os.environ.get('COINBASE_PRODUCTS_CACHE_SECONDS', '300'))  # 5 min default
+}
+
+# Track last successful full price snapshot so we can serve stale data instead of empty payloads
+_last_good_prices = {
+    'data': None,
+    'fetched_at': 0
+}
+
+# Simple exponential backoff state for Coinbase rate limiting (HTTP 429) / transient failures
+_rate_state = {
+    'failures': 0,          # consecutive failure counter
+    'next_attempt': 0.0,    # epoch seconds when we may attempt again
+    'last_error': None,     # last error message / status insight
+    'last_status': None,    # last HTTP status from /products
+}
+
+# Tunables (env overrides allow quick tweaking without code change)
+BACKOFF_BASE_SECONDS = float(os.environ.get('COINBASE_BACKOFF_BASE', '1'))
+BACKOFF_MAX_SECONDS = float(os.environ.get('COINBASE_BACKOFF_MAX', '30'))
+BACKOFF_SUCCESS_RESET_MIN_PRICES = int(os.environ.get('BACKOFF_SUCCESS_RESET_MIN_PRICES', '20'))
+
 # Store price history for interval calculations
 price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
 price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
@@ -390,76 +416,126 @@ def update_config(new_config):
 
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
+    now = time.time()
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
-        if products_response.status_code == 200:
-            products = products_response.json()
-            current_prices = {}
-            
-            # Filter to USD pairs only and prioritize major coins
-            usd_products = [p for p in products 
-                          if p.get("quote_currency") == "USD" 
-                          and p.get("status") == "online"]
-            
-            # Prioritize major cryptocurrencies for faster loading
-            major_coins = [
-                'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD', 
-                'LINK-USD', 'MATIC-USD', 'AVAX-USD', 'ATOM-USD', 'ALGO-USD',
-                'XRP-USD', 'DOGE-USD', 'SHIB-USD', 'UNI-USD', 'AAVE-USD',
-                'BCH-USD', 'LTC-USD', 'ICP-USD', 'HYPE-USD', 'SPX-USD',
-                'SEI-USD', 'PI-USD', 'KAIA-USD', 'INJ-USD', 'ONDO-USD',
-                'CRO-USD', 'FLR-USD', 'WLD-USD', 'POL-USD', 'WBT-USD',
-                'JUP-USD', 'SKY-USD', 'TAO-USD'
-            ]
-            
-            # Reorder products to prioritize major coins
-            prioritized_products = []
-            remaining_products = []
-            
-            for product in usd_products:
-                if product["id"] in major_coins:
-                    prioritized_products.append(product)
-                else:
-                    remaining_products.append(product)
-            
-            # Combine prioritized + remaining, but limit total to 100 for speed
-            all_products = prioritized_products + remaining_products[:100-len(prioritized_products)]
-            
-            # Use ThreadPoolExecutor for concurrent API calls
-            def fetch_ticker(product):
-                """Fetch ticker data for a single product"""
-                symbol = product["id"]
-                ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
-                try:
-                    ticker_response = requests.get(ticker_url, timeout=1.5)
-                    if ticker_response.status_code == 200:
-                        ticker_data = ticker_response.json()
-                        price = float(ticker_data.get('price', 0))
-                        if price > 0:
-                            return symbol, price
-                except Exception as ticker_error:
-                    logging.warning(f"Failed to get ticker for {symbol}: {ticker_error}")
-                return None, None
-
-            # Use ThreadPoolExecutor for faster concurrent API calls
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                # Submit all tasks
-                future_to_product = {executor.submit(fetch_ticker, product): product 
-                                   for product in all_products[:50]}
-                
-                # Collect results as they complete
-                for future in as_completed(future_to_product):
-                    symbol, price = future.result()
-                    if symbol and price:
-                        current_prices[symbol] = price
-            
-            logging.info(f"Successfully fetched {len(current_prices)} prices from Coinbase")
-            return current_prices
-        else:
-            logging.error(f"Coinbase products API Error: {products_response.status_code}")
+        # Respect backoff window if active
+        if now < _rate_state['next_attempt']:
+            remaining = _rate_state['next_attempt'] - now
+            if _last_good_prices['data']:
+                logging.debug(f"Backoff active {remaining:.1f}s; serving stale prices")
+                return dict(_last_good_prices['data'])
+            logging.debug(f"Backoff active {remaining:.1f}s; no stale snapshot available")
             return {}
+        # Reuse cached product list if still fresh
+        products = None
+        if _products_cache['items'] and (now - _products_cache['fetched_at'] < _products_cache['ttl']):
+            products = _products_cache['items']
+        else:
+            resp = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+            if resp.status_code == 200:
+                products = resp.json()
+                _products_cache['items'] = products
+                _products_cache['fetched_at'] = now
+                _rate_state['last_status'] = resp.status_code
+            else:
+                _rate_state['last_status'] = resp.status_code
+                logging.error(f"Coinbase products API Error: {resp.status_code}")
+                products = _products_cache['items']  # fall back to stale list if any
+                # If 429, trigger backoff
+                if resp.status_code == 429:
+                    _rate_state['failures'] += 1
+                    delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
+                    # jitter 80%-130%
+                    import random as _rnd
+                    delay *= _rnd.uniform(0.8, 1.3)
+                    _rate_state['next_attempt'] = now + delay
+                    _rate_state['last_error'] = f"429 rate limited; backoff {delay:.2f}s"
+                elif resp.status_code >= 500:
+                    _rate_state['failures'] += 1
+                    delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
+                    import random as _rnd
+                    delay *= _rnd.uniform(0.8, 1.2)
+                    _rate_state['next_attempt'] = now + delay
+                    _rate_state['last_error'] = f"Upstream {resp.status_code}; backoff {delay:.2f}s"
+        if not products:
+            return {}
+
+        current_prices = {}
+        usd_products = [p for p in products if p.get('quote_currency') == 'USD' and p.get('status') == 'online']
+        major_coins = [
+            'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD',
+            'LINK-USD', 'MATIC-USD', 'AVAX-USD', 'ATOM-USD', 'ALGO-USD',
+            'XRP-USD', 'DOGE-USD', 'SHIB-USD', 'UNI-USD', 'AAVE-USD',
+            'BCH-USD', 'LTC-USD', 'ICP-USD', 'HYPE-USD', 'SPX-USD',
+            'SEI-USD', 'PI-USD', 'KAIA-USD', 'INJ-USD', 'ONDO-USD',
+            'CRO-USD', 'FLR-USD', 'WLD-USD', 'POL-USD', 'WBT-USD',
+            'JUP-USD', 'SKY-USD', 'TAO-USD'
+        ]
+        prioritized_products, remaining_products = [], []
+        for product in usd_products:
+            (prioritized_products if product.get('id') in major_coins else remaining_products).append(product)
+        all_products = prioritized_products + remaining_products[: max(0, 100 - len(prioritized_products))]
+
+        def fetch_ticker(product):
+            symbol = product.get('id')
+            ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
+            try:
+                r = requests.get(ticker_url, timeout=1.5)
+                if r.status_code == 200:
+                    d = r.json()
+                    price = float(d.get('price', 0) or 0)
+                    if price > 0:
+                        return symbol, price
+                elif r.status_code == 429:
+                    # Increment failure count lightly (only once per batch handled later)
+                    return '__RATE_LIMIT__', None
+            except Exception as e:
+                logging.debug(f"ticker fail {symbol}: {e}")
+            return None, None
+
+        # Limit concurrency; scale down further during backoff recovery
+        dynamic_workers = max(2, 8 - _rate_state['failures'] * 2)
+        with ThreadPoolExecutor(max_workers=dynamic_workers) as ex:
+            futures = {ex.submit(fetch_ticker, p): p for p in all_products[:50]}
+            for fut in as_completed(futures):
+                sym, pr = fut.result()
+                if sym == '__RATE_LIMIT__':
+                    # Mark a rate-limited ticker call; escalate failures slightly
+                    _rate_state['failures'] = min(_rate_state['failures'] + 1, 10)
+                    continue
+                if sym and pr:
+                    current_prices[sym] = pr
+
+        if current_prices:
+            _last_good_prices['data'] = current_prices
+            _last_good_prices['fetched_at'] = now
+            # Success heuristic: if enough symbols fetched, reset backoff
+            if len(current_prices) >= BACKOFF_SUCCESS_RESET_MIN_PRICES:
+                if _rate_state['failures']:
+                    logging.info(f"Price fetch recovered; resetting backoff (had {_rate_state['failures']} failures)")
+                _rate_state['failures'] = 0
+                _rate_state['next_attempt'] = 0
+                _rate_state['last_error'] = None
+            logging.info(f"Fetched {len(current_prices)} prices (cached_products={'yes' if products is _products_cache['items'] else 'no'} workers={dynamic_workers})")
+        else:
+            # Fallback: serve last good snapshot silently; caller may mark stale
+            if _last_good_prices['data'] and (now - _last_good_prices['fetched_at'] < 600):  # 10 min max staleness
+                logging.warning("No fresh tickers; using last good price snapshot (stale)")
+                return dict(_last_good_prices['data'])
+        return current_prices
     except Exception as e:
         logging.error(f"Error fetching current prices from Coinbase: {e}")
+        _rate_state['failures'] += 1
+        _rate_state['last_error'] = str(e)
+        # Exponential schedule even on exceptions
+        delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
+        import random as _rnd
+        delay *= _rnd.uniform(0.9, 1.4)
+        _rate_state['next_attempt'] = now + delay
+        # As final fallback use last good prices
+        if _last_good_prices['data']:
+            logging.warning("Using last good price snapshot due to exception")
+            return dict(_last_good_prices['data'])
         return {}
 
 def calculate_interval_changes(current_prices):
@@ -795,15 +871,27 @@ def get_crypto_data():
         # Get current prices for 3-minute calculations
         current_prices = get_current_prices()
         if not current_prices:
-            logging.warning("No current prices available")
-            return None
+            # Provide richer diagnostics for front-end
+            age = current_time - _last_good_prices['fetched_at'] if _last_good_prices['fetched_at'] else None
+            logging.warning("No current prices available (serving stale=None)")
+            return {
+                "error": "no_current_prices",
+                "message": "Failed to fetch latest prices from upstream (Coinbase).",
+                "stale_age_seconds": age,
+                "has_stale_snapshot": bool(_last_good_prices['data'])
+            }
             
         # Calculate 3-minute interval changes (unique feature)
         crypto_data = calculate_interval_changes(current_prices)
         
         if not crypto_data:
             logging.warning(f"No crypto data available - {len(current_prices)} current prices, {len(price_history)} symbols with history")
-            return None
+            return {
+                "error": "insufficient_history",
+                "message": "Price history not yet accumulated for interval calculations.",
+                "current_symbols": len(current_prices),
+                "history_symbols": len(price_history)
+            }
         
         # Separate gainers and losers based on 3-minute changes
         gainers = [coin for coin in crypto_data if coin.get("price_change_percentage_3min", 0) > 0]
@@ -1922,6 +2010,13 @@ def server_info():
                 "cache_age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
                 "ttl": cache["ttl"],
             },
+            "rate_limit": {
+                "failures": _rate_state.get('failures'),
+                "next_attempt_in_seconds": max(0, _rate_state.get('next_attempt', 0) - time.time()),
+                "last_status": _rate_state.get('last_status'),
+                "last_error": _rate_state.get('last_error'),
+                "last_good_snapshot_age": time.time() - _last_good_prices['fetched_at'] if _last_good_prices['fetched_at'] else None
+            }
         }
         # Optionally include light system metrics if psutil is available
         if PSUTIL_AVAILABLE:
