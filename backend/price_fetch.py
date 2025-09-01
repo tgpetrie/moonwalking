@@ -30,7 +30,12 @@ _metrics = {
     'rate_limit_failures': 0,
     'last_fetch_duration_ms': 0.0,
     'last_success_time': 0.0,
+    'errors': 0,  # total error events (rate limits, non-2xx, exceptions, ticker errors)
+    'durations_ms': [],  # rolling window of recent fetch durations
 }
+
+# Bound the rolling durations list to avoid unbounded memory usage
+_DURATIONS_MAX = int(os.environ.get('PRICE_FETCH_DURATIONS_MAX','200'))
 
 # Circuit breaker (fail fast protecting upstream)
 _cb = CircuitBreaker(
@@ -46,7 +51,13 @@ def _load_products(now: float):
         with _metrics_lock:
             _metrics['products_cache_hits'] += 1
         return _products_cache['items']
-    r = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+    try:
+        r = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+    except Exception as e:  # network error
+        with _metrics_lock:
+            _metrics['errors'] += 1
+        logging.warning(f"Products fetch exception {e}; using cached list")
+        return _products_cache['items']
     if r.status_code == 200:
         _products_cache['items'] = r.json()
         _products_cache['fetched_at'] = now
@@ -70,7 +81,11 @@ def _load_products(now: float):
             )
             with _metrics_lock:
                 _metrics['rate_limit_failures'] = _rate['failures']
+                _metrics['errors'] += 1
             _cb.record_failure()
+        else:
+            with _metrics_lock:
+                _metrics['errors'] += 1
         logging.warning(f"Products fetch status {r.status_code}; using cached list")
     return _products_cache['items']
 
@@ -112,9 +127,13 @@ def fetch_prices() -> Dict[str,float]:
                 data = r.json(); price = float(data.get('price') or 0)
                 if price>0: return sym, price
             elif r.status_code == 429:
+                with _metrics_lock:
+                    _metrics['errors'] += 1
                 return '__RL__', None
         except Exception as e:
             logging.debug(f"ticker {sym} err {e}")
+            with _metrics_lock:
+                _metrics['errors'] += 1
         return None, None
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = {ex.submit(_ticker, p['id']): p for p in targets[:50]}
@@ -150,6 +169,11 @@ def fetch_prices() -> Dict[str,float]:
     dur_ms = (time.time() - start) * 1000.0
     with _metrics_lock:
         _metrics['last_fetch_duration_ms'] = dur_ms
+        arr = _metrics['durations_ms']
+        arr.append(dur_ms)
+        if len(arr) > _DURATIONS_MAX:
+            # trim oldest slice
+            del arr[: len(arr) - _DURATIONS_MAX]
     return prices
 
 def get_price_fetch_metrics():
@@ -157,11 +181,27 @@ def get_price_fetch_metrics():
         # return shallow copy to avoid external mutation
         data = dict(_metrics)
     # enrich with dynamic state
+    now = time.time()
+    # Compute p95 duration (copy list without lock contention)
+    durations = data.get('durations_ms') or []
+    p95 = None
+    if durations:
+        sorted_d = sorted(durations)
+        idx = int(len(sorted_d) * 0.95) - 1
+        idx = max(0, min(idx, len(sorted_d)-1))
+        p95 = sorted_d[idx]
+    total_calls = data.get('total_calls', 0)
+    errors = data.get('errors', 0)
+    error_rate_pct = (errors / total_calls * 100.0) if total_calls else 0.0
+    backoff_remaining = max(0.0, _rate['next'] - now) if _rate['next'] else 0.0
     data.update({
         'rate_failures': _rate['failures'],
         'rate_next_epoch': _rate['next'],
         'has_snapshot': bool(_last_snapshot['data']),
-        'snapshot_age_sec': (time.time() - _last_snapshot['fetched_at']) if _last_snapshot['fetched_at'] else None,
+        'snapshot_age_sec': (now - _last_snapshot['fetched_at']) if _last_snapshot['fetched_at'] else None,
+        'p95_fetch_duration_ms': p95,
+        'error_rate_percent': round(error_rate_pct, 4),
+        'backoff_seconds_remaining': round(backoff_remaining, 3),
     })
     # Circuit breaker snapshot
     try:
