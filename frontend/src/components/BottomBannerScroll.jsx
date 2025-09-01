@@ -110,12 +110,14 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     ${formatAbbrev(coin.volume_24h)}
                   </div>
                   <div className="flex items-center gap-1 font-bold">
-                    <span className={(coin.volume_change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>
-                        Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
+                    {(() => { const vc = Number(coin.volume_change || 0); return (
+                      <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(2) : '0.00'}%
+                      </span>
+                    ); })()}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}
-                    </span>
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
@@ -154,12 +156,14 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     ${formatAbbrev(coin.volume_24h)}
                   </div>
                   <div className="flex items-center gap-1 font-bold">
-                    <span className={(coin.volume_change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>
-                        Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
+                    {(() => { const vc = Number(coin.volume_change || 0); return (
+                      <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(2) : '0.00'}%
+                      </span>
+                    ); })()}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}
-                    </span>
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
