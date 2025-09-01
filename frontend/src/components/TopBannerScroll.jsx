@@ -103,7 +103,11 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     </span>
                   </div>
                   <div className="flex items-center gap-1 font-bold">
-                    <span className={(coin.change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
+                    {(() => { const ch = Number(coin.change || 0); return (
+                      <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(2) : '0.00'}%
+                      </span>
+                    ); })()}
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
@@ -148,7 +152,11 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     </span>
                   </div>
                   <div className="flex items-center gap-1 font-bold">
-                    <span className={(coin.change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
+                    {(() => { const ch = Number(coin.change || 0); return (
+                      <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(2) : '0.00'}%
+                      </span>
+                    ); })()}
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
