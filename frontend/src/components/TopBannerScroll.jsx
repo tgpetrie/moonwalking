@@ -98,7 +98,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     <span className="text-sm font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="font-mono text-base font-bold bg-orange/10 px-2 py-1 rounded border border-orange/20 text-teal">
+                    <span className="text-base font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
@@ -145,7 +145,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     <span className="text-sm font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="font-mono text-base font-bold bg-orange/10 px-2 py-1 rounded text-teal">
+                    <span className="text-base font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
