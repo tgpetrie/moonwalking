@@ -301,29 +301,60 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                   <div key={symbol} className="relative group">
                     <div
                       className={
-                        `flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group-hover:text-orange-400 group-hover:text-shadow-orange-400 ` +
-                        `group-hover:scale-[1.035] group-hover:z-10 ` +
-                        `will-change-transform` +
+                        `relative overflow-hidden rounded-xl p-4 h-[96px] transition-transform will-change-transform cursor-pointer ` +
+                        `group-hover:scale-[1.02] group-hover:z-10 ` +
                         (popStar === symbol ? ' animate-star-pop' : '')
                       }
-                      style={{ boxShadow: '0 2px 16px 0 rgba(255,193,7,0.08)' }}
                     >
-                      <span className="font-mono text-lg text-white truncate">{symbol}</span>
-                      <span className="ml-4 text-teal-300 font-mono text-base">{price}</span>
-                      <span className="ml-4 text-teal-300 font-mono text-base">{prevPrice}</span>
-                      <div className="flex flex-col items-center ml-4">
-                        <span className={`font-mono text-base ${changeColor}`}>{change}</span>
-                        <span className="text-xs text-gray-400">Since Add</span>
+                      {/* Bottom edge subtle diamond glow (purple) to match style */}
+                      <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
+                        <span
+                          className="block w-full h-full"
+                          style={{
+                            background:
+                              'radial-gradient(ellipse at 50% 140%, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.10) 35%, rgba(192,38,211,0.04) 60%, transparent 85%)'
+                          }}
+                        />
+                      </span>
+
+                      <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                        {/* Col1: symbol */}
+                        <div className="min-w-0 flex items-center gap-2">
+                          <div className="font-bold text-white text-lg tracking-wide truncate">{symbol}</div>
+                          {removedBadge === symbol && (
+                            <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Removed!</span>
+                          )}
+                        </div>
+
+                        {/* Col2: current + previous price stacked */}
+                        <div className="w-[152px] pr-6 text-right">
+                          <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                            {price}
+                          </div>
+                          <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
+                            {prevPrice}
+                          </div>
+                        </div>
+
+                        {/* Col3: % since add */}
+                        <div className="w-[108px] pr-1.5 text-right align-top">
+                          <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${changeColor}`}>
+                            {change}
+                          </div>
+                          <div className="text-xs text-gray-400 leading-tight">Since add</div>
+                        </div>
+
+                        {/* Col4: delete */}
+                        <div className="w-[28px] text-right">
+                          <button
+                            onClick={() => handleRemove(symbol)}
+                            className="text-red-500 hover:text-red-400 transition-colors inline-flex items-center justify-end"
+                            aria-label="Remove from watchlist"
+                          >
+                            <RiDeleteBinLine size={20} />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleRemove(symbol)}
-                        className="text-red-500 hover:text-red-400 transition-colors flex-shrink-0 ml-4"
-                      >
-                        <RiDeleteBinLine size={20} />
-                      </button>
-                      {removedBadge === symbol && (
-                        <span className="ml-2 px-2 py-0.5 rounded bg-orange-500/80 text-white text-xs font-bold animate-fade-in-out shadow-lg shadow-orange-400/30" style={{animation:'fadeInOut 1.2s'}}>Removed!</span>
-                      )}
                     </div>
                     {idx < (showAll ? symbols.length : Math.min(4, symbols.length)) - 1 && (
                       <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(254,164,0,0.18) 0%,rgba(254,164,0,0.38) 50%,rgba(254,164,0,0.18) 100%)',borderRadius:'2px'}}></div>
