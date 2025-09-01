@@ -378,6 +378,18 @@ def metrics_prom():
             _maybe('one_min_market_bottom5_avg_loss', m.get('bottom5_avg_loss'), 'Average 1m gain (negative) of top 5 decliners')
             _maybe('one_min_market_extreme_gainer_pct', m.get('extreme_gainer_pct'), 'Largest 1m percentage gain observed')
             _maybe('one_min_market_extreme_loser_pct', m.get('extreme_loser_pct'), 'Largest 1m percentage loss observed')
+            # Acceleration / delta signals
+            _maybe('one_min_market_spike_p95_delta', m.get('spike_p95_delta'), 'Change in 95th percentile since previous snapshot')
+            _maybe('one_min_market_spike_p99_delta', m.get('spike_p99_delta'), 'Change in 99th percentile since previous snapshot')
+            _maybe('one_min_market_spike_p95_rate_per_sec', m.get('spike_p95_rate_per_sec'), 'Rate of change per second of 95th percentile')
+            _maybe('one_min_market_spike_p99_rate_per_sec', m.get('spike_p99_rate_per_sec'), 'Rate of change per second of 99th percentile')
+            _maybe('one_min_market_extreme_gainer_accel', m.get('extreme_gainer_accel'), 'Delta of extreme gainer pct since previous snapshot')
+            _maybe('one_min_market_extreme_gainer_accel_rate_per_sec', m.get('extreme_gainer_accel_rate_per_sec'), 'Rate/sec of extreme gainer delta')
+            _maybe('one_min_market_breadth_net_advancers', m.get('breadth_net_advancers'), 'Advancers minus decliners (breadth net)')
+            _maybe('one_min_market_breadth_net_advancers_delta', m.get('breadth_net_advancers_delta'), 'Delta of net advancers vs previous snapshot')
+            _maybe('one_min_market_breadth_net_advancers_delta_rate_per_sec', m.get('breadth_net_advancers_delta_rate_per_sec'), 'Rate/sec of net advancers delta')
+            _maybe('one_min_market_breadth_adv_decl_ratio_delta', m.get('breadth_adv_decl_ratio_delta'), 'Delta of adv/decl ratio since previous snapshot')
+            _maybe('one_min_market_breadth_adv_decl_ratio_rate_per_sec', m.get('breadth_adv_decl_ratio_rate_per_sec'), 'Rate/sec of adv/decl ratio delta')
     except Exception as e:  # pragma: no cover - defensive
         lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
         lines.append('# TYPE price_fetch_metrics_error gauge')
@@ -1747,6 +1759,31 @@ def get_crypto_data_1min():
             top_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in top)/len(top), 4) if top else None
             bottom = losers[:5]
             bottom_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in bottom)/len(bottom), 4) if bottom else None
+            prev_stats = dict(one_minute_market_stats) if one_minute_market_stats else None
+            pct95_cur = _pct(s_univ,95)
+            pct99_cur = _pct(s_univ,99)
+            extreme_gainer_pct_cur = round(gainers[0].get('price_change_percentage_1min_peak', gainers[0].get('price_change_percentage_1min',0)),4) if gainers else None
+            net_advancers_cur = advancers - decliners
+            # Compute deltas (acceleration) vs previous snapshot
+            spike_p95_delta = spike_p99_delta = extreme_gainer_accel = breadth_adv_decl_ratio_delta = net_advancers_delta = None
+            spike_p95_rate = spike_p99_rate = extreme_gainer_accel_rate = breadth_adv_decl_ratio_rate = net_advancers_delta_rate = None
+            if prev_stats and prev_stats.get('timestamp') and prev_stats.get('timestamp') != now_ts:
+                dt = max(1.0, now_ts - prev_stats.get('timestamp'))
+                if prev_stats.get('pct95') is not None and pct95_cur is not None:
+                    spike_p95_delta = round(pct95_cur - prev_stats.get('pct95'), 4)
+                    spike_p95_rate = round(spike_p95_delta / dt, 6)
+                if prev_stats.get('pct99') is not None and pct99_cur is not None:
+                    spike_p99_delta = round(pct99_cur - prev_stats.get('pct99'), 4)
+                    spike_p99_rate = round(spike_p99_delta / dt, 6)
+                if prev_stats.get('extreme_gainer_pct') is not None and extreme_gainer_pct_cur is not None:
+                    extreme_gainer_accel = round(extreme_gainer_pct_cur - prev_stats.get('extreme_gainer_pct'), 4)
+                    extreme_gainer_accel_rate = round(extreme_gainer_accel / dt, 6)
+                if prev_stats.get('adv_decl_ratio') is not None and adv_decl_ratio is not None:
+                    breadth_adv_decl_ratio_delta = round(adv_decl_ratio - prev_stats.get('adv_decl_ratio'), 6)
+                    breadth_adv_decl_ratio_rate = round(breadth_adv_decl_ratio_delta / dt, 6)
+                if prev_stats.get('breadth_net_advancers') is not None:
+                    net_advancers_delta = net_advancers_cur - prev_stats.get('breadth_net_advancers')
+                    net_advancers_delta_rate = round(net_advancers_delta / dt, 6)
             one_minute_market_stats.update({
                 'timestamp': now_ts,
                 'universe_count': total,
@@ -1756,8 +1793,8 @@ def get_crypto_data_1min():
                 'pct50': _pct(s_univ,50),
                 'pct75': _pct(s_univ,75),
                 'pct90': _pct(s_univ,90),
-                'pct95': _pct(s_univ,95),
-                'pct99': _pct(s_univ,99),
+                'pct95': pct95_cur,
+                'pct99': pct99_cur,
                 'abs_pct90': _pct(s_abs,90),
                 'abs_pct95': _pct(s_abs,95),
                 'abs_pct99': _pct(s_abs,99),
@@ -1767,9 +1804,21 @@ def get_crypto_data_1min():
                 'top5_avg_gain': top_avg,
                 'bottom5_avg_loss': bottom_avg,
                 'extreme_gainer_symbol': gainers[0]['symbol'] if gainers else None,
-                'extreme_gainer_pct': round(gainers[0].get('price_change_percentage_1min_peak', gainers[0].get('price_change_percentage_1min',0)),4) if gainers else None,
+                'extreme_gainer_pct': extreme_gainer_pct_cur,
                 'extreme_loser_symbol': losers[0]['symbol'] if losers else None,
                 'extreme_loser_pct': round(losers[0].get('price_change_percentage_1min_peak', losers[0].get('price_change_percentage_1min',0)),4) if losers else None,
+                # Acceleration / delta metrics
+                'spike_p95_delta': spike_p95_delta,
+                'spike_p99_delta': spike_p99_delta,
+                'spike_p95_rate_per_sec': spike_p95_rate,
+                'spike_p99_rate_per_sec': spike_p99_rate,
+                'extreme_gainer_accel': extreme_gainer_accel,
+                'extreme_gainer_accel_rate_per_sec': extreme_gainer_accel_rate,
+                'breadth_net_advancers': net_advancers_cur,
+                'breadth_net_advancers_delta': net_advancers_delta,
+                'breadth_net_advancers_delta_rate_per_sec': net_advancers_delta_rate,
+                'breadth_adv_decl_ratio_delta': breadth_adv_decl_ratio_delta,
+                'breadth_adv_decl_ratio_rate_per_sec': breadth_adv_decl_ratio_rate,
             })
 
         # Seed fallback: on a cold or quiet period when nothing is retained yet,
