@@ -3782,3 +3782,130 @@
 2025-09-01 10:45:39,496 - INFO - Successfully processed data: 15 gainers, 3 losers, 4 banner items
 2025-09-01 10:45:39,496 - INFO - 3-min cache updated: 15 gainers, 3 losers, 4 banner items
 2025-09-01 10:45:41,754 - INFO - Successfully fetched 22 prices from Coinbase
+2025-09-01 10:46:45,453 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 10:46:46,716 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 5 losers; banner items=8
+2025-09-01 10:46:46,717 - INFO - Successfully processed data: 15 gainers, 4 losers, 8 banner items
+2025-09-01 10:46:46,717 - INFO - 3-min cache updated: 15 gainers, 4 losers, 8 banner items
+2025-09-01 10:46:48,314 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 10:47:50,069 - INFO - Successfully fetched 24 prices from Coinbase
+2025-09-01 10:47:51,043 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 10:47:51,044 - INFO - Successfully processed data: 15 gainers, 0 losers, 1 banner items
+2025-09-01 10:47:51,044 - INFO - 3-min cache updated: 15 gainers, 0 losers, 1 banner items
+2025-09-01 10:47:52,359 - INFO - Successfully fetched 19 prices from Coinbase
+2025-09-01 10:48:53,923 - INFO - Successfully fetched 17 prices from Coinbase
+2025-09-01 10:48:55,160 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 10:48:55,161 - INFO - Successfully processed data: 6 gainers, 7 losers, 1 banner items
+2025-09-01 10:48:55,161 - INFO - 3-min cache updated: 6 gainers, 7 losers, 1 banner items
+2025-09-01 10:48:56,206 - INFO - Successfully fetched 19 prices from Coinbase
+2025-09-01 10:49:57,907 - INFO - Successfully fetched 28 prices from Coinbase
+2025-09-01 10:49:58,897 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 0 losers; banner items=0
+2025-09-01 10:49:58,898 - INFO - Successfully processed data: 4 gainers, 15 losers, 0 banner items
+2025-09-01 10:49:58,898 - INFO - 3-min cache updated: 4 gainers, 15 losers, 0 banner items
+2025-09-01 10:49:59,880 - INFO - Successfully fetched 24 prices from Coinbase
+2025-09-01 10:51:01,655 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 10:51:02,664 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers; banner items=2
+2025-09-01 10:51:02,665 - INFO - Successfully processed data: 1 gainers, 15 losers, 2 banner items
+2025-09-01 10:51:02,665 - INFO - 3-min cache updated: 1 gainers, 15 losers, 2 banner items
+2025-09-01 10:51:03,742 - INFO - Successfully fetched 17 prices from Coinbase
+2025-09-01 10:52:05,446 - INFO - Successfully fetched 27 prices from Coinbase
+2025-09-01 10:52:06,261 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers; banner items=2
+2025-09-01 10:52:06,262 - INFO - Successfully processed data: 4 gainers, 15 losers, 2 banner items
+2025-09-01 10:52:06,262 - INFO - 3-min cache updated: 4 gainers, 15 losers, 2 banner items
+2025-09-01 10:52:07,562 - INFO - Successfully fetched 20 prices from Coinbase
+2025-09-01 10:53:09,098 - INFO - Successfully fetched 17 prices from Coinbase
+2025-09-01 10:53:10,504 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 0 losers; banner items=0
+2025-09-01 10:53:10,515 - INFO - Successfully processed data: 0 gainers, 15 losers, 0 banner items
+2025-09-01 10:53:10,516 - INFO - 3-min cache updated: 0 gainers, 15 losers, 0 banner items
+2025-09-01 10:53:11,652 - INFO - Successfully fetched 22 prices from Coinbase
+2025-09-01 10:54:13,532 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 10:54:15,199 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers; banner items=3
+2025-09-01 10:54:15,208 - INFO - Successfully processed data: 3 gainers, 15 losers, 3 banner items
+2025-09-01 10:54:15,208 - INFO - 3-min cache updated: 3 gainers, 15 losers, 3 banner items
+2025-09-01 10:54:17,002 - INFO - Successfully fetched 24 prices from Coinbase
+2025-09-01 10:55:18,588 - INFO - Successfully fetched 30 prices from Coinbase
+2025-09-01 10:55:19,346 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 10:55:19,347 - INFO - Successfully processed data: 2 gainers, 15 losers, 1 banner items
+2025-09-01 10:55:19,347 - INFO - 3-min cache updated: 2 gainers, 15 losers, 1 banner items
+2025-09-01 10:55:20,426 - INFO - Successfully fetched 20 prices from Coinbase
+2025-09-01 10:56:22,022 - INFO - Successfully fetched 29 prices from Coinbase
+2025-09-01 10:56:22,825 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 1 losers; banner items=2
+2025-09-01 10:56:22,826 - INFO - Successfully processed data: 11 gainers, 15 losers, 2 banner items
+2025-09-01 10:56:22,826 - INFO - 3-min cache updated: 11 gainers, 15 losers, 2 banner items
+2025-09-01 10:56:24,076 - INFO - Successfully fetched 12 prices from Coinbase
+2025-09-01 10:57:26,151 - INFO - Successfully fetched 21 prices from Coinbase
+2025-09-01 10:57:27,437 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 1 losers; banner items=2
+2025-09-01 10:57:27,439 - INFO - Successfully processed data: 10 gainers, 9 losers, 2 banner items
+2025-09-01 10:57:27,439 - INFO - 3-min cache updated: 10 gainers, 9 losers, 2 banner items
+2025-09-01 10:57:28,427 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 10:58:29,762 - INFO - Successfully fetched 27 prices from Coinbase
+2025-09-01 10:58:30,657 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 10:58:30,658 - INFO - Successfully processed data: 15 gainers, 6 losers, 1 banner items
+2025-09-01 10:58:30,658 - INFO - 3-min cache updated: 15 gainers, 6 losers, 1 banner items
+2025-09-01 10:58:31,990 - INFO - Successfully fetched 15 prices from Coinbase
+2025-09-01 10:59:33,562 - INFO - Successfully fetched 26 prices from Coinbase
+2025-09-01 10:59:34,719 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers; banner items=2
+2025-09-01 10:59:34,720 - INFO - Successfully processed data: 15 gainers, 4 losers, 2 banner items
+2025-09-01 10:59:34,720 - INFO - 3-min cache updated: 15 gainers, 4 losers, 2 banner items
+2025-09-01 10:59:35,915 - INFO - Successfully fetched 16 prices from Coinbase
+2025-09-01 11:00:38,397 - INFO - Successfully fetched 27 prices from Coinbase
+2025-09-01 11:00:39,641 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 6 losers; banner items=6
+2025-09-01 11:00:39,642 - INFO - Successfully processed data: 6 gainers, 15 losers, 6 banner items
+2025-09-01 11:00:39,642 - INFO - 3-min cache updated: 6 gainers, 15 losers, 6 banner items
+2025-09-01 11:00:40,877 - INFO - Successfully fetched 24 prices from Coinbase
+2025-09-01 11:01:42,807 - INFO - Successfully fetched 23 prices from Coinbase
+2025-09-01 11:01:44,084 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers; banner items=3
+2025-09-01 11:01:44,085 - INFO - Successfully processed data: 11 gainers, 11 losers, 3 banner items
+2025-09-01 11:01:44,085 - INFO - 3-min cache updated: 11 gainers, 11 losers, 3 banner items
+2025-09-01 11:01:45,136 - INFO - Successfully fetched 22 prices from Coinbase
+2025-09-01 11:02:48,607 - WARNING - Failed to get ticker for TAO-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:48,784 - WARNING - Failed to get ticker for SOL-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,133 - WARNING - Failed to get ticker for CRO-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,135 - WARNING - Failed to get ticker for ONDO-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,215 - WARNING - Failed to get ticker for SEI-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,388 - WARNING - Failed to get ticker for AAVE-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,445 - WARNING - Failed to get ticker for AVAX-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,447 - WARNING - Failed to get ticker for BCH-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:49,449 - WARNING - Failed to get ticker for WLD-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:02:53,991 - INFO - Successfully fetched 31 prices from Coinbase
+2025-09-01 11:02:55,761 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 0 losers; banner items=0
+2025-09-01 11:02:55,762 - INFO - Successfully processed data: 13 gainers, 14 losers, 0 banner items
+2025-09-01 11:02:55,763 - INFO - 3-min cache updated: 13 gainers, 14 losers, 0 banner items
+2025-09-01 11:03:00,182 - WARNING - Failed to get ticker for ETH-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,182 - WARNING - Failed to get ticker for LTC-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,183 - WARNING - Failed to get ticker for INJ-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,185 - WARNING - Failed to get ticker for AVAX-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,185 - WARNING - Failed to get ticker for ATOM-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,188 - WARNING - Failed to get ticker for ADA-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,191 - WARNING - Failed to get ticker for SEI-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:00,192 - WARNING - Failed to get ticker for WLD-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:06,509 - WARNING - Failed to get ticker for ZETA-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:06,714 - WARNING - Failed to get ticker for NMR-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:09,168 - WARNING - Failed to get ticker for VET-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:09,168 - WARNING - Failed to get ticker for L3-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:09,282 - WARNING - Failed to get ticker for STRK-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=1.5)
+2025-09-01 11:03:10,324 - INFO - Successfully fetched 36 prices from Coinbase
+2025-09-01 11:04:12,250 - INFO - Successfully fetched 25 prices from Coinbase
+2025-09-01 11:04:13,343 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 11:04:13,344 - INFO - Successfully processed data: 12 gainers, 8 losers, 1 banner items
+2025-09-01 11:04:13,344 - INFO - 3-min cache updated: 12 gainers, 8 losers, 1 banner items
+2025-09-01 11:04:14,477 - INFO - Successfully fetched 20 prices from Coinbase
+2025-09-01 11:05:16,019 - INFO - Successfully fetched 19 prices from Coinbase
+2025-09-01 11:05:16,871 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 4 losers; banner items=4
+2025-09-01 11:05:16,873 - INFO - Successfully processed data: 12 gainers, 3 losers, 4 banner items
+2025-09-01 11:05:16,874 - INFO - 3-min cache updated: 12 gainers, 3 losers, 4 banner items
+2025-09-01 11:05:17,980 - INFO - Successfully fetched 13 prices from Coinbase
+2025-09-01 11:06:20,359 - INFO - Successfully fetched 33 prices from Coinbase
+2025-09-01 11:06:21,795 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers; banner items=3
+2025-09-01 11:06:21,800 - INFO - Successfully processed data: 15 gainers, 11 losers, 3 banner items
+2025-09-01 11:06:21,801 - INFO - 3-min cache updated: 15 gainers, 11 losers, 3 banner items
+2025-09-01 11:06:22,889 - INFO - Successfully fetched 28 prices from Coinbase
+2025-09-01 11:07:24,762 - INFO - Successfully fetched 19 prices from Coinbase
+2025-09-01 11:07:26,392 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers; banner items=1
+2025-09-01 11:07:26,396 - INFO - Successfully processed data: 12 gainers, 3 losers, 1 banner items
+2025-09-01 11:07:26,396 - INFO - 3-min cache updated: 12 gainers, 3 losers, 1 banner items
+2025-09-01 11:07:27,602 - INFO - Successfully fetched 24 prices from Coinbase
+2025-09-01 11:08:29,151 - INFO - Successfully fetched 27 prices from Coinbase
+2025-09-01 11:08:30,072 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 1 losers; banner items=2
+2025-09-01 11:08:30,073 - INFO - Successfully processed data: 15 gainers, 4 losers, 2 banner items
+2025-09-01 11:08:30,073 - INFO - 3-min cache updated: 15 gainers, 4 losers, 2 banner items
+2025-09-01 11:08:31,175 - INFO - Successfully fetched 21 prices from Coinbase
