@@ -295,7 +295,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                 const pAdd = Number(priceAtAddMap[symbol]) || 0;
                 const prevPrice = pAdd > 0 ? (pAdd < 1 ? `$${pAdd.toFixed(4)}` : `$${pAdd.toFixed(2)}`) : '--';
                 const pct = (pAdd > 0 && pNow != null) ? ((pNow - pAdd) / pAdd) * 100 : null;
-                const change = pct != null ? `${pct.toFixed(2)}%` : '--';
+                const change = pct != null ? `${pct.toFixed(3)}%` : '--';
                 const changeColor = pct == null ? 'text-gray-400' : (pct >= 0 ? 'text-purple' : 'text-pink');
                 return (
                   <div key={symbol} className="relative group">
