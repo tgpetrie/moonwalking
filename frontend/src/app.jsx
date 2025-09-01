@@ -3,6 +3,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
 import { FiRefreshCw } from 'react-icons/fi';
+import ManualRefreshButton from './components/ManualRefreshButton.jsx';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
 import AlertsIndicator from './components/AlertsIndicator.jsx';
@@ -117,14 +118,7 @@ export default function App() {
               />
             </div>
         </div>
-        <button
-          onClick={refreshGainersAndLosers}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] focus:outline-none focus:ring-2 focus:ring-purple-400"
-          aria-label="Refresh"
-          title="Refresh"
-        >
-          <FiRefreshCw className="text-xl text-purple-300" />
-        </button>
+        <ManualRefreshButton onAfterRefresh={refreshGainersAndLosers} />
         <div className="mt-1">
           <AlertsIndicator />
         </div>

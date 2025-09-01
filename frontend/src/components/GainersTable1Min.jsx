@@ -246,28 +246,16 @@ export default function GainersTable1Min({
                     </div>
                   </div>
 
-                  {/* Col3: % + Peak + interval */}
+                  {/* Col3: % + Px (no label) */}
                   <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
                     <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
                       {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
                     </div>
-                    <div className="text-xs text-gray-400 leading-tight">
-                      {item && typeof item.peakCount === 'number' && item.peakCount > 0
-                        ? `Peak x${item.peakCount}`
-                        : <span className="opacity-0 select-none">Peak x0</span>}
-                    </div>
-                    <div className="text-xs text-gray-400 leading-tight">1-min</div>
                     {/* Streak Px subline */}
                     <div className="text-xs text-gray-300 leading-tight">
                       {item ? (() => {
                         const { level } = get1m(item.symbol);
-                        if (level === 0) {
-                          return (<div className="mt-1 opacity-0 select-none subline-badge num"></div>);
-                        }
-                        if (level === 1) {
-                          return (<div className="mt-1 subline-badge num">Px</div>);
-                        }
-                        return (<div className="mt-1 subline-badge num">Px{level}</div>);
+                        return level > 0 ? (<div className="mt-1 subline-badge num">Px{level}</div>) : null;
                       })() : (<div className="mt-1 opacity-0 select-none subline-badge num"></div>)}
                     </div>
                   </div>
