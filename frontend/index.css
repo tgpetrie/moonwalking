@@ -57,17 +57,14 @@ body {
 
 /* Typography Classes */
 .font-headline {
-  font-family: 'Syncopate', sans-serif;
+  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
 
-.font-body {
-  font-family: 'Rubik', sans-serif;
-}
-
+.font-body,
 .font-mono {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Legend / Raleway font */

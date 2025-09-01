@@ -3,8 +3,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        // Universal Raleway for all text, including areas that previously used mono
         sans: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'monospace'],
+        mono: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
         orange: '#FF6B00',

@@ -168,7 +168,7 @@ const LosersTable = ({ refreshTrigger }) => {
 
                   {/* Col3: % + Px (no label) */}
                   <div className="w-[108px] pr-1.5 text-right align-top">
-                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>
+                    <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>
                       {typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
                     </div>
                     {(() => {
