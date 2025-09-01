@@ -66,6 +66,18 @@ app.register_blueprint(watchlist_bp)
 # ---------------- Health + Metrics -----------------
 _ERROR_STATS = { '5xx': 0 }
 one_minute_market_stats = {}
+_one_min_hist_lock = threading.Lock()
+_spike_p95_history = deque(maxlen=30)
+_spike_p99_history = deque(maxlen=30)
+_extreme_gainer_history = deque(maxlen=30)
+_breadth_adv_decl_ratio_ema = None
+_breadth_net_advancers_ema = None
+_breadth_thrust_started_at = None
+
+# Configurable thresholds / params (env override optional)
+_BREADTH_THRUST_RATIO = float(os.environ.get('BREADTH_THRUST_RATIO','1.3'))
+_BREADTH_THRUST_NET_MIN = int(os.environ.get('BREADTH_THRUST_NET_MIN','0'))  # allow >=0 by default
+_BREADTH_EMA_ALPHA = float(os.environ.get('BREADTH_EMA_ALPHA','0.2'))  # smoothing for EMA oscillator
 
 @app.before_request
 def _before_req_metrics():
@@ -317,6 +329,56 @@ def metrics_prom():
         from price_fetch import get_price_fetch_metrics
         pf = get_price_fetch_metrics()
         cb = (pf.get('circuit_breaker') or {}) if isinstance(pf, dict) else {}
+            # --- Rolling histories & z-scores / EMA oscillator ---
+            with _one_min_hist_lock:
+                if pct95_cur is not None:
+                    _spike_p95_history.append(pct95_cur)
+                if pct99_cur is not None:
+                    _spike_p99_history.append(pct99_cur)
+                if extreme_gainer_pct_cur is not None:
+                    _extreme_gainer_history.append(extreme_gainer_pct_cur)
+                def _z(hist):
+                    if len(hist) < 5:
+                        return None
+                    mean = sum(hist)/len(hist)
+                    var = sum((x-mean)**2 for x in hist)/len(hist)
+                    if var <= 1e-12:
+                        return 0.0
+                    import math
+                    return round((hist[-1]-mean)/math.sqrt(var), 4)
+                z_p95 = _z(_spike_p95_history)
+                z_p99 = _z(_spike_p99_history)
+                z_extreme = _z(_extreme_gainer_history)
+                # EMA breadth oscillators
+                global _breadth_adv_decl_ratio_ema, _breadth_net_advancers_ema, _breadth_thrust_started_at
+                if adv_decl_ratio is not None:
+                    if _breadth_adv_decl_ratio_ema is None:
+                        _breadth_adv_decl_ratio_ema = adv_decl_ratio
+                    else:
+                        _breadth_adv_decl_ratio_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_adv_decl_ratio_ema + _BREADTH_EMA_ALPHA*adv_decl_ratio
+                if net_advancers_cur is not None:
+                    if _breadth_net_advancers_ema is None:
+                        _breadth_net_advancers_ema = net_advancers_cur
+                    else:
+                        _breadth_net_advancers_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_net_advancers_ema + _BREADTH_EMA_ALPHA*net_advancers_cur
+                # Detect thrust persistence window
+                thrust_active = False
+                if adv_decl_ratio is not None and adv_decl_ratio >= _BREADTH_THRUST_RATIO and net_advancers_cur >= _BREADTH_THRUST_NET_MIN:
+                    if _breadth_thrust_started_at is None:
+                        _breadth_thrust_started_at = now_ts
+                    thrust_active = True
+                else:
+                    _breadth_thrust_started_at = None
+                thrust_duration = (now_ts - _breadth_thrust_started_at) if _breadth_thrust_started_at else 0
+                one_minute_market_stats.update({
+                    'z_p95': z_p95,
+                    'z_p99': z_p99,
+                    'z_extreme_gainer': z_extreme,
+                    'breadth_adv_decl_ratio_ema': round(_breadth_adv_decl_ratio_ema,4) if _breadth_adv_decl_ratio_ema is not None else None,
+                    'breadth_net_advancers_ema': round(_breadth_net_advancers_ema,4) if _breadth_net_advancers_ema is not None else None,
+                    'breadth_thrust_active': 1 if thrust_active else 0,
+                    'breadth_thrust_duration_sec': round(thrust_duration,2),
+                })
         emit_prometheus(lines, 'price_fetch_total_calls_total', pf.get('total_calls',0), 'counter', 'Total calls to fetch_prices (including snapshot served)')
         emit_prometheus(lines, 'price_fetch_products_cache_hits_total', pf.get('products_cache_hits',0), 'counter', 'Number of product list cache hits')
         emit_prometheus(lines, 'price_fetch_snapshot_served_total', pf.get('snapshot_served',0), 'counter', 'Number of times stale snapshot returned instead of fresh fetch')
@@ -390,6 +452,14 @@ def metrics_prom():
             _maybe('one_min_market_breadth_net_advancers_delta_rate_per_sec', m.get('breadth_net_advancers_delta_rate_per_sec'), 'Rate/sec of net advancers delta')
             _maybe('one_min_market_breadth_adv_decl_ratio_delta', m.get('breadth_adv_decl_ratio_delta'), 'Delta of adv/decl ratio since previous snapshot')
             _maybe('one_min_market_breadth_adv_decl_ratio_rate_per_sec', m.get('breadth_adv_decl_ratio_rate_per_sec'), 'Rate/sec of adv/decl ratio delta')
+            # Z-scores & EMA / thrust
+            _maybe('one_min_market_z_p95', m.get('z_p95'), 'Z-score of current 95th percentile vs rolling window')
+            _maybe('one_min_market_z_p99', m.get('z_p99'), 'Z-score of current 99th percentile vs rolling window')
+            _maybe('one_min_market_z_extreme_gainer', m.get('z_extreme_gainer'), 'Z-score of current extreme gainer vs history')
+            _maybe('one_min_market_breadth_adv_decl_ratio_ema', m.get('breadth_adv_decl_ratio_ema'), 'EMA-smoothed adv/decl ratio')
+            _maybe('one_min_market_breadth_net_advancers_ema', m.get('breadth_net_advancers_ema'), 'EMA-smoothed net advancers')
+            _maybe('one_min_market_breadth_thrust_active', m.get('breadth_thrust_active'), 'Breadth thrust active flag (1=active)')
+            _maybe('one_min_market_breadth_thrust_duration_sec', m.get('breadth_thrust_duration_sec'), 'Duration in seconds of current breadth thrust sequence')
     except Exception as e:  # pragma: no cover - defensive
         lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
         lines.append('# TYPE price_fetch_metrics_error gauge')
