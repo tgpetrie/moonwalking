@@ -95,15 +95,15 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                 }>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-purple">#{coin.rank}</span>
-                    <span className="text-sm font-headline font-bold tracking-wide">
+                    <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="text-base font-bold text-teal">
+                    <span className="text-lg font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.change >= 0 ? 'text-purple' : 'text-pink'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
+                  <div className="flex items-center gap-1 font-bold">
+                    <span className={(coin.change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
@@ -122,9 +122,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                         </span>
                       );
                     })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
-                    )}
+                    {/* streak chip removed for cleaner layout */}
                   </div>
                               {getBadgeStyle(coin.change) ? (
                                 <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
@@ -142,15 +140,15 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                 }>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-purple">#{coin.rank}</span>
-                    <span className="text-sm font-headline font-bold tracking-wide">
+                    <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="text-base font-bold text-teal">
+                    <span className="text-lg font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.change >= 0 ? 'text-purple' : 'text-pink'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
+                  <div className="flex items-center gap-1 font-bold">
+                    <span className={(coin.change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
                     {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
@@ -169,9 +167,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                         </span>
                       );
                     })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
-                    )}
+                    {/* streak chip removed for cleaner layout */}
                   </div>
                               {getBadgeStyle(coin.change) ? (
                                 <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">

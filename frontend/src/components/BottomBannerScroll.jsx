@@ -102,15 +102,15 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple bg-transparent">
                     <div className="flex items-center gap-2">
-                    <span className="text-sm font-headline font-bold tracking-wide">
+                    <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
                   </div>
-                  <div className="text-sm font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
+                  <div className="text-lg font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
                     ${formatAbbrev(coin.volume_24h)}
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.volume_change >= 0 ? 'text-purple' : 'text-pink'}>
+                  <div className="flex items-center gap-1 font-bold">
+                    <span className={(coin.volume_change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>
                         Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
@@ -135,9 +135,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                         </span>
                       );
                     })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
-                    )}
+                    {/* removed streak chip for cleaner layout */}
                   </div>
                   {/* removed empty purple-bordered pill for cleaner layout */}
                 </div>
@@ -148,15 +146,15 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-headline font-bold tracking-wide">
+                    <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
                   </div>
-                  <div className="text-sm font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
+                  <div className="text-lg font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
                     ${formatAbbrev(coin.volume_24h)}
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.volume_change >= 0 ? 'text-purple' : 'text-pink'}>
+                  <div className="flex items-center gap-1 font-bold">
+                    <span className={(coin.volume_change >= 0 ? 'text-purple' : 'text-pink') + ' text-base'}>
                         Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
@@ -181,9 +179,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                         </span>
                       );
                     })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
-                    )}
+                    {/* removed streak chip for cleaner layout */}
                   </div>
                     {/* removed extra purple-bordered container - keep single layout pill in first set only */}
                 </div>
