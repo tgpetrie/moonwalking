@@ -37,6 +37,14 @@ _metrics = {
 # Bound the rolling durations list to avoid unbounded memory usage
 _DURATIONS_MAX = int(os.environ.get('PRICE_FETCH_DURATIONS_MAX','200'))
 
+# Histogram buckets (milliseconds) for historical latency distribution (cumulative style for Prometheus emission)
+_HIST_BUCKETS_MS = [int(x) for x in os.environ.get('PRICE_FETCH_DURATION_BUCKETS','50,100,200,400,800,1600,3200,6400').split(',') if x.strip()]
+_hist_lock = threading.Lock()
+_hist_duration_counts = {b: 0 for b in _HIST_BUCKETS_MS}  # per-bucket (non-cumulative) counts
+_hist_overflow = 0  # > max bucket
+_hist_sum = 0.0
+_hist_count = 0
+
 # Circuit breaker (fail fast protecting upstream)
 _cb = CircuitBreaker(
     fail_threshold=int(os.environ.get('PRICE_FETCH_CB_FAIL_THRESHOLD','5')),
@@ -174,6 +182,19 @@ def fetch_prices() -> Dict[str,float]:
         if len(arr) > _DURATIONS_MAX:
             # trim oldest slice
             del arr[: len(arr) - _DURATIONS_MAX]
+    # histogram update (separate lock to reduce contention scope)
+    global _hist_count, _hist_sum, _hist_overflow
+    with _hist_lock:
+        _hist_count += 1
+        _hist_sum += dur_ms
+        placed = False
+        for edge in _HIST_BUCKETS_MS:
+            if dur_ms <= edge:
+                _hist_duration_counts[edge] += 1
+                placed = True
+                break
+        if not placed:
+            _hist_overflow += 1
     return prices
 
 def get_price_fetch_metrics():
@@ -203,6 +224,12 @@ def get_price_fetch_metrics():
         'error_rate_percent': round(error_rate_pct, 4),
         'backoff_seconds_remaining': round(backoff_remaining, 3),
     })
+    # Snapshot histogram (non-cumulative raw counts + overflow) for JSON
+    with _hist_lock:
+        data['fetch_duration_hist_buckets'] = {str(edge): _hist_duration_counts[edge] for edge in _HIST_BUCKETS_MS}
+        data['fetch_duration_hist_overflow'] = _hist_overflow
+        data['fetch_duration_sum_ms'] = round(_hist_sum, 3)
+        data['fetch_duration_count'] = _hist_count
     # Circuit breaker snapshot
     try:
         data['circuit_breaker'] = _cb.snapshot()

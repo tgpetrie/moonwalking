@@ -324,6 +324,22 @@ def metrics_prom():
             emit_prometheus(lines, 'price_fetch_p95_fetch_duration_ms', round(pf.get('p95_fetch_duration_ms'),2), 'gauge', 'Approximate p95 of recent fetch durations (ms)')
         emit_prometheus(lines, 'price_fetch_error_rate_percent', pf.get('error_rate_percent'), 'gauge', 'Rolling error rate percentage over recent calls')
         emit_prometheus(lines, 'price_fetch_backoff_seconds_remaining', pf.get('backoff_seconds_remaining'), 'gauge', 'Seconds remaining in current exponential backoff window (0 if none)')
+        # Histogram exposition (Prometheus style cumulative buckets)
+        buckets = pf.get('fetch_duration_hist_buckets') or {}
+        running = 0
+        for edge in sorted([int(k) for k in buckets.keys()]):
+            running += buckets[str(edge)]
+            lines.append('# TYPE price_fetch_duration_seconds histogram')
+            # convert ms to seconds for Prometheus histogram convention
+            lines.append(f'price_fetch_duration_seconds_bucket{{le="{edge/1000.0:.3f}"}} {running}')
+        # +Inf bucket
+        overflow = pf.get('fetch_duration_hist_overflow',0)
+        count = pf.get('fetch_duration_count', running + overflow)
+        lines.append(f'price_fetch_duration_seconds_bucket{{le="+Inf"}} {count}')
+        # sum & count
+        sum_ms = pf.get('fetch_duration_sum_ms',0.0)
+        lines.append(f'price_fetch_duration_seconds_sum {sum_ms/1000.0:.6f}')
+        lines.append(f'price_fetch_duration_seconds_count {count}')
         age_val = round(pf.get('snapshot_age_sec',0),2) if pf.get('snapshot_age_sec') is not None else None
         emit_prometheus(lines, 'price_fetch_snapshot_age_seconds', age_val, 'gauge', 'Age in seconds of current price snapshot')
         emit_prometheus(lines, 'price_fetch_has_snapshot', 1 if pf.get('has_snapshot') else 0, 'gauge', 'Whether a snapshot is currently cached (1=yes)')
