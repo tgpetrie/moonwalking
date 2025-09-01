@@ -217,7 +217,7 @@ const GainersTable = ({ refreshTrigger }) => {
 
                   {/* Col3: % (stack % → Peak → interval) */}
                   <div className="w-[108px] pr-1.5 text-right align-top">
-                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                    <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
                       {r.change3m > 0 && '+'}{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
                     </div>
                     {(() => {
