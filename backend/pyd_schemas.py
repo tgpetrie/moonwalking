@@ -34,7 +34,27 @@ class MetricsResponse(BaseModel):
     status: str
     uptime_seconds: float
     errors_5xx: int
-    price_fetch: Optional[Dict[str, Any]] = None  # keep raw for now
+    # Structured price fetch metrics (previously untyped dict). All fields optional to allow gradual evolution.
+    # This mirrors keys emitted by price_fetch.get_price_fetch_metrics().
+    class PriceFetchMetrics(BaseModel):
+        total_calls: int
+        snapshot_served: int
+        products_cache_hits: int
+        rate_limit_failures: int
+        last_fetch_duration_ms: float
+        last_success_time: float | None
+        errors: int
+        durations_ms: List[float] | None = None
+        rate_failures: int
+        rate_next_epoch: float | None
+        has_snapshot: bool
+        snapshot_age_sec: float | None = None
+        p95_fetch_duration_ms: float | None = None
+        error_rate_percent: float | None = None
+        backoff_seconds_remaining: float | None = None
+        circuit_breaker: Optional['CircuitBreakerModel'] = None
+
+    price_fetch: Optional[PriceFetchMetrics] = None
     circuit_breaker: Optional[CircuitBreakerModel] = None
     swr_caches: Optional[Dict[str, SWRCacheStats]] = None
 
