@@ -69,3 +69,11 @@ def test_one_min_market_metrics_present(client):
     # At least universe count metric should appear if stats exist
     if omm:
         assert 'one_min_market_universe_count' in pbody
+        # Acceleration metrics may appear after at least two snapshots; we trigger endpoint twice
+        client.get('/api/component/gainers-table-1min')
+        presp2 = client.get('/metrics.prom')
+        pbody2 = presp2.get_data(as_text=True)
+        # Not strictly guaranteed on first run, so tolerate absence but log helpful assertion only if second snapshot
+        # If second snapshot stats exist, expect a delta metric name presence heuristic
+        if 'one_min_market_spike_p95_delta' in pbody2:
+            assert 'one_min_market_spike_p95_rate_per_sec' in pbody2
