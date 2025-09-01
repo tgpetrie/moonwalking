@@ -18,3 +18,7 @@ backend/watchlist_insights.log
 
 # VS Code
 .vscode/
+
+# allow the mobile scaffold
+!moonwalking_mobile/
+!moonwalking_mobile/**

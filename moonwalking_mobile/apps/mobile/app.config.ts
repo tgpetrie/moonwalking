@@ -1,5 +1,4 @@
-
-import 'dotenv/config';
+import 'dotenv/config'
 export default ({ config }) => ({
   ...config,
   name: 'Moonwalking',
@@ -9,7 +8,7 @@ export default ({ config }) => ({
   extra: {
     API_BASE: process.env.API_BASE || 'http://127.0.0.1:8787',
     RC_IOS: process.env.RC_IOS || '',
-    RC_ANDROID: process.env.RC_ANDROID || ''
+    RC_ANDROID: process.env.RC_ANDROID || '',
   },
-  updates: { enabled: true }
-});
+  updates: { enabled: true },
+})

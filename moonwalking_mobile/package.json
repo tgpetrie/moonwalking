@@ -8,6 +8,13 @@
   ],
   "scripts": {
     "dev:worker": "workspaces run dev:worker",
-    "dev:mobile": "workspaces run dev:mobile"
+    "dev:mobile": "workspaces run dev:mobile",
+    "format": "prettier --write .",
+  "format:check": "prettier --check .",
+  "typecheck:worker": "npm run typecheck -w backend-workers/moonwalking-worker",
+  "typecheck": "npm run typecheck -w backend-workers/moonwalking-worker"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
   }
 }

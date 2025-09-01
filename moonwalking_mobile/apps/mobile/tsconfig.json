@@ -1,18 +1,13 @@
 {
   "compilerOptions": {
     "target": "es2017",
-    "lib": [
-      "es2017",
-      "dom"
-    ],
+    "lib": ["es2017", "dom"],
     "jsx": "react-jsx",
     "strict": true,
     "moduleResolution": "node",
     "baseUrl": "./src",
     "paths": {
-      "@core/*": [
-        "../../packages/core/src/*"
-      ]
+      "@core/*": ["../../packages/core/src/*"]
     }
   }
 }
