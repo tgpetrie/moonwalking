@@ -3,6 +3,16 @@ import { API_ENDPOINTS, fetchData } from '../api.js';
 
 const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
+  // Abbreviate large dollar amounts (e.g., 15,234,000 -> 15.23M)
+  const formatAbbrev = (n = 0) => {
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1e12) return sign + (abs / 1e12).toFixed(2).replace(/\.0+$/,'') + 'T';
+    if (abs >= 1e9)  return sign + (abs / 1e9).toFixed(2).replace(/\.0+$/,'') + 'B';
+    if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(2).replace(/\.0+$/,'') + 'M';
+    if (abs >= 1e3)  return sign + (abs / 1e3).toFixed(1).replace(/\.0+$/,'') + 'k';
+    return sign + String(abs.toFixed(0));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -56,10 +66,11 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
       }
     };
     
-    // Fetch data immediately
+    // Fetch on mount and then hourly (60 min)
     fetchBottomBannerData();
-    return () => { isMounted = false; };
-  }, [refreshTrigger]);
+    const id = setInterval(fetchBottomBannerData, 60 * 60 * 1000);
+    return () => { isMounted = false; clearInterval(id); };
+  }, []);
 
   const getBadgeStyle = (volume) => {
   // Intentionally hide textual badge indicators in the bottom banner UI.
@@ -88,15 +99,15 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
           <div className="flex whitespace-nowrap animate-scroll" role="list">
             {/* First set of data */}
             {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
+              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple bg-transparent">
                     <div className="flex items-center gap-2">
                     <span className="text-sm font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
                   </div>
-                  <div className="font-mono text-sm text-teal">
-                    ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
+                  <div className="text-sm font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
+                    ${formatAbbrev(coin.volume_24h)}
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold">
                     <span className={coin.volume_change >= 0 ? 'text-purple' : 'text-pink'}>
@@ -128,21 +139,21 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                       <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 bg-transparent">&nbsp;</div>
+                  {/* removed empty purple-bordered pill for cleaner layout */}
                 </div>
               </div>
             ))}
             {/* Duplicate set for seamless scrolling */}
             {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}, Vol: ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
+              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
                   </div>
-                  <div className="font-mono text-sm text-teal">
-                    ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
+                  <div className="text-sm font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
+                    ${formatAbbrev(coin.volume_24h)}
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold">
                     <span className={coin.volume_change >= 0 ? 'text-purple' : 'text-pink'}>
