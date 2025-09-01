@@ -1,5 +1,33 @@
 {
+  "name": "bhabit-cbmooners-4",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "eslint . --ext .js,.jsx,.mjs --max-warnings=0",
+    "format": "prettier -w .",
+    "health": "node scripts/health-check.js"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.52.0"
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "eslint": "^9.12.0",
+    "prettier": "^3.3.3",
+    "nodemon": "^3.1.7"
+  },
+  "eslintConfig": {
+    "env": { "es2024": true, "node": true },
+    "extends": ["eslint:recommended"],
+    "parserOptions": { "sourceType": "module" },
+    "rules": { "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }] }
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": true,
+    "printWidth": 100
   }
 }
