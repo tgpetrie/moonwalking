@@ -1,0 +1,33 @@
+{
+  "name": "moonwalking-mobile",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "dev:mobile": "expo start"
+  },
+  "dependencies": {
+    "expo": "^51.0.0",
+    "react": "18.x",
+    "react-native": "0.74.x",
+    "@tanstack/react-query": "^5.51.0",
+    "react-native-mmkv": "^2.12.2",
+    "@react-native-async-storage/async-storage": "^1.23.1",
+    "axios": "^1.7.0",
+    "zustand": "^4.5.2",
+    "expo-notifications": "~0.28.0",
+    "expo-linking": "~6.3.0",
+    "expo-secure-store": "~12.8.0",
+    "expo-constants": "~16.0.2",
+    "expo-updates": "~0.25.26",
+    "react-native-purchases": "^7.28.1",
+    "expo-linear-gradient": "~13.0.2",
+    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/bottom-tabs": "^6.5.20",
+    "@react-navigation/native-stack": "^6.9.26",
+    "react-native-markdown-display": "^7.0.1"
+  }
+}

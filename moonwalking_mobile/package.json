@@ -1,0 +1,13 @@
+{
+  "name": "moonwalking",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend-workers/*"
+  ],
+  "scripts": {
+    "dev:worker": "workspaces run dev:worker",
+    "dev:mobile": "workspaces run dev:mobile"
+  }
+}
