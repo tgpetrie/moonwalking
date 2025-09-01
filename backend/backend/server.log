@@ -26640,3 +26640,15 @@
 2025-09-01 07:21:52,680 - INFO - 3-min cache updated: 15 gainers, 4 losers, 7 banner items
 2025-09-01 07:21:55,463 - WARNING - Failed to get ticker for WLFI-USD: float() argument must be a string or a real number, not 'NoneType'
 2025-09-01 07:21:56,541 - INFO - Successfully fetched 49 prices from Coinbase
+2025-09-01 07:22:58,949 - INFO - Successfully fetched 50 prices from Coinbase
+2025-09-01 07:23:01,505 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 10 losers; banner items=14
+2025-09-01 07:23:01,505 - INFO - Successfully processed data: 15 gainers, 5 losers, 14 banner items
+2025-09-01 07:23:01,505 - INFO - 3-min cache updated: 15 gainers, 5 losers, 14 banner items
+2025-09-01 07:23:03,994 - INFO - Successfully fetched 50 prices from Coinbase
+2025-09-01 07:24:06,002 - WARNING - Failed to get ticker for WLFI-USD: float() argument must be a string or a real number, not 'NoneType'
+2025-09-01 07:24:06,487 - INFO - Successfully fetched 49 prices from Coinbase
+2025-09-01 07:24:07,845 - WARNING - Error processing Coinbase 24h data for WLFI-USD: float() argument must be a string or a real number, not 'NoneType'
+2025-09-01 07:24:08,794 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 10 losers; banner items=14
+2025-09-01 07:24:08,795 - INFO - Successfully processed data: 15 gainers, 4 losers, 14 banner items
+2025-09-01 07:24:08,795 - INFO - 3-min cache updated: 15 gainers, 4 losers, 14 banner items
+2025-09-01 07:24:11,570 - INFO - Successfully fetched 50 prices from Coinbase
