@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket } from '../services/websocket.js';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
 
 const WebSocketContext = createContext(null);
 
@@ -21,52 +22,70 @@ export const WebSocketProvider = ({ children }) => {
     watchlist: null
   });
   const [isPolling, setIsPolling] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState('good');
   // Hold an object { id: timeoutId, abort: fn }
   const pollingIntervalRef = useRef(null);
+  
+  // Mobile-specific configuration
+  const isMobile = isMobileDevice();
+  const mobileConfig = getMobileOptimizedConfig();
 
-  // Polling fallback function
-  const startPolling = () => {
-    if (isPolling) return;
+  // Polling fallback function using useCallback to avoid stale closures
+  const startPolling = useCallback(() => {
+    if (isPolling) {
+      console.log('🔄 Polling already active, skipping');
+      return;
+    }
 
     console.log('🔄 Starting REST API polling fallback');
     setIsPolling(true);
 
-  let inFlight = false;
-  let backoffMs = 10000; // start at 10s to reduce churn
+    let inFlight = false;
+    // Use mobile-optimized polling interval
+    let backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
     let controller = null;
 
-  const poll = async () => {
+    const poll = async () => {
       if (inFlight) return; // concurrency guard
       inFlight = true;
       controller = new AbortController();
       try {
-        const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
+        console.log('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
+        const fetchOptions = { 
+          signal: controller.signal,
+          timeout: isMobile ? mobileConfig.fetchTimeout : 5000
+        };
+        const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions);
+        console.log('[WebSocket Context] Polling - received data:', gainersData);
         if (gainersData && gainersData.data) {
           const pricesUpdate = {};
-            gainersData.data.forEach(coin => {
-              if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
-                const priceVal = coin.price ?? coin.current_price;
-                pricesUpdate[coin.symbol] = {
-                  price: priceVal,
-                  change: coin.price_change_percentage_1min || coin.change || 0,
-                  changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-                  timestamp: Date.now()
-                };
-              }
-            });
+          gainersData.data.forEach(coin => {
+            if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
+              const priceVal = coin.price ?? coin.current_price;
+              pricesUpdate[coin.symbol] = {
+                price: priceVal,
+                change: coin.price_change_percentage_1min || coin.change || 0,
+                changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
+                timestamp: Date.now()
+              };
+            }
+          });
+          console.log('[WebSocket Context] Polling - updating state with', gainersData.data.length, 'items');
           setLatestData(prev => ({
             ...prev,
             crypto: gainersData.data,
             prices: { ...prev.prices, ...pricesUpdate }
           }));
           // reset backoff on success
-          backoffMs = 10000;
+          backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
+        } else {
+          console.log('[WebSocket Context] Polling - no data received or malformed response');
         }
       } catch (error) {
         if (error.name === 'AbortError') {
-          // silent on abort
+          console.log('[WebSocket Context] Polling - aborted');
         } else {
-          console.error('Polling error:', error);
+          console.error('[WebSocket Context] Polling error:', error);
           backoffMs = Math.min(backoffMs * 1.5, 90000); // exponential up to 90s
         }
       } finally {
@@ -77,8 +96,10 @@ export const WebSocketProvider = ({ children }) => {
     // Kick off loop using adaptive timeout instead of fixed setInterval to respect backoff
     const scheduleNext = () => {
       const timeoutId = setTimeout(async () => {
-        await poll();
-        scheduleNext();
+        if (pollingIntervalRef.current) { // Check if still should be polling
+          await poll();
+          scheduleNext();
+        }
       }, backoffMs);
       // Store controller abort alongside timer id in a small control object
       pollingIntervalRef.current = {
@@ -88,9 +109,10 @@ export const WebSocketProvider = ({ children }) => {
         }
       };
     };
-    poll();
-    scheduleNext();
-  };
+    
+    // Start immediately and then schedule
+    poll().then(() => scheduleNext());
+  }, [isPolling]); // Add isPolling as dependency
   
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
@@ -210,6 +232,20 @@ export const WebSocketProvider = ({ children }) => {
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 
+    // Mobile-specific network monitoring
+    const unsubscribeNetworkDegraded = subscribeToWebSocket('network_degraded', (data) => {
+      console.log('📱 Network degraded, switching to more aggressive polling:', data);
+      setNetworkStatus('poor');
+      if (!isPolling && !isConnected) {
+        startPolling();
+      }
+    });
+
+    const unsubscribeNetworkImproved = subscribeToWebSocket('network_improved', (data) => {
+      console.log('📱 Network improved:', data);
+      setNetworkStatus('good');
+    });
+
   const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
     if (disableWs) {
       // Skip WS entirely and use polling
@@ -238,6 +274,8 @@ export const WebSocketProvider = ({ children }) => {
       unsubscribeCrypto();
       unsubscribePrices();
       unsubscribeWatchlist();
+      unsubscribeNetworkDegraded();
+      unsubscribeNetworkImproved();
       disconnectWebSocket();
       stopPolling();
     };

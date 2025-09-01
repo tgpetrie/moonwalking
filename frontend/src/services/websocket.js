@@ -1,16 +1,25 @@
-import { io } from 'socket.io-client';
+import { isMobileDevice, getMobileOptimizedConfig, addVisibilityChangeListener, addNetworkChangeListener } from '../utils/mobileDetection.js';
 
 class WebSocketManager {
   constructor() {
-    this.socket = null;
+    this.socket = null; // Native WebSocket
     this.isConnected = false;
     this.subscribers = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    // Prefer explicit WS url (VITE_WS_URL), else reuse API url (avoids port mismatch 404s)
-    const apiUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:5003').replace(/\/$/, '');
-    const wsUrl = (import.meta.env?.VITE_WS_URL || apiUrl).replace(/\/$/, '');
-    this.baseUrl = wsUrl;
+    this.isMobile = isMobileDevice();
+    this.config = getMobileOptimizedConfig();
+    this.maxReconnectAttempts = this.config.maxReconnectAttempts;
+    this.isVisible = !document.hidden;
+    this.networkInfo = null;
+    
+    // Setup mobile-specific listeners
+    this.setupMobileOptimizations();
+    // Prefer explicit WS url (VITE_WS_URL), else same-origin
+    const originWs = (typeof location !== 'undefined')
+      ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
+      : 'ws://127.0.0.1:8787';
+    const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
+    this.baseUrl = wsHost; // host only; endpoint is /ws
     // Allow opting out by default unless explicitly enabled server-side
     this.disabled = String(import.meta.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
   }
@@ -21,55 +30,46 @@ class WebSocketManager {
       this.emit('connection', { status: 'failed', reason: 'disabled' });
       return;
     }
-    if (this.socket && this.socket.connected) {
+    if (this.socket && this.isConnected) {
       return;
     }
 
     try {
-  this.socket = io(this.baseUrl, {
-        transports: ['websocket', 'polling'],
-        upgrade: true,
-        rememberUpgrade: true,
-        timeout: 10000,
-        forceNew: true
-      });
+      const endpoint = this.baseUrl + '/ws';
+      const ws = new WebSocket(endpoint);
+      this.socket = ws;
 
-      this.socket.on('connect', () => {
-        console.log('WebSocket connected to', this.baseUrl);
+      ws.addEventListener('open', () => {
+        console.log('WebSocket connected to', endpoint);
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.emit('connection', { status: 'connected' });
       });
-
-      this.socket.on('disconnect', (reason) => {
-        console.log('WebSocket disconnected:', reason);
+      ws.addEventListener('close', (ev) => {
         this.isConnected = false;
-        this.emit('connection', { status: 'disconnected', reason });
-        
-        if (reason === 'io server disconnect') {
-          // Server disconnected, try to reconnect
-          this.handleReconnect();
-        }
-      });
-
-      this.socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
-        this.isConnected = false;
-        this.emit('connection', { status: 'error', error: error.message });
+        this.emit('connection', { status: 'disconnected', reason: ev.reason || 'close' });
         this.handleReconnect();
       });
-
-      // Listen for real-time crypto data updates
-      this.socket.on('crypto_update', (data) => {
-        this.emit('crypto_update', data);
+      ws.addEventListener('error', (err) => {
+        this.isConnected = false;
+        this.emit('connection', { status: 'error', error: 'ws error' });
+        this.handleReconnect();
       });
-
-      this.socket.on('price_update', (data) => {
-        this.emit('price_update', data);
-      });
-
-      this.socket.on('watchlist_update', (data) => {
-        this.emit('watchlist_update', data);
+      ws.addEventListener('message', (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg?.type === 'hello' || msg?.type === 'snapshots') {
+            const snap = msg.snapshots || {};
+            // Emit events consistent with existing context listeners
+            if (Array.isArray(snap.t1m) && snap.t1m.length) {
+              this.emit('crypto_update', snap.t1m);
+              // Build prices map
+              const prices = {};
+              snap.t1m.forEach(c => { if (c?.symbol) prices[c.symbol] = { price: c.current_price ?? c.price ?? 0, changePercent: c.price_change_percentage_1min ?? c.change ?? 0, timestamp: Date.now() }; });
+              if (Object.keys(prices).length) this.emit('price_update', prices);
+            }
+          }
+        } catch (_) {}
       });
 
     } catch (error) {
@@ -79,7 +79,7 @@ class WebSocketManager {
 
   disconnect() {
     if (this.socket) {
-      this.socket.disconnect();
+      try { this.socket.close(); } catch (_) {}
       this.socket = null;
       this.isConnected = false;
     }
@@ -133,10 +133,9 @@ class WebSocketManager {
 
   // Send data to server if connected
   send(event, data) {
-    if (this.socket && this.socket.connected) {
-      this.socket.emit(event, data);
-    } else {
-      console.warn(`Cannot send ${event}: WebSocket not connected`);
+    // Native WS: send typed messages if needed later
+    if (this.socket && this.isConnected) {
+      try { this.socket.send(JSON.stringify({ event, data })); } catch (_) {}
     }
   }
 
@@ -145,8 +144,88 @@ class WebSocketManager {
     return {
       connected: this.isConnected,
       reconnectAttempts: this.reconnectAttempts,
-      socketId: this.socket?.id || null
+      socketId: null
     };
+  }
+
+  // Mobile-specific optimizations
+  setupMobileOptimizations() {
+    if (!this.isMobile) return;
+
+    // Handle visibility changes (app backgrounding)
+    this.visibilityCleanup = addVisibilityChangeListener((isVisible) => {
+      this.isVisible = isVisible;
+      if (isVisible && !this.isConnected && !this.disabled) {
+        // Reconnect when app becomes visible again
+        console.log('📱 App became visible, attempting WebSocket reconnect...');
+        this.reconnectAttempts = 0; // Reset attempts
+        this.connect();
+      } else if (!isVisible && this.isConnected) {
+        // Optionally disconnect when backgrounded to save battery
+        console.log('📱 App backgrounded, keeping WebSocket open but reducing activity');
+      }
+    });
+
+    // Handle network changes (WiFi to cellular, etc.)
+    this.networkCleanup = addNetworkChangeListener((networkInfo) => {
+      this.networkInfo = networkInfo;
+      console.log('📱 Network change detected:', networkInfo);
+      
+      // If connection is poor, fall back to polling faster
+      if (networkInfo.effectiveType === 'slow-2g' || networkInfo.effectiveType === '2g') {
+        this.emit('network_degraded', { networkInfo });
+      } else if (this.isConnected && networkInfo.effectiveType === '4g') {
+        this.emit('network_improved', { networkInfo });
+      }
+      
+      // Reconnect WebSocket after network change if it was connected
+      if (this.isConnected && this.isVisible) {
+        setTimeout(() => {
+          if (!this.isConnected) {
+            console.log('📱 Reconnecting after network change...');
+            this.connect();
+          }
+        }, 1000);
+      }
+    });
+  }
+
+  // Enhanced reconnect logic for mobile
+  handleReconnect() {
+    // Don't reconnect if app is backgrounded
+    if (this.isMobile && !this.isVisible) {
+      console.log('📱 Skipping reconnect while app is backgrounded');
+      return;
+    }
+
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      // Use mobile-optimized shorter delay
+      const baseDelay = this.isMobile ? this.config.reconnectDelay : 1000;
+      const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts), 30000);
+      console.log(`📱 Mobile reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms...`);
+      
+      setTimeout(() => {
+        // Double-check visibility before reconnecting
+        if (!this.isMobile || this.isVisible) {
+          this.connect();
+        }
+      }, delay);
+    } else {
+      console.error('📱 Max mobile reconnection attempts reached. Falling back to REST API polling.');
+      this.emit('connection', { status: 'failed', attempts: this.reconnectAttempts, isMobile: this.isMobile });
+    }
+  }
+
+  // Cleanup mobile listeners
+  destroy() {
+    if (this.visibilityCleanup) {
+      this.visibilityCleanup();
+    }
+    if (this.networkCleanup) {
+      this.networkCleanup();
+    }
+    this.disconnect();
   }
 }
 

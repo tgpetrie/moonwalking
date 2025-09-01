@@ -82,8 +82,10 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
     } else {
       setActionBadge({ symbol, text: 'Added!' });
       setTimeout(() => setActionBadge(null), 1200);
-      updated = await addToWatchlist(symbol, r.price);
-      send && send('watchlist_update', { action: 'add', symbol });
+      const row = data.find(d => d && d.symbol === symbol);
+      const currentPrice = row ? row.price : null;
+      updated = await addToWatchlist(symbol, currentPrice);
+      send && send('watchlist_update', { action: 'add', symbol, price: currentPrice });
     }
     setWatchlist(updated);
   };
@@ -163,8 +165,42 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
                   />
                 </span>
 
-                {/* MAIN ROW — fixed grid identical to gainers */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                {/* Mobile Card Layout */}
+                <div className="sm:hidden relative z-10">
+                  <div className="flex items-center justify-between py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-pink/30 text-pink font-bold text-sm">
+                        {r.rank}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-xl mb-1">{truncateSymbol(r.symbol, 8)}</div>
+                        <div className="text-base text-teal font-mono font-bold">
+                          ${Number.isFinite(r.price) ? formatPrice(r.price) : '0.00'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-2xl font-bold ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>
+                        {typeof r.change3m === 'number' ? formatPercentage(r.change3m) : '0.00%'}
+                      </div>
+                      <button
+                        onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); handleToggleWatchlist(r.symbol); }}
+                        className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-center"
+                        style={{ minWidth:'24px', minHeight:'24px' }}
+                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                      >
+                        <StarIcon
+                          filled={isInWatchlist}
+                          className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (popStar === r.symbol ? ' animate-star-pop' : '')}
+                          style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Grid Layout */}
+                <div className="hidden sm:grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
                   {/* Col1: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/30 text-pink font-bold text-sm shrink-0">{r.rank}</div>
@@ -202,7 +238,7 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
                   {/* Col4: Star */}
                   <div className="w-[28px] text-right">
                     <button
-                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol);}}
+                      onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); handleToggleWatchlist(r.symbol); }}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
                       style={{ minWidth:'24px', minHeight:'24px' }}
                       aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}

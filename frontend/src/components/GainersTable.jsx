@@ -127,7 +127,8 @@ const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded 
     } else {
       setActionBadge({ symbol, text: 'Added!' });
       setTimeout(() => setActionBadge(null), 1200);
-      updated = await addToWatchlist(symbol, r.price);
+      const item = data.find(d => d.symbol === symbol);
+      updated = await addToWatchlist(symbol, item ? item.price : 0);
       send && send('watchlist_update', { action: 'add', symbol });
     }
     setWatchlist(updated);
@@ -149,29 +150,30 @@ const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded 
     );
   }
 
-  // Update 3m streaks for current gainers set
+  // Update 3m streaks for current gainers set (no placeholders)
   const rows = data.slice(0, Math.min(visibleCount, maxRows));
   const get3m = updateStreaks('3m', rows.map(d => ({ symbol: d.symbol })));
 
   return (
     <div className="w-full h-full min-h-[420px] px-0">
       {rows.map((r, idx) => {
+        const isPlaceholder = !r;
         const rowIndex = idx;
         const entranceDelay = (rowIndex % 12) * 0.035;
         const loopDelay = ((rowIndex % 8) * 0.12);
         const breathAmt = 0.006;
-        const isInWatchlist = watchlist.some(it => (typeof it === 'string' ? it === r.symbol : it.symbol === r.symbol));
-        const isPopping = popStar === r.symbol;
-        const showBadge = actionBadge && actionBadge.symbol === r.symbol;
+        const isInWatchlist = r ? watchlist.some(it => (typeof it === 'string' ? it === r.symbol : it.symbol === r.symbol)) : false;
+        const isPopping = r ? (popStar === r.symbol) : false;
+        const showBadge = r ? (actionBadge && actionBadge.symbol === r.symbol) : false;
         // compute previous price using 3-min change
-        const prev = (typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
+        const prev = r && (typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
           ? (r.price / (1 + r.change3m / 100))
           : null;
-        const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
+        const url = r ? `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD` : '#';
 
         return (
-          <div key={r.symbol} className="px-0 py-1 mb-1">
-            <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+          <div key={r ? r.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">
+            <a href={url} onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); } }} target={isPlaceholder ? undefined : "_blank"} rel={isPlaceholder ? undefined : "noopener noreferrer"} className="block group">
               <motion.div
                 className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
                 initial={shouldReduce ? false : { opacity: 0, y: 6 }}
@@ -211,24 +213,58 @@ const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded 
                   />
                 </span>
 
-                {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                {/* Mobile Card Layout */}
+                <div className="sm:hidden relative z-10">
+                  <div className="flex items-center justify-between py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
+                        {r ? r.rank : 0}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-xl mb-1">{r ? truncateSymbol(r.symbol, 8) : '—'}</div>
+                        <div className="text-base text-teal font-mono font-bold">
+                          ${r && Number.isFinite(r.price) ? formatPrice(r.price) : '0.00'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-2xl font-bold ${r && r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                        {r && r.change3m > 0 && '+'}{r && typeof r.change3m === 'number' ? formatPercentage(r.change3m) : '0.00%'}
+                      </div>
+                      <button
+                        onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); if(!isPlaceholder){ handleToggleWatchlist(r.symbol); } }}
+                        className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-center"
+                        style={{ minWidth:'24px', minHeight:'24px' }}
+                        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+                      >
+                        <StarIcon
+                          filled={isInWatchlist}
+                          className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
+                          style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Grid Layout */}
+                <div className="hidden sm:grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
 
                   {/* LEFT flexible: rank + symbol */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0">{r.rank}</div>
-                    <div className="min-w-0 flex items-center gap-2">
-                      <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
-                      {showBadge && (
+                    <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>{r ? r.rank : 0}</div>
+                    <div className={"min-w-0 flex items-center gap-2 " + (isPlaceholder ? 'opacity-0' : '')}>
+                      <div className="font-bold text-white text-lg tracking-wide truncate">{r ? truncateSymbol(r.symbol, 6) : '—'}</div>
+                      {!isPlaceholder && showBadge && (
                         <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">{actionBadge.text}</span>
                       )}
                     </div>
                   </div>
 
                   {/* Col2: Price (stack current + previous) */}
-                  <div className="w-[152px] pr-6 text-right">
+                  <div className={"w-[152px] pr-6 text-right " + (isPlaceholder ? 'opacity-0' : '')}>
                     <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}
+                      {r && Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
                       {prev !== null ? formatPrice(prev) : '--'}
@@ -236,12 +272,12 @@ const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded 
                   </div>
 
                   {/* Col3: % (stack % → Peak → interval) */}
-                  <div className="w-[108px] pr-1.5 text-right align-top">
-                    <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
-                      {r.change3m > 0 && '+'}{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
+                  <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
+                    <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r && r.change3m > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                      {r && r.change3m > 0 && '+'}{r && typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
                     </div>
                     {(() => {
-                      const { level } = get3m(r.symbol);
+                      const { level } = r ? get3m(r.symbol) : { level: 0 };
                       return level > 0 ? (
                         <div className="text-xs text-gray-300 leading-tight mt-1 subline-badge num">Px{level}</div>
                       ) : null;
@@ -251,7 +287,7 @@ const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded 
                   {/* Col4: Star (tight) */}
                   <div className="w-[28px] text-right">
                     <button
-                      onClick={(e)=>{e.preventDefault(); handleToggleWatchlist(r.symbol);}}
+                      onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); if(!isPlaceholder){ handleToggleWatchlist(r.symbol); } }}
                       className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
                       style={{ minWidth:'24px', minHeight:'24px' }}
                       aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
