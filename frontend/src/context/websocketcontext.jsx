@@ -107,6 +107,40 @@ export const WebSocketProvider = ({ children }) => {
     console.log('⏹️ Stopped REST API polling');
   };
 
+  // Manual, immediate refresh (pull latest via REST once, regardless of WS state)
+  const refreshNow = async () => {
+    let controller;
+    try {
+      controller = new AbortController();
+      const res = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
+      if (res && res.data && Array.isArray(res.data)) {
+        const pricesUpdate = {};
+        res.data.forEach((coin) => {
+          if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
+            const priceVal = coin.price ?? coin.current_price;
+            pricesUpdate[coin.symbol] = {
+              price: priceVal,
+              change: coin.price_change_percentage_1min || coin.change || 0,
+              changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
+              timestamp: Date.now()
+            };
+          }
+        });
+        setLatestData((prev) => ({
+          ...prev,
+          crypto: res.data,
+          prices: { ...prev.prices, ...pricesUpdate }
+        }));
+        return true;
+      }
+    } catch (e) {
+      console.error('Manual refresh failed', e);
+    } finally {
+      try { if (controller) controller.abort(); } catch (_) {}
+    }
+    return false;
+  };
+
   // Fetch real-time prices for specific symbols from cached data
   const fetchPricesForSymbols = async (symbols) => {
     try {
@@ -223,7 +257,8 @@ export const WebSocketProvider = ({ children }) => {
     send: (event, data) => wsManager.send(event, data),
     fetchPricesForSymbols,
     startPolling,
-    stopPolling
+    stopPolling,
+    refreshNow
   };
 
   return (

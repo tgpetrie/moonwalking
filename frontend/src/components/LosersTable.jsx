@@ -166,29 +166,17 @@ const LosersTable = ({ refreshTrigger }) => {
                     </div>
                   </div>
 
-                  {/* Col3: % + Peak + interval */}
+                  {/* Col3: % + Px (no label) */}
                   <div className="w-[108px] pr-1.5 text-right align-top">
                     <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>
                       {typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}
                     </div>
-                    <div className="text-xs text-gray-400 leading-tight">
-                      {typeof r.peakCount === 'number' && r.peakCount > 0
-                        ? `Peak x${r.peakCount}`
-                        : <span className="opacity-0 select-none">Peak x0</span>}
-                    </div>
-                    <div className="text-xs text-gray-400 leading-tight">3-min</div>
-                    <div className="text-xs text-gray-300 leading-tight">
-                      {(() => {
-                        const { level } = get3m(r.symbol);
-                        if (level === 0) {
-                          return (<div className="mt-1 opacity-0 select-none subline-badge num"></div>);
-                        }
-                        if (level === 1) {
-                          return (<div className="mt-1 subline-badge num">Px</div>);
-                        }
-                        return (<div className="mt-1 subline-badge num">Px{level}</div>);
-                      })()}
-                    </div>
+                    {(() => {
+                      const { level } = get3m(r.symbol);
+                      return level > 0 ? (
+                        <div className="text-xs text-gray-300 leading-tight mt-1 subline-badge num">Px{level}</div>
+                      ) : null;
+                    })()}
                   </div>
 
                   {/* Col4: Star */}
