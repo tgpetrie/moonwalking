@@ -6,7 +6,7 @@ import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatte
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
 
-const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13 }) => {
+const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }) => {
   const shouldReduce = useReducedMotion();
 
   // Inject animation styles once
@@ -57,6 +57,13 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13 }) => {
     const interval = setInterval(fetchLosersData, 30000);
     return () => { isMounted = false; clearInterval(interval); };
   }, [refreshTrigger]);
+
+  // Sync visible rows with an external expanded control if provided
+  useEffect(() => {
+    if (typeof expanded === 'boolean') {
+      setVisibleCount(expanded ? Math.min(maxRows, data.length || maxRows) : initialRows);
+    }
+  }, [expanded, data.length, initialRows, maxRows]);
 
   useEffect(() => {
     (async () => { setWatchlist(await getWatchlist()); })();
@@ -213,8 +220,8 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13 }) => {
           </div>
         );
       })}
-      {/* Show More / Less */}
-      {data.length > initialRows && (
+      {/* Show More / Less (uncontrolled only) */}
+      {typeof expanded !== 'boolean' && data.length > initialRows && (
         <div className="w-full flex justify-center mt-2 mb-1">
           <button
             onClick={() => setVisibleCount(c => (c > initialRows ? initialRows : Math.min(maxRows, data.length)))}
