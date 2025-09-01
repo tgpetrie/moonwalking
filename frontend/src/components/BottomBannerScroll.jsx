@@ -4,7 +4,7 @@ import { API_ENDPOINTS, fetchData } from '../api.js';
 const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
-  const SCROLL_DURATION_SEC = 120; // keep in sync with CSS .animate-scroll
+  const SCROLL_DURATION_SEC = 180; // keep in sync with CSS .animate-scroll
   const animDelay = useMemo(() => {
     const elapsed = (Date.now() - startRef.current) / 1000;
     const offset = elapsed % SCROLL_DURATION_SEC;
@@ -122,6 +122,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                         Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
+                    {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}
@@ -168,6 +169,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                         Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
+                    {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}

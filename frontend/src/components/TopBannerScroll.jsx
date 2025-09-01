@@ -5,7 +5,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
   // For seamless scroll across refreshes, hold a stable start timestamp
   const startRef = useRef(Date.now());
-  const SCROLL_DURATION_SEC = 120; // matches .animate-scroll in index.css
+  const SCROLL_DURATION_SEC = 180; // matches .animate-scroll in index.css
   const animDelay = useMemo(() => {
     const elapsed = (Date.now() - startRef.current) / 1000;
     const offset = elapsed % SCROLL_DURATION_SEC;
@@ -118,7 +118,8 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                         {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
+                    {(() => { const ch = Number(coin.change || 0); if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null; const color = ch >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(ch) >= 2 ? '1.2em' : Math.abs(ch) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>); })()}
+                    {false && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
                       if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
@@ -168,7 +169,8 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                         {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
+                    {(() => { const ch = Number(coin.change || 0); if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null; const color = ch >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(ch) >= 2 ? '1.2em' : Math.abs(ch) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>); })()}
+                    {false && (() => {
                       const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
                       let fontSize = '0.85em';
                       if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
