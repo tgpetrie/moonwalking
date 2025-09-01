@@ -89,8 +89,9 @@ const TopBannerScroll = ({ refreshTrigger }) => {
           >
             {/* First set of data */}
             {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group">
-                <div className={"flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 " +
+              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
+                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer"
+                   className={"flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group " +
                   (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' : 'group-hover:text-pink group-hover:text-shadow-pink')
                 }>
                   <div className="flex items-center gap-2">
@@ -133,13 +134,14 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                                   {getBadgeStyle(coin.change)}
                                 </div>
                               ) : null}
-                </div>
+                </a>
               </div>
             ))}
             {/* Duplicate set for seamless scrolling */}
             {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group">
-                <div className={"flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 " +
+              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
+                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer"
+                   className={"flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group " +
                   (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' : 'group-hover:text-pink group-hover:text-shadow-pink')
                 }>
                   <div className="flex items-center gap-2">
@@ -182,7 +184,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                                   {getBadgeStyle(coin.change)}
                                 </div>
                               ) : null}
-                </div>
+                </a>
               </div>
             ))}
           </div>

@@ -11,7 +11,8 @@ export default {
         orange: '#FF6B00',
         blue: '#00BFFF',
         pink: '#FF69B4',
-        purple: '#810996',
+        // Align with tables' positive accent (#C026D3)
+        purple: '#C026D3',
         teal: '#00C0A5',
         light: '#cccccc',
         dark: '#000000',

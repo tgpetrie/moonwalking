@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api';
+import { formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { FiSearch } from 'react-icons/fi';
@@ -291,9 +292,9 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
               {(showAll ? symbols : symbols.slice(0, 4)).map((symbol, idx) => {
                 const data = watchlistData[symbol] || {};
                 const pNow = typeof data.price === 'number' ? data.price : null;
-                const price = pNow != null ? (pNow < 1 && pNow > 0 ? `$${pNow.toFixed(4)}` : `$${pNow.toFixed(2)}`) : '--';
+                const price = pNow != null ? formatPrice(pNow) : '--';
                 const pAdd = Number(priceAtAddMap[symbol]) || 0;
-                const prevPrice = pAdd > 0 ? (pAdd < 1 ? `$${pAdd.toFixed(4)}` : `$${pAdd.toFixed(2)}`) : '--';
+                const prevPrice = pAdd > 0 ? formatPrice(pAdd) : '--';
                 const pct = (pAdd > 0 && pNow != null) ? ((pNow - pAdd) / pAdd) * 100 : null;
                 const change = pct != null ? `${pct.toFixed(3)}%` : '--';
                 const changeColor = pct == null ? 'text-gray-400' : (pct >= 0 ? 'text-purple' : 'text-pink');
@@ -305,6 +306,10 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                         `group-hover:scale-[1.02] group-hover:z-10 ` +
                         (popStar === symbol ? ' animate-star-pop' : '')
                       }
+                      onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${symbol.toLowerCase()}-USD`, '_blank', 'noopener')}
+                      role="link"
+                      tabIndex={0}
+                      onKeyDown={(e)=>{ if(e.key==='Enter'){ window.open(`https://www.coinbase.com/advanced-trade/spot/${symbol.toLowerCase()}-USD`, '_blank', 'noopener'); } }}
                     >
                       {/* Bottom edge subtle diamond glow (purple) to match style */}
                       <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
@@ -347,7 +352,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                         {/* Col4: delete */}
                         <div className="w-[28px] text-right">
                           <button
-                            onClick={() => handleRemove(symbol)}
+                            onClick={(e) => { e.stopPropagation(); handleRemove(symbol); }}
                             className="text-red-500 hover:text-red-400 transition-colors inline-flex items-center justify-end"
                             aria-label="Remove from watchlist"
                           >
