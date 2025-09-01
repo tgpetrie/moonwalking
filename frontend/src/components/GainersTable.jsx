@@ -191,6 +191,17 @@ const GainersTable = ({ refreshTrigger }) => {
                   />
                 </span>
 
+                {/* Bottom edge subtle diamond glow (purple) */}
+                <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
+                  <span
+                    className="block w-full h-full"
+                    style={{
+                      background:
+                        'radial-gradient(ellipse at 50% 140%, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.10) 35%, rgba(192,38,211,0.04) 60%, transparent 85%)'
+                    }}
+                  />
+                </span>
+
                 {/* MAIN ROW — GRID: [minmax(0,1fr) | 152px | 108px | 28px] */}
                 <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
 
