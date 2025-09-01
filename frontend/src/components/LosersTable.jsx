@@ -143,6 +143,17 @@ const LosersTable = ({ refreshTrigger }) => {
                   />
                 </span>
 
+                {/* Bottom edge subtle diamond glow (pink) */}
+                <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
+                  <span
+                    className="block w-full h-full"
+                    style={{
+                      background:
+                        'radial-gradient(ellipse at 50% 140%, rgba(244,63,94,0.18) 0%, rgba(244,63,94,0.10) 35%, rgba(244,63,94,0.04) 60%, transparent 85%)'
+                    }}
+                  />
+                </span>
+
                 {/* MAIN ROW — fixed grid identical to gainers */}
                 <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
                   {/* Col1: rank + symbol */}
