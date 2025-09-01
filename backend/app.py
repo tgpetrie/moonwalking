@@ -1075,99 +1075,123 @@ def analyze_coin_potential(symbol, chart_data):
 # THREE UNIQUE ENDPOINTS FOR DIFFERENT UI SECTIONS
 # =============================================================================
 
+# Shared cache for 24h movers (used by banner endpoints & scroll variants)
+_banner_movers_cache = {
+    'data': [],
+    'fetched_at': 0.0,
+    'ttl': float(os.environ.get('BANNER_24H_TTL', '55'))
+}
+
+def _parse_limit(raw: str | None, default: int, max_allowed: int) -> int:
+    try:
+        if raw is None or raw == '':
+            return default
+        v = int(raw)
+        if v <= 0:
+            return default
+        return min(v, max_allowed)
+    except Exception:
+        return default
+
+def _get_cached_banner_movers():
+    """Return (items, age_seconds, ttl, fresh_flag). Refresh when stale/empty."""
+    now = time.time()
+    age = now - _banner_movers_cache['fetched_at']
+    ttl = _banner_movers_cache['ttl']
+    if (not _banner_movers_cache['data']) or age > ttl:
+        movers = get_24h_top_movers()
+        if movers:
+            _banner_movers_cache['data'] = movers
+            _banner_movers_cache['fetched_at'] = now
+            return movers, 0.0, ttl, True
+    return _banner_movers_cache['data'], age, ttl, False
+
 @app.route('/api/banner-top')
 def get_top_banner():
-    """Top banner: Current price + 1h % change (unique endpoint)"""
+    """Top banner: current price + 1h % change with caching + staleness metadata."""
     try:
-        # Get specific data for top banner - focus on price and 1h changes
-        banner_data = get_24h_top_movers()
-        
-        if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
-            
-        # Format specifically for top banner - current price and 1h change focus
-        top_banner_data = []
-        for coin in banner_data[:20]:  # Top 20 for scrolling
-            top_banner_data.append({
-                "symbol": coin["symbol"],
-                "current_price": coin["current_price"],
-                "price_change_1h": coin["price_change_1h"],
-                "market_cap": coin.get("market_cap", 0)
-            })
-        
+        items, age, ttl, fresh = _get_cached_banner_movers()
+        if not items:
+            return jsonify({'error': 'no_banner_data', 'message': ERROR_NO_DATA}), 503
+        # Rank by 1h change desc (fallback to 24h if missing)
+        ranked = sorted(items, key=lambda x: x.get('price_change_1h', x.get('price_change_24h', 0)), reverse=True)
+        limit = _parse_limit(request.args.get('limit'), default=15, max_allowed=50)
+        payload_items = [{
+            'symbol': c['symbol'],
+            'price': c['current_price'],
+            'change_1h_pct': round(c.get('price_change_1h', 0), 4),
+            'change_24h_pct': round(c.get('price_change_24h', 0), 4),
+            'volume_24h': c.get('volume_24h', 0)
+        } for c in ranked[:limit]]
+        now = time.time()
         return jsonify({
-            "banner_data": top_banner_data,
-            "type": "top_banner",
-            "count": len(top_banner_data),
-            "last_updated": datetime.now().isoformat()
+            'items': payload_items,
+            'count': len(payload_items),
+            'limit': limit,
+            'age_seconds': round(age, 2),
+            'stale': age > ttl * 2,
+            'source': 'fresh' if fresh else 'cache',
+            'ts': int(now)
         })
     except Exception as e:
-        logging.error(f"Error in top banner endpoint: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"/api/banner-top error: {e}")
+        return jsonify({'error': 'internal', 'message': 'Failed to build banner-top'}), 500
 
 @app.route('/api/banner-bottom')
 def get_bottom_banner():
-    """Bottom banner: Volume + 1h % change (unique endpoint)"""
+    """Bottom banner: decliners (1h) & volume view with shared cache."""
     try:
-        # Get specific data for bottom banner - focus on volume and 1h changes
-        banner_data = get_24h_top_movers()
-        
-        if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
-            
-        # Sort by volume for bottom banner
-        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
-        
-        # Format specifically for bottom banner - volume and 1h change focus
-        bottom_banner_data = []
-        for coin in volume_sorted[:20]:  # Top 20 by volume
-            bottom_banner_data.append({
-                "symbol": coin["symbol"],
-                "volume_24h": coin["volume_24h"],
-                "price_change_1h": coin["price_change_1h"],
-                "current_price": coin["current_price"]
-            })
-        
+        items, age, ttl, fresh = _get_cached_banner_movers()
+        if not items:
+            return jsonify({'error': 'no_banner_data', 'message': ERROR_NO_DATA}), 503
+        ranked = sorted(items, key=lambda x: x.get('price_change_1h', x.get('price_change_24h', 0)))
+        limit = _parse_limit(request.args.get('limit'), default=15, max_allowed=50)
+        payload_items = [{
+            'symbol': c['symbol'],
+            'price': c['current_price'],
+            'change_1h_pct': round(c.get('price_change_1h', 0), 4),
+            'change_24h_pct': round(c.get('price_change_24h', 0), 4),
+            'volume_24h': c.get('volume_24h', 0)
+        } for c in ranked[:limit]]
+        now = time.time()
         return jsonify({
-            "banner_data": bottom_banner_data,
-            "type": "bottom_banner", 
-            "count": len(bottom_banner_data),
-            "last_updated": datetime.now().isoformat()
+            'items': payload_items,
+            'count': len(payload_items),
+            'limit': limit,
+            'age_seconds': round(age, 2),
+            'stale': age > ttl * 2,
+            'source': 'fresh' if fresh else 'cache',
+            'ts': int(now)
         })
     except Exception as e:
-        logging.error(f"Error in bottom banner endpoint: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"/api/banner-bottom error: {e}")
+        return jsonify({'error': 'internal', 'message': 'Failed to build banner-bottom'}), 500
 
 @app.route('/api/tables-3min')
 def get_tables_3min():
-    """Tables: 3-minute gainers/losers (unique endpoint)"""
+    """3-minute gainers/losers tables with consistent envelope + diagnostics passthrough."""
     try:
-        # Get specific data for tables - focus on 3-minute changes
         data = get_crypto_data()
-        
         if not data:
-            return jsonify({"error": "No table data available"}), 503
-            
-        # Extract gainers and losers from the main data
+            return jsonify({'error': 'no_data', 'message': ERROR_NO_DATA}), 503
+        if isinstance(data, dict) and 'error' in data:
+            status = 200 if data.get('error') == 'insufficient_history' else 503
+            return jsonify(data), status
         gainers = data.get('gainers', [])
         losers = data.get('losers', [])
-        
-        # Format specifically for tables with 3-minute data
-        tables_data = {
-            "gainers": gainers[:15],  # Top 15 gainers
-            "losers": losers[:15],    # Top 15 losers
-            "type": "tables_3min",
-            "count": {
-                "gainers": len(gainers[:15]),
-                "losers": len(losers[:15])
-            },
-            "last_updated": datetime.now().isoformat()
-        }
-        
-        return jsonify(tables_data)
+        limit = _parse_limit(request.args.get('limit'), default=25, max_allowed=100)
+        now = time.time()
+        return jsonify({
+            'interval_minutes': CONFIG['INTERVAL_MINUTES'],
+            'gainers': gainers[:limit],
+            'losers': losers[:limit],
+            'counts': {'gainers': len(gainers), 'losers': len(losers)},
+            'limit': limit,
+            'ts': int(now)
+        })
     except Exception as e:
-        logging.error(f"Error in tables endpoint: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"/api/tables-3min error: {e}")
+        return jsonify({'error': 'internal', 'message': 'Failed to build tables-3min'}), 500
 
 # =============================================================================
 # INDIVIDUAL COMPONENT ENDPOINTS - Each component gets its own unique data
