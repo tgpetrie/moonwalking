@@ -49,12 +49,24 @@ def remove_from_watchlist(symbol):
         return jsonify({'error': f'{symbol} not in watchlist'}), 404
 
 
+from reliability import stale_while_revalidate
+
+_INSIGHTS_SWR_TTL = float(os.environ.get('INSIGHTS_SWR_TTL','10'))  # seconds fresh
+_INSIGHTS_SWR_STALE = float(os.environ.get('INSIGHTS_SWR_STALE','40'))  # additional stale window
+
+@stale_while_revalidate(ttl=_INSIGHTS_SWR_TTL, stale_window=_INSIGHTS_SWR_STALE)
+def _compute_watchlist_insights():
+    return smart_watchlist_insights(_insights_memory)
+
 @watchlist_bp.route('/api/watchlist/insights', methods=['GET'])
 def get_watchlist_insights():
     if not smart_watchlist_insights or not _insights_memory:
         return jsonify({'error': INSIGHTS_UNAVAILABLE}), 503
-    result = smart_watchlist_insights(_insights_memory)
-    return jsonify({'insights': result.split('\n') if result else [], 'raw': result})
+    result = _compute_watchlist_insights()
+    return jsonify({'insights': result.split('\n') if result else [], 'raw': result, 'swr': {
+        'ttl': _INSIGHTS_SWR_TTL,
+        'stale_window': _INSIGHTS_SWR_STALE
+    }})
 
 
 @watchlist_bp.route('/api/watchlist/insights/log', methods=['POST'])
