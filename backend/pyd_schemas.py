@@ -47,6 +47,10 @@ class PriceFetchMetrics(BaseModel):
     error_rate_percent: float | None = None
     backoff_seconds_remaining: float | None = None
     circuit_breaker: Optional[CircuitBreakerModel] = None
+    fetch_duration_hist_buckets: Optional[Dict[str, int]] = None
+    fetch_duration_hist_overflow: Optional[int] = None
+    fetch_duration_sum_ms: Optional[float] = None
+    fetch_duration_count: Optional[int] = None
 
 class MetricsResponse(BaseModel):
     status: str

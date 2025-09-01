@@ -48,3 +48,5 @@ def test_prometheus_price_fetch_advanced_metrics_present(client):
     ]
     for name in advanced:
         assert name in body, f"Missing advanced price fetch metric {name}\nBody snippet: {body[:400]}"
+    # Histogram buckets (at least +Inf plus one concrete bucket line)
+    assert 'price_fetch_duration_seconds_bucket{le="+Inf"}' in body
