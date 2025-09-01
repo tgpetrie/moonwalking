@@ -138,12 +138,11 @@ export default function GainersTable1Min({
     ? (typeof startIdx === 'number' || typeof endIdx === 'number' ? data.slice(startIdx ?? 0, endIdx ?? data.length) : data)
     : [];
 
-  // Pad to fixed rows for perfect column alignment with 3‑min tables
-  const desiredRows = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : 4;
-  const rows = Array.from({ length: desiredRows }, (_, i) => sliced[i] ?? null);
+  // Do not render placeholder rows; only render available items
+  const rows = Array.isArray(sliced) ? sliced : [];
 
-  // Update 1m streaks for visible rows (only non-null rows)
-  const visibleRows = rows.filter(Boolean).map(r => ({ symbol: r.symbol }));
+  // Update 1m streaks for visible rows
+  const visibleRows = rows.map(r => ({ symbol: r.symbol }));
   const get1m = updateStreaks('1m', visibleRows);
 
   if (loading && sliced.length === 0) {
@@ -165,7 +164,7 @@ export default function GainersTable1Min({
   return (
     <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300">
       {rows.map((item, idx) => {
-        const isPlaceholder = !item;
+        const isPlaceholder = false; // placeholders removed
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
         const breathAmt = 0.006;
@@ -177,9 +176,8 @@ export default function GainersTable1Min({
           <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">
             <a
               href={coinbaseUrl}
-              onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); } }}
-              target={isPlaceholder ? undefined : "_blank"}
-              rel={isPlaceholder ? undefined : "noopener noreferrer"}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block group"
             >
               <motion.div
