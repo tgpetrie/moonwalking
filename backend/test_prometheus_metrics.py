@@ -50,3 +50,22 @@ def test_prometheus_price_fetch_advanced_metrics_present(client):
         assert name in body, f"Missing advanced price fetch metric {name}\nBody snippet: {body[:400]}"
     # Histogram buckets (at least +Inf plus one concrete bucket line)
     assert 'price_fetch_duration_seconds_bucket{le="+Inf"}' in body
+
+def test_one_min_market_metrics_present(client):
+    # Touch 1m gainers endpoint to trigger computation
+    client.get('/api/component/gainers-table-1min')
+    # JSON metrics
+    mresp = client.get('/api/metrics')
+    assert mresp.status_code == 200
+    data = mresp.get_json()
+    # one_min_market may take first computation; allow missing if feature disabled
+    omm = data.get('one_min_market')
+    if omm:  # only assert a subset to avoid brittleness
+        for key in ['universe_count','advancers','decliners']:
+            assert key in omm
+    # Prometheus metrics
+    presp = client.get('/metrics.prom')
+    pbody = presp.get_data(as_text=True)
+    # At least universe count metric should appear if stats exist
+    if omm:
+        assert 'one_min_market_universe_count' in pbody

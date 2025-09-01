@@ -65,6 +65,7 @@ app.register_blueprint(watchlist_bp)
 
 # ---------------- Health + Metrics -----------------
 _ERROR_STATS = { '5xx': 0 }
+one_minute_market_stats = {}
 
 @app.before_request
 def _before_req_metrics():
@@ -280,6 +281,8 @@ def metrics():
                 'is_open': cb.get('state') == 'OPEN',
                 'is_half_open': cb.get('state') == 'HALF_OPEN'
             }
+        if one_minute_market_stats:
+            out['one_min_market'] = dict(one_minute_market_stats)
     except Exception as e:
         out['price_fetch_error'] = str(e)
     # SWR caches summary block
@@ -354,6 +357,27 @@ def metrics_prom():
             emit_prometheus(lines, 'price_fetch_circuit_breaker_is_half_open', 1 if cb.get('state') == 'HALF_OPEN' else 0, 'gauge', 'Circuit breaker half-open (1=half-open,0=otherwise)')
         # SWR metrics
         emit_swr_prometheus(lines, _swr_entries())
+        # Market breadth metrics (1m universe)
+        if 'one_minute_market_stats' in globals() and one_minute_market_stats:
+            m = one_minute_market_stats
+            def _maybe(name, val, help_txt):
+                if val is None:
+                    return
+                emit_prometheus(lines, name, val, 'gauge', help_txt)
+            _maybe('one_min_market_universe_count', m.get('universe_count'), 'Count of symbols in 1m universe sample')
+            _maybe('one_min_market_advancers', m.get('advancers'), 'Advancers (positive 1m change) count')
+            _maybe('one_min_market_decliners', m.get('decliners'), 'Decliners (negative 1m change) count')
+            _maybe('one_min_market_adv_decl_ratio', m.get('adv_decl_ratio'), 'Advancers / Decliners ratio (breadth)')
+            for p in (50,75,90,95,99):
+                _maybe(f'one_min_market_pct{p}', m.get(f'pct{p}'), f'{p}th percentile of raw 1m percentage changes')
+            for p in (90,95,99):
+                _maybe(f'one_min_market_abs_pct{p}', m.get(f'abs_pct{p}'), f'{p}th percentile of absolute 1m percentage changes')
+            for thr in (1,2,5):
+                _maybe(f'one_min_market_count_gt_{thr}pct', m.get(f'count_gt_{thr}pct'), f'Count of symbols with |1m| change >= {thr}%')
+            _maybe('one_min_market_top5_avg_gain', m.get('top5_avg_gain'), 'Average 1m gain of top 5 advancers')
+            _maybe('one_min_market_bottom5_avg_loss', m.get('bottom5_avg_loss'), 'Average 1m gain (negative) of top 5 decliners')
+            _maybe('one_min_market_extreme_gainer_pct', m.get('extreme_gainer_pct'), 'Largest 1m percentage gain observed')
+            _maybe('one_min_market_extreme_loser_pct', m.get('extreme_loser_pct'), 'Largest 1m percentage loss observed')
     except Exception as e:  # pragma: no cover - defensive
         lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
         lines.append('# TYPE price_fetch_metrics_error gauge')
@@ -1702,6 +1726,51 @@ def get_crypto_data_1min():
         losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
         gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
         losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+
+        # --- Market breadth & pump/dump signal metrics ---
+        universe = [c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) or 0.0 for c in data_by_symbol.values()]
+        abs_universe = [abs(x) for x in universe]
+        def _pct(sorted_list, p):
+            if not sorted_list:
+                return None
+            k = (len(sorted_list)-1) * (p/100.0)
+            f = int(k); c2 = min(f+1, len(sorted_list)-1); w = k - f
+            return round(sorted_list[f]*(1-w) + sorted_list[c2]*w, 4)
+        if universe:
+            s_univ = sorted(universe)
+            s_abs = sorted(abs_universe)
+            advancers = sum(1 for v in universe if v > 0)
+            decliners = sum(1 for v in universe if v < 0)
+            total = len(universe)
+            adv_decl_ratio = round(advancers / decliners, 3) if decliners else None
+            top = gainers[:5]
+            top_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in top)/len(top), 4) if top else None
+            bottom = losers[:5]
+            bottom_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in bottom)/len(bottom), 4) if bottom else None
+            one_minute_market_stats.update({
+                'timestamp': now_ts,
+                'universe_count': total,
+                'advancers': advancers,
+                'decliners': decliners,
+                'adv_decl_ratio': adv_decl_ratio,
+                'pct50': _pct(s_univ,50),
+                'pct75': _pct(s_univ,75),
+                'pct90': _pct(s_univ,90),
+                'pct95': _pct(s_univ,95),
+                'pct99': _pct(s_univ,99),
+                'abs_pct90': _pct(s_abs,90),
+                'abs_pct95': _pct(s_abs,95),
+                'abs_pct99': _pct(s_abs,99),
+                'count_gt_1pct': sum(1 for v in abs_universe if v >= 1.0),
+                'count_gt_2pct': sum(1 for v in abs_universe if v >= 2.0),
+                'count_gt_5pct': sum(1 for v in abs_universe if v >= 5.0),
+                'top5_avg_gain': top_avg,
+                'bottom5_avg_loss': bottom_avg,
+                'extreme_gainer_symbol': gainers[0]['symbol'] if gainers else None,
+                'extreme_gainer_pct': round(gainers[0].get('price_change_percentage_1min_peak', gainers[0].get('price_change_percentage_1min',0)),4) if gainers else None,
+                'extreme_loser_symbol': losers[0]['symbol'] if losers else None,
+                'extreme_loser_pct': round(losers[0].get('price_change_percentage_1min_peak', losers[0].get('price_change_percentage_1min',0)),4) if losers else None,
+            })
 
         # Seed fallback: on a cold or quiet period when nothing is retained yet,
         # gently prefill with the top movers over a tiny threshold so UI isn't empty.
