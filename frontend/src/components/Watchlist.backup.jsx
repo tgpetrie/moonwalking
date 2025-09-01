@@ -356,9 +356,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                         </div>
                       </div>
                     </div>
-                    {idx < (showAll ? symbols.length : Math.min(4, symbols.length)) - 1 && (
-                      <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(254,164,0,0.18) 0%,rgba(254,164,0,0.38) 50%,rgba(254,164,0,0.18) 100%)',borderRadius:'2px'}}></div>
-                    )}
+                    {/* Removed yellow gradient divider for a cleaner look */}
                   </div>
                 );
               })}
