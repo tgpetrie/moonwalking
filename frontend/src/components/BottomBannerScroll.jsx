@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
 const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
+  const startRef = useRef(Date.now());
+  const SCROLL_DURATION_SEC = 120; // keep in sync with CSS .animate-scroll
+  const animDelay = useMemo(() => {
+    const elapsed = (Date.now() - startRef.current) / 1000;
+    const offset = elapsed % SCROLL_DURATION_SEC;
+    return `-${offset}s`;
+  }, [data.length]);
   // Abbreviate large dollar amounts (e.g., 15,234,000 -> 15.23M)
   const formatAbbrev = (n = 0) => {
     const abs = Math.abs(n);
@@ -96,7 +103,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
         {/* Right fade overlay */}
         <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
         <div className="absolute inset-0 flex items-center">
-          <div className="flex whitespace-nowrap animate-scroll" role="list">
+          <div className="flex whitespace-nowrap animate-scroll" role="list" style={{ animationDelay: animDelay }}>
             {/* First set of data */}
             {data.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>

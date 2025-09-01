@@ -1,8 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
 const TopBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
+  // For seamless scroll across refreshes, hold a stable start timestamp
+  const startRef = useRef(Date.now());
+  const SCROLL_DURATION_SEC = 120; // matches .animate-scroll in index.css
+  const animDelay = useMemo(() => {
+    const elapsed = (Date.now() - startRef.current) / 1000;
+    const offset = elapsed % SCROLL_DURATION_SEC;
+    return `-${offset}s`;
+  }, [data.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,6 +94,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
         <div className="absolute inset-0 flex items-center">
           <div 
             className="flex whitespace-nowrap animate-scroll"
+            style={{ animationDelay: animDelay }}
           >
             {/* First set of data */}
             {data.map((coin) => (
