@@ -14,92 +14,35 @@ import logging
 from datetime import datetime, timedelta
 
 from watchlist import watchlist_bp, watchlist_db
+from reliability import stale_while_revalidate
+from metrics import collect_swr_cache_stats, emit_prometheus, emit_swr_prometheus
 try:
     # optional insight memory (may not exist early in startup)
     from watchlist import _insights_memory as INSIGHTS_MEMORY
 except Exception:
     INSIGHTS_MEMORY = None
 
-COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
-ERROR_NO_DATA = "No data available"
-INSIGHTS_MIN_NET_CHANGE_PCT = float(os.environ.get('INSIGHTS_MIN_NET_CHANGE_PCT', '3'))  # was 5
-INSIGHTS_MIN_STEP_CHANGE_PCT = float(os.environ.get('INSIGHTS_MIN_STEP_CHANGE_PCT', '1'))  # was 2
-VOLUME_SPIKE_THRESHOLD = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_THRESHOLD', '5000000'))  # 5M 24h vol
-VOLUME_SPIKE_MIN_CHANGE_PCT = float(os.environ.get('INSIGHTS_VOLUME_SPIKE_MIN_CHANGE_PCT', '8'))  # 8% move + volume
+from logging_config import setup_logging as _setup_logging, log_config as _log_config_with_param
+from logging_config import REQUEST_ID_CTX
+import uuid
+from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 
-# (app is created later once logging/config are setup)
+def get_coinbase_prices():  # legacy wrapper retained for backwards compatibility
+    """Wrapper delegating to modular price_fetch.fetch_prices.
 
-from config import CONFIG
-from logging_config import setup_logging
-from logging_config import log_config as log_config_with_param
-from utils import find_available_port
-
-# Production-ready imports
-from dotenv import load_dotenv
-# Temporarily disable sentry for Python 3.13 compatibility
-try:
-    # import sentry_sdk
-    # from sentry_sdk.integrations.flask import FlaskIntegration
-    SENTRY_AVAILABLE = False  # Disabled for compatibility
-except ImportError:
-    SENTRY_AVAILABLE = False
-
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-    LIMITER_AVAILABLE = True
-except ImportError:
-    LIMITER_AVAILABLE = False
-
-try:
-    from flask_talisman import Talisman
-    TALISMAN_AVAILABLE = True
-except ImportError:
-    TALISMAN_AVAILABLE = False
-
-try:
-    import psutil
-    PSUTIL_AVAILABLE = True
-except ImportError:
-    PSUTIL_AVAILABLE = False
-
-# Load environment variables
-load_dotenv()
-
-# ---------------------------------------------------------------------------------
-# Utility: best-effort commit SHA for diagnostics (/api/server-info)
-# ---------------------------------------------------------------------------------
-def _get_commit_sha() -> str:
-    """Return a short commit SHA if available via env or local git. Best effort only."""
+    Returns:
+        dict: mapping symbol -> price (floats) or empty dict on failure.
+    """
     try:
-        # Prefer explicit env (e.g., set by CI/CD)
-        sha = os.environ.get('COMMIT_SHA') or os.environ.get('GIT_COMMIT')
-        if sha:
-            return str(sha)[:12]
-        # Try git (may not exist in container)
-        out = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], stderr=subprocess.DEVNULL)
-        return out.decode('utf-8').strip()
-    except Exception:
-        return 'unknown'
+        from price_fetch import fetch_prices
+        return fetch_prices()
+    except Exception as e:  # fallback minimal behavior
+        logging.error(f"price_fetch module issue: {e}; falling back to empty price set")
+        return {}
 
-# Initialize Sentry for error tracking in production (disabled for compatibility)
-# if SENTRY_AVAILABLE and os.environ.get('SENTRY_DSN'):
-#     sentry_sdk.init(
-#         dsn=os.environ.get('SENTRY_DSN'),
-#         integrations=[FlaskIntegration()],
-#         traces_sample_rate=0.1,
-#         environment=os.environ.get('ENVIRONMENT', 'production')
-#     )
-from social_sentiment import get_social_sentiment
-# CBMo4ers Crypto Dashboard Backend
-# Data Sources: Public Coinbase Exchange API + CoinGecko (backup)
-# No API keys required - uses public market data only
-
-# Setup logging
-setup_logging()
-
-# Log configuration
-log_config_with_param(CONFIG)
+# (CONFIG is defined later; we defer logging its values until after definition.)
+# Setup logging early
+_setup_logging()
 
 # Flask App Setup (final app instance)
 app = Flask(__name__)
@@ -126,24 +69,312 @@ _ERROR_STATS = { '5xx': 0 }
 @app.before_request
 def _before_req_metrics():
     g._start_time = time.time()
+    # Correlation ID: honor inbound header else generate
+    try:
+        incoming = request.headers.get('X-Request-ID') or request.headers.get('X-Correlation-ID')
+        rid = incoming if incoming and len(incoming) < 80 else uuid.uuid4().hex[:24]
+        REQUEST_ID_CTX.set(rid)
+    except Exception:
+        pass
 
 @app.after_request
 def _after_req_metrics(resp):
     try:
         if 500 <= resp.status_code < 600:
             _ERROR_STATS['5xx'] += 1
+        # Echo correlation id header for client chaining
+        try:
+            rid = REQUEST_ID_CTX.get()
+            if rid:
+                resp.headers['X-Request-ID'] = rid
+        except Exception:
+            pass
     except Exception:
         pass
     return resp
 
+# ---------------- SWR CONFIG (env configurable) -----------------
+_GAINERS_1M_SWR_TTL = float(os.environ.get('GAINERS_1M_SWR_TTL','6'))
+_GAINERS_1M_SWR_STALE = float(os.environ.get('GAINERS_1M_SWR_STALE','24'))
+_GAINERS_3M_SWR_TTL = float(os.environ.get('GAINERS_3M_SWR_TTL','6'))
+_GAINERS_3M_SWR_STALE = float(os.environ.get('GAINERS_3M_SWR_STALE','24'))
+_LOSERS_3M_SWR_TTL = float(os.environ.get('LOSERS_3M_SWR_TTL', str(_GAINERS_3M_SWR_TTL)))
+_LOSERS_3M_SWR_STALE = float(os.environ.get('LOSERS_3M_SWR_STALE', str(_GAINERS_3M_SWR_STALE)))
+_TOP_MOVERS_BAR_SWR_TTL = float(os.environ.get('TOP_MOVERS_BAR_SWR_TTL', str(_GAINERS_3M_SWR_TTL)))
+_TOP_MOVERS_BAR_SWR_STALE = float(os.environ.get('TOP_MOVERS_BAR_SWR_STALE', str(_GAINERS_3M_SWR_STALE)))
+
+@stale_while_revalidate(ttl=_GAINERS_1M_SWR_TTL, stale_window=_GAINERS_1M_SWR_STALE)
+def _get_gainers_table_1min_swr():
+    data = get_crypto_data_1min()
+    if not data:
+        return None
+    gainers = data.get('gainers', [])
+    gainers_table_data = []
+    for i, coin in enumerate(gainers[:20]):
+        gainers_table_data.append({
+            'rank': i + 1,
+            'symbol': coin['symbol'],
+            'current_price': coin['current'],
+            'price_change_percentage_1min': coin['gain'],
+            'initial_price_1min': coin['initial_1min'],
+            'actual_interval_minutes': coin.get('interval_minutes', 1),
+            'peak_gain': coin.get('peak_gain', coin['gain']),
+            'trend_direction': coin.get('trend_direction', 'flat'),
+            'trend_streak': coin.get('trend_streak', 0),
+            'trend_score': coin.get('trend_score', 0.0),
+            'trend_delta': coin.get('trend_delta', 0.0),
+            'momentum': 'strong' if coin['gain'] > 5 else 'moderate',
+            'alert_level': 'high' if coin['gain'] > 10 else 'normal'
+        })
+    return {
+        'component': 'gainers_table_1min',
+        'data': gainers_table_data,
+        'count': len(gainers_table_data),
+        'table_type': 'gainers',
+        'time_frame': '1_minute',
+        'update_interval': 10000,
+        'last_updated': datetime.now().isoformat()
+    }
+
+@stale_while_revalidate(ttl=_GAINERS_3M_SWR_TTL, stale_window=_GAINERS_3M_SWR_STALE)
+def _get_gainers_table_3min_swr():
+    data = get_crypto_data()
+    if not data:
+        return None
+    gainers = data.get('gainers', [])
+    gainers_table_data = []
+    for i, coin in enumerate(gainers[:20]):
+        sym = coin['symbol']
+        direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
+        gainers_table_data.append({
+            'rank': i + 1,
+            'symbol': coin['symbol'],
+            'current_price': coin['current'],
+            'price_change_percentage_3min': coin['gain'],
+            'initial_price_3min': coin['initial_3min'],
+            'actual_interval_minutes': coin.get('interval_minutes', 3),
+            'trend_direction': direction,
+            'trend_streak': streak,
+            'trend_score': score,
+            'momentum': 'strong' if coin['gain'] > 5 else 'moderate',
+            'alert_level': 'high' if coin['gain'] > 10 else 'normal'
+        })
+    return {
+        'component': 'gainers_table',
+        'data': gainers_table_data,
+        'count': len(gainers_table_data),
+        'table_type': 'gainers',
+        'time_frame': '3_minutes',
+        'update_interval': 3000,
+        'last_updated': datetime.now().isoformat()
+    }
+
+@stale_while_revalidate(ttl=_LOSERS_3M_SWR_TTL, stale_window=_LOSERS_3M_SWR_STALE)
+def _get_losers_table_3min_swr():
+    data = get_crypto_data()
+    if not data:
+        return None
+    losers = data.get('losers', [])
+    losers_table_data = []
+    for i, coin in enumerate(losers[:20]):
+        sym = coin['symbol']
+        direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
+        losers_table_data.append({
+            'rank': i + 1,
+            'symbol': coin['symbol'],
+            'current_price': coin['current'],
+            'price_change_percentage_3min': coin['gain'],
+            'initial_price_3min': coin['initial_3min'],
+            'actual_interval_minutes': coin.get('interval_minutes', 3),
+            'trend_direction': direction,
+            'trend_streak': streak,
+            'trend_score': score,
+            'momentum': 'strong' if coin['gain'] < -5 else 'moderate',
+            'alert_level': 'high' if coin['gain'] < -10 else 'normal'
+        })
+    return {
+        'component': 'losers_table',
+        'data': losers_table_data,
+        'count': len(losers_table_data),
+        'table_type': 'losers',
+        'time_frame': '3_minutes',
+        'update_interval': 3000,
+        'last_updated': datetime.now().isoformat()
+    }
+
+@stale_while_revalidate(ttl=_TOP_MOVERS_BAR_SWR_TTL, stale_window=_TOP_MOVERS_BAR_SWR_STALE)
+def _get_top_movers_bar_swr():
+    data = get_crypto_data()
+    if not data:
+        return None
+    top_movers_3min = data.get('top24h', [])
+    top_movers_data = []
+    for coin in top_movers_3min[:15]:
+        top_movers_data.append({
+            'symbol': coin['symbol'],
+            'current_price': coin['current'],
+            'price_change_3min': coin['gain'],
+            'initial_price_3min': coin['initial_3min'],
+            'interval_minutes': coin.get('interval_minutes', 3),
+            'bar_color': 'green' if coin['gain'] > 0 else 'red',
+            'momentum': 'strong' if abs(coin['gain']) > 5 else 'moderate'
+        })
+    return {
+        'component': 'top_movers_bar',
+        'data': top_movers_data,
+        'count': len(top_movers_data),
+        'animation': 'horizontal_scroll',
+        'time_frame': '3_minutes',
+        'update_interval': 3000,
+        'last_updated': datetime.now().isoformat()
+    }
+
+# Centralized SWR registry to avoid duplication
+def _swr_entries():
+    return [
+        ('gainers_1m', globals().get('_get_gainers_table_1min_swr'), _GAINERS_1M_SWR_TTL, _GAINERS_1M_SWR_STALE),
+        ('gainers_3m', globals().get('_get_gainers_table_3min_swr'), _GAINERS_3M_SWR_TTL, _GAINERS_3M_SWR_STALE),
+        ('losers_3m', globals().get('_get_losers_table_3min_swr'), _LOSERS_3M_SWR_TTL, _LOSERS_3M_SWR_STALE),
+        ('top_movers_bar', globals().get('_get_top_movers_bar_swr'), _TOP_MOVERS_BAR_SWR_TTL, _TOP_MOVERS_BAR_SWR_STALE),
+    ]
+
+# --- Helper to reduce duplication & complexity in 3m trend updates ---
+def _update_3m_trend(sym: str, gain_val):
+    g = float(gain_val or 0)
+    prev = three_minute_trends.get(sym, {'last': g, 'streak': 0, 'last_dir': 'flat', 'score': 0.0})
+    direction = 'up' if g > prev['last'] else ('down' if g < prev['last'] else 'flat')
+    streak = prev['streak'] + 1 if direction != 'flat' and direction == prev['last_dir'] else (1 if direction != 'flat' else prev['streak'])
+    score = round(prev['score'] * 0.8 + g * 0.2, 3)
+    three_minute_trends[sym] = {'last': g, 'streak': streak, 'last_dir': direction, 'score': score}
+    _maybe_fire_trend_alert('3m', sym, direction, streak, score)
+    return direction, streak, score
+
 @app.route('/api/health')
 def api_health():
     """Lightweight health alias (faster than full server-info)."""
-    return jsonify({
+    payload = {
         'status': 'ok',
         'uptime_seconds': round(time.time() - startup_time, 2),
         'errors_5xx': _ERROR_STATS['5xx']
-    })
+    }
+    return jsonify(HealthResponse(**payload).model_dump())
+
+@app.route('/api/metrics')
+def metrics():
+    """Return internal operational metrics (non-prometheus simple JSON)."""
+    out = {
+        'status': 'ok',
+        'uptime_seconds': round(time.time() - startup_time, 2),
+        'errors_5xx': _ERROR_STATS['5xx']
+    }
+    try:
+        from price_fetch import get_price_fetch_metrics
+        out['price_fetch'] = get_price_fetch_metrics()
+        # Surface circuit breaker (flatten selected fields for convenience)
+        cb = out['price_fetch'].get('circuit_breaker') or {}
+        if cb:
+            out['circuit_breaker'] = {
+                'state': cb.get('state'),
+                'failures': cb.get('failures'),
+                'open_until': cb.get('open_until'),
+                'is_open': cb.get('state') == 'OPEN',
+                'is_half_open': cb.get('state') == 'HALF_OPEN'
+            }
+    except Exception as e:
+        out['price_fetch_error'] = str(e)
+    # SWR caches summary block
+    now = time.time()
+    swr_entries = _swr_entries()
+    swr_caches = collect_swr_cache_stats(now, swr_entries)
+    if swr_caches:
+        out['swr_caches'] = swr_caches
+    # Validate minimally (will raise if schema mismatch during development)
+    try:
+        validated = MetricsResponse(**out).model_dump()
+    except Exception:
+        # fall back without blocking endpoint
+        validated = out
+    return jsonify(validated)
+
+@app.route('/metrics.prom')
+def metrics_prom():
+    """Minimal Prometheus-style metrics exposition (text/plain)."""
+    lines = []
+    now = time.time()
+    uptime = now - startup_time
+    # Core app metrics
+    lines.append('# HELP app_uptime_seconds Application uptime in seconds')
+    lines.append('# TYPE app_uptime_seconds gauge')
+    lines.append(f'app_uptime_seconds {uptime:.2f}')
+    lines.append('# HELP app_errors_5xx_total Total 5xx responses observed (incremented post-response)')
+    lines.append('# TYPE app_errors_5xx_total counter')
+    lines.append(f'app_errors_5xx_total {_ERROR_STATS["5xx"]}')
+    # Price fetch metrics if available
+    try:
+        from price_fetch import get_price_fetch_metrics
+        pf = get_price_fetch_metrics()
+        cb = (pf.get('circuit_breaker') or {}) if isinstance(pf, dict) else {}
+        emit_prometheus(lines, 'price_fetch_total_calls_total', pf.get('total_calls',0), 'counter', 'Total calls to fetch_prices (including snapshot served)')
+        emit_prometheus(lines, 'price_fetch_products_cache_hits_total', pf.get('products_cache_hits',0), 'counter', 'Number of product list cache hits')
+        emit_prometheus(lines, 'price_fetch_snapshot_served_total', pf.get('snapshot_served',0), 'counter', 'Number of times stale snapshot returned instead of fresh fetch')
+        emit_prometheus(lines, 'price_fetch_rate_failures', pf.get('rate_failures',0), 'gauge', 'Current consecutive failure / throttling count')
+        emit_prometheus(lines, 'price_fetch_last_fetch_duration_ms', round(pf.get('last_fetch_duration_ms',0),2), 'gauge', 'Duration of last successful fetch in milliseconds')
+        age_val = round(pf.get('snapshot_age_sec',0),2) if pf.get('snapshot_age_sec') is not None else None
+        emit_prometheus(lines, 'price_fetch_snapshot_age_seconds', age_val, 'gauge', 'Age in seconds of current price snapshot')
+        emit_prometheus(lines, 'price_fetch_has_snapshot', 1 if pf.get('has_snapshot') else 0, 'gauge', 'Whether a snapshot is currently cached (1=yes)')
+        # Circuit breaker metrics
+        if cb:
+            state_map = {'CLOSED':0,'OPEN':1,'HALF_OPEN':0.5}
+            emit_prometheus(lines, 'price_fetch_circuit_breaker_state', state_map.get(cb.get('state'), -1), 'gauge', 'Circuit breaker state (0=closed,1=open,0.5=half_open)')
+            emit_prometheus(lines, 'price_fetch_circuit_breaker_failures', cb.get('failures'), 'gauge', 'Current consecutive failures counted by breaker')
+            emit_prometheus(lines, 'price_fetch_circuit_breaker_open_until_epoch', cb.get('open_until'), 'gauge', 'Epoch timestamp until which breaker remains open (0 if closed)')
+            # Normalized boolean gauges for simpler alerting
+            emit_prometheus(lines, 'price_fetch_circuit_breaker_is_open', 1 if cb.get('state') == 'OPEN' else 0, 'gauge', 'Circuit breaker open (1=open,0=otherwise)')
+            emit_prometheus(lines, 'price_fetch_circuit_breaker_is_half_open', 1 if cb.get('state') == 'HALF_OPEN' else 0, 'gauge', 'Circuit breaker half-open (1=half-open,0=otherwise)')
+        # SWR metrics
+        emit_swr_prometheus(lines, _swr_entries())
+    except Exception as e:  # pragma: no cover - defensive
+        lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
+        lines.append('# TYPE price_fetch_metrics_error gauge')
+        lines.append('price_fetch_metrics_error 1')
+        lines.append(f'# price_fetch_metrics_error_detail {str(e).replace("\n"," ")[:200]}')
+    body = '\n'.join(lines) + '\n'
+    return app.response_class(body, mimetype='text/plain; version=0.0.4')
+
+# ---- OpenAPI & JSON Schemas ----
+@app.route('/api/openapi.json')
+def openapi_spec():
+    spec = {
+        'openapi': '3.1.0',
+        'info': {'title': 'Moonwalking API', 'version': '0.1.0'},
+        'paths': {
+            '/api/health': {
+                'get': {'summary': 'Health check', 'responses': {'200': {'description': 'OK','content': {'application/json': {'schema': HealthResponse.model_json_schema()}}}}}
+            },
+            '/api/metrics': {
+                'get': {'summary': 'Operational metrics', 'responses': {'200': {'description': 'Metrics','content': {'application/json': {'schema': MetricsResponse.model_json_schema()}}}}}
+            },
+            '/api/component/gainers-table-1min': {
+                'get': {'summary': 'Gainers table (1 minute)', 'responses': {
+                    '200': {'description': 'Component payload','content': {'application/json': {'schema': Gainers1mComponent.model_json_schema()}}},
+                    '503': {'description': 'Service unavailable'}
+                }}
+            }
+        }
+    }
+    return jsonify(spec)
+
+@app.route('/api/schema/health')
+def schema_health():
+    return jsonify(HealthResponse.model_json_schema())
+
+@app.route('/api/schema/metrics')
+def schema_metrics():
+    return jsonify(MetricsResponse.model_json_schema())
+
+@app.route('/api/schema/gainers-1m')
+def schema_gainers_1m():
+    return jsonify(Gainers1mComponent.model_json_schema())
 
 # -------------------------------- Codex Assistant ---------------------------------
 @app.route('/api/ask-codex', methods=['POST'])
@@ -215,38 +446,18 @@ CONFIG = {
     ] or [3, 5],
 }
 
+# Log configuration once CONFIG is ready
+try:
+    _log_config_with_param(CONFIG)
+except Exception:
+    logging.warning("Could not log configuration")
+
 # Cache and price history storage
 cache = {
     "data": None,
     "timestamp": 0,
     "ttl": CONFIG['CACHE_TTL']
 }
-
-# Light cache for Coinbase products list to avoid hammering /products and hitting 429
-_products_cache = {
-    'items': None,
-    'fetched_at': 0,
-    'ttl': int(os.environ.get('COINBASE_PRODUCTS_CACHE_SECONDS', '300'))  # 5 min default
-}
-
-# Track last successful full price snapshot so we can serve stale data instead of empty payloads
-_last_good_prices = {
-    'data': None,
-    'fetched_at': 0
-}
-
-# Simple exponential backoff state for Coinbase rate limiting (HTTP 429) / transient failures
-_rate_state = {
-    'failures': 0,          # consecutive failure counter
-    'next_attempt': 0.0,    # epoch seconds when we may attempt again
-    'last_error': None,     # last error message / status insight
-    'last_status': None,    # last HTTP status from /products
-}
-
-# Tunables (env overrides allow quick tweaking without code change)
-BACKOFF_BASE_SECONDS = float(os.environ.get('COINBASE_BACKOFF_BASE', '1'))
-BACKOFF_MAX_SECONDS = float(os.environ.get('COINBASE_BACKOFF_MAX', '30'))
-BACKOFF_SUCCESS_RESET_MIN_PRICES = int(os.environ.get('BACKOFF_SUCCESS_RESET_MIN_PRICES', '20'))
 
 # Store price history for interval calculations
 price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
@@ -416,126 +627,76 @@ def update_config(new_config):
 
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
-    now = time.time()
     try:
-        # Respect backoff window if active
-        if now < _rate_state['next_attempt']:
-            remaining = _rate_state['next_attempt'] - now
-            if _last_good_prices['data']:
-                logging.debug(f"Backoff active {remaining:.1f}s; serving stale prices")
-                return dict(_last_good_prices['data'])
-            logging.debug(f"Backoff active {remaining:.1f}s; no stale snapshot available")
-            return {}
-        # Reuse cached product list if still fresh
-        products = None
-        if _products_cache['items'] and (now - _products_cache['fetched_at'] < _products_cache['ttl']):
-            products = _products_cache['items']
+        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        if products_response.status_code == 200:
+            products = products_response.json()
+            current_prices = {}
+            
+            # Filter to USD pairs only and prioritize major coins
+            usd_products = [p for p in products 
+                          if p.get("quote_currency") == "USD" 
+                          and p.get("status") == "online"]
+            
+            # Prioritize major cryptocurrencies for faster loading
+            major_coins = [
+                'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD', 
+                'LINK-USD', 'MATIC-USD', 'AVAX-USD', 'ATOM-USD', 'ALGO-USD',
+                'XRP-USD', 'DOGE-USD', 'SHIB-USD', 'UNI-USD', 'AAVE-USD',
+                'BCH-USD', 'LTC-USD', 'ICP-USD', 'HYPE-USD', 'SPX-USD',
+                'SEI-USD', 'PI-USD', 'KAIA-USD', 'INJ-USD', 'ONDO-USD',
+                'CRO-USD', 'FLR-USD', 'WLD-USD', 'POL-USD', 'WBT-USD',
+                'JUP-USD', 'SKY-USD', 'TAO-USD'
+            ]
+            
+            # Reorder products to prioritize major coins
+            prioritized_products = []
+            remaining_products = []
+            
+            for product in usd_products:
+                if product["id"] in major_coins:
+                    prioritized_products.append(product)
+                else:
+                    remaining_products.append(product)
+            
+            # Combine prioritized + remaining, but limit total to 100 for speed
+            all_products = prioritized_products + remaining_products[:100-len(prioritized_products)]
+            
+            # Use ThreadPoolExecutor for concurrent API calls
+            def fetch_ticker(product):
+                """Fetch ticker data for a single product"""
+                symbol = product["id"]
+                ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
+                try:
+                    ticker_response = requests.get(ticker_url, timeout=1.5)
+                    if ticker_response.status_code == 200:
+                        ticker_data = ticker_response.json()
+                        price = float(ticker_data.get('price', 0))
+                        if price > 0:
+                            return symbol, price
+                except Exception as ticker_error:
+                    logging.warning(f"Failed to get ticker for {symbol}: {ticker_error}")
+                return None, None
+
+            # Use ThreadPoolExecutor for faster concurrent API calls
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                # Submit all tasks
+                future_to_product = {executor.submit(fetch_ticker, product): product 
+                                   for product in all_products[:50]}
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_product):
+                    symbol, price = future.result()
+                    if symbol and price:
+                        current_prices[symbol] = price
+            
+            logging.info(f"Successfully fetched {len(current_prices)} prices from Coinbase")
+            return current_prices
         else:
-            resp = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
-            if resp.status_code == 200:
-                products = resp.json()
-                _products_cache['items'] = products
-                _products_cache['fetched_at'] = now
-                _rate_state['last_status'] = resp.status_code
-            else:
-                _rate_state['last_status'] = resp.status_code
-                logging.error(f"Coinbase products API Error: {resp.status_code}")
-                products = _products_cache['items']  # fall back to stale list if any
-                # If 429, trigger backoff
-                if resp.status_code == 429:
-                    _rate_state['failures'] += 1
-                    delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
-                    # jitter 80%-130%
-                    import random as _rnd
-                    delay *= _rnd.uniform(0.8, 1.3)
-                    _rate_state['next_attempt'] = now + delay
-                    _rate_state['last_error'] = f"429 rate limited; backoff {delay:.2f}s"
-                elif resp.status_code >= 500:
-                    _rate_state['failures'] += 1
-                    delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
-                    import random as _rnd
-                    delay *= _rnd.uniform(0.8, 1.2)
-                    _rate_state['next_attempt'] = now + delay
-                    _rate_state['last_error'] = f"Upstream {resp.status_code}; backoff {delay:.2f}s"
-        if not products:
+            logging.error(f"Coinbase products API Error: {products_response.status_code}")
             return {}
-
-        current_prices = {}
-        usd_products = [p for p in products if p.get('quote_currency') == 'USD' and p.get('status') == 'online']
-        major_coins = [
-            'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD',
-            'LINK-USD', 'MATIC-USD', 'AVAX-USD', 'ATOM-USD', 'ALGO-USD',
-            'XRP-USD', 'DOGE-USD', 'SHIB-USD', 'UNI-USD', 'AAVE-USD',
-            'BCH-USD', 'LTC-USD', 'ICP-USD', 'HYPE-USD', 'SPX-USD',
-            'SEI-USD', 'PI-USD', 'KAIA-USD', 'INJ-USD', 'ONDO-USD',
-            'CRO-USD', 'FLR-USD', 'WLD-USD', 'POL-USD', 'WBT-USD',
-            'JUP-USD', 'SKY-USD', 'TAO-USD'
-        ]
-        prioritized_products, remaining_products = [], []
-        for product in usd_products:
-            (prioritized_products if product.get('id') in major_coins else remaining_products).append(product)
-        all_products = prioritized_products + remaining_products[: max(0, 100 - len(prioritized_products))]
-
-        def fetch_ticker(product):
-            symbol = product.get('id')
-            ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
-            try:
-                r = requests.get(ticker_url, timeout=1.5)
-                if r.status_code == 200:
-                    d = r.json()
-                    price = float(d.get('price', 0) or 0)
-                    if price > 0:
-                        return symbol, price
-                elif r.status_code == 429:
-                    # Increment failure count lightly (only once per batch handled later)
-                    return '__RATE_LIMIT__', None
-            except Exception as e:
-                logging.debug(f"ticker fail {symbol}: {e}")
-            return None, None
-
-        # Limit concurrency; scale down further during backoff recovery
-        dynamic_workers = max(2, 8 - _rate_state['failures'] * 2)
-        with ThreadPoolExecutor(max_workers=dynamic_workers) as ex:
-            futures = {ex.submit(fetch_ticker, p): p for p in all_products[:50]}
-            for fut in as_completed(futures):
-                sym, pr = fut.result()
-                if sym == '__RATE_LIMIT__':
-                    # Mark a rate-limited ticker call; escalate failures slightly
-                    _rate_state['failures'] = min(_rate_state['failures'] + 1, 10)
-                    continue
-                if sym and pr:
-                    current_prices[sym] = pr
-
-        if current_prices:
-            _last_good_prices['data'] = current_prices
-            _last_good_prices['fetched_at'] = now
-            # Success heuristic: if enough symbols fetched, reset backoff
-            if len(current_prices) >= BACKOFF_SUCCESS_RESET_MIN_PRICES:
-                if _rate_state['failures']:
-                    logging.info(f"Price fetch recovered; resetting backoff (had {_rate_state['failures']} failures)")
-                _rate_state['failures'] = 0
-                _rate_state['next_attempt'] = 0
-                _rate_state['last_error'] = None
-            logging.info(f"Fetched {len(current_prices)} prices (cached_products={'yes' if products is _products_cache['items'] else 'no'} workers={dynamic_workers})")
-        else:
-            # Fallback: serve last good snapshot silently; caller may mark stale
-            if _last_good_prices['data'] and (now - _last_good_prices['fetched_at'] < 600):  # 10 min max staleness
-                logging.warning("No fresh tickers; using last good price snapshot (stale)")
-                return dict(_last_good_prices['data'])
-        return current_prices
     except Exception as e:
         logging.error(f"Error fetching current prices from Coinbase: {e}")
-        _rate_state['failures'] += 1
-        _rate_state['last_error'] = str(e)
-        # Exponential schedule even on exceptions
-        delay = min(BACKOFF_MAX_SECONDS, BACKOFF_BASE_SECONDS * (2 ** (_rate_state['failures'] - 1)))
-        import random as _rnd
-        delay *= _rnd.uniform(0.9, 1.4)
-        _rate_state['next_attempt'] = now + delay
-        # As final fallback use last good prices
-        if _last_good_prices['data']:
-            logging.warning("Using last good price snapshot due to exception")
-            return dict(_last_good_prices['data'])
         return {}
 
 def calculate_interval_changes(current_prices):
@@ -769,23 +930,9 @@ def get_coinbase_24h_top_movers():
                 banner_mix.append(gainers_24h[i])
             if i < len(losers_24h):
                 banner_mix.append(losers_24h[i])
-
-        # Ensure banner has a minimum number of items to avoid choppy/constant refreshes
-        MIN_BANNER_ITEMS = 15
-        if len(banner_mix) < MIN_BANNER_ITEMS:
-            logging.debug(f"Banner has {len(banner_mix)} items; attempting to pad to {MIN_BANNER_ITEMS}")
-            # Use additional items from formatted_data not already included
-            existing_symbols = {c['symbol'] for c in banner_mix}
-            for coin in formatted_data:
-                if len(banner_mix) >= MIN_BANNER_ITEMS:
-                    break
-                if coin['symbol'] not in existing_symbols:
-                    banner_mix.append(coin)
-                    existing_symbols.add(coin['symbol'])
-
-        logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers; banner items={len(banner_mix)}")
-        # Cap banner to a reasonable max (keep existing behavior but ensure minimum)
-        return banner_mix[:max(20, MIN_BANNER_ITEMS)]
+        
+        logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers")
+        return banner_mix[:20]
     except Exception as e:
         logging.error(f"Error fetching 24h top movers from Coinbase: {e}")
         return []
@@ -871,27 +1018,15 @@ def get_crypto_data():
         # Get current prices for 3-minute calculations
         current_prices = get_current_prices()
         if not current_prices:
-            # Provide richer diagnostics for front-end
-            age = current_time - _last_good_prices['fetched_at'] if _last_good_prices['fetched_at'] else None
-            logging.warning("No current prices available (serving stale=None)")
-            return {
-                "error": "no_current_prices",
-                "message": "Failed to fetch latest prices from upstream (Coinbase).",
-                "stale_age_seconds": age,
-                "has_stale_snapshot": bool(_last_good_prices['data'])
-            }
+            logging.warning("No current prices available")
+            return None
             
         # Calculate 3-minute interval changes (unique feature)
         crypto_data = calculate_interval_changes(current_prices)
         
         if not crypto_data:
             logging.warning(f"No crypto data available - {len(current_prices)} current prices, {len(price_history)} symbols with history")
-            return {
-                "error": "insufficient_history",
-                "message": "Price history not yet accumulated for interval calculations.",
-                "current_symbols": len(current_prices),
-                "history_symbols": len(price_history)
-            }
+            return None
         
         # Separate gainers and losers based on 3-minute changes
         gainers = [coin for coin in crypto_data if coin.get("price_change_percentage_3min", 0) > 0]
@@ -1075,123 +1210,99 @@ def analyze_coin_potential(symbol, chart_data):
 # THREE UNIQUE ENDPOINTS FOR DIFFERENT UI SECTIONS
 # =============================================================================
 
-# Shared cache for 24h movers (used by banner endpoints & scroll variants)
-_banner_movers_cache = {
-    'data': [],
-    'fetched_at': 0.0,
-    'ttl': float(os.environ.get('BANNER_24H_TTL', '55'))
-}
-
-def _parse_limit(raw: str | None, default: int, max_allowed: int) -> int:
-    try:
-        if raw is None or raw == '':
-            return default
-        v = int(raw)
-        if v <= 0:
-            return default
-        return min(v, max_allowed)
-    except Exception:
-        return default
-
-def _get_cached_banner_movers():
-    """Return (items, age_seconds, ttl, fresh_flag). Refresh when stale/empty."""
-    now = time.time()
-    age = now - _banner_movers_cache['fetched_at']
-    ttl = _banner_movers_cache['ttl']
-    if (not _banner_movers_cache['data']) or age > ttl:
-        movers = get_24h_top_movers()
-        if movers:
-            _banner_movers_cache['data'] = movers
-            _banner_movers_cache['fetched_at'] = now
-            return movers, 0.0, ttl, True
-    return _banner_movers_cache['data'], age, ttl, False
-
 @app.route('/api/banner-top')
 def get_top_banner():
-    """Top banner: current price + 1h % change with caching + staleness metadata."""
+    """Top banner: Current price + 1h % change (unique endpoint)"""
     try:
-        items, age, ttl, fresh = _get_cached_banner_movers()
-        if not items:
-            return jsonify({'error': 'no_banner_data', 'message': ERROR_NO_DATA}), 503
-        # Rank by 1h change desc (fallback to 24h if missing)
-        ranked = sorted(items, key=lambda x: x.get('price_change_1h', x.get('price_change_24h', 0)), reverse=True)
-        limit = _parse_limit(request.args.get('limit'), default=15, max_allowed=50)
-        payload_items = [{
-            'symbol': c['symbol'],
-            'price': c['current_price'],
-            'change_1h_pct': round(c.get('price_change_1h', 0), 4),
-            'change_24h_pct': round(c.get('price_change_24h', 0), 4),
-            'volume_24h': c.get('volume_24h', 0)
-        } for c in ranked[:limit]]
-        now = time.time()
+        # Get specific data for top banner - focus on price and 1h changes
+        banner_data = get_24h_top_movers()
+        
+        if not banner_data:
+            return jsonify({"error": "No banner data available"}), 503
+            
+        # Format specifically for top banner - current price and 1h change focus
+        top_banner_data = []
+        for coin in banner_data[:20]:  # Top 20 for scrolling
+            top_banner_data.append({
+                "symbol": coin["symbol"],
+                "current_price": coin["current_price"],
+                "price_change_1h": coin["price_change_1h"],
+                "market_cap": coin.get("market_cap", 0)
+            })
+        
         return jsonify({
-            'items': payload_items,
-            'count': len(payload_items),
-            'limit': limit,
-            'age_seconds': round(age, 2),
-            'stale': age > ttl * 2,
-            'source': 'fresh' if fresh else 'cache',
-            'ts': int(now)
+            "banner_data": top_banner_data,
+            "type": "top_banner",
+            "count": len(top_banner_data),
+            "last_updated": datetime.now().isoformat()
         })
     except Exception as e:
-        logging.error(f"/api/banner-top error: {e}")
-        return jsonify({'error': 'internal', 'message': 'Failed to build banner-top'}), 500
+        logging.error(f"Error in top banner endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/banner-bottom')
 def get_bottom_banner():
-    """Bottom banner: decliners (1h) & volume view with shared cache."""
+    """Bottom banner: Volume + 1h % change (unique endpoint)"""
     try:
-        items, age, ttl, fresh = _get_cached_banner_movers()
-        if not items:
-            return jsonify({'error': 'no_banner_data', 'message': ERROR_NO_DATA}), 503
-        ranked = sorted(items, key=lambda x: x.get('price_change_1h', x.get('price_change_24h', 0)))
-        limit = _parse_limit(request.args.get('limit'), default=15, max_allowed=50)
-        payload_items = [{
-            'symbol': c['symbol'],
-            'price': c['current_price'],
-            'change_1h_pct': round(c.get('price_change_1h', 0), 4),
-            'change_24h_pct': round(c.get('price_change_24h', 0), 4),
-            'volume_24h': c.get('volume_24h', 0)
-        } for c in ranked[:limit]]
-        now = time.time()
+        # Get specific data for bottom banner - focus on volume and 1h changes
+        banner_data = get_24h_top_movers()
+        
+        if not banner_data:
+            return jsonify({"error": "No banner data available"}), 503
+            
+        # Sort by volume for bottom banner
+        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
+        
+        # Format specifically for bottom banner - volume and 1h change focus
+        bottom_banner_data = []
+        for coin in volume_sorted[:20]:  # Top 20 by volume
+            bottom_banner_data.append({
+                "symbol": coin["symbol"],
+                "volume_24h": coin["volume_24h"],
+                "price_change_1h": coin["price_change_1h"],
+                "current_price": coin["current_price"]
+            })
+        
         return jsonify({
-            'items': payload_items,
-            'count': len(payload_items),
-            'limit': limit,
-            'age_seconds': round(age, 2),
-            'stale': age > ttl * 2,
-            'source': 'fresh' if fresh else 'cache',
-            'ts': int(now)
+            "banner_data": bottom_banner_data,
+            "type": "bottom_banner", 
+            "count": len(bottom_banner_data),
+            "last_updated": datetime.now().isoformat()
         })
     except Exception as e:
-        logging.error(f"/api/banner-bottom error: {e}")
-        return jsonify({'error': 'internal', 'message': 'Failed to build banner-bottom'}), 500
+        logging.error(f"Error in bottom banner endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/tables-3min')
 def get_tables_3min():
-    """3-minute gainers/losers tables with consistent envelope + diagnostics passthrough."""
+    """Tables: 3-minute gainers/losers (unique endpoint)"""
     try:
+        # Get specific data for tables - focus on 3-minute changes
         data = get_crypto_data()
+        
         if not data:
-            return jsonify({'error': 'no_data', 'message': ERROR_NO_DATA}), 503
-        if isinstance(data, dict) and 'error' in data:
-            status = 200 if data.get('error') == 'insufficient_history' else 503
-            return jsonify(data), status
+            return jsonify({"error": "No table data available"}), 503
+            
+        # Extract gainers and losers from the main data
         gainers = data.get('gainers', [])
         losers = data.get('losers', [])
-        limit = _parse_limit(request.args.get('limit'), default=25, max_allowed=100)
-        now = time.time()
-        return jsonify({
-            'interval_minutes': CONFIG['INTERVAL_MINUTES'],
-            'gainers': gainers[:limit],
-            'losers': losers[:limit],
-            'counts': {'gainers': len(gainers), 'losers': len(losers)},
-            'limit': limit,
-            'ts': int(now)
-        })
+        
+        # Format specifically for tables with 3-minute data
+        tables_data = {
+            "gainers": gainers[:15],  # Top 15 gainers
+            "losers": losers[:15],    # Top 15 losers
+            "type": "tables_3min",
+            "count": {
+                "gainers": len(gainers[:15]),
+                "losers": len(losers[:15])
+            },
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        return jsonify(tables_data)
     except Exception as e:
-        logging.error(f"/api/tables-3min error: {e}")
-        return jsonify({'error': 'internal', 'message': 'Failed to build tables-3min'}), 500
+        logging.error(f"Error in tables endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # =============================================================================
 # INDIVIDUAL COMPONENT ENDPOINTS - Each component gets its own unique data
@@ -1372,45 +1483,15 @@ def get_gainers_table():
 def get_losers_table():
     """Individual endpoint for losers table - 3-minute data only"""
     try:
-        data = get_crypto_data()
+        data = _get_losers_table_3min_swr()
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
-            
-        losers = data.get('losers', [])
-        
-        # Enhanced formatting specifically for losers table
-        losers_table_data = []
-        for i, coin in enumerate(losers[:20]):  # Top 20 losers
-            sym = coin["symbol"]
-            g = float(coin.get("gain", 0) or 0)
-            prev = three_minute_trends.get(sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0})
-            direction = "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
-            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
-            score = round(prev["score"] * 0.8 + g * 0.2, 3)
-            three_minute_trends[sym] = {"last": g, "streak": streak, "last_dir": direction, "score": score}
-            losers_table_data.append({
-                "rank": i + 1,
-                "symbol": coin["symbol"],
-                "current_price": coin["current"],  # Use correct field name
-                "price_change_percentage_3min": coin["gain"],  # Use correct field name (negative for losers)
-                "initial_price_3min": coin["initial_3min"],  # Use correct field name
-                "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
-                "trend_direction": direction,
-                "trend_streak": streak,
-                "trend_score": score,
-                "momentum": "strong" if coin["gain"] < -5 else "moderate",
-                "alert_level": "high" if coin["gain"] < -10 else "normal"
-            })
-        
-        return jsonify({
-            "component": "losers_table",
-            "data": losers_table_data,
-            "count": len(losers_table_data),
-            "table_type": "losers",
-            "time_frame": "3_minutes",
-            "update_interval": 3000,
-            "last_updated": datetime.now().isoformat()
-        })
+        swr_meta = {
+            'ttl': _LOSERS_3M_SWR_TTL,
+            'stale_window': _LOSERS_3M_SWR_STALE,
+            'served_cached': _get_losers_table_3min_swr._swr_last_served_cached,
+        }
+        return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
         logging.error(f"Error in losers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1419,36 +1500,15 @@ def get_losers_table():
 def get_top_movers_bar():
     """Individual endpoint for top movers horizontal bar - 3min focus"""
     try:
-        # Get 3-minute data
-        data = get_crypto_data()
+        data = _get_top_movers_bar_swr()
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
-            
-        # Use top24h which is already a mix of top gainers and losers from 3-min data
-        top_movers_3min = data.get('top24h', [])
-        
-        # Format specifically for horizontal moving bar
-        top_movers_data = []
-        for coin in top_movers_3min[:15]:  # Perfect amount for horizontal scroll
-            top_movers_data.append({
-                "symbol": coin["symbol"],
-                "current_price": coin["current"],
-                "price_change_3min": coin["gain"],  # 3-minute change
-                "initial_price_3min": coin["initial_3min"],
-                "interval_minutes": coin.get("interval_minutes", 3),
-                "bar_color": "green" if coin["gain"] > 0 else "red",
-                "momentum": "strong" if abs(coin["gain"]) > 5 else "moderate"
-            })
-        
-        return jsonify({
-            "component": "top_movers_bar",
-            "data": top_movers_data,
-            "count": len(top_movers_data),
-            "animation": "horizontal_scroll",
-            "time_frame": "3_minutes",
-            "update_interval": 3000,
-            "last_updated": datetime.now().isoformat()
-        })
+        swr_meta = {
+            'ttl': _TOP_MOVERS_BAR_SWR_TTL,
+            'stale_window': _TOP_MOVERS_BAR_SWR_STALE,
+            'served_cached': _get_top_movers_bar_swr._swr_last_served_cached,
+        }
+        return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
         logging.error(f"Error in top movers bar endpoint: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1684,39 +1744,15 @@ def get_crypto_data_1min():
 def get_gainers_table_1min():
     """Individual endpoint for 1-minute gainers table"""
     try:
-        data = get_crypto_data_1min()
+        data = _get_gainers_table_1min_swr()
         if not data:
             return jsonify({"error": "No 1-minute data available"}), 503
-            
-        gainers = data.get('gainers', [])
-        
-        gainers_table_data = []
-        for i, coin in enumerate(gainers[:20]):  # Top 20 gainers
-            gainers_table_data.append({
-                "rank": i + 1,
-                "symbol": coin["symbol"],
-                "current_price": coin["current"],
-                "price_change_percentage_1min": coin["gain"],
-                "initial_price_1min": coin["initial_1min"],
-                "actual_interval_minutes": coin.get("interval_minutes", 1),
-                "peak_gain": coin.get("peak_gain", coin["gain"]),
-                "trend_direction": coin.get("trend_direction", "flat"),
-                "trend_streak": coin.get("trend_streak", 0),
-                "trend_score": coin.get("trend_score", 0.0),
-                "trend_delta": coin.get("trend_delta", 0.0),
-                "momentum": "strong" if coin["gain"] > 5 else "moderate",
-                "alert_level": "high" if coin["gain"] > 10 else "normal"
-            })
-        
-        return jsonify({
-            "component": "gainers_table_1min",
-            "data": gainers_table_data,
-            "count": len(gainers_table_data),
-            "table_type": "gainers",
-            "time_frame": "1_minute",
-            "update_interval": 10000, # 10 seconds for 1-min data
-            "last_updated": datetime.now().isoformat()
-        })
+        swr_meta = {
+            'ttl': _GAINERS_1M_SWR_TTL,
+            'stale_window': _GAINERS_1M_SWR_STALE,
+            'served_cached': _get_gainers_table_1min_swr._swr_last_served_cached,
+        }
+        return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
         logging.error(f"Error in 1-minute gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1728,51 +1764,19 @@ def get_gainers_table_1min():
 @app.route('/')
 def root():
     """Root endpoint"""
-    return jsonify({
-        "service": "CBMo4ers Crypto Dashboard Backend",
-        "status": "running",
-        "version": "3.0.0",
-        "description": "Individual component endpoints with correct time frames",
-        "individual_component_endpoints": [
-            "/api/component/top-banner-scroll",     # Top scrolling banner - 1-hour PRICE change
-            "/api/component/bottom-banner-scroll",  # Bottom scrolling banner - 1-hour VOLUME change  
-            "/api/component/gainers-table",         # Gainers table - 3-minute data (main feature)
-            "/api/component/losers-table",          # Losers table - 3-minute data (main feature)
-            "/api/component/top-movers-bar"         # Horizontal top movers bar - 3-minute data
-        ],
-        "time_frame_specification": {
-            "top_banner": "1-hour price change data",
-            "bottom_banner": "1-hour volume change data", 
-            "main_tables": "3-minute gainers/losers data (key feature)",
-            "top_movers_bar": "3-minute data"
-        },
-        "legacy_endpoints": [
-            "/api/health",
-            "/api/banner-top",     # Legacy: Top banner
-            "/api/banner-bottom",  # Legacy: Bottom banner
-            "/api/tables-3min",    # Legacy: Tables
-            "/api/crypto",         # Legacy: Combined data
-            "/api/banner-1h",      # Legacy: Banner data
-            "/api/chart/BTC-USD",
-            "/api/watchlist",
-            "/api/config"
-        ]
-    })
-
-@app.route('/api/crypto')
-def get_crypto_endpoint():
-    """Main crypto data endpoint with 3-minute tracking"""
     try:
-        data = get_crypto_data()
-        if data:
-            return jsonify(data)
-        else:
-            return jsonify({"error": "No data available"}), 503
+        data = _get_gainers_table_3min_swr()
+        if not data:
+            return jsonify({"error": ERROR_NO_DATA}), 503
+        swr_meta = {
+            'ttl': _GAINERS_3M_SWR_TTL,
+            'stale_window': _GAINERS_3M_SWR_STALE,
+            'served_cached': _get_gainers_table_3min_swr._swr_last_served_cached,
+        }
+        return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
-        logging.error(f"Error in crypto endpoint: {e}")
+        logging.error(f"Error in gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
-
-@app.route('/api/banner-1h')
 def get_banner_endpoint():
     """24h banner data endpoint"""
     try:
@@ -2034,13 +2038,6 @@ def server_info():
                 "cache_age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
                 "ttl": cache["ttl"],
             },
-            "rate_limit": {
-                "failures": _rate_state.get('failures'),
-                "next_attempt_in_seconds": max(0, _rate_state.get('next_attempt', 0) - time.time()),
-                "last_status": _rate_state.get('last_status'),
-                "last_error": _rate_state.get('last_error'),
-                "last_good_snapshot_age": time.time() - _last_good_prices['fetched_at'] if _last_good_prices['fetched_at'] else None
-            }
         }
         # Optionally include light system metrics if psutil is available
         if PSUTIL_AVAILABLE:

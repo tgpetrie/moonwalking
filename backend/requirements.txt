@@ -30,3 +30,5 @@ flask-talisman==1.1.0
 # Technical analysis dependencies
 numpy
 pandas
+jsonschema==4.23.0
+pydantic==2.7.4
