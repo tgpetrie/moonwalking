@@ -2,7 +2,9 @@ import './env-debug.js';
 import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
+import ToastProvider from './components/ToastProvider.jsx';
 import { FiRefreshCw } from 'react-icons/fi';
+import OneMinGainersColumns from './components/OneMinGainersColumns.jsx';
 import ManualRefreshButton from './components/ManualRefreshButton.jsx';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
@@ -18,6 +20,10 @@ import Watchlist from './components/Watchlist';
 const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
 const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
 const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'));
+// Mobile debugging component
+import MobileDebugger from './components/MobileDebugger.jsx';
+// Data flow test component
+import DataFlowTest from './components/DataFlowTest.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
@@ -93,7 +99,10 @@ export default function App() {
 
   return (
     <WebSocketProvider>
+    <ToastProvider>
     <div className="min-h-screen bg-dark text-white relative">
+      <MobileDebugger />
+      <DataFlowTest />
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
         <img
@@ -209,29 +218,14 @@ export default function App() {
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mt-3">
-                <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                  <GainersTable1Min
-                    refreshTrigger={lastUpdate}
-                    onWatchlistChange={handleWatchlistChange}
-                    topWatchlist={topWatchlist}
-                    startRank={1}
-                    endRank={oneMinExpanded ? 7 : 5}
-                    fixedRows={oneMinExpanded ? 6 : 4}
-                    hideShowMore
-                  />
-                  <GainersTable1Min
-                    refreshTrigger={lastUpdate}
-                    onWatchlistChange={handleWatchlistChange}
-                    topWatchlist={topWatchlist}
-                    startRank={oneMinExpanded ? 7 : 5}
-                    endRank={oneMinExpanded ? 13 : 10}
-                    fixedRows={oneMinExpanded ? 6 : 4}
-                    hideShowMore
-                  />
-                  
-                </Suspense>
-              </div>
+              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+                <OneMinGainersColumns
+                  refreshTrigger={lastUpdate}
+                  onWatchlistChange={handleWatchlistChange}
+                  topWatchlist={topWatchlist}
+                  expanded={oneMinExpanded}
+                />
+              </Suspense>
               {/* Shared Show More below the two tables */}
               <div className="w-full flex justify-center mt-2 mb-1">
                 <button
@@ -366,6 +360,7 @@ export default function App() {
         </Suspense>
       )}
     </div>
+    </ToastProvider>
     </WebSocketProvider>
   );
 }

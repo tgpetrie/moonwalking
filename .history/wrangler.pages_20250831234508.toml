@@ -1,0 +1,7 @@
+name = "moonwalking-pages"
+pages_build_output_dir = "frontend/dist"
+compatibility_date = "2024-09-01"
+
+[vars]
+# Backend origin for API proxy (set same in dashboard or via `wrangler pages secret put` if you make it a secret)
+BACKEND_ORIGIN = "https://moonwalker.onrender.com"

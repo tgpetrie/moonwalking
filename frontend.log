@@ -1,0 +1,91 @@
+
+> frontend@1.1.0 dev
+> vite
+
+
+  VITE v5.4.19  ready in 120 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+9:01:37 PM [vite] hmr update /index.css, /src/components/GainersTable1Min.jsx, /src/components/GainersTable.jsx, /src/components/LosersTable.jsx
+9:01:48 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /index.css
+9:02:22 PM [vite] hmr update /src/components/BottomBannerScroll.jsx, /index.css
+9:02:31 PM [vite] page reload src/components/CodexPanel.jsx
+9:02:41 PM [vite] page reload src/components/CodexPanel.original.jsx
+9:02:50 PM [vite] hmr update /src/components/Watchlist.backup.jsx, /index.css
+9:10:14 PM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+9:13:59 PM [vite] hmr update /src/components/Watchlist.backup.jsx, /index.css
+9:14:44 PM [vite] hmr update /src/components/Watchlist.backup.jsx, /index.css
+9:18:39 PM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+9:19:19 PM [vite] hmr update /src/components/Watchlist.backup.jsx, /index.css
+9:22:40 PM [vite] hmr update /src/components/Watchlist.backup.jsx, /index.css
+9:22:58 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /index.css
+9:23:33 PM [vite] page reload tailwind.config.js
+9:23:55 PM [vite] hmr update /src/components/BottomBannerScroll.jsx, /index.css
+9:26:45 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /index.css
+9:27:01 PM [vite] hmr update /src/components/BottomBannerScroll.jsx, /index.css
+9:28:55 PM [vite] hmr update /index.css
+9:29:05 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /index.css
+9:29:16 PM [vite] hmr update /src/components/BottomBannerScroll.jsx, /index.css
+9:40:38 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /index.css
+9:41:38 PM [vite] hmr update /src/components/BottomBannerScroll.jsx, /index.css
+9:54:29 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+10:00:46 PM [vite] hmr update /src/context/websocketcontext.jsx, /index.css
+10:00:46 PM [vite] hmr invalidate /src/context/websocketcontext.jsx Could not Fast Refresh ("default" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:00:46 PM [vite] hmr update /src/app.jsx, /index.css, /src/components/ManualRefreshButton.jsx, /src/components/Watchlist.backup.jsx, /src/components/GainersTable1Min.jsx, /src/components/GainersTable.jsx, /src/components/LosersTable.jsx
+10:05:32 PM [vite] hmr update /src/context/websocketcontext.jsx, /index.css
+10:05:32 PM [vite] hmr invalidate /src/context/websocketcontext.jsx Could not Fast Refresh ("default" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:05:32 PM [vite] hmr update /src/app.jsx, /index.css, /src/components/ManualRefreshButton.jsx, /src/components/Watchlist.backup.jsx, /src/components/GainersTable1Min.jsx, /src/components/GainersTable.jsx, /src/components/LosersTable.jsx
+2:31:17 AM [vite] page reload index.html
+2:38:38 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+2:40:12 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+2:40:54 AM [vite] hmr update /src/app.jsx, /index.css
+2:55:35 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+3:18:34 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+3:20:25 AM [vite] hmr update /src/app.jsx, /index.css
+3:20:46 AM [vite] hmr update /src/app.jsx, /index.css
+3:27:20 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+3:29:11 AM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+3:29:44 AM [vite] hmr update /src/components/LosersTable.jsx, /index.css
+3:32:17 AM [vite] hmr update /src/components/LosersTable.jsx, /index.css
+3:34:40 AM [vite] hmr update /src/app.jsx, /index.css
+4:03:59 AM [vite] hmr update /src/context/websocketcontext.jsx, /index.css
+4:04:05 AM [vite] hmr update /src/context/websocketcontext.jsx, /index.css
+4:07:30 AM [vite] hmr update /src/context/websocketcontext.jsx, /index.css
+4:15:52 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:19:19 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:19:42 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:20:59 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:26:41 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:26:50 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:27:25 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:30:25 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:30:35 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:31:06 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:32:52 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:36:08 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:36:25 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:36:35 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:42:04 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:42:23 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:42:31 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:42:38 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:42:46 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:44:47 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:44:58 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:45:10 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:45:22 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:50:17 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:50:31 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:50:39 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:50:44 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:50:52 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:51:01 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:51:07 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /index.css
+4:53:35 AM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+5:24:59 AM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+5:27:29 AM [vite] hmr update /src/components/GainersTable.jsx, /index.css
+5:27:53 AM [vite] hmr update /src/components/LosersTable.jsx, /index.css
+5:31:53 AM [vite] .env.development changed, restarting server...
+5:31:53 AM [vite] .env.development changed, restarting server...
+5:31:54 AM [vite] server restarted.

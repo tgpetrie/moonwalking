@@ -61,14 +61,18 @@ export async function fetchLatestAlerts(symbols = []) {
   }
 }
 
+import { isMobileDevice, getMobileOptimizedConfig } from './utils/mobileDetection.js';
+
 // Request throttling to prevent resource exhaustion
 const requestCache = new Map();
-const CACHE_DURATION = 10000; // 10 seconds
+const mobileConfig = getMobileOptimizedConfig();
+const CACHE_DURATION = mobileConfig.cacheDuration; // Mobile-optimized cache duration
 
-// Internal: probe a candidate base URL via /api/health with a short timeout
-const probeBase = async (baseUrl, timeoutMs = 1500) => {
+// Internal: probe a candidate base URL via /api/health with a mobile-optimized timeout
+const probeBase = async (baseUrl, timeoutMs = null) => {
+  const defaultTimeout = timeoutMs || (isMobileDevice() ? mobileConfig.fetchTimeout : 1500);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), defaultTimeout);
   try {
   // Prefer server-info which should return 200 regardless of external API status
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/server-info`, { signal: controller.signal });

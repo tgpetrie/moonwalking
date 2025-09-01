@@ -1,6 +1,3 @@
-name = "moonwalking"
-pages_build_output_dir = "frontend/dist"
-
 [durable_objects]
 bindings = [
   { name = "HUB", class_name = "Hub", script_name = "mw-hub" }

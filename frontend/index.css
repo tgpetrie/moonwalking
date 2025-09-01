@@ -52,7 +52,8 @@ body {
 }
 
 .animate-scroll {
-  animation: continuous-scroll 120s linear infinite !important;
+  /* Slow down slightly for smoother readability */
+  animation: continuous-scroll 180s linear infinite !important;
 }
 
 /* Typography Classes */

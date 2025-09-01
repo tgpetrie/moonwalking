@@ -6,6 +6,7 @@ import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatte
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
 import PropTypes from 'prop-types';
+import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
 
 /**
  * 1‑MIN Gainers (alignment‑stable)
@@ -24,11 +25,25 @@ export default function GainersTable1Min({
   endRank,
   fixedRows,
   hideShowMore,
+  rows: externalRows,
 }) {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs, send } = useWebSocket();
+  let wsContextData;
+  try {
+    wsContextData = useWebSocket();
+  } catch (error) {
+    console.error('[GainersTable1Min] WebSocket context error:', error);
+    wsContextData = { latestData: { crypto: [] }, isConnected: false, isPolling: false, oneMinThrottleMs: 15000, send: () => {} };
+  }
+  
+  const { latestData, isConnected, isPolling, oneMinThrottleMs, send } = wsContextData;
+  
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
   const prevDataRef = useRef([]);
+  
+  // Mobile optimizations
+  const isMobile = isMobileDevice();
+  const mobileConfig = getMobileOptimizedConfig();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +66,20 @@ export default function GainersTable1Min({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topWatchlist]);
 
-  // Throttled WS updates for stability
+  // Throttled WS updates (skip when external rows provided)
   useEffect(() => {
+    if (Array.isArray(externalRows)) { setData(externalRows); setLoading(false); return; }
     if (latestData.crypto && Array.isArray(latestData.crypto)) {
       const now = Date.now();
-      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 15000;
-      if (now - (lastRenderRef.current || 0) < throttleMs) return;
+      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : (isMobile ? mobileConfig.throttleMs : 15000);
+      const timeSinceLastRender = now - (lastRenderRef.current || 0);
+      console.log(`[GainersTable1Min] Throttle check: ${timeSinceLastRender}ms since last render, throttle: ${throttleMs}ms, data length: ${latestData.crypto.length}`);
+      if (now - (lastRenderRef.current || 0) < throttleMs) {
+        console.log(`[GainersTable1Min] THROTTLED - skipping update`);
+        return;
+      }
       lastRenderRef.current = now;
+      console.log(`[GainersTable1Min] UPDATING data with ${latestData.crypto.length} items`);
 
       const mapped = latestData.crypto.slice(0, 20).map((item, idx) => ({
         rank: item.rank || idx + 1,
@@ -68,7 +90,10 @@ export default function GainersTable1Min({
       }));
       const prev = prevDataRef.current || [];
       const keepPrev = prev.filter(p => !mapped.some(m => m.symbol === p.symbol) && p.change > 0);
-      const combined = [...mapped, ...keepPrev].sort((a, b) => b.change - a.change).slice(0, 20);
+      const combined = [...mapped, ...keepPrev]
+        .sort((a, b) => b.change - a.change)
+        .slice(0, 20)
+        .map((it, i) => ({ ...it, rank: i + 1 })); // re-rank after merge to keep ranks consistent
       prevDataRef.current = combined;
       setData(combined);
       setLoading(false);
@@ -76,8 +101,14 @@ export default function GainersTable1Min({
     }
   }, [latestData.crypto, oneMinThrottleMs]);
 
-  // REST fallback when WS is empty/inactive
+  // Debug: Log whenever latestData.crypto changes
   useEffect(() => {
+    console.log('[GainersTable1Min] latestData.crypto changed:', latestData?.crypto?.length || 0, 'items');
+  }, [latestData.crypto]);
+
+  // REST fallback when WS is empty/inactive (skip with external rows)
+  useEffect(() => {
+    if (Array.isArray(externalRows)) return;
     let cancelled = false;
     const fetch1m = async () => {
       if (latestData.crypto && latestData.crypto.length > 0) return;
@@ -90,7 +121,11 @@ export default function GainersTable1Min({
             price: item.current_price ?? item.price ?? 0,
             change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
             peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
-          }));
+          }))
+          // Ensure strict ranking by current change (desc) for display consistency
+          .sort((a,b)=> b.change - a.change)
+          .slice(0, 20)
+          .map((it, i) => ({ ...it, rank: i + 1 }));
           setData(mapped);
         }
         if (!cancelled) setLoading(false);
@@ -132,10 +167,28 @@ export default function GainersTable1Min({
   };
 
   // Compute slice by rank or index
-  const startIdx = typeof sliceStart === 'number' ? sliceStart : (typeof startRank === 'number' ? Math.max(0, startRank - 1) : undefined);
-  const endIdx   = typeof sliceEnd === 'number'   ? sliceEnd   : (typeof endRank === 'number'   ? Math.max(0, endRank)         : undefined);
-  const sliced   = Array.isArray(data)
-    ? (typeof startIdx === 'number' || typeof endIdx === 'number' ? data.slice(startIdx ?? 0, endIdx ?? data.length) : data)
+  const startIdx = Array.isArray(externalRows)
+    ? (typeof sliceStart === 'number' ? sliceStart : 0)
+    : (typeof sliceStart === 'number' ? sliceStart : (typeof startRank === 'number' ? Math.max(0, startRank - 1) : undefined));
+  const endIdx   = Array.isArray(externalRows)
+    ? (typeof sliceEnd === 'number' ? sliceEnd : (externalRows?.length ?? undefined))
+    : (typeof sliceEnd === 'number'   ? sliceEnd   : (typeof endRank === 'number'   ? Math.max(0, endRank)         : undefined));
+  // Use WebSocket context data if it has more items than component data
+  let sourceData = data;
+  const wsDataLength = latestData?.crypto?.length || 0;
+  if (wsDataLength > sourceData.length && latestData?.crypto && latestData.crypto.length > 0) {
+    console.log('[GainersTable1Min] Using fallback WebSocket context data');
+    sourceData = latestData.crypto.slice(0, 20).map((item, idx) => ({
+      rank: item.rank || idx + 1,
+      symbol: item.symbol?.replace('-USD', '') || 'N/A',
+      price: item.current_price ?? item.price ?? 0,
+      change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
+      peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+    }));
+  }
+  
+  const sliced   = Array.isArray(sourceData)
+    ? (typeof startIdx === 'number' || typeof endIdx === 'number' ? sourceData.slice(startIdx ?? 0, endIdx ?? sourceData.length) : sourceData)
     : [];
 
   // Do not render placeholder rows; only render available items
@@ -145,10 +198,20 @@ export default function GainersTable1Min({
   const visibleRows = rows.map(r => ({ symbol: r.symbol }));
   const get1m = updateStreaks('1m', visibleRows);
 
-  if (loading && sliced.length === 0) {
+  // Force show data if WebSocket context has it, even when loading
+  const hasContextData = latestData?.crypto && latestData.crypto.length > 0;
+  
+  if (loading && sliced.length === 0 && !hasContextData) {
     return (
       <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
         <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
+        {/* Debug: Show why we're stuck loading */}
+        {window.location.search.includes('debug') && (
+          <div style={{ background: 'orange', color: 'white', fontSize: '12px', padding: '10px', margin: '10px' }}>
+            STUCK LOADING: WS Connected: {isConnected}, Polling: {isPolling}, Has Context Data: {hasContextData}<br/>
+            latestData: {JSON.stringify(latestData?.crypto?.slice(0,2) || [])}
+          </div>
+        )}
       </div>
     );
   }
@@ -164,6 +227,7 @@ export default function GainersTable1Min({
   return (
     <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300">
       {rows.map((item, idx) => {
+        const displayRank = (typeof startIdx === 'number') ? (startIdx + idx + 1) : ((item && item.rank) ? item.rank : (idx + 1));
         const isPlaceholder = false; // placeholders removed
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
@@ -221,14 +285,34 @@ export default function GainersTable1Min({
                   />
                 </span>
 
-                {/* MAIN ROW — fixed grid */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
-                  {/* Col1: rank + symbol */}
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
-                      {item ? item.rank : 0}
+                {/* Mobile Card Layout */}
+                <div className="sm:hidden relative z-10">
+                  <div className="flex items-center justify-between py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
+                        {displayRank}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-xl mb-1">{item ? truncateSymbol(item.symbol, 8) : '—'}</div>
+                        <div className="text-base text-teal font-mono font-bold">
+                          ${item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
+                        </div>
+                      </div>
                     </div>
-                    <div className={"min-w-0 flex items-center gap-2 sm:gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
+                    <div className={`text-2xl font-bold ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                      {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Grid Layout */}
+                <div className="hidden sm:grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                  {/* Col1: rank + symbol */}
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
+                      {displayRank}
+                    </div>
+                    <div className={"min-w-0 flex items-center gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
                       <span className="font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
                       {item && item.peakCount > 1 && (
                         <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
@@ -245,7 +329,7 @@ export default function GainersTable1Min({
 
                   {/* Col2: price/current + previous */}
                   <div className={"w-[152px] pr-6 text-right " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                    <div className="text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
                       {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
                     </div>
                     <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
@@ -257,7 +341,7 @@ export default function GainersTable1Min({
 
                   {/* Col3: % + Px (no label) */}
                   <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                    <div className={`text-lg md:text-xl font-bold tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
                       {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
                     </div>
                     {/* Streak Px subline */}
@@ -272,7 +356,7 @@ export default function GainersTable1Min({
                   {/* Col4: star */}
                   <div className="w-[28px] text-right">
                     <button
-                      onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); return; } e.preventDefault(); handleToggleWatchlist(item.symbol); }}
+                      onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); return; } e.preventDefault(); e.stopPropagation(); handleToggleWatchlist(item.symbol); }}
                       disabled={isPlaceholder}
                       className={"bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end " + (isPlaceholder ? 'opacity-0' : (popStar === (item && item.symbol) ? ' animate-star-pop' : ''))}
                       style={{ minWidth:'24px', minHeight:'24px' }}
