@@ -36,6 +36,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [oneMinExpanded, setOneMinExpanded] = useState(false);
+  const [threeMinExpanded, setThreeMinExpanded] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
 
   // Handler to sync watchlist state from children
@@ -223,11 +224,12 @@ export default function App() {
                     refreshTrigger={lastUpdate}
                     onWatchlistChange={handleWatchlistChange}
                     topWatchlist={topWatchlist}
-                    startRank={oneMinExpanded ? 7 : 6}
+                    startRank={oneMinExpanded ? 7 : 5}
                     endRank={oneMinExpanded ? 13 : 10}
                     fixedRows={oneMinExpanded ? 6 : 4}
                     hideShowMore
                   />
+                  
                 </Suspense>
               </div>
               {/* Shared Show More below the two tables */}
@@ -245,7 +247,7 @@ export default function App() {
         </div>
 
   {/* 3-Minute Gainers and Losers Tables (treat as single paired component for equal sizing) */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-8 items-stretch content-stretch">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-2 items-stretch content-stretch">
           {/* Left Panel - 3-MIN GAINERS */}
     <div className="pt-6 pb-6 px-0 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">
@@ -264,7 +266,7 @@ export default function App() {
             </div>
             <div className="flex-1 flex flex-col">
               <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
-                <GainersTable refreshTrigger={lastUpdate} />
+                <GainersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
               </Suspense>
             </div>
           </div>
@@ -287,10 +289,21 @@ export default function App() {
             </div>
             <div className="flex-1 flex flex-col">
               <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
-                <LosersTable refreshTrigger={lastUpdate} />
+                <LosersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
               </Suspense>
             </div>
           </div>
+        </div>
+
+        {/* Shared Show More below the two 3‑min tables */}
+        <div className="w-full flex justify-center mt-2 mb-8">
+          <button
+            onClick={() => setThreeMinExpanded(v => !v)}
+            className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+            aria-pressed={threeMinExpanded}
+          >
+            {threeMinExpanded ? 'Show Less' : 'Show More'}
+          </button>
         </div>
 
         {/* Watchlist below 3-Min tables */}
