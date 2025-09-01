@@ -99,7 +99,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
           <div className="flex whitespace-nowrap animate-scroll" role="list">
             {/* First set of data */}
             {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
+              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple bg-transparent">
                     <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
@@ -112,7 +112,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
                       <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(2) : '0.00'}%
+                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
                         {coin.isEstimated && (
@@ -145,7 +145,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             ))}
             {/* Duplicate set for seamless scrolling */}
             {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${coin.volume_change.toFixed(2)}%`}>
+              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
                 <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
@@ -158,7 +158,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
                       <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(2) : '0.00'}%
+                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
                         {coin.isEstimated && (

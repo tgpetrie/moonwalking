@@ -24,7 +24,7 @@ export const formatPrice = (price) => {
 
 export const formatPercentage = (
   value,
-  { decimals = 2, sign = false, fraction = false } = {}
+  { decimals = 3, sign = false, fraction = false } = {}
 ) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return '—';
