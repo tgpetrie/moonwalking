@@ -13,8 +13,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), commit: process.env.GIT_COMMIT || null });
 });
 
-const server = app.listen(cfg.port, () => {
-  logger.info(`Server listening on http://localhost:${cfg.port}`);
+const server = app.listen(cfg.port, cfg.host, () => {
+  logger.info(`Server listening on http://${cfg.host}:${cfg.port}`);
 });
 
 process.on('SIGTERM', () => {
