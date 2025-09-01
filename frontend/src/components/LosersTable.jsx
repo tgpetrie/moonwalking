@@ -6,7 +6,7 @@ import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatte
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
 
-const LosersTable = ({ refreshTrigger }) => {
+const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13 }) => {
   const shouldReduce = useReducedMotion();
 
   // Inject animation styles once
@@ -24,6 +24,7 @@ const LosersTable = ({ refreshTrigger }) => {
 
   const { send } = useWebSocket();
   const [data, setData] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(initialRows);
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null);
@@ -42,7 +43,7 @@ const LosersTable = ({ refreshTrigger }) => {
             change3m: item.price_change_percentage_3min ?? item.change3m ?? item.change ?? 0,
             peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
           }));
-          if (isMounted) setData(next.slice(0, 7));
+          if (isMounted) setData(next);
         } else if (isMounted) {
           setData([]);
         }
@@ -97,11 +98,12 @@ const LosersTable = ({ refreshTrigger }) => {
   }
 
   // Update 3m streaks for current losers set
-  const get3m = updateStreaks('3m', data.map(d => ({ symbol: d.symbol })));
+  const rows = data.slice(0, Math.min(visibleCount, maxRows));
+  const get3m = updateStreaks('3m', rows.map(d => ({ symbol: d.symbol })));
 
   return (
     <div className="w-full h-full min-h-[420px] px-0">
-      {data.map((r, idx) => {
+      {rows.map((r, idx) => {
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
         const breathAmt = 0.006;
@@ -211,6 +213,18 @@ const LosersTable = ({ refreshTrigger }) => {
           </div>
         );
       })}
+      {/* Show More / Less */}
+      {data.length > initialRows && (
+        <div className="w-full flex justify-center mt-2 mb-1">
+          <button
+            onClick={() => setVisibleCount(c => (c > initialRows ? initialRows : Math.min(maxRows, data.length)))}
+            className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+            aria-pressed={visibleCount > initialRows}
+          >
+            {visibleCount > initialRows ? 'Show Less' : 'Show More'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

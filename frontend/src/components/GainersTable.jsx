@@ -6,7 +6,7 @@ import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatte
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
 
-const GainersTable = ({ refreshTrigger }) => {
+const GainersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13 }) => {
   const shouldReduce = useReducedMotion();
   // Inject animation styles for pop/fade effects (watchlist add feedback)
   useEffect(() => {
@@ -42,6 +42,7 @@ const GainersTable = ({ refreshTrigger }) => {
   }, []);
   const { send } = useWebSocket();
   const [data, setData] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(initialRows);
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null); // symbol for pop animation
@@ -79,7 +80,7 @@ const GainersTable = ({ refreshTrigger }) => {
             badge: getBadgeText(Math.abs((item.price_change_percentage_3min ?? 0)))
           }));
           if (isMounted) {
-            setData(next.slice(0,7));
+            setData(next);
           }
         } else if (isMounted) {
           setData([]);
@@ -142,11 +143,12 @@ const GainersTable = ({ refreshTrigger }) => {
   }
 
   // Update 3m streaks for current gainers set
-  const get3m = updateStreaks('3m', data.map(d => ({ symbol: d.symbol })));
+  const rows = data.slice(0, Math.min(visibleCount, maxRows));
+  const get3m = updateStreaks('3m', rows.map(d => ({ symbol: d.symbol })));
 
   return (
     <div className="w-full h-full min-h-[420px] px-0">
-      {data.map((r, idx) => {
+      {rows.map((r, idx) => {
         const rowIndex = idx;
         const entranceDelay = (rowIndex % 12) * 0.035;
         const loopDelay = ((rowIndex % 8) * 0.12);
@@ -263,6 +265,18 @@ const GainersTable = ({ refreshTrigger }) => {
           </div>
         );
       })}
+      {/* Show More / Less */}
+      {data.length > initialRows && (
+        <div className="w-full flex justify-center mt-2 mb-1">
+          <button
+            onClick={() => setVisibleCount(c => (c > initialRows ? initialRows : Math.min(maxRows, data.length)))}
+            className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
+            aria-pressed={visibleCount > initialRows}
+          >
+            {visibleCount > initialRows ? 'Show Less' : 'Show More'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
