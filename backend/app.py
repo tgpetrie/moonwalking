@@ -319,6 +319,11 @@ def metrics_prom():
         emit_prometheus(lines, 'price_fetch_snapshot_served_total', pf.get('snapshot_served',0), 'counter', 'Number of times stale snapshot returned instead of fresh fetch')
         emit_prometheus(lines, 'price_fetch_rate_failures', pf.get('rate_failures',0), 'gauge', 'Current consecutive failure / throttling count')
         emit_prometheus(lines, 'price_fetch_last_fetch_duration_ms', round(pf.get('last_fetch_duration_ms',0),2), 'gauge', 'Duration of last successful fetch in milliseconds')
+        # Advanced latency & error/backoff metrics
+        if pf.get('p95_fetch_duration_ms') is not None:
+            emit_prometheus(lines, 'price_fetch_p95_fetch_duration_ms', round(pf.get('p95_fetch_duration_ms'),2), 'gauge', 'Approximate p95 of recent fetch durations (ms)')
+        emit_prometheus(lines, 'price_fetch_error_rate_percent', pf.get('error_rate_percent'), 'gauge', 'Rolling error rate percentage over recent calls')
+        emit_prometheus(lines, 'price_fetch_backoff_seconds_remaining', pf.get('backoff_seconds_remaining'), 'gauge', 'Seconds remaining in current exponential backoff window (0 if none)')
         age_val = round(pf.get('snapshot_age_sec',0),2) if pf.get('snapshot_age_sec') is not None else None
         emit_prometheus(lines, 'price_fetch_snapshot_age_seconds', age_val, 'gauge', 'Age in seconds of current price snapshot')
         emit_prometheus(lines, 'price_fetch_has_snapshot', 1 if pf.get('has_snapshot') else 0, 'gauge', 'Whether a snapshot is currently cached (1=yes)')

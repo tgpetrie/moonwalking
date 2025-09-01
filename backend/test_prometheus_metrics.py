@@ -37,3 +37,14 @@ def test_prometheus_circuit_breaker_metrics_present(client):
     ]
     for name in expected_cb:
         assert name in body, f"Missing circuit breaker metric {name}\nBody snippet: {body[:400]}"
+
+def test_prometheus_price_fetch_advanced_metrics_present(client):
+    resp = client.get('/metrics.prom')
+    body = resp.get_data(as_text=True)
+    advanced = [
+        'price_fetch_p95_fetch_duration_ms',
+        'price_fetch_error_rate_percent',
+        'price_fetch_backoff_seconds_remaining'
+    ]
+    for name in advanced:
+        assert name in body, f"Missing advanced price fetch metric {name}\nBody snippet: {body[:400]}"
