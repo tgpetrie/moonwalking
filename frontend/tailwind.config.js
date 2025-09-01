@@ -3,8 +3,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Saira', 'sans-serif'], // Use Saira as the default sans-serif font
-        mono: ['Saira', 'monospace'], // Use Saira for mono as well, or keep a monospace if needed
+        sans: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'monospace'],
       },
       colors: {
         orange: '#FF6B00',
