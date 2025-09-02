@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
@@ -35,17 +35,17 @@ export default function GainersTable1Min({
     wsContextData = { latestData: { crypto: [] }, isConnected: false, isPolling: false, oneMinThrottleMs: 15000, send: () => {} };
   }
   
-  const { latestData, isConnected, isPolling, oneMinThrottleMs, send } = wsContextData;
+  const { latestData, isConnected, isPolling, oneMinThrottleMs, send, gainersTop20, debugEnabled, vLog } = wsContextData;
   
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
-  const prevDataRef = useRef([]);
+  const prevDataRef = useRef([]); // retained for potential local diffing, though context handles merge
   
   // Mobile optimizations
   const isMobile = isMobileDevice();
   const mobileConfig = getMobileOptimizedConfig();
 
-  const [data, setData] = useState([]);
+  const [data, setData] = useState([]); // local displayed dataset (sliced / throttled)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
@@ -69,49 +69,44 @@ export default function GainersTable1Min({
   // Throttled WS updates (skip when external rows provided)
   useEffect(() => {
     if (Array.isArray(externalRows)) { setData(externalRows); setLoading(false); return; }
-    if (latestData.crypto && Array.isArray(latestData.crypto)) {
+    if (Array.isArray(gainersTop20) && gainersTop20.length) {
       const now = Date.now();
       const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : (isMobile ? mobileConfig.throttleMs : 15000);
-      const timeSinceLastRender = now - (lastRenderRef.current || 0);
-      console.log(`[GainersTable1Min] Throttle check: ${timeSinceLastRender}ms since last render, throttle: ${throttleMs}ms, data length: ${latestData.crypto.length}`);
-      if (now - (lastRenderRef.current || 0) < throttleMs) {
-        console.log(`[GainersTable1Min] THROTTLED - skipping update`);
+      const since = now - (lastRenderRef.current || 0);
+      if (debugEnabled) {
+        vLog(`[GainersTable1Min] Throttle check: ${since}ms elapsed (limit ${throttleMs}ms), incoming top20 length: ${gainersTop20.length}`);
+      }
+      if (since < throttleMs) {
+        if (debugEnabled) {
+          vLog('[GainersTable1Min] THROTTLED - skip render update');
+        }
         return;
       }
       lastRenderRef.current = now;
-      console.log(`[GainersTable1Min] UPDATING data with ${latestData.crypto.length} items`);
-
-      const mapped = latestData.crypto.slice(0, 20).map((item, idx) => ({
-        rank: item.rank || idx + 1,
-        symbol: item.symbol?.replace('-USD', '') || 'N/A',
-        price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
-      }));
-      const prev = prevDataRef.current || [];
-      const keepPrev = prev.filter(p => !mapped.some(m => m.symbol === p.symbol) && p.change > 0);
-      const combined = [...mapped, ...keepPrev]
-        .sort((a, b) => b.change - a.change)
-        .slice(0, 20)
-        .map((it, i) => ({ ...it, rank: i + 1 })); // re-rank after merge to keep ranks consistent
-      prevDataRef.current = combined;
-      setData(combined);
+      // Data already normalized & ranked in context
+      setData(gainersTop20);
       setLoading(false);
       setError(null);
     }
-  }, [latestData.crypto, oneMinThrottleMs]);
+  }, [gainersTop20, externalRows, oneMinThrottleMs, debugEnabled, vLog, isMobile, mobileConfig.throttleMs]);
 
   // Debug: Log whenever latestData.crypto changes
   useEffect(() => {
-    console.log('[GainersTable1Min] latestData.crypto changed:', latestData?.crypto?.length || 0, 'items');
-  }, [latestData.crypto]);
+    if (debugEnabled) {
+      vLog('[GainersTable1Min] latestData.crypto changed:', latestData?.crypto?.length || 0, 'items');
+    }
+  }, [latestData.crypto, debugEnabled, vLog]);
 
   // REST fallback when WS is empty/inactive (skip with external rows)
   useEffect(() => {
-    if (Array.isArray(externalRows)) return;
+    if (Array.isArray(externalRows)) {
+      return;
+    }
     let cancelled = false;
     const fetch1m = async () => {
-      if (latestData.crypto && latestData.crypto.length > 0) return;
+      if (latestData.crypto && latestData.crypto.length > 0) {
+        return;
+      }
       try {
         const res = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (!cancelled && res?.data?.length) {
@@ -128,7 +123,9 @@ export default function GainersTable1Min({
           .map((it, i) => ({ ...it, rank: i + 1 }));
           setData(mapped);
         }
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       } catch (e) {
         if (!cancelled) { setLoading(false); setError(e.message); }
       }
@@ -139,7 +136,9 @@ export default function GainersTable1Min({
       const id = setInterval(fetch1m, 15000);
       return () => { cancelled = true; clearInterval(id); };
     } else {
-      if (data.length === 0) fetch1m();
+      if (data.length === 0) {
+        fetch1m();
+      }
       return () => { cancelled = true; };
     }
   }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
@@ -174,25 +173,16 @@ export default function GainersTable1Min({
     ? (typeof sliceEnd === 'number' ? sliceEnd : (externalRows?.length ?? undefined))
     : (typeof sliceEnd === 'number'   ? sliceEnd   : (typeof endRank === 'number'   ? Math.max(0, endRank)         : undefined));
   // Use WebSocket context data if it has more items than component data
-  let sourceData = data;
-  const wsDataLength = latestData?.crypto?.length || 0;
-  if (wsDataLength > sourceData.length && latestData?.crypto && latestData.crypto.length > 0) {
-    console.log('[GainersTable1Min] Using fallback WebSocket context data');
-    sourceData = latestData.crypto.slice(0, 20).map((item, idx) => ({
-      rank: item.rank || idx + 1,
-      symbol: item.symbol?.replace('-USD', '') || 'N/A',
-      price: item.current_price ?? item.price ?? 0,
-      change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-      peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
-    }));
-  }
-  
-  const sliced   = Array.isArray(sourceData)
-    ? (typeof startIdx === 'number' || typeof endIdx === 'number' ? sourceData.slice(startIdx ?? 0, endIdx ?? sourceData.length) : sourceData)
-    : [];
-
-  // Do not render placeholder rows; only render available items
-  const rows = Array.isArray(sliced) ? sliced : [];
+  const rows = useMemo(() => {
+    const src = Array.isArray(externalRows) ? externalRows : data;
+    if (!Array.isArray(src)) {
+      return [];
+    }
+    if (typeof startIdx === 'number' || typeof endIdx === 'number') {
+      return src.slice(startIdx ?? 0, endIdx ?? src.length);
+    }
+    return src;
+  }, [externalRows, data, startIdx, endIdx]);
 
   // Update 1m streaks for visible rows
   const visibleRows = rows.map(r => ({ symbol: r.symbol }));
@@ -201,7 +191,7 @@ export default function GainersTable1Min({
   // Force show data if WebSocket context has it, even when loading
   const hasContextData = latestData?.crypto && latestData.crypto.length > 0;
   
-  if (loading && sliced.length === 0 && !hasContextData) {
+  if (loading && rows.length === 0 && !hasContextData) {
     return (
       <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
         <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
@@ -216,7 +206,7 @@ export default function GainersTable1Min({
     );
   }
 
-  if (!loading && sliced.length === 0) {
+  if (!loading && rows.length === 0) {
     return (
       <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
         <div className="text-muted font-mono">No 1-min gainers data available</div>
@@ -226,7 +216,7 @@ export default function GainersTable1Min({
 
   return (
     <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300">
-      {rows.map((item, idx) => {
+  {rows.map((item, idx) => {
         const displayRank = (typeof startIdx === 'number') ? (startIdx + idx + 1) : ((item && item.rank) ? item.rank : (idx + 1));
         const isPlaceholder = false; // placeholders removed
         const entranceDelay = (idx % 12) * 0.035;
@@ -379,7 +369,8 @@ export default function GainersTable1Min({
       })}
 
       {/* No per-component Show More button when hideShowMore is true */}
-      {!hideShowMore && sliced.length > rows.length && (
+  {/* Show More logic retained if external slicing scenario; simplified since rows is final */}
+  {!hideShowMore && false && (
         <div className="w-full flex justify-center mt-2 mb-1">
           <button className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition">
             Show More

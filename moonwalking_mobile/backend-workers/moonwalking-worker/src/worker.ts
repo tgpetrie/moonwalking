@@ -2,6 +2,10 @@ import { PumpDump, DataBundle, MarketRow } from '../../../packages/core/src/inde
 import type { RawPost, SentimentRow } from '../../../packages/core/src/index'
 import { featuresFromPosts } from './sentiment_aggregate'
 import { DiscordConnector, RedditConnector, TelegramConnector } from './connectors'
+// Side-effect: populate global build metadata if generated
+// (file created by scripts/write-build-info.cjs during deploy)
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+import('./build-info.generated').catch(() => {})
 
 export interface Env {
   MW_KV: KVNamespace
@@ -289,6 +293,21 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
     const deviceId = req.headers.get('X-Device-Id') || 'anon'
+
+    // Lightweight health / diagnostics endpoint
+    if (req.method === 'GET' && url.pathname === '/health') {
+      const now = Date.now()
+      // Build info optionally written at build time into globalThis.__MW_BUILD__
+      const build = (globalThis as any).__MW_BUILD__ || {}
+      return json({
+        status: 'ok',
+        ts: now,
+        version: build.version || (globalThis as any).__MW_VERSION__ || 'dev',
+        commit: build.commit || 'unknown',
+        built_at: build.built_at || null,
+        kv_namespace: 'MW_KV'
+      })
+    }
 
     if (req.method === 'GET' && url.pathname === '/data') {
       const s = await env.MW_KV.get(KV_KEYS.DATA)

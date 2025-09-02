@@ -24,6 +24,7 @@ const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'))
 import MobileDebugger from './components/MobileDebugger.jsx';
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
+import MetricsPanel from './components/MetricsPanel.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
@@ -156,6 +157,10 @@ export default function App() {
             className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
             aria-pressed={showInsights}
           >{showInsights ? 'Hide Insights' : 'Insights'}</button>
+        </div>
+        {/* Lightweight operational metrics */}
+        <div className="opacity-80 hover:opacity-100 transition-opacity">
+          <MetricsPanel />
         </div>
         <button
           onClick={() => setShowInsights(s => !s)}

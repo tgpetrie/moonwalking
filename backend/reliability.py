@@ -5,6 +5,7 @@ Designed to be lightweight and self-contained (no external deps).
 from __future__ import annotations
 import threading, time, functools, logging
 from typing import Any, Callable, Dict, Tuple
+from alerting import AlertNotifier
 
 
 class CircuitBreaker:
@@ -50,6 +51,10 @@ class CircuitBreaker:
             self._half_open_trial_inflight = False
         if prev_state in ('OPEN','HALF_OPEN'):
             logging.info('circuit_breaker.reset', extra={'event':'circuit_reset','prev_state':prev_state})
+            try:
+                _ALERTER.send('breaker_reset', {'prev_state': prev_state})
+            except Exception:
+                pass
 
     def record_failure(self):
         now = time.time()
@@ -61,11 +66,19 @@ class CircuitBreaker:
                 self.open_until = now + self.reset_seconds
                 self._half_open_trial_inflight = False
                 logging.warning('circuit_breaker.reopen', extra={'event':'circuit_reopen','state':'OPEN','failures':self.failures})
+                try:
+                    _ALERTER.send('breaker_reopen', {'failures': self.failures, 'open_until': self.open_until})
+                except Exception:
+                    pass
                 return
             if self.failures >= self.fail_threshold and self.state == 'CLOSED':
                 self.state = 'OPEN'
                 self.open_until = now + self.reset_seconds
                 logging.warning('circuit_breaker.open', extra={'event':'circuit_open','failures':self.failures,'open_until':self.open_until})
+                try:
+                    _ALERTER.send('breaker_open', {'failures': self.failures, 'open_until': self.open_until})
+                except Exception:
+                    pass
 
     def snapshot(self) -> Dict[str, Any]:
         with self._lock:
@@ -153,5 +166,7 @@ def stale_while_revalidate(ttl: float, stale_window: float):
         wrapper._swr_stats = stats  # expose counters
         return wrapper
     return decorator
+
+_ALERTER = AlertNotifier.from_env()
 
 __all__ = ['CircuitBreaker','stale_while_revalidate']
