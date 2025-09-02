@@ -77,3 +77,11 @@ def test_one_min_market_metrics_present(client):
         # If second snapshot stats exist, expect a delta metric name presence heuristic
         if 'one_min_market_spike_p95_delta' in pbody2:
             assert 'one_min_market_spike_p95_rate_per_sec' in pbody2
+        # New Bollinger & confirmation metrics (soft presence checks)
+        possible_new = [
+            'one_min_market_breadth_adv_decl_ratio_bb_mid',
+            'one_min_market_confirm_3m_overlap',
+            'one_min_market_alert_pump_thrust'
+        ]
+        # Ensure at least one of the new metrics appears after computations
+        assert any(m in pbody2 for m in possible_new), f"None of new breadth overlay metrics found in Prometheus output: looking for one of {possible_new}"

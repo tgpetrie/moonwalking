@@ -3,6 +3,7 @@ import argparse
 import socket
 import subprocess
 import sys
+import math
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 import requests
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta
 from watchlist import watchlist_bp, watchlist_db
 from reliability import stale_while_revalidate
 from metrics import collect_swr_cache_stats, emit_prometheus, emit_swr_prometheus
+from alerting import AlertNotifier
 try:
     # optional insight memory (may not exist early in startup)
     from watchlist import _insights_memory as INSIGHTS_MEMORY
@@ -70,14 +72,100 @@ _one_min_hist_lock = threading.Lock()
 _spike_p95_history = deque(maxlen=30)
 _spike_p99_history = deque(maxlen=30)
 _extreme_gainer_history = deque(maxlen=30)
+_adv_decl_ratio_history = deque(maxlen=60)  # keep more samples for smoother bands
 _breadth_adv_decl_ratio_ema = None
 _breadth_net_advancers_ema = None
 _breadth_thrust_started_at = None
+_ALERTER = AlertNotifier.from_env()
+_STALE_ALERT_RATIO = float(os.environ.get('ALERT_STALE_RATIO','0.6'))
+_STALE_ALERT_WINDOW_SEC = int(os.environ.get('ALERT_STALE_MIN_WINDOW_SEC','120'))
+_last_stale_alert = 0.0
+_stale_window_start = None
 
 # Configurable thresholds / params (env override optional)
 _BREADTH_THRUST_RATIO = float(os.environ.get('BREADTH_THRUST_RATIO','1.3'))
 _BREADTH_THRUST_NET_MIN = int(os.environ.get('BREADTH_THRUST_NET_MIN','0'))  # allow >=0 by default
 _BREADTH_EMA_ALPHA = float(os.environ.get('BREADTH_EMA_ALPHA','0.2'))  # smoothing for EMA oscillator
+_BREADTH_BB_K = float(os.environ.get('BREADTH_BB_K','2.0'))  # Bollinger multiple for adv/decl ratio
+
+# Unified threshold registry (env overridable) to avoid scattering magic numbers
+THRESHOLDS = {
+    'pump_thrust_confirm_ratio_min': float(os.environ.get('PUMP_THRUST_CONFIRM_MIN_RATIO','0.6')),
+    'pump_thrust_adv_decl_ratio_min': float(os.environ.get('PUMP_THRUST_ADV_DECL_MIN','1.8')),
+    'narrowing_vol_sd_max': float(os.environ.get('NARROWING_VOL_SD_MAX','0.05')),
+    'accel_fade_min_thrust_seconds': float(os.environ.get('ACCEL_FADE_MIN_THRUST_SECONDS','30')),
+    # p95 rate must be BELOW (negative) this to count as fading (default 0 => any negative)
+    'accel_fade_p95_rate_max': float(os.environ.get('ACCEL_FADE_P95_RATE_MAX','0')),
+}
+
+_THRESHOLDS_FILE = os.environ.get('THRESHOLDS_FILE','thresholds.json')
+
+def _load_thresholds_file():
+    """Load persisted thresholds from JSON file if present (best‑effort)."""
+    if not os.path.isfile(_THRESHOLDS_FILE):
+        return
+    import json
+    try:
+        with open(_THRESHOLDS_FILE,'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:  # pragma: no cover - defensive
+        logging.warning(f"Failed loading thresholds file: {e}")
+        return
+    if not isinstance(data, dict):
+        return
+    for k,v in data.items():
+        if k in THRESHOLDS:
+            try:
+                THRESHOLDS[k] = float(v)
+            except (TypeError, ValueError):
+                # Ignore invalid persisted value
+                continue
+
+_load_thresholds_file()
+
+def update_thresholds(patch: dict):
+    """Runtime safe partial update with validation: returns (applied, errors)."""
+    applied: dict[str, float] = {}
+    errors: dict[str, str] = {}
+    for k,v in patch.items():
+        if k not in THRESHOLDS:
+            errors[k] = 'unknown_threshold'
+            continue
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            errors[k] = 'not_float'
+            continue
+        # Basic semantic validations
+        if 'ratio' in k and fv <= 0:
+            errors[k] = 'ratio_must_be_positive'
+            continue
+        if 'sd_max' in k and fv <= 0:
+            errors[k] = 'sd_max_must_be_positive'
+            continue
+        if 'seconds' in k and fv < 0:
+            errors[k] = 'seconds_must_be_non_negative'
+            continue
+        THRESHOLDS[k] = fv
+        applied[k] = fv
+    # Persist if at least one applied
+    if applied:
+        import json
+        try:
+            with open(_THRESHOLDS_FILE,'w', encoding='utf-8') as f:
+                json.dump(THRESHOLDS, f, indent=2)
+        except OSError as e:  # pragma: no cover - file system issues
+            logging.warning(f"Failed persisting thresholds: {e}")
+    return applied, errors
+
+@app.route('/api/thresholds', methods=['GET','POST'])
+def api_thresholds():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        applied, errors = update_thresholds(data)
+        status_code = 200 if not errors else 400 if not applied else 207
+        return jsonify({'applied': applied, 'errors': errors, 'thresholds': THRESHOLDS}), status_code
+    return jsonify({'thresholds': THRESHOLDS})
 
 @app.before_request
 def _before_req_metrics():
@@ -301,6 +389,36 @@ def metrics():
     now = time.time()
     swr_entries = _swr_entries()
     swr_caches = collect_swr_cache_stats(now, swr_entries)
+    # Stale surge detection (any cache) aggregated ratio
+    try:
+        total_calls = 0
+        served_cached = 0
+        for v in swr_caches.values():
+            stats = v
+            total_calls += stats.get('total_calls',0) or 0
+            # cached includes both fresh & stale; approximate stale via served_cached_total vs fresh? For simplicity use served_cached_total
+            served_cached += stats.get('served_cached',0) or 0
+        global _stale_window_start, _last_stale_alert
+        if total_calls >= 10:  # avoid noise
+            ratio = (served_cached/total_calls) if total_calls else 0
+            if ratio >= _STALE_ALERT_RATIO:
+                if _stale_window_start is None:
+                    _stale_window_start = now
+                elif (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC and (now - _last_stale_alert) >=  _STALE_ALERT_WINDOW_SEC:
+                    try:
+                        _ALERTER.send('stale_surge', {'ratio': round(ratio,3), 'window_seconds': int(now-_stale_window_start)})
+                        _last_stale_alert = now
+                    except Exception:
+                        pass
+            else:
+                if _stale_window_start is not None and (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC:
+                    try:
+                        _ALERTER.send('stale_resolved', {})
+                    except Exception:
+                        pass
+                _stale_window_start = None
+    except Exception:
+        pass
     if swr_caches:
         out['swr_caches'] = swr_caches
     # Validate minimally (will raise if schema mismatch during development)
@@ -329,56 +447,12 @@ def metrics_prom():
         from price_fetch import get_price_fetch_metrics
         pf = get_price_fetch_metrics()
         cb = (pf.get('circuit_breaker') or {}) if isinstance(pf, dict) else {}
-            # --- Rolling histories & z-scores / EMA oscillator ---
-            with _one_min_hist_lock:
-                if pct95_cur is not None:
-                    _spike_p95_history.append(pct95_cur)
-                if pct99_cur is not None:
-                    _spike_p99_history.append(pct99_cur)
-                if extreme_gainer_pct_cur is not None:
-                    _extreme_gainer_history.append(extreme_gainer_pct_cur)
-                def _z(hist):
-                    if len(hist) < 5:
-                        return None
-                    mean = sum(hist)/len(hist)
-                    var = sum((x-mean)**2 for x in hist)/len(hist)
-                    if var <= 1e-12:
-                        return 0.0
-                    import math
-                    return round((hist[-1]-mean)/math.sqrt(var), 4)
-                z_p95 = _z(_spike_p95_history)
-                z_p99 = _z(_spike_p99_history)
-                z_extreme = _z(_extreme_gainer_history)
-                # EMA breadth oscillators
-                global _breadth_adv_decl_ratio_ema, _breadth_net_advancers_ema, _breadth_thrust_started_at
-                if adv_decl_ratio is not None:
-                    if _breadth_adv_decl_ratio_ema is None:
-                        _breadth_adv_decl_ratio_ema = adv_decl_ratio
-                    else:
-                        _breadth_adv_decl_ratio_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_adv_decl_ratio_ema + _BREADTH_EMA_ALPHA*adv_decl_ratio
-                if net_advancers_cur is not None:
-                    if _breadth_net_advancers_ema is None:
-                        _breadth_net_advancers_ema = net_advancers_cur
-                    else:
-                        _breadth_net_advancers_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_net_advancers_ema + _BREADTH_EMA_ALPHA*net_advancers_cur
-                # Detect thrust persistence window
-                thrust_active = False
-                if adv_decl_ratio is not None and adv_decl_ratio >= _BREADTH_THRUST_RATIO and net_advancers_cur >= _BREADTH_THRUST_NET_MIN:
-                    if _breadth_thrust_started_at is None:
-                        _breadth_thrust_started_at = now_ts
-                    thrust_active = True
-                else:
-                    _breadth_thrust_started_at = None
-                thrust_duration = (now_ts - _breadth_thrust_started_at) if _breadth_thrust_started_at else 0
-                one_minute_market_stats.update({
-                    'z_p95': z_p95,
-                    'z_p99': z_p99,
-                    'z_extreme_gainer': z_extreme,
-                    'breadth_adv_decl_ratio_ema': round(_breadth_adv_decl_ratio_ema,4) if _breadth_adv_decl_ratio_ema is not None else None,
-                    'breadth_net_advancers_ema': round(_breadth_net_advancers_ema,4) if _breadth_net_advancers_ema is not None else None,
-                    'breadth_thrust_active': 1 if thrust_active else 0,
-                    'breadth_thrust_duration_sec': round(thrust_duration,2),
-                })
+        # Threshold gauges (static-ish config exposed for observability)
+        for k,v in THRESHOLDS.items():
+            try:
+                emit_prometheus(lines, f'threshold_{k}', v, 'gauge', f'Threshold parameter {k}')
+            except Exception:
+                pass
         emit_prometheus(lines, 'price_fetch_total_calls_total', pf.get('total_calls',0), 'counter', 'Total calls to fetch_prices (including snapshot served)')
         emit_prometheus(lines, 'price_fetch_products_cache_hits_total', pf.get('products_cache_hits',0), 'counter', 'Number of product list cache hits')
         emit_prometheus(lines, 'price_fetch_snapshot_served_total', pf.get('snapshot_served',0), 'counter', 'Number of times stale snapshot returned instead of fresh fetch')
@@ -460,6 +534,20 @@ def metrics_prom():
             _maybe('one_min_market_breadth_net_advancers_ema', m.get('breadth_net_advancers_ema'), 'EMA-smoothed net advancers')
             _maybe('one_min_market_breadth_thrust_active', m.get('breadth_thrust_active'), 'Breadth thrust active flag (1=active)')
             _maybe('one_min_market_breadth_thrust_duration_sec', m.get('breadth_thrust_duration_sec'), 'Duration in seconds of current breadth thrust sequence')
+            # Bollinger band metrics & confirmation overlay
+            _maybe('one_min_market_breadth_adv_decl_ratio_bb_mid', m.get('breadth_adv_decl_ratio_bb_mid'), 'Bollinger band mid (mean) of adv/decl ratio')
+            _maybe('one_min_market_breadth_adv_decl_ratio_bb_upper', m.get('breadth_adv_decl_ratio_bb_upper'), 'Bollinger band upper (mean + K*sd) of adv/decl ratio')
+            _maybe('one_min_market_breadth_adv_decl_ratio_bb_lower', m.get('breadth_adv_decl_ratio_bb_lower'), 'Bollinger band lower (mean - K*sd) of adv/decl ratio')
+            _maybe('one_min_market_breadth_adv_decl_ratio_bb_sd', m.get('breadth_adv_decl_ratio_bb_sd'), 'Rolling std dev of adv/decl ratio for bands')
+            _maybe('one_min_market_confirm_3m_overlap', m.get('confirm_3m_overlap'), 'Count of retained 1m symbols with 3m trend data')
+            _maybe('one_min_market_confirm_3m_up', m.get('confirm_3m_up'), 'Count of retained 1m symbols whose 3m trend is up')
+            _maybe('one_min_market_confirm_3m_up_ratio', m.get('confirm_3m_up_ratio'), 'Ratio of retained 1m symbols whose 3m trend is up')
+            # Alert boolean gauges
+            _maybe('one_min_market_alert_pump_thrust', m.get('alert_pump_thrust'), 'Composite pump thrust alert flag')
+            _maybe('one_min_market_alert_narrowing_vol', m.get('alert_narrowing_vol'), 'Volatility squeeze (narrow Bollinger) flag')
+            _maybe('one_min_market_alert_upper_band_touch', m.get('alert_upper_band_touch'), 'Adv/decl ratio touching upper Bollinger band flag')
+            _maybe('one_min_market_alert_lower_band_touch', m.get('alert_lower_band_touch'), 'Adv/decl ratio touching lower Bollinger band flag')
+            _maybe('one_min_market_alert_accel_fade', m.get('alert_accel_fade'), 'Acceleration fade / possible exhaustion flag')
     except Exception as e:  # pragma: no cover - defensive
         lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
         lines.append('# TYPE price_fetch_metrics_error gauge')
@@ -486,6 +574,84 @@ def openapi_spec():
                     '200': {'description': 'Component payload','content': {'application/json': {'schema': Gainers1mComponent.model_json_schema()}}},
                     '503': {'description': 'Service unavailable'}
                 }}
+            },
+            '/api/config': {
+                'get': {
+                    'summary': 'Get current runtime config + validation limits',
+                    'responses': {
+                        '200': {
+                            'description': 'Config snapshot',
+                            'content': {
+                                'application/json': {
+                                    'schema': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'config': {'type':'object'},
+                                            'limits': {'type':'object'}
+                                        },
+                                        'required': ['config']
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'post': {
+                    'summary': 'Patch runtime configuration (validated)',
+                    'requestBody': {
+                        'required': True,
+                        'content': {
+                            'application/json': {
+                                'schema': {'type':'object'}
+                            }
+                        }
+                    },
+                    'responses': {
+                        '200': {'description':'All updates applied'},
+                        '207': {'description':'Partial success (some errors)'},
+                        '400': {'description':'No valid keys applied'}
+                    }
+                }
+            },
+            '/api/thresholds': {
+                'get': {
+                    'summary': 'Get current runtime alert thresholds',
+                    'responses': {
+                        '200': {
+                            'description': 'Current thresholds',
+                            'content': {
+                                'application/json': {
+                                    'schema': {
+                                        'type': 'object',
+                                        'properties': {
+                                            'thresholds': { 'type': 'object', 'additionalProperties': { 'type': 'number' }}
+                                        },
+                                        'required': ['thresholds']
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'post': {
+                    'summary': 'Patch / update thresholds (partial)',
+                    'requestBody': {
+                        'required': True,
+                        'content': {
+                            'application/json': {
+                                'schema': {
+                                    'type': 'object',
+                                    'description': 'Partial map of threshold keys to new numeric values'
+                                }
+                            }
+                        }
+                    },
+                    'responses': {
+                        '200': { 'description': 'All updates applied successfully' },
+                        '207': { 'description': 'Some updates applied; some rejected (multi-status)' },
+                        '400': { 'description': 'All provided keys invalid / rejected' }
+                    }
+                }
             }
         }
     }
@@ -747,6 +913,61 @@ def update_config(new_config):
             # Create new deque with updated maxlen
             old_data = list(price_history[symbol])
             price_history[symbol] = deque(old_data[-new_maxlen:], maxlen=new_maxlen)
+
+VALIDATABLE_CONFIG = {
+    'CACHE_TTL': {'type': int, 'min': 5, 'max': 3600},
+    'INTERVAL_MINUTES': {'type': int, 'min': 1, 'max': 30},
+    'MAX_PRICE_HISTORY': {'type': int, 'min': 5, 'max': 5000},
+    'UPDATE_INTERVAL': {'type': int, 'min': 5, 'max': 600},
+    'MAX_COINS_PER_CATEGORY': {'type': int, 'min': 1, 'max': 500},
+    'MIN_VOLUME_THRESHOLD': {'type': int, 'min': 0, 'max': 10_000_000_000},
+    'MIN_CHANGE_THRESHOLD': {'type': float, 'min': 0.0, 'max': 1000.0},
+    'API_TIMEOUT': {'type': int, 'min': 1, 'max': 60},
+    'CHART_DAYS_LIMIT': {'type': int, 'min': 1, 'max': 365},
+}
+
+def validate_config_patch(patch: dict):
+    errors = {}
+    sanitized = {}
+    for k,v in patch.items():
+        meta = VALIDATABLE_CONFIG.get(k)
+        if k not in CONFIG:
+            errors[k] = 'unknown_key'
+            continue
+        if not meta:
+            # allow but treat as string passthrough
+            sanitized[k] = v
+            continue
+        typ = meta['type']
+        try:
+            if typ is int:
+                cv = int(v)
+            elif typ is float:
+                cv = float(v)
+            else:
+                cv = v
+        except (TypeError, ValueError):
+            errors[k] = 'invalid_type'
+            continue
+        if 'min' in meta and cv < meta['min']:
+            errors[k] = f"below_min_{meta['min']}"
+            continue
+        if 'max' in meta and cv > meta['max']:
+            errors[k] = f"above_max_{meta['max']}"
+            continue
+        sanitized[k] = cv
+    return sanitized, errors
+
+@app.route('/api/config', methods=['GET','POST'])
+def api_config():
+    if request.method == 'GET':
+        return jsonify({'config': CONFIG, 'limits': VALIDATABLE_CONFIG})
+    data = request.get_json(silent=True) or {}
+    to_apply, errors = validate_config_patch(data)
+    status = 200 if not errors else 400 if not to_apply else 207
+    if to_apply:
+        update_config(to_apply)
+    return jsonify({'applied': to_apply, 'errors': errors, 'config': CONFIG}), status
 
 # =============================================================================
 # EXISTING FUNCTIONS (Updated with dynamic config)
@@ -1890,6 +2111,116 @@ def get_crypto_data_1min():
                 'breadth_adv_decl_ratio_delta': breadth_adv_decl_ratio_delta,
                 'breadth_adv_decl_ratio_rate_per_sec': breadth_adv_decl_ratio_rate,
             })
+            # Advanced breadth analytics (z-scores, EMA, thrust, Bollinger, confirmation, alerts)
+            with _one_min_hist_lock:
+                if pct95_cur is not None:
+                    _spike_p95_history.append(pct95_cur)
+                if pct99_cur is not None:
+                    _spike_p99_history.append(pct99_cur)
+                if extreme_gainer_pct_cur is not None:
+                    _extreme_gainer_history.append(extreme_gainer_pct_cur)
+                def _z(hist):
+                    if len(hist) < 5:
+                        return None
+                    mean = sum(hist)/len(hist)
+                    var = sum((x-mean)**2 for x in hist)/len(hist)
+                    if var <= 1e-12:
+                        return 0.0
+                    return round((hist[-1]-mean)/math.sqrt(var), 4)
+                z_p95 = _z(_spike_p95_history)
+                z_p99 = _z(_spike_p99_history)
+                z_extreme = _z(_extreme_gainer_history)
+                global _breadth_adv_decl_ratio_ema, _breadth_net_advancers_ema, _breadth_thrust_started_at
+                if adv_decl_ratio is not None:
+                    if _breadth_adv_decl_ratio_ema is None:
+                        _breadth_adv_decl_ratio_ema = adv_decl_ratio
+                    else:
+                        _breadth_adv_decl_ratio_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_adv_decl_ratio_ema + _BREADTH_EMA_ALPHA*adv_decl_ratio
+                if net_advancers_cur is not None:
+                    if _breadth_net_advancers_ema is None:
+                        _breadth_net_advancers_ema = net_advancers_cur
+                    else:
+                        _breadth_net_advancers_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_net_advancers_ema + _BREADTH_EMA_ALPHA*net_advancers_cur
+                thrust_active = False
+                if adv_decl_ratio is not None and adv_decl_ratio >= _BREADTH_THRUST_RATIO and net_advancers_cur >= _BREADTH_THRUST_NET_MIN:
+                    if _breadth_thrust_started_at is None:
+                        _breadth_thrust_started_at = now_ts
+                    thrust_active = True
+                else:
+                    _breadth_thrust_started_at = None
+                thrust_duration = (now_ts - _breadth_thrust_started_at) if _breadth_thrust_started_at else 0
+                one_minute_market_stats.update({
+                    'z_p95': z_p95,
+                    'z_p99': z_p99,
+                    'z_extreme_gainer': z_extreme,
+                    'breadth_adv_decl_ratio_ema': round(_breadth_adv_decl_ratio_ema,4) if _breadth_adv_decl_ratio_ema is not None else None,
+                    'breadth_net_advancers_ema': round(_breadth_net_advancers_ema,4) if _breadth_net_advancers_ema is not None else None,
+                    'breadth_thrust_active': 1 if thrust_active else 0,
+                    'breadth_thrust_duration_sec': round(thrust_duration,2),
+                })
+                if adv_decl_ratio is not None:
+                    _adv_decl_ratio_history.append(adv_decl_ratio)
+                    if len(_adv_decl_ratio_history) >= 5:
+                        mean = sum(_adv_decl_ratio_history)/len(_adv_decl_ratio_history)
+                        var = sum((x-mean)**2 for x in _adv_decl_ratio_history)/len(_adv_decl_ratio_history)
+                        sd = math.sqrt(var)
+                        upper = mean + _BREADTH_BB_K * sd
+                        lower = mean - _BREADTH_BB_K * sd
+                        one_minute_market_stats.update({
+                            'breadth_adv_decl_ratio_bb_mid': round(mean,4),
+                            'breadth_adv_decl_ratio_bb_upper': round(upper,4),
+                            'breadth_adv_decl_ratio_bb_lower': round(lower,4),
+                            'breadth_adv_decl_ratio_bb_sd': round(sd,5),
+                        })
+                # 3m confirmation overlay
+                try:
+                    confirm_up = 0
+                    confirm_total = 0
+                    for sym in list(one_minute_persistence['entries'].keys())[:100]:
+                        t3 = three_minute_trends.get(sym)
+                        if t3:
+                            confirm_total += 1
+                            if t3.get('last',0) > 0 and t3.get('score',0) > 0 and t3.get('last_dir') == 'up':
+                                confirm_up += 1
+                    confirm_ratio = round(confirm_up/confirm_total,4) if confirm_total else None
+                    one_minute_market_stats.update({
+                        'confirm_3m_overlap': confirm_total,
+                        'confirm_3m_up': confirm_up,
+                        'confirm_3m_up_ratio': confirm_ratio,
+                    })
+                except Exception:
+                    confirm_ratio = None
+                # Derived alert triggers
+                try:
+                    pump_thrust = 1 if (thrust_active and confirm_ratio and adv_decl_ratio and
+                        confirm_ratio > THRESHOLDS['pump_thrust_confirm_ratio_min'] and
+                        adv_decl_ratio > THRESHOLDS['pump_thrust_adv_decl_ratio_min']) else 0
+                    narrowing_volatility = 1 if (
+                        one_minute_market_stats.get('breadth_adv_decl_ratio_bb_sd') is not None and
+                        one_minute_market_stats['breadth_adv_decl_ratio_bb_sd'] < THRESHOLDS['narrowing_vol_sd_max']
+                    ) else 0
+                    upper_band_touch = 1 if (
+                        adv_decl_ratio and one_minute_market_stats.get('breadth_adv_decl_ratio_bb_upper') and
+                        adv_decl_ratio >= one_minute_market_stats['breadth_adv_decl_ratio_bb_upper']
+                    ) else 0
+                    lower_band_touch = 1 if (
+                        adv_decl_ratio and one_minute_market_stats.get('breadth_adv_decl_ratio_bb_lower') is not None and
+                        adv_decl_ratio <= one_minute_market_stats['breadth_adv_decl_ratio_bb_lower']
+                    ) else 0
+                    accel_fade = 1 if (
+                        spike_p95_rate is not None and
+                        spike_p95_rate < THRESHOLDS['accel_fade_p95_rate_max'] and
+                        thrust_duration > THRESHOLDS['accel_fade_min_thrust_seconds']
+                    ) else 0
+                    one_minute_market_stats.update({
+                        'alert_pump_thrust': pump_thrust,
+                        'alert_narrowing_vol': narrowing_volatility,
+                        'alert_upper_band_touch': upper_band_touch,
+                        'alert_lower_band_touch': lower_band_touch,
+                        'alert_accel_fade': accel_fade,
+                    })
+                except Exception:
+                    pass
 
         # Seed fallback: on a cold or quiet period when nothing is retained yet,
         # gently prefill with the top movers over a tiny threshold so UI isn't empty.

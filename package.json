@@ -8,7 +8,10 @@
     "dev": "nodemon server.js",
     "lint": "eslint . --ext .js,.jsx,.mjs --max-warnings=0",
     "format": "prettier -w .",
-    "health": "node scripts/health-check.js"
+  "health": "node scripts/health-check.js",
+  "test:backend": "pytest -q",
+  "test:worker": "npm run typecheck --prefix moonwalking_mobile/backend-workers/moonwalking-worker",
+  "test-all": "npm run test:backend && npm run test:worker"
   },
   "dependencies": {
     "express": "^4.19.2",

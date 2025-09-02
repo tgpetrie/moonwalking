@@ -26,6 +26,7 @@ const buildEndpoints = () => ({
   crypto: `${API_BASE_URL}/api/crypto`,
   health: `${API_BASE_URL}/api/health`,
   serverInfo: `${API_BASE_URL}/api/server-info`,
+  metrics: `${API_BASE_URL}/api/metrics`,
   marketOverview: `${API_BASE_URL}/api/market-overview`,
   watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
   watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,

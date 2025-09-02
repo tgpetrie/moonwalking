@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, runninginmypepsteps ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend deps
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest (backend)
+        working-directory: backend
+        env:
+          PYTHONWARNINGS: always::DeprecationWarning
+        run: |
+          pytest -q
+
+      - name: Node setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install markdownlint
+        run: |
+          npm install -g markdownlint-cli
+
+      - name: Markdown lint
+        run: |
+          markdownlint README.md || (echo '::warning ::README markdown issues detected' && exit 1)
+
+      - name: Frontend install (optional)
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+
+      - name: Frontend build (smoke)
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        run: |
+          npm run build --if-present

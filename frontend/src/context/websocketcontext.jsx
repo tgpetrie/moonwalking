@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket } from '../services/websocket.js';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
+import { computeTop20Gainers } from '../utils/gainersProcessing.js';
+import { reconcileRows } from '../utils/rowsStable.js';
+import { scheduleIdle, cancelIdle } from '../utils/idle.js';
 
 const WebSocketContext = createContext(null);
 
@@ -22,7 +26,7 @@ export const WebSocketProvider = ({ children }) => {
     watchlist: null
   });
   const [isPolling, setIsPolling] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState('good');
+  const [networkStatus, setNetworkStatus] = useState('good'); // retained for potential UI, referenced to avoid unused warning
   // Hold an object { id: timeoutId, abort: fn }
   const pollingIntervalRef = useRef(null);
   
@@ -30,14 +34,34 @@ export const WebSocketProvider = ({ children }) => {
   const isMobile = isMobileDevice();
   const mobileConfig = getMobileOptimizedConfig();
 
+  // Debug flag & helper logger (verbose logs suppressed unless enabled)
+  const debugEnabled = useMemo(() => {
+    return ['true','1','yes','on'].includes(String(import.meta?.env?.VITE_DEBUG_LOGS || import.meta?.env?.VITE_DEBUG || '').toLowerCase());
+  }, []);
+  const vLog = (...args) => {
+    if (debugEnabled) {
+      console.log(...args);
+    }
+  };
+
+  // Derived top 20 gainers list (updated on crypto updates) with stable identity
+  const [gainersTop20, setGainersTop20] = useState([]);
+  const prevGainersRef = useRef([]); // previous ranked gainers for merge logic
+  const prevRenderedGainersRef = useRef([]); // previous rendered list for reconciliation
+  // Derived 3m gainers/losers lists
+  const [gainers3mTop, setGainers3mTop] = useState([]);
+  const [losers3mTop, setLosers3mTop] = useState([]);
+  const prevGainers3mRef = useRef([]);
+  const prevLosers3mRef = useRef([]);
+  const idleTrimRef = useRef(null);
+
   // Polling fallback function using useCallback to avoid stale closures
   const startPolling = useCallback(() => {
     if (isPolling) {
-      console.log('🔄 Polling already active, skipping');
+      vLog('🔄 Polling already active, skipping');
       return;
     }
-
-    console.log('🔄 Starting REST API polling fallback');
+    vLog('🔄 Starting REST API polling fallback');
     setIsPolling(true);
 
     let inFlight = false;
@@ -46,17 +70,19 @@ export const WebSocketProvider = ({ children }) => {
     let controller = null;
 
     const poll = async () => {
-      if (inFlight) return; // concurrency guard
+      if (inFlight) {
+        return; // concurrency guard
+      }
       inFlight = true;
       controller = new AbortController();
       try {
-        console.log('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
+  vLog('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
         const fetchOptions = { 
           signal: controller.signal,
           timeout: isMobile ? mobileConfig.fetchTimeout : 5000
         };
         const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions);
-        console.log('[WebSocket Context] Polling - received data:', gainersData);
+  vLog('[WebSocket Context] Polling - received data:', gainersData);
         if (gainersData && gainersData.data) {
           const pricesUpdate = {};
           gainersData.data.forEach(coin => {
@@ -70,7 +96,7 @@ export const WebSocketProvider = ({ children }) => {
               };
             }
           });
-          console.log('[WebSocket Context] Polling - updating state with', gainersData.data.length, 'items');
+          vLog('[WebSocket Context] Polling - updating state with', gainersData.data.length, 'items');
           setLatestData(prev => ({
             ...prev,
             crypto: gainersData.data,
@@ -79,11 +105,11 @@ export const WebSocketProvider = ({ children }) => {
           // reset backoff on success
           backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
         } else {
-          console.log('[WebSocket Context] Polling - no data received or malformed response');
+          vLog('[WebSocket Context] Polling - no data received or malformed response');
         }
       } catch (error) {
         if (error.name === 'AbortError') {
-          console.log('[WebSocket Context] Polling - aborted');
+          vLog('[WebSocket Context] Polling - aborted');
         } else {
           console.error('[WebSocket Context] Polling error:', error);
           backoffMs = Math.min(backoffMs * 1.5, 90000); // exponential up to 90s
@@ -105,7 +131,15 @@ export const WebSocketProvider = ({ children }) => {
       pollingIntervalRef.current = {
         id: timeoutId,
         abort: () => {
-          try { if (controller) controller.abort(); } catch (_) {}
+          try {
+            if (controller) {
+              controller.abort();
+            }
+          } catch (abortErr) {
+            if (debugEnabled) {
+              console.warn('Polling abort error ignored', abortErr);
+            }
+          }
         }
       };
     };
@@ -120,13 +154,17 @@ export const WebSocketProvider = ({ children }) => {
       const id = typeof pollingIntervalRef.current === 'number'
         ? pollingIntervalRef.current
         : pollingIntervalRef.current.id;
-      if (id) clearTimeout(id);
+      if (id) {
+        clearTimeout(id);
+      }
       // Abort any in-flight fetch
-      if (pollingIntervalRef.current.abort) pollingIntervalRef.current.abort();
+      if (pollingIntervalRef.current.abort) {
+        pollingIntervalRef.current.abort();
+      }
       pollingIntervalRef.current = null;
     }
     setIsPolling(false);
-    console.log('⏹️ Stopped REST API polling');
+  vLog('⏹️ Stopped REST API polling');
   };
 
   // Manual, immediate refresh (pull latest via REST once, regardless of WS state)
@@ -158,7 +196,15 @@ export const WebSocketProvider = ({ children }) => {
     } catch (e) {
       console.error('Manual refresh failed', e);
     } finally {
-      try { if (controller) controller.abort(); } catch (_) {}
+      try {
+        if (controller) {
+          controller.abort();
+        }
+      } catch (e) {
+        if (debugEnabled) {
+          console.warn('Stop polling abort cleanup error', e);
+        }
+      }
     }
     return false;
   };
@@ -203,7 +249,7 @@ export const WebSocketProvider = ({ children }) => {
       setConnectionStatus(data.status);
       
       if (data.status === 'connected') {
-        console.log('✅ WebSocket connected successfully');
+  vLog('✅ WebSocket connected successfully');
         stopPolling(); // Stop polling if WebSocket connects
       } else if (data.status === 'error') {
         console.warn('⚠️ WebSocket connection error:', data.error);
@@ -215,12 +261,12 @@ export const WebSocketProvider = ({ children }) => {
 
     // Subscribe to real-time data updates
     const unsubscribeCrypto = subscribeToWebSocket('crypto_update', (data) => {
-      console.log('📈 Received crypto update via WebSocket:', data);
+      vLog('📈 Received crypto update via WebSocket:', data);
       setLatestData(prev => ({ ...prev, crypto: data }));
     });
 
     const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
-      console.log('💰 Received price update via WebSocket:', data);
+      vLog('💰 Received price update via WebSocket:', data);
       setLatestData(prev => ({ 
         ...prev, 
         prices: { ...prev.prices, ...data } 
@@ -228,13 +274,13 @@ export const WebSocketProvider = ({ children }) => {
     });
 
     const unsubscribeWatchlist = subscribeToWebSocket('watchlist_update', (data) => {
-      console.log('⭐ Received watchlist update via WebSocket:', data);
+      vLog('⭐ Received watchlist update via WebSocket:', data);
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 
     // Mobile-specific network monitoring
     const unsubscribeNetworkDegraded = subscribeToWebSocket('network_degraded', (data) => {
-      console.log('📱 Network degraded, switching to more aggressive polling:', data);
+      vLog('📱 Network degraded, switching to more aggressive polling:', data);
       setNetworkStatus('poor');
       if (!isPolling && !isConnected) {
         startPolling();
@@ -242,7 +288,7 @@ export const WebSocketProvider = ({ children }) => {
     });
 
     const unsubscribeNetworkImproved = subscribeToWebSocket('network_improved', (data) => {
-      console.log('📱 Network improved:', data);
+      vLog('📱 Network improved:', data);
       setNetworkStatus('good');
     });
 
@@ -255,7 +301,9 @@ export const WebSocketProvider = ({ children }) => {
       connectWebSocket();
       // Start polling if WS doesn't connect quickly
       const initialPollTimer = setTimeout(() => {
-        if (!isConnected) startPolling();
+        if (!isConnected) {
+          startPolling();
+        }
       }, 3000);
       // track timer handle via ref so cleanup can clear it
       pollingIntervalRef.current = pollingIntervalRef.current || {};
@@ -269,7 +317,11 @@ export const WebSocketProvider = ({ children }) => {
           clearTimeout(pollingIntervalRef.current._initialTimer);
           delete pollingIntervalRef.current._initialTimer;
         }
-      } catch (_) {}
+      } catch (e) {
+        if (debugEnabled) {
+          console.warn('Initial timer cleanup error', e);
+        }
+      }
       unsubscribeConnection();
       unsubscribeCrypto();
       unsubscribePrices();
@@ -281,15 +333,65 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, []);
 
-  const contextValue = {
+  // Derive top 20 gainers whenever crypto list changes
+  useEffect(() => {
+    if (!Array.isArray(latestData.crypto) || !latestData.crypto.length) {
+      return;
+    }
+    // 1m gainers
+    const { combined, nextPrev } = computeTop20Gainers(latestData.crypto, prevGainersRef.current, { limit: 20, mergePrev: true });
+    prevGainersRef.current = nextPrev;
+    const reconciled = reconcileRows(combined, prevRenderedGainersRef.current);
+    prevRenderedGainersRef.current = reconciled;
+    setGainersTop20(reconciled);
+
+    // 3m movers
+    const with3m = latestData.crypto.map((c, idx) => ({
+      rank: c.rank || idx + 1,
+      symbol: c.symbol?.replace('-USD','') || 'N/A',
+      price: c.current_price ?? c.price ?? 0,
+      change3m: c.price_change_percentage_3min ?? c.change3m ?? c.change ?? 0,
+      peakCount: typeof c.peak_count === 'number' ? c.peak_count : 0,
+    }));
+    const gainers3Raw = with3m
+      .filter(r => typeof r.change3m === 'number')
+      .sort((a,b)=> (b.change3m||0) - (a.change3m||0))
+      .slice(0,20)
+      .map((it,i)=> ({ ...it, rank: i+1 }));
+    const losers3Raw = with3m
+      .filter(r => typeof r.change3m === 'number')
+      .sort((a,b)=> (a.change3m||0) - (b.change3m||0))
+      .slice(0,20)
+      .map((it,i)=> ({ ...it, rank: i+1 }));
+    const recGainers3 = reconcileRows(gainers3Raw, prevGainers3mRef.current);
+    const recLosers3 = reconcileRows(losers3Raw, prevLosers3mRef.current);
+    prevGainers3mRef.current = recGainers3;
+    prevLosers3mRef.current = recLosers3;
+    setGainers3mTop(recGainers3);
+    setLosers3mTop(recLosers3);
+
+    // Idle housekeeping example (no-op placeholder for now)
+    if (idleTrimRef.current) {
+      cancelIdle(idleTrimRef.current);
+    }
+    idleTrimRef.current = scheduleIdle(() => {
+      // Could trim historical arrays or perform light GC tasks
+    }, { timeout: 800 });
+  }, [latestData.crypto]);
+
+  const contextValue = useMemo(() => ({
     isConnected,
     connectionStatus,
     latestData,
     wsManager,
     isPolling,
-  // throttle 1‑min gainer WS updates; default 15s per design
-  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 15000,
-    // Convenience methods
+    gainersTop20,
+    debugEnabled,
+    vLog,
+    gainers3mTop,
+    losers3mTop,
+    networkStatus,
+    oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 15000,
     subscribe: subscribeToWebSocket,
     getStatus: () => wsManager.getStatus(),
     send: (event, data) => wsManager.send(event, data),
@@ -297,7 +399,7 @@ export const WebSocketProvider = ({ children }) => {
     startPolling,
     stopPolling,
     refreshNow
-  };
+  }), [isConnected, connectionStatus, latestData, wsManager, isPolling, gainersTop20, debugEnabled, gainers3mTop, losers3mTop, networkStatus]);
 
   return (
     <WebSocketContext.Provider value={contextValue}>
@@ -307,3 +409,7 @@ export const WebSocketProvider = ({ children }) => {
 };
 
 export default WebSocketContext;
+
+WebSocketProvider.propTypes = {
+  children: PropTypes.node
+};
