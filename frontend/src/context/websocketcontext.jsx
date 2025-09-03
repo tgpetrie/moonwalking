@@ -6,6 +6,7 @@ import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetecti
 import { computeTop20Gainers } from '../utils/gainersProcessing.js';
 import { reconcileRows } from '../utils/rowsStable.js';
 import { scheduleIdle, cancelIdle } from '../utils/idle.js';
+import { flags } from '../config.js';
 
 const WebSocketContext = createContext(null);
 
@@ -35,9 +36,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   const mobileConfig = getMobileOptimizedConfig();
 
   // Debug flag & helper logger (verbose logs suppressed unless enabled)
-  const debugEnabled = useMemo(() => {
-    return ['true','1','yes','on'].includes(String(import.meta?.env?.VITE_DEBUG_LOGS || import.meta?.env?.VITE_DEBUG || '').toLowerCase());
-  }, []);
+  const debugEnabled = useMemo(() => flags.VITE_DEBUG_LOGS === true, []);
   const vLog = (...args) => {
     if (debugEnabled) {
       console.log(...args);
@@ -312,12 +311,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
   // Treat VITE_DISABLE_WS as an opt-in override; default to false so WS is enabled in dev.
   // Some tests (and potentially non-Vite host environments) may shim a window.importMeta.env.
-  const disableWs = (() => {
-    const viteFlag = import.meta?.env?.VITE_DISABLE_WS;
-    // Support test shim: window.importMeta.env.VITE_DISABLE_WS
-    const windowFlag = typeof window !== 'undefined' && window?.importMeta?.env?.VITE_DISABLE_WS;
-    return String(viteFlag ?? windowFlag ?? 'false').toLowerCase() === 'true';
-  })();
+  const disableWs = flags.VITE_DISABLE_WS === true;
     if (disableWs) {
       // Skip WS entirely and use polling
       startPolling();
@@ -371,7 +365,9 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
         vLog('[WebSocket Context] Development mock crypto data injected');
       }
     } catch (e) {
-      // Ignore in constrained environments
+      // Ignore in constrained environments intentionally
+      // eslint-disable-next-line no-unused-vars
+      const _ignored = e;
     }
 
     // Cleanup on unmount
@@ -469,7 +465,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     gainers3mTop,
     losers3mTop,
     networkStatus,
-    oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 15000,
+  oneMinThrottleMs: flags.VITE_ONE_MIN_WS_THROTTLE_MS || 15000,
     subscribe: subscribeToWebSocket,
     getStatus: () => wsManager.getStatus(),
     send: (event, data) => wsManager.send(event, data),
