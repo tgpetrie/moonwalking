@@ -1,240 +1,313 @@
-import { isMobileDevice, getMobileOptimizedConfig, addVisibilityChangeListener, addNetworkChangeListener } from '../utils/mobileDetection.js';
+import { addVisibilityChangeListener, addNetworkChangeListener } from '../utils/mobileDetection.js';
+
+// Helpers
+const now = () => Date.now();
+const withJitter = (ms) => {
+  const delta = ms * 0.2; // +/-20%
+  return Math.max(0, ms - delta + Math.random() * (2 * delta));
+};
+
+// Finite states
+const STATES = Object.freeze({
+  IDLE: 'IDLE',
+  CONNECTING: 'CONNECTING',
+  OPEN: 'OPEN',
+  CLOSING: 'CLOSING',
+  BACKOFF: 'BACKOFF',
+  DESTROYED: 'DESTROYED',
+});
 
 class WebSocketManager {
-  constructor() {
-    this.socket = null; // Native WebSocket
-    this.isConnected = false;
-    this.subscribers = new Map();
-    this.reconnectAttempts = 0;
-    this.isMobile = isMobileDevice();
-    this.config = getMobileOptimizedConfig();
-    this.maxReconnectAttempts = this.config.maxReconnectAttempts;
-    this.isVisible = !document.hidden;
-    this.networkInfo = null;
-    
-    // Setup mobile-specific listeners
-    this.setupMobileOptimizations();
-    // Prefer explicit WS url (VITE_WS_URL), else same-origin
+  constructor(opts = {}) {
+    // Core
+    this.socket = null;
+    this.state = STATES.IDLE;
+    this.subscribers = new Map(); // event -> Set<fn>
+    this.pendingQueue = []; // messages queued while not OPEN
+
+    // Config / env
     const originWs = (typeof location !== 'undefined')
       ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
       : 'ws://127.0.0.1:8787';
-    const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
+    const wsHost = (import.meta?.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
     this.baseUrl = wsHost; // host only; endpoint is /ws
-    // Allow opting out by default unless explicitly enabled server-side
-    this.disabled = String(import.meta.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
-  }
+    this.disabled = String(import.meta?.env?.VITE_DISABLE_WS || 'false').toLowerCase() === 'true';
 
-  connect() {
-    if (this.disabled) {
-      console.info('WebSocket disabled by VITE_DISABLE_WS');
-      this.emit('connection', { status: 'failed', reason: 'disabled' });
-      return;
-    }
-    if (this.socket && this.isConnected) {
-      return;
-    }
-
-    try {
-      const endpoint = this.baseUrl + '/ws';
-      const ws = new WebSocket(endpoint);
-      this.socket = ws;
-
-      ws.addEventListener('open', () => {
-        console.log('WebSocket connected to', endpoint);
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        this.emit('connection', { status: 'connected' });
-      });
-      ws.addEventListener('close', (ev) => {
-        this.isConnected = false;
-        this.emit('connection', { status: 'disconnected', reason: ev.reason || 'close' });
-        this.handleReconnect();
-      });
-      ws.addEventListener('error', (err) => {
-        this.isConnected = false;
-        this.emit('connection', { status: 'error', error: 'ws error' });
-        this.handleReconnect();
-      });
-      ws.addEventListener('message', (ev) => {
-        try {
-          const msg = JSON.parse(ev.data);
-          if (msg?.type === 'hello' || msg?.type === 'snapshots') {
-            const snap = msg.snapshots || {};
-            // Emit events consistent with existing context listeners
-            if (Array.isArray(snap.t1m) && snap.t1m.length) {
-              this.emit('crypto_update', snap.t1m);
-              // Build prices map
-              const prices = {};
-              snap.t1m.forEach(c => { if (c?.symbol) prices[c.symbol] = { price: c.current_price ?? c.price ?? 0, changePercent: c.price_change_percentage_1min ?? c.change ?? 0, timestamp: Date.now() }; });
-              if (Object.keys(prices).length) this.emit('price_update', prices);
-            }
-          }
-        } catch (_) {}
-      });
-
-    } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
-    }
-  }
-
-  disconnect() {
-    if (this.socket) {
-      try { this.socket.close(); } catch (_) {}
-      this.socket = null;
-      this.isConnected = false;
-    }
-  }
-
-  handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      console.log(`Attempting to reconnect in ${delay}ms... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
-      setTimeout(() => {
-        this.connect();
-      }, delay);
-    } else {
-      console.error('Max reconnection attempts reached. Falling back to REST API polling.');
-      this.emit('connection', { status: 'failed', attempts: this.reconnectAttempts });
-    }
-  }
-
-  subscribe(event, callback) {
-    if (!this.subscribers.has(event)) {
-      this.subscribers.set(event, new Set());
-    }
-    this.subscribers.get(event).add(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      const callbacks = this.subscribers.get(event);
-      if (callbacks) {
-        callbacks.delete(callback);
-        if (callbacks.size === 0) {
-          this.subscribers.delete(event);
-        }
-      }
+    // Backoff/heartbeat
+    this.reconnectAttempts = 0;
+    this.config = {
+      baseDelayMs: opts.baseDelayMs ?? 800,
+      maxDelayMs: 30000,
+      maxReconnectAttempts: opts.maxReconnectAttempts ?? 12,
+      heartbeatIntervalMs: opts.heartbeatIntervalMs ?? 25000,
+      heartbeatTimeoutMs: opts.heartbeatTimeoutMs ?? 8000,
     };
+    this.timers = { reconnect: null, heartbeat: null, heartbeatTimeout: null };
+
+    // Visibility / network gating
+    this.isVisible = (typeof document !== 'undefined' && typeof document.hidden !== 'undefined') ? !document.hidden : true;
+    this._visibilityCleanup = this._installVisibilityHandler();
+    this._onlineCleanup = this._installOnlineHandlers();
+
+    // Mobile network-change assist (optional, safe on desktop)
+    this.networkInfo = null;
+    this.networkCleanup = addNetworkChangeListener?.((info) => {
+      this.networkInfo = info;
+      // A network change can stale existing TCP; force a fresh socket if app is visible
+      if (this.isVisible && !this.disabled) {
+        this.disconnect(4000, 'network_change');
+        setTimeout(() => this.connect(), 1000);
+      }
+    });
+  }
+
+  /* ========== Public API ========== */
+  connect() {
+    if (this.disabled || this.state === STATES.DESTROYED) return;
+    if (this.state === STATES.CONNECTING || this.state === STATES.OPEN) return; // single-flight
+    if (!this.isVisible || (typeof navigator !== 'undefined' && !navigator.onLine)) return; // wait for gates
+
+    this._clearTimer('reconnect');
+    this._transition(STATES.CONNECTING);
+
+    const endpoint = this.baseUrl + '/ws';
+    let ws;
+    try {
+      ws = new WebSocket(endpoint);
+    } catch (e) {
+      console.error('[WS] construct failed:', e);
+      this._scheduleReconnect('construct_error');
+      return;
+    }
+
+    this.socket = ws;
+
+    ws.addEventListener('open', () => this._onOpen(endpoint));
+    ws.addEventListener('close', (ev) => this._onClose(ev));
+    ws.addEventListener('error', (ev) => this._onError(ev));
+    ws.addEventListener('message', (ev) => this._onMessage(ev));
+  }
+
+  disconnect(code = 1000, reason = 'client_close') {
+    this._clearHeartbeat();
+    this._clearTimer('reconnect');
+    if (this.socket) {
+      this._transition(STATES.CLOSING);
+      try { this.socket.close(code, reason); } catch (_) {}
+      this.socket = null;
+    }
+    this._transition(STATES.IDLE);
+  }
+
+  destroy() {
+    this.disabled = true;
+    this.disconnect(1000, 'destroy');
+    this._visibilityCleanup?.();
+    this._onlineCleanup?.();
+    this.networkCleanup?.();
+    this._transition(STATES.DESTROYED);
+  }
+
+  // Publish/subscribe within app
+  subscribe(event, callback) {
+    if (!this.subscribers.has(event)) this.subscribers.set(event, new Set());
+    this.subscribers.get(event).add(callback);
+    return () => this.unsubscribe(event, callback);
+  }
+
+  unsubscribe(event, callback) {
+    const set = this.subscribers.get(event);
+    if (!set) return;
+    set.delete(callback);
+    if (set.size === 0) this.subscribers.delete(event);
   }
 
   emit(event, data) {
-    const callbacks = this.subscribers.get(event);
-    if (callbacks) {
-      callbacks.forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in WebSocket callback for ${event}:`, error);
-        }
-      });
+    const set = this.subscribers.get(event);
+    if (!set) return;
+    for (const fn of set) {
+      try { fn(data); } catch (e) { console.error(`[WS] subscriber error (${event})`, e); }
     }
   }
 
-  // Send data to server if connected
   send(event, data) {
-    // Native WS: send typed messages if needed later
-    if (this.socket && this.isConnected) {
-      try { this.socket.send(JSON.stringify({ event, data })); } catch (_) {}
+    const payload = JSON.stringify({ event, data });
+    if (this.state === STATES.OPEN && this.socket?.readyState === WebSocket.OPEN) {
+      try { this.socket.send(payload); } catch (_) {}
+      return true;
     }
+    this.pendingQueue.push(payload);
+    return false;
   }
 
-  // Get connection status
   getStatus() {
     return {
-      connected: this.isConnected,
+      connected: this.state === STATES.OPEN,
       reconnectAttempts: this.reconnectAttempts,
-      socketId: null
+      state: this.state,
     };
   }
 
-  // Mobile-specific optimizations
-  setupMobileOptimizations() {
-    if (!this.isMobile) return;
-
-    // Handle visibility changes (app backgrounding)
-    this.visibilityCleanup = addVisibilityChangeListener((isVisible) => {
-      this.isVisible = isVisible;
-      if (isVisible && !this.isConnected && !this.disabled) {
-        // Reconnect when app becomes visible again
-        console.log('📱 App became visible, attempting WebSocket reconnect...');
-        this.reconnectAttempts = 0; // Reset attempts
-        this.connect();
-      } else if (!isVisible && this.isConnected) {
-        // Optionally disconnect when backgrounded to save battery
-        console.log('📱 App backgrounded, keeping WebSocket open but reducing activity');
-      }
-    });
-
-    // Handle network changes (WiFi to cellular, etc.)
-    this.networkCleanup = addNetworkChangeListener((networkInfo) => {
-      this.networkInfo = networkInfo;
-      console.log('📱 Network change detected:', networkInfo);
-      
-      // If connection is poor, fall back to polling faster
-      if (networkInfo.effectiveType === 'slow-2g' || networkInfo.effectiveType === '2g') {
-        this.emit('network_degraded', { networkInfo });
-      } else if (this.isConnected && networkInfo.effectiveType === '4g') {
-        this.emit('network_improved', { networkInfo });
-      }
-      
-      // Reconnect WebSocket after network change if it was connected
-      if (this.isConnected && this.isVisible) {
-        setTimeout(() => {
-          if (!this.isConnected) {
-            console.log('📱 Reconnecting after network change...');
-            this.connect();
-          }
-        }, 1000);
-      }
-    });
+  /* ========== Internals ========== */
+  _transition(next) {
+    this.state = next;
+    this.emit('connection', { status: next });
   }
 
-  // Enhanced reconnect logic for mobile
-  handleReconnect() {
-    // Don't reconnect if app is backgrounded
-    if (this.isMobile && !this.isVisible) {
-      console.log('📱 Skipping reconnect while app is backgrounded');
+  _onOpen(endpoint) {
+    this.reconnectAttempts = 0;
+    this._transition(STATES.OPEN);
+    this.emit('connection', { status: 'connected', url: endpoint });
+
+    // Flush queued messages
+    if (this.pendingQueue.length) {
+      for (const m of this.pendingQueue.splice(0)) {
+        try { this.socket?.send(m); } catch (_) {}
+      }
+    }
+
+    // Start heartbeat
+    this._startHeartbeat();
+  }
+
+  _onClose(ev) {
+    this._clearHeartbeat();
+    if (this.state === STATES.DESTROYED) return;
+    this._transition(STATES.IDLE);
+    this._scheduleReconnect(ev.reason || 'close', ev.code);
+  }
+
+  _onError(_ev) {
+    // Close usually follows; do not double-schedule here.
+    this.emit('connection', { status: 'error', error: 'ws_error' });
+  }
+
+  _onMessage(ev) {
+    let msg = ev.data;
+    try { msg = typeof msg === 'string' ? JSON.parse(msg) : msg; } catch (_) {}
+
+    // Heartbeat pong
+    if (msg && (msg.type === 'pong' || msg.event === 'pong')) {
+      this._clearTimer('heartbeatTimeout');
       return;
     }
 
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      // Use mobile-optimized shorter delay
-      const baseDelay = this.isMobile ? this.config.reconnectDelay : 1000;
-      const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts), 30000);
-      console.log(`📱 Mobile reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms...`);
-      
-      setTimeout(() => {
-        // Double-check visibility before reconnecting
-        if (!this.isMobile || this.isVisible) {
-          this.connect();
+    // Existing app messages
+    try {
+      if (msg?.type === 'hello' || msg?.type === 'snapshots') {
+        const snap = msg.snapshots || {};
+        if (Array.isArray(snap.t1m) && snap.t1m.length) {
+          this.emit('crypto_update', snap.t1m);
+          const prices = {};
+          snap.t1m.forEach((c) => {
+            if (c?.symbol) {
+              prices[c.symbol] = {
+                price: c.current_price ?? c.price ?? 0,
+                changePercent: c.price_change_percentage_1min ?? c.change ?? 0,
+                timestamp: now(),
+              };
+            }
+          });
+          if (Object.keys(prices).length) this.emit('price_update', prices);
         }
-      }, delay);
-    } else {
-      console.error('📱 Max mobile reconnection attempts reached. Falling back to REST API polling.');
-      this.emit('connection', { status: 'failed', attempts: this.reconnectAttempts, isMobile: this.isMobile });
+      }
+    } catch (e) {
+      console.debug('WS message handler error', e);
     }
   }
 
-  // Cleanup mobile listeners
-  destroy() {
-    if (this.visibilityCleanup) {
-      this.visibilityCleanup();
+  _scheduleReconnect(reason = 'unknown', code) {
+    if (this.disabled || this.state === STATES.DESTROYED) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return; // wait for gates
+    if (!this.isVisible) return;
+
+    if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
+      this.emit('connection', { status: 'failed', attempts: this.reconnectAttempts, reason, code });
+      return;
     }
-    if (this.networkCleanup) {
-      this.networkCleanup();
+
+    this._clearTimer('reconnect');
+    this.reconnectAttempts += 1;
+    const backoff = Math.min(
+      this.config.baseDelayMs * Math.pow(2, this.reconnectAttempts - 1),
+      this.config.maxDelayMs
+    );
+    const delay = withJitter(backoff);
+    this._transition(STATES.BACKOFF);
+    this.timers.reconnect = setTimeout(() => this.connect(), delay);
+    this.emit('connection', { status: 'reconnecting', inMs: Math.round(delay), attempts: this.reconnectAttempts, reason, code });
+  }
+
+  _startHeartbeat() {
+    this._clearHeartbeat();
+    this.timers.heartbeat = setInterval(() => {
+      if (this.state !== STATES.OPEN || !this.socket) return;
+      try { this.socket.send(JSON.stringify({ type: 'ping', ts: now() })); } catch (_) {}
+      this._clearTimer('heartbeatTimeout');
+      this.timers.heartbeatTimeout = setTimeout(() => {
+        try { this.socket?.close(4000, 'heartbeat_timeout'); } catch (_) {}
+      }, this.config.heartbeatTimeoutMs);
+    }, this.config.heartbeatIntervalMs);
+  }
+
+  _clearHeartbeat() {
+    this._clearTimer('heartbeat');
+    this._clearTimer('heartbeatTimeout');
+  }
+
+  _clearTimer(key) {
+    const t = this.timers[key];
+    if (!t) return;
+    clearTimeout(t);
+    clearInterval(t);
+    this.timers[key] = null;
+  }
+
+  _installVisibilityHandler() {
+    const handler = () => {
+      this.isVisible = (typeof document !== 'undefined' && typeof document.hidden !== 'undefined') ? !document.hidden : true;
+      if (this.isVisible) {
+        if ((this.state === STATES.IDLE || this.state === STATES.BACKOFF) && (typeof navigator === 'undefined' || navigator.onLine)) {
+          this.reconnectAttempts = 0;
+          this.connect();
+        }
+      } else {
+        this._clearTimer('reconnect');
+      }
+    };
+    const cleanup = addVisibilityChangeListener ? addVisibilityChangeListener((v) => { this.isVisible = v; handler(); }) : null;
+    if (!cleanup && typeof document !== 'undefined') document.addEventListener('visibilitychange', handler);
+    return () => {
+      if (cleanup) cleanup(); else if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', handler);
+    };
+  }
+
+  _installOnlineHandlers() {
+    const online = () => {
+      if (this.state !== STATES.OPEN) {
+        this.reconnectAttempts = 0;
+        this.connect();
+      }
+    };
+    const offline = () => { this._clearTimer('reconnect'); };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', online);
+      window.addEventListener('offline', offline);
     }
-    this.disconnect();
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', online);
+        window.removeEventListener('offline', offline);
+      }
+    };
   }
 }
 
-// Create singleton instance
+// Singleton
 const wsManager = new WebSocketManager();
-
 export default wsManager;
 
-// Export convenience functions
+// Convenience exports (API preserved)
 export const connectWebSocket = () => wsManager.connect();
 export const disconnectWebSocket = () => wsManager.disconnect();
 export const subscribeToWebSocket = (event, callback) => wsManager.subscribe(event, callback);

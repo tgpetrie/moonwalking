@@ -1,3 +1,4 @@
+/* global Event */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   isMobileDevice,
@@ -11,7 +12,14 @@ import {
 
 // Helper to override navigator.userAgent
 const setUserAgent = (ua) => {
-  Object.defineProperty(window.navigator, 'userAgent', { value: ua, configurable: true });
+  // If userAgent is not configurable, replace the whole navigator object
+  try {
+    Object.defineProperty(window.navigator, 'userAgent', { value: ua, configurable: true });
+  } catch (e) {
+    // Fallback for environments where userAgent is not configurable
+    window.navigator = Object.create(window.navigator);
+    window.navigator.userAgent = ua;
+  }
 };
 
 describe('mobileDetection utilities', () => {
@@ -87,13 +95,20 @@ describe('mobileDetection utilities', () => {
   });
 
   it('network change listener fallback returns cleanup function without throwing', () => {
-    // Remove any connection prop entirely to trigger fallback path
-    // Some jsdom versions keep it non-configurable; guard with try
-    try { delete navigator.connection; } catch (e) {
-      Object.defineProperty(navigator, 'connection', { value: undefined, configurable: true });
-    }
+    const originalConnection = navigator.connection;
+    // To test the fallback, we simulate an environment where `navigator.connection` is not available
+    // or is falsy. In jsdom, `navigator.connection` may not be configurable, so we set its value to undefined.
+    // The implementation should be robust enough to handle this.
+    Object.defineProperty(window.navigator, 'connection', {
+      value: undefined,
+      configurable: true,
+    });
+
     const cleanup = addNetworkChangeListener(() => {});
     expect(typeof cleanup).toBe('function');
-    cleanup();
+    expect(() => cleanup()).not.toThrow();
+
+    // Restore original value to avoid affecting other tests
+    Object.defineProperty(window.navigator, 'connection', { value: originalConnection, configurable: true });
   });
 });

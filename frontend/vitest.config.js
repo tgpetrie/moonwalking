@@ -7,12 +7,15 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.js'],
     globals: true,
-    include: ['src/utils/**/*.{test,spec}.js', 'src/context/**/*.{test,spec}.jsx', 'src/context/websocketcontext.test.jsx', 'src/context/websocketcontext.polling.test.jsx'],
-    exclude: ['node_modules','dist'],
+      environmentOptions: {
+        jsdom: {
+          NODE_ENV: 'test', // This is the crucial line to add
+        },
+      },
     coverage: {
       reporter: ['text','html'],
       include: ['src/utils/**/*.js', 'src/context/**/*.jsx'],
-      exclude: ['src/context/websocketcontext.polling.test.jsx'],
+      exclude: ['src/**/*.test.*', 'src/**/*.spec.*'],
       thresholds: {
         lines: 30,
         functions: 30,

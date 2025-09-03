@@ -86,16 +86,32 @@ const TopBannerScroll = ({ refreshTrigger }) => {
       {/* Scrolling Content */}
       <div className="relative h-16 overflow-hidden">
         {/* Left fade overlay */}
-        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-black via-black/80 to-transparent z-10 pointer-events-none"></div>
         
         {/* Right fade overlay */}
-        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-black via-black/80 to-transparent z-10 pointer-events-none"></div>
         
         <div className="absolute inset-0 flex items-center">
           <div 
-            className="flex whitespace-nowrap animate-scroll"
-            style={{ animationDelay: animDelay }}
-          >
+              className="flex whitespace-nowrap animate-scroll"
+              style={{ animationDelay: animDelay }}
+              ref={(el)=>{
+                if(!el) return;
+                try{
+                  const has = getComputedStyle(el).animationName;
+                  if(!has || has === 'none'){
+                    // Inject fallback keyframes once per element
+                    if(!document.getElementById('fallback-scroll-keyframes')){
+                      const s = document.createElement('style');
+                      s.id = 'fallback-scroll-keyframes';
+                      s.innerHTML = `@keyframes fallback-scroll { 0% { transform: translateX(0%);} 100% { transform: translateX(-100%);} } .fallback-animate-scroll { animation: fallback-scroll 180s linear infinite; }`;
+                      document.head.appendChild(s);
+                    }
+                    el.classList.add('fallback-animate-scroll');
+                  }
+                }catch(e){/* ignore */}
+              }}
+            >
             {/* First set of data */}
             {data.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
@@ -104,17 +120,17 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                   (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' : 'group-hover:text-pink group-hover:text-shadow-pink')
                 }>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
+                    <span className="text-xs font-bold color-lock-purple">#{coin.rank}</span>
                     <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="text-lg font-bold text-teal">
+                    <span className="text-lg font-bold color-lock-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const ch = Number(coin.change || 0); return (
-                      <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                      <span className={(ch >= 0 ? 'color-lock-purple' : 'color-lock-pink') + ' text-xl'}>
                         {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
@@ -155,17 +171,17 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                   (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' : 'group-hover:text-pink group-hover:text-shadow-pink')
                 }>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
+                    <span className="text-xs font-bold color-lock-purple">#{coin.rank}</span>
                     <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
                     </span>
-                    <span className="text-lg font-bold text-teal">
+                    <span className="text-lg font-bold color-lock-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const ch = Number(coin.change || 0); return (
-                      <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                      <span className={(ch >= 0 ? 'color-lock-purple' : 'color-lock-pink') + ' text-xl'}>
                         {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}

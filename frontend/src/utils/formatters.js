@@ -98,13 +98,24 @@ export const formatPrice = (price) => formatCurrency(price, { currency: formatte
 
 export const formatPercentage = (
   value,
-  { decimals = 3, sign = false, fraction = false } = {}
+  { decimals = 3, sign = false, fraction } = {}
 ) => {
   const n = Number(value);
   if (!Number.isFinite(n)) {
     return '—';
   }
-  const pct = fraction ? n * 100 : n; // set fraction:true if your data is 0..1
+  // Auto-detect whether input is a fraction (0..1) when caller doesn't specify.
+  // Many data sources sometimes return 0.1234 (== 12.34%) or 12.34 (== 12.34%).
+  // If `fraction` is explicitly provided, respect it; otherwise infer from magnitude.
+  let isFraction;
+  if (typeof fraction === 'boolean') {
+    isFraction = fraction;
+  } else {
+    const abs = Math.abs(n);
+    // Treat numbers <= 1 (and not zero) as fractions by default.
+    isFraction = abs > 0 && abs <= 1;
+  }
+  const pct = isFraction ? n * 100 : n; // convert fraction to percent when needed
   const s = sign && pct > 0 ? '+' : '';
   return `${s}${pct.toFixed(decimals)}%`;
 };

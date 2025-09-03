@@ -6,9 +6,10 @@ import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
-import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
+import { formatPercent, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
+import useKeyboardNavigation from '../hooks/useKeyboardNavigation.js';
 
 const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }) => {
   const shouldReduce = useReducedMotion();
@@ -33,6 +34,13 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
   const [watchlist, setWatchlist] = useState([]);
   const [popStar, setPopStar] = useState(null);
   const [actionBadge, setActionBadge] = useState(null); // action feedback
+
+  // Keyboard navigation
+  const visibleData = data.slice(0, visibleCount);
+  const navigation = useKeyboardNavigation(visibleData, {
+    onSelect: (item) => item && handleToggleWatchlist(item.symbol),
+    onEscape: () => navigation.resetNavigation()
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +128,7 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
   if (loading && data.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="animate-pulse text-pink font-mono">Loading losers...</div>
+  <div className="animate-pulse color-lock-pink font-mono">Loading losers...</div>
       </div>
     );
   }
@@ -151,6 +159,8 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
           actionBadge={actionBadge}
           popStar={popStar}
           onToggle={handleToggleWatchlist}
+          keyboardProps={navigation.getItemProps(idx)}
+          isKeyboardSelected={navigation.selectedIndex === idx}
         />
       ))}
       {/* Show More / Less (uncontrolled only) */}
@@ -169,7 +179,7 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
   );
 };
 
-const MoverRow = memo(function MoverRow({ row: r, idx, shouldReduce, get3m, watchlist, actionBadge, popStar, onToggle }) {
+const MoverRow = memo(function MoverRow({ row: r, idx, shouldReduce, get3m, watchlist, actionBadge, popStar, onToggle, keyboardProps, isKeyboardSelected }) {
 LosersTable.propTypes = {
   refreshTrigger: PropTypes.any,
   initialRows: PropTypes.number,
@@ -202,8 +212,8 @@ MoverRow.propTypes = {
     ? (r.price / (1 + r.change3m / 100))
     : null;
   return (
-    <div className="px-0 py-1 mb-1">
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
+    <div className="px-0 py-1 mb-1" {...keyboardProps}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className={`block group ${isKeyboardSelected ? 'keyboard-focused' : ''}`}>
         <motion.div
           className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
           initial={shouldReduce ? false : { opacity: 0, y: 6 }}
@@ -242,14 +252,14 @@ MoverRow.propTypes = {
           <div className="sm:hidden relative z-10">
             <div className="flex items-center justify-between py-3 px-2">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-pink/30 text-pink font-bold text-sm">{r.rank}</div>
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-pink/30 color-lock-pink font-bold text-sm">{r.rank}</div>
                 <div>
                   <div className="font-bold text-white text-xl mb-1">{truncateSymbol(r.symbol, 8)}</div>
-                  <div className="text-base text-teal font-mono font-bold">${Number.isFinite(r.price) ? formatPrice(r.price) : '0.00'}</div>
+                  <div className="text-base color-lock-teal font-mono font-bold">${Number.isFinite(r.price) ? formatPrice(r.price) : '0.00'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`text-2xl font-bold ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : '0.00%'}</div>
+                <div className={`text-2xl font-bold ${r.change3m < 0 ? 'color-lock-pink' : 'color-lock-purple'}`}>{typeof r.change3m === 'number' ? formatPercent(r.change3m, { fromFraction: false, max: 2 }) : '0.00%'}</div>
                 <button
                   onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onToggle(r.symbol); }}
                   className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-center"
@@ -268,7 +278,7 @@ MoverRow.propTypes = {
           {/* Desktop */}
           <div className="hidden sm:grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/30 text-pink font-bold text-sm shrink-0">{r.rank}</div>
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink/30 color-lock-pink font-bold text-sm shrink-0">{r.rank}</div>
               <div className="min-w-0 flex items-center gap-2">
                 <div className="font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(r.symbol, 6)}</div>
                 {showBadge && (
@@ -277,11 +287,11 @@ MoverRow.propTypes = {
               </div>
             </div>
             <div className="w-[152px] pr-6 text-right">
-              <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">{Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}</div>
+              <div className="text-base sm:text-lg md:text-xl font-bold color-lock-teal font-mono tabular-nums leading-none whitespace-nowrap">{Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}</div>
               <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">{prev !== null ? formatPrice(prev) : '--'}</div>
             </div>
             <div className="w-[108px] pr-1.5 text-right align-top">
-              <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}</div>
+              <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'color-lock-pink' : 'color-lock-purple'}`}>{typeof r.change3m === 'number' ? formatPercent(r.change3m, { fromFraction: false, max: 2 }) : 'N/A'}</div>
               {(() => { const { level } = get3m(r.symbol); return level > 0 ? (<div className="text-xs text-gray-300 leading-tight mt-1 subline-badge num">Px{level}</div>) : null; })()}
             </div>
             <div className="w-[28px] text-right">

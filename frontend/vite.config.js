@@ -5,8 +5,23 @@ import { visualizer } from 'rollup-plugin-visualizer'
 export default defineConfig({
     plugins: [
         react(),
-        visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, template: 'treemap', emitFile: true })
-    ],
+        visualizer({ 
+            filename: 'dist/stats.html', 
+            gzipSize: true, 
+            brotliSize: true, 
+            template: 'treemap', 
+            emitFile: true,
+            threshold: 1000 // Only show chunks > 1KB
+        }),
+        // Add bundle analyzer in development
+        process.env.ANALYZE && visualizer({
+            filename: 'dist/bundle-analysis.html',
+            template: 'sunburst',
+            gzipSize: true,
+            brotliSize: true,
+            open: true
+        })
+    ].filter(Boolean),
     build: {
         outDir: 'dist',
         sourcemap: true,

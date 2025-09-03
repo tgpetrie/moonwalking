@@ -1,4 +1,5 @@
 import './env-debug.js';
+import './styles/accessibility.css';
 import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';
 import { WebSocketProvider } from './context/websocketcontext.jsx';
@@ -13,8 +14,8 @@ import AlertsIndicator from './components/AlertsIndicator.jsx';
 // Lazy-loaded (code split) heavier UI regions
 const TopBannerScroll = React.lazy(() => import('./components/TopBannerScroll'));
 const BottomBannerScroll = React.lazy(() => import('./components/BottomBannerScroll'));
-const GainersTable = React.lazy(() => import('./components/GainersTable'));
-const LosersTable = React.lazy(() => import('./components/LosersTable'));
+const GainersTable = React.lazy(() => import('./components/GainersTable3Min'));
+const LosersTable = React.lazy(() => import('./components/LosersTable3Min'));
 const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'));
 import Watchlist from './components/Watchlist';
 const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
@@ -25,6 +26,10 @@ import MobileDebugger from './components/MobileDebugger.jsx';
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
 import MetricsPanel from './components/MetricsPanel.jsx';
+// Polish components
+import CircuitBreakerBadge from './components/CircuitBreakerBadge.jsx';
+import TableSkeleton from './components/TableSkeleton.jsx';
+import EnhancedErrorBoundary from './components/EnhancedErrorBoundary.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
@@ -85,7 +90,7 @@ export default function App() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark text-white text-xl">
+      <div className="min-h-screen flex items-center justify-center bg-black text-white text-xl" style={{ backgroundColor: '#000000' }}>
         Checking authentication...
       </div>
     );
@@ -94,14 +99,18 @@ export default function App() {
     return <AuthPanel onAuth={() => window.location.reload()} />;
   }
 
-  const chunkFallback = (label = 'Loading...') => (
-    <div className="text-center text-xs text-gray-400 py-4 animate-pulse" aria-live="polite">{label}</div>
+  const chunkFallback = (label = 'Loading...', rows = 3) => (
+    <TableSkeleton rows={rows} title={label !== 'Loading...' ? label : undefined} />
   );
 
   return (
     <WebSocketProvider>
     <ToastProvider>
-    <div className="min-h-screen bg-dark text-white relative">
+    <div className="min-h-screen bg-black text-white relative" style={{ backgroundColor: '#000000' }}>
+      {/* Skip Navigation for Accessibility */}
+      <a href="#main-content" className="skip-navigation">
+        Skip to main content
+      </a>
       <MobileDebugger />
       <DataFlowTest />
       {/* Background Purple Rabbit */}
@@ -118,7 +127,10 @@ export default function App() {
       <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">
         <div className="flex flex-col items-end gap-1 w-28">
           <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700 w-full justify-between">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <CircuitBreakerBadge 
+              state={isConnected ? 'closed' : 'open'}
+              className="scale-75 origin-left"
+            />
             <span className="font-bold tabular-nums">{String(countdown).padStart(2, '0')}</span>
           </div>
           {/* Progress bar for next refresh */}
@@ -160,7 +172,9 @@ export default function App() {
         </div>
         {/* Lightweight operational metrics */}
         <div className="opacity-80 hover:opacity-100 transition-opacity">
-          <MetricsPanel />
+          <EnhancedErrorBoundary componentName="MetricsPanel">
+            <MetricsPanel />
+          </EnhancedErrorBoundary>
         </div>
         <button
           onClick={() => setShowInsights(s => !s)}
@@ -178,20 +192,20 @@ export default function App() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
         <header className="flex flex-col items-center justify-center pt-8 pb-6">
           <div className="mb-4">
             <img
               src="/bhabit-logo.png"
               alt="BHABIT"
-              className="h-20 sm:h-24 lg:h-28 animate-breathing"
+              className="h-8 sm:h-10 md:h-12 lg:h-14 animate-breathing"
             />
           </div>
           <img
             src="/pbi.png"
             alt="PROFITS BY IMPULSE"
-            className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125"
+            className="h-4 sm:h-5 md:h-6 lg:h-7 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125"
           />
         </header>
   {/* Top Banner - 1H Price (lazy) */}
@@ -210,7 +224,7 @@ export default function App() {
           <div className="px-0 py-6 bg-transparent w-full">
             <div className="relative">
               <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+                <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-headline font-bold tracking-wide text-[#FEA400]">
                   1-MIN GAINERS
                 </h2>
               </div>
@@ -219,17 +233,19 @@ export default function App() {
                 <img
                   src="/linediv.png"
                   alt="Divider"
-                  className="w-48 h-auto"
+                  className="w-32 sm:w-40 md:w-48 h-auto"
                   style={{ maxWidth: '100%' }}
                 />
               </div>
-              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                <OneMinGainersColumns
-                  refreshTrigger={lastUpdate}
-                  onWatchlistChange={handleWatchlistChange}
-                  topWatchlist={topWatchlist}
-                  expanded={oneMinExpanded}
-                />
+              <Suspense fallback={chunkFallback('Loading 1-min gainers...', 10)}>
+                <EnhancedErrorBoundary componentName="OneMinGainers">
+                  <OneMinGainersColumns
+                    refreshTrigger={lastUpdate}
+                    onWatchlistChange={handleWatchlistChange}
+                    topWatchlist={topWatchlist}
+                    expanded={oneMinExpanded}
+                  />
+                </EnhancedErrorBoundary>
               </Suspense>
               {/* Shared Show More below the two tables */}
               <div className="w-full flex justify-center mt-2 mb-1">
@@ -246,11 +262,32 @@ export default function App() {
         </div>
 
   {/* 3-Minute Gainers and Losers Tables (treat as single paired component for equal sizing) */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-2 items-stretch content-stretch">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-2 items-stretch content-stretch"
+       style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}
+       ref={(el) => {
+         // When Tailwind loads correctly, MD breakpoint will override; otherwise
+         // apply a JS-driven two-column layout for medium screens and above.
+         if (!el) return;
+         try {
+           const mql = window.matchMedia('(min-width: 768px)');
+           const apply = () => {
+             if (mql.matches) {
+               el.style.gridTemplateColumns = '1fr 1fr';
+             } else {
+               el.style.gridTemplateColumns = '1fr';
+             }
+           };
+           apply();
+           mql.addEventListener ? mql.addEventListener('change', apply) : mql.addListener(apply);
+         } catch (e) {
+           // ignore in SSR or non-window envs
+         }
+       }}
+  >
           {/* Left Panel - 3-MIN GAINERS */}
-    <div className="pt-6 pb-6 px-0 flex flex-col h-full">
+  <div className="pt-6 pb-6 px-0 flex flex-col h-full" style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
+        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-headline font-bold tracking-wide" style={{ color: '#FEA400' }}>
                 3-MIN GAINERS
               </h2>
             </div>
@@ -259,21 +296,23 @@ export default function App() {
               <img
                 src="/linediv.png"
                 alt="Divider"
-                className="w-48 h-auto"
+                className="w-32 sm:w-40 md:w-48 h-auto"
                 style={{ maxWidth: '100%' }}
               />
             </div>
             <div className="flex-1 flex flex-col">
-              <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
-                <GainersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
+              <Suspense fallback={chunkFallback('Loading 3-min gainers...', 7)}>
+                <EnhancedErrorBoundary componentName="3MinGainers">
+                  <GainersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
+                </EnhancedErrorBoundary>
               </Suspense>
             </div>
           </div>
 
           {/* Right Panel - 3-MIN LOSERS */}
-          <div className="pt-6 pb-6 px-0 flex flex-col h-full">
+          <div className="pt-6 pb-6 px-0 flex flex-col h-full" style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
             <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-pink tracking-wide">
+              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-headline font-bold tracking-wide" style={{ color: '#FF6FA3' }}>
                 3-MIN LOSERS
               </h2>
             </div>
@@ -282,13 +321,15 @@ export default function App() {
               <img
                 src="/linediv.png"
                 alt="Divider"
-                className="w-48 h-auto"
+                className="w-32 sm:w-40 md:w-48 h-auto"
                 style={{ maxWidth: '100%' }}
               />
             </div>
             <div className="flex-1 flex flex-col">
-              <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
-                <LosersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
+              <Suspense fallback={chunkFallback('Loading 3-min losers...', 7)}>
+                <EnhancedErrorBoundary componentName="3MinLosers">
+                  <LosersTable refreshTrigger={lastUpdate} initialRows={7} maxRows={13} expanded={threeMinExpanded} />
+                </EnhancedErrorBoundary>
               </Suspense>
             </div>
           </div>
@@ -317,7 +358,7 @@ export default function App() {
               <img
                 src="/linediv.png"
                 alt="Divider"
-                className="w-48 h-auto"
+                className="w-32 sm:w-40 md:w-48 h-auto"
                 style={{ maxWidth: '100%' }}
               />
             </div>

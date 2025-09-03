@@ -20,6 +20,9 @@ const buildEndpoints = () => ({
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
   gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
   gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
+  // 3 minute interval component endpoints (parity with backend SWR registry)
+  gainersTable3Min: `${API_BASE_URL}/api/component/gainers-table-3min`,
+  losersTable3Min: `${API_BASE_URL}/api/component/losers-table-3min`,
   losersTable: `${API_BASE_URL}/api/component/losers-table`,
   alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
   topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
@@ -189,6 +192,23 @@ export async function getWatchlist() {
 
 export async function addToWatchlist(symbol, priceAtAdd = null) {
   try {
+    // If caller didn't provide a price, try a lightweight public fallback (Coinbase spot)
+    if (priceAtAdd == null) {
+      try {
+        const priceRes = await fetch(`https://api.coinbase.com/v2/prices/${symbol}-USD/spot`);
+        const priceJson = await priceRes.json();
+        const amt = priceJson?.data?.amount ? parseFloat(priceJson.data.amount) : null;
+        if (amt != null && Number.isFinite(amt)) {
+          priceAtAdd = amt;
+        } else {
+          priceAtAdd = 0;
+        }
+      } catch (_e) {
+        // Ignore network failures for the fallback; we'll store 0 and UI will show placeholder
+        priceAtAdd = 0;
+      }
+    }
+
     const list = await getWatchlist();
     const exists = list.some((it) => it && it.symbol === symbol);
     if (!exists) {

@@ -31,4 +31,4 @@ flask-talisman==1.1.0
 numpy
 pandas
 jsonschema==4.23.0
-pydantic==2.7.4
+pydantic==2.10.6

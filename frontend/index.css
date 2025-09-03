@@ -4,6 +4,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom responsive grid + visibility helpers (works even if Tailwind core layers disabled) */
+@layer utilities {
+  .responsive-grid-2 { /* defaults to single column; media query below upgrades */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem; /* sensible default gap */
+  }
+  .mw-mobile-only { display: block; }
+  .mw-desktop-grid { display: none; }
+  @media (min-width: 768px) {
+    .responsive-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .responsive-text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .responsive-h-12 { height: 3rem; }
+    .responsive-h-6 { height: 1.5rem; }
+    .responsive-w-48 { width: 12rem; }
+    /* Visibility switches */
+    .mw-mobile-only { display: none; }
+    .mw-desktop-grid { display: grid; }
+  }
+}
+
 :root {
   /* Primary Colors */
   --primary-orange: #FF6B00;
@@ -28,6 +51,16 @@
   --transition-quick: all 0.3s ease;
   --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+/* Locked color utility classes (stable hex mapping independent of Tailwind palette) */
+.color-lock-orange { color: #FF6B00 !important; }
+.color-lock-blue { color: #00BFFF !important; }
+.color-lock-pink { color: #FF69B4 !important; }
+.color-lock-purple { color: #C026D3 !important; }
+.color-lock-teal { color: #00C0A5 !important; }
+.bg-lock-dark { background-color: #000000 !important; }
+.bg-lock-mid { background-color: #111111 !important; }
+.bg-lock-light { background-color: #1a1a1a !important; }
 
 body {
   margin: 0;
@@ -150,3 +183,92 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary-pink);
 }
+
+/* ======================================================================
+   Fallback utilities (safe, low-risk):
+   These rules mirror common Tailwind utility classes used across the app so
+   the UI remains usable if Tailwind/PostCSS didn't run. They are intentionally
+   conservative and will be overridden if Tailwind is present.
+   ====================================================================== */
+
+/* Layout helpers */
+.min-h-screen { min-height: 100vh; }
+.max-w-7xl { max-width: 80rem; margin-left: auto; margin-right: auto; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+.lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+.w-full { width: 100%; }
+.relative { position: relative; }
+.fixed { position: fixed; }
+.overflow-hidden { overflow: hidden; }
+.rounded-3xl { border-radius: 1.5rem; }
+.rounded-xl { border-radius: 0.75rem; }
+.p-4 { padding: 1rem; }
+.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+.pt-6 { padding-top: 1.5rem; }
+.pb-6 { padding-bottom: 1.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-8 { margin-bottom: 2rem; }
+.h-16 { height: 4rem; }
+.h-2 { height: 0.5rem; }
+
+/* Flex / Grid */
+.flex { display: flex; }
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: 1fr; }
+.sm\:hidden { display: block; }
+.hidden { display: none; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-start { justify-content: flex-start; }
+.gap-3 { gap: 0.75rem; }
+.gap-x-16 { column-gap: 4rem; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1 1 0%; }
+
+/* Responsive helpers (basic) */
+@media (min-width: 640px) {
+  .sm\:hidden { display: none; }
+  .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+@media (min-width: 768px) {
+  .md\:grid-cols-2 { grid-template-columns: 1fr 1fr; }
+  .md\:text-lg { font-size: 1.125rem; }
+}
+
+/* Colors & typography */
+.bg-black { background-color: var(--dark-bg); }
+.bg-black\/40 { background-color: rgba(0,0,0,0.4); }
+.text-white { color: var(--text-white); }
+.text-muted { color: var(--text-muted); }
+.text-purple { color: #C026D3; }
+.text-pink { color: #FF69B4; }
+.text-teal { color: #00C0A5; }
+
+/* Small utilities used for banner / pill styling */
+.rounded-full { border-radius: 9999px; }
+.mx-8 { margin-left: 2rem; margin-right: 2rem; }
+.flex-shrink-0 { flex-shrink: 0; }
+.whitespace-nowrap { white-space: nowrap; }
+
+/* Provide a fallback animation name for animate-scroll when Tailwind isn't available */
+
+/* z-index helpers */
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-50 { z-index: 50; }
+
+/* Buttons */
+.btn-primary { background-color: #6B21A8; color: white; padding: 0.5rem 1rem; border-radius: 9999px; }
+
+/* Make sure main content container has sensible padding when Tailwind is missing */
+#main-content { padding-left: 1rem; padding-right: 1rem; }
+
+/* Accessibility: focus outlines for keyboard users */
+.focus\:ring-2:focus { outline: 2px solid rgba(160, 60, 220, 0.6); }
+
+/* End fallback utilities */
+

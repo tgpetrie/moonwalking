@@ -1,0 +1,59 @@
+/* Minimal fallback CSS to keep the app usable when Tailwind/PostCSS fails during dev.
+   This file is served statically from Vite's public/ folder and is intentionally
+   conservative and narrow in scope. It duplicates key variables, layout, and a
+   subset of commonly used utility classes. */
+
+:root{
+  --primary-orange: #FF6B00;
+  --primary-pink: #FF69B4;
+  --accent-purple: #8A2BE2;
+  --dark-bg: #000000;
+  --text-white: #ffffff;
+  --text-muted: #888888;
+}
+
+html,body,#root{height:100%;}
+body{margin:0;font-family:Raleway, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;background:var(--dark-bg);color:var(--text-white);} 
+
+/* Basic layout utilities */
+.mx-auto{margin-left:auto;margin-right:auto}
+.px-4{padding-left:1rem;padding-right:1rem}
+.py-3{padding-top:.75rem;padding-bottom:.75rem}
+.w-full{width:100%}
+.flex{display:flex}
+.items-center{align-items:center}
+.justify-center{justify-content:center}
+.justify-start{justify-content:flex-start}
+.flex-col{flex-direction:column}
+.gap-3{gap:.75rem}
+.rounded-xl{border-radius:.75rem}
+.rounded-full{border-radius:9999px}
+.hidden{display:none}
+.block{display:block}
+
+/* Colors */
+.bg-black{background:var(--dark-bg)}
+.text-white{color:var(--text-white)}
+.text-muted{color:var(--text-muted)}
+.text-purple{color:#C026D3}
+.text-pink{color:var(--primary-pink)}
+
+/* Banner animations (safe, long-running) */
+@keyframes continuous-scroll{0%{transform:translateX(0%)}100%{transform:translateX(-100%)}}
+.animate-scroll{animation:continuous-scroll 180s linear infinite}
+
+/* Small components */
+.pill-hover{transition:all .6s cubic-bezier(.4,0,.2,1)}
+.btn-primary{background:#6B21A8;color:#fff;padding:.5rem 1rem;border-radius:9999px}
+
+/* Accessibility */
+.focus\:ring-2:focus{outline:2px solid rgba(160,60,220,.6)}
+
+/* Main content padding fallback */
+#main-content{padding-left:1rem;padding-right:1rem}
+
+/* Keep scrollbars usable */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-thumb{background:var(--primary-orange);border-radius:4px}
+
+/* End fallback */

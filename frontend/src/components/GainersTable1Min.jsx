@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useEffect, useRef, useState, useMemo, useContext } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
-import { useWebSocket } from '../context/websocketcontext.jsx';
-import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
+import WebSocketContext from '../context/websocketcontext.jsx';
+import { formatPercent, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import StarIcon from './StarIcon';
 import { updateStreaks } from '../logic/streaks';
 import PropTypes from 'prop-types';
 import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
+import TableSkeleton from './TableSkeleton.jsx';
+import useKeyboardNavigation from '../hooks/useKeyboardNavigation.js';
+import usePerformanceMonitor from '../hooks/usePerformanceMonitor.js';
 
 /**
  * 1‑MIN Gainers (alignment‑stable)
@@ -27,19 +30,35 @@ export default function GainersTable1Min({
   hideShowMore,
   rows: externalRows,
 }) {
-  let wsContextData;
-  try {
-    wsContextData = useWebSocket();
-  } catch (error) {
-    console.error('[GainersTable1Min] WebSocket context error:', error);
-    wsContextData = { latestData: { crypto: [] }, isConnected: false, isPolling: false, oneMinThrottleMs: 15000, send: () => {} };
-  }
-  
-  const { latestData, isConnected, isPolling, oneMinThrottleMs, send, gainersTop20, debugEnabled, vLog } = wsContextData;
+  const [expanded, setExpanded] = useState(false);
+  // A/B color toggle: 'aqua' (default) or 'teal'
+  const safeLocalStorage = (action, key, value) => {
+    try {
+      if (action === 'get') return localStorage.getItem(key);
+      if (action === 'set') return localStorage.setItem(key, value);
+    } catch (err) {
+      // non-fatal; log at debug level for local troubleshooting
+      try { console.debug && console.debug('safeLocalStorage error', err); } catch (_) {}
+      return null;
+    }
+  };
+
+  const [colorVariant, setColorVariant] = useState(() => safeLocalStorage('get', 'gainers1m_color_variant') || 'aqua');
+  // Use context directly (won't throw when provider is absent) to satisfy hooks rules
+  const wsCtx = useContext(WebSocketContext) || {};
+  const {
+    latestData = { crypto: [] },
+    isConnected = false,
+    isPolling = false,
+    oneMinThrottleMs = 15000,
+    send = () => {},
+    gainersTop20 = [],
+    debugEnabled = false,
+    vLog = () => {}
+  } = wsCtx;
   
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
-  const prevDataRef = useRef([]); // retained for potential local diffing, though context handles merge
   
   // Mobile optimizations
   const isMobile = isMobileDevice();
@@ -47,10 +66,11 @@ export default function GainersTable1Min({
 
   const [data, setData] = useState([]); // local displayed dataset (sliced / throttled)
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [popStar, setPopStar] = useState(null);
-  const [actionBadge, setActionBadge] = useState(null); // {symbol,text}
+
+  // Performance monitoring (hook has internal side-effects; no return value required)
+  usePerformanceMonitor('GainersTable1Min', { enabled: process.env.NODE_ENV === 'development' });
 
   // Prime watchlist
   useEffect(() => {
@@ -165,13 +185,30 @@ export default function GainersTable1Min({
     onWatchlistChange && onWatchlistChange(updated);
   };
 
+  const toggleColorVariant = () => {
+    const next = colorVariant === 'aqua' ? 'teal' : 'aqua';
+    setColorVariant(next);
+    safeLocalStorage('set', 'gainers1m_color_variant', next);
+  };
+
   // Compute slice by rank or index
-  const startIdx = Array.isArray(externalRows)
-    ? (typeof sliceStart === 'number' ? sliceStart : 0)
-    : (typeof sliceStart === 'number' ? sliceStart : (typeof startRank === 'number' ? Math.max(0, startRank - 1) : undefined));
-  const endIdx   = Array.isArray(externalRows)
-    ? (typeof sliceEnd === 'number' ? sliceEnd : (externalRows?.length ?? undefined))
-    : (typeof sliceEnd === 'number'   ? sliceEnd   : (typeof endRank === 'number'   ? Math.max(0, endRank)         : undefined));
+  const computeStartIdx = () => {
+    if (Array.isArray(externalRows)) return (typeof sliceStart === 'number' ? sliceStart : 0);
+    if (typeof sliceStart === 'number') return sliceStart;
+    if (typeof startRank === 'number') return Math.max(0, startRank - 1);
+    return undefined;
+  };
+  const startIdx = computeStartIdx();
+  const defaultCollapsed = 10;
+  const defaultExpanded = 20;
+  const computeEndIdx = () => {
+    if (Array.isArray(externalRows)) return (typeof sliceEnd === 'number' ? sliceEnd : (externalRows?.length ?? undefined));
+    if (typeof sliceEnd === 'number') return sliceEnd;
+    if (typeof endRank === 'number') return Math.max(0, endRank);
+    return expanded ? defaultExpanded : defaultCollapsed;
+  };
+  const computedEnd = computeEndIdx();
+  const endIdx = computedEnd;
   // Use WebSocket context data if it has more items than component data
   const rows = useMemo(() => {
     const src = Array.isArray(externalRows) ? externalRows : data;
@@ -184,6 +221,12 @@ export default function GainersTable1Min({
     return src;
   }, [externalRows, data, startIdx, endIdx]);
 
+  // Keyboard navigation
+  const navigation = useKeyboardNavigation(rows, {
+    onSelect: (item) => item && handleToggleWatchlist(item.symbol),
+    onEscape: () => navigation.resetNavigation()
+  });
+
   // Update 1m streaks for visible rows
   const visibleRows = rows.map(r => ({ symbol: r.symbol }));
   const get1m = updateStreaks('1m', visibleRows);
@@ -192,18 +235,7 @@ export default function GainersTable1Min({
   const hasContextData = latestData?.crypto && latestData.crypto.length > 0;
   
   if (loading && rows.length === 0 && !hasContextData) {
-    return (
-      <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
-        <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
-        {/* Debug: Show why we're stuck loading */}
-        {window.location.search.includes('debug') && (
-          <div style={{ background: 'orange', color: 'white', fontSize: '12px', padding: '10px', margin: '10px' }}>
-            STUCK LOADING: WS Connected: {isConnected}, Polling: {isPolling}, Has Context Data: {hasContextData}<br/>
-            latestData: {JSON.stringify(latestData?.crypto?.slice(0,2) || [])}
-          </div>
-        )}
-      </div>
-    );
+    return <TableSkeleton rows={10} title="1-MIN GAINERS" />;
   }
 
   if (!loading && rows.length === 0) {
@@ -214,169 +246,51 @@ export default function GainersTable1Min({
     );
   }
 
+  const labelId = 'gainers1m-color-toggle';
+
   return (
     <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300">
-  {rows.map((item, idx) => {
-        const displayRank = (typeof startIdx === 'number') ? (startIdx + idx + 1) : ((item && item.rank) ? item.rank : (idx + 1));
-        const isPlaceholder = false; // placeholders removed
-        const entranceDelay = (idx % 12) * 0.035;
-        const loopDelay = ((idx % 8) * 0.12);
-        const breathAmt = 0.006;
-        const PCT = item ? item.change : 0;
-        const coinbaseUrl = item ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
-        const inWatch = item ? watchlist.some((w) => (typeof w === 'string' ? w === item.symbol : w.symbol === item.symbol)) : false;
-
-        return (
-          <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">
-            <a
-              href={coinbaseUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block group"
-            >
-              <motion.div
-                className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
-                initial={shouldReduce ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: 'easeOut', delay: entranceDelay }}
-                whileHover={shouldReduce || isPlaceholder ? {} : { scale: 1.012 }}
-                whileTap={shouldReduce || isPlaceholder ? {} : { scale: 0.985 }}
-              >
-                {!shouldReduce && (
-                  <motion.div
-                    aria-hidden
-                    className="absolute inset-0 pointer-events-none"
-                    animate={{ scale: [1, 1 + breathAmt, 1] }}
-                    transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: loopDelay }}
-                  />
-                )}
-
-                {/* Purple glow */}
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                  <span
-                    className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
-                    style={{
-                      background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
-                      top: '-15%',
-                      left: '-15%',
-                      position: 'absolute',
-                    }}
-                  />
-                </span>
-
-                {/* Bottom edge subtle diamond glow (purple) */}
-                <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
-                  <span
-                    className="block w-full h-full"
-                    style={{
-                      background:
-                        'radial-gradient(ellipse at 50% 140%, rgba(192,38,211,0.18) 0%, rgba(192,38,211,0.10) 35%, rgba(192,38,211,0.04) 60%, transparent 85%)'
-                    }}
-                  />
-                </span>
-
-                {/* Mobile Card Layout */}
-                <div className="sm:hidden relative z-10">
-                  <div className="flex items-center justify-between py-3 px-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
-                        {displayRank}
-                      </div>
-                      <div>
-                        <div className="font-bold text-white text-xl mb-1">{item ? truncateSymbol(item.symbol, 8) : '—'}</div>
-                        <div className="text-base text-teal font-mono font-bold">
-                          ${item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`text-2xl font-bold ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
-                      {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Grid Layout */}
-                <div className="hidden sm:grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
-                  {/* Col1: rank + symbol */}
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
-                      {displayRank}
-                    </div>
-                    <div className={"min-w-0 flex items-center gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
-                      <span className="font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
-                      {item && item.peakCount > 1 && (
-                        <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
-                          {Array.from({ length: Math.min(3, item.peakCount) }).map((_, i) => (
-                            <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#C026D3]"></span>
-                          ))}
-                        </span>
-                      )}
-                      {actionBadge && actionBadge.symbol === (item && item.symbol) && (
-                        <span className="px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">{actionBadge.text}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Col2: price/current + previous */}
-                  <div className={"w-[152px] pr-6 text-right " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className="text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
-                      {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
-                    </div>
-                    <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                        ? (() => { const prev = item.price / (1 + PCT / 100); return formatPrice(prev); })()
-                        : '--'}
-                    </div>
-                  </div>
-
-                  {/* Col3: % + Px (no label) */}
-                  <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className={`text-lg md:text-xl font-bold tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
-                      {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
-                    </div>
-                    {/* Streak Px subline */}
-                    <div className="text-xs text-gray-300 leading-tight">
-                      {item ? (() => {
-                        const { level } = get1m(item.symbol);
-                        return level > 0 ? (<div className="mt-1 subline-badge num">Px{level}</div>) : null;
-                      })() : (<div className="mt-1 opacity-0 select-none subline-badge num"></div>)}
-                    </div>
-                  </div>
-
-                  {/* Col4: star */}
-                  <div className="w-[28px] text-right">
-                    <button
-                      onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); return; } e.preventDefault(); e.stopPropagation(); handleToggleWatchlist(item.symbol); }}
-                      disabled={isPlaceholder}
-                      className={"bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end " + (isPlaceholder ? 'opacity-0' : (popStar === (item && item.symbol) ? ' animate-star-pop' : ''))}
-                      style={{ minWidth:'24px', minHeight:'24px' }}
-                      aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
-                      aria-pressed={inWatch}
-                    >
-                      <StarIcon
-                        filled={inWatch}
-                        className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                        style={{ width:'16px', height:'16px', transition:'transform .2s' }}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </a>
-          </div>
-        );
-      })}
-
-      {/* No per-component Show More button when hideShowMore is true */}
-  {/* Show More logic retained if external slicing scenario; simplified since rows is final */}
-  {!hideShowMore && false && (
-        <div className="w-full flex justify-center mt-2 mb-1">
-          <button className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition">
-            Show More
+      {/* Color A/B toggle for QA: Aqua vs Teal */}
+      <div className="flex justify-end items-center gap-2 mb-2">
+        <label htmlFor={labelId} className="text-xs text-gray-400">Color:</label>
+        <button
+          id={labelId}
+          onClick={toggleColorVariant}
+          className="px-2 py-1 rounded bg-gray-800 text-white text-xs"
+          aria-pressed={colorVariant === 'teal'}
+          title="Toggle Aqua / Teal for percentage color"
+        >
+          {colorVariant === 'aqua' ? 'Aqua' : 'Teal'}
+        </button>
+      </div>
+  {rows.map((item, idx) => (
+    <GainerRow1
+      key={item ? item.symbol : `placeholder-${idx}`}
+      item={item}
+      idx={idx}
+      startIdx={startIdx}
+      navigation={navigation}
+      shouldReduce={shouldReduce}
+      popStar={popStar}
+      get1m={get1m}
+      handleToggleWatchlist={handleToggleWatchlist}
+      watchlist={watchlist}
+    />
+  ))}
+      {/* Show more / less control */}
+      {!hideShowMore && (
+        <div className="mt-2 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((s) => !s)}
+            className="text-xs px-3 py-1 rounded bg-purple-700 hover:bg-purple-600 text-white"
+          >
+            {expanded ? 'Show less' : 'Show more'}
           </button>
         </div>
       )}
+
+      {/* No per-component Show More button when hideShowMore is true */}
     </div>
   );
 }
@@ -392,3 +306,141 @@ GainersTable1Min.propTypes = {
   fixedRows: PropTypes.number,
   hideShowMore: PropTypes.bool,
 };
+
+// extracted memoized row to reduce cognitive complexity in parent
+const GainerRow1 = React.memo(function GainerRow1({
+  item, idx, startIdx, navigation, shouldReduce, popStar, get1m, handleToggleWatchlist, watchlist
+}) {
+  const displayRank = (typeof startIdx === 'number') ? (startIdx + idx + 1) : ((item && item.rank) ? item.rank : (idx + 1));
+  const PCT = item ? item.change : 0;
+  const inWatch = item ? watchlist.some((w) => (typeof w === 'string' ? w === item.symbol : w.symbol === item.symbol)) : false;
+  const coinbaseUrl = item ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
+  const isPlaceholder = false;
+
+  return (
+    <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1" {...navigation.getItemProps(idx)}>
+      <a
+        href={coinbaseUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`block group ${navigation.selectedIndex === idx ? 'keyboard-focused' : ''}`}
+      >
+        <div className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform">
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+            <span
+              className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
+              style={{
+                background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
+                top: '-15%',
+                left: '-15%',
+                position: 'absolute',
+              }}
+            />
+          </span>
+
+          <div className="mw-mobile-only relative z-10">
+            <div className="flex items-center justify-between py-3 px-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
+                  {displayRank}
+                </div>
+                <div>
+                  <div className="font-bold text-white text-xl mb-1">{item ? truncateSymbol(item.symbol, 8) : '—'}</div>
+                  <div className="text-base color-lock-teal font-mono font-bold">
+                    ${item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className={`text-2xl font-bold ${PCT > 0 ? 'color-lock-purple' : 'color-lock-pink'}`}>
+                  {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercent(PCT, { fromFraction: false, max: 3 }) : '0.00%'}
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    if (isPlaceholder) { e.preventDefault(); return; }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleWatchlist(item && item.symbol);
+                  }}
+                  disabled={isPlaceholder}
+                  aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
+                  aria-pressed={inWatch}
+                  className={isPlaceholder ? 'opacity-0' : (popStar === (item && item.symbol) ? 'animate-star-pop p-1' : 'p-1')}
+                  style={{ minWidth: '28px', minHeight: '28px' }}
+                >
+                  <StarIcon
+                    filled={inWatch}
+                    className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
+                    style={{ width: '18px', height: '18px', transition: 'transform .15s' }}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mw-desktop-grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
+                {displayRank}
+              </div>
+              <div className={"min-w-0 flex items-center gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
+                <span className="font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
+                {item && item.peakCount > 1 && (
+                  <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
+                    {Array.from({ length: Math.min(3, item.peakCount) }).map((_, i) => (
+                      <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#C026D3]"></span>
+                    ))}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className={"w-[152px] pr-6 text-right " + (isPlaceholder ? 'opacity-0' : '')}>
+              <div className="text-lg md:text-xl font-bold color-lock-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
+              </div>
+              <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
+                {item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
+                  ? (() => { const prev = item.price / (1 + PCT / 100); return formatPrice(prev); })()
+                  : '--'}
+              </div>
+            </div>
+
+            <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
+              <div className={`text-lg md:text-xl font-bold tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'color-lock-purple' : 'color-lock-pink'}`}> 
+                {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercent(PCT, { fromFraction: false, max: 3 }) : '0.00%'}
+              </div>
+              <div className="text-xs text-gray-300 leading-tight">
+                {item ? (() => {
+                  const { level } = get1m(item.symbol);
+                  return level > 0 ? (<div className="mt-1 subline-badge num">Px{level}</div>) : null;
+                })() : (<div className="mt-1 opacity-0 select-none subline-badge num"></div>)}
+              </div>
+            </div>
+
+            <div className="w-[28px] text-right">
+              <button
+                onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); return; } e.preventDefault(); e.stopPropagation(); handleToggleWatchlist(item.symbol); }}
+                disabled={isPlaceholder}
+                className={"bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end " + (isPlaceholder ? 'opacity-0' : (popStar === (item && item.symbol) ? ' animate-star-pop' : ''))}
+                style={{ minWidth:'24px', minHeight:'24px' }}
+                aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
+                aria-pressed={inWatch}
+              >
+                <StarIcon
+                  filled={inWatch}
+                  className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
+                  style={{ width:'16px', height:'16px', transition:'transform .2s' }}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+  );
+});

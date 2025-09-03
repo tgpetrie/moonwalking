@@ -63,7 +63,8 @@ export const addVisibilityChangeListener = (callback) => {
 
 // Network change detection for mobile
 export const addNetworkChangeListener = (callback) => {
-  if ('connection' in navigator) {
+  // Check for the existence of the API. `navigator.connection` can exist but be `null` or `undefined` in some test environments.
+  if ('connection' in navigator && navigator.connection) {
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     
     const handleConnectionChange = () => {

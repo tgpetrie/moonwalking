@@ -1,0 +1,46 @@
+HTTP/1.1 200 OK
+Vary: Origin
+Content-Type: text/html
+Cache-Control: no-cache
+Etag: W/"5de-R4NJzU7yhv+I1kJcZIeMHnRiBnA"
+Date: Tue, 02 Sep 2025 21:23:45 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Content-Length: 1502
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+  <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" href="/bhabit-logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BHABITS CB INSIGHT</title>
+    <!-- Preload critical shared chunks removed to avoid missing asset 404 during dev -->
+        <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
+        <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
+        <script>
+            (function(){
+                try {
+                    var api = (window.__VITE_API_URL__ || (window.importMeta && window.importMeta.env && window.importMeta.env.VITE_API_URL) || '').trim();
+                    // If Vite exposes import.meta.env on window at runtime, use it; otherwise fall back to build-time replacement via Vite.
+                } catch(e) {}
+            })();
+        </script>
+        <script type="module" src="/index.html?html-proxy&index=0.js"></script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

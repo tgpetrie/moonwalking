@@ -27,6 +27,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   });
   const [isPolling, setIsPolling] = useState(false);
   const [networkStatus, setNetworkStatus] = useState('good'); // retained for potential UI, referenced to avoid unused warning
+  const isPollingRef = useRef(isPolling); // Ref to get current polling state in callbacks
   // Hold an object { id: timeoutId, abort: fn }
   const pollingIntervalRef = useRef(null);
   
@@ -67,30 +68,31 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   // Polling fallback function using useCallback to avoid stale closures
   // Use injected scheduler or default to setTimeout
   const schedule = pollingScheduler || ((fn, ms) => setTimeout(fn, ms));
+  useEffect(() => { isPollingRef.current = isPolling; }, [isPolling]);
 
   const startPolling = useCallback(() => {
-    if (isPolling) {
+    if (isPollingRef.current) {
       vLog('🔄 Polling already active, skipping');
       return;
     }
     vLog('🔄 Starting REST API polling fallback');
     setIsPolling(true);
 
+  let pollController = null;
     let inFlight = false;
     // Use mobile-optimized polling interval
     let backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
-    let controller = null;
 
     const poll = async () => {
       if (inFlight) {
         return; // concurrency guard
       }
-      inFlight = true;
-      controller = new AbortController();
+  inFlight = true;
+  pollController = new AbortController();
       try {
   vLog('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
-        const fetchOptions = {
-          signal: controller.signal,
+          const fetchOptions = {
+          signal: pollController.signal,
           timeout: isMobile ? mobileConfig.fetchTimeout : 5000
         };
         const [gainersData, gainers3mData, losers3mData] = await Promise.all([
@@ -150,8 +152,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
         id: timeoutId,
         abort: () => {
           try {
-            if (controller) {
-              controller.abort();
+            if (pollController) {
+              pollController.abort();
             }
           } catch (abortErr) {
             if (debugEnabled) {
@@ -164,33 +166,27 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     
     // Start immediately and then schedule
     poll().then(() => scheduleNext());
-  }, [isPolling]); // Add isPolling as dependency
+  }, [isMobile, mobileConfig, schedule, vLog, debugEnabled]);
   
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
-      // Clear any scheduled timeout
-      const id = typeof pollingIntervalRef.current === 'number'
-        ? pollingIntervalRef.current
-        : pollingIntervalRef.current.id;
-      if (id) {
-        clearTimeout(id);
-      }
+      if (pollingIntervalRef.current.id) clearTimeout(pollingIntervalRef.current.id);
       // Abort any in-flight fetch
-      if (pollingIntervalRef.current.abort) {
-        pollingIntervalRef.current.abort();
-      }
+      pollingIntervalRef.current.abort?.();
       pollingIntervalRef.current = null;
     }
-    setIsPolling(false);
-  vLog('⏹️ Stopped REST API polling');
-  };
+    if (isPollingRef.current) {
+      setIsPolling(false);
+      vLog('⏹️ Stopped REST API polling');
+    }
+  }, [vLog]);
 
   // Manual, immediate refresh (pull latest via REST once, regardless of WS state)
-  const refreshNow = async () => {
-    let controller;
+  const refreshNow = useCallback(async () => {
+    let refreshController;
     try {
-      controller = new AbortController();
-      const res = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
+      refreshController = new AbortController();
+      const res = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: refreshController.signal });
       if (res && res.data && Array.isArray(res.data)) {
         const pricesUpdate = {};
         res.data.forEach((coin) => {
@@ -215,8 +211,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       console.error('Manual refresh failed', e);
     } finally {
       try {
-        if (controller) {
-          controller.abort();
+        if (refreshController) {
+          refreshController.abort();
         }
       } catch (e) {
         if (debugEnabled) {
@@ -225,7 +221,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       }
     }
     return false;
-  };
+  }, [debugEnabled]);
 
   // Fetch real-time prices for specific symbols from cached data
   const fetchPricesForSymbols = async (symbols) => {
@@ -349,15 +345,9 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     } else {
       // Attempt to connect WebSocket (fallback to REST polling if fails)
       connectWebSocket();
-      // Start polling if WS doesn't connect quickly
-      const initialPollTimer = schedule(() => {
-        if (!isConnected) {
-          startPolling();
-        }
-      }, 3000);
-      // track timer handle via ref so cleanup can clear it
-      pollingIntervalRef.current = pollingIntervalRef.current || {};
-      pollingIntervalRef.current._initialTimer = initialPollTimer;
+      // Start polling if WS doesn't connect quickly. The connection listener will stop it if successful.
+      const initialPollTimer = setTimeout(() => { if (!wsManager.isConnected) startPolling(); }, 3000);
+      return () => clearTimeout(initialPollTimer); // Add cleanup for this timer
     }
 
     // Development convenience: inject small mock dataset so UI renders while backend is offline.
@@ -376,16 +366,6 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
     // Cleanup on unmount
     return () => {
-      try {
-        if (pollingIntervalRef.current?._initialTimer) {
-          clearTimeout(pollingIntervalRef.current._initialTimer);
-          delete pollingIntervalRef.current._initialTimer;
-        }
-      } catch (e) {
-        if (debugEnabled) {
-          console.warn('Initial timer cleanup error', e);
-        }
-      }
       unsubscribeConnection();
       unsubscribeCrypto();
       unsubscribePrices();
@@ -395,7 +375,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       disconnectWebSocket();
       stopPolling();
     };
-  }, []);
+  }, [startPolling, stopPolling, debugEnabled]); // Add start/stop polling as deps
 
   // Derive top 20 gainers whenever crypto list changes
   useEffect(() => {

@@ -8,7 +8,6 @@
  * @param {boolean} [opts.fillMissing=true] - Use previous entry to fill missing peakCount or price when symbol repeats.
  * @returns {{combined:Array,nextPrev:Array}}
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity, complexity
 export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
   const { limit = 20, mergePrev = true, fillMissing = true } = opts;
   if (!Array.isArray(latestRaw) || latestRaw.length === 0) {
@@ -19,45 +18,57 @@ export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
     ? new Map(prev.filter(p => p && p.symbol).map(p => [p.symbol, p]))
     : null;
 
-  const take = Math.min(latestRaw.length, limit);
-  const mapped = [];
-  for (let i = 0; i < take; i++) {
-    const item = latestRaw[i];
-    if (!item) {
-      continue;
-    }
-    const symbol = item.symbol?.replace('-USD', '') || 'N/A';
-    const base = prevMap ? prevMap.get(symbol) : undefined;
-    const price = item.current_price ?? item.price ?? (base ? base.price : 0);
-    const change = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? (base ? base.change : 0);
-    let peakCount;
-    if (typeof item.peak_count === 'number') {
-      peakCount = item.peak_count;
-    } else if (typeof item.trend_streak === 'number') {
-      peakCount = item.trend_streak;
-    } else if (fillMissing && base) {
-      peakCount = base.peakCount || 0;
-    } else {
-      peakCount = 0;
-    }
-    mapped.push({ rank: item.rank || (i + 1), symbol, price, change, peakCount });
+  // Normalize incoming entries
+  function normalizeEntries(arr) {
+    return (Array.isArray(arr) ? arr : [])
+      .filter(Boolean)
+      .map((item, idx) => {
+        const symbol = item.symbol?.replace('-USD', '') || 'N/A';
+        const base = prevMap ? prevMap.get(symbol) : undefined;
+        const price = item.current_price ?? item.price ?? (base ? base.price : 0);
+        const rawChange = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? (base ? base.change : 0);
+        const change = (typeof rawChange === 'number' && !Number.isNaN(rawChange)) ? Number(rawChange) : 0;
+        const peakCount = (typeof item.peak_count === 'number')
+          ? item.peak_count
+          : (typeof item.trend_streak === 'number' ? item.trend_streak : (fillMissing && base ? (base.peakCount || 0) : 0));
+        return { symbol, price, change, peakCount, srcIndex: idx, rank: item.rank || (idx + 1) };
+      });
   }
 
+  const mappedAll = normalizeEntries(latestRaw);
+
+  // If too few entries, include previous positive movers to keep list full
+  const mapped = mappedAll.slice();
   if (mergePrev && Array.isArray(prev) && prev.length) {
     for (const p of prev) {
       if (!p || p.change <= 0) {
         continue;
       }
-      if (!mapped.some(m => m.symbol === p.symbol)) {
+      if (!mapped.some((m) => m.symbol === p.symbol)) {
         mapped.push(p);
       }
     }
   }
 
+  // Detect whether the incoming 'change' values are fractions (0..1) by median abs
+  function medianAbsOf(arr) {
+    const vals = arr.map(m => Math.abs(Number(m.change) || 0)).filter(Number.isFinite);
+    if (!vals.length) return 0;
+    const s = vals.slice().sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return (s.length % 2 === 1) ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  }
+
+  const medianAbs = medianAbsOf(mapped);
+  const needScale = medianAbs > 0 && medianAbs < 0.02;
+  if (needScale) mapped.forEach(m => { m.change = Number(m.change) * 100; });
+
+  // Final sort by numeric change desc and pick top limit
   const combined = mapped
-    .sort((a, b) => (b.change || 0) - (a.change || 0))
+    .sort((a, b) => (Number(b.change) || 0) - (Number(a.change) || 0))
     .slice(0, limit)
     .map((r, i) => ({ ...r, rank: i + 1 }));
+
   return { combined, nextPrev: combined };
 }
 

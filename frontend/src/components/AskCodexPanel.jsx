@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { getApiBaseUrl } from '../api.js';
 
 export default function AskCodexPanel({ onClose }) {
@@ -6,26 +7,46 @@ export default function AskCodexPanel({ onClose }) {
   const [reply, setReply] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const abortControllerRef = useRef();
+
+  useEffect(() => {
+    // This effect runs once on mount. The returned function is the cleanup,
+    // which runs on unmount. This ensures any in-flight request is cancelled
+    // if the user closes the panel before the request finishes.
+    return () => abortControllerRef.current?.abort();
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true); setError(''); setReply('');
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const base = getApiBaseUrl();
       const url = `${base}/api/ask-codex`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
+        body: JSON.stringify({ query }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.reply || 'Request failed');
-      setReply(data.reply || 'No reply');
+      if (!controller.signal.aborted) {
+        setReply(data.reply || 'No reply');
+      }
     } catch (e2) {
-      setError(e2.message);
+      // Aborting a fetch throws an error, so we ignore it.
+      if (e2.name !== 'AbortError') {
+        setError(e2.message);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -33,12 +54,12 @@ export default function AskCodexPanel({ onClose }) {
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-xl bg-gray-950 border border-purple-800 rounded-xl shadow-lg flex flex-col max-h-full">
         <div className="flex items-center justify-between px-4 py-3 border-b border-purple-900/50">
-          <h2 className="text-sm font-bold tracking-wide text-purple-200">ASK BHABIT</h2>
-          <button onClick={onClose} className="px-2 py-1 text-xs rounded bg-purple-700/40 hover:bg-purple-600 text-purple-100 border border-purple-600">Close</button>
+          <h2 className="text-sm font-bold tracking-wide color-lock-purple">ASK BHABIT</h2>
+          <button onClick={onClose} className="px-2 py-1 text-xs rounded bg-purple-700/40 hover:bg-purple-600 color-lock-purple border border-purple-600">Close</button>
         </div>
         <form onSubmit={submit} className="p-4 flex flex-col gap-3 overflow-auto">
           <textarea
-            className="w-full h-28 text-xs bg-black/40 border border-purple-700 rounded p-2 font-mono text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full h-28 text-xs bg-black/40 border border-purple-700 rounded p-2 font-mono color-lock-purple focus:outline-none focus:ring-2 focus:ring-purple-500"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Ask BHABIT about your watchlist, trends, or setups..." />
@@ -47,9 +68,13 @@ export default function AskCodexPanel({ onClose }) {
             <button type="button" onClick={() => { setReply(''); setQuery(''); }} className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs border border-gray-600">Clear</button>
           </div>
           {error && <div className="text-xs text-red-400">{error}</div>}
-          {reply && <div className="mt-2 p-3 rounded bg-black/40 border border-purple-800 text-xs whitespace-pre-wrap leading-relaxed text-purple-100 font-mono max-h-64 overflow-auto">{reply}</div>}
+          {reply && <div className="mt-2 p-3 rounded bg-black/40 border border-purple-800 text-xs whitespace-pre-wrap leading-relaxed color-lock-purple font-mono max-h-64 overflow-auto">{reply}</div>}
         </form>
       </div>
     </div>
   );
 }
+
+AskCodexPanel.propTypes = {
+  onClose: PropTypes.func,
+};

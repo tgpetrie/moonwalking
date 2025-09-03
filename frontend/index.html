@@ -46,6 +46,9 @@
 
 <body>
     <div id="root"></div>
+    <!-- Static fallback stylesheet served from public/ to ensure basic styling
+        if Tailwind/PostCSS fails during dev. This is intentionally minimal. -->
+    <link rel="stylesheet" href="/fallback.css" />
     <script type="module" src="/src/main.jsx"></script>
 </body>
 

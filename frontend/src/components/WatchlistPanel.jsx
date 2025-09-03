@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getWatchlist, removeFromWatchlist } from '../api.js';
-import { formatPercentage, formatPrice } from '../utils/formatters.js';
+import { formatPrice, formatPercent } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 
@@ -108,7 +108,9 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       {watchlistWithPrices.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isRemoving = animatingRemoval === item.symbol;
-        const changeColor = item.change > 0 ? 'text-blue' : item.change < 0 ? 'text-pink' : 'text-gray-400';
+  let changeColor = 'text-gray-400';
+  if (item.change > 0) { changeColor = 'color-lock-blue'; }
+  else if (item.change < 0) { changeColor = 'color-lock-pink'; }
         
         return (
           <React.Fragment key={item.symbol}>
@@ -152,7 +154,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[80px]">
                       <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${changeColor}`}>
-                        <span className="font-mono tabular-nums">{Number.isFinite(item.change) ? formatPercentage(item.change) : '--'}</span>
+                        <span className="font-mono tabular-nums">{Number.isFinite(item.change) ? formatPercent(item.change, { fromFraction: false, max: 2 }) : '--'}</span>
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">Since Add</span>
                     </div>

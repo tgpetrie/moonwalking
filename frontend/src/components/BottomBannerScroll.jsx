@@ -99,9 +99,9 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
       {/* Scrolling Content */}
       <div className="relative h-16 overflow-hidden" tabIndex={0} aria-label="Scrolling market data" style={{outline:'none'}}>
         {/* Left fade overlay */}
-        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-black via-black/80 to-transparent z-10 pointer-events-none"></div>
         {/* Right fade overlay */}
-        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-black via-black/80 to-transparent z-10 pointer-events-none"></div>
         <div className="absolute inset-0 flex items-center">
           <div className="flex whitespace-nowrap animate-scroll" role="list" style={{ animationDelay: animDelay }}>
             {/* First set of data */}

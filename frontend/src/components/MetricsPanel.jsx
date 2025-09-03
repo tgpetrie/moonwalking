@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import CircuitBreakerBadge from './CircuitBreakerBadge.jsx';
+import usePerformanceMonitor from '../hooks/usePerformanceMonitor.js';
 
 export default function MetricsPanel({ refreshMs = 15000 }) {
   const [metrics, setMetrics] = useState(null);
   const [error, setError] = useState(null);
+  
+  // Performance monitoring
+  const performance = usePerformanceMonitor('MetricsPanel', { enabled: process.env.NODE_ENV === 'development' });
   useEffect(() => {
     let mounted = true;
     let timer;
@@ -30,9 +35,21 @@ export default function MetricsPanel({ refreshMs = 15000 }) {
     return <div className="text-xs text-gray-500 font-mono animate-pulse">metrics loading...</div>;
   }
   const pf = metrics.price_fetch || {};
+  
+  // Circuit breaker logic based on error metrics
+  const circuitState = (metrics.errors_5xx > 5) ? 'open' : 
+                      ((pf.rate_failures > 3) ? 'half-open' : 'closed');
+  
   return (
     <div className="bg-black/50 border border-purple-800 rounded p-2 w-64 text-[10px] font-mono space-y-1">
-      <div className="text-purple-300 font-semibold tracking-wide">METRICS</div>
+      <div className="text-purple-300 font-semibold tracking-wide mb-2">METRICS</div>
+      
+      <CircuitBreakerBadge 
+        state={circuitState} 
+        failures={metrics.errors_5xx || 0}
+        className="mb-2"
+      />
+      
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         <LabelValue l="uptime" v={metrics.uptime_seconds + 's'} />
         <LabelValue l="5xx" v={metrics.errors_5xx} />
