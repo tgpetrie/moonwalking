@@ -2576,49 +2576,10 @@ def get_market_overview():
         logging.error(f"Error fetching market overview: {e}")
         return jsonify({"error": "Failed to fetch market overview"}), 500
 
-@app.route('/api/config')
-def get_config():
-    """Get current configuration"""
-    return jsonify({
-        "config": CONFIG,
-        "cache_status": {
-            "has_data": cache["data"] is not None,
-            "age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
-            "ttl": cache["ttl"]
-        },
-        "price_history_status": {
-            "symbols_tracked": len(price_history),
-            "max_history_per_symbol": CONFIG['MAX_PRICE_HISTORY']
-        },
-        "one_minute_status": {
-            "enabled": CONFIG.get('ENABLE_1MIN', True),
-            "last_generated_age": time.time() - one_minute_cache['timestamp'] if one_minute_cache['timestamp'] else None,
-            "refresh_window_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS'),
-            "has_snapshot": one_minute_cache['data'] is not None,
-            "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT'),
-            "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT'),
-            "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS'),
-            "max_coins": CONFIG.get('ONE_MIN_MAX_COINS'),
-            "retained_symbols": len(one_minute_persistence['entries'])
-        }
-    })
-
-@app.route('/api/config', methods=['POST'])
-def update_config_endpoint():
-    """Update configuration at runtime"""
-    try:
-        new_config = request.get_json()
-        if not new_config:
-            return jsonify({"error": "No configuration provided"}), 400
-        
-        update_config(new_config)
-        return jsonify({
-            "message": "Configuration updated successfully",
-            "new_config": CONFIG
-        })
-    except Exception as e:
-        logging.error(f"Error updating config: {e}")
-        return jsonify({"error": str(e)}), 500
+@app.route('/api/config_legacy', methods=['GET'])
+def get_config_legacy():
+    """Temporary legacy endpoint retained for backward compatibility; returns same payload as unified /api/config GET"""
+    return api_config()
 
 @app.route('/api/health')
 def health_check():
