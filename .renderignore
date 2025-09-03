@@ -1,4 +1,4 @@
-# Ignore logs, local builds, and node_modules when deploying to Vercel
+# Ignore local builds, logs, node modules and editor configs
 node_modules/
 frontend/node_modules/
 **/node_modules/
@@ -8,11 +8,9 @@ logs/
 *.log
 backend/server.log
 backend.log
-*.local
+.venv/
+.DS_Store
+.vscode/
+/.idea/
 *.env
 .env
-.venv/
-/.idea/
-.vscode/
-.DS_Store
-moonwalking
