@@ -17,7 +17,7 @@ export const useWebSocket = () => {
   return context;
 };
 
-export const WebSocketProvider = ({ children }) => {
+export const WebSocketProvider = ({ children, pollingScheduler }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [latestData, setLatestData] = useState({
@@ -55,7 +55,19 @@ export const WebSocketProvider = ({ children }) => {
   const prevLosers3mRef = useRef([]);
   const idleTrimRef = useRef(null);
 
+  // Development-only mock data to show the UI when backend/WS is not available.
+  const DEV_MOCK_CRYPTO = [
+    { symbol: 'POL-USD', current_price: 0.2873, price_change_percentage_1min: 1.091, price_change_percentage_3min: 1.09, peak_count: 1 },
+    { symbol: 'CRO-USD', current_price: 0.2517, price_change_percentage_1min: 0.882, price_change_percentage_3min: 0.88, peak_count: 1 },
+    { symbol: 'MATIC-USD', current_price: 0.2871, price_change_percentage_1min: 0.878, price_change_percentage_3min: 0.87, peak_count: 1 },
+    { symbol: 'SKY-USD', current_price: 0.07476, price_change_percentage_1min: 0.809, price_change_percentage_3min: 0.80, peak_count: 1 },
+    { symbol: 'SUKU-USD', current_price: 0.0295, price_change_percentage_1min: 0.751, price_change_percentage_3min: 0.75, peak_count: 1 }
+  ];
+
   // Polling fallback function using useCallback to avoid stale closures
+  // Use injected scheduler or default to setTimeout
+  const schedule = pollingScheduler || ((fn, ms) => setTimeout(fn, ms));
+
   const startPolling = useCallback(() => {
     if (isPolling) {
       vLog('🔄 Polling already active, skipping');
@@ -77,11 +89,15 @@ export const WebSocketProvider = ({ children }) => {
       controller = new AbortController();
       try {
   vLog('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
-        const fetchOptions = { 
+        const fetchOptions = {
           signal: controller.signal,
           timeout: isMobile ? mobileConfig.fetchTimeout : 5000
         };
-        const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions);
+        const [gainersData, gainers3mData, losers3mData] = await Promise.all([
+          fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(()=>null),
+          fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
+          fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
+        ]);
   vLog('[WebSocket Context] Polling - received data:', gainersData);
         if (gainersData && gainersData.data) {
           const pricesUpdate = {};
@@ -100,7 +116,9 @@ export const WebSocketProvider = ({ children }) => {
           setLatestData(prev => ({
             ...prev,
             crypto: gainersData.data,
-            prices: { ...prev.prices, ...pricesUpdate }
+            prices: { ...prev.prices, ...pricesUpdate },
+            gainers3m: gainers3mData?.data || prev.gainers3m || null,
+            losers3m: losers3mData?.data || prev.losers3m || null
           }));
           // reset backoff on success
           backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
@@ -121,7 +139,7 @@ export const WebSocketProvider = ({ children }) => {
 
     // Kick off loop using adaptive timeout instead of fixed setInterval to respect backoff
     const scheduleNext = () => {
-      const timeoutId = setTimeout(async () => {
+      const timeoutId = schedule(async () => {
         if (pollingIntervalRef.current) { // Check if still should be polling
           await poll();
           scheduleNext();
@@ -292,15 +310,47 @@ export const WebSocketProvider = ({ children }) => {
       setNetworkStatus('good');
     });
 
-  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
+  // Treat VITE_DISABLE_WS as an opt-in override; default to false so WS is enabled in dev.
+  // Some tests (and potentially non-Vite host environments) may shim a window.importMeta.env.
+  const disableWs = (() => {
+    const viteFlag = import.meta?.env?.VITE_DISABLE_WS;
+    // Support test shim: window.importMeta.env.VITE_DISABLE_WS
+    const windowFlag = typeof window !== 'undefined' && window?.importMeta?.env?.VITE_DISABLE_WS;
+    return String(viteFlag ?? windowFlag ?? 'false').toLowerCase() === 'true';
+  })();
     if (disableWs) {
       // Skip WS entirely and use polling
       startPolling();
+      // Immediate one-off fetch so initial paint has data before first polling interval
+      (async () => {
+        try {
+          if (!latestData.crypto || !latestData.crypto?.length) {
+            const [oneMin, threeMin, losers3] = await Promise.all([
+              fetchData(API_ENDPOINTS.gainersTable1Min).catch(()=>null),
+              fetchData(API_ENDPOINTS.gainersTable3Min).catch(()=>null),
+              fetchData(API_ENDPOINTS.losersTable3Min).catch(()=>null)
+            ]);
+            if (oneMin?.data?.length) {
+              setLatestData(prev => ({
+                ...prev,
+                crypto: oneMin.data,
+                gainers3m: threeMin?.data || prev.gainers3m || null,
+                losers3m: losers3?.data || prev.losers3m || null
+              }));
+              vLog('[WebSocket Context] Immediate REST primed crypto + 3m (WS disabled)');
+            }
+          }
+        } catch (e) {
+          if (debugEnabled) {
+            console.warn('Immediate REST seed failed', e);
+          }
+        }
+      })();
     } else {
       // Attempt to connect WebSocket (fallback to REST polling if fails)
       connectWebSocket();
       // Start polling if WS doesn't connect quickly
-      const initialPollTimer = setTimeout(() => {
+      const initialPollTimer = schedule(() => {
         if (!isConnected) {
           startPolling();
         }
@@ -308,6 +358,20 @@ export const WebSocketProvider = ({ children }) => {
       // track timer handle via ref so cleanup can clear it
       pollingIntervalRef.current = pollingIntervalRef.current || {};
       pollingIntervalRef.current._initialTimer = initialPollTimer;
+    }
+
+    // Development convenience: inject small mock dataset so UI renders while backend is offline.
+    try {
+      if (import.meta?.env?.MODE === 'development') {
+        // Only inject when we have no live crypto data yet
+        setLatestData(prev => {
+          if (Array.isArray(prev.crypto) && prev.crypto.length > 0) return prev;
+          return { ...prev, crypto: DEV_MOCK_CRYPTO };
+        });
+        vLog('[WebSocket Context] Development mock crypto data injected');
+      }
+    } catch (e) {
+      // Ignore in constrained environments
     }
 
     // Cleanup on unmount
@@ -346,13 +410,27 @@ export const WebSocketProvider = ({ children }) => {
     setGainersTop20(reconciled);
 
     // 3m movers
-    const with3m = latestData.crypto.map((c, idx) => ({
+  const with3m = latestData.crypto.map((c, idx) => ({
       rank: c.rank || idx + 1,
       symbol: c.symbol?.replace('-USD','') || 'N/A',
       price: c.current_price ?? c.price ?? 0,
       change3m: c.price_change_percentage_3min ?? c.change3m ?? c.change ?? 0,
       peakCount: typeof c.peak_count === 'number' ? c.peak_count : 0,
     }));
+    // Normalize change3m units: detect fractional (0..1) values and scale to percent when needed
+    const abs3 = with3m.map(x => Math.abs(Number(x.change3m) || 0)).filter(Boolean).sort((a,b)=>a-b);
+    const median3 = (arr) => {
+      if (!arr.length) { return 0; }
+      const mid = Math.floor(arr.length/2);
+      return arr.length % 2 === 1 ? arr[mid] : (arr[mid-1] + arr[mid]) / 2;
+    };
+    const medianAbs3 = median3(abs3);
+    const needScale3 = medianAbs3 > 0 && medianAbs3 < 0.02;
+    if (needScale3) {
+      for (const x of with3m) {
+        x.change3m = Number(x.change3m) * 100;
+      }
+    }
     const gainers3Raw = with3m
       .filter(r => typeof r.change3m === 'number')
       .sort((a,b)=> (b.change3m||0) - (a.change3m||0))
@@ -401,15 +479,16 @@ export const WebSocketProvider = ({ children }) => {
     refreshNow
   }), [isConnected, connectionStatus, latestData, wsManager, isPolling, gainersTop20, debugEnabled, gainers3mTop, losers3mTop, networkStatus]);
 
-  return (
-    <WebSocketContext.Provider value={contextValue}>
-      {children}
-    </WebSocketContext.Provider>
-  );
+    return (
+      <WebSocketContext.Provider value={contextValue}>
+        {children}
+      </WebSocketContext.Provider>
+    );
 };
 
 export default WebSocketContext;
 
 WebSocketProvider.propTypes = {
-  children: PropTypes.node
+  children: PropTypes.node,
+  pollingScheduler: PropTypes.func
 };

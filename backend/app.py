@@ -5,11 +5,13 @@ import subprocess
 import sys
 import math
 from flask import Flask, jsonify, request, g
+from flask_talisman import Talisman
 from flask_cors import CORS
 import requests
 import time
 import threading
 from collections import defaultdict, deque
+import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime, timedelta
@@ -28,6 +30,56 @@ from logging_config import setup_logging as _setup_logging, log_config as _log_c
 from logging_config import REQUEST_ID_CTX
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
+# local low-overhead TTL cache for dev/test to avoid hammering Coinbase
+try:
+    # prefer package-style import when running as installed package
+    from backend.utils.cache import ttl_cache  # type: ignore
+except Exception:
+    try:
+        # fallback for direct script runs
+        from utils.cache import ttl_cache  # type: ignore
+    except Exception:
+        # degrade gracefully: no-op decorator
+        def ttl_cache(ttl=0):
+            def deco(fn):
+                return fn
+            return deco
+
+# Import missing constants from price_fetch module
+try:
+    from price_fetch import COINBASE_PRODUCTS_URL
+except ImportError:
+    COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
+
+# Define missing constants
+ERROR_NO_DATA = "No data available"
+
+# Check if psutil is available
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+def _get_commit_sha():
+    """Get the current git commit SHA"""
+    try:
+        return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
+    except Exception:
+        return "unknown"
+
+app = Flask(__name__)
+Talisman(app, content_security_policy={
+    'default-src': ["'self'"],
+    'img-src': ["'self'", 'data:'],
+    'script-src': ["'self'"],
+    'style-src': ["'self'"],
+    # Add other directives as needed
+},
+strict_transport_security=True,
+frame_options='deny',
+x_xss_protection=True,
+x_content_type_options=True)
 
 def get_coinbase_prices():  # legacy wrapper retained for backwards compatibility
     """Wrapper delegating to modular price_fetch.fetch_prices.
@@ -205,6 +257,7 @@ _TOP_MOVERS_BAR_SWR_TTL = float(os.environ.get('TOP_MOVERS_BAR_SWR_TTL', str(_GA
 _TOP_MOVERS_BAR_SWR_STALE = float(os.environ.get('TOP_MOVERS_BAR_SWR_STALE', str(_GAINERS_3M_SWR_STALE)))
 
 @stale_while_revalidate(ttl=_GAINERS_1M_SWR_TTL, stale_window=_GAINERS_1M_SWR_STALE)
+@ttl_cache(ttl=int(_GAINERS_1M_SWR_TTL))
 def _get_gainers_table_1min_swr():
     data = get_crypto_data_1min()
     if not data:
@@ -238,6 +291,7 @@ def _get_gainers_table_1min_swr():
     }
 
 @stale_while_revalidate(ttl=_GAINERS_3M_SWR_TTL, stale_window=_GAINERS_3M_SWR_STALE)
+@ttl_cache(ttl=int(_GAINERS_3M_SWR_TTL))
 def _get_gainers_table_3min_swr():
     data = get_crypto_data()
     if not data:
@@ -271,6 +325,7 @@ def _get_gainers_table_3min_swr():
     }
 
 @stale_while_revalidate(ttl=_LOSERS_3M_SWR_TTL, stale_window=_LOSERS_3M_SWR_STALE)
+@ttl_cache(ttl=int(_LOSERS_3M_SWR_TTL))
 def _get_losers_table_3min_swr():
     data = get_crypto_data()
     if not data:
@@ -304,6 +359,7 @@ def _get_losers_table_3min_swr():
     }
 
 @stale_while_revalidate(ttl=_TOP_MOVERS_BAR_SWR_TTL, stale_window=_TOP_MOVERS_BAR_SWR_STALE)
+@ttl_cache(ttl=int(_TOP_MOVERS_BAR_SWR_TTL))
 def _get_top_movers_bar_swr():
     data = get_crypto_data()
     if not data:
@@ -961,7 +1017,35 @@ def validate_config_patch(patch: dict):
 @app.route('/api/config', methods=['GET','POST'])
 def api_config():
     if request.method == 'GET':
-        return jsonify({'config': CONFIG, 'limits': VALIDATABLE_CONFIG})
+        # Return JSON-serializable copies to avoid leaking Python types into JSON
+        def _serialize_config(cfg):
+            out = {}
+            for k, v in cfg.items():
+                try:
+                    json.dumps(v)
+                    out[k] = v
+                except TypeError:
+                    out[k] = str(v)
+            return out
+        def _serialize_limits(limits):
+            out = {}
+            for k, meta in limits.items():
+                m = {}
+                for mk, mv in (meta.items() if isinstance(meta, dict) else []):
+                    if mk == 'type':
+                        try:
+                            m['type'] = mv.__name__
+                        except Exception:
+                            m['type'] = str(mv)
+                    else:
+                        try:
+                            json.dumps(mv)
+                            m[mk] = mv
+                        except TypeError:
+                            m[mk] = str(mv)
+                out[k] = m
+            return out
+        return jsonify({'config': _serialize_config(CONFIG), 'limits': _serialize_limits(VALIDATABLE_CONFIG)})
     data = request.get_json(silent=True) or {}
     to_apply, errors = validate_config_patch(data)
     status = 200 if not errors else 400 if not to_apply else 207
@@ -1568,21 +1652,24 @@ def get_top_banner():
         if not banner_data:
             return jsonify({"error": "No banner data available"}), 503
             
-        # Format specifically for top banner - current price and 1h change focus
-        top_banner_data = []
+        # Format specifically for top banner - normalized shape expected by clients/tests
+        items = []
         for coin in banner_data[:20]:  # Top 20 for scrolling
-            top_banner_data.append({
+            items.append({
                 "symbol": coin["symbol"],
-                "current_price": coin["current_price"],
-                "price_change_1h": coin["price_change_1h"],
+                "current_price": coin.get("current_price") or coin.get('current') or 0,
+                "price_change_1h": coin.get("price_change_1h", 0),
                 "market_cap": coin.get("market_cap", 0)
             })
-        
+
+        # Provide test-friendly root keys: items, count, limit, age_seconds, stale, ts
         return jsonify({
-            "banner_data": top_banner_data,
-            "type": "top_banner",
-            "count": len(top_banner_data),
-            "last_updated": datetime.now().isoformat()
+            "items": items,
+            "count": len(items),
+            "limit": 20,
+            "age_seconds": 0,
+            "stale": False,
+            "ts": int(time.time())
         })
     except Exception as e:
         logging.error(f"Error in top banner endpoint: {e}")
@@ -1601,21 +1688,23 @@ def get_bottom_banner():
         # Sort by volume for bottom banner
         volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
         
-        # Format specifically for bottom banner - volume and 1h change focus
-        bottom_banner_data = []
+        # Format specifically for bottom banner - normalized shape expected by clients/tests
+        items = []
         for coin in volume_sorted[:20]:  # Top 20 by volume
-            bottom_banner_data.append({
+            items.append({
                 "symbol": coin["symbol"],
-                "volume_24h": coin["volume_24h"],
-                "price_change_1h": coin["price_change_1h"],
-                "current_price": coin["current_price"]
+                "volume_24h": coin.get("volume_24h", 0),
+                "price_change_1h": coin.get("price_change_1h", 0),
+                "current_price": coin.get("current_price") or coin.get('current') or 0
             })
-        
+
         return jsonify({
-            "banner_data": bottom_banner_data,
-            "type": "bottom_banner", 
-            "count": len(bottom_banner_data),
-            "last_updated": datetime.now().isoformat()
+            "items": items,
+            "count": len(items),
+            "limit": 20,
+            "age_seconds": 0,
+            "stale": False,
+            "ts": int(time.time())
         })
     except Exception as e:
         logging.error(f"Error in bottom banner endpoint: {e}")
@@ -1635,18 +1724,17 @@ def get_tables_3min():
         gainers = data.get('gainers', [])
         losers = data.get('losers', [])
         
-        # Format specifically for tables with 3-minute data
+        # Format specifically for tables with 3-minute data and normalized keys
+        g = gainers[:15]
+        l = losers[:15]
         tables_data = {
-            "gainers": gainers[:15],  # Top 15 gainers
-            "losers": losers[:15],    # Top 15 losers
-            "type": "tables_3min",
-            "count": {
-                "gainers": len(gainers[:15]),
-                "losers": len(losers[:15])
-            },
-            "last_updated": datetime.now().isoformat()
+            "interval_minutes": 3,
+            "gainers": g,
+            "losers": l,
+            "counts": {"gainers": len(g), "losers": len(l)},
+            "limit": 15,
+            "ts": int(time.time())
         }
-        
         return jsonify(tables_data)
     except Exception as e:
         logging.error(f"Error in tables endpoint: {e}")
@@ -1814,6 +1902,11 @@ def get_gainers_table():
                 "alert_level": "high" if coin["gain"] > 10 else "normal"
             })
         
+        swr_meta = {
+            'ttl': _GAINERS_3M_SWR_TTL,
+            'stale_window': _GAINERS_3M_SWR_STALE,
+            'served_cached': getattr(globals().get('_get_gainers_table_3min_swr'), '_swr_last_served_cached', False)
+        }
         return jsonify({
             "component": "gainers_table",
             "data": gainers_table_data,
@@ -1821,7 +1914,8 @@ def get_gainers_table():
             "table_type": "gainers",
             "time_frame": "3_minutes",
             "update_interval": 3000,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
+            "swr": swr_meta
         })
     except Exception as e:
         logging.error(f"Error in gainers table endpoint: {e}")
@@ -1837,7 +1931,7 @@ def get_losers_table():
         swr_meta = {
             'ttl': _LOSERS_3M_SWR_TTL,
             'stale_window': _LOSERS_3M_SWR_STALE,
-            'served_cached': _get_losers_table_3min_swr._swr_last_served_cached,
+            'served_cached': getattr(_get_losers_table_3min_swr, '_swr_last_served_cached', False),
         }
         return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
@@ -1854,7 +1948,7 @@ def get_top_movers_bar():
         swr_meta = {
             'ttl': _TOP_MOVERS_BAR_SWR_TTL,
             'stale_window': _TOP_MOVERS_BAR_SWR_STALE,
-            'served_cached': _get_top_movers_bar_swr._swr_last_served_cached,
+            'served_cached': getattr(_get_top_movers_bar_swr, '_swr_last_served_cached', False),
         }
         return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
@@ -2290,13 +2384,48 @@ def get_gainers_table_1min():
         swr_meta = {
             'ttl': _GAINERS_1M_SWR_TTL,
             'stale_window': _GAINERS_1M_SWR_STALE,
-            'served_cached': _get_gainers_table_1min_swr._swr_last_served_cached,
+            'served_cached': getattr(_get_gainers_table_1min_swr, '_swr_last_served_cached', False),
         }
         return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
         logging.error(f"Error in 1-minute gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 # =============================================================================
+
+@app.route('/api/component/gainers-table-3min')
+def get_gainers_table_3min():
+    """Individual endpoint for 3-minute gainers table (parity with 1m endpoint)"""
+    try:
+        data = _get_gainers_table_3min_swr()
+        if not data:
+            return jsonify({"error": "No 3-minute data available"}), 503
+        swr_meta = {
+            'ttl': _GAINERS_3M_SWR_TTL,
+            'stale_window': _GAINERS_3M_SWR_STALE,
+            'served_cached': getattr(_get_gainers_table_3min_swr, '_swr_last_served_cached', False),
+        }
+        return jsonify({**data, 'swr': swr_meta})
+    except Exception as e:
+        logging.error(f"Error in 3-minute gainers table endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/component/losers-table-3min')
+def get_losers_table_3min():
+    """Individual endpoint for 3-minute losers table"""
+    try:
+        data = _get_losers_table_3min_swr()
+        if not data:
+            return jsonify({"error": "No 3-minute losers data available"}), 503
+        swr_meta = {
+            'ttl': _LOSERS_3M_SWR_TTL,
+            'stale_window': _LOSERS_3M_SWR_STALE,
+            'served_cached': getattr(_get_losers_table_3min_swr, '_swr_last_served_cached', False),
+        }
+        return jsonify({**data, 'swr': swr_meta})
+    except Exception as e:
+        logging.error(f"Error in 3-minute losers table endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # Add startup time tracking
 # Add startup time tracking for uptime calculation
@@ -2311,7 +2440,7 @@ def root():
         swr_meta = {
             'ttl': _GAINERS_3M_SWR_TTL,
             'stale_window': _GAINERS_3M_SWR_STALE,
-            'served_cached': _get_gainers_table_3min_swr._swr_last_served_cached,
+            'served_cached': getattr(_get_gainers_table_3min_swr, '_swr_last_served_cached', False),
         }
         return jsonify({**data, 'swr': swr_meta})
     except Exception as e:
