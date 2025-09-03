@@ -97,7 +97,27 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
           fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
           fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
         ]);
-  vLog('[WebSocket Context] Polling - received data:', gainersData);
+        vLog('[WebSocket Context] Polling - received data:', gainersData);
+        // Honor server-provided throttle if present. Backend may return a
+        // `refresh_seconds` hint either at the top-level or inside the data
+        // payload when it's throttling/reusing a cached snapshot.
+        try {
+          let serverRefreshSec = null;
+          if (gainersData && typeof gainersData.refresh_seconds !== 'undefined') {
+            serverRefreshSec = Number(gainersData.refresh_seconds);
+          } else if (gainersData && gainersData.data && typeof gainersData.data.refresh_seconds !== 'undefined') {
+            serverRefreshSec = Number(gainersData.data.refresh_seconds);
+          }
+          if (Number.isFinite(serverRefreshSec)) {
+            // clamp ms between 5s and 120s to avoid too-fast or too-slow scheduling
+            const ms = Math.max(5000, Math.min(120000, Math.round(serverRefreshSec * 1000)));
+            vLog('[WebSocket Context] Polling - applying server refresh_seconds', serverRefreshSec, '->', ms, 'ms');
+            backoffMs = ms;
+          }
+        } catch (e) {
+          if (debugEnabled) console.warn('Error parsing server refresh_seconds', e);
+        }
+
         if (gainersData && gainersData.data) {
           const pricesUpdate = {};
           gainersData.data.forEach(coin => {
