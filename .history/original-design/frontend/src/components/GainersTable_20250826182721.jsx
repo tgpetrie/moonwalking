@@ -609,44 +609,8 @@ export function saveWatchlist(list) {
     localStorage.setItem('watchlist:symbols', JSON.stringify(uniq));
   } catch {}
   try {
-    import React, { useEffect, useState } from 'react';
-    import { io } from 'socket.io-client';
-    import { loadWatchlist, toggleWatchlist } from '../lib/watchlist.js';
-
-    const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_ORIGIN) || 'http://localhost:5001';
-    const ENDPOINTS = {
-      t1m: `${API_BASE}/api/component/gainers-table-1min`,
-      t3m: `${API_BASE}/api/component/gainers-table`,
-    };
-
-    function fmtPrice(n) {
-      if (!Number.isFinite(n)) return '-';
-      const v = Number(n); const abs = Math.abs(v);
-      const digits = abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6;
-      return `$${v.toFixed(digits)}`;
-    }
-    function fmtPct(n) {
-      if (!Number.isFinite(n)) return '-';
-      const sign = n > 0 ? '+' : '';
-      return `${sign}${n.toFixed(2)}%`;
-    }
-
-    function normalize(raw, key) {
-      let rows = (Array.isArray(raw) && raw) || raw?.data || raw?.crypto || raw?.rows || [];
-      if (!Array.isArray(rows)) rows = [];
-      const map = new Map();
-      for (const r of rows) {
-        const sym = (r.symbol || r.ticker || r.s || r.base)?.toUpperCase();
-        if (!sym) continue;
-        const pct = Number(r[key] ?? r[`change_${key}`] ?? r[`pct_${key}`] ?? r[`delta_${key}`] ?? r.change ?? 0) || 0;
-        const px = Number(r.price ?? r.last ?? r.p ?? r.close ?? 0) || 0;
-        const entry = { symbol: sym, price: px, pct };
-        const prev = map.get(sym);
-        if (!prev || pct > prev.pct) map.set(sym, entry);
-      }
-      return Array.from(map.values()).sort((a, b) => b.pct - a.pct);
-    }
-
+    // Removed invalid import statements and duplicated code.
+    // All required imports are already at the top level of the module.
     export default function GainersTable({ windowMinutes = 3, view = 'table' }) {
       const socketNs = `${API_BASE}/stream`;
       const socketKey = windowMinutes === 1 ? 't1m' : 't3m';
