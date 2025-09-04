@@ -2991,6 +2991,39 @@ else:
     log_config()
     logging.info("Running in production mode (Vercel)")
 
+@app.route('/api/mobile/bundle', methods=['GET'])
+def get_mobile_bundle():
+    with app.test_client() as client:
+        try:
+            top_banner_res = client.get('/api/component/top-banner-scroll')
+            top_banner_data = top_banner_res.get_json() if top_banner_res.status_code == 200 else {}
+
+            bottom_banner_res = client.get('/api/component/bottom-banner-scroll')
+            bottom_banner_data = bottom_banner_res.get_json() if bottom_banner_res.status_code == 200 else {}
+
+            gainers_res = client.get('/api/component/gainers-table')
+            gainers_data = gainers_res.get_json() if gainers_res.status_code == 200 else {}
+
+            losers_res = client.get('/api/component/losers-table')
+            losers_data = losers_res.get_json() if losers_res.status_code == 200 else {}
+
+            watchlist_res = client.get('/api/watchlist')
+            watchlist_data = watchlist_res.get_json() if watchlist_res.status_code == 200 else {"watchlist": []}
+
+            bundled_data = {
+                "top_banner": top_banner_data.get('data', []),
+                "bottom_banner": bottom_banner_data.get('data', []),
+                "table_data": {
+                    "gainers": gainers_data.get('data', []),
+                    "losers": losers_data.get('data', [])
+                },
+                "watchlist": watchlist_data.get('watchlist', [])
+            }
+            return jsonify(bundled_data)
+        except Exception as e:
+            logging.error(f"Error in get_mobile_bundle: {e}")
+            return jsonify({"error": "Failed to bundle mobile data"}), 500
+
 __all__ = [
     "process_product_data",
     "format_crypto_data",

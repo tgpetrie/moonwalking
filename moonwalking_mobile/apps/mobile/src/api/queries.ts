@@ -4,7 +4,7 @@ import client from './client'
 export function useBundle() {
   return useQuery({
     queryKey: ['bundle'],
-    queryFn: async () => (await client.get('/data')).data,
+    queryFn: async () => (await client.get('/api/mobile/bundle')).data,
     refetchInterval: 15_000,
     staleTime: 10_000,
   })
