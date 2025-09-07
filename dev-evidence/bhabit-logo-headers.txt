@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Vary: Origin
+Content-Length: 35661
+Content-Type: image/svg+xml
+Last-Modified: Sun, 07 Sep 2025 18:56:09 GMT
+ETag: W/"35661-1757271369979"
+Cache-Control: no-cache
+Date: Sun, 07 Sep 2025 19:18:00 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
