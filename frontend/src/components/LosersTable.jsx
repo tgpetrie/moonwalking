@@ -51,13 +51,20 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
       try {
         const response = await fetchData(API_ENDPOINTS.losersTable);
         if (!cancelled && response && Array.isArray(response.data)) {
-          const next = response.data.map((item, index) => ({
-            rank: item.rank || (index + 1),
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price ?? item.price ?? 0,
-            change3m: item.price_change_percentage_3min ?? item.change3m ?? item.change ?? 0,
-            peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
-          }));
+          const next = response.data.map((item, index) => {
+            const raw = item.price_change_percentage_3min ?? item.change3m ?? item.change ?? 0;
+            const abs = Math.abs(Number(raw) || 0);
+            const needsScale = abs > 0 && abs < 0.02;
+            const pct = needsScale ? Number(raw) * 100 : Number(raw) || 0;
+            return ({
+              rank: item.rank || (index + 1),
+              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              price: item.current_price ?? item.price ?? 0,
+              change3m: pct,
+              initial_price_3min: item.initial_price_3min ?? item.initial_3min ?? null,
+              peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+            });
+          });
           setData(next);
         } else if (!cancelled) {
           setData([]);
@@ -198,9 +205,11 @@ MoverRow.propTypes = {
   const isInWatchlist = watchlist.some(it => (typeof it === 'string' ? it === r.symbol : it.symbol === r.symbol));
   const showBadge = actionBadge && actionBadge.symbol === r.symbol;
   const url = `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD`;
-  const prev = (typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
-    ? (r.price / (1 + r.change3m / 100))
-    : null;
+  const prev = (typeof r.initial_price_3min === 'number')
+    ? r.initial_price_3min
+    : ((typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
+      ? (r.price / (1 + r.change3m / 100))
+      : null);
   return (
     <div className="px-0 py-1 mb-1">
       <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
@@ -278,10 +287,10 @@ MoverRow.propTypes = {
             </div>
             <div className="w-[152px] pr-6 text-right">
               <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">{Number.isFinite(r.price) ? formatPrice(r.price) : 'N/A'}</div>
-              <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">{prev !== null ? formatPrice(prev) : '--'}</div>
+              <div className="text-sm leading-tight text-white/80 font-mono tabular-nums whitespace-nowrap">{prev !== null ? formatPrice(prev) : '--'}</div>
             </div>
             <div className="w-[108px] pr-1.5 text-right align-top">
-              <div className={`text-lg sm:text-xl md:text-2xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}</div>
+              <div className={`text-lg md:text-xl font-bold tabular-nums leading-none whitespace-nowrap ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : 'N/A'}</div>
               {(() => { const { level } = get3m(r.symbol); return level > 0 ? (<div className="text-xs text-gray-300 leading-tight mt-1 subline-badge num">Px{level}</div>) : null; })()}
             </div>
             <div className="w-[28px] text-right">

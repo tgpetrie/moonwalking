@@ -36,16 +36,16 @@ class PriceFetchMetrics(BaseModel):
     products_cache_hits: int
     rate_limit_failures: int
     last_fetch_duration_ms: float
-    last_success_time: float | None
+    last_success_time: Optional[float]
     errors: int
-    durations_ms: List[float] | None = None
+    durations_ms: Optional[List[float]] = None
     rate_failures: int
-    rate_next_epoch: float | None
+    rate_next_epoch: Optional[float]
     has_snapshot: bool
-    snapshot_age_sec: float | None = None
-    p95_fetch_duration_ms: float | None = None
-    error_rate_percent: float | None = None
-    backoff_seconds_remaining: float | None = None
+    snapshot_age_sec: Optional[float] = None
+    p95_fetch_duration_ms: Optional[float] = None
+    error_rate_percent: Optional[float] = None
+    backoff_seconds_remaining: Optional[float] = None
     circuit_breaker: Optional[CircuitBreakerModel] = None
     fetch_duration_hist_buckets: Optional[Dict[str, int]] = None
     fetch_duration_hist_overflow: Optional[int] = None

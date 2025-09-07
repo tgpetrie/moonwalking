@@ -21,7 +21,6 @@ const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistIn
 const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
 const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'));
 // Mobile debugging component
-import MobileDebugger from './components/MobileDebugger.jsx';
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
 import MetricsPanel from './components/MetricsPanel.jsx';
@@ -102,7 +101,7 @@ export default function App() {
     <WebSocketProvider>
     <ToastProvider>
     <div className="min-h-screen bg-dark text-white relative">
-      <MobileDebugger />
+      {/* MobileDebugger removed per request */}
       <DataFlowTest />
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">

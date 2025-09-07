@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getApiBaseUrl } from '../api.js';
+import { API_ENDPOINTS, postJson } from '../api.js';
 
 export default function AskCodexPanel({ onClose }) {
   const [query, setQuery] = useState('Explain today’s strongest setups on my watchlist.');
@@ -12,15 +12,8 @@ export default function AskCodexPanel({ onClose }) {
     if (!query.trim()) return;
     setLoading(true); setError(''); setReply('');
     try {
-      const base = getApiBaseUrl();
-      const url = `${base}/api/ask-codex`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.reply || 'Request failed');
+      const data = await postJson(API_ENDPOINTS.askCodex, { query });
+      if (!data) throw new Error('No response');
       setReply(data.reply || 'No reply');
     } catch (e2) {
       setError(e2.message);

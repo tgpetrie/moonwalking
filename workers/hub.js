@@ -4,6 +4,11 @@ export default {
     // All requests are handled by a single Durable Object instance named "global"
     const id = env.HUB.idFromName("global");
     const stub = env.HUB.get(id);
+    // Optional local dev utility to trigger a refresh
+    if (url.pathname === "/refresh-snapshots") {
+      await this._updateSnapshots(env, stub);
+      return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' }});
+    }
     return stub.fetch(request);
   },
   // Optional: keep the DO warm on a schedule (Cron Trigger)
@@ -175,6 +180,16 @@ export class Hub {
     }
     if (url.pathname.endsWith("/component/gainers-table-1min")) {
       return this._json({ data: this.snapshots.t1m || [] });
+    }
+    if (url.pathname.endsWith("/component/losers-table")) {
+      // Derive losers (most negative 3m change)
+      const t3m = Array.isArray(this.snapshots.t3m) ? this.snapshots.t3m : [];
+      const losers = t3m
+        .slice()
+        .filter(it => typeof it.price_change_percentage_3min === 'number')
+        .sort((a, b) => (a.price_change_percentage_3min - b.price_change_percentage_3min))
+        .map((it, idx) => ({ rank: idx + 1, ...it }));
+      return this._json({ data: losers });
     }
     if (url.pathname.endsWith("/component/top-banner-scroll")) {
       return this._json({ data: this.snapshots.topBanner || [] });

@@ -1,0 +1,22 @@
+name = "cbmo4ers-edge"
+main = "src/worker.js"
+compatibility_date = "2024-11-20"
+
+routes = []
+
+[vars]
+# Overridden in environment; defaults to local backend slim endpoint
+UPSTREAM_URL = "http://127.0.0.1:5001/api/edge/volumes-slim"
+
+[durable_objects]
+bindings = [
+  { name = "VOL_RING", class_name = "VolRing" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["VolRing"]
+
+[triggers]
+crons = ["* * * * *"]
+

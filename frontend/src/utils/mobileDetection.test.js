@@ -20,6 +20,8 @@ describe('mobileDetection utilities', () => {
     setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123 Safari/537.36');
     // reset width
     Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true });
+    // reset touch capability
+    try { Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true }); } catch (_) {}
   });
 
   it('detects mobile by user agent', () => {
@@ -27,8 +29,9 @@ describe('mobileDetection utilities', () => {
     expect(isMobileDevice()).toBe(true);
   });
 
-  it('detects mobile by small screen width fallback', () => {
+  it('detects mobile by small screen width fallback when touch-capable', () => {
     Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true });
+    try { Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true }); } catch (_) {}
     expect(isMobileDevice()).toBe(true);
   });
 

@@ -1,9 +1,11 @@
 import logging, json, os
 from logging.handlers import RotatingFileHandler
 from contextvars import ContextVar
+from typing import Optional
 
 # Context variable for per-request correlation id
-REQUEST_ID_CTX: ContextVar[str | None] = ContextVar('request_id', default=None)
+# Use typing.Optional for compatibility with Python <3.10 where PEP 604 (`|`) is not available
+REQUEST_ID_CTX: ContextVar[Optional[str]] = ContextVar('request_id', default=None)
 
 LOG_DIR = os.environ.get('LOG_DIR', 'backend')
 LOG_FILE = os.path.join(LOG_DIR, 'server.log')

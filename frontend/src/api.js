@@ -3,6 +3,11 @@
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
 // Support special value 'relative' to use same-origin relative /api requests (works with Vercel rewrites)
 const RAW_ENV_BASE = import.meta.env.VITE_API_URL;
+// Runtime environment guards
+const RUNTIME_IS_DEV = Boolean(import.meta.env && import.meta.env.DEV);
+const RUNTIME_IS_LOCAL_HOST = (typeof window !== 'undefined') && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+const RUNTIME_ALLOW_LOCAL_PROBING = RUNTIME_IS_DEV || RUNTIME_IS_LOCAL_HOST;
+
 let API_BASE_URL;
 if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative' && !/^\s*\/api(\/|$)/.test(RAW_ENV_BASE)) {
   API_BASE_URL = RAW_ENV_BASE.trim();
@@ -12,14 +17,27 @@ if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative' && !/^\s*\/api(\/|$)/.test(RAW_E
   // If VITE_API_URL is '/api' or '/api/...', treat as same-origin relative
   API_BASE_URL = '';
 } else {
-  API_BASE_URL = 'http://localhost:5001'; // dev fallback
+  // Do not assume a public site should reach localhost. Only default to localhost when running locally or in DEV.
+  API_BASE_URL = RUNTIME_ALLOW_LOCAL_PROBING ? 'http://localhost:5001' : '';
 }
 API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
+
+// Small runtime debug output to help diagnose blank-page / api switch issues.
+try {
+  // This will print in the browser console when the module is evaluated by Vite or the built bundle.
+  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s RUNTIME_ALLOW_LOCAL_PROBING=%s API_BASE_URL=%s',
+    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(RUNTIME_ALLOW_LOCAL_PROBING), String(API_BASE_URL));
+} catch (e) {
+  // ignore when console is unavailable
+}
 const buildEndpoints = () => ({
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
   gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
   gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
+  // 3m endpoints (Cloudflare functions provide compatibility wrappers)
+  gainersTable3Min: `${API_BASE_URL}/api/component/gainers-table-3min`,
+  losersTable3Min: `${API_BASE_URL}/api/component/losers-table-3min`,
   losersTable: `${API_BASE_URL}/api/component/losers-table`,
   alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
   topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
@@ -33,7 +51,8 @@ const buildEndpoints = () => ({
   watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
-  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`
+  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
+  askCodex: `${API_BASE_URL}/api/ask-codex`,
 });
 
 export let API_ENDPOINTS = buildEndpoints();
@@ -85,6 +104,7 @@ const probeBase = async (baseUrl, timeoutMs = null) => {
   }
 };
 
+// Include common dev ports and the occasional fallback that some scripts used (5713)
 const CANDIDATE_BASES = [
   'http://localhost:5001', 'http://127.0.0.1:5001',
   'http://localhost:5002', 'http://127.0.0.1:5002',
@@ -92,8 +112,13 @@ const CANDIDATE_BASES = [
   'http://localhost:5004', 'http://127.0.0.1:5004',
   'http://localhost:5005', 'http://127.0.0.1:5005',
   'http://localhost:5006', 'http://127.0.0.1:5006',
-  'http://localhost:5007', 'http://127.0.0.1:5007'
+  'http://localhost:5007', 'http://127.0.0.1:5007',
+  // historical auto-port used by backend auto selection
+  'http://localhost:5713', 'http://127.0.0.1:5713'
 ];
+
+// Only attempt probing these candidate local bases when the runtime is local or in DEV.
+const ACTIVE_CANDIDATE_BASES = RUNTIME_ALLOW_LOCAL_PROBING ? CANDIDATE_BASES : [];
 
 // Fetch data from API with throttling and automatic base fallback
 export const fetchData = async (endpoint, fetchOptions = {}) => {
@@ -119,8 +144,12 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
   } catch (error) {
     // Attempt dynamic base fallback on network errors or wrong-host statuses
     try {
-      const oldBase = API_BASE_URL;
-      const altBases = CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
+      const oldBase = API_BASE_URL || '';
+      const altBases = ACTIVE_CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
+      if (!altBases || altBases.length === 0) {
+        // Local probing disabled by runtime guard; rethrow original error path below.
+        throw new Error('Local probing disabled');
+      }
       for (const base of altBases) {
         const ok = await probeBase(base);
         if (!ok) continue;
@@ -148,6 +177,49 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
       // swallow to rethrow original error below
     }
     console.error('API fetch error:', error);
+    throw error;
+  }
+};
+
+// POST helper with the same dynamic fallback and timeouts as fetchData
+export const postJson = async (endpoint, body = {}, fetchOptions = {}) => {
+  const opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(fetchOptions.headers || {}) },
+    body: JSON.stringify(body),
+    ...fetchOptions,
+  };
+  try {
+    const now = Date.now();
+    const res = await fetch(endpoint, opts);
+    if (res.ok) return await res.json();
+    const status = res.status;
+    if ([404, 502, 503, 504].includes(status)) {
+      throw new Error(`HTTP error! status: ${status}`);
+    }
+    throw new Error(`HTTP error! status: ${status}`);
+  } catch (error) {
+    try {
+      const oldBase = API_BASE_URL || '';
+      const altBases = ACTIVE_CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
+      for (const base of altBases) {
+        const ok = await probeBase(base);
+        if (!ok) continue;
+        let path = endpoint;
+        if (endpoint.startsWith(oldBase)) {
+          path = endpoint.substring(oldBase.length);
+        } else {
+          try { const u = new URL(endpoint); path = u.pathname + (u.search || ''); } catch (_) {}
+        }
+        const newEndpoint = `${base.replace(/\/$/, '')}${path}`;
+        const retryRes = await fetch(newEndpoint, opts);
+        if (retryRes.ok) {
+          setApiBaseUrl(base);
+          return await retryRes.json();
+        }
+      }
+    } catch (_) { /* ignore and rethrow below */ }
+    console.error('API POST error:', error);
     throw error;
   }
 };
