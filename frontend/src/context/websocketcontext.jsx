@@ -77,7 +77,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
     let inFlight = false;
     // Use mobile-optimized polling interval
-    let backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
+    // Align to requested cadence: update roughly every 15 seconds
+    let backoffMs = 15000;
     let controller = null;
 
     const poll = async () => {
@@ -186,42 +187,58 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
   // Manual, immediate refresh (pull latest via REST once, regardless of WS state)
   const refreshNow = async () => {
+    // 1) Nudge the WebSocket to push a fresh snapshot if connected
+    try {
+      if (wsManager && wsManager.isConnected) {
+        wsManager.send('snapshot_request', { reason: 'manual_refresh', at: Date.now() });
+      }
+    } catch (_) { /* ignore */ }
+
+    // 2) Also fetch the REST fallbacks and merge so UI updates even if WS can't respond
     let controller;
     try {
       controller = new AbortController();
-      const res = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
-      if (res && res.data && Array.isArray(res.data)) {
-        const pricesUpdate = {};
-        res.data.forEach((coin) => {
-          if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
-            const priceVal = coin.price ?? coin.current_price;
-            pricesUpdate[coin.symbol] = {
-              price: priceVal,
-              change: coin.price_change_percentage_1min || coin.change || 0,
-              changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-              timestamp: Date.now()
-            };
+      const fetchOptions = { signal: controller.signal };
+      const [one, threeG, threeL] = await Promise.all([
+        fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(()=>null),
+        fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
+        fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
+      ]);
+      const pricesUpdate = {};
+      const map = new Map();
+      const add = (arr, is1m=false, is3m=false) => {
+        if (!Array.isArray(arr)) return;
+        for (const row of arr) {
+          const sym = (row.symbol || '').replace('-USD','');
+          if (!sym) continue;
+          const prev = map.get(sym) || { symbol: sym };
+          const price = row.current_price ?? row.price;
+          const c1 = row.price_change_percentage_1min ?? row.change;
+          const c3 = row.price_change_percentage_3min ?? row.change3m ?? row.change;
+          map.set(sym, {
+            ...prev,
+            symbol: sym,
+            current_price: price ?? prev.current_price ?? 0,
+            price_change_percentage_1min: is1m ? c1 ?? prev.price_change_percentage_1min : prev.price_change_percentage_1min,
+            price_change_percentage_3min: is3m ? c3 ?? prev.price_change_percentage_3min : prev.price_change_percentage_3min,
+          });
+          if (price != null) {
+            pricesUpdate[sym] = { price, change: c1 ?? c3 ?? 0, changePercent: c1 ?? c3 ?? 0, timestamp: Date.now() };
           }
-        });
-        setLatestData((prev) => ({
-          ...prev,
-          crypto: res.data,
-          prices: { ...prev.prices, ...pricesUpdate }
-        }));
+        }
+      };
+      add(one?.data, true, false);
+      add(threeG?.data, false, true);
+      add(threeL?.data, false, true);
+      const combined = Array.from(map.values());
+      if (combined.length) {
+        setLatestData(prev => ({ ...prev, crypto: combined, prices: { ...prev.prices, ...pricesUpdate } }));
         return true;
       }
     } catch (e) {
       console.error('Manual refresh failed', e);
     } finally {
-      try {
-        if (controller) {
-          controller.abort();
-        }
-      } catch (e) {
-        if (debugEnabled) {
-          console.warn('Stop polling abort cleanup error', e);
-        }
-      }
+      try { if (controller) controller.abort(); } catch (_) {}
     }
     return false;
   };

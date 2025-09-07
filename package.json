@@ -11,7 +11,8 @@
   "health": "node scripts/health-check.js",
   "test:backend": "pytest -q",
   "test:worker": "npm run typecheck --prefix moonwalking_mobile/backend-workers/moonwalking-worker",
-  "test-all": "npm run test:backend && npm run test:worker"
+  "test-all": "npm run test:backend && npm run test:worker",
+  "dev:ws:seed": "./scripts/ws-snapshots-dev.sh"
   },
   "dependencies": {
     "express": "^4.19.2",

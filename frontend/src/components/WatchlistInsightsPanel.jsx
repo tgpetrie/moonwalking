@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { API_ENDPOINTS } from '../api.js';
+import { API_ENDPOINTS, fetchData } from '../api.js';
 
 export default function WatchlistInsightsPanel() {
   const [insights, setInsights] = useState([]);
@@ -12,13 +12,11 @@ export default function WatchlistInsightsPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(API_ENDPOINTS.watchlistInsights);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setInsights(data.insights || []);
-      setRaw(data.raw || '');
+      const data = await fetchData(API_ENDPOINTS.watchlistInsights);
+      setInsights((data && data.insights) ? data.insights : []);
+      setRaw((data && data.raw) ? data.raw : '');
     } catch (e) {
-      setError(e.message);
+      setError(e && e.message ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -55,8 +53,8 @@ export default function WatchlistInsightsPanel() {
         <div className="text-gray-400">No current alerts or suggestions.</div>
       )}
       <ul className="space-y-1 max-h-56 overflow-auto pr-1 custom-scrollbar">
-        {insights.map((line, i) => (
-          <li key={i} className="leading-snug">
+        {insights.map((line) => (
+          <li key={String(line).slice(0,64)} className="leading-snug">
             {line.startsWith('⚠️') && <span className="text-yellow-400">{line}</span>}
             {line.startsWith('📈') && <span className="text-green-400">{line}</span>}
             {line.startsWith('😐') && <span className="text-gray-300">{line}</span>}

@@ -1,4 +1,5 @@
 import { isMobileDevice, getMobileOptimizedConfig, addVisibilityChangeListener, addNetworkChangeListener } from '../utils/mobileDetection.js';
+import { flags } from '../config.js';
 
 class WebSocketManager {
   constructor() {
@@ -20,8 +21,8 @@ class WebSocketManager {
       : 'ws://127.0.0.1:8787';
     const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
     this.baseUrl = wsHost; // host only; endpoint is /ws
-    // Allow opting out by default unless explicitly enabled server-side
-    this.disabled = String(import.meta.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
+    // Use shared flags (default: enabled unless explicitly disabled)
+    this.disabled = flags.VITE_DISABLE_WS === true;
   }
 
   connect() {

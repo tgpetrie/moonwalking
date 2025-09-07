@@ -1,13 +1,27 @@
 // Mobile detection and optimization utilities
+// Heuristic: prefer explicit UA detection; only fall back to small-screen
+// when touch is present to avoid misclassifying narrow desktop windows.
+import { getEnv } from '../config.js';
+
 export const isMobileDevice = () => {
+  const env = getEnv();
+  const forceMobile = (env.VITE_FORCE_MOBILE ?? 'false').toString().toLowerCase() === 'true';
+  const forceDesktop = (env.VITE_FORCE_DESKTOP ?? 'false').toString().toLowerCase() === 'true';
+  if (forceMobile) return true;
+  if (forceDesktop) return false;
+
   // Check user agent for mobile devices
   const userAgent = navigator.userAgent || navigator.vendor || window.opera;
   const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-  
-  // Also check screen size as backup
-  const isSmallScreen = window.innerWidth <= 768;
-  
-  return mobileRegex.test(userAgent) || isSmallScreen;
+  if (mobileRegex.test(userAgent)) return true;
+
+  // Optional width threshold override (default 768)
+  const maxW = Number(env.VITE_MOBILE_WIDTH_MAX || 768) || 768;
+  const isSmallScreen = (window.innerWidth || 0) <= maxW;
+  const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+
+  // Only treat as mobile when both small and touch-capable
+  return isSmallScreen && hasTouch;
 };
 
 export const isIOS = () => {

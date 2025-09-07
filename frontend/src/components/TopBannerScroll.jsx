@@ -12,8 +12,10 @@ const TopBannerScroll = ({ refreshTrigger }) => {
     return `-${offset}s`;
   }, [data.length]);
 
+  // Fetch once on mount to seed data, then align subsequent refreshes to the end of a full scroll cycle
   useEffect(() => {
     let isMounted = true;
+    let timerId = null;
     const fetchTopBannerData = async () => {
       try {
         const response = await fetchData(API_ENDPOINTS.topBanner);
@@ -59,10 +61,24 @@ const TopBannerScroll = ({ refreshTrigger }) => {
       }
     };
     
-    // Fetch data immediately
-    fetchTopBannerData();
-    return () => { isMounted = false; };
-  }, [refreshTrigger]);
+    // Helper to schedule the next fetch exactly at the end of the current scroll cycle
+    const scheduleAtBoundary = () => {
+      const now = Date.now();
+      const elapsed = now - startRef.current;
+      const cycleMs = SCROLL_DURATION_SEC * 1000;
+      const msUntilBoundary = cycleMs - (elapsed % cycleMs);
+      clearTimeout(timerId);
+      timerId = setTimeout(async () => {
+        await fetchTopBannerData();
+        // chain the next boundary fetch
+        scheduleAtBoundary();
+      }, Math.max(250, msUntilBoundary));
+    };
+
+    // Seed immediately, then align to boundary updates
+    fetchTopBannerData().then(() => scheduleAtBoundary());
+    return () => { isMounted = false; clearTimeout(timerId); };
+  }, []);
 
   const getBadgeStyle = (change) => {
     const absChange = Math.abs(change);

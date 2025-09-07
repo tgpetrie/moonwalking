@@ -608,7 +608,11 @@ def metrics_prom():
         lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
         lines.append('# TYPE price_fetch_metrics_error gauge')
         lines.append('price_fetch_metrics_error 1')
-        lines.append(f'# price_fetch_metrics_error_detail {str(e).replace("\n"," ")[:200]}')
+        try:
+            _detail = str(e).replace('\n', ' ')[:200]
+            lines.append('# price_fetch_metrics_error_detail ' + _detail)
+        except Exception:
+            pass
     body = '\n'.join(lines) + '\n'
     return app.response_class(body, mimetype='text/plain; version=0.0.4')
 
@@ -1096,18 +1100,44 @@ def get_coinbase_prices():
             
             # Use ThreadPoolExecutor for concurrent API calls
             def fetch_ticker(product):
-                """Fetch ticker data for a single product"""
+                """Fetch ticker data for a single product (robust to missing/None price).
+
+                Returns (symbol, price) on success, ('__RL__', None) on 429 rate-limit,
+                or (None, None) for other failures.
+                """
                 symbol = product["id"]
                 ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
                 try:
                     ticker_response = requests.get(ticker_url, timeout=1.5)
                     if ticker_response.status_code == 200:
-                        ticker_data = ticker_response.json()
-                        price = float(ticker_data.get('price', 0))
+                        try:
+                            ticker_data = ticker_response.json()
+                        except ValueError:
+                            logging.debug(f"ticker {symbol} returned invalid json")
+                            return None, None
+                        price_val = ticker_data.get('price')
+                        if price_val is None:
+                            logging.debug(f"ticker {symbol} missing price field")
+                            return None, None
+                        try:
+                            price = float(price_val)
+                        except (TypeError, ValueError):
+                            logging.debug(f"ticker {symbol} price parse fail: {price_val}")
+                            return None, None
                         if price > 0:
                             return symbol, price
+                    elif ticker_response.status_code == 429:
+                        # propagate a rate-limit marker so caller can escalate backoff
+                        logging.debug(f"ticker {symbol} rate limited (429)")
+                        return '__RL__', None
+                    else:
+                        logging.debug(f"ticker {symbol} status {ticker_response.status_code}")
+                except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout) as e:
+                    logging.debug(f"ticker {symbol} timeout {e}")
+                except requests.exceptions.RequestException as e:
+                    logging.debug(f"ticker {symbol} request err {e}")
                 except Exception as ticker_error:
-                    logging.warning(f"Failed to get ticker for {symbol}: {ticker_error}")
+                    logging.debug(f"Failed to get ticker for {symbol}: {ticker_error}")
                 return None, None
 
             # Use ThreadPoolExecutor for faster concurrent API calls
@@ -1865,6 +1895,37 @@ def get_bottom_banner_scroll():
     except Exception as e:
         logging.error(f"Error in bottom banner scroll endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
+# --- Edge slim endpoint for Worker seeding ---
+@app.get('/api/edge/volumes-slim')
+def volumes_slim():
+    """Minimal symbol -> { volume_24h, volume_change_1h_pct? } map for the edge Worker.
+    Falls back to the same 24h movers snapshot used for banners. If 1h volume change
+    is not available yet, omit it so the Worker can estimate from its ring buffer.
+    """
+    try:
+        out = {}
+        try:
+            banner = get_24h_top_movers() or []
+        except Exception:
+            banner = []
+        for row in banner:
+            try:
+                sym = row.get('symbol')
+                vol = row.get('volume_24h')
+                if not sym or vol is None:
+                    continue
+                out[sym] = {
+                    'volume_24h': float(vol),
+                    # passthrough if present; Worker may still choose to estimate
+                    'volume_change_1h_pct': row.get('volume_change_1h_pct') if row.get('volume_change_1h_pct') is not None else None,
+                }
+            except Exception:
+                continue
+        return jsonify(out), 200
+    except Exception as e:
+        logging.error(f"volumes_slim error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/component/gainers-table')
 def get_gainers_table():
@@ -3029,4 +3090,3 @@ __all__ = [
     "format_crypto_data",
     "format_banner_data"
 ]
-

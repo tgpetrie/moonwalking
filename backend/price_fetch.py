@@ -1,8 +1,11 @@
-import time, requests, logging, os, threading
+import time, requests, logging, os, threading, random
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict
+from typing import Dict, Tuple
 from config import CONFIG
 from reliability import CircuitBreaker
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from requests.exceptions import RequestException, ConnectTimeout, ReadTimeout
 
 COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
 MAJOR_COINS = {
@@ -20,6 +23,34 @@ BACKOFF_BASE = float(os.environ.get('COINBASE_BACKOFF_BASE','1'))
 BACKOFF_MAX = float(os.environ.get('COINBASE_BACKOFF_MAX','30'))
 BACKOFF_RESET_MIN = int(os.environ.get('BACKOFF_SUCCESS_RESET_MIN_PRICES','20'))
 _rate = {"failures":0,"next":0.0,"last_error":None}
+
+# Configure a session with reasonable retry/backoff to reduce transient connection failures
+_SESSION = requests.Session()
+_RETRY_STRATEGY = Retry(
+    total=int(os.environ.get('PRICE_FETCH_REQUEST_RETRIES','3')),  # a couple retries
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=frozenset(['GET']),
+    backoff_factor=float(os.environ.get('PRICE_FETCH_RETRY_BACKOFF','0.5')),
+    raise_on_status=False,
+)
+_ADAPTER = HTTPAdapter(max_retries=_RETRY_STRATEGY)
+_SESSION.mount('https://', _ADAPTER)
+_SESSION.mount('http://', _ADAPTER)
+
+# Timeouts: allow a longer connect and read timeout (connect, read)
+# Use explicit env vars for connect/read to keep behaviour clear
+API_TIMEOUT_CONNECT = int(CONFIG.get('API_TIMEOUT_CONNECT', os.environ.get('API_TIMEOUT_CONNECT', '5')))
+API_TIMEOUT_READ = int(CONFIG.get('API_TIMEOUT_READ', os.environ.get('API_TIMEOUT_READ', '10')))
+API_TIMEOUT: Tuple[int,int] = (API_TIMEOUT_CONNECT, API_TIMEOUT_READ)
+TICKER_TIMEOUT_CONNECT = int(os.environ.get('TICKER_TIMEOUT_CONNECT', '5'))
+TICKER_TIMEOUT_READ = int(os.environ.get('TICKER_TIMEOUT_READ', '10'))
+TICKER_TIMEOUT: Tuple[int,int] = (TICKER_TIMEOUT_CONNECT, TICKER_TIMEOUT_READ)
+
+# Max workers for concurrent ticker fetches (cap to avoid connection storms)
+MAX_WORKERS = int(os.environ.get('PRICE_FETCH_MAX_WORKERS', '4'))
+
+# Semaphore to guard simultaneous outbound connections (extra safety)
+_semaphore = threading.BoundedSemaphore(MAX_WORKERS)
 
 # Metrics (simple counters; not high-concurrency critical but guarded for safety)
 _metrics_lock = threading.Lock()
@@ -51,6 +82,7 @@ _cb = CircuitBreaker(
     reset_seconds=float(os.environ.get('PRICE_FETCH_CB_RESET_SECONDS','20'))
 )
 
+
 def _load_products(now: float):
     if not _cb.allow():
         logging.warning('price_fetch.circuit_open_products', extra={'event':'circuit_open_products'})
@@ -60,14 +92,20 @@ def _load_products(now: float):
             _metrics['products_cache_hits'] += 1
         return _products_cache['items']
     try:
-        r = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
-    except Exception as e:  # network error
+        r = _SESSION.get(COINBASE_PRODUCTS_URL, timeout=API_TIMEOUT)
+    except RequestException as e:  # network error
         with _metrics_lock:
             _metrics['errors'] += 1
         logging.warning(f"Products fetch exception {e}; using cached list")
         return _products_cache['items']
     if r.status_code == 200:
-        _products_cache['items'] = r.json()
+        try:
+            _products_cache['items'] = r.json()
+        except Exception:
+            logging.warning('price_fetch.products_invalid_json; using cached list')
+            with _metrics_lock:
+                _metrics['errors'] += 1
+            return _products_cache['items']
         _products_cache['fetched_at'] = now
         _cb.record_success()
     else:
@@ -96,6 +134,7 @@ def _load_products(now: float):
                 _metrics['errors'] += 1
         logging.warning(f"Products fetch status {r.status_code}; using cached list")
     return _products_cache['items']
+
 
 def fetch_prices() -> Dict[str,float]:
     start = time.time()
@@ -127,26 +166,58 @@ def fetch_prices() -> Dict[str,float]:
     targets = majors + others[: max(0,100-len(majors))]
 
     prices: Dict[str,float] = {}
-    workers = max(2, 8 - _rate['failures']*2)
+    # compute workers but cap by MAX_WORKERS
+    workers = max(2, min(MAX_WORKERS, 8 - _rate['failures']*2))
+
     def _ticker(sym: str):
+        # Limit concurrent outbound sockets using semaphore to avoid bursts
+        acquired = _semaphore.acquire(timeout=10)
         try:
-            r = requests.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=1.5)
-            if r.status_code == 200:
-                data = r.json(); price = float(data.get('price') or 0)
-                if price>0: return sym, price
-            elif r.status_code == 429:
+            try:
+                r = _SESSION.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
+                if r.status_code == 200:
+                    data = r.json(); price = float(data.get('price') or 0)
+                    if price>0: return sym, price
+                elif r.status_code == 429:
+                    with _metrics_lock:
+                        _metrics['errors'] += 1
+                        _metrics['rate_limit_failures'] += 1
+                    return '__RL__', None
+                else:
+                    with _metrics_lock:
+                        _metrics['errors'] += 1
+            except (ConnectTimeout, ReadTimeout) as e:
+                # connection timed out - count and debug
+                logging.debug(f"ticker {sym} timeout {e}")
                 with _metrics_lock:
                     _metrics['errors'] += 1
-                return '__RL__', None
-        except Exception as e:
-            logging.debug(f"ticker {sym} err {e}")
-            with _metrics_lock:
-                _metrics['errors'] += 1
-        return None, None
+            except RequestException as e:
+                logging.debug(f"ticker {sym} err {e}")
+                with _metrics_lock:
+                    _metrics['errors'] += 1
+            except Exception as e:
+                logging.debug(f"ticker {sym} unexpected {e}")
+                with _metrics_lock:
+                    _metrics['errors'] += 1
+            return None, None
+        finally:
+            if acquired:
+                # add a tiny jittered sleep before releasing to spread connection attempts
+                time.sleep(random.uniform(0.01, 0.05))
+                _semaphore.release()
+
+    # limit how many targets we attempt in one pass to reduce load
+    targets_to_fetch = targets[:50]
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = {ex.submit(_ticker, p['id']): p for p in targets[:50]}
+        futs = {ex.submit(_ticker, p['id']): p for p in targets_to_fetch}
         for f in as_completed(futs):
-            sym, pr = f.result()
+            try:
+                sym, pr = f.result()
+            except Exception as e:
+                logging.debug(f"ticker future err: {e}")
+                with _metrics_lock:
+                    _metrics['errors'] += 1
+                continue
             if sym == '__RL__':
                 _rate['failures'] = min(_rate['failures']+1,10)
                 continue
@@ -196,6 +267,7 @@ def fetch_prices() -> Dict[str,float]:
         if not placed:
             _hist_overflow += 1
     return prices
+
 
 def get_price_fetch_metrics():
     with _metrics_lock:

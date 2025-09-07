@@ -26,13 +26,20 @@ export default function OneMinGainersColumns({
           source = [];
         }
       }
-      const mapped = (source || []).map((item, idx) => ({
-        rank: item.rank || idx + 1,
-        symbol: item.symbol?.replace('-USD', '') || 'N/A',
-        price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
-      }));
+      const mapped = (source || []).map((item, idx) => {
+        const raw = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0;
+        const abs = Math.abs(Number(raw) || 0);
+        const needsScale = abs > 0 && abs < 0.02;
+        const pct = needsScale ? Number(raw) * 100 : Number(raw) || 0;
+        return ({
+          rank: item.rank || idx + 1,
+          symbol: item.symbol?.replace('-USD', '') || 'N/A',
+          price: item.current_price ?? item.price ?? 0,
+          change: pct,
+          initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,
+          peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
+        });
+      });
       // Dedupe by symbol, keep highest change
       const bySym = new Map();
       for (const r of mapped) {
@@ -80,4 +87,3 @@ export default function OneMinGainersColumns({
     </div>
   );
 }
-

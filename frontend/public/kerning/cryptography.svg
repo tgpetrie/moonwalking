@@ -1,0 +1,37 @@
+<svg width="1200" height="200" viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffb000"/>
+      <stop offset="50%" stop-color="#ff8800"/>
+      <stop offset="100%" stop-color="#ff4500"/>
+    </linearGradient>
+    <filter id="f1" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 0.98 0 0 0 0 0.2 0 0 0 0 0.85 0 0 0 0.6 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12" result="glow"/>
+      <feColorMatrix in="glow" type="matrix" values="0 0 0 0 0.95 0 0 0 0 0.1 0 0 0 0 0.8 0 0 0 0.6 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .title { font: 120px 'Helvetica Neue', Arial, sans-serif; font-weight: 800; fill: url(#g1); }
+      .shadow { fill: #ff2fa6; opacity: 0.9; }
+    </style>
+  </defs>
+
+  <!-- pink glow backdrop -->
+  <g filter="url(#glow)">
+    <text x="50%" y="62%" text-anchor="middle" class="shadow" style="font-size:120px; font-weight:900;">BHABIT</text>
+  </g>
+
+  <!-- main text -->
+  <text x="50%" y="60%" text-anchor="middle" class="title">BHABIT</text>
+
+  <!-- subtle inner shadow -->
+  <rect x="0" y="0" width="1200" height="200" fill="transparent" />
+</svg>

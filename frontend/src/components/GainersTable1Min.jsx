@@ -68,7 +68,8 @@ export default function GainersTable1Min({
 
   // Throttled WS updates (skip when external rows provided)
   useEffect(() => {
-    if (Array.isArray(externalRows)) { setData(externalRows); setLoading(false); return; }
+    // Only override with external rows when they contain data.
+    if (Array.isArray(externalRows) && externalRows.length > 0) { setData(externalRows); setLoading(false); return; }
     if (Array.isArray(gainersTop20) && gainersTop20.length) {
       const now = Date.now();
       const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : (isMobile ? mobileConfig.throttleMs : 15000);
@@ -110,13 +111,21 @@ export default function GainersTable1Min({
       try {
         const res = await fetchData(API_ENDPOINTS.gainersTable1Min);
         if (!cancelled && res?.data?.length) {
-          const mapped = res.data.slice(0, 20).map((item, idx) => ({
-            rank: item.rank || idx + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price ?? item.price ?? 0,
-            change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-            peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
-          }))
+          const mapped = res.data.slice(0, 20).map((item, idx) => {
+            // Normalize percent units and preserve initial price when available
+            const rawChange = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0;
+            const abs = Math.abs(Number(rawChange) || 0);
+            const needsScale = abs > 0 && abs < 0.02; // treat 0..1 as fraction -> percent
+            const pct = needsScale ? Number(rawChange) * 100 : Number(rawChange) || 0;
+            return ({
+              rank: item.rank || idx + 1,
+              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              price: item.current_price ?? item.price ?? 0,
+              change: pct,
+              initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,
+              peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+            });
+          })
           // Ensure strict ranking by current change (desc) for display consistency
           .sort((a,b)=> b.change - a.change)
           .slice(0, 20)
@@ -222,7 +231,13 @@ export default function GainersTable1Min({
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
         const breathAmt = 0.006;
-        const PCT = item ? item.change : 0;
+        const PCT = item ? (typeof item.change === 'number' ? item.change : 0) : 0;
+        // Use server-provided initial price when available; otherwise derive from PCT and current price
+        const prevPrice = (item && (typeof item.initial_price_1min === 'number'))
+          ? item.initial_price_1min
+          : (item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0)
+            ? (item.price / (1 + PCT / 100))
+            : null;
         const coinbaseUrl = item ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
         const inWatch = item ? watchlist.some((w) => (typeof w === 'string' ? w === item.symbol : w.symbol === item.symbol)) : false;
 
@@ -322,10 +337,8 @@ export default function GainersTable1Min({
                     <div className="text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
                       {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
                     </div>
-                    <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                        ? (() => { const prev = item.price / (1 + PCT / 100); return formatPrice(prev); })()
-                        : '--'}
+                    <div className="text-sm leading-tight text-white/80 font-mono tabular-nums whitespace-nowrap">
+                      {Number.isFinite(prevPrice) ? formatPrice(prevPrice) : '--'}
                     </div>
                   </div>
 

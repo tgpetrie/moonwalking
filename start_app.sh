@@ -51,6 +51,13 @@ trap cleanup EXIT INT TERM
 
 print_status "Starting BHABIT CBMOONERS Application..."
 
+# Load .env if present (for OPENAI_API_KEY etc.)
+if [ -f .env ]; then
+  print_status "Loading environment from .env"
+  # shellcheck disable=SC2046
+  export $(grep -v '^#' .env | xargs -I{} echo {}) 2>/dev/null || true
+fi
+
 # Check required commands
 if ! command_exists python3; then
   print_error "Python 3 is not installed. Please install Python 3.13+ to continue."
@@ -87,6 +94,8 @@ fi
 if [ -f "backend/requirements.txt" ]; then
   print_status "Checking backend dependencies..."
   cd backend
+  # Allow PyO3-based wheels (pydantic-core) to build against stable ABI on newer Python
+  export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
   pip install -q -r requirements.txt
   cd ..
   print_success "Backend dependencies verified."
@@ -102,6 +111,38 @@ fi
 cd ..
 print_success "Frontend dependencies verified."
 
+# Ensure target ports are free before (re)starting
+free_port() {
+  local PORT=$1
+  if command -v lsof >/dev/null 2>&1; then
+    local PIDS
+    PIDS=$(lsof -ti tcp:$PORT 2>/dev/null || true)
+    if [ -n "$PIDS" ]; then
+      print_warning "Port $PORT is in use by PID(s): $PIDS — sending TERM"
+      kill $PIDS 2>/dev/null || true
+      # give processes a moment to exit gracefully
+      sleep 1
+      # if still running, force kill
+      local STILL
+      STILL=$(lsof -ti tcp:$PORT 2>/dev/null || true)
+      if [ -n "$STILL" ]; then
+        print_warning "PID(s) still on $PORT after TERM; sending KILL"
+        kill -9 $STILL 2>/dev/null || true
+      fi
+    fi
+  elif command -v fuser >/dev/null 2>&1; then
+    print_warning "Freeing port $PORT using fuser"
+    fuser -k -n tcp $PORT 2>/dev/null || true
+  else
+    print_warning "Neither lsof nor fuser available; cannot auto-free port $PORT"
+  fi
+}
+
+# Common dev ports: backend(5001), alt(5000), vite(5173). Also handle 5713 typo.
+for PORT in 5000 5001 5173 5713; do
+  free_port $PORT
+done
+
 # Start backend server
 print_status "Preparing log files..."
 # Truncate previous logs so tail shows fresh output
@@ -110,8 +151,11 @@ print_status "Preparing log files..."
 
 print_status "Starting backend server on http://localhost:5001 (logs -> backend.log)..."
 cd backend
-# use python3 (we checked earlier) and redirect stdout/stderr to a log file
-python3 app.py > ../backend.log 2>&1 &
+# Use a fixed port for the backend so the frontend can reliably reach it.
+# We proactively free the port earlier, then pass --kill-port and --port
+# so the server binds to 5001 instead of auto‑selecting a random port
+# (which previously caused the frontend to point at the wrong API base).
+python3 app.py --kill-port --port 5001 > ../backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 

@@ -1,6 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
+// Prefer an edge Worker URL when provided; fallback to backend route
+const EDGE_URL = import.meta.env?.VITE_BOTTOM_BANNER_URL;
+const FALLBACK_API = API_ENDPOINTS.bottomBanner;
+const BANNER_API = EDGE_URL || FALLBACK_API;
+
 const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
@@ -23,26 +28,40 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
 
   useEffect(() => {
     let isMounted = true;
+    let timerId = null;
     const fetchBottomBannerData = async () => {
       try {
-        const response = await fetchData(API_ENDPOINTS.bottomBanner);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const dataWithRanks = response.data.map((item, index) => ({
-            rank: index + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            volume_change: (typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct))
-              ? item.volume_change_1h_pct
-              : (typeof item.volume_change_estimate === 'number' ? item.volume_change_estimate : 0),
-            isEstimated: (typeof item.volume_change_is_estimated === 'boolean')
-              ? item.volume_change_is_estimated
-              : (!(typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct)) && (typeof item.volume_change_estimate === 'number')),
-            volume_24h: item.volume_24h || 0,
-            badge: getBadgeStyle(item.volume_24h || 0),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
-          }));
+        const raw = await (async () => {
+          try {
+            const res = await fetch(BANNER_API);
+            if (res.ok) return await res.json();
+          } catch (_) { /* fall back below */ }
+          return await fetchData(FALLBACK_API);
+        })();
+        const rows = Array.isArray(raw?.rows) ? raw.rows
+                  : (Array.isArray(raw?.data) ? raw.data : []);
+        if (rows && rows.length > 0) {
+          const dataWithRanks = rows.map((item, index) => {
+            const vol24 = Number(item.volume_24h ?? 0);
+            const pctRaw = (item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)))
+              ? Number(item.volume_change_1h_pct)
+              : (item.volume_change_estimate != null && !Number.isNaN(Number(item.volume_change_estimate))
+                  ? Number(item.volume_change_estimate)
+                  : (Number(item.price_change_1h ?? 0) * 0.5));
+            const isEst = !(item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)));
+            return ({
+              rank: index + 1,
+              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              price: Number(item.current_price ?? item.price ?? 0),
+              volume_24h: vol24,
+              volume_change: pctRaw,
+              isEstimated: Boolean(item.volume_change_is_estimated ?? isEst),
+              badge: getBadgeStyle(vol24),
+              trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
+              trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
+              trendScore: item.trend_score ?? item.trendScore ?? 0
+            });
+          });
           if (isMounted) {
             // Update data with real live data
             setData(dataWithRanks.slice(0, 20));
@@ -72,11 +91,22 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
         }
       }
     };
-    
-    // Fetch on mount and then hourly (60 min)
-    fetchBottomBannerData();
-    const id = setInterval(fetchBottomBannerData, 60 * 60 * 1000);
-    return () => { isMounted = false; clearInterval(id); };
+    // Fetch on mount, then refresh at end-of-scroll boundaries (hourly cap)
+    const scheduleAtBoundary = () => {
+      const now = Date.now();
+      const elapsed = now - startRef.current;
+      const cycleMs = SCROLL_DURATION_SEC * 1000;
+      const msUntilBoundary = cycleMs - (elapsed % cycleMs);
+      const cap = 60 * 60 * 1000; // 1 hour
+      clearTimeout(timerId);
+      timerId = setTimeout(async () => {
+        await fetchBottomBannerData();
+        scheduleAtBoundary();
+      }, Math.min(Math.max(250, msUntilBoundary), cap));
+    };
+
+    fetchBottomBannerData().then(() => scheduleAtBoundary());
+    return () => { isMounted = false; clearTimeout(timerId); };
   }, []);
 
   const getBadgeStyle = (volume) => {
@@ -113,8 +143,8 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                       {coin.symbol}
                     </span>
                   </div>
-                  <div className="text-lg font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
-                    ${formatAbbrev(coin.volume_24h)}
+                  <div className="text-lg font-semibold text-teal" title={`24h volume: $${Number(coin.volume_24h||0).toLocaleString()}`}>
+                    ${formatAbbrev(Number(coin.volume_24h||0))}
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
