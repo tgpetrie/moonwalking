@@ -205,3 +205,5 @@ function json(obj, status = 200) {
     headers: { 'content-type': 'application/json' }
   });
 }
+
+export default Hub;

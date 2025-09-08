@@ -8,51 +8,57 @@ const RUNTIME_IS_DEV = Boolean(import.meta.env && import.meta.env.DEV);
 const RUNTIME_IS_LOCAL_HOST = (typeof window !== 'undefined') && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
 const RUNTIME_ALLOW_LOCAL_PROBING = RUNTIME_IS_DEV || RUNTIME_IS_LOCAL_HOST;
 
+// More robust API_BASE_URL detection with multiple fallbacks
 let API_BASE_URL;
-if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative' && !/^\s*\/api(\/|$)/.test(RAW_ENV_BASE)) {
+if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
+  // If VITE_API_URL is set to any value (including '/api'), use it directly
   API_BASE_URL = RAW_ENV_BASE.trim();
 } else if (RAW_ENV_BASE === 'relative') {
   API_BASE_URL = ''; // same-origin relative mode
-} else if (/^\s*\/api(\/|$)/.test(RAW_ENV_BASE || '')) {
-  // If VITE_API_URL is '/api' or '/api/...', treat as same-origin relative
-  API_BASE_URL = '';
 } else {
-  // Do not assume a public site should reach localhost. Only default to localhost when running locally or in DEV.
-  API_BASE_URL = RUNTIME_ALLOW_LOCAL_PROBING ? 'http://localhost:5001' : '';
+  // Enhanced fallback: check multiple env var names
+  const fallbackBase = (
+    import.meta.env.VITE_API_BASE ||
+    import.meta.env.PUBLIC_API_BASE ||
+    import.meta.env.API_BASE_URL ||
+    (RUNTIME_ALLOW_LOCAL_PROBING ? 'http://localhost:5001' : '')
+  );
+  API_BASE_URL = fallbackBase;
 }
 API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 
-// Small runtime debug output to help diagnose blank-page / api switch issues.
+// Enhanced runtime debug output
 try {
-  // This will print in the browser console when the module is evaluated by Vite or the built bundle.
-  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s RUNTIME_ALLOW_LOCAL_PROBING=%s API_BASE_URL=%s',
-    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(RUNTIME_ALLOW_LOCAL_PROBING), String(API_BASE_URL));
+  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s RUNTIME_ALLOW_LOCAL_PROBING=%s API_BASE_URL=%s RAW_ENV_BASE=%s',
+    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(RUNTIME_ALLOW_LOCAL_PROBING), String(API_BASE_URL), String(RAW_ENV_BASE));
 } catch (e) {
   // ignore when console is unavailable
 }
 const buildEndpoints = () => ({
-  topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
-  bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
-  gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
-  gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
+  topBanner: `${API_BASE_URL}/component/top-banner-scroll`,
+  bottomBanner: `${API_BASE_URL}/component/bottom-banner-scroll`,
+  gainersTable: `${API_BASE_URL}/component/gainers-table`,
+  gainersTable1Min: `${API_BASE_URL}/component/gainers-table-1min`,
   // 3m endpoints (Cloudflare functions provide compatibility wrappers)
-  gainersTable3Min: `${API_BASE_URL}/api/component/gainers-table-3min`,
-  losersTable3Min: `${API_BASE_URL}/api/component/losers-table-3min`,
-  losersTable: `${API_BASE_URL}/api/component/losers-table`,
-  alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
-  topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
-  crypto: `${API_BASE_URL}/api/crypto`,
-  health: `${API_BASE_URL}/api/health`,
-  serverInfo: `${API_BASE_URL}/api/server-info`,
-  metrics: `${API_BASE_URL}/api/metrics`,
-  marketOverview: `${API_BASE_URL}/api/market-overview`,
-  watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
-  watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
-  watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
-  technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
-  cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
-  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
-  askCodex: `${API_BASE_URL}/api/ask-codex`,
+  gainersTable3Min: `${API_BASE_URL}/component/gainers-table-3min`,
+  losersTable3Min: `${API_BASE_URL}/component/losers-table-3min`,
+  losersTable: `${API_BASE_URL}/component/losers-table`,
+  alertsRecent: `${API_BASE_URL}/alerts/recent`,
+  topMoversBar: `${API_BASE_URL}/component/top-movers-bar`,
+  crypto: `${API_BASE_URL}/crypto`,
+  health: `${API_BASE_URL}/health`,
+  serverInfo: `${API_BASE_URL}/server-info`,
+  metrics: `${API_BASE_URL}/metrics`,
+  marketOverview: `${API_BASE_URL}/market-overview`,
+  watchlistInsights: `${API_BASE_URL}/watchlist/insights`,
+  watchlistInsightsLog: `${API_BASE_URL}/watchlist/insights/log`,
+  watchlistInsightsPrice: `${API_BASE_URL}/watchlist/insights/price`,
+  technicalAnalysis: (symbol) => `${API_BASE_URL}/technical-analysis/${symbol}`,
+  cryptoNews: (symbol) => `${API_BASE_URL}/news/${symbol}`,
+  socialSentiment: (symbol) => `${API_BASE_URL}/social-sentiment/${symbol}`,
+  sentiment: (symbols) => `${API_BASE_URL}/sentiment?symbols=${encodeURIComponent(symbols)}`,
+  watchlist: `${API_BASE_URL}/watchlist`,
+  askCodex: `${API_BASE_URL}/ask-codex`,
 });
 
 export let API_ENDPOINTS = buildEndpoints();
@@ -67,7 +73,7 @@ export const setApiBaseUrl = (url) => {
 export async function fetchLatestAlerts(symbols = []) {
   if (!Array.isArray(symbols) || symbols.length === 0) return {};
   try {
-    const res = await fetch(`${API_BASE_URL}/api/watchlist/insights/latest`, {
+    const res = await fetch(`${API_BASE_URL}/watchlist/insights/latest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbols })
