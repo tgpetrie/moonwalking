@@ -7,3 +7,6 @@ bindings = [
 # Comma-separated list of symbols to include by default (optional)
 COIN_LIST = "BTC,ETH,SOL,AMP"
 
+# Frontend environment variables for build-time
+VITE_API_URL = "/api"
+

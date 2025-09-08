@@ -148,6 +148,16 @@ export class Hub {
       return this._json({ status: "running", updatedAt: this.snapshots.updatedAt });
     }
 
+    // Metrics
+    if (url.pathname.endsWith("/metrics")) {
+      return this._json({
+        status: "ok",
+        uptime_seconds: Math.floor((Date.now() - this.snapshots.updatedAt) / 1000),
+        clients: this.clients.size,
+        updatedAt: this.snapshots.updatedAt
+      });
+    }
+
     // Read snapshots
     if (url.pathname.endsWith("/snapshots") && request.method === "GET") {
       return this._json(this.snapshots);

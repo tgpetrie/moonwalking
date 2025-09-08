@@ -1,17 +1,20 @@
 name = "mw-hub"
-main = "src/worker.js"
+main = "workers/hub.js"
 compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
-
-[[migrations]]
-tag = "v1"
-new_classes = ["Hub"]
 
 [durable_objects]
 bindings = [
   { name = "HUB", class_name = "Hub" }
 ]
 
+[[migrations]]
+tag = "v1"
+new_classes = ["Hub"]
+
 [vars]
+# Comma-separated list of symbols to include by default (optional)
 COIN_LIST = "BTC,ETH,SOL,AMP"
-DEBUG = "false"
+
+# Optional: Cron trigger for keeping DO warm
+[triggers]
+crons = ["*/5 * * * *"]
