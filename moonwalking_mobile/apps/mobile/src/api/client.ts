@@ -13,7 +13,13 @@ async function getDeviceId() {
   return deviceIdCache
 }
 
-const baseURL = Constants?.expoConfig?.extra?.API_BASE || 'http://127.0.0.1:8787'
+// Prefer secure API base provided via Expo extra. Fallback to local dev port when not set.
+const baseURL = (Constants?.expoConfig?.extra as any)?.API_BASE || 'http://127.0.0.1:8787'
+try {
+  // Helpful runtime log
+  // eslint-disable-next-line no-console
+  console.info('[mobile.api] baseURL =', baseURL)
+} catch {}
 const client = axios.create({ baseURL })
 
 client.interceptors.request.use(async (cfg) => {

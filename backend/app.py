@@ -30,6 +30,7 @@ from logging_config import setup_logging as _setup_logging, log_config as _log_c
 from logging_config import REQUEST_ID_CTX
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
+from social_sentiment import get_social_sentiment
 # local low-overhead TTL cache for dev/test to avoid hammering Coinbase
 try:
     # prefer package-style import when running as installed package
@@ -392,9 +393,9 @@ def _swr_entries():
         ('gainers_1m', globals().get('_get_gainers_table_1min_swr'), _GAINERS_1M_SWR_TTL, _GAINERS_1M_SWR_STALE),
         ('gainers_3m', globals().get('_get_gainers_table_3min_swr'), _GAINERS_3M_SWR_TTL, _GAINERS_3M_SWR_STALE),
         ('losers_3m', globals().get('_get_losers_table_3min_swr'), _LOSERS_3M_SWR_TTL, _LOSERS_3M_SWR_STALE),
+# Closing bracket fixed below
         ('top_movers_bar', globals().get('_get_top_movers_bar_swr'), _TOP_MOVERS_BAR_SWR_TTL, _TOP_MOVERS_BAR_SWR_STALE),
     ]
-
 # --- Helper to reduce duplication & complexity in 3m trend updates ---
 def _update_3m_trend(sym: str, gain_val):
     g = float(gain_val or 0)
@@ -484,6 +485,143 @@ def metrics():
         # fall back without blocking endpoint
         validated = out
     return jsonify(validated)
+
+@app.route('/api/mobile/bundle')
+def api_mobile_bundle():
+    """Mobile-friendly aggregate: returns banner + tables in one call.
+
+    Shape matches moonwalking_mobile packages/core DataBundle/MarketRow.
+    """
+    try:
+        # 1h banner (price change)
+        banner_rows = []
+        try:
+            banner = _compute_top_banner_data_safe() or []
+            for it in banner[:20]:
+                banner_rows.append({
+                    'symbol': it.get('symbol'),
+                    'price': float(it.get('current_price') or 0),
+                    'changePct1h': float(it.get('price_change_1h') or 0),
+                    'ts': int(time.time() * 1000),
+                })
+        except Exception:
+            pass
+
+        # 1m / 3m gainers/losers via SWR helpers (already cached)
+        gainers1m_rows = []
+        try:
+            g1m = _get_gainers_table_1min_swr() or {}
+            for it in (g1m.get('data') or [])[:30]:
+                gainers1m_rows.append({
+                    'symbol': it.get('symbol'),
+                    'price': float(it.get('current_price') or 0),
+                    'changePct1m': float(it.get('price_change_percentage_1min') or 0),
+                    'ts': int(time.time() * 1000),
+                })
+        except Exception:
+            pass
+
+        gainers3m_rows = []
+        try:
+            g3m = _get_gainers_table_3min_swr() or {}
+            for it in (g3m.get('data') or [])[:30]:
+                gainers3m_rows.append({
+                    'symbol': it.get('symbol'),
+                    'price': float(it.get('current_price') or 0),
+                    'changePct3m': float(it.get('price_change_percentage_3min') or 0),
+                    'ts': int(time.time() * 1000),
+                })
+        except Exception:
+            pass
+
+        losers3m_rows = []
+        try:
+            l3m = _get_losers_table_3min_swr() or {}
+            for it in (l3m.get('data') or [])[:30]:
+                losers3m_rows.append({
+                    'symbol': it.get('symbol'),
+                    'price': float(it.get('current_price') or 0),
+                    'changePct3m': float(it.get('price_change_percentage_3min') or 0),
+                    'ts': int(time.time() * 1000),
+                })
+        except Exception:
+            pass
+
+        # 1h volume placeholder: use top banner symbols with 0 volume change if true 1h volume unavailable
+        volume1h_rows = []
+        try:
+            for it in banner_rows[:20]:
+                volume1h_rows.append({
+                    'symbol': it['symbol'],
+                    'price': it['price'],
+                    'volumeChangePct1h': 0.0,
+                    'ts': it['ts'],
+                })
+        except Exception:
+            pass
+
+        out = {
+            'banner1h': banner_rows,
+            'gainers1m': gainers1m_rows,
+            'gainers3m': gainers3m_rows,
+            'losers3m': losers3m_rows,
+            'volume1h': volume1h_rows,
+            'ts': int(time.time() * 1000),
+        }
+        return jsonify(out)
+    except Exception as e:
+        try:
+            app.logger.exception("mobile bundle error: %s", e)
+        except Exception:
+            pass
+        return jsonify({'banner1h': [], 'gainers1m': [], 'gainers3m': [], 'losers3m': [], 'volume1h': [], 'ts': int(time.time()*1000)}), 200
+
+@app.route('/api/sentiment')
+def api_sentiment():
+    """Return simple sentiment rows for a comma-separated symbols list."""
+    syms_param = (request.args.get('symbols') or '').strip()
+    if not syms_param:
+        return jsonify([])
+    syms = [s.strip().upper() for s in syms_param.split(',') if s.strip()]
+    out = []
+    now_ms = int(time.time() * 1000)
+    for sym in syms:
+        try:
+            s = get_social_sentiment(sym)
+            dist = s.get('sentiment_distribution') or {}
+            metrics = s.get('social_metrics') or {}
+            tw = (metrics.get('twitter') or {}).get('mentions_24h') or 0
+            rd = (metrics.get('reddit') or {}).get('posts_24h') or 0
+            tg = (metrics.get('telegram') or {}).get('messages_24h') or 0
+            total_mentions = int(tw) + int(rd) + int(tg)
+            out.append({
+                'symbol': sym,
+                'ts': now_ms,
+                'mentions': total_mentions,
+                'sent_score': float((s.get('overall_sentiment') or {}).get('score') or 0.0),
+                'pos': float(dist.get('positive') or 0.0),
+                'neg': float(dist.get('negative') or 0.0),
+                'velocity': 0.0,
+                'source_mix': {
+                    'twitter': int(tw),
+                    'reddit': int(rd),
+                    'telegram': int(tg),
+                },
+            })
+        except Exception:
+            continue
+    return jsonify(out)
+
+@app.route('/api/signals/pumpdump')
+def api_signals_pumpdump():
+    """Stub signals endpoint to keep mobile/web screens functional.
+
+    Replace with real logic when signals generation is ready.
+    """
+    try:
+        return jsonify([])
+    except Exception:
+        return jsonify([])
 
 @app.route('/metrics.prom')
 def metrics_prom():
@@ -1774,53 +1912,69 @@ def get_tables_3min():
 # INDIVIDUAL COMPONENT ENDPOINTS - Each component gets its own unique data
 # =============================================================================
 
+# Resilient helper for top banner (never raises NameError)
+def _compute_top_banner_data_safe():
+    """
+    Build top-banner rows using the existing 24h movers logic without sparkline/trend fields.
+    Returns list[dict] with keys used by the web ticker:
+      symbol, current_price, initial_price_1h, price_change_1h, market_cap
+    """
+    try:
+        rows = get_24h_top_movers() or []
+    except Exception as e:
+        try:
+            app.logger.warning(f"Banner fallback due to error: {e}")
+        except Exception:
+            pass
+        rows = []
+
+    out = []
+    for coin in rows[:20]:
+        try:
+            out.append({
+                "symbol": coin.get("symbol"),
+                "current_price": float(coin.get("current_price", 0) or 0),
+                "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
+                "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                "market_cap": float(coin.get("market_cap", 0) or 0),
+            })
+        except Exception:
+            continue
+    return out
+
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():
-    """Individual endpoint for top scrolling banner - 1-hour price change data"""
+    """Individual endpoint for top scrolling banner - 1-hour price change data (resilient, no trends/sparklines)."""
     try:
-        # Get 1-hour price change data from 24h movers API
-        banner_data = get_24h_top_movers()
-        if not banner_data:
-            return jsonify({"error": ERROR_NO_DATA}), 503
-            
-        # Sort by 1-hour price change for top banner
-        hour_sorted = sorted(banner_data, key=lambda x: abs(x.get("price_change_1h", 0)), reverse=True)
-        
-        top_scroll_data = []
-        for coin in hour_sorted[:20]:  # Top 20 by 1-hour price change
-            sym = coin["symbol"]
-            ch = float(coin.get("price_change_1h", 0) or 0)
-            prev = one_hour_price_trends.get(sym, {"last": ch, "streak": 0, "last_dir": "flat", "score": 0.0})
-            direction = "up" if ch > prev["last"] else ("down" if ch < prev["last"] else "flat")
-            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
-            score = round(prev["score"] * 0.9 + ch * 0.1, 3)
-            one_hour_price_trends[sym] = {"last": ch, "streak": streak, "last_dir": direction, "score": score}
-            _maybe_fire_trend_alert('1h_price', sym, direction, streak, score)
-            top_scroll_data.append({
-                "symbol": coin["symbol"],
-                "current_price": coin["current_price"],
-                "price_change_1h": coin["price_change_1h"],  # 1-hour price change
-                "initial_price_1h": coin["initial_price_1h"],
-                "market_cap": coin.get("market_cap", 0),
-                "sparkline_trend": "up" if coin["price_change_1h"] > 0 else "down",
-                "trend_direction": direction,
-                "trend_streak": streak,
-                "trend_score": score
-            })
-        
-        return jsonify({
+        rows = _compute_top_banner_data_safe() or []
+        payload = {
             "component": "top_banner_scroll",
-            "data": top_scroll_data,
-            "count": len(top_scroll_data),
+            "data": rows,
+            "count": len(rows),
             "time_frame": "1_hour",
             "focus": "price_change",
             "scroll_speed": "medium",
-            "update_interval": 60000,  # 1 minute updates for 1-hour data
+            "update_interval": 60000,
             "last_updated": datetime.now().isoformat()
-        })
+        }
+        return jsonify(payload), 200
     except Exception as e:
-        logging.error(f"Error in top banner scroll endpoint: {e}")
-        return jsonify({"error": str(e)}), 500
+        try:
+            app.logger.exception("top banner scroll error: %s", e)
+        except Exception:
+            pass
+        # Still return 200 with empty list so UI never breaks
+        return jsonify({
+            "component": "top_banner_scroll",
+            "data": [],
+            "count": 0,
+            "time_frame": "1_hour",
+            "focus": "price_change",
+            "scroll_speed": "medium",
+            "update_interval": 60000,
+            "last_updated": datetime.now().isoformat(),
+            "error": str(e)
+        }), 200
 
 @app.route('/api/component/bottom-banner-scroll')
 def get_bottom_banner_scroll():
@@ -3052,38 +3206,7 @@ else:
     log_config()
     logging.info("Running in production mode (Vercel)")
 
-@app.route('/api/mobile/bundle', methods=['GET'])
-def get_mobile_bundle():
-    with app.test_client() as client:
-        try:
-            top_banner_res = client.get('/api/component/top-banner-scroll')
-            top_banner_data = top_banner_res.get_json() if top_banner_res.status_code == 200 else {}
-
-            bottom_banner_res = client.get('/api/component/bottom-banner-scroll')
-            bottom_banner_data = bottom_banner_res.get_json() if bottom_banner_res.status_code == 200 else {}
-
-            gainers_res = client.get('/api/component/gainers-table')
-            gainers_data = gainers_res.get_json() if gainers_res.status_code == 200 else {}
-
-            losers_res = client.get('/api/component/losers-table')
-            losers_data = losers_res.get_json() if losers_res.status_code == 200 else {}
-
-            watchlist_res = client.get('/api/watchlist')
-            watchlist_data = watchlist_res.get_json() if watchlist_res.status_code == 200 else {"watchlist": []}
-
-            bundled_data = {
-                "top_banner": top_banner_data.get('data', []),
-                "bottom_banner": bottom_banner_data.get('data', []),
-                "table_data": {
-                    "gainers": gainers_data.get('data', []),
-                    "losers": losers_data.get('data', [])
-                },
-                "watchlist": watchlist_data.get('watchlist', [])
-            }
-            return jsonify(bundled_data)
-        except Exception as e:
-            logging.error(f"Error in get_mobile_bundle: {e}")
-            return jsonify({"error": "Failed to bundle mobile data"}), 500
+# Legacy get_mobile_bundle route removed; consolidated into /api/mobile/bundle above.
 
 __all__ = [
     "process_product_data",

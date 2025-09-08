@@ -13,7 +13,7 @@ echo "🐰 BHABIT CBMOONERS - Quick Status Check"
 echo "========================================"
 
 # Check backend
-if curl -s http://localhost:5001/health > /dev/null 2>&1; then
+if curl -s http://localhost:5001/api/health > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend API${NC} - Running on http://localhost:5001"
 else
     echo -e "${RED}❌ Backend API${NC} - Not accessible"
