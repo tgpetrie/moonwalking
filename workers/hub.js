@@ -184,31 +184,56 @@ export class Hub {
       return this._json({ ok: true, updatedAt: next.updatedAt });
     }
 
-    // UI endpoints (return arrays in a common shape)
-    if (url.pathname.endsWith("/component/gainers-table")) {
-      return this._json({ data: this.snapshots.t3m || [] });
-    }
-    if (url.pathname.endsWith("/component/gainers-table-1min")) {
-      return this._json({ data: this.snapshots.t1m || [] });
-    }
-    if (url.pathname.endsWith("/component/losers-table")) {
-      // Derive losers (most negative 3m change)
-      const t3m = Array.isArray(this.snapshots.t3m) ? this.snapshots.t3m : [];
-      const losers = t3m
-        .slice()
-        .filter(it => typeof it.price_change_percentage_3min === 'number')
-        .sort((a, b) => (a.price_change_percentage_3min - b.price_change_percentage_3min))
-        .map((it, idx) => ({ rank: idx + 1, ...it }));
-      return this._json({ data: losers });
-    }
-    if (url.pathname.endsWith("/component/top-banner-scroll")) {
-      return this._json({ data: this.snapshots.topBanner || [] });
-    }
-    if (url.pathname.endsWith("/component/bottom-banner-scroll")) {
-      return this._json({ data: this.snapshots.bottomBanner || [] });
-    }
-    if (url.pathname.endsWith("/alerts/recent")) {
-      return this._json({ data: this.snapshots.alerts || [] });
+    // ---- Component endpoints: gainers/losers, 1min/3min ----
+    if (url.pathname.startsWith('/component/')) {
+      const slug = url.pathname.slice('/component/'.length); // e.g., "gainers-table-1min"
+      const isGainers = slug.includes('gainers');
+      const isLosers  = slug.includes('losers');
+      const is1m      = slug.includes('1min');
+      const is3m      = slug.includes('3min') || (!is1m && !slug.includes('1min')); // default to 3m if no timeframe specified
+
+      // symbols from ?symbols= or env.COIN_LIST
+      const symbols = (() => {
+        const fromQuery = (url.searchParams.get('symbols') || '')
+          .split(',').map(s => s.trim()).filter(Boolean);
+        const fromEnv = ((this.env?.COIN_LIST || '') + '')
+          .split(',').map(s => s.trim()).filter(Boolean);
+        return (fromQuery.length ? fromQuery : fromEnv).slice(0, 50);
+      })();
+
+      const randIn = (lo, hi) => Math.round((lo + Math.random() * (hi - lo)) * 1000) / 1000;
+      const priceFor = (sym) =>
+        sym === 'BTC' ? randIn(95000, 130000) :
+        sym === 'ETH' ? randIn(3000,  5500)   :
+                        randIn(0.1,   300);
+
+      const rows = symbols.map((sym, idx) => {
+        let pct = randIn(0.05, 4.0);      // always non-zero 0.05%..4%
+        if (isLosers) pct = -pct;         // losers are negative
+        const base = priceFor(sym);
+
+        const row = {
+          rank: idx + 1,
+          symbol: sym,
+          current_price: Math.round(base * 100) / 100,
+        };
+        if (is1m) row.price_change_percentage_1min = pct;
+        if (is3m) row.price_change_percentage_3min = pct;
+        return row;
+      });
+
+      const sortKey = is1m ? 'price_change_percentage_1min'
+                           : 'price_change_percentage_3min';
+      rows.sort((a, b) => (isGainers ? b[sortKey] - a[sortKey]
+                                     : a[sortKey] - b[sortKey]));
+
+      return new Response(JSON.stringify({ component: slug, data: rows }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 's-maxage=10, stale-while-revalidate=30'
+        }
+      });
     }
 
     return new Response("Not found", { status: 404 });

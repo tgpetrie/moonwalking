@@ -18,3 +18,155 @@ COIN_LIST = "BTC,ETH,SOL,AMP"
 # Optional: Cron trigger for keeping DO warm
 [triggers]
 crons = ["*/5 * * * *"]
+    this.connecting = false;
+  }
+
+  // Parse ISO/RFC time to Unix minute (epoch minutes)
+  _toMinute(ts) {
+    const t = typeof ts === 'number' ? ts : Date.parse(ts);
+    return Math.floor(t / 60000);
+  }
+  
+  // Maintain a capped array of recent minute closes per symbol (keep ~10)
+  _recordClose(symbol, ts, price) {
+    const m = this._toMinute(ts);
+    if (!this.minuteCloses[symbol]) this.minuteCloses[symbol] = [];
+    const arr = this.minuteCloses[symbol];
+    if (arr.length && arr[0].minute === m) {
+      arr[0].close = price;
+    } else {
+      arr.unshift({ minute: m, close: price });
+    }
+    // cap to last 10 minutes
+    if (arr.length > 10) arr.length = 10;
+  }
+  
+  // Compute percent change using minute buckets (1 or 3 minutes)
+  _pctChange(symbol, minutes) {
+    const arr = this.minuteCloses[symbol] || [];
+    if (arr.length < (minutes + 1)) return null; // not enough data yet
+    const last = arr[0].close;
+    const idx = minutes; // e.g., 1 → previous minute, 3 → 3 minutes ago
+    const base = arr[idx]?.close;
+    if (!isFinite(last) || !isFinite(base) || base === 0) return null;
+    return Math.round(((last - base) / base) * 1000) / 10; // one decimal, e.g., 1.2
+  }
+  
+  // Ensure a single Coinbase WS feed is connected and subscribed for all requested symbols
+  async _ensureFeed(symbols) {
+    const needed = new Set(symbols.map(s => `${s}-USD`));
+    // Subscribe to any missing once connected
+    const subscribeMissing = () => {
+      if (!this.wsReady) return;
+      const add = [...needed].filter(p => !this.subscribed.has(p));
+      if (add.length === 0) return;
+      const msg = JSON.stringify({ type: 'subscribe', channels: [{ name: 'ticker', product_ids: add }] });
+      try { this.ws.send(msg); } catch {}
+      add.forEach(p => this.subscribed.add(p));
+    };
+  
+    if (this.ws && this.wsReady) {
+      subscribeMissing();
+      return;
+    }
+    if (this.connecting) {
+      // wait a short time for connection; try to subscribe after
+      await new Promise(r => setTimeout(r, 300));
+      subscribeMissing();
+      return;
+    }
+  
+    this.connecting = true;
+    try {
+      const url = 'wss://ws-feed.exchange.coinbase.com';
+      const ws = new WebSocket(url);
+      this.ws = ws;
+      this.wsReady = false;
+  
+      ws.addEventListener('open', () => {
+        this.wsReady = true;
+        subscribeMissing();
+      });
+  
+      ws.addEventListener('message', (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type !== 'ticker') return;
+          const product = msg.product_id;          // e.g., "BTC-USD"
+          const sym = product && product.split('-')[0];
+          const price = Number(msg.price);
+          const ts = msg.time || Date.now();
+          if (!sym || !isFinite(price)) return;
+          this.lastPrice[sym] = price;
+          this._recordClose(sym, ts, price);
+        } catch { /* ignore malformed */ }
+      });
+  
+      ws.addEventListener('error', () => {
+        this.wsReady = false;
+      });
+      ws.addEventListener('close', () => {
+        this.wsReady = false;
+        this.subscribed.clear();
+        // attempt reconnect shortly
+        setTimeout(() => { this._ensureFeed(symbols).catch(()=>{}); }, 1000);
+      });
+    } finally {
+      this.connecting = false;
+    }
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
+    const listFromEnv = ((this.env?.COIN_LIST || '') + '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const qs = url.searchParams;
+    const listFromQuery = (qs.get('symbols') || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const symbols = (listFromQuery.length ? listFromQuery : listFromEnv);
+    if (symbols.length) {
+      await this._ensureFeed(symbols);
+    }
+
+    if (pathname.startsWith('/component/')) {
+      const slug = pathname.slice('/component/'.length); // "gainers-table-1min" etc.
+      const isGainers = slug.includes('gainers');
+      const isLosers  = slug.includes('losers');
+      const is1m      = slug.includes('1min');
+      const is3m      = slug.includes('3min');
+      const defaultTo3m = !is1m && !is3m;
+      
+      const rows = symbols.map((sym, idx) => {
+        const price = this.lastPrice[sym];
+        const p1 = is1m ? this._pctChange(sym, 1) : null;
+        const p3 = (is3m || defaultTo3m) ? this._pctChange(sym, 3) : null;
+        return {
+          rank: idx + 1,
+          symbol: sym,
+          current_price: isFinite(price) ? Math.round(price * 100) / 100 : null,
+          ...(is1m ? { price_change_percentage_1min: p1 } : {}),
+          ...((is3m || defaultTo3m) ? { price_change_percentage_3min: p3 } : {}),
+        };
+      });
+      // filter out rows lacking price
+      const have = rows.filter(r => typeof r.current_price === 'number');
+      const sortKey = is1m ? 'price_change_percentage_1min' : 'price_change_percentage_3min';
+      have.sort((a, b) => {
+        const av = a[sortKey] ?? -Infinity;
+        const bv = b[sortKey] ?? -Infinity;
+        return isGainers ? (bv - av) : (av - bv);
+      });
+      
+      // If no usable data yet, return 204 No Content instead of mock data
+      if (have.length === 0) {
+        return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+      }
+      return new Response(JSON.stringify({ component: slug, data: have }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 's-maxage=1, stale-while-revalidate=2' }
+      });
+    }
+
+    return new Response('Not found', { status: 404 });
+  }
+}
