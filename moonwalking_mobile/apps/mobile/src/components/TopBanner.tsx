@@ -3,7 +3,16 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { theme, fmtPct, fmtPrice } from '@moonwalking/core/src/index'
 
 export default function TopBanner({ items }: { items?: any[] }) {
-  if (!items?.length) return null
+  const list = Array.isArray(items) ? items : []
+  if (!list.length) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={{ color: theme.colors.gray, paddingHorizontal: 12, paddingVertical: 8, fontSize: 12 }}>
+          No 1h data yet <Text style={{ opacity: 0.7 }}>(warming up)</Text>.
+        </Text>
+      </View>
+    )
+  }
   return (
     <View style={styles.wrap}>
       <ScrollView
@@ -11,11 +20,11 @@ export default function TopBanner({ items }: { items?: any[] }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 8 }}
       >
-        {items.map((r) => (
+    {list.map((r) => (
           <View key={r.symbol} style={styles.pill}>
             <Text style={styles.sym}>{r.symbol}</Text>
             <Text style={styles.meta}>
-              {fmtPrice(r.price)} • {fmtPct(r.changePct1h)}
+      {fmtPrice(r.price)} • {fmtPct(r.changePct1h)}
             </Text>
           </View>
         ))}
