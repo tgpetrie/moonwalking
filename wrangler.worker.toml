@@ -1,6 +1,11 @@
 name = "mw-hub"
 main = "src/worker.js"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["Hub"]
 
 [durable_objects]
 bindings = [
