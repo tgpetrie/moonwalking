@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Moonwalking",
+    "slug": "moonwalking",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.yourname.moonwalking",
+      "versionCode": 1,
+      "usesCleartextTraffic": false
+    },
+    "extra": {
+      "API_BASE": "https://your-cloudflare-pages-domain.example.com"
+    }
+  }
+}
+

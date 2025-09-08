@@ -356,6 +356,16 @@ Notes:
 
 * Do not mix Worker durable objects / triggers with Pages config.
 
+Frontend API base in production:
+
+* Use same-origin relative calls by setting `VITE_API_URL=relative` in your Pages project env vars so the frontend hits `functions/api/*` directly.
+* For local dev `start_app.sh` writes `VITE_API_URL=http://localhost:5001`.
+
+New endpoints for mobile integration:
+
+* `/api/mobile/bundle` – aggregated data for the mobile app (also exposed on Cloudflare Functions at `functions/api/mobile/bundle.js`).
+* `/api/sentiment` – proxies to backend from Pages via `functions/api/sentiment.js` (set `BACKEND_ORIGIN` in Pages).
+
 
 
 
@@ -450,4 +460,3 @@ If you’re having issues:
 
 **BHABIT — Profits Buy Impulse**
 **by Tom Petrie | GUISAN DESIGN**
-

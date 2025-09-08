@@ -1,9 +1,5 @@
 export async function onRequest({ env }) {
-  const id = env.HUB.idFromName("global");
-  const stub = env.HUB.get(id);
-  const res = await stub.fetch("https://do/server-info");
-  return new Response(await res.text(), {
-    headers: { "content-type": "application/json", "cache-control": "s-maxage=10, stale-while-revalidate=30" }
-  });
+  const id = env.HUB.idFromName('global');
+  return env.HUB.get(id).fetch('https://do.internal/server-info');
 }
 

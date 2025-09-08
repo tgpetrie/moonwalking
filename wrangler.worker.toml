@@ -1,22 +1,12 @@
 name = "mw-hub"
-main = "workers/hub.js"
-compatibility_date = "2024-09-01"
-workers_dev = true
-pages_build_output_dir = "frontend/dist"
+main = "src/worker.js"
+compatibility_date = "2024-01-01"
 
 [durable_objects]
 bindings = [
   { name = "HUB", class_name = "Hub" }
 ]
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["Hub"]
-
 [vars]
-# Comma-separated list of symbols to include by default (optional)
 COIN_LIST = "BTC,ETH,SOL,AMP"
-
-[triggers]
-# Run every minute to refresh market snapshots
-crons = ["*/1 * * * *"]
+DEBUG = "false"
