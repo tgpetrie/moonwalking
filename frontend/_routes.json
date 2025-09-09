@@ -4,6 +4,7 @@
   "exclude": [
     "/_headers",
     "/_redirects",
+  "/_functions/*",
   "/functions/*"
   ]
 }
