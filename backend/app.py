@@ -3208,6 +3208,67 @@ else:
 
 # Legacy get_mobile_bundle route removed; consolidated into /api/mobile/bundle above.
 
+# ------------------------------
+# Dev stub endpoints (added to avoid 404s during local dev)
+# These return minimal JSON so the UI can render while the real
+# implementations (alerts, metrics, components) are being wired up.
+# ------------------------------
+try:
+    app  # type: ignore  # ensure an app instance exists
+except NameError:  # pragma: no cover
+    from flask import Flask
+    app = Flask(__name__)
+
+from flask import jsonify, request
+import time, os
+
+@app.get("/server-info")
+def _dev_server_info():
+    return jsonify({
+        "ok": True,
+        "service": "backend",
+        "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "pid": os.getpid(),
+        "version": 1,
+    })
+
+@app.get("/metrics")
+def _dev_metrics():
+    return jsonify({
+        "ok": True,
+        "latency_ms": 5,
+        "requests_in_window": 0,
+        "time": time.time(),
+    })
+
+@app.get("/alerts/recent")
+def _dev_alerts_recent():
+    try:
+        limit = int(request.args.get("limit", 25))
+    except Exception:
+        limit = 25
+    return jsonify({
+        "ok": True,
+        "alerts": [],
+        "limit": limit,
+    })
+
+@app.get("/component/<name>")
+def _dev_component(name: str):
+    # Provide shape-compatible dummy payloads per component name
+    payload = {"ok": True, "component": name}
+    if name.endswith("gainers-table") or name.startswith("gainers-table"):
+        payload["rows"] = []
+    elif name.endswith("losers-table") or name.startswith("losers-table"):
+        payload["rows"] = []
+    elif name in ("top-banner-scroll", "bottom-banner-scroll"):
+        payload["items"] = []
+    else:
+        payload["data"] = []
+    return jsonify(payload)
+
+# End dev stubs
+
 __all__ = [
     "process_product_data",
     "format_crypto_data",
