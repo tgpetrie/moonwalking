@@ -19,6 +19,7 @@ sleep 1
 echo "[orchestrator] Starting Pages dev on :${PAGES_PORT} with BACKEND_ORIGIN → DO …"
 npx wrangler pages dev ./frontend \
   --port "${PAGES_PORT}" \
+  --functions "./functions" \
   --binding BACKEND_ORIGIN="http://127.0.0.1:${DO_PORT}" \
   --binding VITE_API_URL="/api" \
   --compatibility-date=2025-08-23 \
