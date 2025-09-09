@@ -6,7 +6,10 @@ const RAW_ENV_BASE = import.meta.env.VITE_API_URL;
 // Runtime environment guards
 const RUNTIME_IS_DEV = Boolean(import.meta.env && import.meta.env.DEV);
 const RUNTIME_IS_LOCAL_HOST = (typeof window !== 'undefined') && ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
-const RUNTIME_ALLOW_LOCAL_PROBING = RUNTIME_IS_DEV || RUNTIME_IS_LOCAL_HOST;
+// Allow build-time flag to disable all local probing regardless of runtime
+const DISABLE_LOCAL_PROBE = (String(import.meta.env?.VITE_DISABLE_LOCAL_PROBE || '').trim() === '1')
+  || (String(import.meta.env?.VITE_RUNTIME_ALLOW_LOCAL_PROBING || '').toLowerCase() === 'false');
+const RUNTIME_ALLOW_LOCAL_PROBING = !DISABLE_LOCAL_PROBE && (RUNTIME_IS_DEV || RUNTIME_IS_LOCAL_HOST);
 
 // More robust API_BASE_URL detection with multiple fallbacks
 let API_BASE_URL;
@@ -29,8 +32,8 @@ API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 
 // Enhanced runtime debug output
 try {
-  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s RUNTIME_ALLOW_LOCAL_PROBING=%s API_BASE_URL=%s RAW_ENV_BASE=%s',
-    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(RUNTIME_ALLOW_LOCAL_PROBING), String(API_BASE_URL), String(RAW_ENV_BASE));
+  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s DISABLE_LOCAL_PROBE=%s RUNTIME_ALLOW_LOCAL_PROBING=%s API_BASE_URL=%s RAW_ENV_BASE=%s',
+    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(DISABLE_LOCAL_PROBE), String(RUNTIME_ALLOW_LOCAL_PROBING), String(API_BASE_URL), String(RAW_ENV_BASE));
 } catch (e) {
   // ignore when console is unavailable
 }
