@@ -19,6 +19,20 @@ export default {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    if (p.startsWith("/alerts/recent")) {
+      const limit = Number(url.searchParams.get("limit") || 25);
+      return json({ ok: true, alerts: [], limit });
+    }
+
+    if (p === "/metrics") {
+      return json({ ok: true, metrics: {} });
+    }
+
+    if (p.startsWith("/component/")) {
+      const name = p.slice("/component/".length);
+      return json({ ok: true, component: name, data: [] });
+    }
+
     return new Response("Not Found", { status: 404 });
   }
 };
