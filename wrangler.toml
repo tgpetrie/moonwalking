@@ -8,7 +8,6 @@ bindings = [
 
 [vars]
 # Comma-separated list of symbols to include by default (optional)
-BACKEND_ORIGIN = "https://mw-hub.tgpetrie.workers.dev"
 VITE_API_URL = "/api"
 
 [[kv_namespaces]]
