@@ -1,0 +1,15 @@
+name = "mw-hub"
+main = "workers/ws.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "WATCHLIST_KV"
+id = "562ae453690441bfabbacd0850cbe3c1"
+
+[vars]
+# Comma-separated list of symbols to include by default (optional)
+COIN_LIST = "BTC,ETH,SOL,AMP"
+
+# Optional: Cron trigger for keeping DO warm
+[triggers]
+crons = ["*/5 * * * *"]
