@@ -1,89 +1,805 @@
 export default {
-  async fetch(req, env) {
-    const url = new URL(req.url);
-    const p = url.pathname;
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    // All requests are handled by a single Durable Object instance named "global"
+    const id = env.HUB.idFromName("global");
+    const stub = env.HUB.get(id);
+    return stub.fetch(request);
+  },
+  // Optional: keep the DO warm on a schedule (Cron Trigger)
+  async scheduled(event, env, ctx) {
+    const id = env.HUB.idFromName("global");
+    const stub = env.HUB.get(id);
+    ctx.waitUntil(this._updateSnapshots(env, stub));
+  },
+  async _updateSnapshots(env, stub) {
+    try {
+      const list = String(env.COIN_LIST || "BTC,ETH,SOL,AMP").split(',').map(s => s.trim()).filter(Boolean);
+      const now = Date.now();
+      const results = await Promise.all(list.map(async (sym) => {
+        try {
+          const res = await fetch(`https://api.exchange.coinbase.com/products/${sym}-USD/ticker`, { headers: { 'user-agent': 'mw-hub/1.0' }});
+          if (!res.ok) return null;
+          const j = await res.json();
+          const price = Number(j?.price);
+          if (!Number.isFinite(price)) return null;
+          return { symbol: sym, price };
+        } catch { return null; }
+      }));
+      const rows = results.filter(Boolean);
 
-    if (p === "/server-info") {
-      return json({ ok: true, service: "worker", t: Date.now() });
+      // Get previous snapshots (to extract stored history)
+      const prev = await (await stub.fetch("https://do/snapshots")).json().catch(()=>({}));
+      const prevHistory = prev && prev.history ? prev.history : {};
+      // Merge new prices into history
+      const history = { ...prevHistory };
+      for (const r of rows) {
+        const arr = (history[r.symbol] || []).slice(-5);
+        arr.push({ t: now, p: r.price });
+        arr.sort((a,b)=>a.t-b.t);
+        while (arr.length > 6) arr.shift();
+        history[r.symbol] = arr;
+      }
+
+      const lookback = (arr, ms) => {
+        const target = now - ms;
+        let best = null;
+        for (const pt of arr) { if (pt.t <= target) best = pt; else break; }
+        return best;
+      };
+
+      const t1mRaw = [], t3mRaw = [];
+      for (const r of rows) {
+        const arr = history[r.symbol] || [];
+        const pNow = r.price;
+        const p1 = lookback(arr, 60_000);
+        const p3 = lookback(arr, 180_000);
+        const c1 = (p1 && p1.p > 0) ? ((pNow - p1.p) / p1.p) * 100 : 0;
+        const c3 = (p3 && p3.p > 0) ? ((pNow - p3.p) / p3.p) * 100 : 0;
+        t1mRaw.push({ symbol: r.symbol, current_price: pNow, price_change_percentage_1min: c1 });
+        t3mRaw.push({ symbol: r.symbol, current_price: pNow, price_change_percentage_3min: c3 });
+      }
+      const sortDesc = (arr, key) => arr.slice().sort((a,b)=>Math.abs(b[key]) - Math.abs(a[key])).map((it, i)=>({ rank: i+1, ...it }));
+      const t1m = sortDesc(t1mRaw, 'price_change_percentage_1min');
+      const t3m = sortDesc(t3mRaw, 'price_change_percentage_3min');
+      const topBanner = t1m.slice(0, 20).map(it => ({ rank: it.rank, symbol: it.symbol, current_price: it.current_price, price_change_1h: it.price_change_percentage_1min }));
+      const bottomBanner = t3m.slice(0, 20).map(it => ({ rank: it.rank, symbol: it.symbol, current_price: it.current_price, volume_change_1h_pct: 0, volume_24h: 0 }));
+
+      await stub.fetch("https://do/snapshots", {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ topBanner, bottomBanner, t1m, t3m, alerts: [], history })
+      });
+    } catch (e) {
+      // swallow errors; add logging later
     }
-
-    if (p === "/watchlist") {
-      if (req.method === "GET")  return getWatchlist(req, env);
-      if (req.method === "POST") return saveWatchlist(req, env);
-      return new Response("Method Not Allowed", { status: 405 });
-    }
-
-    if (p === "/codex") {
-      if (req.method === "GET")  return getCodex(req, env);
-      if (req.method === "POST") return saveCodex(req, env);
-      return new Response("Method Not Allowed", { status: 405 });
-    }
-
-    if (p.startsWith("/alerts/recent")) {
-      const limit = Number(url.searchParams.get("limit") || 25);
-      return json({ ok: true, alerts: [], limit });
-    }
-
-    if (p === "/metrics") {
-      return json({ ok: true, metrics: {} });
-    }
-
-    if (p.startsWith("/component/")) {
-      const name = p.slice("/component/".length);
-      return json({ ok: true, component: name, data: [] });
-    }
-
-    return new Response("Not Found", { status: 404 });
   }
 };
 
-function userKey(req) {
-  return req.headers.get("x-user") || "dev-user";
-}
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "content-type": "application/json" }
-  });
-}
-
-/* ---- Watchlist (KV) ---- */
-async function getWatchlist(req, env) {
-  const user = userKey(req);
-  const data = await env.WATCHLIST_KV.get(`wl:${user}`, "json");
-  return json({ ok: true, watchlist: data?.symbols ?? [] });
-}
-async function saveWatchlist(req, env) {
-  const user = userKey(req);
-  const body = await req.json().catch(() => ({}));
-  const symbols = Array.isArray(body.symbols) ? body.symbols : [];
-  await env.WATCHLIST_KV.put(
-    `wl:${user}`,
-    JSON.stringify({ symbols, updatedAt: Date.now() })
-  );
-  return json({ ok: true, saved: symbols.length });
-}
-
-/* ---- Codex (KV) ---- */
-async function getCodex(req, env) {
-  const user = userKey(req);
-  const codex = await env.WATCHLIST_KV.get(`codex:${user}`, "json");
-  return json({ ok: true, codex: codex ?? { lists: {}, notes: {} } });
-}
-async function saveCodex(req, env) {
-  const user = userKey(req);
-  const incoming = await req.json().catch(() => ({}));
-  const prev = (await env.WATCHLIST_KV.get(`codex:${user}`, "json")) ?? { lists: {}, notes: {} };
-  const merged = deepMerge(prev, incoming);
-  await env.WATCHLIST_KV.put(`codex:${user}`, JSON.stringify(merged));
-  return json({ ok: true });
-}
-function deepMerge(a, b) {
-  if (Array.isArray(a) && Array.isArray(b)) return b;
-  if (a && typeof a === "object" && b && typeof b === "object") {
-    const out = { ...a };
-    for (const k of Object.keys(b)) out[k] = deepMerge(a[k], b[k]);
-    return out;
+function json(obj, init = {}) {
+  const headers = new Headers(init.headers || {});
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
   }
-  return b ?? a;
+  return new Response(JSON.stringify(obj), { ...init, headers });
+}
+
+// Map legacy UI paths to canonical endpoints so old routes don't 404
+function aliasPath(path) {
+  // Keep legacy aliases minimal; do NOT collapse time-windowed endpoints.
+  return path;
+}
+
+function pickBannerItems(rows = [], n = 30) {
+  // compact summary: "BTC +2.31% • $112,345"
+  return rows.slice(0, n).map(r => ({
+    symbol: r.symbol,
+    // The `pct` from windowRows is already a percentage.
+    text: `${r.symbol.replace("-USD","")} ${r.pct > 0 ? '+' : ''}${r.pct.toFixed(2)}% • $${Number(r.price||0).toLocaleString()}`,
+    pct: r.pct,
+    price: r.price,
+    t: r.t
+  }));
+}
+
+// ---------- Durable Object that manages Coinbase WS + in-memory state ----------
+export class Hub {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.clients = new Set();
+    this.snapshots = {
+      t1m: [],
+      t3m: [],
+      topBanner: [],
+      bottomBanner: [],
+      alerts: [],
+      updatedAt: 0,
+    };
+    this.history = {};
+    state.blockConcurrencyWhile(async () => {
+      const [stored, hist] = await Promise.all([
+        state.storage.get("snapshots"),
+        state.storage.get("history")
+      ]);
+      if (stored) this.snapshots = stored;
+      if (hist) this.history = hist;
+    });
+  }
+    this.heartbeatTimer = null;
+
+    // Markets and ticks (live)
+    this.products = [];                      // ["BTC-USD", ...]
+    this.ticks = new Map();                  // product_id -> { price, t }
+    this.firstPrice = new Map();             // product_id -> first seen price (for %Δ since first tick)
+
+    // Streak tracking
+    this.prevPrice = new Map();            // product_id -> previous price
+    this.streakCount = new Map();          // product_id -> consecutive same-direction ticks (>= 1)
+    this.streakDir = new Map();            // product_id -> "up" | "down" | "flat"
+
+    // Window (table) streaks for 3m table (consecutive same-direction windows)
+    this.windowStreak3m = new Map();   // product_id -> { dir: "up"|"down"|null, count: number }
+
+    // Rolling tick buffers (for 1m / 3m window calcs)
+    this.buffers = new Map();           // product_id -> Array<{t:number, price:number}>
+    this.maxWindowMs = 3 * 60 * 1000;   // keep at least 3 minutes of data
+
+    // simple counters
+    this.msgCount = 0;
+    this.errCount = 0;
+    this.broadcastTimer = null;
+
+    // --- Mock Data for Sentiment & Learn ---
+    this.mockSentiment = new Map();
+    this.mockLessons = [
+      { id: 'intro', title: 'Intro to Market Movers', content: '# Welcome to Moonwalking!\n\nThis lesson covers the basics of identifying and acting on market movers.\n\n* Look for high velocity.\n* Confirm with volume.\n* Manage your risk.', premium: false },
+      { id: 'streaks', title: 'Understanding Streaks', content: '# Px: Price Streaks\n\nThe `Px` badge indicates a price streak, where the price has moved in the same direction over consecutive periods.\n\n- **Px1**: Initial streak\n- **Px2**: Sustained streak\n- **Px3**: Strong, established streak', premium: false },
+      { id: 'sentiment', title: 'Using Social Sentiment', content: '# Gauging The Crowd\n\nSentiment analysis aggregates data from social media to measure market mood.\n\n- **Positive Score (> 0.2)**: Bullish sentiment\n- **Negative Score (< -0.2)**: Bearish sentiment\n- **Neutral**: No clear consensus', premium: true },
+    ];
+    // --- Mock Data for Codex Panel ---
+    this.mockTechnical = new Map();
+    this.mockSocial = new Map();
+    this.mockNews = new Map();
+
+    // --- Route Handlers ---
+    this.routes = {
+      '/ws': this.handleWebSocket,
+      '/healthz': this.handleHealthz,
+      '/metrics': this.handleMetrics,
+      '/component/streaks': this.handleStreaks,
+      '/component/gainers-table-1min': this.handleGainers1m,
+      '/component/losers-table-1min': this.handleLosers1m,
+      '/component/gainers-table-3min': this.handleGainers3m,
+      '/component/losers-table-3min': this.handleLosers3m,
+      '/component/gainers-table': this.handleGainersSnapshot,
+      '/component/losers-table': this.handleLosersSnapshot,
+      '/component/top-banner-scroll': this.handleTopBanner,
+      '/component/bottom-banner-scroll': this.handleBottomBanner,
+      '/alerts/recent': this.handleRecentAlerts,
+      '/server-info': this.handleServerInfo,
+      '/products': this.handleProducts,
+      '/watchlist': this.handleWatchlist,
+      '/learn/lessons': this.handleLearnLessons,
+      '/sentiment': this.handleSentiment,
+    };
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    const p = aliasPath(url.pathname);
+
+    // Universal CORS for dev convenience (adjust if you want to lock this down)
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(),
+      });
+    }
+
+    const handler = this.routes[p];
+    if (handler) {
+      // Lazily start the WS for data routes
+      const needsData = p.startsWith("/component/") || p === "/metrics" || p === "/products";
+      if (needsData) {
+        await this.ensureStarted();
+      }
+      return handler.call(this, request, url);
+    }
+
+    // Handle dynamic routes for Codex Panel
+    const techAnalysisMatch = p.match(/^\/technical-analysis\/(.+)/);
+    if (techAnalysisMatch) {
+      const symbol = techAnalysisMatch[1];
+      return this.handleTechnicalAnalysis(request, url, symbol);
+    }
+
+    const socialSentimentMatch = p.match(/^\/social-sentiment\/(.+)/);
+    if (socialSentimentMatch) {
+      const symbol = socialSentimentMatch[1];
+      return this.handleSocialSentiment(request, url, symbol);
+    }
+
+    const newsMatch = p.match(/^\/news\/(.+)/);
+    if (newsMatch) {
+      const symbol = newsMatch[1];
+      return this.handleNews(request, url, symbol);
+    }
+
+    return new Response("Not found", { status: 404, headers: corsHeaders() });
+  }
+
+  // ---------- Route Handlers ----------
+
+  // Build a current "table" just from live ticks.
+  // Sort by pct change since first seen price; tie-breaker by most recent timestamp.
+  snapshotRows(limit, direction /* "asc" losers, "desc" gainers */) {
+    const rows = [];
+    for (const [product_id, v] of this.ticks) {
+      const first = this.firstPrice.get(product_id);
+      const price = Number(v.price);
+      const pct = (first && first > 0) ? ((price - first) / first) * 100 : 0;
+      const consecutive = this.streakCount.get(product_id) || 0;
+      const px = Math.min(240, Math.max(0, consecutive * 8));
+      rows.push({
+        symbol: product_id,
+        price,
+        pct,          // %Δ since first seen
+        t: v.t,
+        consecutive,
+        px
+      });
+    }
+
+    rows.sort((a, b) => {
+      if (direction === "asc") {
+        if (a.pct !== b.pct) return a.pct - b.pct;
+      } else {
+        if (a.pct !== b.pct) return b.pct - a.pct;
+      }
+      // tie-break by recency
+      return b.t - a.t;
+    });
+
+    return rows.slice(0, limit);
+  }
+
+  // Build rows using rolling windows (1m / 3m)
+  windowRows(windowMs, direction /* "asc" losers, "desc" gainers */, limit, label /* "1m" | "3m" */) {
+    const now = Date.now();
+    const rows = [];
+    for (const [product_id, buf] of this.buffers) {
+      if (!buf || buf.length < 2) continue;
+      // Walk from front to find first point within window
+      const cutoff = now - windowMs;
+      let i = 0;
+      while (i < buf.length && buf[i].t < cutoff) i++;
+      // Need at least two points to compute movement within window
+      if (i >= buf.length - 1) continue;
+      const first = buf[i];
+      const last = buf[buf.length - 1];
+      if (!first || !last || first.price <= 0) continue;
+      const pct = ((last.price - first.price) / first.price) * 100;
+      const price = last.price;
+      const t = last.t;
+      const consecutive = this.streakCount.get(product_id) || 0;
+      const durationMs = t - first.t;
+
+      const dirSign = pct > 0 ? "up" : (pct < 0 ? "down" : "flat");
+      let px = 0;
+      let extraMeta = undefined;
+
+      if (label === "1m") {
+        // px1 after >60s in table; px2 after >180s; px3 after >300s (and so on capped at 3)
+        if (durationMs > 60_000) {
+          const extra = Math.floor((durationMs - 60_000) / 120_000); // another level every +2 minutes
+          px = Math.min(3, 1 + extra);
+        }
+      } else if (label === "3m") {
+        let ws = this.windowStreak3m.get(product_id);
+        if (!ws) ws = { dir: null, count: 0 };
+        if (dirSign === "flat") {
+          // do not increment or reset on flat; keep last non-flat count
+        } else if (ws.dir === dirSign) {
+          ws.count += 1;
+        } else {
+          ws.dir = dirSign;
+          ws.count = 1;
+        }
+        this.windowStreak3m.set(product_id, ws);
+
+        if (durationMs > 60_000) {
+          if (ws.count >= 4) px = 3;           // "more than 3 consecutive" => px3 (i.e., 4+)
+          else if (ws.count >= 2) px = 2;      // two consecutive windows => px2 (≈ 6 minutes)
+          else px = 0;                         // not enough consecutive presence yet
+        } else {
+          px = 0; // require >1 minute before any bar on 3m table
+        }
+      } else {
+        px = Math.min(3, Math.max(0, Math.floor((consecutive) / 2)));
+      }
+
+      const debugWinStreak = (label === "3m" ? (this.windowStreak3m.get(product_id)?.count || 0) : undefined);
+      rows.push({ symbol: product_id, price, pct, t, consecutive, px, winStreak: debugWinStreak });
+    }
+    rows.sort((a, b) => {
+      if (direction === "asc") {
+        if (a.pct !== b.pct) return a.pct - b.pct;
+      } else {
+        if (a.pct !== b.pct) return b.pct - a.pct;
+      }
+      return b.t - a.t;
+    });
+    return rows.slice(0, limit);
+  }
+
+  handleWebSocket(request) {
+    if (request.headers.get("upgrade") !== "websocket") {
+      return new Response("expected websocket", { status: 400 });
+    }
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    server.accept();
+    this.clients.add(server);
+    server.addEventListener("close", () => this.clients.delete(server));
+    server.addEventListener("error", () => this.clients.delete(server));
+
+    // On connect, send the latest state to the new client.
+    const g1 = this.windowRows(60 * 1000, "desc", 20, "1m");
+    const g3 = this.windowRows(3 * 60 * 1000, "desc", 20, "3m");
+    const l3 = this.windowRows(3 * 60 * 1000, "asc", 20, "3m");
+    server.send(JSON.stringify({ type: "hello", gainers1m: g1, gainers3m: g3, losers3m: l3 }));
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  handleHealthz() {
+    return json({
+      ok: true,
+      connected: this.connected,
+      products: this.products.length,
+      ticks: this.ticks.size,
+      uptime_s: this.startedAt ? Math.floor((Date.now() - this.startedAt) / 1000) : 0,
+    }, { headers: corsHeaders() });
+  }
+
+  handleMetrics() {
+    return json({
+      ok: true,
+      connected: this.connected,
+      products: this.products,
+      ticks: this.ticks.size,
+      msgCount: this.msgCount,
+      errCount: this.errCount,
+      since: this.startedAt,
+    }, { headers: corsHeaders() });
+  }
+
+  handleStreaks(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = [];
+    for (const [product_id, v] of this.ticks) {
+      const price = Number(v.price);
+      const first = this.firstPrice.get(product_id);
+      const pct = (first && first > 0) ? ((price - first) / first) * 100 : 0;
+      const consecutive = this.streakCount.get(product_id) || 0;
+      const px = Math.min(240, Math.max(0, consecutive * 8));
+      rows.push({ symbol: product_id, price, pct, t: v.t, consecutive, px });
+    }
+    rows.sort((a, b) => {
+      if (b.consecutive !== a.consecutive) return b.consecutive - a.consecutive;
+      return b.t - a.t;
+    });
+    return json({ ok: true, rows: rows.slice(0, limit), source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleGainers1m(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.windowRows(60 * 1000, "desc", limit, "1m");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleLosers1m(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.windowRows(60 * 1000, "asc", limit, "1m");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleGainers3m(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.windowRows(3 * 60 * 1000, "desc", limit, "3m");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleLosers3m(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.windowRows(3 * 60 * 1000, "asc", limit, "3m");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleGainersSnapshot(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.snapshotRows(limit, "desc");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleLosersSnapshot(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    const rows = this.snapshotRows(limit, "asc");
+    return json({ ok: true, rows, source: "coinbase-pro-ws" }, { headers: corsHeaders() });
+  }
+
+  handleTopBanner() {
+    const g = this.windowRows(60 * 1000, "desc", 15, "1m");
+    const l = this.windowRows(60 * 1000, "asc", 15, "1m");
+    const mixed = [...(g || []), ...(l || [])].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    return json({ ok: true, items: pickBannerItems(mixed, 30) }, { headers: corsHeaders() });
+  }
+
+  handleBottomBanner() {
+    const g = this.windowRows(3 * 60 * 1000, "desc", 15, "3m");
+    const l = this.windowRows(3 * 60 * 1000, "asc", 15, "3m");
+    const mixed = [...(g || []), ...(l || [])].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    return json({ ok: true, items: pickBannerItems(mixed, 30) }, { headers: corsHeaders() });
+  }
+
+  handleRecentAlerts(request, url) {
+    const limit = num(url.searchParams.get("limit"), 25);
+    return json({ ok: true, alerts: [], limit }, { headers: corsHeaders() });
+  }
+
+  handleServerInfo() {
+    return json({ ok: true, service: "durable-object", t: Date.now() }, { headers: corsHeaders() });
+  }
+
+  async handleProducts() {
+    return json({ ok: true, products: this.products.map(p => p.replace(`-${this.env.QUOTE || 'USD'}`, '')) }, { headers: corsHeaders() });
+  }
+
+  handleWatchlist(request) {
+    if (request.method === "GET") return this._getWatchlist(request);
+    if (request.method === "POST") return this._saveWatchlist(request);
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders() });
+  }
+
+  handleLearnLessons() {
+    return json({ ok: true, lessons: this.mockLessons }, { headers: corsHeaders() });
+  }
+
+  handleSentiment(request, url) {
+    const symbols = (url.searchParams.get("symbols") || "").split(",").filter(Boolean);
+    const now = Date.now();
+    const sentimentData = symbols.map(s => {
+      let current = this.mockSentiment.get(s);
+      // Update every 10 seconds to show a trend
+      if (!current || (now - (current.timestamp || 0)) > 10000) {
+        let score = current?.score ?? (Math.random() - 0.5) * 0.5;
+        let drift = current?.drift ?? (Math.random() - 0.5) * 0.1;
+        if (Math.random() < 0.1) drift = (Math.random() - 0.5) * 0.1; // 10% chance to change direction
+        score += drift;
+        if (score > 1) { score = 1; drift = -Math.abs(drift); }
+        if (score < -1) { score = -1; drift = Math.abs(drift); }
+        current = { score, drift, timestamp: now };
+        this.mockSentiment.set(s, current);
+      }
+      return { symbol: s, score: current.score, source: "social-media-aggregator", timestamp: current.timestamp };
+    });
+    return json({ ok: true, sentiment: sentimentData }, { headers: corsHeaders() });
+  }
+
+  handleTechnicalAnalysis(request, url, symbol) {
+    const now = Date.now();
+    let cached = this.mockTechnical.get(symbol);
+    // Update every 30 seconds
+    if (!cached || (now - (cached.timestamp || 0)) > 30000) {
+      const tick = this.ticks.get(`${symbol}-USD`) || this.ticks.get(symbol);
+      const price = tick ? tick.price : (Math.random() * 50000);
+      const rsi = 30 + Math.random() * 40;
+      const macd = (Math.random() - 0.5) * 0.1;
+      const signal = macd + (Math.random() - 0.5) * 0.02;
+      const middle = price * (1 + (Math.random() - 0.5) * 0.02);
+      const upper = middle * 1.02;
+      const lower = middle * 0.98;
+      
+      let recommendation = 'Neutral 😐 - Market is consolidating. Wait for a clear signal.';
+      if (rsi > 65 && macd > signal) recommendation = 'Strong Bullish 🟢 - Multiple indicators suggest upward momentum. Consider entry.';
+      else if (rsi < 35 && macd < signal) recommendation = 'Strong Bearish 🔴 - Indicators point to downward pressure. Caution advised.';
+      else if (rsi > 55 || macd > signal) recommendation = 'Bullish 🟢 - Positive momentum building up.';
+      else if (rsi < 45 || macd < signal) recommendation = 'Bearish 🔴 - Negative momentum is present.';
+
+      cached = {
+        timestamp: now,
+        data: {
+          success: true,
+          data: {
+            current_price: price,
+            rsi: rsi.toFixed(2),
+            macd: { macd: macd.toFixed(4), signal: signal.toFixed(4) },
+            bollinger_bands: { upper: upper.toFixed(2), middle: middle.toFixed(2), lower: lower.toFixed(2) },
+            volume_analysis: { volume_trend: ['high', 'medium', 'low'][Math.floor(Math.random()*3)], avg_volume: Math.floor(Math.random() * 100000) },
+            recommendation,
+            data_points: Math.floor(Math.random() * 100) + 200,
+            last_updated: new Date(now).toISOString(),
+          }
+        }
+      };
+      this.mockTechnical.set(symbol, cached);
+    }
+    return json(cached.data, { headers: corsHeaders() });
+  }
+
+  handleSocialSentiment(request, url, symbol) {
+    const now = Date.now();
+    let cached = this.mockSocial.get(symbol);
+    // Update every 60 seconds
+    if (!cached || (now - (cached.timestamp || 0)) > 60000) {
+      const score = (Math.random() * 2 - 1); // -1 to 1
+      const pos = Math.max(0, score * 0.5 + 0.3 + (Math.random()-0.5)*0.2);
+      const neg = Math.max(0, -score * 0.5 + 0.2 + (Math.random()-0.5)*0.2);
+      const neu = Math.max(0, 1 - pos - neg);
+      const total = pos+neg+neu;
+
+      cached = {
+        timestamp: now,
+        data: {
+          success: true,
+          data: {
+            overall_sentiment: { score: (score+1)/2, label: score > 0.2 ? 'Positive' : score < -0.2 ? 'Negative' : 'Neutral', confidence: Math.random()*0.3+0.7 },
+            sentiment_distribution: { positive: pos/total, negative: neg/total, neutral: neu/total },
+            social_metrics: {
+              twitter: { mentions_24h: Math.floor(Math.random()*5000), sentiment_score: (Math.random()+0.1)/1.1 },
+              reddit: { posts_24h: Math.floor(Math.random()*500), sentiment_score: (Math.random()+0.1)/1.1 },
+              telegram: { messages_24h: Math.floor(Math.random()*20000), sentiment_score: (Math.random()+0.1)/1.1 },
+            },
+            trending_topics: [{keyword: 'scalability', growth_24h: 15.2}, {keyword: 'regulation', growth_24h: -5.1}, {keyword: 'ETF', growth_24h: 22.8}],
+            influencer_mentions: [
+              {influencer: 'CryptoGod', verified: true, followers: 1200000, preview: `Just bought more ${symbol}, this is the future! #tothemoon`, sentiment: 'bullish', engagement: 25000},
+              {influencer: 'BearWhale', verified: false, followers: 500000, preview: `I'm shorting ${symbol}, looks like a bubble about to pop.`, sentiment: 'bearish', engagement: 8000},
+            ],
+            fear_greed_index: Math.floor(Math.random()*100),
+            volume_correlation: Math.random()*2-1,
+          }
+        }
+      };
+      this.mockSocial.set(symbol, cached);
+    }
+    return json(cached.data, { headers: corsHeaders() });
+  }
+
+  handleNews(request, url, symbol) {
+    const now = Date.now();
+    let cached = this.mockNews.get(symbol);
+    if (!cached || (now - (cached.timestamp || 0)) > 120000) { // update every 2 mins
+      cached = {
+        timestamp: now,
+        data: {
+          success: true,
+          articles: [
+            { id: 1, title: `${symbol} Surges on Partnership News`, summary: `The price of ${symbol} has jumped over 15% in the last 24 hours following the announcement of a major partnership with a tech giant.`, source: 'Crypto Daily', published: new Date(now - 3600000).toISOString(), url: '#', sentiment: 'positive' },
+            { id: 2, title: `Regulatory Concerns Loom Over ${symbol}`, summary: `Analysts are expressing concern over recent regulatory statements that could impact ${symbol}'s adoption in key markets.`, source: 'Coin Journal', published: new Date(now - 86400000).toISOString(), url: '#', sentiment: 'negative' },
+            { id: 3, title: `What's Next for ${symbol}? A Technical Deep Dive`, summary: `A neutral analysis of ${symbol}'s chart patterns, exploring potential support and resistance levels for the coming weeks.`, source: 'Trading Insights', published: new Date(now - 172800000).toISOString(), url: '#', sentiment: 'neutral' },
+          ].sort(() => Math.random() - 0.5) // Randomize order
+        }
+      };
+      this.mockNews.set(symbol, cached);
+    }
+    return json(cached.data, { headers: corsHeaders() });
+  }
+
+  async ensureStarted() {
+    if (this.started) return;
+
+    this.started = true;
+    this.startedAt = Date.now();
+
+    // Resolve product list
+    const quote = (this.env.QUOTE || "USD").toUpperCase();
+    // discover all USD pairs that are online
+    this.products = await this.fetchUsdPairs(quote);
+
+    await this.connectCoinbase();
+  }
+
+  // --- Watchlist Handlers (using DO storage) ---
+  _userKey(request) {
+    // Placeholder for user identification. In a real app, this would come
+    // from a session cookie or auth token.
+    return "dev-user";
+  }
+
+  async _getWatchlist(request) {
+    const user = this._userKey(request);
+    const watchlist = await this.state.storage.get(`watchlist:${user}`) || [];
+    return json({ ok: true, watchlist }, { headers: corsHeaders() });
+  }
+
+  async _saveWatchlist(request) {
+    const user = this._userKey(request);
+    const body = await request.json().catch(() => ({}));
+    const symbols = Array.isArray(body.symbols) ? [...new Set(body.symbols.map(s => String(s).toUpperCase()))].sort() : [];
+    await this.state.storage.put(`watchlist:${user}`, symbols);
+    return json({ ok: true, saved: symbols.length }, { headers: corsHeaders() });
+  }
+
+  // Broadcasts latest data to all connected WebSocket clients.
+  _broadcast(obj) {
+    const msg = JSON.stringify(obj);
+    for (const ws of [...this.clients]) {
+      try { ws.send(msg); } catch { this.clients.delete(ws); }
+    }
+  }
+
+  // Maps worker-internal row format to the format expected by the frontend.
+  _mapRowsForFrontend(rows, changeKey) {
+    if (!Array.isArray(rows)) return [];
+    return rows.map(r => ({
+      symbol: r.symbol,
+      rank: r.rank,
+      current_price: r.price,
+      price: r.price,
+      [changeKey]: r.pct,
+      change: r.pct, // Generic key for some components
+      t: r.t,
+      consecutive: r.consecutive,
+      peakCount: r.consecutive, // Alias for compatibility
+      initial_price_1min: r.initial_price_1min,
+      initial_price_3min: r.initial_price_3min,
+    }));
+  }
+
+  async fetchUsdPairs(quote = "USD") {
+    try {
+      const r = await fetch("https://api.exchange.coinbase.com/products", {
+        headers: { "user-agent": "mw-hub-do/1.0" },
+      });
+      if (!r.ok) throw new Error(`products ${r.status}`);
+      const data = await r.json();
+      return data
+        .filter(p => p && p.quote_currency === quote && p.status === "online")
+        .map(p => p.id);
+    } catch (e) {
+      this.errCount++;
+      // fallback to a small core if discovery fails
+      return ["BTC-USD", "ETH-USD", "SOL-USD"];
+    }
+  }
+
+  async connectCoinbase() {
+    const url = "wss://ws-feed.exchange.coinbase.com"; // Use the correct public endpoint
+    try {
+      const ws = new WebSocket(url);
+      this.ws = ws;
+
+      ws.addEventListener("open", () => {
+        const sub = {
+          type: "subscribe",
+          product_ids: this.products,
+          channels: ["ticker"],
+        };
+        ws.send(JSON.stringify(sub));
+        this.connected = true;
+
+        // heartbeat ping (helps keep connections alive)
+        this.heartbeatTimer = setInterval(() => {
+          try { ws.send(JSON.stringify({ type: "ping" })); } catch {}
+        }, 15000);
+
+        // Start broadcasting updates to clients
+        if (!this.broadcastTimer) {
+          this.broadcastTimer = setInterval(() => {
+            if (this.clients.size === 0) return; // Don't compute if no one is listening
+
+            const g1Raw = this.windowRows(60 * 1000, "desc", 20, "1m");
+            const g3Raw = this.windowRows(3 * 60 * 1000, "desc", 20, "3m");
+            const l3Raw = this.windowRows(3 * 60 * 1000, "asc", 20, "3m");
+
+            this._broadcast({
+              type: "crypto_update",
+              payload: {
+                gainers1m: this._mapRowsForFrontend(g1Raw, 'price_change_percentage_1min'),
+                gainers3m: this._mapRowsForFrontend(g3Raw, 'change3m'),
+                losers3m: this._mapRowsForFrontend(l3Raw, 'change3m'),
+              }
+            });
+          }, 5000); // Broadcast every 5 seconds
+        }
+      });
+
+      ws.addEventListener("message", (evt) => {
+        try {
+          this.msgCount++;
+          const m = JSON.parse(evt.data);
+          if (m.type === "ticker" && m.product_id && m.price) {
+            const price = Number(m.price);
+            const t = m.time ? new Date(m.time).getTime() : Date.now();
+
+            // Maintain streaks
+            const prev = this.prevPrice.get(m.product_id);
+            let dir = "flat";
+            if (typeof prev === "number") {
+              if (price > prev) dir = "up";
+              else if (price < prev) dir = "down";
+            }
+            const lastDir = this.streakDir.get(m.product_id);
+            let count = this.streakCount.get(m.product_id) || 0;
+            if (dir === "flat") {
+              // keep previous direction but do not increment
+              // (optional) leave count as-is; if there's no movement, don't reset
+            } else if (!lastDir || lastDir !== dir) {
+              count = 1; // new direction starts
+            } else {
+              count = count + 1; // continuing same direction
+            }
+            if (dir !== "flat") {
+              this.streakDir.set(m.product_id, dir);
+              this.streakCount.set(m.product_id, count);
+            }
+            this.prevPrice.set(m.product_id, price);
+
+            // first seen price
+            if (!this.firstPrice.has(m.product_id)) {
+              this.firstPrice.set(m.product_id, price);
+            }
+            this.ticks.set(m.product_id, { price, t });
+
+            // Record in rolling buffer and prune old entries (keep up to 3m)
+            let buf = this.buffers.get(m.product_id);
+            if (!buf) {
+              buf = [];
+              this.buffers.set(m.product_id, buf);
+            }
+            buf.push({ t, price });
+            const cutoff = t - this.maxWindowMs;
+            // prune from front while too old
+            while (buf.length && buf[0].t < cutoff) buf.shift();
+          }
+        } catch (e) {
+          this.errCount++;
+        }
+      });
+
+      ws.addEventListener("close", () => {
+        this.connected = false;
+        if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
+        if (this.broadcastTimer) { clearInterval(this.broadcastTimer); this.broadcastTimer = null; }
+        // try a gentle backoff reconnect in background
+        this.state.waitUntil(this.backoffReconnect());
+      });
+
+      ws.addEventListener("error", () => {
+        this.errCount++;
+        this.connected = false;
+        if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
+        if (this.broadcastTimer) { clearInterval(this.broadcastTimer); this.broadcastTimer = null; }
+        this.state.waitUntil(this.backoffReconnect());
+      });
+    } catch (e) {
+      this.errCount++;
+      this.connected = false;
+      this.state.waitUntil(this.backoffReconnect());
+    }
+  }
+
+  async backoffReconnect() {
+    // simple backoff
+    await sleep(2000 + Math.floor(Math.random() * 2000));
+    if (!this.connected) {
+      await this.connectCoinbase();
+    }
+  }
+}
+
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+function corsHeaders() {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type,authorization",
+    "content-type": "application/json",
+  };
+}
+
+function num(v, fallback) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }

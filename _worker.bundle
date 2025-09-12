@@ -57,7 +57,7 @@ __name(onRequest4, "onRequest");
 async function onRequest5({ env }) {
   const id = env.HUB.idFromName("global");
   const stub = env.HUB.get(id);
-  const res = await stub.fetch("https://do/component/gainers-table");
+  const res = await stub.fetch("https://do/component/gainers-table-3min");
   return new Response(await res.text(), {
     headers: { "content-type": "application/json", "cache-control": "s-maxage=10, stale-while-revalidate=30" }
   });
@@ -79,7 +79,7 @@ __name(onRequest6, "onRequest");
 async function onRequest7({ env }) {
   const id = env.HUB.idFromName("global");
   const stub = env.HUB.get(id);
-  const res = await stub.fetch("https://do/component/losers-table");
+  const res = await stub.fetch("https://do/component/losers-table-3min");
   return new Response(await res.text(), {
     headers: { "content-type": "application/json", "cache-control": "s-maxage=10, stale-while-revalidate=30" }
   });

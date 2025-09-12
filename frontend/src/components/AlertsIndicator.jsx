@@ -6,7 +6,7 @@ const AlertsIndicator = () => {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
-  const [seenCount, setSeenCount] = useState(0);
+  const [_, setSeenCount] = useState(0);
   const pollMs = useMemo(() => {
     const v = Number(import.meta?.env?.VITE_ALERTS_POLL_MS);
     return Number.isFinite(v) && v >= 5000 ? v : 30000; // default 30s, min 5s
@@ -45,20 +45,17 @@ const AlertsIndicator = () => {
     if (open) setSeenCount(count);
   }, [open, count]);
 
-  const unseen = Math.max(0, count - seenCount);
+  // Badge-only UI; unseen count logic retained for future but not rendered
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-1 rounded bg-gray-800 text-white text-xs font-semibold hover:bg-gray-700"
+        className="flex items-center justify-center w-7 h-7 rounded-full bg-pink-500 text-white text-[10px] font-extrabold shadow-lg hover:brightness-110"
         title={error ? `Alerts: ${error}` : `Recent alerts (${count})`}
+        aria-label="Open alerts"
       >
-        <span>Alerts</span>
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${count>0 ? 'bg-orange-500 text-white' : 'bg-gray-600 text-gray-200'}`}>{count}</span>
-        {unseen > 0 && (
-          <span className="px-1 py-0.5 rounded bg-red-600 text-white text-[10px] leading-none">NEW {unseen}</span>
-        )}
+        {Math.max(0, count)}
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-h-72 overflow-auto rounded border border-gray-700 bg-black/90 shadow-lg z-50">
@@ -75,14 +72,24 @@ const AlertsIndicator = () => {
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <a
-                    href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol||'').toLowerCase()}-USD`}
+                    href={`https://www.coinbase.com/trade/${(a.symbol||'').toLowerCase()}-USD`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-bold hover:text-amber-400"
                   >
                     {a.symbol}
                   </a>
-                  <span className={`${a.direction==='up'?'text-green-300':'text-red-300'}`}>{a.direction === 'up' ? '↑' : a.direction === 'down' ? '↓' : '·'}</span>
+                  {(() => {
+                    const isUp = a.direction === 'up';
+                    const isDown = a.direction === 'down';
+                    let cls = 'text-gray-300';
+                    if (isUp) cls = 'text-green-300';
+                    else if (isDown) cls = 'text-red-300';
+                    let glyph = '·';
+                    if (isUp) glyph = '↑';
+                    else if (isDown) glyph = '↓';
+                    return <span className={cls}>{glyph}</span>;
+                  })()}
                   {typeof a.streak === 'number' && a.streak > 0 && (
                     <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none">x{a.streak}</span>
                   )}

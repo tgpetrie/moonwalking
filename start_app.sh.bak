@@ -1,0 +1,40 @@
+<file name=frontend/src/config/env-debug.js>export const ENV = {
+  isDev: import.meta.env.DEV,
+  // Prefer explicit hosts in dev so we don't depend on Vite proxy when debugging
+  API_BASE_URL:
+    import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://127.0.0.1:5001' : 'relative'),
+  WS_URL:
+    import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://127.0.0.1:8787/ws' : ''),
+};
+console.log('[env]', ENV);
+</file>
+
+<file name=frontend/src/components/Watchlist.jsx>  async function fetchAllSymbols() {
+    const products = await fetchData('/api/coinbase/products');
+    setSymbols(products.map((p) => p.id));
+  }
+</file>
+
+<file name=frontend/src/context/websocketcontext.jsx>import { ENV } from '../config/env-debug';
+// ... inside the provider/init logic where ws is constructed
+const wsUrl = ENV.WS_URL && ENV.WS_URL.length > 0
+  ? ENV.WS_URL
+  : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
+
+// ... where connection errors are logged
+// Replace console.warn and console.error for connection errors as follows:
+
+// Example:
+// console.warn('⚠️ WebSocket connection error:', err);
+// console.error(err);
+
+// becomes:
+
+// console.warn('⚠️ WebSocket connection error:');
+// console.debug('[ws.debug] err suppressed');
+
+// Similarly for console.error('❌ WebSocket connection failed', err):
+
+// console.error('❌ WebSocket connection failed');
+// console.debug('[ws.debug] err suppressed');
+</file>

@@ -355,7 +355,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                     Open Full Chart →
                   </button>
                   <button
-                    onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
+                    onClick={() => window.open(`https://www.coinbase.com/trade/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
                     className="w-full text-left px-3 py-2 bg-blue/20 hover:bg-blue/30 rounded text-xs text-blue-300 transition-colors"
                   >
                     Trade on Coinbase →
@@ -640,7 +640,7 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
               Refresh
             </button>
             <button
-              onClick={() => window.open(`https://www.coinbase.com/advanced-trade/spot/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
+              onClick={() => window.open(`https://www.coinbase.com/trade/${selectedCoin?.toLowerCase()}-USD`, '_blank')}
               className="px-4 py-2 bg-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
             >
               Trade on Coinbase

@@ -76,8 +76,8 @@ case "${1:-help}" in
         ;;
     
     "start")
-        print_status "Starting BHABIT CBMOONERS..."
-        ./start_app.sh
+        print_status "Starting BHABIT CBMOONERS (local)…"
+        ./start_app.sh start
         ;;
     
     "backend")
@@ -254,41 +254,13 @@ case "${1:-help}" in
         ;;
     
     "status")
-        print_status "Checking server status..."
-        BACKEND_PID=$(lsof -t -i:5001 || true)
-        FRONTEND_PID=$(lsof -t -i:5173 || true)
-
-        if [ -n "$BACKEND_PID" ]; then
-            print_success "Backend server is running (PID: $BACKEND_PID)"
-        else
-            print_error "Backend server is not running."
-        fi
-
-        if [ -n "$FRONTEND_PID" ]; then
-            print_success "Frontend server is running (PID: $FRONTEND_PID)"
-        else
-            print_error "Frontend server is not running."
-        fi
+        print_status "Checking server status…"
+        ./start_app.sh status
         ;;
 
     "stop")
-        print_status "Stopping servers..."
-        BACKEND_PID=$(lsof -t -i:5001 || true)
-        FRONTEND_PID=$(lsof -t -i:5173 || true)
-
-        if [ -n "$BACKEND_PID" ]; then
-            kill -9 $BACKEND_PID
-            print_success "Backend server stopped."
-        else
-            print_error "Backend server is not running."
-        fi
-
-        if [ -n "$FRONTEND_PID" ]; then
-            kill -9 $FRONTEND_PID
-            print_success "Frontend server stopped."
-        else
-            print_error "Frontend server is not running."
-        fi
+        print_status "Stopping servers…"
+        ./start_app.sh stop
         ;;
 
     "help"|*)

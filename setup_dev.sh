@@ -15,23 +15,33 @@ echo "[SETUP] FRONTEND_DIR: $FRONTEND_DIR"
 
 echo "[SETUP] 🐰 Setting up BHABIT CBMOONERS Development Environment..."
 echo "[SETUP] Checking prerequisites..."
-command -v python >/dev/null || { echo "[ERROR] python not found"; exit 1; }
+
+# Prefer python3 on systems where `python` may be absent (e.g., macOS)
+PYBIN="python"
+if ! command -v "$PYBIN" >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYBIN="python3"
+  else
+    echo "[ERROR] python or python3 not found"; exit 1
+  fi
+fi
+
 command -v node   >/dev/null || { echo "[ERROR] node not found"; exit 1; }
 command -v npm    >/dev/null || { echo "[ERROR] npm not found"; exit 1; }
 command -v curl   >/dev/null || { echo "[WARN] curl not found in PATH — some checks may be skipped."; }
 echo "[SUCCESS] Prerequisites check completed!"
-echo "[SETUP] Python version: $(python -V)"
+echo "[SETUP] Python version: $($PYBIN -V)"
 echo "[SETUP] Node.js version: $(node -v)"
 
 # ---------- Python venv ----------
 echo "[SETUP] Ensuring Python virtual environment at $VENV ..."
 if [[ ! -d "$VENV" ]]; then
-  python -m venv "$VENV"
+  "$PYBIN" -m venv "$VENV"
   echo "[SUCCESS] Virtual environment created!"
 fi
 source "$VENV/bin/activate"
 echo "[SUCCESS] Virtual environment activated!"
-python -m pip install --disable-pip-version-check -U pip wheel setuptools >/dev/null 2>&1 || true
+"$PYBIN" -m pip install --disable-pip-version-check -U pip wheel setuptools >/dev/null 2>&1 || true
 
 # ---------- Backend deps ----------
 if [[ -f "$BACKEND_DIR/requirements.txt" ]]; then
@@ -43,7 +53,7 @@ else
   exit 1
 fi
 echo "[SETUP] Installing backend dependencies from: $REQ"
-python -m pip install --disable-pip-version-check -r "$REQ"
+"$PYBIN" -m pip install --disable-pip-version-check -r "$REQ"
 echo "[SUCCESS] Backend dependencies installed!"
 
 # ---------- Frontend deps ----------
@@ -122,7 +132,7 @@ trap cleanup EXIT
 # ---------- Pick backend port (prefer 5001) ----------
 PREFERRED_PORT=5001
 PORT=$PREFERRED_PORT
-python - "$PORT" <<'PY'
+"$PYBIN" - "$PORT" <<'PY'
 import socket, sys
 port=int(sys.argv[1])
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -132,7 +142,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     else:
         print('FREE')
 PY
-STATUS="$(python - "$PORT" <<'PY'
+STATUS="$("$PYBIN" - "$PORT" <<'PY'
 import socket, sys
 port=int(sys.argv[1])
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -147,7 +157,7 @@ fi
 
 # ---------- Start backend ----------
 echo "[SETUP] Starting backend on :$PORT ..."
-( cd "$BACKEND_DIR" && PORT="$PORT" HOST="0.0.0.0" python app.py ) &
+( cd "$BACKEND_DIR" && PORT="$PORT" HOST="0.0.0.0" "$PYBIN" app.py ) &
 BACKEND_PID=$!
 
 # ---------- Start frontend ----------

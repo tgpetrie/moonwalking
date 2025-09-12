@@ -15,10 +15,10 @@ class WebSocketManager {
     
     // Setup mobile-specific listeners
     this.setupMobileOptimizations();
-    // Prefer explicit WS url (VITE_WS_URL), else same-origin
+    // Prefer explicit WS url (VITE_WS_URL), else same-origin; no localhost fallback
     const originWs = (typeof location !== 'undefined')
       ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
-      : 'ws://127.0.0.1:8787';
+      : '';
     const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
     this.baseUrl = wsHost; // host only; endpoint is /ws
     // Use shared flags (default: enabled unless explicitly disabled)
@@ -61,13 +61,60 @@ class WebSocketManager {
           const msg = JSON.parse(ev.data);
           if (msg?.type === 'hello' || msg?.type === 'snapshots') {
             const snap = msg.snapshots || {};
-            // Emit events consistent with existing context listeners
+
+            // Normalize incoming snapshots to the payload shape expected by context
+            // snap.t1m => gainers1m; snap.t3m => gainers3m; losers3m derived from t3m sorted ascending
+            const payload = {};
+
             if (Array.isArray(snap.t1m) && snap.t1m.length) {
-              this.emit('crypto_update', snap.t1m);
-              // Build prices map
+              payload.gainers1m = snap.t1m;
+              // Build prices map for quick symbol->price updates
               const prices = {};
-              snap.t1m.forEach(c => { if (c?.symbol) prices[c.symbol] = { price: c.current_price ?? c.price ?? 0, changePercent: c.price_change_percentage_1min ?? c.change ?? 0, timestamp: Date.now() }; });
+              snap.t1m.forEach((c) => {
+                if (c?.symbol) {
+                  prices[c.symbol] = {
+                    price: c.current_price ?? c.price ?? 0,
+                    changePercent: c.price_change_percentage_1min ?? c.change ?? 0,
+                    timestamp: Date.now(),
+                  };
+                }
+              });
               if (Object.keys(prices).length) this.emit('price_update', prices);
+            }
+
+            if (Array.isArray(snap.t3m) && snap.t3m.length) {
+              payload.gainers3m = snap.t3m;
+              // Build prices map for t3m as well (so UI can show prices even if t1m hasn't arrived)
+              const prices3 = {};
+              snap.t3m.forEach((c) => {
+                if (c?.symbol) {
+                  prices3[c.symbol] = {
+                    price: c.current_price ?? c.price ?? 0,
+                    changePercent: c.price_change_percentage_3min ?? c.change ?? c.change3m ?? 0,
+                    timestamp: Date.now(),
+                  };
+                }
+              });
+              if (Object.keys(prices3).length) this.emit('price_update', prices3);
+
+              // losers3m: be permissive about which field holds the 3m pct (price_change_percentage_3min, change, change3m, gain)
+              const losers = snap.t3m
+                .filter((x) => {
+                  const v = x?.price_change_percentage_3min ?? x?.change ?? x?.change3m ?? x?.gain;
+                  return typeof v === 'number' || (!Number.isNaN(parseFloat(v)) && isFinite(parseFloat(v)));
+                })
+                .slice()
+                .sort((a, b) => {
+                  const va = Number(a?.price_change_percentage_3min ?? a?.change ?? a?.change3m ?? a?.gain ?? 0);
+                  const vb = Number(b?.price_change_percentage_3min ?? b?.change ?? b?.change3m ?? b?.gain ?? 0);
+                  return va - vb;
+                })
+                .slice(0, 30);
+              if (losers.length) payload.losers3m = losers;
+            }
+
+            if (Object.keys(payload).length) {
+              this.emit('crypto_update', { payload });
             }
           }
         } catch (_) {}

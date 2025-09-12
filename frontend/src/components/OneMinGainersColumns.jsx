@@ -1,89 +1,55 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useWebSocket } from '../context/websocketcontext.jsx';
-import { API_ENDPOINTS, fetchData } from '../api.js';
 import GainersTable1Min from './GainersTable1Min.jsx';
 
-export default function OneMinGainersColumns({
-  refreshTrigger,
-  onWatchlistChange,
-  topWatchlist,
-  expanded = false,
-}) {
-  const { latestData } = useWebSocket();
-  const [left, setLeft] = useState([]);
-  const [right, setRight] = useState([]);
+export default function OneMinGainersColumns({ expanded = false, onSelectCoin }) {
+  const { gainersTop20 } = useWebSocket();
 
-  useEffect(() => {
-    let cancelled = false;
-    const build = async () => {
-      // Prefer WS snapshot; fallback to API
-      let source = Array.isArray(latestData?.crypto) ? latestData.crypto : null;
-      if (!source || source.length === 0) {
-        try {
-          const res = await fetchData(API_ENDPOINTS.gainersTable1Min);
-          source = Array.isArray(res?.data) ? res.data : [];
-        } catch (_) {
-          source = [];
-        }
-      }
-      const mapped = (source || []).map((item, idx) => {
-        const raw = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0;
-        const abs = Math.abs(Number(raw) || 0);
-        const needsScale = abs > 0 && abs < 0.02;
-        const pct = needsScale ? Number(raw) * 100 : Number(raw) || 0;
-        return ({
-          rank: item.rank || idx + 1,
-          symbol: item.symbol?.replace('-USD', '') || 'N/A',
-          price: item.current_price ?? item.price ?? 0,
-          change: pct,
-          initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,
-          peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
-        });
-      });
-      // Dedupe by symbol, keep highest change
-      const bySym = new Map();
-      for (const r of mapped) {
-        const prev = bySym.get(r.symbol);
-        if (!prev || Math.abs(r.change) > Math.abs(prev.change)) bySym.set(r.symbol, r);
-      }
-      const unique = Array.from(bySym.values());
-      const sorted = unique.sort((a, b) => (b.change - a.change));
-      const total = expanded ? 12 : 8;
-      const top = sorted.slice(0, total).map((it, i) => ({ ...it, rank: i + 1 }));
-      const half = Math.floor(top.length / 2);
-      if (!cancelled) {
-        setLeft(top.slice(0, half));
-        setRight(top.slice(half));
-      }
+  const { left, right, ranges } = useMemo(() => {
+    const total = expanded ? 12 : 8;
+    const half = Math.ceil(total / 2);
+    const leftRange = { start: 1, end: half }; // ranks are 1-indexed; end exclusive in child logic
+    const rightRange = { start: half + 1, end: total };
+    const top = gainersTop20.slice(0, total);
+    return {
+      left: top.slice(0, half),
+      right: top.slice(half, total),
+      ranges: { left: leftRange, right: rightRange },
     };
-    build();
-    return () => { cancelled = true; };
-  }, [refreshTrigger, latestData?.crypto, expanded]);
+  }, [gainersTop20, expanded]);
 
-  // sliceStart controls the displayed rank numbering within the child
-  const leftSliceStart = 0;
-  const rightSliceStart = left.length; // 4 when collapsed, 6 when expanded
+  // Ranges are passed via startRank/endRank; no additional local slice offsets needed
+
+  const hasRight = right && right.length > 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mt-3">
-      <GainersTable1Min
-        refreshTrigger={refreshTrigger}
-        onWatchlistChange={onWatchlistChange}
-        topWatchlist={topWatchlist}
-        rows={left}
-        sliceStart={leftSliceStart}
-        sliceEnd={left.length}
-        hideShowMore
-      />
-      <GainersTable1Min
-        refreshTrigger={refreshTrigger}
-        onWatchlistChange={onWatchlistChange}
-        topWatchlist={topWatchlist}
-        rows={right}
-        sliceStart={rightSliceStart}
-        sliceEnd={rightSliceStart + right.length}
-        hideShowMore
-      />
+    <div className="tables-grid mt-3">
+      <div className={"table-card " + (!hasRight ? 'sm:col-span-2' : '')}>
+        <GainersTable1Min
+          rows={left}
+      startRank={ranges.left.start}
+      endRank={ranges.left.end}
+          hideShowMore
+          onSelectCoin={onSelectCoin}
+        />
+      </div>
+    {hasRight && (
+      <div className="table-card">
+          <GainersTable1Min
+            rows={right}
+        startRank={ranges.right.start}
+        endRank={ranges.right.end}
+            hideShowMore
+            onSelectCoin={onSelectCoin}
+          />
+        </div>
+    )}
     </div>
   );
 }
+
+OneMinGainersColumns.propTypes = {
+  expanded: PropTypes.bool,
+  onSelectCoin: PropTypes.func,
+};

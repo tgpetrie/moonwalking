@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
 // Prefer an edge Worker URL when provided; fallback to backend route
@@ -35,20 +36,22 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
           try {
             const res = await fetch(BANNER_API);
             if (res.ok) return await res.json();
-          } catch (_) { /* fall back below */ }
+          } catch (err) { console.warn('BottomBanner edge fetch failed, falling back', err); }
           return await fetchData(FALLBACK_API);
         })();
-        const rows = Array.isArray(raw?.rows) ? raw.rows
-                  : (Array.isArray(raw?.data) ? raw.data : []);
+        let rows = [];
+        if (Array.isArray(raw?.rows)) rows = raw.rows;
+        else if (Array.isArray(raw?.data)) rows = raw.data;
         if (rows && rows.length > 0) {
           const dataWithRanks = rows.map((item, index) => {
             const vol24 = Number(item.volume_24h ?? 0);
-            const pctRaw = (item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)))
-              ? Number(item.volume_change_1h_pct)
-              : (item.volume_change_estimate != null && !Number.isNaN(Number(item.volume_change_estimate))
-                  ? Number(item.volume_change_estimate)
-                  : (Number(item.price_change_1h ?? 0) * 0.5));
-            const isEst = !(item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)));
+            let pctRaw = 0;
+            const hasPct = (item.volume_change_1h_pct != null) && !Number.isNaN(Number(item.volume_change_1h_pct));
+            const hasEst = (item.volume_change_estimate != null) && !Number.isNaN(Number(item.volume_change_estimate));
+            if (hasPct) pctRaw = Number(item.volume_change_1h_pct);
+            else if (hasEst) pctRaw = Number(item.volume_change_estimate);
+            else pctRaw = Number(item.price_change_1h ?? 0) * 0.5;
+            const isEst = !hasPct;
             return ({
               rank: index + 1,
               symbol: item.symbol?.replace('-USD', '') || 'N/A',
@@ -117,27 +120,27 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
 
   // Never show loading or empty states - always render the banner
   return (
-    <div className="relative overflow-hidden rounded-3xl w-full max-w-full" role="region" aria-label="Live 1H Volume Change Market Feed" style={{ background: 'transparent' }}>
+    <section className="relative overflow-hidden rounded-3xl w-full max-w-full" aria-label="Live 1H Volume Change Market Feed" style={{ background: 'transparent' }}>
       {/* Header */}
       <div className="px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: 'rgb(254, 164, 0)' }} tabIndex={0} aria-label="1H Volume Change Live Market Feed">
+          <h3 className="text-base font-headline font-bold tracking-wide uppercase text-orange" aria-label="1H Volume Change Live Market Feed">
             1H Volume Change • Live Market Feed
           </h3>
         </div>
       </div>
       {/* Scrolling Content */}
-      <div className="relative h-16 overflow-hidden" tabIndex={0} aria-label="Scrolling market data" style={{outline:'none'}}>
+      <div className="relative h-16 overflow-hidden" aria-label="Scrolling market data" style={{outline:'none'}}>
         {/* Left fade overlay */}
         <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
         {/* Right fade overlay */}
         <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
         <div className="absolute inset-0 flex items-center">
-          <div className="flex whitespace-nowrap animate-scroll" role="list" style={{ animationDelay: animDelay }}>
+          <ul className="flex whitespace-nowrap animate-scroll" style={{ animationDelay: animDelay }}>
             {/* First set of data */}
             {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
-                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-transparent">
+              <li key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8" aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
+                <a href={`https://www.coinbase.com/trade/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-black/20 border border-gray-800 hover:scale-105 will-change-transform">
                     <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
@@ -148,43 +151,25 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
-                      <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
+                      <span className={(vc >= 0 ? 'text-pos' : 'text-neg') + ' text-xl font-mono'}>
+                        {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
-                    {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}
+                    {/* directional arrow removed to avoid redundancy with +/- */}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
-                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
-                      let fontSize = '0.85em';
-                      if (s >= 1.5) { fontSize = '1.2em'; }
-                      else if (s >= 0.5) { fontSize = '1.0em'; }
-                      const color = coin.trendDirection === 'up'
-                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                        : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
-                      return (
-                        <span
-                          className="font-semibold"
-                          style={{ fontSize, color }}
-                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
-                          aria-label={`trend ${coin.trendDirection}`}
-                        >
-                          {coin.trendDirection === 'up' ? '↑' : '↓'}
-                        </span>
-                      );
-                    })()}
+                    {/* trend arrows removed to avoid redundancy with +/- */}
                     {/* removed streak chip for cleaner layout */}
                   </div>
                   {/* removed empty purple-bordered pill for cleaner layout */}
                 </a>
-              </div>
+              </li>
             ))}
             {/* Duplicate set for seamless scrolling */}
             {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
-                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple">
+              <li key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8" aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
+                <a href={`https://www.coinbase.com/trade/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-black/20 border border-gray-800 hover:scale-105 will-change-transform">
                   <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
                       {coin.symbol}
@@ -195,11 +180,11 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   </div>
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
-                      <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
+                      <span className={(vc >= 0 ? 'text-pos' : 'text-neg') + ' text-xl font-mono'}>
+                        {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
                       </span>
                     ); })()}
-                    {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}
+                    {/* directional arrow removed to avoid redundancy with +/- */}
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
                         )}
@@ -208,16 +193,18 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                       let fontSize = '0.85em';
                       if (s >= 1.5) { fontSize = '1.2em'; }
                       else if (s >= 0.5) { fontSize = '1.0em'; }
-                      const color = coin.trendDirection === 'up'
-                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                        : (s >= 1.5 ? '#EF4444' : '#F87171');
+                      let color;
+                      if (coin.trendDirection === 'up') {
+                        if (s >= 1.5) color = '#10B981';
+                        else if (s >= 0.5) color = '#34D399';
+                        else color = '#9AE6B4';
+                      } else {
+                        color = (s >= 1.5) ? '#EF4444' : '#F87171';
+                      }
+                      const tScore = Number(coin.trendScore || 0).toFixed(2);
+                      const title = `trend: ${coin.trendDirection}${coin.trendStreak ? ' x' + coin.trendStreak : ''} • score ${tScore}`;
                       return (
-                        <span
-                          className="font-semibold"
-                          style={{ fontSize, color }}
-                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
-                          aria-label={`trend ${coin.trendDirection}`}
-                        >
+                        <span className="font-semibold" style={{ fontSize, color }} title={title} aria-label={`trend ${coin.trendDirection}`}>
                           {coin.trendDirection === 'up' ? '↑' : '↓'}
                         </span>
                       );
@@ -226,13 +213,17 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   </div>
                     {/* removed extra purple-bordered container - keep single layout pill in first set only */}
                 </a>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
 export default BottomBannerScroll;
+
+BottomBannerScroll.propTypes = {
+  refreshTrigger: PropTypes.any,
+};
