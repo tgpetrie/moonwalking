@@ -1,6 +1,6 @@
 # BHABIT MOONWALKING – Cryptocurrency Tracker
 
-Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price/volume trends, and alert hygiene.
+Real-time crypto tracking powered by Cloudflare Workers, with stable 1‑minute movers, accurate price/volume trends, and a WebSocket-driven UI.
 
 ![BHABIT Logo](frontend/public/bhabit-logo.png)
 
@@ -8,7 +8,7 @@ Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price
 
 ## Overview
 
-BHABIT CBMOONERS shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows, plus 1‑hour price and volume trend banners. The React + Vite frontend stays smooth via WebSocket with REST fallback; the Flask backend owns ranking, hysteresis/peak‑hold, and streak‑based alerts.
+BHABIT MOONWALKING shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows. The architecture uses a **Cloudflare Worker with a Durable Object** to manage a persistent WebSocket connection to the Coinbase exchange, process real-time data, and serve it to the frontend. The React + Vite frontend provides a smooth, responsive user experience.
 
 ---
 
@@ -16,28 +16,23 @@ BHABIT CBMOONERS shows live market data with server‑ordered top movers across 
 
 * Server‑ordered top movers (no client resorting)
 * 1‑minute table stability: hysteresis + dwell + 60s peak‑hold
-* Trend metrics across scopes: direction, streak, score
-* True 1‑hour volume deltas (with price‑based fallback)
-* Alert hygiene: streak thresholds with cooldowns; recent alerts API
-* Smooth UI: tiny sparklines, trend‑strength arrows, WS + adaptive polling fallback
+* Real-time data streaming via WebSockets to the client
+* "Ask BHABIT" AI assistant for market queries (optional, separate service)
+* Freemium model for gating premium features
+* Advanced coin analysis panel with technicals, news, and social sentiment (mock data)
 
 ---
 
 ## Architecture
 
 ```text
-BHABIT CBMOONERS/
-├── frontend/             # React + Vite + Tailwind CSS
-│   ├── src/
-│   │   ├── components/   # React UI components
-│   │   ├── utils/        # Frontend utility functions
-│   │   └── api.js        # API integration logic
-│   └── public/           # Static files
-├── backend/              # Flask API server
-│   ├── app.py            # Main Flask app
-│   ├── config.py         # App configuration
-│   └── utils.py          # Backend helper functions
-└── docs/                 # Additional documentation
+BHABIT MOONWALKING/
+├── frontend/         # React + Vite + Tailwind CSS UI
+├── workers/
+│   └── ws.js         # Cloudflare Worker & Durable Object (The Backend)
+├── server.js         # Optional Node.js server for "Ask BHABIT" AI
+├── start_app.sh      # Main script to run everything locally
+└── wrangler.toml     # Cloudflare configuration
 ```
 
 ---

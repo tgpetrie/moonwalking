@@ -2901,6 +2901,52 @@ def server_info():
         logging.error(f"server-info error: {e}")
         return jsonify({"status": "error", "error": str(e)}), 200
 
+# -----------------------------------------------------------------------------
+# Lightweight products endpoint for frontend symbol search/autocomplete
+# -----------------------------------------------------------------------------
+@ttl_cache(ttl=int(os.environ.get('PRODUCTS_CACHE_TTL', '1800')))  # default 30 minutes
+def _get_usd_products_symbols():
+    """Fetch Coinbase products once and cache; return list of base symbols for USD pairs.
+
+    Returns a list like ["BTC", "ETH", ...]. Filters to USD-quoted products that are online.
+    """
+    try:
+        resp = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        if resp.status_code != 200:
+            logging.warning(f"/api/products upstream status={resp.status_code}")
+            return []
+        products = resp.json() or []
+        bases = []
+        for p in products:
+            try:
+                if p.get('quote_currency') != 'USD':
+                    continue
+                status = (p.get('status') or '').lower()
+                if status and status not in ('online', 'active'):
+                    continue
+                base = (p.get('base_currency') or '').upper()
+                if not base:
+                    pid = str(p.get('id') or '')
+                    base = pid.split('-')[0].upper() if '-' in pid else pid.replace('USD', '').upper()
+                if base:
+                    bases.append(base)
+            except Exception:
+                # Defensive: skip any malformed entry
+                continue
+        # Ensure a few majors are present (idempotent once deduped)
+        majors = ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'LINK', 'MATIC', 'AVAX', 'ATOM', 'LTC', 'BCH', 'XRP']
+        bases.extend(majors)
+        return sorted(set(bases))
+    except Exception as e:
+        logging.error(f"Failed to fetch Coinbase products: {e}")
+        return []
+
+@app.route('/api/products')
+def api_products():
+    """Return cached list of tradable base symbols (USD pairs) for watchlist search."""
+    symbols = _get_usd_products_symbols()
+    return jsonify({'products': symbols, 'count': len(symbols)})
+
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():
     """Clear all caches"""

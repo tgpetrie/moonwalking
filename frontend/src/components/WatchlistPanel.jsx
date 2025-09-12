@@ -1,13 +1,20 @@
+/* eslint-disable react/prop-types */
 import React, { useState, useEffect } from 'react';
-import { getWatchlist, removeFromWatchlist } from '../api.js';
+import { getWatchlist, removeFromWatchlist } from '../lib/api.js';
 import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 
+function getChangeColor(change) {
+  if (change > 0) return 'text-blue';
+  if (change < 0) return 'text-pink';
+  return 'text-gray-400';
+}
+
 const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [animatingRemoval, setAnimatingRemoval] = useState(null);
-  const { latestData, fetchPricesForSymbols, isConnected, isPolling } = useWebSocket();
+  const { latestData, isConnected, isPolling } = useWebSocket();
 
   // Sync with parent watchlist
   useEffect(() => {
@@ -21,7 +28,9 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
 
   // Get real-time prices for watchlist symbols
   const getWatchlistWithPrices = () => {
-    if (!watchlist || watchlist.length === 0) return [];
+    if (!watchlist || watchlist.length === 0) {
+      return [];
+    }
 
     return watchlist.map(item => {
       const symbol = typeof item === 'string' ? item : item.symbol;
@@ -58,7 +67,9 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
     setTimeout(async () => {
       const updated = await removeFromWatchlist(symbol);
       setWatchlist(updated);
-      if (onWatchlistChange) onWatchlistChange(updated);
+      if (onWatchlistChange) {
+        onWatchlistChange(updated);
+      }
       setAnimatingRemoval(null);
     }, 300);
   };
@@ -108,7 +119,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       {watchlistWithPrices.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isRemoving = animatingRemoval === item.symbol;
-        const changeColor = item.change > 0 ? 'text-blue' : item.change < 0 ? 'text-pink' : 'text-gray-400';
+  const changeColor = getChangeColor(item.change);
         
         return (
           <React.Fragment key={item.symbol}>
@@ -180,7 +191,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                 </div>
               </a>
             </div>
-            {idx < watchlistWithPrices.length - 1 && (
+            {idx < watchlistWithPrices.length - 1 ? (
               <div
                 className="mx-auto my-0.5"
                 style={{
@@ -190,7 +201,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                   borderRadius: '2px'
                 }}
               />
-            )}
+            ) : null}
           </React.Fragment>
         );
       })}

@@ -1,15 +1,14 @@
-name = "moonwalking"
-pages_build_output_dir = "frontend/dist"
+name = "moonwalking-worker"
+main = "workers/ws.js"
+compatibility_date = "2024-08-23"
 
 [durable_objects]
 bindings = [
-  { name = "HUB", class_name = "Hub", script_name = "mw-hub" }
+  { name = "HUB", class_name = "Hub" }
 ]
 
 [vars]
-# Comma-separated list of symbols to include by default (optional)
-BACKEND_ORIGIN = "https://mw-hub.tgpetrie.workers.dev"
-VITE_API_URL = "/api"
+QUOTE = "USD"
 
 [[kv_namespaces]]
 binding = "WATCHLIST_KV"

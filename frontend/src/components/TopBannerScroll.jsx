@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
 const TopBannerScroll = ({ refreshTrigger }) => {
@@ -79,16 +80,11 @@ const TopBannerScroll = ({ refreshTrigger }) => {
       {/* Header */}
       <div className="px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: 'rgb(254, 164, 0)' }}>
+          <h3 className="text-base font-headline font-bold tracking-wide uppercase text-orange">
             1H Price Change • Live Market Feed
           </h3>
         </div>
       </div>
-
-      {/* Optional warm-up hint */}
-      {data.length === 0 && (
-        <div className="px-3 pb-3 text-xs opacity-70">No 1h data yet (warming up)…</div>
-      )}
 
       {/* Scrolling Content */}
       <div className="relative h-16 overflow-hidden">
@@ -100,16 +96,15 @@ const TopBannerScroll = ({ refreshTrigger }) => {
             {data.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a
-                  href={`https://www.coinbase.com/advanced-trade/spot/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
+                  href={`https://www.coinbase.com/trade/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
                   target="_blank" rel="noopener noreferrer"
                   className={
-                    "flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group " +
-                    (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' :
-                                        'group-hover:text-pink group-hover:text-shadow-pink')
+                    "flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:scale-105 will-change-transform bg-black/20 border border-gray-800 " +
+                    (coin.change >= 0 ? 'hover:text-purple hover:text-shadow-purple' : 'hover:text-pink hover:text-shadow-pink')
                   }
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
+                    <span className="text-xs font-bold text-pos">#{coin.rank}</span>
                     <span className="text-base font-headline font-bold tracking-wide">{coin.symbol}</span>
                     <span className="text-lg font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
@@ -118,8 +113,9 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => {
                       const ch = Number(coin.change || 0);
+                      const cls = ch >= 0 ? 'text-pos' : 'text-neg';
                       return (
-                        <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        <span className={`${cls} text-xl`}>
                           {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                         </span>
                       );
@@ -127,14 +123,16 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     {(() => {
                       const ch = Number(coin.change || 0);
                       if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null;
-                      const color = ch >= 0 ? '#C026D3' : '#FF69B4';
+                      const color = ch >= 0 ? 'var(--pos)' : 'var(--neg)';
                       const mag = Math.abs(ch);
-                      const fontSize = mag >= 2 ? '1.2em' : mag >= 0.5 ? '1.0em' : '0.9em';
+                      let fontSize = '0.9em';
+                      if (mag >= 2) fontSize = '1.2em';
+                      else if (mag >= 0.5) fontSize = '1.0em';
                       return <span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>;
                     })()}
                   </div>
                   {getBadgeStyle(coin.change) ? (
-                    <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
+                    <div className="px-2 py-0.5 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/40 text-purple">
                       {getBadgeStyle(coin.change)}
                     </div>
                   ) : null}
@@ -145,16 +143,15 @@ const TopBannerScroll = ({ refreshTrigger }) => {
             {data.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a
-                  href={`https://www.coinbase.com/advanced-trade/spot/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
+                  href={`https://www.coinbase.com/trade/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
                   target="_blank" rel="noopener noreferrer"
                   className={
-                    "flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group " +
-                    (coin.change >= 0 ? 'group-hover:text-purple group-hover:text-shadow-purple' :
-                                        'group-hover:text-pink group-hover:text-shadow-pink')
+                    "flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:scale-105 will-change-transform bg-black/20 border border-gray-800 " +
+                    (coin.change >= 0 ? 'hover:text-purple hover:text-shadow-purple' : 'hover:text-pink hover:text-shadow-pink')
                   }
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
+                    <span className="text-xs font-bold text-pos">#{coin.rank}</span>
                     <span className="text-base font-headline font-bold tracking-wide">{coin.symbol}</span>
                     <span className="text-lg font-bold text-teal">
                       ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
@@ -163,8 +160,9 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => {
                       const ch = Number(coin.change || 0);
+                      const cls = ch >= 0 ? 'text-pos' : 'text-neg';
                       return (
-                        <span className={(ch >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
+                        <span className={`${cls} text-xl`}>
                           {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
                         </span>
                       );
@@ -172,14 +170,16 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                     {(() => {
                       const ch = Number(coin.change || 0);
                       if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null;
-                      const color = ch >= 0 ? '#C026D3' : '#FF69B4';
+                      const color = ch >= 0 ? 'var(--pos)' : 'var(--neg)';
                       const mag = Math.abs(ch);
-                      const fontSize = mag >= 2 ? '1.2em' : mag >= 0.5 ? '1.0em' : '0.9em';
+                      let fontSize = '0.9em';
+                      if (mag >= 2) fontSize = '1.2em';
+                      else if (mag >= 0.5) fontSize = '1.0em';
                       return <span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>;
                     })()}
                   </div>
                   {getBadgeStyle(coin.change) ? (
-                    <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">
+                    <div className="px-2 py-0.5 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">
                       {getBadgeStyle(coin.change)}
                     </div>
                   ) : null}
@@ -194,3 +194,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
 };
 
 export default TopBannerScroll;
+
+TopBannerScroll.propTypes = {
+  refreshTrigger: PropTypes.any,
+};

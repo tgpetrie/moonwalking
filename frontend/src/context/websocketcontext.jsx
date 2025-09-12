@@ -54,14 +54,58 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   const prevLosers3mRef = useRef([]);
   const idleTrimRef = useRef(null);
 
-  // Development-only mock data to show the UI when backend/WS is not available.
-  const DEV_MOCK_CRYPTO = [
-    { symbol: 'POL-USD', current_price: 0.2873, price_change_percentage_1min: 1.091, price_change_percentage_3min: 1.09, peak_count: 1 },
-    { symbol: 'CRO-USD', current_price: 0.2517, price_change_percentage_1min: 0.882, price_change_percentage_3min: 0.88, peak_count: 1 },
-    { symbol: 'MATIC-USD', current_price: 0.2871, price_change_percentage_1min: 0.878, price_change_percentage_3min: 0.87, peak_count: 1 },
-    { symbol: 'SKY-USD', current_price: 0.07476, price_change_percentage_1min: 0.809, price_change_percentage_3min: 0.80, peak_count: 1 },
-    { symbol: 'SUKU-USD', current_price: 0.0295, price_change_percentage_1min: 0.751, price_change_percentage_3min: 0.75, peak_count: 1 }
-  ];
+  // Small helpers to normalize REST payload shapes and map to UI items
+  const extractRows = useCallback((resp) => {
+    if (!resp) return null;
+    if (Array.isArray(resp)) return resp;
+    if (Array.isArray(resp.rows)) return resp.rows;
+    if (Array.isArray(resp.data)) return resp.data;
+    return null;
+  }, []);
+  const mapOneMin = useCallback((rows) => rows.map((item, idx) => ({
+    rank: item.rank || (idx + 1),
+    symbol: (item.symbol || 'N/A').replace('-USD', ''),
+    price: (item.current_price ?? item.price ?? 0),
+    change: (item.price_change_percentage_1min ?? item.change ?? 0),
+    initial_price_1min: item.initial_price_1min ?? null,
+    peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+  })), []);
+  const mapThreeMin = useCallback((rows) => rows.map((item, idx) => ({
+    rank: item.rank || (idx + 1),
+    symbol: (item.symbol || 'N/A').replace('-USD', ''),
+    price: (item.current_price ?? item.price ?? 0),
+    // Provide both a dedicated 3-minute field and a generic `change` alias so UI consumers
+    // that expect either name will receive numeric values immediately.
+    change3m: Number(item.price_change_percentage_3min ?? item.change ?? item.change3m ?? item.gain ?? 0),
+    change: Number(item.price_change_percentage_3min ?? item.change ?? item.change3m ?? item.gain ?? 0),
+    initial_price_3min: item.initial_price_3min ?? null,
+    peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+  })), []);
+
+  const computeUpdates = useCallback((gainersData, gainers3mData, losers3mData) => {
+    let hasUpdate = false;
+    const updates = {};
+
+    const gRows = extractRows(gainersData);
+    if (Array.isArray(gRows) && gRows.length) {
+      updates.crypto = mapOneMin(gRows);
+      hasUpdate = true;
+    }
+
+    const g3Rows = extractRows(gainers3mData);
+    if (Array.isArray(g3Rows) && g3Rows.length) {
+      updates.gainers3m = mapThreeMin(g3Rows);
+      hasUpdate = true;
+    }
+
+    const l3Rows = extractRows(losers3mData);
+    if (Array.isArray(l3Rows) && l3Rows.length) {
+      updates.losers3m = mapThreeMin(l3Rows);
+      hasUpdate = true;
+    }
+
+    return { updates, hasUpdate };
+  }, [extractRows, mapOneMin, mapThreeMin]);
 
   // Polling fallback function using useCallback to avoid stale closures
   // Use injected scheduler or default to setTimeout
@@ -88,42 +132,33 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       inFlight = true;
       controller = new AbortController();
       try {
-  vLog('[WebSocket Context] Polling - fetching data from:', API_ENDPOINTS.gainersTable1Min);
         const fetchOptions = {
           signal: controller.signal,
           timeout: isMobile ? mobileConfig.fetchTimeout : 5000
         };
+        vLog('[WebSocket Context] Polling - fetching data...');
         const [gainersData, gainers3mData, losers3mData] = await Promise.all([
           fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(()=>null),
           fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
           fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
         ]);
-  vLog('[WebSocket Context] Polling - received data:', gainersData);
-        if (gainersData && gainersData.data) {
-          const pricesUpdate = {};
-          gainersData.data.forEach(coin => {
-            if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
-              const priceVal = coin.price ?? coin.current_price;
-              pricesUpdate[coin.symbol] = {
-                price: priceVal,
-                change: coin.price_change_percentage_1min || coin.change || 0,
-                changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-                timestamp: Date.now()
-              };
-            }
-          });
-          vLog('[WebSocket Context] Polling - updating state with', gainersData.data.length, 'items');
+
+  const { updates, hasUpdate } = computeUpdates(gainersData, gainers3mData, losers3mData);
+
+        if (hasUpdate) {
+          vLog('[WebSocket Context] Polling - updating state with fetched data', updates);
           setLatestData(prev => ({
             ...prev,
-            crypto: gainersData.data,
-            prices: { ...prev.prices, ...pricesUpdate },
-            gainers3m: gainers3mData?.data || prev.gainers3m || null,
-            losers3m: losers3mData?.data || prev.losers3m || null
+            crypto: updates.crypto || prev.crypto,
+            gainers3m: updates.gainers3m || prev.gainers3m,
+            losers3m: updates.losers3m || prev.losers3m,
           }));
           // reset backoff on success
           backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
         } else {
           vLog('[WebSocket Context] Polling - no data received or malformed response');
+          // Increase backoff if all fetches fail
+          backoffMs = Math.min(backoffMs * 1.5, 90000);
         }
       } catch (error) {
         if (error.name === 'AbortError') {
@@ -164,7 +199,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     
     // Start immediately and then schedule
     poll().then(() => scheduleNext());
-  }, [isPolling]); // Add isPolling as dependency
+  }, [isPolling, debugEnabled, isMobile, mobileConfig.fetchTimeout, mobileConfig.pollingInterval, pollingScheduler, vLog]);
   
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
@@ -192,7 +227,11 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       if (wsManager && wsManager.isConnected) {
         wsManager.send('snapshot_request', { reason: 'manual_refresh', at: Date.now() });
       }
-    } catch (_) { /* ignore */ }
+    } catch (err) {
+      if (debugEnabled) {
+        console.warn('Snapshot request send failed (ignored)', err);
+      }
+    }
 
     // 2) Also fetch the REST fallbacks and merge so UI updates even if WS can't respond
     let controller;
@@ -204,41 +243,28 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
         fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
         fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
       ]);
-      const pricesUpdate = {};
-      const map = new Map();
-      const add = (arr, is1m=false, is3m=false) => {
-        if (!Array.isArray(arr)) return;
-        for (const row of arr) {
-          const sym = (row.symbol || '').replace('-USD','');
-          if (!sym) continue;
-          const prev = map.get(sym) || { symbol: sym };
-          const price = row.current_price ?? row.price;
-          const c1 = row.price_change_percentage_1min ?? row.change;
-          const c3 = row.price_change_percentage_3min ?? row.change3m ?? row.change;
-          map.set(sym, {
-            ...prev,
-            symbol: sym,
-            current_price: price ?? prev.current_price ?? 0,
-            price_change_percentage_1min: is1m ? c1 ?? prev.price_change_percentage_1min : prev.price_change_percentage_1min,
-            price_change_percentage_3min: is3m ? c3 ?? prev.price_change_percentage_3min : prev.price_change_percentage_3min,
-          });
-          if (price != null) {
-            pricesUpdate[sym] = { price, change: c1 ?? c3 ?? 0, changePercent: c1 ?? c3 ?? 0, timestamp: Date.now() };
-          }
-        }
-      };
-      add(one?.data, true, false);
-      add(threeG?.data, false, true);
-      add(threeL?.data, false, true);
-      const combined = Array.from(map.values());
-      if (combined.length) {
-        setLatestData(prev => ({ ...prev, crypto: combined, prices: { ...prev.prices, ...pricesUpdate } }));
+
+  const { updates, hasUpdate } = computeUpdates(one, threeG, threeL);
+
+      if (hasUpdate) {
+        setLatestData(prev => ({
+          ...prev,
+          crypto: updates.crypto || prev.crypto,
+          gainers3m: updates.gainers3m || prev.gainers3m,
+          losers3m: updates.losers3m || prev.losers3m,
+        }));
         return true;
       }
     } catch (e) {
       console.error('Manual refresh failed', e);
     } finally {
-      try { if (controller) controller.abort(); } catch (_) {}
+      try {
+        if (controller) controller.abort();
+      } catch (err) {
+        if (debugEnabled) {
+          console.warn('Manual refresh abort cleanup failed (ignored)', err);
+        }
+      }
     }
     return false;
   };
@@ -295,12 +321,18 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
     // Subscribe to real-time data updates
     const unsubscribeCrypto = subscribeToWebSocket('crypto_update', (data) => {
-      vLog('📈 Received crypto update via WebSocket:', data);
-      setLatestData(prev => ({ ...prev, crypto: data }));
+      vLog('📈 Received crypto update via WebSocket:', data.payload);
+      if (data && data.payload) {
+        setLatestData(prev => ({
+          ...prev,
+          crypto: data.payload.gainers1m || prev.crypto,
+          gainers3m: data.payload.gainers3m || prev.gainers3m,
+          losers3m: data.payload.losers3m || prev.losers3m,
+        }));
+      }
     });
 
     const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
-      vLog('💰 Received price update via WebSocket:', data);
       setLatestData(prev => ({ 
         ...prev, 
         prices: { ...prev.prices, ...data } 
@@ -308,7 +340,6 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     });
 
     const unsubscribeWatchlist = subscribeToWebSocket('watchlist_update', (data) => {
-      vLog('⭐ Received watchlist update via WebSocket:', data);
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 
@@ -341,12 +372,15 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
               fetchData(API_ENDPOINTS.gainersTable3Min).catch(()=>null),
               fetchData(API_ENDPOINTS.losersTable3Min).catch(()=>null)
             ]);
-            if (oneMin?.data?.length) {
+      const dRows = extractRows(oneMin);
+      const g3Rows = extractRows(threeMin);
+      const l3Rows = extractRows(losers3);
+            if (Array.isArray(dRows) && dRows.length) {
               setLatestData(prev => ({
                 ...prev,
-                crypto: oneMin.data,
-                gainers3m: threeMin?.data || prev.gainers3m || null,
-                losers3m: losers3?.data || prev.losers3m || null
+        crypto: mapOneMin(dRows),
+        gainers3m: Array.isArray(g3Rows) && g3Rows.length ? mapThreeMin(g3Rows) : prev.gainers3m || null,
+        losers3m: Array.isArray(l3Rows) && l3Rows.length ? mapThreeMin(l3Rows) : prev.losers3m || null
               }));
               vLog('[WebSocket Context] Immediate REST primed crypto + 3m (WS disabled)');
             }
@@ -366,26 +400,39 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
           startPolling();
         }
       }, 3000);
+      // Also attempt an immediate REST seed to reduce initial latency for 3min lists
+      // (run once, non-blocking). This helps when WS doesn't yet provide t3m snapshots.
+      (async () => {
+        try {
+          if ((!latestData.gainers3m || latestData.gainers3m.length === 0) && !isPolling) {
+            vLog('[WebSocket Context] Performing immediate REST seed for 3min lists');
+            await refreshNow();
+          }
+        } catch (e) {
+          if (debugEnabled) console.warn('Immediate REST seed failed (ignored)', e);
+        }
+      })();
       // track timer handle via ref so cleanup can clear it
       pollingIntervalRef.current = pollingIntervalRef.current || {};
       pollingIntervalRef.current._initialTimer = initialPollTimer;
     }
 
     // Development convenience: inject small mock dataset so UI renders while backend is offline.
-    try {
-      if (import.meta?.env?.MODE === 'development') {
-        // Only inject when we have no live crypto data yet
-        setLatestData(prev => {
-          if (Array.isArray(prev.crypto) && prev.crypto.length > 0) return prev;
-          return { ...prev, crypto: DEV_MOCK_CRYPTO };
-        });
-        vLog('[WebSocket Context] Development mock crypto data injected');
-      }
-    } catch (e) {
-      // Ignore in constrained environments intentionally
-      // eslint-disable-next-line no-unused-vars
-      const _ignored = e;
-    }
+    // DISABLED: Real data is now available from API
+    // try {
+    //   if (import.meta?.env?.MODE === 'development') {
+    //     // Only inject when we have no live crypto data yet
+    //     setLatestData(prev => {
+    //       if (Array.isArray(prev.crypto) && prev.crypto.length > 0) return prev;
+    //       return { ...prev, crypto: DEV_MOCK_CRYPTO };
+    //     });
+    //     vLog('[WebSocket Context] Development mock crypto data injected');
+    //   }
+    // } catch (e) {
+    //   // Ignore in constrained environments intentionally
+    //   // eslint-disable-next-line no-unused-vars
+    //   const _ignored = e;
+    // }
 
     // Cleanup on unmount
     return () => {
@@ -412,55 +459,66 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
   // Derive top 20 gainers whenever crypto list changes
   useEffect(() => {
-    if (!Array.isArray(latestData.crypto) || !latestData.crypto.length) {
-      return;
-    }
-    // 1m gainers
+    if (!Array.isArray(latestData.crypto) || !latestData.crypto.length) return;
     const { combined, nextPrev } = computeTop20Gainers(latestData.crypto, prevGainersRef.current, { limit: 20, mergePrev: true });
     prevGainersRef.current = nextPrev;
     const reconciled = reconcileRows(combined, prevRenderedGainersRef.current);
     prevRenderedGainersRef.current = reconciled;
     setGainersTop20(reconciled);
+  }, [latestData.crypto]);
 
-    // 3m movers
-  const with3m = latestData.crypto.map((c, idx) => ({
-      rank: c.rank || idx + 1,
-      symbol: c.symbol?.replace('-USD','') || 'N/A',
-      price: c.current_price ?? c.price ?? 0,
-      change3m: c.price_change_percentage_3min ?? c.change3m ?? c.change ?? 0,
-      peakCount: typeof c.peak_count === 'number' ? c.peak_count : 0,
-    }));
-    // Normalize change3m units: detect fractional (0..1) values and scale to percent when needed
-    const abs3 = with3m.map(x => Math.abs(Number(x.change3m) || 0)).filter(Boolean).sort((a,b)=>a-b);
-    const median3 = (arr) => {
-      if (!arr.length) { return 0; }
-      const mid = Math.floor(arr.length/2);
-      return arr.length % 2 === 1 ? arr[mid] : (arr[mid-1] + arr[mid]) / 2;
-    };
-    const medianAbs3 = median3(abs3);
-    const needScale3 = medianAbs3 > 0 && medianAbs3 < 0.02;
-    if (needScale3) {
-      for (const x of with3m) {
-        x.change3m = Number(x.change3m) * 100;
-      }
+  // Derive 3m movers whenever their source data changes
+  useEffect(() => {
+    if (latestData.gainers3m) {
+      const recGainers3 = reconcileRows(latestData.gainers3m, prevGainers3mRef.current);
+      prevGainers3mRef.current = recGainers3;
+      setGainers3mTop(recGainers3);
     }
-    const gainers3Raw = with3m
-      .filter(r => typeof r.change3m === 'number')
-      .sort((a,b)=> (b.change3m||0) - (a.change3m||0))
-      .slice(0,20)
-      .map((it,i)=> ({ ...it, rank: i+1 }));
-    const losers3Raw = with3m
-      .filter(r => typeof r.change3m === 'number')
-      .sort((a,b)=> (a.change3m||0) - (b.change3m||0))
-      .slice(0,20)
-      .map((it,i)=> ({ ...it, rank: i+1 }));
-    const recGainers3 = reconcileRows(gainers3Raw, prevGainers3mRef.current);
-    const recLosers3 = reconcileRows(losers3Raw, prevLosers3mRef.current);
-    prevGainers3mRef.current = recGainers3;
-    prevLosers3mRef.current = recLosers3;
-    setGainers3mTop(recGainers3);
-    setLosers3mTop(recLosers3);
+    if (latestData.losers3m) {
+      const recLosers3 = reconcileRows(latestData.losers3m, prevLosers3mRef.current);
+      prevLosers3mRef.current = recLosers3;
+      setLosers3mTop(recLosers3);
+    }
+  }, [latestData.gainers3m, latestData.losers3m]);
 
+  // Self-healing fetch: if 3m lists are empty (WS may omit), poll gently until filled
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+    const ensureThreeMin = async () => {
+      try {
+        const haveG = Array.isArray(gainers3mTop) && gainers3mTop.length > 0;
+        const haveL = Array.isArray(losers3mTop) && losers3mTop.length > 0;
+        if (haveG && haveL) return; // both ready, stop
+        const [g3, l3] = await Promise.all([
+          fetchData(API_ENDPOINTS.gainersTable3Min).catch(() => null),
+          fetchData(API_ENDPOINTS.losersTable3Min).catch(() => null),
+        ]);
+        const { updates, hasUpdate } = computeUpdates(null, g3, l3);
+        if (hasUpdate && !cancelled) {
+          setLatestData(prev => ({
+            ...prev,
+            gainers3m: updates.gainers3m || prev.gainers3m,
+            losers3m: updates.losers3m || prev.losers3m,
+          }));
+        }
+      } catch (_e) {
+        if (debugEnabled) {
+          console.warn('[WebSocket Context] ensureThreeMin fetch error (ignored for retry)', _e);
+        }
+      } finally {
+        if (!cancelled) {
+          // Try again in ~12s until both lists are hydrated
+          timer = setTimeout(ensureThreeMin, 12000);
+        }
+      }
+    };
+    ensureThreeMin();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gainers3mTop.length, losers3mTop.length]);
+
+  useEffect(() => {
     // Idle housekeeping example (no-op placeholder for now)
     if (idleTrimRef.current) {
       cancelIdle(idleTrimRef.current);
@@ -468,7 +526,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     idleTrimRef.current = scheduleIdle(() => {
       // Could trim historical arrays or perform light GC tasks
     }, { timeout: 800 });
-  }, [latestData.crypto]);
+  }, [latestData.crypto, latestData.gainers3m, latestData.losers3m]);
 
   const contextValue = useMemo(() => ({
     isConnected,

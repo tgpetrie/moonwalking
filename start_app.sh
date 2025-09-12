@@ -1,65 +1,76 @@
-#!/usr/bin/env bash
-set -euo pipefail
+import React, { useMemo, useState } from 'react';
+import { formatNumber, formatPct } from '../lib/formatters';
+import { useGainersLosersData } from '../hooks/useGainersLosersData';
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT_DIR"
+/**
+ * MoverTable
+ * Always-visible table for gainers/losers with a given time window (e.g., 3min).
+ * Ensures rows only highlight on hover for the specific row, not the whole table.
+ * Replaces nested <button> elements with div + keyboard handler to avoid DOM warnings.
+ */
+export default function MoverTable({ variant = 'gainers', window = '3min', className = '' }) {
+  const { rows, loading, error } = useGainersLosersData({ variant, window });
 
-PAGES_PORT="${PAGES_PORT:-8789}"
-DO_PORT="${DO_PORT:-8787}"
-FLASK_PORT="${FLASK_PORT:-5001}"
+  const wrapperClasses = `block w-full overflow-x-auto ${className}`.trim();
 
-echo "== BHABIT status =="
+  const [focusedRow, setFocusedRow] = useState(null);
 
-show_pid() {
-  local label="$1" pidfile="$2"
-  if [[ -f "$pidfile" ]]; then
-    local pid="$(cat "$pidfile" || true)"
-    if [[ -n "$pid" ]] && ps -p "$pid" >/dev/null 2>&1; then
-      echo "${label}: running (PID $pid)"
-    else
-      echo "${label}: not running (stale pidfile $pidfile)"
-    fi
-  else
-    echo "${label}: pidfile missing"
-  fi
+  if (error) {
+    return (
+      <div className={wrapperClasses}>
+        <div className="text-red-400 text-sm">Failed to load {variant} ({window})</div>
+      </div>
+    );
+  }
+
+  if (loading && (!rows || rows.length === 0)) {
+    return (
+      <div className={wrapperClasses}>
+        <div className="text-slate-400 text-sm">Loading {variant} ({window})…</div>
+      </div>
+    );
+  }
+
+  const content = useMemo(() => {
+    return (
+      <div className={wrapperClasses}>
+        <table className="w-full table-fixed border-separate border-spacing-0">
+          <thead>
+            <tr className="text-xs text-slate-300">
+              <th className="text-left px-2 py-2 w-[28%]">Symbol</th>
+              <th className="text-right px-2 py-2 hidden sm:table-cell w-[18%]">Price</th>
+              <th className="text-right px-2 py-2 hidden md:table-cell w-[26%]">Vol (24h)</th>
+              <th className="text-right px-2 py-2 w-[18%]">Δ {window}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, index) => (
+              <tr
+                key={r.symbol}
+                className={`mover-row transition-colors ${
+                  focusedRow === index ? 'bg-slate-700' : ''
+                }`}
+                tabIndex={0}
+                onFocus={() => setFocusedRow(index)}
+                onBlur={() => setFocusedRow(null)}
+              >
+                <td className="px-2 py-2">{r.symbol}</td>
+                <td className="px-2 py-2 text-right hidden sm:table-cell">{formatNumber(r.price)}</td>
+                <td className="px-2 py-2 text-right hidden md:table-cell">{formatNumber(r.volume_24h)}</td>
+                <td
+                  className={`px-2 py-2 text-right ${
+                    r.change >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}
+                >
+                  {formatPct(r.change)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }, [rows, loading, error, variant, window, wrapperClasses, focusedRow]);
+
+  return content;
 }
-
-show_pid "Pages (wrangler pages dev)" ".dev-pages.pid"
-show_pid "Worker/DO (wrangler dev)" ".dev-do.pid"
-show_pid "Backend (Flask)" ".backend.pid"
-show_pid "Frontend (Vite)" ".frontend.pid"
-
-echo
-echo "URLs:"
-echo "  Pages:   http://127.0.0.1:${PAGES_PORT}"
-echo "  Worker:  http://127.0.0.1:${DO_PORT}"
-echo "  Backend: http://127.0.0.1:${FLASK_PORT}"
-
-echo
-echo "Health checks:"
-check() {
-  local url="$1"; shift
-  if command -v curl >/dev/null 2>&1; then
-    echo "- GET ${url}"
-    set +e
-    curl -fsS --max-time 2 "$url" | (command -v jq >/dev/null 2>&1 && jq . || cat) || echo "(unreachable)"
-    set -e
-  else
-    echo "curl not installed"
-  fi
-  echo
-}
-
-check "http://127.0.0.1:${PAGES_PORT}/api/server-info"
-check "http://127.0.0.1:${FLASK_PORT}/server-info"
-
-echo "Recent logs:"; echo
-for f in .dev-pages.log .dev-do.log .backend.log .frontend.log orchestrator.bg.log; do
-  if [[ -f "$f" ]]; then
-    echo "--- $f (last 40 lines) ---"
-    tail -n 40 "$f" || true
-    echo
-  fi
-done
-
-echo "Done."

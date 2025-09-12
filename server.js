@@ -1,4 +1,5 @@
 import express from 'express';
+import 'dotenv/config';
 import handler from './api/ask-codex.js';
 import { loadConfig } from './config.js';
 import { logger, reqIdMiddleware } from './logger.js';
