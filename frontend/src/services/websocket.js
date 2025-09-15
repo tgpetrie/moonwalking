@@ -1,5 +1,6 @@
 import { isMobileDevice, getMobileOptimizedConfig, addVisibilityChangeListener, addNetworkChangeListener } from '../utils/mobileDetection.js';
 import { flags } from '../config.js';
+import { getApiBaseUrl } from '../api.js';
 
 class WebSocketManager {
   constructor() {
@@ -15,12 +16,38 @@ class WebSocketManager {
     
     // Setup mobile-specific listeners
     this.setupMobileOptimizations();
-    // Prefer explicit WS url (VITE_WS_URL), else same-origin; no localhost fallback
-    const originWs = (typeof location !== 'undefined')
-      ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
-      : '';
-    const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
-    this.baseUrl = wsHost; // host only; endpoint is /ws
+    // Prefer explicit WS url (VITE_WS_URL). If provided with ws:// or wss://, treat it as a FULL endpoint.
+    // Otherwise, derive from API base (safer than location.host) and append '/ws' exactly once.
+    const envWs = import.meta.env?.VITE_WS_URL;
+    this.wsUrl = '';
+    if (envWs && typeof envWs === 'string' && envWs.trim()) {
+      const trimmed = envWs.trim();
+      if (/^wss?:\/\//i.test(trimmed)) {
+        // Full endpoint provided; normalize but do NOT append '/ws' later
+        this.wsUrl = trimmed.replace(/\/$/, '');
+      } else {
+        // Non-scheme value: treat as base and convert
+        const base = trimmed.replace(/\/$/, '');
+        const maybe = /^https?:\/\//i.test(base) ? base.replace(/^http/i, 'ws') : base;
+        this.wsUrl = maybe + (maybe.endsWith('/ws') ? '' : '/ws');
+      }
+    } else {
+      const apiBase = (getApiBaseUrl && typeof getApiBaseUrl === 'function') ? (getApiBaseUrl() || '') : '';
+      // If apiBase already contains protocol+host, convert http(s) -> ws(s); else fall back to same-origin
+      let computed;
+      if (/^https?:\/\//i.test(apiBase)) {
+        computed = apiBase.replace(/^http/i, 'ws');
+      } else if (apiBase.startsWith('/')) {
+        // relative base: use same-origin
+        const origin = (typeof location !== 'undefined') ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host) : '';
+        computed = origin + apiBase;
+      } else {
+        const origin = (typeof location !== 'undefined') ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host) : '';
+        computed = origin + (apiBase ? ('/' + apiBase.replace(/^\//, '')) : '');
+      }
+      const base = (computed || '').replace(/\/$/, '');
+      this.wsUrl = base + (base.endsWith('/ws') ? '' : '/ws');
+    }
     // Use shared flags (default: enabled unless explicitly disabled)
     this.disabled = flags.VITE_DISABLE_WS === true;
   }
@@ -36,8 +63,8 @@ class WebSocketManager {
     }
 
     try {
-      const endpoint = this.baseUrl + '/ws';
-      const ws = new WebSocket(endpoint);
+  const endpoint = this.wsUrl || '';
+  const ws = new WebSocket(endpoint);
       this.socket = ws;
 
       ws.addEventListener('open', () => {

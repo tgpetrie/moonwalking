@@ -33,7 +33,14 @@ _RETRY_STRATEGY = Retry(
     backoff_factor=float(os.environ.get('PRICE_FETCH_RETRY_BACKOFF','0.5')),
     raise_on_status=False,
 )
-_ADAPTER = HTTPAdapter(max_retries=_RETRY_STRATEGY)
+# Increase the adapter pool so bursty fetches do not exhaust urllib3's
+# default (10) connection pool and spam the console with warnings.
+_ADAPTER = HTTPAdapter(
+    pool_connections=int(os.environ.get('PRICE_FETCH_POOL_CONNECTIONS', '32')),
+    pool_maxsize=int(os.environ.get('PRICE_FETCH_POOL_MAXSIZE', '64')),
+    max_retries=_RETRY_STRATEGY,
+    pool_block=True,
+)
 _SESSION.mount('https://', _ADAPTER)
 _SESSION.mount('http://', _ADAPTER)
 

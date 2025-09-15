@@ -1,0 +1,54 @@
+name: PR smoke tests & artifacts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run smoke scripts
+        run: |
+          mkdir -p dev-evidence/logs dev-evidence/headers dev-evidence/screenshots
+          # price loop (shorter and conservative in CI)
+          scripts/smoke/price-loop.sh "https://moonwalking-worker.tgpetrie.workers.dev/api/price?symbol=BTC" 3 5
+          # ws capture (short conservative capture)
+          scripts/smoke/ws-capture.sh "wss://moonwalking-worker.tgpetrie.workers.dev/ws" 8
+          # watchlist flow
+          scripts/smoke/watchlist.sh "https://moonwalking-worker.tgpetrie.workers.dev"
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-evidence
+          path: dev-evidence
+
+      - name: Comment on PR with artifacts link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `Smoke-test artifacts are attached to the workflow run. See the Actions tab for the run and download the 'smoke-evidence' artifact.`
+            })
