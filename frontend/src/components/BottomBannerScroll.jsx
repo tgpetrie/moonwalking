@@ -157,7 +157,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     ); })()}
                     {/* directional arrow removed to avoid redundancy with +/- */}
                         {coin.isEstimated && (
-                          <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
+                          <span className="text-xs ml-1 align-middle" title="Estimated from price when 1h volume history is incomplete">est</span>
                         )}
                     {/* trend arrows removed to avoid redundancy with +/- */}
                     {/* removed streak chip for cleaner layout */}
@@ -186,29 +186,9 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     ); })()}
                     {/* directional arrow removed to avoid redundancy with +/- */}
                         {coin.isEstimated && (
-                          <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
+                          <span className="text-xs ml-1 align-middle" title="Estimated from price when 1h volume history is incomplete">est</span>
                         )}
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
-                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
-                      let fontSize = '0.85em';
-                      if (s >= 1.5) { fontSize = '1.2em'; }
-                      else if (s >= 0.5) { fontSize = '1.0em'; }
-                      let color;
-                      if (coin.trendDirection === 'up') {
-                        if (s >= 1.5) color = '#10B981';
-                        else if (s >= 0.5) color = '#34D399';
-                        else color = '#9AE6B4';
-                      } else {
-                        color = (s >= 1.5) ? '#EF4444' : '#F87171';
-                      }
-                      const tScore = Number(coin.trendScore || 0).toFixed(2);
-                      const title = `trend: ${coin.trendDirection}${coin.trendStreak ? ' x' + coin.trendStreak : ''} • score ${tScore}`;
-                      return (
-                        <span className="font-semibold" style={{ fontSize, color }} title={title} aria-label={`trend ${coin.trendDirection}`}>
-                          {coin.trendDirection === 'up' ? '↑' : '↓'}
-                        </span>
-                      );
-                    })()}
+                    {/* removed extra glyphs: percent sign and color are sufficient */}
                     {/* removed streak chip for cleaner layout */}
                   </div>
                     {/* removed extra purple-bordered container - keep single layout pill in first set only */}
