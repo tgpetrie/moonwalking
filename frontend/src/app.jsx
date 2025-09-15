@@ -29,7 +29,6 @@ const SentimentPanel = React.lazy(() => import('./components/SentimentPanel.jsx'
 const LearnPanel = React.lazy(() => import('./components/LearnPanel.jsx'));
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
-import MetricsPanel from './components/MetricsPanel.jsx';
 import { WatchlistProvider, useWatchlistContext } from './hooks/useWatchlist.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
@@ -157,9 +156,7 @@ function AppUI() {
           learn: false,
         }}
       />
-      <div className="fixed bottom-6 right-24 z-40 opacity-80 hover:opacity-100 transition-opacity">
-        <MetricsPanel />
-      </div>
+      {/* Metrics panel removed per user request */}
 
       {/* hidden state mounts: use toggles so linter sees state read */}
       <div className="hidden" aria-hidden>
