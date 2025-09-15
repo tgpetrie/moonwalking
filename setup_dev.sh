@@ -1,3 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
+
+PY=${PYTHON:-python3}
+
+if [ ! -d ".venv" ]; then
+  echo "[setup] creating venv"
+  "$PY" -m venv .venv
+fi
+
+# shellcheck disable=SC1091
+source .venv/bin/activate
+
+echo "[setup] pip deps"
+pip install --upgrade pip
+pip install -r backend/requirements.txt
+
+echo "[setup] frontend deps"
+pushd frontend >/dev/null
+npm install
+popd >/dev/null
+
+echo "[setup] env files"
+mkdir -p frontend
+[ -f frontend/.env.local ] || cat > frontend/.env.local <<'EOF'
+# Vite local env
+VITE_API_URL=/api
+EOF
+
+echo "[setup] done."
 #!/bin/zsh
 set -euo pipefail
 
