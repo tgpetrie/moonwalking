@@ -1,6 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
+
+# Pick free backend port starting at 5001
+pick_port() {
+  local p=5001
+  while lsof -iTCP -sTCP:LISTEN -n -P | grep -q ":$p "; do p=$((p+1)); done
+  echo "$p"
+}
+
+PORT="$(pick_port)"
+export BACKEND_PORT="$PORT"
+
+# Activate venv
+# shellcheck disable=SC1091
+source .venv/bin/activate 2>/dev/null || {
+  echo "[start_local] venv missing. Run ./setup_dev.sh first." >&2
+  exit 1
+}
+
+# Write frontend/.env.local for Vite & API base
+mkdir -p frontend
+cat > frontend/.env.local <<EOF
+VITE_API_URL=http://127.0.0.1:${BACKEND_PORT}
+EOF
+
+echo "[start_local] backend on ${BACKEND_PORT}, Vite on 3100"
+
+# Start backend API
+( cd backend && \
+  exec python app.py --port "${BACKEND_PORT}" \
+       --kill-port --host 127.0.0.1 ) &
+BACK_PID=$!
+
+# Start Vite
+( cd frontend && exec npm run dev -- --port 3100 --host 127.0.0.1 ) &
+VITE_PID=$!
+
+trap 'echo; echo "[start_local] stopping..."; kill $BACK_PID $VITE_PID 2>/dev/null || true' INT TERM
+
+echo "[start_local] open http://127.0.0.1:3100 ; API http://127.0.0.1:${BACKEND_PORT}"
+wait
+#!/usr/bin/env bash
+set -euo pipefail
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 

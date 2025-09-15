@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
+
+# Kill stale wrangler processes
+pkill -f "wrangler.*dev" 2>/dev/null || true
+pkill -f "wrangler.*pages" 2>/dev/null || true
+
+DO_PORT=8787
+PAGES_PORT=8789
+
+# Start Durable Object / Worker (root config)
+( exec npx wrangler dev -c wrangler.worker.toml --local --persist-to .wrangler/state --port ${DO_PORT} ) &
+DO_PID=$!
+
+# Start Pages dev with functions
+( cd frontend && exec npx wrangler pages dev dist --local --port ${PAGES_PORT} --compatibility-date=2024-01-01 ) &
+PAGES_PID=$!
+
+trap 'echo; echo "[cloudflare] stopping..."; kill $DO_PID $PAGES_PID 2>/dev/null || true' INT TERM
+
+echo "[cloudflare] DO on 127.0.0.1:${DO_PORT}"
+echo "[cloudflare] Pages on http://127.0.0.1:${PAGES_PORT}"
+echo "[cloudflare] try: curl http://127.0.0.1:${PAGES_PORT}/api/server-info"
+wait
+#!/usr/bin/env bash
+set -euo pipefail
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 

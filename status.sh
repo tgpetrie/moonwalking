@@ -1,6 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "[status] listening ports:"
+lsof -iTCP -sTCP:LISTEN -n -P | awk 'NR==1 || /127\.0\.0\.1/ {print}'
+
+echo
+echo "[status] curl checks (best-effort):"
+for url in \
+  "http://127.0.0.1:3100" \
+  "http://127.0.0.1:5001/api/server-info" \
+  "http://127.0.0.1:8787" \
+  "http://127.0.0.1:8789/api/server-info"
+do
+  echo; echo "==> $url"
+  curl -sS "$url" | head -c 300 || true
+  echo
+done
+
+#!/usr/bin/env bash
+set -euo pipefail
+
 # BHABIT Status Check Script
 # Shows running processes and tests API endpoints
 
