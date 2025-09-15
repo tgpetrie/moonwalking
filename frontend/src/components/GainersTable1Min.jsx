@@ -82,6 +82,9 @@ export default function GainersTable1Min({
             arr = res.rows;
           } else if (Array.isArray(res?.data)) {
             arr = res.data;
+          } else if (Array.isArray(res?.gainers)) {
+            // Backend returns { gainers: [...], losers: [...], ... }
+            arr = res.gainers;
           }
           if (!cancelled && arr.length) {
             const limit = typeof endRank === 'number' ? Math.min(20, endRank) : 20;
