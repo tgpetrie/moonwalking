@@ -28,6 +28,29 @@ else
 fi
 
 VENV=.venv
+
+needs_recreate=false
+if [ -d "$VENV" ]; then
+  VENV_PY="$VENV/bin/python"
+  if [ -x "$VENV_PY" ]; then
+    VENV_MM="$($VENV_PY -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo unknown)"
+  else
+    VENV_MM="unknown"
+  fi
+  # Detect any 3.13 artifacts inside the venv (lib or pip shebang)
+  if [ -d "$VENV/lib/python3.13" ] || [ -x "$VENV/bin/python3.13" ] || ( [ -f "$VENV/bin/pip" ] && grep -q "python3.13" "$VENV/bin/pip" ); then
+    needs_recreate=true
+  fi
+  # Also recreate if the venv python major.minor isn't 3.12
+  if [ "$VENV_MM" != "3.12" ]; then
+    needs_recreate=true
+  fi
+  if $needs_recreate; then
+    echo "[setup] removing incompatible venv (found $VENV_MM or 3.13 artifacts)"
+    rm -rf "$VENV"
+  fi
+fi
+
 if [ ! -d "$VENV" ]; then
   echo "[setup] creating venv: $PY -m venv $VENV"
   "$PY" -m venv "$VENV"
@@ -35,6 +58,19 @@ fi
 
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
+
+# Re-check active interpreter version and pip linkage
+ACTIVE_MM="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PIP_WHICH="$(command -v pip || true)"
+PIP_INFO="$(python -c 'import sys,sysconfig; print(sys.executable); print(sys.version); print(sysconfig.get_paths()["purelib"])')"
+echo "[setup] active venv Python: $ACTIVE_MM"
+echo "[setup] pip: $PIP_WHICH"
+echo "[setup] site-packages: $(echo "$PIP_INFO" | tail -n1)"
+
+if [ -d "$VENV/lib/python3.13" ]; then
+  echo "[setup] ERROR: venv still contains python3.13 artifacts. Please remove .venv manually and rerun." >&2
+  exit 1
+fi
 
 echo "[setup] upgrading pip/build tools"
 pip install --upgrade pip setuptools wheel

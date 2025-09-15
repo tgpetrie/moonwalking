@@ -1,5 +1,9 @@
 BHABIT / Moonwalking — Local Dev & Cloudflare
 
+Note: backend native extensions (pydantic-core / pyo3) may require Python 3.12 to build reliably.
+If you have Python 3.13 and see build errors, either create a Python 3.12 venv or set
+`PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1` as a temporary workaround before running `pip install`.
+
 One-time setup
 
 ```bash
