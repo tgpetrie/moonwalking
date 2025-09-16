@@ -17,49 +17,71 @@ export default function MoverTable({ variant, tone, window = '3min', className =
 
   const { rows, loading, error } = useGainersLosersData({ variant: normalizedVariant, window });
 
-  // Local expanded state when the parent doesn't control it via `expanded` prop
-  const [localExpanded, setLocalExpanded] = useState(Boolean(expanded));
+  // Always start collapsed; ignore parent props by default
+  const [localExpanded, setLocalExpanded] = useState(false);
   // lightweight pop feedback for star toggles to mirror GainersTable1Min behavior
   const [popStar, setPopStar] = useState(null);
   const handleStarFeedback = (active, symbol) => {
     setPopStar(symbol);
     setTimeout(() => setPopStar(null), 350);
   };
-  const isExpanded = typeof expanded === 'boolean' ? expanded : localExpanded;
 
   // Do NOT unconditionally add `table-card` here — parent containers (e.g. app.jsx) already wrap the component.
   const wrapperClasses = `block w-full overflow-x-auto ${className}`.trim();
 
-  if (error) {
-    return (
-      <div className={wrapperClasses}>
-        <div className="text-red-400 text-sm">Failed to load {variant} ({window})</div>
-      </div>
-    );
-  }
-
-  if (loading && (!rows || rows.length === 0)) {
-    return (
-      <div className={wrapperClasses}>
-        <div className="text-slate-400 text-sm">Loading {variant} ({window})…</div>
-      </div>
-    );
-  }
-
   const content = useMemo(() => {
+    if (error) {
+      return (
+        <div className={wrapperClasses}>
+          <div className="text-red-400 text-sm">Failed to load {variant} ({window})</div>
+        </div>
+      );
+    }
+
+    if (loading && (!rows || rows.length === 0)) {
+      return (
+        <div className={wrapperClasses}>
+          <div className="min-h-[180px] flex items-center justify-center">
+            <div className="text-slate-400 text-sm">Loading ({String(window)})…</div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!loading && (!rows || rows.length === 0)) {
+      return (
+        <div className={wrapperClasses}>
+          <div className="min-h-[180px] flex items-center justify-center">
+            <div className="text-white/80 text-sm">No {String(window)} {String(resolvedVariant).toLowerCase()} data available</div>
+          </div>
+        </div>
+      );
+    }
+
     const toneName = resolvedVariant || 'gainers';
     const isGainer = String(toneName).toLowerCase().includes('gain');
     const accentGradient = isGainer
       ? 'radial-gradient(circle at 50% 50%, rgba(254,164,0,0.20) 0%, rgba(254,164,0,0.10) 45%, rgba(254,164,0,0.05) 70%, transparent 100%)'
       : 'radial-gradient(circle at 50% 50%, rgba(138,43,226,0.20) 0%, rgba(138,43,226,0.10) 45%, rgba(138,43,226,0.05) 70%, transparent 100%)';
 
-    // Limit rows to top 7 by default for 3-min tables unless explicitly expanded or maxRows provided
-    const visibleLimit = typeof maxRows === 'number' ? maxRows : 7;
-    const visibleRows = Array.isArray(rows) ? (isExpanded ? rows : rows.slice(0, visibleLimit)) : [];
+    // Limit ONLY 3‑min tables: show top 7 by default, allow up to 13 on expand
+    const isThreeMin = String(window).toLowerCase().includes('3');
+    const baseLimit = 7;
+    const expandLimit = 13;
+    const allRows = Array.isArray(rows) ? rows : [];
+
+    let visibleRows = allRows;
+    if (isThreeMin) {
+      if (localExpanded) {
+        visibleRows = allRows.slice(0, expandLimit);
+      } else {
+        visibleRows = allRows.slice(0, baseLimit);
+      }
+    }
 
     return (
       <div className={wrapperClasses}>
-        <div className="w-full h-full min-h-[400px] px-0 transition-all duration-300">
+        <div className="w-full h-full min-h-[300px] px-0 transition-all duration-300">
           {visibleRows.map((r, idx) => {
             const price = r.price ?? r.current ?? r.current_price ?? null;
             const changeRaw = r.change ?? r.change3m ?? r.changePct3m ?? r.price_change_percentage_3min ?? r.gain ?? r.gain3m ?? null;
@@ -124,9 +146,9 @@ export default function MoverTable({ variant, tone, window = '3min', className =
                       <div className={`text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${changeNum != null ? (isPositive ? 'text-orange' : 'text-neg') : 'text-slate-400'}`}>
                         {changeNum != null && changeNum > 0 ? '+' : ''}{changeNum != null ? formatPercentage(changeNum) : '—'}
                       </div>
-                      <div className={`text-xs text-gray-300 leading-tight ${isExpanded ? '' : 'opacity-0 select-none'}`} aria-hidden={!isExpanded}>
+                      <div className={`text-xs text-gray-300 leading-tight ${localExpanded ? '' : 'opacity-0 select-none'}`} aria-hidden={!localExpanded}>
                         {/* Optional metric/subline when expanded (e.g., Px level) */}
-                        {isExpanded ? (r.metric ?? r.px ?? null) : null}
+                        {localExpanded ? (r.metric ?? r.px ?? null) : null}
                       </div>
                     </div>
 
@@ -142,22 +164,25 @@ export default function MoverTable({ variant, tone, window = '3min', className =
             );
           })}
 
-          {/* Show More / Show Less control */}
-          {Array.isArray(rows) && rows.length > visibleLimit && (
+          {!loading && !error && isThreeMin && Array.isArray(rows) && rows.length > baseLimit && (
             <div className="w-full mt-3 flex justify-center">
               <button
                 type="button"
                 onClick={() => setLocalExpanded((s) => !s)}
-                className="text-sm font-medium text-slate-200 bg-white/3 hover:bg-white/6 px-3 py-1 rounded-md"
+                className="text-sm font-medium text-slate-200 bg-white/5 hover:bg-white/10 px-3 py-1 rounded-md"
+                aria-expanded={localExpanded}
               >
-                {isExpanded ? 'Show less' : `Show more (${rows.length})`}
+                {(() => {
+                  const label = localExpanded ? 'Show less' : `Show more (${Math.min(expandLimit, (Array.isArray(rows) ? rows.length : 0))} max)`;
+                  return label;
+                })()}
               </button>
             </div>
           )}
         </div>
       </div>
     );
-  }, [rows, loading, error, wrapperClasses, resolvedVariant, onSelectCoin]);
+  }, [rows, loading, error, wrapperClasses, resolvedVariant, onSelectCoin, localExpanded, maxRows, variant, window, popStar, handleStarFeedback]);
 
   return content;
 }
