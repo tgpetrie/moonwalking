@@ -1,4 +1,15 @@
 project_name = "moonwalking"
+
+# Directory (relative to this file) which contains the static site output to upload.
+pages_build_output_dir = "frontend/dist"
+
+# Optional: specify the Functions directory to use (relative path). This avoids
+# the "No routes found when building Functions directory" warning when the
+# directory exists but contains no valid exports.
+functions = "frontend/functions"
+
+# You can optionally add an `account_id` or `branch` here if you use them.
+# account_id = "your-account-id"project_name = "moonwalking"
 pages_build_output_dir = "frontend/dist"
 
 [vars]
