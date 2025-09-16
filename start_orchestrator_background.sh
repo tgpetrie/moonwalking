@@ -56,7 +56,13 @@ fi
 
 (
   cd "$SCRIPT_DIR/frontend"
-  printf "VITE_API_URL=http://localhost:%s\n" "$BACKEND_PORT" > .env.local
+  # Only write .env.local if missing unless FORCE_ENV_WRITE=1 is set
+  if [ "${FORCE_ENV_WRITE:-0}" = "1" ] || [ ! -f .env.local ]; then
+    printf "VITE_API_URL=http://localhost:%s\n" "$BACKEND_PORT" > .env.local
+    echo "[start_orchestrator_background] wrote frontend/.env.local"
+  else
+    echo "[start_orchestrator_background] frontend/.env.local exists; not overwriting"
+  fi
   nohup npm run dev > "$SCRIPT_DIR/frontend.log" 2>&1 &
   echo $! > "$FRONTEND_PID"
 )

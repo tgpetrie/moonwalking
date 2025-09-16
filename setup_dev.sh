@@ -95,11 +95,22 @@ fi
 
 echo "[setup] ensuring frontend/.env.local"
 mkdir -p frontend
+TEMPLATE_FILE="dev-templates/frontend.env.local.template"
+ALT_TEMPLATE="frontend/.env.local.template"
+if [ -f "$ALT_TEMPLATE" ]; then
+  TEMPLATE_FILE="$ALT_TEMPLATE"
+fi
 if [ ! -f frontend/.env.local ]; then
-  cat > frontend/.env.local <<'EOF'
+  if [ -f "$TEMPLATE_FILE" ]; then
+    echo "[setup] copying $TEMPLATE_FILE -> frontend/.env.local"
+    cp "$TEMPLATE_FILE" frontend/.env.local
+  else
+    echo "[setup] creating minimal frontend/.env.local"
+    cat > frontend/.env.local <<'EOF'
 # Vite local env
 VITE_API_URL=/api
 EOF
+  fi
 fi
 
 echo "[setup] done."
