@@ -68,3 +68,26 @@ jobs:
         working-directory: frontend
         run: |
           npm test --silent
+
+# Optional: Cloudflare Pages/Workers deploy
+# To enable, set secrets: CF_API_TOKEN and (if using wrangler) WRANGLER_API_TOKEN
+# and uncomment the job below. Adjust publication steps depending on Pages vs Worker.
+#
+#  deploy-to-cloudflare:
+#    needs: lint-test
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - name: Upload to Cloudflare Pages
+#        if: false # set to true and configure the following when ready
+#        run: |
+#          echo "Add deploy commands here (wrangler pages publish or wrangler deploy)"
+#        env:
+#          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+#
+#      - name: Deploy Worker (wrangler)
+#        if: false
+#        run: |
+#          npx wrangler pages publish frontend/dist --project-name=my-project
+#        env:
+#          WRANGLER_API_TOKEN: ${{ secrets.WRANGLER_API_TOKEN }}
