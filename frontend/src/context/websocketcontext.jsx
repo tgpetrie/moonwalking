@@ -151,13 +151,15 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
           timeout: isMobile ? mobileConfig.fetchTimeout : 5000
         };
         vLog('[WebSocket Context] Polling - fetching data...');
-        const [gainersData, gainers3mData, losers3mData] = await Promise.all([
+        const [gainersData, gainers3mData, losers3mData, topBannerData, bottomBannerData] = await Promise.all([
           fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(()=>null),
           fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
-          fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
+          fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null),
+          fetchData(API_ENDPOINTS.topBanner, fetchOptions).catch(()=>null),
+          fetchData(API_ENDPOINTS.bottomBanner, fetchOptions).catch(()=>null)
         ]);
 
-  const { updates, hasUpdate } = computeUpdates(gainersData, gainers3mData, losers3mData);
+  const { updates, hasUpdate } = computeUpdates(gainersData, gainers3mData, losers3mData, topBannerData, bottomBannerData);
 
         if (hasUpdate) {
           vLog('[WebSocket Context] Polling - updating state with fetched data', updates);
@@ -166,6 +168,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
             crypto: updates.crypto || prev.crypto,
             gainers3m: updates.gainers3m || prev.gainers3m,
             losers3m: updates.losers3m || prev.losers3m,
+            topBanner: updates.topBanner || prev.topBanner,
+            bottomBanner: updates.bottomBanner || prev.bottomBanner,
           }));
           // reset backoff on success
           backoffMs = isMobile ? mobileConfig.pollingInterval : 10000;
@@ -252,13 +256,15 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     try {
       controller = new AbortController();
       const fetchOptions = { signal: controller.signal };
-      const [one, threeG, threeL] = await Promise.all([
+      const [one, threeG, threeL, topBan, bottomBan] = await Promise.all([
         fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(() => null),
         fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(() => null),
-        fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(() => null)
+        fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(() => null),
+        fetchData(API_ENDPOINTS.topBanner, fetchOptions).catch(() => null),
+        fetchData(API_ENDPOINTS.bottomBanner, fetchOptions).catch(() => null)
       ]);
 
-      const { updates, hasUpdate } = computeUpdates(one, threeG, threeL);
+      const { updates, hasUpdate } = computeUpdates(one, threeG, threeL, topBan, bottomBan);
 
       if (hasUpdate) {
         setLatestData(prev => ({
@@ -266,6 +272,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
           crypto: updates.crypto || prev.crypto,
           gainers3m: updates.gainers3m || prev.gainers3m,
           losers3m: updates.losers3m || prev.losers3m,
+          topBanner: updates.topBanner || prev.topBanner,
+          bottomBanner: updates.bottomBanner || prev.bottomBanner,
         }));
         return true;
       }
@@ -342,6 +350,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
           crypto: data.payload.gainers1m || prev.crypto,
           gainers3m: data.payload.gainers3m || prev.gainers3m,
           losers3m: data.payload.losers3m || prev.losers3m,
+          topBanner: data.payload.topBanner || prev.topBanner,
+          bottomBanner: data.payload.bottomBanner || prev.bottomBanner,
         }));
       }
     });
@@ -381,22 +391,28 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       (async () => {
         try {
           if (!latestData.crypto || !latestData.crypto?.length) {
-            const [oneMin, threeMin, losers3] = await Promise.all([
+            const [oneMin, threeMin, losers3, topBan, bottomBan] = await Promise.all([
               fetchData(API_ENDPOINTS.gainersTable1Min).catch(()=>null),
               fetchData(API_ENDPOINTS.gainersTable3Min).catch(()=>null),
-              fetchData(API_ENDPOINTS.losersTable3Min).catch(()=>null)
+              fetchData(API_ENDPOINTS.losersTable3Min).catch(()=>null),
+              fetchData(API_ENDPOINTS.topBanner).catch(()=>null),
+              fetchData(API_ENDPOINTS.bottomBanner).catch(()=>null)
             ]);
       const dRows = extractRows(oneMin);
       const g3Rows = extractRows(threeMin);
       const l3Rows = extractRows(losers3);
+      const tbRows = extractRows(topBan);
+      const bbRows = extractRows(bottomBan);
             if (Array.isArray(dRows) && dRows.length) {
               setLatestData(prev => ({
                 ...prev,
         crypto: mapOneMin(dRows),
         gainers3m: Array.isArray(g3Rows) && g3Rows.length ? mapThreeMin(g3Rows) : prev.gainers3m || null,
-        losers3m: Array.isArray(l3Rows) && l3Rows.length ? mapThreeMin(l3Rows) : prev.losers3m || null
+        losers3m: Array.isArray(l3Rows) && l3Rows.length ? mapThreeMin(l3Rows) : prev.losers3m || null,
+        topBanner: Array.isArray(tbRows) && tbRows.length ? tbRows : prev.topBanner || null,
+        bottomBanner: Array.isArray(bbRows) && bbRows.length ? bbRows : prev.bottomBanner || null
               }));
-              vLog('[WebSocket Context] Immediate REST primed crypto + 3m (WS disabled)');
+              vLog('[WebSocket Context] Immediate REST primed crypto + 3m + banners (WS disabled)');
             }
           }
         } catch (e) {
