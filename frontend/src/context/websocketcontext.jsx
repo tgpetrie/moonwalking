@@ -24,7 +24,9 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   const [latestData, setLatestData] = useState({
     crypto: null,
     prices: {},
-    watchlist: null
+    watchlist: null,
+    topBanner: null,
+    bottomBanner: null
   });
   const [isPolling, setIsPolling] = useState(false);
   const [networkStatus, setNetworkStatus] = useState('good'); // retained for potential UI, referenced to avoid unused warning
@@ -82,7 +84,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
   })), []);
 
-  const computeUpdates = useCallback((gainersData, gainers3mData, losers3mData) => {
+  const computeUpdates = useCallback((gainersData, gainers3mData, losers3mData, topBannerData, bottomBannerData) => {
     let hasUpdate = false;
     const updates = {};
 
@@ -101,6 +103,18 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     const l3Rows = extractRows(losers3mData);
     if (Array.isArray(l3Rows) && l3Rows.length) {
       updates.losers3m = mapThreeMin(l3Rows);
+      hasUpdate = true;
+    }
+
+    const tbRows = extractRows(topBannerData);
+    if (Array.isArray(tbRows) && tbRows.length) {
+      updates.topBanner = tbRows;
+      hasUpdate = true;
+    }
+
+    const bbRows = extractRows(bottomBannerData);
+    if (Array.isArray(bbRows) && bbRows.length) {
+      updates.bottomBanner = bbRows;
       hasUpdate = true;
     }
 
