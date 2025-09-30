@@ -11,11 +11,22 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
   const SCROLL_DURATION_SEC = 180; // keep in sync with CSS .animate-scroll
+  const REFRESH_INTERVAL_MS = 120000; // 2-minute refresh cadence
   const animDelay = useMemo(() => {
     const elapsed = (Date.now() - startRef.current) / 1000;
     const offset = elapsed % SCROLL_DURATION_SEC;
     return `-${offset}s`;
-  }, [data.length]);
+  }, []);
+
+  const marqueeRows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const repeats = Math.max(2, Math.ceil(30 / data.length));
+    const expanded = [];
+    for (let r = 0; r < repeats; r += 1) {
+      expanded.push(...data.map((coin, idx) => ({ ...coin, _marqueeId: `${coin.symbol}-${r}-${idx}` })));
+    }
+    return expanded;
+  }, [data]);
   // Abbreviate large dollar amounts (e.g., 15,234,000 -> 15.23M)
   const formatAbbrev = (n = 0) => {
     const abs = Math.abs(n);
@@ -66,11 +77,9 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             });
           });
           if (isMounted) {
-            // Update data with real live data
-            setData(dataWithRanks.slice(0, 20));
+            setData(() => dataWithRanks.slice(0, 20));
           }
-        } else if (isMounted && data.length === 0) {
-          // Only use fallback if we have no data at all
+        } else if (isMounted) {
           const fallbackData = [
             { rank: 1, symbol: 'SUKU', price: 0.0295, volume_change: 3.51, volume_24h: 25000000, badge: 'MODERATE' },
             { rank: 2, symbol: 'HNT', price: 2.30, volume_change: 0.97, volume_24h: 18000000, badge: 'MODERATE' },
@@ -78,11 +87,11 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             { rank: 4, symbol: 'PENGU', price: 0.01605, volume_change: 0.56, volume_24h: 12000000, badge: 'MODERATE' },
             { rank: 5, symbol: 'MUSE', price: 7.586, volume_change: 0.53, volume_24h: 10000000, badge: 'MODERATE' }
           ];
-          setData(fallbackData);
+          setData(prev => (prev.length ? prev : fallbackData));
         }
       } catch (err) {
         console.error('Error fetching bottom banner data:', err);
-        if (isMounted && data.length === 0) {
+        if (isMounted) {
           const fallbackData = [
             { rank: 1, symbol: 'SUKU', price: 0.0295, volume_change: 3.51, volume_24h: 25000000, badge: 'MODERATE' },
             { rank: 2, symbol: 'HNT', price: 2.30, volume_change: 0.97, volume_24h: 18000000, badge: 'MODERATE' },
@@ -90,22 +99,19 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             { rank: 4, symbol: 'PENGU', price: 0.01605, volume_change: 0.56, volume_24h: 12000000, badge: 'MODERATE' },
             { rank: 5, symbol: 'MUSE', price: 7.586, volume_change: 0.53, volume_24h: 10000000, badge: 'MODERATE' }
           ];
-          setData(fallbackData);
+          setData(prev => (prev.length ? prev : fallbackData));
         }
       }
     };
-    // Fetch on mount, then refresh at end-of-scroll boundaries (hourly cap)
+    // Fetch on mount, then refresh on a relaxed cadence
     const scheduleAtBoundary = () => {
-      const now = Date.now();
-      const elapsed = now - startRef.current;
-      const cycleMs = SCROLL_DURATION_SEC * 1000;
-      const msUntilBoundary = cycleMs - (elapsed % cycleMs);
-      const cap = 60 * 60 * 1000; // 1 hour
+      const elapsed = Date.now() - startRef.current;
+      const msUntilRefresh = REFRESH_INTERVAL_MS - (elapsed % REFRESH_INTERVAL_MS);
       clearTimeout(timerId);
       timerId = setTimeout(async () => {
         await fetchBottomBannerData();
         scheduleAtBoundary();
-      }, Math.min(Math.max(250, msUntilBoundary), cap));
+      }, Math.max(250, msUntilRefresh));
     };
 
     fetchBottomBannerData().then(() => scheduleAtBoundary());
@@ -138,8 +144,8 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
         <div className="absolute inset-0 flex items-center">
           <ul className="flex whitespace-nowrap animate-scroll" style={{ animationDelay: animDelay }}>
             {/* First set of data */}
-            {data.map((coin) => (
-              <li key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8" aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
+            {marqueeRows.map((coin, index) => (
+              <li key={coin._marqueeId || `loop-${coin.symbol}-${index}`} className="flex-shrink-0 mx-8" aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
                 <a href={`https://www.coinbase.com/trade/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-black/20 border border-gray-800 hover:scale-105 will-change-transform">
                     <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
@@ -163,35 +169,6 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     {/* removed streak chip for cleaner layout */}
                   </div>
                   {/* removed empty purple-bordered pill for cleaner layout */}
-                </a>
-              </li>
-            ))}
-            {/* Duplicate set for seamless scrolling */}
-            {data.map((coin) => (
-              <li key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8" aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
-                <a href={`https://www.coinbase.com/trade/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-black/20 border border-gray-800 hover:scale-105 will-change-transform">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-headline font-bold tracking-wide">
-                      {coin.symbol}
-                    </span>
-                  </div>
-                  <div className="text-lg font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>
-                    ${formatAbbrev(coin.volume_24h)}
-                  </div>
-                  <div className="flex items-center gap-1 font-bold">
-                    {(() => { const vc = Number(coin.volume_change || 0); return (
-                      <span className={(vc >= 0 ? 'text-pos' : 'text-neg') + ' text-xl font-mono'}>
-                        {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
-                      </span>
-                    ); })()}
-                    {/* directional arrow removed to avoid redundancy with +/- */}
-                        {coin.isEstimated && (
-                          <span className="text-xs ml-1 align-middle" title="Estimated from price when 1h volume history is incomplete">est</span>
-                        )}
-                    {/* removed extra glyphs: percent sign and color are sufficient */}
-                    {/* removed streak chip for cleaner layout */}
-                  </div>
-                    {/* removed extra purple-bordered container - keep single layout pill in first set only */}
                 </a>
               </li>
             ))}

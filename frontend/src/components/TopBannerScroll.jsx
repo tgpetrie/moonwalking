@@ -6,6 +6,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
   const SCROLL_DURATION_SEC = 180; // matches .animate-scroll in index.css
+  const REFRESH_INTERVAL_MS = 120000; // refresh list every 2 minutes
 
   const getBadgeStyle = (change) => {
     const absChange = Math.abs(Number(change || 0));
@@ -18,7 +19,17 @@ const TopBannerScroll = ({ refreshTrigger }) => {
     const elapsed = (Date.now() - startRef.current) / 1000;
     const offset = elapsed % SCROLL_DURATION_SEC;
     return `-${offset}s`;
-  }, [data.length]);
+  }, []);
+
+  const marqueeRows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const repeats = Math.max(2, Math.ceil(30 / data.length));
+    const expanded = [];
+    for (let r = 0; r < repeats; r += 1) {
+      expanded.push(...data.map((coin, idx) => ({ ...coin, _marqueeId: `${coin.symbol}-${r}-${idx}` })));
+    }
+    return expanded;
+  }, [data]);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,34 +56,30 @@ const TopBannerScroll = ({ refreshTrigger }) => {
             };
           });
 
-          if (isMounted) setData(dataWithRanks.slice(0, 20));
-        } else if (isMounted && data.length === 0) {
-          // minimal, optional warm-up state (or keep your static fallback)
-          setData([]);
+          if (isMounted) setData(() => dataWithRanks.slice(0, 20));
+        } else if (isMounted) {
+          setData(prev => (prev.length ? prev : []));
         }
       } catch (err) {
         console.error('Error fetching top banner data:', err);
-        if (isMounted && data.length === 0) {
-          setData([]); // keep empty; UI still renders the frame
+        if (isMounted) {
+          setData(prev => (prev.length ? prev : []));
         }
       }
     };
 
     const scheduleAtBoundary = () => {
-      const now = Date.now();
-      const elapsed = now - startRef.current;
-      const cycleMs = SCROLL_DURATION_SEC * 1000;
-      const msUntilBoundary = cycleMs - (elapsed % cycleMs);
+      const elapsed = Date.now() - startRef.current;
+      const msUntilRefresh = REFRESH_INTERVAL_MS - (elapsed % REFRESH_INTERVAL_MS);
       clearTimeout(timerId);
       timerId = setTimeout(async () => {
         await fetchTopBannerData();
         scheduleAtBoundary();
-      }, Math.max(250, msUntilBoundary));
+      }, Math.max(250, msUntilRefresh));
     };
 
     fetchTopBannerData().then(() => scheduleAtBoundary());
     return () => { isMounted = false; clearTimeout(timerId); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   return (
@@ -93,8 +100,8 @@ const TopBannerScroll = ({ refreshTrigger }) => {
 
         <div className="absolute inset-0 flex items-center">
           <div className="flex whitespace-nowrap animate-scroll" style={{ animationDelay: animDelay }}>
-            {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
+            {marqueeRows.map((coin, index) => (
+              <div key={coin._marqueeId || `loop-${coin.symbol}-${index}`} className="flex-shrink-0 mx-8">
                 <a
                   href={`https://www.coinbase.com/trade/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
                   target="_blank" rel="noopener noreferrer"
@@ -133,53 +140,6 @@ const TopBannerScroll = ({ refreshTrigger }) => {
                   </div>
                   {getBadgeStyle(coin.change) ? (
                     <div className="px-2 py-0.5 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/40 text-purple">
-                      {getBadgeStyle(coin.change)}
-                    </div>
-                  ) : null}
-                </a>
-              </div>
-            ))}
-            {/* Duplicate set for seamless scroll */}
-            {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
-                <a
-                  href={`https://www.coinbase.com/trade/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className={
-                    "flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:scale-105 will-change-transform bg-black/20 border border-gray-800 " +
-                    (coin.change >= 0 ? 'hover:text-purple hover:text-shadow-purple' : 'hover:text-pink hover:text-shadow-pink')
-                  }
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-pos">#{coin.rank}</span>
-                    <span className="text-base font-headline font-bold tracking-wide">{coin.symbol}</span>
-                    <span className="text-lg font-bold text-teal">
-                      ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 font-bold">
-                    {(() => {
-                      const ch = Number(coin.change || 0);
-                      const cls = ch >= 0 ? 'text-pos' : 'text-neg';
-                      return (
-                        <span className={`${cls} text-xl`}>
-                          {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
-                        </span>
-                      );
-                    })()}
-                    {(() => {
-                      const ch = Number(coin.change || 0);
-                      if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null;
-                      const color = ch >= 0 ? 'var(--pos)' : 'var(--neg)';
-                      const mag = Math.abs(ch);
-                      let fontSize = '0.9em';
-                      if (mag >= 2) fontSize = '1.2em';
-                      else if (mag >= 0.5) fontSize = '1.0em';
-                      return <span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>;
-                    })()}
-                  </div>
-                  {getBadgeStyle(coin.change) ? (
-                    <div className="px-2 py-0.5 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">
                       {getBadgeStyle(coin.change)}
                     </div>
                   ) : null}

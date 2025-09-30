@@ -37,11 +37,11 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
   // Debug flag & helper logger (verbose logs suppressed unless enabled)
   const debugEnabled = useMemo(() => flags.VITE_DEBUG_LOGS === true, []);
-  const vLog = (...args) => {
+  const vLog = useCallback((...args) => {
     if (debugEnabled) {
       console.log(...args);
     }
-  };
+  }, [debugEnabled]);
 
   // Derived top 20 gainers list (updated on crypto updates) with stable identity
   const [gainersTop20, setGainersTop20] = useState([]);
@@ -109,7 +109,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
 
   // Polling fallback function using useCallback to avoid stale closures
   // Use injected scheduler or default to setTimeout
-  const schedule = pollingScheduler || ((fn, ms) => setTimeout(fn, ms));
+  const schedule = useMemo(() => pollingScheduler || ((fn, ms) => setTimeout(fn, ms)), [pollingScheduler]);
 
   const startPolling = useCallback(() => {
     if (isPolling) {
@@ -199,9 +199,9 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     
     // Start immediately and then schedule
     poll().then(() => scheduleNext());
-  }, [isPolling, debugEnabled, isMobile, mobileConfig.fetchTimeout, mobileConfig.pollingInterval, pollingScheduler, vLog]);
+  }, [isPolling, debugEnabled, isMobile, mobileConfig.fetchTimeout, mobileConfig.pollingInterval, vLog, computeUpdates, schedule]);
   
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       // Clear any scheduled timeout
       const id = typeof pollingIntervalRef.current === 'number'
@@ -217,11 +217,11 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       pollingIntervalRef.current = null;
     }
     setIsPolling(false);
-  vLog('⏹️ Stopped REST API polling');
-  };
+    vLog('⏹️ Stopped REST API polling');
+  }, [vLog]);
 
   // Manual, immediate refresh (pull latest via REST once, regardless of WS state)
-  const refreshNow = async () => {
+  const refreshNow = useCallback(async () => {
     // 1) Nudge the WebSocket to push a fresh snapshot if connected
     try {
       if (wsManager && wsManager.isConnected) {
@@ -239,12 +239,12 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       controller = new AbortController();
       const fetchOptions = { signal: controller.signal };
       const [one, threeG, threeL] = await Promise.all([
-        fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(()=>null),
-        fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(()=>null),
-        fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(()=>null)
+        fetchData(API_ENDPOINTS.gainersTable1Min, fetchOptions).catch(() => null),
+        fetchData(API_ENDPOINTS.gainersTable3Min, fetchOptions).catch(() => null),
+        fetchData(API_ENDPOINTS.losersTable3Min, fetchOptions).catch(() => null)
       ]);
 
-  const { updates, hasUpdate } = computeUpdates(one, threeG, threeL);
+      const { updates, hasUpdate } = computeUpdates(one, threeG, threeL);
 
       if (hasUpdate) {
         setLatestData(prev => ({
@@ -267,10 +267,10 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       }
     }
     return false;
-  };
+  }, [debugEnabled, computeUpdates]);
 
   // Fetch real-time prices for specific symbols from cached data
-  const fetchPricesForSymbols = async (symbols) => {
+  const fetchPricesForSymbols = useCallback(async (symbols) => {
     try {
       // Use already cached data from polling instead of making new API call
       if (latestData.crypto && latestData.crypto.length > 0) {
@@ -300,7 +300,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       console.error('Error fetching prices for symbols:', error);
     }
     return {};
-  };
+  }, [latestData]);
 
   useEffect(() => {
     // Subscribe to connection status changes
@@ -309,7 +309,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       setConnectionStatus(data.status);
       
       if (data.status === 'connected') {
-  vLog('✅ WebSocket connected successfully');
+        vLog('✅ WebSocket connected successfully');
         stopPolling(); // Stop polling if WebSocket connects
       } else if (data.status === 'error') {
         console.warn('⚠️ WebSocket connection error:', data.error);
@@ -455,6 +455,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       disconnectWebSocket();
       stopPolling();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Derive top 20 gainers whenever crypto list changes
@@ -548,7 +549,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
     startPolling,
     stopPolling,
     refreshNow
-  }), [isConnected, connectionStatus, latestData, wsManager, isPolling, gainersTop20, debugEnabled, gainers3mTop, losers3mTop, networkStatus]);
+  }), [isConnected, connectionStatus, latestData, isPolling, gainersTop20, debugEnabled, gainers3mTop, losers3mTop, networkStatus, fetchPricesForSymbols, startPolling, stopPolling, refreshNow, vLog]);
 
     return (
       <WebSocketContext.Provider value={contextValue}>

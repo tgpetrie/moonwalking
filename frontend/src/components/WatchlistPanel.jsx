@@ -1,5 +1,5 @@
-/* eslint-disable react/prop-types */
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { getWatchlist, removeFromWatchlist } from '../lib/api.js';
 import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
@@ -207,6 +207,11 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       })}
     </div>
   );
+};
+
+WatchlistPanel.propTypes = {
+  onWatchlistChange: PropTypes.func,
+  topWatchlist: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default WatchlistPanel;

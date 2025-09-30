@@ -42,9 +42,10 @@ SentimentIndicator.propTypes = {
 export default function SentimentPanel({ symbols = [] }) {
   const [sentiment, setSentiment] = useState([]);
   const [loading, setLoading] = useState(true);
+  const symbolKey = React.useMemo(() => (symbols || []).join(','), [symbols]);
 
   useEffect(() => {
-    if (!symbols || symbols.length === 0) {
+    if (!symbolKey) {
       setSentiment([]);
       setLoading(false);
       return;
@@ -54,7 +55,7 @@ export default function SentimentPanel({ symbols = [] }) {
     const fetchSentiment = async () => {
       setLoading(true);
       try {
-        const response = await fetchData(API_ENDPOINTS.sentiment(symbols.join(',')));
+        const response = await fetchData(API_ENDPOINTS.sentiment(symbolKey));
         if (!cancelled && response.ok) {
           setSentiment(response.sentiment || []);
         }
@@ -67,7 +68,7 @@ export default function SentimentPanel({ symbols = [] }) {
 
     fetchSentiment();
     return () => { cancelled = true; };
-  }, [symbols.join(',')]);
+  }, [symbolKey]);
 
   return (
     <motion.div

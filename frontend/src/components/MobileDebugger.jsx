@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { isMobileDevice, isIOS, isAndroid, isSafari, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
 
 export default function MobileDebugger() {
+  const debugEnabled = useMemo(() => {
+    try {
+      return typeof window !== 'undefined' && window.location.search.includes('debug');
+    } catch (_) {
+      return false;
+    }
+  }, []);
+
   const [networkInfo, setNetworkInfo] = useState(null);
-  const [isVisible, setIsVisible] = useState(!document.hidden);
-  
-  // Only show debug info when debug param is present
-  if (!window.location.search.includes('debug')) {
-    return null;
-  }
+  const [isVisible, setIsVisible] = useState(() => (typeof document !== 'undefined' ? !document.hidden : true));
 
   useEffect(() => {
+    if (!debugEnabled) return undefined;
     // Monitor network changes
     if ('connection' in navigator) {
       const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -27,20 +31,25 @@ export default function MobileDebugger() {
       
       return () => connection.removeEventListener('change', updateNetworkInfo);
     }
-  }, []);
+  }, [debugEnabled]);
 
   useEffect(() => {
+    if (!debugEnabled) return undefined;
     const handleVisibilityChange = () => {
       setIsVisible(!document.hidden);
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [debugEnabled]);
 
   const mobile = isMobileDevice();
   const config = getMobileOptimizedConfig();
   const userAgent = navigator.userAgent;
+  
+  if (!debugEnabled) {
+    return null;
+  }
   
   return (
     <div className="fixed bottom-2 left-2 z-[9999] bg-black/90 text-white text-xs p-2 rounded max-w-xs max-h-48 overflow-y-auto">

@@ -20,8 +20,6 @@ export default (function(){
       }
     });
   } catch (err) {
-    // Surface issues to the console so linters/tests can see them
-    // eslint-disable-next-line no-console
     console.error('bhabitLogoLoaderModule error', err);
   }
 })();
