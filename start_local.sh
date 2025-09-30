@@ -4,12 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$ROOT_DIR"
-
 # Defaults
 VITE_PORT="${VITE_PORT:-3100}"
 BACKEND_PORT="${BACKEND_PORT:-5001}"
@@ -46,10 +40,10 @@ fi
 # Only write if the file does not already exist, unless FORCE_ENV_WRITE=1
 mkdir -p frontend
 if [ "${FORCE_ENV_WRITE:-0}" = "1" ] || [ ! -f frontend/.env.local ]; then
-  cat > frontend/.env.local <<EOF
+  cat > frontend/.env.local <<EOF_ENV
 VITE_API_URL=http://127.0.0.1:${BACKEND_PORT}/api
 VITE_WS_URL=ws://127.0.0.1:${BACKEND_PORT}/ws
-EOF
+EOF_ENV
   echo "[start_local] wrote frontend/.env.local"
 else
   echo "[start_local] frontend/.env.local exists; not overwriting (set FORCE_ENV_WRITE=1 to force)"

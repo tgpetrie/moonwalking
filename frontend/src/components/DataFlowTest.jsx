@@ -3,16 +3,18 @@ import { useWebSocket } from '../context/websocketcontext.jsx';
 import { getApiBaseUrl } from '../api.js';
 
 export default function DataFlowTest() {
-  // Only show debug info when debug param is present
-  if (!window.location.search.includes('debug')) {
-    return null;
-  }
+  const debugEnabled = React.useMemo(() => {
+    try {
+      return typeof window !== 'undefined' && window.location.search.includes('debug');
+    } catch (_) {
+      return false;
+    }
+  }, []);
 
-  let wsData = null;
-  try {
-    wsData = useWebSocket();
-  } catch (e) {
-    wsData = { error: e.message };
+  const wsData = useWebSocket();
+
+  if (!debugEnabled) {
+    return null;
   }
 
   const apiBaseUrl = getApiBaseUrl();

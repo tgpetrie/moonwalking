@@ -1,6 +1,3 @@
-/* eslint-disable sonarjs/no-ignored-exceptions */
-/* eslint-disable sonarjs/cognitive-complexity */
-/* eslint-disable complexity */
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { API_ENDPOINTS, fetchData } from '../api.js';
@@ -10,6 +7,7 @@ import WatchStar from './WatchStar.jsx';
 import { updateStreaks } from '../logic/streaks';
 import PropTypes from 'prop-types';
 import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
+import { FiInfo } from 'react-icons/fi';
 
 /**
  * 1‑MIN Gainers (alignment‑stable)
@@ -26,12 +24,19 @@ export default function GainersTable1Min({
   fixedRows,
   hideShowMore,
   rows: externalRows,
+  onSelectCoin,
 }) {
   const ws = useWebSocket();
-  const oneMinThrottleMs = ws?.oneMinThrottleMs ?? 15000;
-  const gainersTop20 = ws?.gainersTop20 || [];
-  const debugEnabled = ws?.debugEnabled ?? false;
-  const vLog = ws?.vLog || (() => {});
+  const emptyRowsRef = useRef([]);
+  const {
+    oneMinThrottleMs: ctxThrottle,
+    gainersTop20: contextTop20,
+    debugEnabled = false,
+    vLog: contextVLog,
+  } = ws || {};
+  const gainersTop20 = contextTop20 ?? emptyRowsRef.current;
+  const oneMinThrottleMs = typeof ctxThrottle === 'number' ? ctxThrottle : 10000;
+  const vLog = useMemo(() => contextVLog ?? (() => {}), [contextVLog]);
   
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
@@ -55,8 +60,8 @@ export default function GainersTable1Min({
     // Use throttled data from WebSocket context if available
     if (Array.isArray(gainersTop20) && gainersTop20.length) {
       const now = Date.now();
-  const throttleDefault = isMobile ? mobileConfig.throttleMs : 15000;
-  const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : throttleDefault;
+      const throttleDefault = isMobile ? mobileConfig.throttleMs : 10000;
+      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : throttleDefault;
       const since = now - (lastRenderRef.current || 0);
       if (debugEnabled) {
         vLog(`[GainersTable1Min] Throttle check: ${since}ms elapsed (limit ${throttleMs}ms), incoming top20 length: ${gainersTop20.length}`);
@@ -111,7 +116,7 @@ export default function GainersTable1Min({
       fetchFallback();
       return () => { cancelled = true; };
     }
-  }, [gainersTop20, externalRows, oneMinThrottleMs, debugEnabled, vLog, isMobile, mobileConfig.throttleMs]);
+  }, [gainersTop20, externalRows, oneMinThrottleMs, debugEnabled, vLog, isMobile, mobileConfig.throttleMs, endRank]);
 
   const handleStarFeedback = (active, symbol) => {
     setPopStar(symbol);
@@ -179,7 +184,7 @@ export default function GainersTable1Min({
 
   return (
     <div className="w-full h-full min-h-[400px] px-0 transition-all duration-300">
-  {rows.map((item, idx) => {
+      {rows.map((item, idx) => {
         let displayRank = idx + 1;
         if (typeof sIdx === 'number' && !Number.isNaN(sIdx)) {
           displayRank = sIdx + idx + 1;
@@ -200,6 +205,20 @@ export default function GainersTable1Min({
           prevPrice = item.price / (1 + PCT / 100);
         }
         const coinbaseUrl = item ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
+        const symbol = item ? item.symbol : null;
+        const handleInfoClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof onSelectCoin === 'function' && symbol) {
+            try {
+              onSelectCoin(symbol);
+            } catch (err) {
+              if (debugEnabled) {
+                vLog('[GainersTable1Min] onSelectCoin handler threw, ignoring', err);
+              }
+            }
+          }
+        };
 
         return (
           <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">
@@ -276,7 +295,7 @@ export default function GainersTable1Min({
                 </div>
 
                 {/* Desktop Grid Layout - always enabled to avoid breakpoint hiding issues */}
-                <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_44px] gap-x-4 items-start">
                   {/* Col1: rank + symbol */}
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={"flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')} style={{ background:'rgba(254,164,0,0.28)', color:'var(--pos)' }}>
@@ -322,9 +341,24 @@ export default function GainersTable1Min({
                   </div>
 
                   {/* Col4: star */}
-                  <div className="w-[28px] text-right">
+                  <div className="w-[44px] flex flex-col items-end gap-2">
                     {!isPlaceholder && (
-                      <WatchStar productId={item.symbol} className={popStar === (item && item.symbol) ? 'animate-star-pop' : ''} onToggled={handleStarFeedback} />
+                      <>
+                        <WatchStar
+                          productId={item.symbol}
+                          className={popStar === (item && item.symbol) ? 'animate-star-pop' : ''}
+                          onToggled={handleStarFeedback}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleInfoClick}
+                          className="flex items-center justify-center w-6 h-6 text-[#64FFE3] hover:text-white transition focus:outline-none focus:ring-1 focus:ring-[#64FFE3]/40"
+                          aria-label={`Open ${(symbol || 'token')} insights`}
+                          style={{ marginTop: '0.2rem' }}
+                        >
+                          <FiInfo className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -349,4 +383,5 @@ GainersTable1Min.propTypes = {
   fixedRows: PropTypes.number,
   hideShowMore: PropTypes.bool,
   rows: PropTypes.array,
+  onSelectCoin: PropTypes.func,
 };

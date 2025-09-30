@@ -1,5 +1,5 @@
-/* eslint-disable react/prop-types */
 import * as React from 'react';
+import PropTypes from 'prop-types';
 // import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../lib/api.js'; // Disabled for localStorage-only
 
 const Ctx = React.createContext(null);
@@ -8,6 +8,11 @@ export function WatchlistProvider({ children, refreshMs = 10000 }) {
   const value = useWatchlistInternal({ refreshMs });
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+
+WatchlistProvider.propTypes = {
+  children: PropTypes.node,
+  refreshMs: PropTypes.number,
+};
 
 export function useWatchlistContext() {
   const ctx = React.useContext(Ctx);
@@ -47,12 +52,10 @@ function useWatchlistInternal({ refreshMs = 10000 } = {}) {
     // optimistic update
     const newList = wasIn ? list.filter((s) => s !== sym) : [...list, sym];
     setList(newList);
-    try {
+  try {
       localStorage.setItem('watchlist', JSON.stringify(newList));
     } catch (e) {
-      // rollback on failure and log
-      // eslint-disable-next-line no-console
-      console.warn('watchlist toggle failed', e);
+      // rollback on failure silently; persistence layer failed
       setList(list);
     } finally {
       setSaving(false);

@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { formatNumber } from '../utils/formatNumber';
 import { formatPrice, formatPercentage, truncateSymbol } from '../utils/formatters';
 import { useGainersLosersData } from '../hooks/useGainersLosersData';
 import WatchStar from './WatchStar.jsx';
+import { FiInfo } from 'react-icons/fi';
 
 /**
  * MoverTable
@@ -21,10 +22,10 @@ export default function MoverTable({ variant, tone, window = '3min', className =
   const [localExpanded, setLocalExpanded] = useState(false);
   // lightweight pop feedback for star toggles to mirror GainersTable1Min behavior
   const [popStar, setPopStar] = useState(null);
-  const handleStarFeedback = (active, symbol) => {
+  const handleStarFeedback = useCallback((active, symbol) => {
     setPopStar(symbol);
     setTimeout(() => setPopStar(null), 350);
-  };
+  }, []);
 
   // Do NOT unconditionally add `table-card` here — parent containers (e.g. app.jsx) already wrap the component.
   const wrapperClasses = `block w-full overflow-x-auto ${className}`.trim();
@@ -96,6 +97,14 @@ export default function MoverTable({ variant, tone, window = '3min', className =
               prevPrice = price / (1 + changeNum / 100);
             }
             const coinbaseUrl = r.symbol ? `https://www.coinbase.com/advanced-trade/spot/${r.symbol.toLowerCase()}-USD` : '#';
+            const handleInfoClick = (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof onSelectCoin === 'function' && r.symbol) {
+                onSelectCoin(r.symbol);
+              }
+            };
+            const infoColorClass = 'text-[#64FFE3] hover:text-white focus:ring-[#64FFE3]/40';
 
             return (
               <div key={r.symbol || displayRank} className="px-0 py-1 mb-1">
@@ -103,8 +112,7 @@ export default function MoverTable({ variant, tone, window = '3min', className =
                   href={coinbaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`block group ${onSelectCoin ? 'cursor-pointer' : ''}`}
-                  onClick={(e) => { if (onSelectCoin) { e.preventDefault(); onSelectCoin(r.symbol); } }}
+                  className="block group"
                 >
                   <div className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform">
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
@@ -118,7 +126,7 @@ export default function MoverTable({ variant, tone, window = '3min', className =
                     <span className="block w-full h-full" style={{ background: isGainer ? 'radial-gradient(ellipse at 50% 140%, rgba(254,164,0,0.18) 0%, rgba(254,164,0,0.10) 35%, rgba(254,164,0,0.04) 60%, transparent 85%)' : 'radial-gradient(ellipse at 50% 140%, rgba(138,43,226,0.18) 0%, rgba(138,43,226,0.10) 35%, rgba(138,43,226,0.04) 60%, transparent 85%)' }} />
                   </span>
 
-                  <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                  <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_44px] gap-x-4 items-start">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0" style={{ background: isGainer ? 'rgba(254,164,0,0.28)' : 'rgba(138,43,226,0.28)', color: 'var(--pos)' }}>{displayRank}</div>
                       <div className="min-w-0 flex items-center gap-3">
@@ -152,10 +160,21 @@ export default function MoverTable({ variant, tone, window = '3min', className =
                       </div>
                     </div>
 
-                    <div className="w-[28px] text-right">
-                      {!false && (
-                        <WatchStar productId={r.symbol} className={popStar === (r && r.symbol) ? 'animate-star-pop' : ''} onToggled={handleStarFeedback} />
-                      )}
+                    <div className="w-[44px] flex flex-col items-end gap-2">
+                      <WatchStar
+                        productId={r.symbol}
+                        className={popStar === (r && r.symbol) ? 'animate-star-pop' : ''}
+                        onToggled={handleStarFeedback}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleInfoClick}
+                        className={`flex items-center justify-center w-6 h-6 transition focus:outline-none focus:ring-1 ${infoColorClass}`}
+                        style={{ marginTop: '0.2rem' }}
+                        aria-label={`Open ${(r.symbol || 'token')} insights`}
+                      >
+                        <FiInfo className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -182,7 +201,7 @@ export default function MoverTable({ variant, tone, window = '3min', className =
         </div>
       </div>
     );
-  }, [rows, loading, error, wrapperClasses, resolvedVariant, onSelectCoin, localExpanded, maxRows, variant, window, popStar, handleStarFeedback]);
+  }, [rows, loading, error, wrapperClasses, resolvedVariant, onSelectCoin, localExpanded, variant, window, popStar, handleStarFeedback]);
 
   return content;
 }

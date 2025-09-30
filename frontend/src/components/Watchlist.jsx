@@ -160,7 +160,7 @@ const Watchlist = ({ quickview, onSelectCoin }) => {
         console.error('Watchlist: fetchPricesForSymbols failed', err);
       }
     })();
-  }, [latestData, watchlist]);
+  }, [latestData, watchlist, fetchPricesForSymbols]);
 
   if (loading && watchlist.length === 0) {
     return (

@@ -57,14 +57,16 @@ const TradingViewChart = ({ symbol, theme = 'dark', height = 400 }) => {
 
     script.innerHTML = JSON.stringify(config);
 
-    if (containerRef.current) {
-      containerRef.current.appendChild(script);
+    const containerEl = containerRef.current;
+
+    if (containerEl) {
+      containerEl.appendChild(script);
       widgetRef.current = script;
     }
 
     return () => {
-      if (widgetRef.current && containerRef.current && containerRef.current.contains(widgetRef.current)) {
-        containerRef.current.removeChild(widgetRef.current);
+      if (widgetRef.current && containerEl && containerEl.contains(widgetRef.current)) {
+        containerEl.removeChild(widgetRef.current);
       }
     };
   }, [symbol, theme, height]);
@@ -129,14 +131,16 @@ export const TradingViewMiniChart = ({ symbol, theme = 'dark', height = 200 }) =
 
     script.innerHTML = JSON.stringify(config);
 
-    if (containerRef.current) {
-      containerRef.current.appendChild(script);
+    const containerEl = containerRef.current;
+
+    if (containerEl) {
+      containerEl.appendChild(script);
       widgetRef.current = script;
     }
 
     return () => {
-      if (widgetRef.current && containerRef.current && containerRef.current.contains(widgetRef.current)) {
-        containerRef.current.removeChild(widgetRef.current);
+      if (widgetRef.current && containerEl && containerEl.contains(widgetRef.current)) {
+        containerEl.removeChild(widgetRef.current);
       }
     };
   }, [symbol, theme, height]);

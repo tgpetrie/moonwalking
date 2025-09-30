@@ -18,7 +18,6 @@ export default function CountdownMeter({ durationMs = 30000, running = true, key
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durationMs, running, keySeed]);
 
   return (
