@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import { useWebSocket } from '../context/websocketcontext.jsx';
 
 const TopBannerScroll = ({ refreshTrigger }) => {
+  const { latestData } = useWebSocket();
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
   const SCROLL_DURATION_SEC = 180; // matches .animate-scroll in index.css
-  const REFRESH_INTERVAL_MS = 120000; // refresh list every 2 minutes
 
   const getBadgeStyle = (change) => {
     const absChange = Math.abs(Number(change || 0));
@@ -31,56 +31,26 @@ const TopBannerScroll = ({ refreshTrigger }) => {
     return expanded;
   }, [data]);
 
+  // Update data from WebSocket context
   useEffect(() => {
-    let isMounted = true;
-    let timerId = null;
-
-    const fetchTopBannerData = async () => {
-      try {
-        const response = await fetchData(API_ENDPOINTS.topBanner);
-        const rows = Array.isArray(response?.data) ? response.data : [];
-
-        if (rows.length > 0) {
-          const dataWithRanks = rows.map((item, index) => {
-            const pair = String(item.symbol || '');                 // e.g. "HBAR-USD"
-            const base = pair.replace(/-USD$/i, '') || 'N/A';       // display
-            const price = Number(item.current_price ?? 0);
-            const change = Number(item.price_change_1h ?? 0);
-            return {
-              rank: index + 1,
-              symbol: base,
-              pair,            // keep full pair for link
-              price,
-              change,
-              badge: getBadgeStyle(change),
-            };
-          });
-
-          if (isMounted) setData(() => dataWithRanks.slice(0, 20));
-        } else if (isMounted) {
-          setData(prev => (prev.length ? prev : []));
-        }
-      } catch (err) {
-        console.error('Error fetching top banner data:', err);
-        if (isMounted) {
-          setData(prev => (prev.length ? prev : []));
-        }
-      }
-    };
-
-    const scheduleAtBoundary = () => {
-      const elapsed = Date.now() - startRef.current;
-      const msUntilRefresh = REFRESH_INTERVAL_MS - (elapsed % REFRESH_INTERVAL_MS);
-      clearTimeout(timerId);
-      timerId = setTimeout(async () => {
-        await fetchTopBannerData();
-        scheduleAtBoundary();
-      }, Math.max(250, msUntilRefresh));
-    };
-
-    fetchTopBannerData().then(() => scheduleAtBoundary());
-    return () => { isMounted = false; clearTimeout(timerId); };
-  }, [refreshTrigger]);
+    if (latestData?.topBanner && Array.isArray(latestData.topBanner) && latestData.topBanner.length > 0) {
+      const dataWithRanks = latestData.topBanner.map((item, index) => {
+        const pair = String(item.symbol || '');                 // e.g. "HBAR-USD"
+        const base = pair.replace(/-USD$/i, '') || 'N/A';       // display
+        const price = Number(item.current_price ?? 0);
+        const change = Number(item.price_change_1h ?? 0);
+        return {
+          rank: index + 1,
+          symbol: base,
+          pair,            // keep full pair for link
+          price,
+          change,
+          badge: getBadgeStyle(change),
+        };
+      });
+      setData(dataWithRanks.slice(0, 20));
+    }
+  }, [latestData?.topBanner, refreshTrigger]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl w-full max-w-full" style={{ background: 'transparent' }}>

@@ -9,8 +9,7 @@ pages_build_output_dir = "frontend/dist"
 functions = "frontend/functions"
 
 # You can optionally add an `account_id` or `branch` here if you use them.
-# account_id = "your-account-id"project_name = "moonwalking"
-pages_build_output_dir = "frontend/dist"
+# account_id = "your-account-id"
 
 [vars]
 # Frontend environment variables for build-time (non-secret)
@@ -21,8 +20,13 @@ binding = "WATCHLIST_KV"
 id = "562ae453690441bfabbacd0850cbe3c1"
 preview_id = "32b5726ad5984b269d508d42fbfd7317"
 
+# Service binding to the Worker (both preview and production)
+[[services]]
+binding = "BACKEND"
+service = "mw-hub"
+
 [env.preview]
-# Add preview-only overrides or bindings here
+# Preview uses the same service binding
 
 [env.production]
-# Add production-only overrides or bindings here
+# Production uses the same service binding

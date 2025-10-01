@@ -1,12 +1,19 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket } from '../services/websocket.js';
+// Use SSE instead of WebSocket for free tier compatibility
+import sseManager, { connectSSE, disconnectSSE, subscribeToSSE } from '../services/sse.js';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
 import { computeTop20Gainers } from '../utils/gainersProcessing.js';
 import { reconcileRows } from '../utils/rowsStable.js';
 import { scheduleIdle, cancelIdle } from '../utils/idle.js';
 import { flags } from '../config.js';
+
+// Aliases for compatibility
+const wsManager = sseManager;
+const connectWebSocket = connectSSE;
+const disconnectWebSocket = disconnectSSE;
+const subscribeToWebSocket = subscribeToSSE;
 
 const WebSocketContext = createContext(null);
 
@@ -386,6 +393,8 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
   const disableWs = flags.VITE_DISABLE_WS === true;
     if (disableWs) {
       // Skip WS entirely and use polling
+      setIsConnected(true);
+      setConnectionStatus('connected');
       startPolling();
       // Immediate one-off fetch so initial paint has data before first polling interval
       (async () => {

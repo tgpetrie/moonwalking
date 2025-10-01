@@ -137,6 +137,12 @@ function AppUI() {
             {/* These components manage their own visibility and pointer events */}
             {/* Watchlist Insights */}
             <div className="pointer-events-auto"><WatchlistInsightsPanel /></div>
+            {/* Sentiment Panel */}
+            {uiToggles.sentiment && topWatchlist.length > 0 && (
+              <div className="pointer-events-auto">
+                <SentimentPanel symbols={topWatchlist.map(item => item.symbol || item.product_id || item)} />
+              </div>
+            )}
           </Suspense>
         )}
       </div>
