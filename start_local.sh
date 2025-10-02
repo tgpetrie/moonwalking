@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 
+if [ "${SKIP_DEP_CHECK:-0}" != "1" ] && [ -x "$ROOT_DIR/scripts/ensure_deps.sh" ]; then
+  "$ROOT_DIR/scripts/ensure_deps.sh"
+fi
+
 # Defaults
 VITE_PORT="${VITE_PORT:-3100}"
 BACKEND_PORT="${BACKEND_PORT:-5001}"
@@ -116,7 +120,7 @@ if [ -f .venv/bin/activate ]; then
   # shellcheck disable=SC1091
   . .venv/bin/activate
 else
-  echo "[start_local] venv missing. Run ./setup_dev.sh first." >&2
+  echo "[start_local] venv missing even after ensure_deps; run ./setup_dev.sh" >&2
   exit 1
 fi
 

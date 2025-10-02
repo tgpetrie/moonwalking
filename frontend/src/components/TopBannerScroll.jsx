@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useWebSocket } from '../context/websocketcontext.jsx';
+import useOneHourPriceData from '../hooks/useOneHourPriceData.jsx';
+
+const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
 
 const TopBannerScroll = ({ refreshTrigger }) => {
-  const { latestData } = useWebSocket();
+  const { rows, error } = useOneHourPriceData(5000);
   const [data, setData] = useState([]);
   const startRef = useRef(Date.now());
   const SCROLL_DURATION_SEC = 180; // matches .animate-scroll in index.css
@@ -31,26 +33,30 @@ const TopBannerScroll = ({ refreshTrigger }) => {
     return expanded;
   }, [data]);
 
-  // Update data from WebSocket context
+  // Map fetched rows to display shape
   useEffect(() => {
-    if (latestData?.topBanner && Array.isArray(latestData.topBanner) && latestData.topBanner.length > 0) {
-      const dataWithRanks = latestData.topBanner.map((item, index) => {
-        const pair = String(item.symbol || '');                 // e.g. "HBAR-USD"
-        const base = pair.replace(/-USD$/i, '') || 'N/A';       // display
-        const price = Number(item.current_price ?? 0);
-        const change = Number(item.price_change_1h ?? 0);
+    if (error) {
+      setData([]);
+      return;
+    }
+    if (Array.isArray(rows) && rows.length > 0) {
+      const mapped = rows.map((item, index) => {
+        const pair = String(item.symbol || item.pair || `${item.base_currency || ''}-USD`).toUpperCase();
+        const base = sanitizeSymbol(pair) || 'N/A';
+        const price = Number(item.current_price ?? item.price ?? 0);
+        const change = Number(item.price_change_1h ?? item.change ?? 0);
         return {
           rank: index + 1,
           symbol: base,
-          pair,            // keep full pair for link
+          pair,
           price,
           change,
           badge: getBadgeStyle(change),
         };
       });
-      setData(dataWithRanks.slice(0, 20));
+      setData(mapped.slice(0, 20));
     }
-  }, [latestData?.topBanner, refreshTrigger]);
+  }, [rows, error, refreshTrigger]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl w-full max-w-full" style={{ background: 'transparent' }}>
@@ -68,7 +74,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
         <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
         <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
 
-        <div className="absolute inset-0 flex items-center">
+      <div className="absolute inset-0 flex items-center">
           <div className="flex whitespace-nowrap animate-scroll" style={{ animationDelay: animDelay }}>
             {marqueeRows.map((coin, index) => (
               <div key={coin._marqueeId || `loop-${coin.symbol}-${index}`} className="flex-shrink-0 mx-8">

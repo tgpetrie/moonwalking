@@ -16,6 +16,10 @@ SCRIPT_PATH="$(_resolve "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 cd "$SCRIPT_DIR"
 
+if [ "${SKIP_DEP_CHECK:-0}" != "1" ] && [ -x "$SCRIPT_DIR/scripts/ensure_deps.sh" ]; then
+  "$SCRIPT_DIR/scripts/ensure_deps.sh"
+fi
+
 STATE_DIR="/tmp/bhabit_run"
 BACKEND_PID="$STATE_DIR/backend.pid"
 FRONTEND_PID="$STATE_DIR/frontend.pid"

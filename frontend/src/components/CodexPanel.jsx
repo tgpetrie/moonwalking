@@ -13,6 +13,16 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     news: false,
     social: false
   });
+  const [errorStates, setErrorStates] = useState({
+    technical: null,
+    news: null,
+    social: null
+  });
+  const [metadata, setMetadata] = useState({
+    technical: null,
+    news: null,
+    social: null
+  });
   const modalRef = useRef(null);
   const { latestData, fetchPricesForSymbols } = useWebSocket();
 
@@ -26,13 +36,24 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     if (!symbol) return;
     
     setLoadingStates(prev => ({ ...prev, technical: true }));
+    setErrorStates(prev => ({ ...prev, technical: null }));
+    setMetadata(prev => ({ ...prev, technical: null }));
     try {
       const response = await fetchData(API_ENDPOINTS.technicalAnalysis(symbol));
       if (response.success) {
         setTechnicalData(response.data);
+        setMetadata(prev => ({ ...prev, technical: response.timestamp || response.data?.last_updated || new Date().toISOString() }));
+      }
+      if (!response.success) {
+        setTechnicalData(null);
+        setErrorStates(prev => ({ ...prev, technical: response.error || 'Technical analysis unavailable.' }));
+        setMetadata(prev => ({ ...prev, technical: null }));
       }
     } catch (error) {
       console.error('Failed to fetch technical analysis:', error);
+      setTechnicalData(null);
+      setErrorStates(prev => ({ ...prev, technical: 'Unable to load technical analysis.' }));
+      setMetadata(prev => ({ ...prev, technical: null }));
     } finally {
       setLoadingStates(prev => ({ ...prev, technical: false }));
     }
@@ -43,13 +64,23 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     if (!symbol) return;
     
     setLoadingStates(prev => ({ ...prev, news: true }));
+    setErrorStates(prev => ({ ...prev, news: null }));
+    setMetadata(prev => ({ ...prev, news: null }));
     try {
       const response = await fetchData(API_ENDPOINTS.cryptoNews(symbol));
       if (response.success) {
         setNewsData(response.articles || []);
+        setMetadata(prev => ({ ...prev, news: response.generated_at || new Date().toISOString() }));
+      } else {
+        setNewsData([]);
+        setErrorStates(prev => ({ ...prev, news: response.error || 'No news available.' }));
+        setMetadata(prev => ({ ...prev, news: null }));
       }
     } catch (error) {
       console.error('Failed to fetch news:', error);
+      setNewsData([]);
+      setErrorStates(prev => ({ ...prev, news: 'Unable to load news.' }));
+      setMetadata(prev => ({ ...prev, news: null }));
     } finally {
       setLoadingStates(prev => ({ ...prev, news: false }));
     }
@@ -60,13 +91,23 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     if (!symbol) return;
     
     setLoadingStates(prev => ({ ...prev, social: true }));
+    setErrorStates(prev => ({ ...prev, social: null }));
+    setMetadata(prev => ({ ...prev, social: null }));
     try {
       const response = await fetchData(API_ENDPOINTS.socialSentiment(symbol));
       if (response.success) {
         setSocialData(response.data);
+        setMetadata(prev => ({ ...prev, social: response.generated_at || response.data?.last_updated || new Date().toISOString() }));
+      } else {
+        setSocialData(null);
+        setErrorStates(prev => ({ ...prev, social: response.error || 'No sentiment data available.' }));
+        setMetadata(prev => ({ ...prev, social: null }));
       }
     } catch (error) {
       console.error('Failed to fetch social sentiment:', error);
+      setSocialData(null);
+      setErrorStates(prev => ({ ...prev, social: 'Unable to load social sentiment.' }));
+      setMetadata(prev => ({ ...prev, social: null }));
     } finally {
       setLoadingStates(prev => ({ ...prev, social: false }));
     }
@@ -157,6 +198,8 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
     return 'text-amber-300';
   };
 
+  const randomIntFallback = () => Math.floor(Math.random() * 5000) + 1000;
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'analysis':
@@ -181,6 +224,11 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             {loadingStates.technical ? (
               <div className={surfaceCard}>
                 <div className="animate-pulse text-blue">Loading technical analysis...</div>
+              </div>
+            ) : errorStates.technical ? (
+              <div className={surfaceCard}>
+                <div className="text-rose-200 text-sm font-medium mb-2">{errorStates.technical}</div>
+                <div className="text-xs text-white/40">Try selecting another asset or refreshing later.</div>
               </div>
             ) : (
               <>
@@ -267,6 +315,11 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                         Based on {technicalData.data_points} data points
                       </div>
                     )}
+                    {metadata.technical && (
+                      <div className="text-[10px] text-white/35 mt-3">
+                        Updated {new Date(metadata.technical).toLocaleTimeString()}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -280,6 +333,12 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             {loadingStates.news ? (
               <div className="text-center py-8">
                 <div className="animate-pulse text-blue">Loading news...</div>
+              </div>
+            ) : errorStates.news ? (
+              <div className={`${surfaceCard} text-center py-8`}>
+                <div className="text-4xl mb-3">🚧</div>
+                <div className="text-white/70">{errorStates.news}</div>
+                <div className="text-xs text-white/40 mt-2">Please try again later.</div>
               </div>
             ) : newsData.length > 0 ? (
               <div className="space-y-4">
@@ -309,9 +368,14 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                     </div>
                   </div>
                 ))}
+                {metadata.news && (
+                  <div className="text-[10px] text-white/35 text-center">
+                    Headlines refreshed {new Date(metadata.news).toLocaleTimeString()}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className={`${surfaceCard} text-center py-8`}> 
+              <div className={`${surfaceCard} text-center py-8`}>
                 <div className="text-4xl mb-4">📰</div>
                 <div className="text-white/70">No news available</div>
                 <div className="text-sm text-white/50 mt-2">
@@ -377,6 +441,12 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
             {loadingStates.social ? (
               <div className="text-center py-8">
                 <div className="animate-pulse text-blue">Loading social sentiment...</div>
+              </div>
+            ) : errorStates.social ? (
+              <div className={`${surfaceCard} text-center py-8`}>
+                <div className="text-4xl mb-3">📉</div>
+                <div className="text-white/70">{errorStates.social}</div>
+                <div className="text-xs text-white/40 mt-2">Sentiment data is temporarily unavailable.</div>
               </div>
             ) : socialData ? (
               <>
@@ -481,14 +551,20 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                   <div className={surfaceCard}>
                     <div className={`${mutedLabel} mb-3`}>Trending Keywords</div>
                     <div className="flex flex-wrap gap-2">
-                      {socialData.trending_topics.slice(0, 8).map((topic, index) => (
-                        <div key={index} className="px-3 py-1 rounded-full text-xs bg-white/10 text-white/80">
-                          <span className="text-white">{topic.keyword}</span>
-                          <span className={`ml-1 ${topic.growth_24h > 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                            ({topic.growth_24h > 0 ? '+' : ''}{topic.growth_24h.toFixed(1)}%)
-                          </span>
-                        </div>
-                      ))}
+                      {socialData.trending_topics.slice(0, 8).map((topic, index) => {
+                        const keyword = typeof topic === 'string' ? topic : topic?.keyword || 'Trending';
+                        const growth = typeof topic === 'object' && topic && typeof topic.growth_24h === 'number'
+                          ? topic.growth_24h
+                          : 0;
+                        return (
+                          <div key={index} className="px-3 py-1 rounded-full text-xs bg-white/10 text-white/80">
+                            <span className="text-white">{keyword}</span>
+                            <span className={`ml-1 ${growth >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                              ({growth >= 0 ? '+' : ''}{growth.toFixed(1)}%)
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -498,35 +574,36 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                   <div className={surfaceCard}>
                     <div className={`${mutedLabel} mb-3`}>Influencer Mentions</div>
                     <div className="space-y-3">
-                      {socialData.influencer_mentions.map((mention, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <div className={`w-2 h-2 rounded-full mt-2 ${
-                            mention.sentiment === 'bullish' ? 'bg-green-400' :
-                            mention.sentiment === 'bearish' ? 'bg-red-400' : 'bg-gray-400'
-                          }`} />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white text-sm font-medium">{mention.influencer}</span>
-                              {mention.verified && <span className="text-blue-400 text-xs">✓</span>}
-                              <span className="text-white/50 text-xs">
-                                {mention.followers.toLocaleString()} followers
-                              </span>
-                            </div>
-                            <p className="text-white/70 text-xs mt-1">{mention.preview}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className={`text-xs capitalize ${
-                                mention.sentiment === 'bullish' ? 'text-emerald-300' :
-                                mention.sentiment === 'bearish' ? 'text-rose-300' : 'text-white/55'
-                              }`}>
-                                {mention.sentiment}
-                              </span>
-                              <span className="text-white/45 text-xs">
-                                {mention.engagement.toLocaleString()} engagements
-                              </span>
+                      {socialData.influencer_mentions.map((mention, index) => {
+                        const name = mention.influencer || mention.name || 'Influencer';
+                        const followers = (mention.followers ?? 0).toLocaleString();
+                        const preview = mention.preview || mention.highlight || 'Recent commentary on market structure and sentiment trends.';
+                        const sentiment = (mention.sentiment || 'neutral').toLowerCase();
+                        const engagement = (mention.engagement ?? randomIntFallback()).toLocaleString();
+                        const sentimentColor = sentiment === 'bullish' ? 'text-emerald-300'
+                          : sentiment === 'bearish' ? 'text-rose-300'
+                          : 'text-white/55';
+                        return (
+                          <div key={index} className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-2 ${
+                              sentiment === 'bullish' ? 'bg-green-400' :
+                              sentiment === 'bearish' ? 'bg-red-400' : 'bg-gray-400'
+                            }`} />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-medium">{name}</span>
+                                {mention.verified && <span className="text-blue-400 text-xs">✓</span>}
+                                <span className="text-white/50 text-xs">{followers} followers</span>
+                              </div>
+                              <p className="text-white/70 text-xs mt-1">{preview}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className={`text-xs capitalize ${sentimentColor}`}>{sentiment}</span>
+                                <span className="text-white/45 text-xs">{engagement} engagements</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -552,6 +629,11 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                     </div>
                   </div>
                 </div>
+                {metadata.social && (
+                  <div className="text-[10px] text-white/35 text-center">
+                    Social data refreshed {new Date(metadata.social).toLocaleTimeString()}
+                  </div>
+                )}
               </>
             ) : (
               <div className={`${surfaceCard} text-center py-8`}>

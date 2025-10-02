@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT_DIR"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -60,7 +63,14 @@ show_help() {
     echo ""
 }
 
+ensure_deps() {
+    if [ "${SKIP_DEP_CHECK:-0}" != "1" ] && [ -x "$ROOT_DIR/scripts/ensure_deps.sh" ]; then
+        "$ROOT_DIR/scripts/ensure_deps.sh"
+    fi
+}
+
 activate_venv() {
+    ensure_deps
     if [ -d ".venv" ]; then
         source .venv/bin/activate
     else
@@ -77,9 +87,10 @@ case "${1:-help}" in
     
     "start")
         print_status "Starting BHABIT CBMOONERS (local)…"
-        ./start_app.sh start
+        ensure_deps
+        ./start_local.sh
         ;;
-    
+
     "backend")
         print_status "Starting backend server only..."
         activate_venv
@@ -89,6 +100,7 @@ case "${1:-help}" in
     
     "frontend")
         print_status "Starting frontend server only..."
+        ensure_deps
         cd frontend
         npm run dev
         ;;
@@ -162,14 +174,8 @@ case "${1:-help}" in
     
     "install")
         print_status "Installing/updating dependencies..."
-        activate_venv
-        cd backend
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        cd ../frontend
-        npm install
-        cd ..
-        print_success "Dependencies updated!"
+        ensure_deps
+        print_success "Dependencies ready!"
         ;;
     
     "health")

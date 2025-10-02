@@ -4,6 +4,10 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here"
 
+if [ "${SKIP_DEP_CHECK:-0}" != "1" ] && [ -x "$here/scripts/ensure_deps.sh" ]; then
+  "$here/scripts/ensure_deps.sh"
+fi
+
 # Kill stale wrangler processes
 pkill -f "wrangler.*dev" 2>/dev/null || true
 pkill -f "wrangler.*pages" 2>/dev/null || true

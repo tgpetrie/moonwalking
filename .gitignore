@@ -96,3 +96,6 @@ dist/
 # allow the mobile scaffold
 !moonwalking_mobile/
 !moonwalking_mobile/**
+
+# ignore workspace backups
+.workspace_backups/

@@ -19,7 +19,7 @@ npm run build
 
 # Copy _worker.js to dist
 echo "📄 Adding _worker.js..."
-cp ../._worker.js dist/
+cp ../_worker.js dist/
 
 # Deploy to Cloudflare Pages
 echo "☁️  Deploying to Cloudflare Pages..."
