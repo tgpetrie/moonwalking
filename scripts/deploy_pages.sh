@@ -6,7 +6,7 @@ set -euo pipefail
 # Environment variables:
 #  PROJECT_NAME (default: moonwalking)
 #  WRANGLER_BIN (default: npx --yes wrangler@4.37.0)
-#  PAGES_TOML (default: wrangler.pages.toml)
+#  PAGES_TOML (default: wrangler.toml – Pages CLI requires the default path)
 #  COMMIT_DIRTY (set to "false" to omit --commit-dirty flag)
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,7 +15,10 @@ DIST_DIR="$FRONTEND_DIR/dist"
 
 PROJECT_NAME="${PROJECT_NAME:-moonwalking}"
 WRANGLER_BIN="${WRANGLER_BIN:-npx --yes wrangler@4.37.0}"
-PAGES_TOML="${PAGES_TOML:-wrangler.pages.toml}"
+# Wrangler's Pages CLI ignores custom --config paths, so we rely on the
+# standard wrangler.toml at the repo root. Allow callers to opt out, but default
+# to the conventional location.
+PAGES_TOML="${PAGES_TOML:-wrangler.toml}"
 COMMIT_DIRTY="${COMMIT_DIRTY:-true}"
 
 echo "Building frontend in $FRONTEND_DIR..."
@@ -36,7 +39,12 @@ if [ "$COMMIT_DIRTY" = "true" ]; then
   COMMIT_FLAG="--commit-dirty=true"
 fi
 
-# Use explicit directory to avoid toml parsing/version differences
-eval "$WRANGLER_BIN pages deploy \"$DIST_DIR\" --project-name \"$PROJECT_NAME\" $COMMIT_FLAG --config \"$PAGES_TOML\""
+# Pages does not support custom config paths; ensure we call it from the repo
+# root so the default wrangler.toml is discovered automatically.
+if [ "$PAGES_TOML" != "wrangler.toml" ]; then
+  echo "[deploy_pages] Warning: Pages CLI ignores custom config paths. Set PAGES_TOML=wrangler.toml or copy your config to wrangler.toml." >&2
+fi
+
+eval "$WRANGLER_BIN pages deploy \"$DIST_DIR\" --project-name \"$PROJECT_NAME\" $COMMIT_FLAG"
 
 echo "Deploy finished. Check Wrangler output for the Pages URL." 
