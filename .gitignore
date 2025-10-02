@@ -104,3 +104,7 @@ dist/
 .workspace_backups/
 *.tar.gz
 public/**/unused/**
+
+# ignore local backups
+.workspace_backups/
+*.tar.gz
