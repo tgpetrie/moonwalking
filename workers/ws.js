@@ -2,7 +2,7 @@
 // Works on Cloudflare free tier
 
 // Edge cache wrapper to minimize KV reads and Durable Object calls
-async function cachedJsonResponse(request, ctx, key, computeFn, ttlSeconds = 10) {
+async function cachedJsonResponse(request, ctx, key, computeFn, ttlSeconds = 2) {
   const cache = caches.default;
   const cacheKey = new Request(`https://cache/${key}`, { method: 'GET' });
 
@@ -45,8 +45,16 @@ export default {
       return withCORS(await proxyToUpstream(request, env));
     }
 
+    // Do not cache or proxy SSE streams; forward directly to DO
+    if (url.pathname.endsWith("/events")) {
+      const id = env.HUB.idFromName("global");
+      const stub = env.HUB.get(id);
+      return stub.fetch(request);
+    }
+
     // Apply edge caching to hot endpoints (reduces Durable Object calls by ~90%)
     const hotEndpoints = [
+      "/products",
       "/component/gainers-table-1min",
       "/component/gainers-table-3min",
       "/component/losers-table-3min",
@@ -60,7 +68,7 @@ export default {
         const stub = env.HUB.get(id);
         const response = await stub.fetch(request);
         return response.json();
-      }, 10); // 10 second edge cache
+      }, 2); // 2 second edge cache
     }
 
     // Handle requests directly via Durable Object
@@ -90,12 +98,20 @@ export class Hub {
       alerts: [],
       updatedAt: 0,
     };
+    this.products = [];
+    this._lastPersistedAt = 0; // epoch ms when we last wrote to KV
     this.history = {};
     this.analysisCache = {};
     this.newsCache = {};
     this.socialCache = {};
-    this.pollingInterval = 30000; // 30 seconds
+    this.pollingInterval = 5000; // 5 seconds
     this.isPolling = false;
+
+  // SSE clients
+  this.clients = new Set(); // Set<{writer, keepAliveId}>
+
+  // throttle timestamps
+  this._lastStoredAt = 0; // epoch ms for Durable Object storage writes
 
     state.blockConcurrencyWhile(async () => {
       // Load from Durable Object storage only (no KV read to save quota)
@@ -131,9 +147,16 @@ export class Hub {
 
   // Alarm handler - called automatically by Cloudflare
   async alarm() {
-    await this.fetchCoinbaseData();
-    // Schedule next alarm
-    await this.state.storage.setAlarm(Date.now() + this.pollingInterval);
+    const changed = await this.fetchCoinbaseData();
+    const now = Date.now();
+    // Adaptive cadence: faster if changed, slower if quiet (free-tier friendly)
+    const nextDelay = changed ? 5000 : 10000; // 5s on change, 10s otherwise
+    await this.state.storage.setAlarm(now + nextDelay);
+
+    // If there are SSE listeners, emit a lightweight tick
+    if (this.clients.size > 0) {
+      this._broadcastSSE({ type: "tick", updatedAt: this.snapshots.updatedAt, changed });
+    }
   }
 
   // Fetch data from Coinbase API
@@ -149,6 +172,17 @@ export class Hub {
 
       const products = await response.json();
       const usdPairs = products.filter(p => p.quote_currency === "USD" && p.trading_disabled === false);
+
+      // Cache a lightweight product catalog for the /products endpoint
+      this.products = usdPairs.map(p => ({
+        id: p.id,
+        base_currency: p.base_currency,
+        quote_currency: p.quote_currency,
+        display_name: p.display_name || `${p.base_currency}/${p.quote_currency}`,
+        status: p.status || (p.trading_disabled ? "offline" : "online"),
+        margin_enabled: !!p.margin_enabled,
+        post_only: !!p.post_only
+      }));
 
       // Fetch 24h stats for top products (limit to 50 to avoid rate limits)
       const statsPromises = usdPairs.slice(0, 50).map(async (product) => {
@@ -177,12 +211,50 @@ export class Hub {
       // Calculate 1-min and 3-min gainers from history
       this.updateSnapshots(results);
 
-      // Cache in KV for cold-start recovery
-      if (this.env.WATCHLIST_KV) {
-        await this.env.WATCHLIST_KV.put("latest_snapshots", JSON.stringify(this.snapshots), {
-          expirationTtl: 300 // 5 minutes
+      // Periodically persist to KV for cold-start recovery (avoid per-poll writes)
+      const now = Date.now();
+      const fiveMin = 5 * 60 * 1000;
+      if (this.env.WATCHLIST_KV && now - (this._lastPersistedAt || 0) >= fiveMin) {
+        try {
+          await this.env.WATCHLIST_KV.put("latest_snapshots", JSON.stringify(this.snapshots), {
+            expirationTtl: 300 // 5 minutes
+          });
+          this._lastPersistedAt = now;
+        } catch (e) {
+          // If we hit KV quota (429), skip this persist and continue; DO keeps in-memory state
+          if (String(e).includes('429')) {
+            console.warn('WATCHLIST_KV quota hit; skipping persist');
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      // After computing results and updating snapshots, decide if we materially changed
+      const changed = this._computeChangeSignal();
+
+      // Throttle DO storage writes (snapshots/history) to at most every 15s
+      const nowTs = Date.now();
+      const STORE_COOLDOWN = 15 * 1000;
+      if (nowTs - (this._lastStoredAt || 0) >= STORE_COOLDOWN) {
+        this.state.storage.put("snapshots", this.snapshots);
+        this.state.storage.put("history", this.history);
+        this._lastStoredAt = nowTs;
+      }
+
+      // Broadcast to any SSE clients if changed
+      if (changed && this.clients.size > 0) {
+        this._broadcastSSE({
+          type: "update",
+          updatedAt: this.snapshots.updatedAt,
+          counts: {
+            t1m: this.snapshots.t1m?.length || 0,
+            t3m: this.snapshots.t3m?.length || 0
+          }
         });
       }
+
+      return changed;
 
     } catch (error) {
       console.error("Error fetching Coinbase data:", error);
@@ -275,9 +347,23 @@ export class Hub {
       updatedAt: now,
     };
 
-    // Persist to storage
-    this.state.storage.put("snapshots", this.snapshots);
-    this.state.storage.put("history", this.history);
+    // Persist to storage is handled by throttled writer in fetchCoinbaseData
+  }
+
+  // Determine if the new snapshot differs materially from the previous one
+  _computeChangeSignal() {
+    try {
+      // Consider the top 10 of 1m gainers as the change fingerprint
+      const top = (this.snapshots.t1m || []).slice(0, 10);
+      const key = top.map(r => `${r.product_id}:${Math.round((r.price_change_percentage_1min || 0) * 100)}`).join("|");
+      if (this._lastFingerprint !== key) {
+        this._lastFingerprint = key;
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return true;
+    }
   }
 
   _json(data, status = 200, extra = {}) {
@@ -285,7 +371,7 @@ export class Hub {
       status,
       headers: {
         "content-type": "application/json",
-        "cache-control": "s-maxage=10, stale-while-revalidate=30",
+        "cache-control": "s-maxage=2, stale-while-revalidate=5",
         "access-control-allow-origin": "*",
         ...extra,
       },
@@ -310,6 +396,49 @@ export class Hub {
       return this._json({ ok: true, service: "durable-object-hub", t: Date.now() });
     }
 
+    // SSE events stream (near-live updates without frequent polling)
+    if (url.pathname.endsWith("/events")) {
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+
+      const write = (payload) => {
+        const line = `data: ${JSON.stringify(payload)}\n\n`;
+        return writer.write(new TextEncoder().encode(line));
+      };
+
+      // Register client and keepalive pings
+      const keepAliveId = setInterval(() => {
+        writer.write(new TextEncoder().encode(`: ping ${Date.now()}\n\n`)).catch(() => {});
+      }, 15000);
+      this.clients.add({ writer, keepAliveId });
+
+      // Initial hello
+      await write({ type: "hello", updatedAt: this.snapshots.updatedAt, t1m: (this.snapshots.t1m || []).length });
+
+      const response = new Response(readable, {
+        headers: {
+          "content-type": "text/event-stream; charset=utf-8",
+          "cache-control": "no-cache, no-transform",
+          "connection": "keep-alive",
+          "access-control-allow-origin": "*",
+          "x-accel-buffering": "no"
+        }
+      });
+
+      // Cleanup when the request is terminated by the client/edge
+      (async () => {
+        try {
+          await response.waitUntil?.(Promise.resolve());
+        } finally {
+          try { clearInterval(keepAliveId); } catch {}
+          try { writer.close(); } catch {}
+          this._pruneClients();
+        }
+      })();
+
+      return response;
+    }
+
     // Metrics endpoint
     if (url.pathname.endsWith("/metrics")) {
       return this._json({
@@ -321,6 +450,11 @@ export class Hub {
         errCount: 0,
         since: Date.now() - 300000
       });
+    }
+
+    // Products catalog (coin universe)
+    if (url.pathname.endsWith("/products")) {
+      return this._json({ ok: true, rows: this.products || [], source: "coinbase-api" });
     }
 
     // Read snapshots (full dump)
@@ -1036,3 +1170,24 @@ function json(obj, status = 200) {
     },
   });
 }
+
+// --- SSE helpers on Hub prototype ---
+Hub.prototype._broadcastSSE = function(payload) {
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  const bytes = new TextEncoder().encode(data);
+  for (const client of this.clients) {
+    client.writer.write(bytes).catch(() => {
+      // drop broken writers on next prune
+    });
+  }
+};
+
+Hub.prototype._pruneClients = function() {
+  const survivors = new Set();
+  for (const client of this.clients) {
+    if (client && client.writer) {
+      survivors.add(client);
+    }
+  }
+  this.clients = survivors;
+};
