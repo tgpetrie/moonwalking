@@ -99,3 +99,8 @@ dist/
 
 # ignore workspace backups
 .workspace_backups/
+
+# ignore local backups & heavy assets
+.workspace_backups/
+*.tar.gz
+public/**/unused/**
