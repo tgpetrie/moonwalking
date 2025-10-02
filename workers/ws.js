@@ -40,8 +40,8 @@ export default {
       return json({ ok: true, service: "worker", t: Date.now() });
     }
 
-    // If we have an upstream, proxy most requests to it
-    if (env.UPSTREAM_URL && !url.pathname.includes("/snapshots")) {
+    // If we have an upstream, proxy most requests to it (but never SSE/events)
+    if (env.UPSTREAM_URL && !url.pathname.includes("/snapshots") && !url.pathname.endsWith("/events")) {
       return withCORS(await proxyToUpstream(request, env));
     }
 
