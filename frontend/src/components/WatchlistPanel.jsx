@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getWatchlist, removeFromWatchlist } from '../api.js';
+import PropTypes from 'prop-types';
+import { getWatchlist, removeFromWatchlist } from '../lib/api.js';
+import { formatPercentage, formatPrice } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
+
+function getChangeColor(change) {
+  if (change > 0) return 'text-blue';
+  if (change < 0) return 'text-pink';
+  return 'text-gray-400';
+}
 
 const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
   const [watchlist, setWatchlist] = useState(topWatchlist || []);
   const [animatingRemoval, setAnimatingRemoval] = useState(null);
-  const { latestData, fetchPricesForSymbols, isConnected, isPolling } = useWebSocket();
+  const { latestData, isConnected, isPolling } = useWebSocket();
 
   // Sync with parent watchlist
   useEffect(() => {
@@ -20,7 +28,9 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
 
   // Get real-time prices for watchlist symbols
   const getWatchlistWithPrices = () => {
-    if (!watchlist || watchlist.length === 0) return [];
+    if (!watchlist || watchlist.length === 0) {
+      return [];
+    }
 
     return watchlist.map(item => {
       const symbol = typeof item === 'string' ? item : item.symbol;
@@ -57,7 +67,9 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
     setTimeout(async () => {
       const updated = await removeFromWatchlist(symbol);
       setWatchlist(updated);
-      if (onWatchlistChange) onWatchlistChange(updated);
+      if (onWatchlistChange) {
+        onWatchlistChange(updated);
+      }
       setAnimatingRemoval(null);
     }, 300);
   };
@@ -107,7 +119,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
       {watchlistWithPrices.map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         const isRemoving = animatingRemoval === item.symbol;
-        const changeColor = item.change > 0 ? 'text-blue' : item.change < 0 ? 'text-pink' : 'text-gray-400';
+  const changeColor = getChangeColor(item.change);
         
         return (
           <React.Fragment key={item.symbol}>
@@ -142,20 +154,16 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                   </div>
                   <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
                     <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        ${item.currentPrice > 0 
-                          ? (item.currentPrice < 1 && item.currentPrice > 0 
-                             ? item.currentPrice.toFixed(4) 
-                             : item.currentPrice.toFixed(2))
-                          : 'N/A'}
+                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text font-mono tabular-nums">
+                        {Number.isFinite(item.currentPrice) ? formatPrice(item.currentPrice) : 'N/A'}
                       </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        ${item.priceAtAdd > 0 ? item.priceAtAdd.toFixed(2) : '--'}
+                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text font-mono tabular-nums">
+                        {Number.isFinite(item.priceAtAdd) ? formatPrice(item.priceAtAdd) : '--'}
                       </span>
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[80px]">
                       <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${changeColor}`}>
-                        <span>{item.change !== 0 ? `${item.change > 0 ? '+' : ''}${item.change.toFixed(2)}%` : '--'}</span>
+                        <span className="font-mono tabular-nums">{Number.isFinite(item.change) ? formatPercentage(item.change) : '--'}</span>
                       </div>
                       <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">Since Add</span>
                     </div>
@@ -183,7 +191,7 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                 </div>
               </a>
             </div>
-            {idx < watchlistWithPrices.length - 1 && (
+            {idx < watchlistWithPrices.length - 1 ? (
               <div
                 className="mx-auto my-0.5"
                 style={{
@@ -193,12 +201,17 @@ const WatchlistPanel = ({ onWatchlistChange, topWatchlist }) => {
                   borderRadius: '2px'
                 }}
               />
-            )}
+            ) : null}
           </React.Fragment>
         );
       })}
     </div>
   );
+};
+
+WatchlistPanel.propTypes = {
+  onWatchlistChange: PropTypes.func,
+  topWatchlist: PropTypes.arrayOf(PropTypes.string),
 };
 
 export default WatchlistPanel;

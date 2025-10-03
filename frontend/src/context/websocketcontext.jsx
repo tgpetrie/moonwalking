@@ -1,235 +1,295 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket } from '../services/websocket.js';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import PropTypes from 'prop-types';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { flags } from '../config.js';
 
 const WebSocketContext = createContext(null);
 
-export const useWebSocket = () => {
-  const context = useContext(WebSocketContext);
-  if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
-  }
-  return context;
+const mapRows = (payload) => {
+  if (!payload) return [];
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
 };
 
-export const WebSocketProvider = ({ children }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const [latestData, setLatestData] = useState({
-    crypto: null,
-    prices: {},
-    watchlist: null
-  });
-  const [isPolling, setIsPolling] = useState(false);
-  // Hold an object { id: timeoutId, abort: fn }
-  const pollingIntervalRef = useRef(null);
+const sanitizeSymbol = (symbol = '') => String(symbol).toUpperCase().replace(/-USD$/i, '');
 
-  // Polling fallback function
-  const startPolling = () => {
-    if (isPolling) return;
-
-    console.log('🔄 Starting REST API polling fallback');
-    setIsPolling(true);
-
-  let inFlight = false;
-  let backoffMs = 10000; // start at 10s to reduce churn
-    let controller = null;
-
-  const poll = async () => {
-      if (inFlight) return; // concurrency guard
-      inFlight = true;
-      controller = new AbortController();
-      try {
-        const gainersData = await fetchData(API_ENDPOINTS.gainersTable1Min, { signal: controller.signal });
-        if (gainersData && gainersData.data) {
-          const pricesUpdate = {};
-            gainersData.data.forEach(coin => {
-              if (coin.symbol && (coin.price !== undefined || coin.current_price !== undefined)) {
-                const priceVal = coin.price ?? coin.current_price;
-                pricesUpdate[coin.symbol] = {
-                  price: priceVal,
-                  change: coin.price_change_percentage_1min || coin.change || 0,
-                  changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-                  timestamp: Date.now()
-                };
-              }
-            });
-          setLatestData(prev => ({
-            ...prev,
-            crypto: gainersData.data,
-            prices: { ...prev.prices, ...pricesUpdate }
-          }));
-          // reset backoff on success
-          backoffMs = 10000;
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          // silent on abort
-        } else {
-          console.error('Polling error:', error);
-          backoffMs = Math.min(backoffMs * 1.5, 90000); // exponential up to 90s
-        }
-      } finally {
-        inFlight = false;
-      }
+const buildPriceMap = (rows, timestamp) => {
+  const map = {};
+  rows.forEach((row) => {
+    const base = sanitizeSymbol(row.symbol || row.pair || row.product_id || '');
+    const price = Number(row.current_price ?? row.price ?? 0);
+    const change = Number(row.change);
+    const payload = {
+      price,
+      change,
+      changePercent: change,
+      timestamp,
     };
-
-    // Kick off loop using adaptive timeout instead of fixed setInterval to respect backoff
-    const scheduleNext = () => {
-      const timeoutId = setTimeout(async () => {
-        await poll();
-        scheduleNext();
-      }, backoffMs);
-      // Store controller abort alongside timer id in a small control object
-      pollingIntervalRef.current = {
-        id: timeoutId,
-        abort: () => {
-          try { if (controller) controller.abort(); } catch (_) {}
-        }
-      };
-    };
-    poll();
-    scheduleNext();
-  };
-  
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      // Clear any scheduled timeout
-      const id = typeof pollingIntervalRef.current === 'number'
-        ? pollingIntervalRef.current
-        : pollingIntervalRef.current.id;
-      if (id) clearTimeout(id);
-      // Abort any in-flight fetch
-      if (pollingIntervalRef.current.abort) pollingIntervalRef.current.abort();
-      pollingIntervalRef.current = null;
-    }
-    setIsPolling(false);
-    console.log('⏹️ Stopped REST API polling');
-  };
-
-  // Fetch real-time prices for specific symbols from cached data
-  const fetchPricesForSymbols = async (symbols) => {
-    try {
-      // Use already cached data from polling instead of making new API call
-      if (latestData.crypto && latestData.crypto.length > 0) {
-        const prices = {};
-        latestData.crypto.forEach(coin => {
-          if (symbols.includes(coin.symbol)) {
-            prices[coin.symbol] = {
-              price: coin.current_price || coin.price,
-              change: coin.price_change_percentage_1min || coin.change || 0,
-              changePercent: coin.price_change_percentage_1min || coin.changePercent || 0,
-              timestamp: Date.now()
-            };
-          }
-        });
-        return prices;
-      }
-      
-      // Fallback: use cached prices data
-      const prices = {};
-      symbols.forEach(symbol => {
-        if (latestData.prices[symbol]) {
-          prices[symbol] = latestData.prices[symbol];
-        }
+    [
+      base,
+      `${base}-USD`,
+      String(row.symbol || '').toUpperCase(),
+      String(row.pair || '').toUpperCase(),
+      String(row.product_id || '').toUpperCase(),
+    ]
+      .filter(Boolean)
+      .forEach((key) => {
+        map[key] = payload;
       });
-      return prices;
-    } catch (error) {
-      console.error('Error fetching prices for symbols:', error);
+  });
+  return map;
+};
+
+const safeFetch = async (endpoint) => {
+  try {
+    return await fetchData(endpoint);
+  } catch (err) {
+    console.error('Polling fetch failed for', endpoint, err);
+    return null;
+  }
+};
+
+export const useWebSocket = () => {
+  const ctx = useContext(WebSocketContext);
+  if (!ctx) throw new Error('useWebSocket must be used within a WebSocketProvider');
+  return ctx;
+};
+
+export const WebSocketProvider = ({ children, pollIntervalMs = 12000 }) => {
+  const [latestData, setLatestData] = useState({
+    crypto: [],
+    gainers3m: [],
+    losers3m: [],
+    topBanner: [],
+    bottomBanner: [],
+    prices: {},
+    updatedAt: 0,
+  });
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('offline');
+  const [isPolling, setIsPolling] = useState(false);
+  const [error, setError] = useState(null);
+  const networkStatus = 'good';
+  const mountedRef = useRef(true);
+  const timerRef = useRef(null);
+  const fetchingRef = useRef(false);
+
+  const debugEnabled = useMemo(() => flags.VITE_DEBUG_LOGS === true, []);
+  const vLog = useCallback((...args) => {
+    if (debugEnabled) console.log(...args);
+  }, [debugEnabled]);
+
+  const pollOnce = useCallback(async () => {
+    if (fetchingRef.current) {
+      return true;
     }
-    return {};
-  };
+    fetchingRef.current = true;
+    setIsPolling(true);
+    try {
+      const [oneMin, threeMin, losersRes, topBannerRes, bottomBannerRes] = await Promise.all([
+        safeFetch(API_ENDPOINTS.gainersTable1Min || '/api/component/gainers-table-1min'),
+        safeFetch(API_ENDPOINTS.gainersTable3Min || '/api/component/gainers-table-3min'),
+        safeFetch(API_ENDPOINTS.losersTable3Min || '/api/component/losers-table-3min'),
+        safeFetch(API_ENDPOINTS.topBanner || '/api/component/top-banner-scroll'),
+        safeFetch(API_ENDPOINTS.bottomBanner || '/api/component/bottom-banner-scroll'),
+      ]);
+
+      const now = Date.now();
+      const oneMinRows = mapRows(oneMin).map((item, idx) => {
+        const symbol = sanitizeSymbol(item.symbol || item.pair || item.product_id || '');
+        const price = Number(item.current_price ?? item.price ?? 0);
+        const change = Number(
+          item.price_change_percentage_1min ?? item.change ?? item.change1m ?? item.gain ?? 0,
+        );
+        return {
+          ...item,
+          rank: item.rank || idx + 1,
+          symbol,
+          price,
+          change,
+          current_price: price,
+          price_change_percentage_1min: change,
+        };
+      });
+
+      const threeMinRowsRaw = mapRows(threeMin).map((item, idx) => {
+        const symbol = sanitizeSymbol(item.symbol || item.pair || item.product_id || '');
+        const change3m = Number(
+          item.price_change_percentage_3min ?? item.change ?? item.change3m ?? item.gain ?? 0,
+        );
+        return {
+          ...item,
+          rank: item.rank || idx + 1,
+          symbol,
+          change3m,
+          change: change3m,
+          price_change_percentage_3min: change3m,
+        };
+      });
+
+      const losersFromEndpoint = mapRows(losersRes).map((item, idx) => {
+        const symbol = sanitizeSymbol(item.symbol || item.pair || item.product_id || '');
+        const change3m = Number(
+          item.price_change_percentage_3min ?? item.change ?? item.change3m ?? item.gain ?? 0,
+        );
+        return {
+          ...item,
+          rank: item.rank || idx + 1,
+          symbol,
+          change3m,
+          change: change3m,
+        };
+      });
+
+      const losersFallback = threeMinRowsRaw
+        .slice()
+        .sort((a, b) => (a.change3m ?? 0) - (b.change3m ?? 0))
+        .slice(0, 30);
+
+      const losers = losersFromEndpoint.length ? losersFromEndpoint : losersFallback;
+      const prices = buildPriceMap(oneMinRows, now);
+
+      const topBanner = mapRows(topBannerRes);
+      const bottomBanner = mapRows(bottomBannerRes);
+
+      const next = {
+        crypto: oneMinRows,
+        gainers3m: threeMinRowsRaw,
+        losers3m: losers,
+        topBanner,
+        bottomBanner,
+        prices,
+        updatedAt: now,
+      };
+
+      setLatestData(next);
+      setIsConnected(true);
+      setConnectionStatus('rest');
+      setError(null);
+      if (debugEnabled) vLog('[WebSocketProvider] Poll success at', new Date(now).toISOString());
+      return true;
+    } catch (err) {
+      console.error('WebSocketProvider poll error', err);
+      setIsConnected(false);
+      setConnectionStatus('error');
+      setError(err);
+      return false;
+    } finally {
+      fetchingRef.current = false;
+      if (mountedRef.current) {
+        setIsPolling(false);
+      }
+    }
+  }, [debugEnabled, vLog]);
 
   useEffect(() => {
-    // Subscribe to connection status changes
-    const unsubscribeConnection = subscribeToWebSocket('connection', (data) => {
-      setIsConnected(data.status === 'connected');
-      setConnectionStatus(data.status);
-      
-      if (data.status === 'connected') {
-        console.log('✅ WebSocket connected successfully');
-        stopPolling(); // Stop polling if WebSocket connects
-      } else if (data.status === 'error') {
-        console.warn('⚠️ WebSocket connection error:', data.error);
-      } else if (data.status === 'failed') {
-        console.error('❌ WebSocket connection failed after', data.attempts, 'attempts');
-        startPolling(); // Start polling fallback
-      }
-    });
-
-    // Subscribe to real-time data updates
-    const unsubscribeCrypto = subscribeToWebSocket('crypto_update', (data) => {
-      console.log('📈 Received crypto update via WebSocket:', data);
-      setLatestData(prev => ({ ...prev, crypto: data }));
-    });
-
-    const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
-      console.log('💰 Received price update via WebSocket:', data);
-      setLatestData(prev => ({ 
-        ...prev, 
-        prices: { ...prev.prices, ...data } 
-      }));
-    });
-
-    const unsubscribeWatchlist = subscribeToWebSocket('watchlist_update', (data) => {
-      console.log('⭐ Received watchlist update via WebSocket:', data);
-      setLatestData(prev => ({ ...prev, watchlist: data }));
-    });
-
-  const disableWs = String(import.meta?.env?.VITE_DISABLE_WS || 'true').toLowerCase() === 'true';
-    if (disableWs) {
-      // Skip WS entirely and use polling
-      startPolling();
-    } else {
-      // Attempt to connect WebSocket (fallback to REST polling if fails)
-      connectWebSocket();
-      // Start polling if WS doesn't connect quickly
-      const initialPollTimer = setTimeout(() => {
-        if (!isConnected) startPolling();
-      }, 3000);
-      // track timer handle via ref so cleanup can clear it
-      pollingIntervalRef.current = pollingIntervalRef.current || {};
-      pollingIntervalRef.current._initialTimer = initialPollTimer;
-    }
-
-    // Cleanup on unmount
-    return () => {
-      try {
-        if (pollingIntervalRef.current?._initialTimer) {
-          clearTimeout(pollingIntervalRef.current._initialTimer);
-          delete pollingIntervalRef.current._initialTimer;
-        }
-      } catch (_) {}
-      unsubscribeConnection();
-      unsubscribeCrypto();
-      unsubscribePrices();
-      unsubscribeWatchlist();
-      disconnectWebSocket();
-      stopPolling();
+    mountedRef.current = true;
+    const loop = async () => {
+      await pollOnce();
+      if (!mountedRef.current) return;
+      timerRef.current = setTimeout(loop, pollIntervalMs);
     };
-  }, []);
+    loop();
+    return () => {
+      mountedRef.current = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [pollOnce, pollIntervalMs]);
 
-  const contextValue = {
-    isConnected,
-    connectionStatus,
-    latestData,
-    wsManager,
-    isPolling,
-  oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 7000,
-    // Convenience methods
-    subscribe: subscribeToWebSocket,
-    getStatus: () => wsManager.getStatus(),
-    send: (event, data) => wsManager.send(event, data),
-    fetchPricesForSymbols,
-    startPolling,
-    stopPolling
-  };
+  const refreshNow = useCallback(async () => {
+    return pollOnce();
+  }, [pollOnce]);
+
+  const fetchPricesForSymbols = useCallback(
+    async (symbols = []) => {
+      const priceMap = latestData.prices || {};
+      const result = {};
+      symbols.forEach((sym) => {
+        const key = String(sym || '').toUpperCase();
+        if (priceMap[key]) {
+          result[key] = priceMap[key];
+          return;
+        }
+        const alt = sanitizeSymbol(key);
+        if (priceMap[alt]) {
+          result[key] = priceMap[alt];
+        }
+      });
+      return result;
+    },
+    [latestData.prices],
+  );
+
+  const gainersTop20 = useMemo(() => (latestData.crypto || []).slice(0, 20), [latestData.crypto]);
+  const gainers3mTop = useMemo(() => (latestData.gainers3m || []).slice(0, 30), [latestData.gainers3m]);
+  const losers3mTop = useMemo(() => (latestData.losers3m || []).slice(0, 30), [latestData.losers3m]);
+
+  const getStatus = useCallback(() => ({
+    connected: isConnected,
+    reconnectAttempts: 0,
+    socketId: null,
+  }), [isConnected]);
+
+  const contextValue = useMemo(
+    () => ({
+      isConnected,
+      connectionStatus,
+      isPolling,
+      networkStatus,
+      latestData,
+      gainersTop20,
+      gainers3mTop,
+      losers3mTop,
+      refreshNow,
+      fetchPricesForSymbols,
+      startPolling: pollOnce,
+      stopPolling: () => {},
+      wsManager: null,
+      debugEnabled,
+      vLog,
+      send: () => {},
+      getStatus,
+      error,
+    }),
+    [
+      connectionStatus,
+      debugEnabled,
+      error,
+      fetchPricesForSymbols,
+      gainers3mTop,
+      gainersTop20,
+      getStatus,
+      isConnected,
+      isPolling,
+      latestData,
+      losers3mTop,
+      networkStatus,
+      pollOnce,
+      refreshNow,
+      vLog,
+    ],
+  );
 
   return (
     <WebSocketContext.Provider value={contextValue}>
       {children}
     </WebSocketContext.Provider>
   );
+};
+
+WebSocketProvider.propTypes = {
+  children: PropTypes.node,
+  pollIntervalMs: PropTypes.number,
 };
 
 export default WebSocketContext;

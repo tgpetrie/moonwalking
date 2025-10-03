@@ -1,0 +1,7 @@
+project_name = "moonwalking"
+
+# Directory (relative to this file) which contains the static site output to upload.
+pages_build_output_dir = "frontend/dist"
+
+# Optional: specify the Functions directory to use (relative path).
+functions = "frontend/functions"

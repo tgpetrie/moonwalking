@@ -4,17 +4,108 @@ BHABIT_CBMOONERS_backup_20250710_055654.zip
 # Node modules
 node_modules/
 
+# Node / JS tooling caches & artifacts
+.pnp.cjs
+.pnp.loader.mjs
+.eslintcache
+.stylelintcache
+.parcel-cache
+.turbo/
+.swc/
+.nyc_output/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # Python cache
 __pycache__/
+*.py[cod]
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+pip-wheel-metadata/
+venv/
+.venv/
+env/
 
 # Logs
 backend/*.log
 backend/logs/*.log
 backend/watchlist_insights.log
+*.log
+logs/
+*.pid
+*.pid.lock
 
 # Environment variables
 .env*
 .vercel
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.envrc
 
 # VS Code
 .vscode/
+.history/
+.idea/
+*.code-workspace
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+._*
+*.swp
+*.swo
+*.orig
+*.tmp
+tmp/
+temp/
+
+# Frontend / build outputs
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+dist/
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
+# Netlify / Render (if generated locally)
+.netlify/
+.render/
+
+# allow the mobile scaffold
+!moonwalking_mobile/
+!moonwalking_mobile/**
+
+# ignore workspace backups
+.workspace_backups/
+
+# ignore local backups & heavy assets
+.workspace_backups/
+*.tar.gz
+public/**/unused/**
+
+# ignore local backups
+.workspace_backups/
+*.tar.gz
+server.log

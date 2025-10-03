@@ -1,177 +1,116 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# BHABIT CBMOONERS - Development Environment Setup Script
-# This script sets up the complete development environment
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
 
-set -e  # Exit on any error
+# Determine Python (prefer 3.12). Honor $PYTHON if set.
+if [ -n "${PYTHON:-}" ] && command -v "$PYTHON" >/dev/null 2>&1; then
+  PY="$PYTHON"
+else
+  for p in python3.12 python3.11 python3 python; do
+    if command -v "$p" >/dev/null 2>&1; then PY="$p"; break; fi
+  done
+fi
+if [ -z "${PY:-}" ]; then
+  echo "[setup] ERROR: no python found (tried: python3.12 python3.11 python3 python)." >&2
+  echo "        Install Python 3.12 (pyenv or Homebrew) and re-run." >&2
+  exit 1
+fi
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+PYVER=$($PY -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+echo "[setup] python: $PY ($PYVER)"
+if $PY -c 'import sys; sys.exit(0 if (sys.version_info.major==3 and sys.version_info.minor<=12) else 1)'; then
+  : # ok <= 3.12
+else
+  echo "[setup] WARNING: Python $PYVER detected; pydantic-core via PyO3 may not support >3.12 in this repo." >&2
+  echo "         Prefer a 3.12 venv. Workaround (use with caution): export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1" >&2
+fi
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[SETUP]${NC} $1"
-}
+VENV=.venv
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+needs_recreate=false
+if [ -d "$VENV" ]; then
+  VENV_PY="$VENV/bin/python"
+  if [ -x "$VENV_PY" ]; then
+    VENV_MM="$($VENV_PY -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo unknown)"
+  else
+    VENV_MM="unknown"
+  fi
+  # Detect any 3.13 artifacts inside the venv (lib or pip shebang)
+  if [ -d "$VENV/lib/python3.13" ] || [ -x "$VENV/bin/python3.13" ] || ( [ -f "$VENV/bin/pip" ] && grep -q "python3.13" "$VENV/bin/pip" ); then
+    needs_recreate=true
+  fi
+  # Also recreate if the venv python major.minor isn't 3.12
+  if [ "$VENV_MM" != "3.12" ]; then
+    needs_recreate=true
+  fi
+  if $needs_recreate; then
+    echo "[setup] removing incompatible venv (found $VENV_MM or 3.13 artifacts)"
+    rm -rf "$VENV"
+  fi
+fi
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+if [ ! -d "$VENV" ]; then
+  echo "[setup] creating venv: $PY -m venv $VENV"
+  "$PY" -m venv "$VENV"
+fi
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+# shellcheck disable=SC1091
+source "$VENV/bin/activate"
 
-# Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
+# Re-check active interpreter version and pip linkage
+ACTIVE_MM="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+PIP_WHICH="$(command -v pip || true)"
+PIP_INFO="$(python -c 'import sys,sysconfig; print(sys.executable); print(sys.version); print(sysconfig.get_paths()["purelib"])')"
+echo "[setup] active venv Python: $ACTIVE_MM"
+echo "[setup] pip: $PIP_WHICH"
+echo "[setup] site-packages: $(echo "$PIP_INFO" | tail -n1)"
 
-print_status "🐰 Setting up BHABIT CBMOONERS Development Environment..."
+if [ -d "$VENV/lib/python3.13" ]; then
+  echo "[setup] ERROR: venv still contains python3.13 artifacts. Please remove .venv manually and rerun." >&2
+  exit 1
+fi
 
-# Check required commands
-print_status "Checking prerequisites..."
+echo "[setup] upgrading pip/build tools"
+pip install --upgrade pip setuptools wheel
 
-if ! command_exists python3; then
-    print_error "Python 3 is not installed. Please install Python 3.13+ to continue."
+echo "[setup] installing backend requirements"
+if [ -f backend/requirements.txt ]; then
+  if ! pip install -r backend/requirements.txt; then
+    echo "[setup] pip install failed. If the error is about pyo3/pydantic-core on Python 3.13," >&2
+    echo "         create a Python 3.12 venv and re-run, or export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 and retry." >&2
     exit 1
-fi
-
-if ! command_exists npm; then
-    print_error "Node.js/npm is not installed. Please install Node.js 22.17+ to continue."
-    exit 1
-fi
-
-if ! command_exists git; then
-    print_warning "Git is not installed. This is recommended for version control."
-fi
-
-print_success "Prerequisites check completed!"
-
-# Python version check
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
-print_status "Python version: $PYTHON_VERSION"
-
-# Node version check
-NODE_VERSION=$(node --version)
-print_status "Node.js version: $NODE_VERSION"
-
-# Setup Python virtual environment
-print_status "Setting up Python virtual environment..."
-if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
-    print_success "Virtual environment created!"
+  fi
 else
-    print_status "Virtual environment already exists."
+  echo "[setup] no backend/requirements.txt; skipping"
 fi
 
-# Activate virtual environment
-print_status "Activating virtual environment..."
-source .venv/bin/activate
-print_success "Virtual environment activated!"
-
-# Upgrade pip
-print_status "Upgrading pip..."
-pip install --upgrade pip --quiet
-
-# Install backend dependencies
-print_status "Installing backend dependencies..."
-cd backend
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
-    print_success "Backend dependencies installed!"
-else
-    print_error "requirements.txt not found in backend directory!"
-    exit 1
-fi
-cd ..
-
-# Setup backend environment
-print_status "Setting up backend environment..."
-if [ ! -f "backend/.env.development" ] && [ -f "backend/.env.example" ]; then
-    cp backend/.env.example backend/.env.development
-    print_success "Backend environment file created from example!"
-elif [ -f "backend/.env.development" ]; then
-    print_status "Backend environment file already exists."
-else
-    print_warning "No backend environment example found."
+if [ -d frontend ]; then
+  echo "[setup] installing frontend deps"
+  pushd frontend >/dev/null
+  npm install --no-fund --no-audit
+  popd >/dev/null
 fi
 
-# Install frontend dependencies
-print_status "Installing frontend dependencies..."
-cd frontend
-if [ -f "package.json" ]; then
-    npm install
-    print_success "Frontend dependencies installed!"
-else
-    print_error "package.json not found in frontend directory!"
-    exit 1
+echo "[setup] ensuring frontend/.env.local"
+mkdir -p frontend
+TEMPLATE_FILE="dev-templates/frontend.env.local.template"
+ALT_TEMPLATE="frontend/.env.local.template"
+if [ -f "$ALT_TEMPLATE" ]; then
+  TEMPLATE_FILE="$ALT_TEMPLATE"
+fi
+if [ ! -f frontend/.env.local ]; then
+  if [ -f "$TEMPLATE_FILE" ]; then
+    echo "[setup] copying $TEMPLATE_FILE -> frontend/.env.local"
+    cp "$TEMPLATE_FILE" frontend/.env.local
+  else
+    echo "[setup] creating minimal frontend/.env.local"
+    cat > frontend/.env.local <<'EOF'
+# Vite local env
+VITE_API_URL=/api
+EOF
+  fi
 fi
 
-# Setup frontend environment
-print_status "Setting up frontend environment..."
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    cp .env.example .env
-    print_success "Frontend environment file created from example!"
-elif [ -f ".env" ]; then
-    print_status "Frontend environment file already exists."
-else
-    print_warning "No frontend environment example found."
-fi
-cd ..
-
-# Create logs directory for backend
-print_status "Setting up logging directory..."
-mkdir -p backend/logs
-print_success "Logging directory created!"
-
-# Run tests to verify setup
-print_status "Running backend tests to verify setup..."
-cd backend
-if [ -f "test_app.py" ]; then
-    python -m pytest test_app.py -v
-    if [ $? -eq 0 ]; then
-        print_success "Backend tests passed!"
-    else
-        print_warning "Some backend tests failed. Check the output above."
-    fi
-else
-    print_warning "No backend tests found."
-fi
-cd ..
-
-# Check if ports are available
-print_status "Checking port availability..."
-if lsof -i :5001 >/dev/null 2>&1; then
-    print_warning "Port 5001 is already in use. Backend may not start."
-else
-    print_success "Port 5001 is available for backend."
-fi
-
-if lsof -i :5173 >/dev/null 2>&1; then
-    print_warning "Port 5173 is already in use. Frontend may not start."
-else
-    print_success "Port 5173 is available for frontend."
-fi
-
-print_success "🎉 Development environment setup completed!"
-echo ""
-print_status "Next steps:"
-echo "  1. Run './start_app.sh' to start both servers"
-echo "  2. Open http://localhost:5173 in your browser"
-echo "  3. Backend API will be available at http://localhost:5001"
-echo ""
-print_status "Useful commands:"
-echo "  • './start_app.sh' - Start both servers"
-echo "  • 'source .venv/bin/activate' - Activate Python environment"
-echo "  • 'cd backend && python app.py' - Start backend only"
-echo "  • 'cd frontend && npm run dev' - Start frontend only"
-echo ""
-print_success "Happy coding! 🐰"
+echo "[setup] done."

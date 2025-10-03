@@ -1,0 +1,13 @@
+{
+  "cli": { "version": ">= 10.0.0" },
+  "build": {
+    "development": {
+      "android": { "buildType": "apk" },
+      "developmentClient": true
+    },
+    "preview": {
+      "android": { "buildType": "apk" }
+    }
+  }
+}
+

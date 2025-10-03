@@ -1,0 +1,8 @@
+
+> frontend@0.0.1 dev
+> vite --host 127.0.0.1 --port 3100
+
+
+  VITE v5.4.20  ready in 167 ms
+
+  ➜  Local:   http://127.0.0.1:3100/

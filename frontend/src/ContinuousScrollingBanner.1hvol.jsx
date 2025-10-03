@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import '../index.css';
 import logobro from './logobro.png';
+import { formatPrice } from './utils/formatters.js';
 
 const formatDecimal = (value, decimals = 2) => {
   if (value === null || value === undefined || isNaN(value) || value === '') {
@@ -13,11 +14,7 @@ const formatDecimal = (value, decimals = 2) => {
   return num.toFixed(decimals);
 };
 
-const formatCurrency = val => new Intl.NumberFormat('en-US', { 
-  style: 'currency', 
-  currency: 'USD',
-  minimumFractionDigits: Math.abs(val) >= 1 ? 2 : 6
-}).format(val);
+// Use shared price formatter for consistency across app
 
 const StatusBadge = ({ isConnected, lastUpdate }) => (
   <div className="flex items-center gap-6">
@@ -70,7 +67,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {coin.symbol}
                   </div>
                   <div className="font-mono text-2xl text-gray-100/95">
-                    {formatCurrency(coin.current_price)}
+                    {formatPrice(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-2 text-2xl font-extrabold ${
                     (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
@@ -79,7 +76,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
                   </div>
                   <div className="text-base text-gray-400">
-                    Vol: {formatCurrency(coin.volume_24h || 0)}
+                    Vol: {formatPrice(coin.volume_24h || 0)}
                   </div>
                 </a>
               </div>
@@ -97,7 +94,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {coin.symbol}
                   </div>
                   <div className="font-mono text-sm text-gray-100/95">
-                    {formatCurrency(coin.current_price)}
+                    {formatPrice(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-1 text-sm font-bold ${
                     (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
@@ -106,7 +103,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
                   </div>
                   <div className="text-xs text-gray-400">
-                    Vol: {formatCurrency(coin.volume_24h || 0)}
+                    Vol: {formatPrice(coin.volume_24h || 0)}
                   </div>
                 </a>
               </div>

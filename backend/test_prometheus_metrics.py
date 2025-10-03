@@ -1,0 +1,87 @@
+import pytest
+from app import app
+
+@pytest.fixture(scope="module")
+def client():
+    app.testing = True
+    with app.test_client() as c:
+        yield c
+
+def test_prometheus_swr_metrics_present(client):
+    # Optionally touch an SWR endpoint to ensure decorator initialized
+    client.get('/api/component/gainers-table-1min')
+    resp = client.get('/metrics.prom')
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    # Core SWR metric names we expect
+    expected = [
+        'swr_gainers_1m_cache_age_seconds',
+        'swr_gainers_1m_calls_total',
+        'swr_gainers_3m_calls_total',
+        'swr_losers_3m_calls_total',
+        'swr_top_movers_bar_calls_total'
+    ]
+    for name in expected:
+        assert name in body, f"Missing Prometheus metric line for {name}\nBody snippet: {body[:400]}"
+
+def test_prometheus_circuit_breaker_metrics_present(client):
+    resp = client.get('/metrics.prom')
+    body = resp.get_data(as_text=True)
+    # Breaker metrics should always be exported once price_fetch metrics accessed
+    expected_cb = [
+        'price_fetch_circuit_breaker_state',
+        'price_fetch_circuit_breaker_failures',
+    'price_fetch_circuit_breaker_open_until_epoch',
+    'price_fetch_circuit_breaker_is_open',
+    'price_fetch_circuit_breaker_is_half_open'
+    ]
+    for name in expected_cb:
+        assert name in body, f"Missing circuit breaker metric {name}\nBody snippet: {body[:400]}"
+
+def test_prometheus_price_fetch_advanced_metrics_present(client):
+    resp = client.get('/metrics.prom')
+    body = resp.get_data(as_text=True)
+    advanced = [
+        'price_fetch_p95_fetch_duration_ms',
+        'price_fetch_error_rate_percent',
+        'price_fetch_backoff_seconds_remaining'
+    ]
+    for name in advanced:
+        assert name in body, f"Missing advanced price fetch metric {name}\nBody snippet: {body[:400]}"
+    # Histogram buckets (at least +Inf plus one concrete bucket line)
+    assert 'price_fetch_duration_seconds_bucket{le="+Inf"}' in body
+
+def test_one_min_market_metrics_present(client):
+    # Touch 1m gainers endpoint to trigger computation
+    client.get('/api/component/gainers-table-1min')
+    # JSON metrics
+    mresp = client.get('/api/metrics')
+    assert mresp.status_code == 200
+    data = mresp.get_json()
+    # one_min_market may take first computation; allow missing if feature disabled
+    omm = data.get('one_min_market')
+    if omm:  # only assert a subset to avoid brittleness
+        for key in ['universe_count','advancers','decliners']:
+            assert key in omm
+    # Prometheus metrics
+    presp = client.get('/metrics.prom')
+    pbody = presp.get_data(as_text=True)
+    # At least universe count metric should appear if stats exist
+    if omm:
+        assert 'one_min_market_universe_count' in pbody
+        # Acceleration metrics may appear after at least two snapshots; we trigger endpoint twice
+        client.get('/api/component/gainers-table-1min')
+        presp2 = client.get('/metrics.prom')
+        pbody2 = presp2.get_data(as_text=True)
+        # Not strictly guaranteed on first run, so tolerate absence but log helpful assertion only if second snapshot
+        # If second snapshot stats exist, expect a delta metric name presence heuristic
+        if 'one_min_market_spike_p95_delta' in pbody2:
+            assert 'one_min_market_spike_p95_rate_per_sec' in pbody2
+        # New Bollinger & confirmation metrics (soft presence checks)
+        possible_new = [
+            'one_min_market_breadth_adv_decl_ratio_bb_mid',
+            'one_min_market_confirm_3m_overlap',
+            'one_min_market_alert_pump_thrust'
+        ]
+        # Ensure at least one of the new metrics appears after computations
+        assert any(m in pbody2 for m in possible_new), f"None of new breadth overlay metrics found in Prometheus output: looking for one of {possible_new}"

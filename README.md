@@ -1,6 +1,6 @@
 # BHABIT MOONWALKING – Cryptocurrency Tracker
 
-Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price/volume trends, and alert hygiene.
+Real-time crypto tracking powered by Cloudflare Workers, with stable 1‑minute movers, accurate price/volume trends, and a WebSocket-driven UI.
 
 ![BHABIT Logo](frontend/public/bhabit-logo.png)
 
@@ -8,7 +8,7 @@ Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price
 
 ## Overview
 
-BHABIT CBMOONERS shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows, plus 1‑hour price and volume trend banners. The React + Vite frontend stays smooth via WebSocket with REST fallback; the Flask backend owns ranking, hysteresis/peak‑hold, and streak‑based alerts.
+BHABIT MOONWALKING shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows. The architecture uses a **Cloudflare Worker with a Durable Object** to manage a persistent WebSocket connection to the Coinbase exchange, process real-time data, and serve it to the frontend. The React + Vite frontend provides a smooth, responsive user experience.
 
 ---
 
@@ -16,29 +16,23 @@ BHABIT CBMOONERS shows live market data with server‑ordered top movers across 
 
 * Server‑ordered top movers (no client resorting)
 * 1‑minute table stability: hysteresis + dwell + 60s peak‑hold
-* Trend metrics across scopes: direction, streak, score
-* True 1‑hour volume deltas (with price‑based fallback)
-* Alert hygiene: streak thresholds with cooldowns; recent alerts API
-* Smooth UI: tiny sparklines, trend‑strength arrows, WS + adaptive polling fallback
+* Real-time data streaming via WebSockets to the client
+* "Ask BHABIT" AI assistant for market queries (optional, separate service)
+* Freemium model for gating premium features
+* Advanced coin analysis panel with technicals, news, and social sentiment (mock data)
 
 ---
 
 ## Architecture
 
 ```text
-BHABIT CBMOONERS/
-├── frontend/             # React + Vite + Tailwind CSS
-│   ├── src/
-│   │   ├── components/   # React UI components
-│   │   ├── utils/        # Frontend utility functions
-│   │   └── api.js        # API integration logic
-│   └── public/           # Static files
-├── backend/              # Flask API server
-│   ├── app.py            # Main Flask app
-│   ├── config.py         # App configuration
-│   ├── requirements.txt  # Python package list
-│   └── utils.py          # Backend helper functions
-└── docs/                 # Additional documentation
+BHABIT MOONWALKING/
+├── frontend/         # React + Vite + Tailwind CSS UI
+├── workers/
+│   └── ws.js         # Cloudflare Worker & Durable Object (The Backend)
+├── server.js         # Optional Node.js server for "Ask BHABIT" AI
+├── start_app.sh      # Main script to run everything locally
+└── wrangler.toml     # Cloudflare configuration
 ```
 
 ---
@@ -102,17 +96,20 @@ BHABIT CBMOONERS/
 
 **First-time setup:**
 
+
 ```bash
 ./setup_dev.sh
 ```
 
 **Start the application:**
 
+
 ```bash
 ./start_app.sh
 ```
 
 **Optional utility script:**
+
 
 ```bash
 ./dev.sh setup     # First-time setup
@@ -204,6 +201,25 @@ ALERTS_STREAK_THRESHOLDS=3,5        # trigger streak levels
 
 # Monitoring (optional)
 SENTRY_DSN=
+# Breadth / Alert threshold tuning (advanced)
+PUMP_THRUST_CONFIRM_MIN_RATIO=0.6      # min 3m confirmation ratio for pump_thrust alert
+PUMP_THRUST_ADV_DECL_MIN=1.8           # min adv/decl ratio for pump_thrust
+NARROWING_VOL_SD_MAX=0.05              # std-dev threshold for volatility squeeze
+ACCEL_FADE_MIN_THRUST_SECONDS=30       # min thrust duration before accel fade can trigger
+ACCEL_FADE_P95_RATE_MAX=0              # p95 rate must be below this (negative) to count as fading
+THRESHOLDS_FILE=thresholds.json        # persisted overrides (JSON)
+ALERT_ENABLED=0                        # set 1 to enable alert delivery
+ALERT_CHANNELS=webhook,email           # comma list (webhook,email)
+ALERT_WEBHOOK_URL=https://ops.example/hook  # webhook target
+ALERT_EMAIL_TO=ops@example.com         # comma list recipients
+ALERT_EMAIL_FROM=alerts@example.com    # sender address
+ALERT_EMAIL_SMTP_HOST=smtp.example.com # SMTP server
+ALERT_EMAIL_SMTP_PORT=587              # SMTP port
+ALERT_EMAIL_SMTP_USER=apikey           # SMTP auth user (if needed)
+ALERT_EMAIL_SMTP_PASS=secret           # SMTP auth pass
+ALERT_COOLDOWN_SEC=300                 # min seconds between identical events
+ALERT_STALE_RATIO=0.6                  # stale serving ratio triggering stale_surge
+ALERT_STALE_MIN_WINDOW_SEC=120         # sustained window before stale_surge fires
 ```
 
 ### Frontend config
@@ -234,6 +250,7 @@ VITE_ALERTS_POLL_MS=30000
 | `/api/component/losers-table`          | GET    | 3‑minute losers                        |
 | `/api/component/gainers-table-1min`    | GET    | 1‑minute gainers (hysteresis/peak‑hold)|
 | `/api/alerts/recent`                   | GET    | Recent streak‑based alerts             |
+| `/api/thresholds`                      | GET/POST | View or update runtime thresholds    |
 | `/api/watchlist`                       | GET    | Current watchlist                      |
 | `/api/watchlist/insights`              | GET    | Watchlist insights and recent alerts   |
 
@@ -290,6 +307,66 @@ services:
 1. Health Check: set to `/api/server-info` in the Render service settings (if not using blueprint).
 2. CORS: `CORS_ALLOWED_ORIGINS="*"` is permissive; tighten it to your Vercel origin in production.
 
+### Cloudflare Pages (Alternative Frontend Hosting)
+
+This repository can also deploy the built frontend via Cloudflare Pages using `wrangler.pages.toml`.
+
+Files:
+
+* `wrangler.pages.toml` – Pages config (static site). Do not include Worker-only keys here.
+
+
+* `functions/api/[[path]].js` – Optional catch-all API proxy (requires `BACKEND_ORIGIN`).
+
+Steps:
+
+```bash
+# build frontend
+cd frontend && npm run build && cd ..
+
+# first time (if project not created)
+wrangler pages project create moonwalking
+
+# deploy using separate config file
+wrangler pages deploy frontend/dist --config wrangler.pages.toml --project-name moonwalking
+```
+
+Set backend origin variable:
+
+```bash
+wrangler pages secret put BACKEND_ORIGIN --config wrangler.pages.toml
+# paste https://moonwalker.onrender.com
+```
+
+Or pass inline (not secret):
+
+```bash
+wrangler pages deploy frontend/dist \
+   --config wrangler.pages.toml \
+   --project-name moonwalking \
+   --var BACKEND_ORIGIN:https://moonwalker.onrender.com
+```
+
+Notes:
+
+* Do not mix Worker durable objects / triggers with Pages config.
+
+Frontend API base in production:
+
+* Use same-origin relative calls by setting `VITE_API_URL=relative` in your Pages project env vars so the frontend hits `functions/api/*` directly.
+* For local dev `start_app.sh` writes `VITE_API_URL=http://localhost:5001`.
+
+New endpoints for mobile integration:
+
+* `/api/mobile/bundle` – aggregated data for the mobile app (also exposed on Cloudflare Functions at `functions/api/mobile/bundle.js`).
+* `/api/sentiment` – proxies to backend from Pages via `functions/api/sentiment.js` (set `BACKEND_ORIGIN` in Pages).
+
+
+
+
+* Catch-all filename must be `[[path]].js` (not `[...path].js`).
+* Remove `main` when using Pages; keep it only for Worker deployments.
+
 ---
 
 ## Testing
@@ -300,6 +377,31 @@ services:
 source .venv/bin/activate
 cd backend
 pytest -q
+
+### Threshold Management
+
+Runtime thresholds can be inspected or changed without restart:
+
+```bash
+curl -s http://localhost:5001/api/thresholds | jq
+curl -X POST http://localhost:5001/api/thresholds \
+   -H 'Content-Type: application/json' \
+   -d '{"narrowing_vol_sd_max":0.04,"pump_thrust_adv_decl_ratio_min":2.0}'
+```text
+
+Successful updates persist to `thresholds.json` (path overridable via `THRESHOLDS_FILE`). Prometheus exposes them as `threshold_<name>` gauges so dashboards & alerts stay in sync with live logic.
+
+### Alerting
+
+Events emitted (subject to cooldown):
+- `breaker_open`, `breaker_reopen`, `breaker_reset`
+- `stale_surge` (high sustained cached-serving ratio) and `stale_resolved`
+
+Channels:
+- Webhook: POST JSON payload `{event, at, details}` to `ALERT_WEBHOOK_URL`.
+- Email: Plain text JSON body; configure SMTP env vars.
+
+Set `ALERT_ENABLED=1` and choose channels with `ALERT_CHANNELS`.
 ```
 
 ### Smoke Test (Backend)
@@ -353,4 +455,3 @@ If you’re having issues:
 
 **BHABIT — Profits Buy Impulse**
 **by Tom Petrie | GUISAN DESIGN**
-

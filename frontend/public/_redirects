@@ -1,3 +1,4 @@
 # Redirects for SPA and API proxy (Cloudflare Pages)
 /*      /index.html           200
 /api/*  /functions/api/:splat 200
+/api/events  https://moonwalking-worker.tgpetrie.workers.dev/api/events  200

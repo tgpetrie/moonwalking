@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonwalking - Local Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f1e;
+            color: #fff;
+        }
+        h1 { color: #00d4ff; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #1a1a2e;
+        }
+        .success { border-left: 4px solid #00ff88; }
+        .error { border-left: 4px solid #ff4444; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #1a1a2e;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: #252540;
+            color: #00d4ff;
+        }
+        .positive { color: #00ff88; }
+        .negative { color: #ff4444; }
+        button {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover { background: #00b8d4; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Moonwalking - Local Test</h1>
+
+    <div class="status">
+        <strong>Worker URL:</strong> https://mw-hub.tgpetrie.workers.dev
+    </div>
+
+    <div id="health-status" class="status">
+        <strong>Health Check:</strong> <span id="health-result">Testing...</span>
+    </div>
+
+    <div>
+        <button onclick="testHealth()">Test Health</button>
+        <button onclick="testPriceData()">Test Price Data</button>
+        <button onclick="testGainers1Min()">Test 1-Min Gainers</button>
+        <button onclick="testGainers3Min()">Test 3-Min Gainers</button>
+        <button onclick="startAutoRefresh()">Auto Refresh (5s)</button>
+        <button onclick="stopAutoRefresh()">Stop Refresh</button>
+    </div>
+
+    <div id="data-container"></div>
+
+    <script>
+        const WORKER_URL = 'https://mw-hub.tgpetrie.workers.dev';
+        let refreshInterval = null;
+
+        async function testHealth() {
+            const result = document.getElementById('health-result');
+            const status = document.getElementById('health-status');
+
+            try {
+                result.textContent = 'Testing...';
+                const response = await fetch(`${WORKER_URL}/__health`);
+                const data = await response.json();
+
+                if (data.ok) {
+                    result.textContent = `✅ OK - Mode: ${data.mode}`;
+                    status.className = 'status success';
+                } else {
+                    result.textContent = '❌ Failed';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                result.textContent = `❌ Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+
+        async function testPriceData() {
+            const container = document.getElementById('data-container');
+            container.innerHTML = '<p>Loading price data...</p>';
+
+            try {
+                const response = await fetch(`${WORKER_URL}/snapshots/one-hour-price`);
+                const data = await response.json();
+
+                if (data.ok && data.rows) {
+                    displayTable('1-Hour Price Changes', data.rows);
+                } else {
+                    container.innerHTML = '<p class="error">No data available</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function testGainers1Min() {
+            const container = document.getElementById('data-container');
+            container.innerHTML = '<p>Loading 1-min gainers...</p>';
+
+            try {
+                const response = await fetch(`${WORKER_URL}/component/gainers-table-1min`);
+                const data = await response.json();
+
+                if (data.ok && data.rows) {
+                    displayTable('1-Minute Gainers', data.rows);
+                } else {
+                    container.innerHTML = '<p class="error">No data available</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function testGainers3Min() {
+            const container = document.getElementById('data-container');
+            container.innerHTML = '<p>Loading 3-min gainers...</p>';
+
+            try {
+                const response = await fetch(`${WORKER_URL}/component/gainers-table-3min`);
+                const data = await response.json();
+
+                if (data.ok && data.rows) {
+                    displayTable('3-Minute Gainers', data.rows);
+                } else {
+                    container.innerHTML = '<p class="error">No data available</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        }
+
+        function displayTable(title, rows) {
+            const container = document.getElementById('data-container');
+
+            let html = `<h2>${title}</h2>`;
+            html += `<p>Found ${rows.length} coins</p>`;
+            html += '<table>';
+            html += '<thead><tr>';
+            html += '<th>Rank</th><th>Symbol</th><th>Price</th>';
+            html += '<th>1-Min %</th><th>24h %</th><th>Volume 24h</th>';
+            html += '</tr></thead><tbody>';
+
+            rows.forEach(row => {
+                const change1m = row.price_change_percentage_1min || 0;
+                const change24h = row.price_change_percentage_24h || 0;
+                const color1m = change1m >= 0 ? 'positive' : 'negative';
+                const color24h = change24h >= 0 ? 'positive' : 'negative';
+
+                html += '<tr>';
+                html += `<td>${row.rank || '-'}</td>`;
+                html += `<td><strong>${row.symbol}</strong></td>`;
+                html += `<td>$${row.current_price?.toFixed(4) || '0'}</td>`;
+                html += `<td class="${color1m}">${change1m.toFixed(2)}%</td>`;
+                html += `<td class="${color24h}">${change24h.toFixed(2)}%</td>`;
+                html += `<td>$${(row.volume_24h || 0).toLocaleString()}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            testPriceData();
+            refreshInterval = setInterval(testPriceData, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Test health on load
+        testHealth();
+        testPriceData();
+    </script>
+</body>
+</html>

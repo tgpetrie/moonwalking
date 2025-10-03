@@ -7,8 +7,7 @@
     <link rel="icon" type="image/png" href="/bhabit-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BHABITS CB INSIGHT</title>
-    <!-- Preload critical shared chunks (react core); names rely on manualChunks config -->
-    <link rel="preload" as="script" href="/assets/react.js" />
+    <!-- Preload critical shared chunks removed to avoid missing asset 404 during dev -->
         <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
         <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
         <script>
@@ -23,17 +22,24 @@
             // Vite exposes import.meta.env within modules; use that to inject preconnect hints dynamically.
             const api = (import.meta.env && import.meta.env.VITE_API_URL) ? String(import.meta.env.VITE_API_URL) : '';
             const url = api ? api.replace(/\/$/, '') : '';
-            const host = url ? new URL(url).origin : '';
-            if (host) {
-                const link1 = document.createElement('link');
-                link1.rel = 'preconnect';
-                link1.href = host;
-                link1.crossOrigin = '';
-                document.head.appendChild(link1);
-                const link2 = document.createElement('link');
-                link2.rel = 'dns-prefetch';
-                link2.href = '//' + new URL(host).host;
-                document.head.appendChild(link2);
+            // Only create preconnect hints for absolute URLs, not for 'relative' or local paths
+            if (url && url !== 'relative' && url.match(/^https?:\/\//)) {
+                try {
+                    const host = new URL(url).origin;
+                    if (host) {
+                        const link1 = document.createElement('link');
+                        link1.rel = 'preconnect';
+                        link1.href = host;
+                        link1.crossOrigin = '';
+                        document.head.appendChild(link1);
+                        const link2 = document.createElement('link');
+                        link2.rel = 'dns-prefetch';
+                        link2.href = '//' + new URL(host).host;
+                        document.head.appendChild(link2);
+                    }
+                } catch (e) {
+                    // Ignore URL construction errors for non-absolute URLs
+                }
             }
         </script>
 </head>
@@ -41,6 +47,8 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Load BHABIT logo loader once after interactive (defer to run after parsing) -->
+    <script src="/bhabit-logo-loader.js" defer></script>
 </body>
 
 </html>

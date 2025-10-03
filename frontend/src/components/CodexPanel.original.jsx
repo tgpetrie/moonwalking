@@ -83,8 +83,8 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
               <div className="bg-gray-800/50 rounded-lg p-4">
                 <div className="text-sm text-gray-400 mb-2">24h Change</div>
                 <div className={`text-2xl font-bold ${(coinData?.changePercent || coinData?.price_change_percentage_24h || 0) >= 0 ? 'text-blue' : 'text-pink'}`}>
-                  {coinData?.changePercent ? `${coinData.changePercent.toFixed(2)}%` : 
-                   coinData?.price_change_percentage_24h ? `${coinData.price_change_percentage_24h.toFixed(2)}%` : 'N/A'}
+                  {coinData?.changePercent ? `${coinData.changePercent.toFixed(3)}%` : 
+                   coinData?.price_change_percentage_24h ? `${coinData.price_change_percentage_24h.toFixed(3)}%` : 'N/A'}
                 </div>
               </div>
             </div>

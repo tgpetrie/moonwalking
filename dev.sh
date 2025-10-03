@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT_DIR"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,6 +36,8 @@ show_help() {
     echo "Commands:"
     echo "  setup        - Run full development environment setup"
     echo "  start        - Start both backend and frontend servers"
+    echo "  stop         - Stop both backend and frontend servers"
+    echo "  status       - Show status of running servers"
     echo "  backend      - Start only the backend server"
     echo "  frontend     - Start only the frontend server"
     echo "  test         - Run all backend tests (pytest)"
@@ -50,13 +55,22 @@ show_help() {
     echo "Examples:"
     echo "  ./dev.sh setup        # First time setup"
     echo "  ./dev.sh start        # Start development servers"
+    echo "  ./dev.sh stop         # Stop all servers"
+    echo "  ./dev.sh status       # Check which servers are running"
     echo "  ./dev.sh diagnose     # Fix frontend data issues"
     echo "  ./dev.sh deploy       # View deployment options"
     echo "  ./dev.sh test         # Run tests"
     echo ""
 }
 
+ensure_deps() {
+    if [ "${SKIP_DEP_CHECK:-0}" != "1" ] && [ -x "$ROOT_DIR/scripts/ensure_deps.sh" ]; then
+        "$ROOT_DIR/scripts/ensure_deps.sh"
+    fi
+}
+
 activate_venv() {
+    ensure_deps
     if [ -d ".venv" ]; then
         source .venv/bin/activate
     else
@@ -72,10 +86,11 @@ case "${1:-help}" in
         ;;
     
     "start")
-        print_status "Starting BHABIT CBMOONERS..."
-        ./start_app.sh
+        print_status "Starting BHABIT CBMOONERS (local)…"
+        ensure_deps
+        ./start_local.sh
         ;;
-    
+
     "backend")
         print_status "Starting backend server only..."
         activate_venv
@@ -85,6 +100,7 @@ case "${1:-help}" in
     
     "frontend")
         print_status "Starting frontend server only..."
+        ensure_deps
         cd frontend
         npm run dev
         ;;
@@ -95,7 +111,8 @@ case "${1:-help}" in
         cd backend
                 python -m pytest -q || print_error "Backend tests failed"
         cd ../frontend
-        if [ -f "package.json" ] && grep -q "test" package.json; then
+        if [ -f "package.json" ] && grep -q "test" package.json;
+ then
             npm test
         else
             print_status "No frontend tests configured."
@@ -157,14 +174,8 @@ case "${1:-help}" in
     
     "install")
         print_status "Installing/updating dependencies..."
-        activate_venv
-        cd backend
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        cd ../frontend
-        npm install
-        cd ..
-        print_success "Dependencies updated!"
+        ensure_deps
+        print_success "Dependencies ready!"
         ;;
     
     "health")
@@ -248,6 +259,16 @@ case "${1:-help}" in
         echo "For detailed instructions, see the Deployment section in README.md"
         ;;
     
+    "status")
+        print_status "Checking server status…"
+        ./start_app.sh status
+        ;;
+
+    "stop")
+        print_status "Stopping servers…"
+        ./start_app.sh stop
+        ;;
+
     "help"|*)
         show_help
         ;;

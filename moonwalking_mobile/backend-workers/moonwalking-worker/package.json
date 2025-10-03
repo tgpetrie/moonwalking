@@ -1,0 +1,19 @@
+{
+  "name": "moonwalking-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+  "dev": "wrangler dev",
+  "dev:worker": "wrangler dev",
+  "build:info": "node ../../scripts/write-build-info.cjs",
+  "deploy": "pnpm run build:info && wrangler deploy",
+    "format": "prettier --write 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.5.4",
+    "@cloudflare/workers-types": "^4.20240821.1"
+  }
+}

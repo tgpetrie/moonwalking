@@ -1,365 +1,217 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
-import { formatPrice, formatPercentage } from '../utils/formatters.js';
-import { useWebSocket } from '../context/websocketcontext.jsx';
-import StarIcon from './StarIcon';
-
-// Accept onWatchlistChange and topWatchlist for proper state sync
+import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import { motion, useReducedMotion } from 'framer-motion';
+import { FiInfo } from 'react-icons/fi';
+import { colorForSentiment } from '../lib/sentiment';
+import WatchStar from './WatchStar.jsx';
+import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
+import { updateStreaks } from '../logic/streaks';
 
-const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
-  const lastRenderRef = useRef(0);
-  // Inject animation styles for pop/fade effects
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !document.getElementById('gainers-1min-table-animations')) {
-      const style = document.createElement('style');
-      style.id = 'gainers-1min-table-animations';
-      style.innerHTML = `
-        @keyframes starPop {
-          0% { transform: scale(1); }
-          40% { transform: scale(1.35); }
-          70% { transform: scale(0.92); }
-          100% { transform: scale(1); }
-        }
-        .animate-star-pop {
-          animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both;
-        }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-          10% { opacity: 1; transform: translateY(0) scale(1.05); }
-          80% { opacity: 1; transform: translateY(0) scale(1.05); }
-          100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-        }
-        .animate-fade-in-out {
-          animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
-        }
-        @keyframes breatheCard {
-          0% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
-          50% { transform: scale(1.005); box-shadow: 0 2px 10px 0 rgba(0,176,255,0.08); }
-          100% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
-        }
-        .animate-breathe-card {
-          animation: breatheCard 5s cubic-bezier(.4,1.6,.6,1) infinite;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // Only use local watchlist for UI feedback, but display logic uses topWatchlist from parent
-  const [watchlist, setWatchlist] = useState(topWatchlist || []);
-  const [popStar, setPopStar] = useState(null); // symbol for pop animation
-  const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
-  const [showAll, setShowAll] = useState(false); // expand/collapse for gainers list
+const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
 
+function cbUrl(symbol) {
+  return `https://www.coinbase.com/advanced-trade/${String(symbol || '').toLowerCase()}-usd`;
+}
 
-  // Update data from WebSocket context when available
-  useEffect(() => {
-    if (latestData.crypto && Array.isArray(latestData.crypto)) {
-      const now = Date.now();
-  const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
-  if (now - (lastRenderRef.current || 0) < throttleMs) return; // throttle to reduce churn
-      lastRenderRef.current = now;
-      console.log('📊 Using WebSocket data for 1-min gainers:', latestData.crypto.length, 'items');
-      // Respect backend ordering (already peak-held and sorted there)
-      const mapped = latestData.crypto
-        .slice(0, 10)
-        .map((item, index) => ({
-          rank: item.rank || (index + 1),
-          symbol: item.symbol?.replace('-USD', '') || 'N/A',
-          price: item.current_price ?? item.price ?? 0,
-          change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-          isPeak: typeof item.peak_gain === 'number',
-          trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-          trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-          trendScore: item.trend_score ?? item.trendScore ?? 0
-        }));
-      setData(mapped);
-      setLoading(false);
-      setError(null);
-    }
-  }, [latestData.crypto]);
+const derivePrevPrice = (current, pct) => {
+  if (!Number.isFinite(current) || !Number.isFinite(pct) || pct === 0) return null;
+  return current / (1 + pct / 100);
+};
 
-  // Fallback API fetch when WebSocket data is not available
-  useEffect(() => {
-    let isMounted = true;
-    const fetchGainersData = async () => {
-      // Only fetch if we don't have WebSocket data
-      if (latestData.crypto && latestData.crypto.length > 0) {
-        console.log('⏩ Skipping API fetch - using WebSocket data');
-        return;
-      }
-      
-      try {
-        console.log('🌐 Fetching 1-min gainers data via API');
-        const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Respect backend ordering; take top 10
-      const mapped = response.data
-            .slice(0, 10)
-      .map((item, index) => ({
-              rank: item.rank || (index + 1),
-              symbol: item.symbol?.replace('-USD', '') || 'N/A',
-              price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        isPeak: typeof item.peak_gain === 'number',
-    trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-    trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-    trendScore: item.trend_score ?? item.trendScore ?? 0
-            }));
-          if (isMounted) {
-            setData(mapped);
-          }
-  }
-        if (isMounted) setLoading(false);
-      } catch (err) {
-        console.error('Error fetching gainers data:', err);
-        if (isMounted) {
-          setLoading(false);
-          setError(err.message);
-        }
-      }
+const extractChange = (row) => {
+  const sources = [
+    row?.price_change_percentage_1min,
+    row?.change,
+    row?.change1m,
+    row?.gain,
+  ];
+  const value = sources.find((v) => Number.isFinite(Number(v)));
+  return Number.isFinite(Number(value)) ? Number(value) : 0;
+};
+
+export default function GainersTable1Min({
+  rows = [],
+  startRank,
+  endRank,
+  loading = false,
+  error = null,
+  onSelectCoin,
+}) {
+  const shouldReduceMotion = useReducedMotion();
+  const [popStar, setPopStar] = useState(null);
+
+  const slicedRows = useMemo(() => {
+    const data = Array.isArray(rows) ? rows : [];
+    const start = typeof startRank === 'number' ? Math.max(0, startRank - 1) : 0;
+    const end = typeof endRank === 'number' ? Math.max(start, endRank) : data.length;
+    return data.slice(start, end);
+  }, [rows, startRank, endRank]);
+
+  const normalizedRows = useMemo(() => slicedRows.map((item, idx) => {
+    const symbol = sanitizeSymbol(item.symbol || item.pair || item.product_id || '');
+    const price = Number(item.current_price ?? item.price ?? 0);
+    const change = extractChange(item);
+    return {
+      ...item,
+      rank: item.rank || (typeof startRank === 'number' ? startRank + idx : idx + 1),
+      symbol,
+      price,
+      change,
+      prevPrice: Number.isFinite(item.initial_price_1min) ? item.initial_price_1min : derivePrevPrice(price, change),
     };
-    
-    // Only start interval if not connected to WebSocket and not already polling
-    if (!isConnected && !isPolling) {
-      fetchGainersData();
-      const interval = setInterval(fetchGainersData, 30000);
-      return () => { isMounted = false; clearInterval(interval); };
-    } else {
-      // Initial fetch if needed
-      if (data.length === 0) fetchGainersData();
-    }
-    
-    return () => { isMounted = false; };
-  }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
+  }), [slicedRows, startRank]);
 
-  // Always sync local watchlist to topWatchlist if provided
-  useEffect(() => {
-    if (typeof topWatchlist !== 'undefined') {
-      setWatchlist(topWatchlist);
-    } else {
-      async function fetchWatchlist() {
-        const data = await getWatchlist();
-        setWatchlist(data);
-        if (onWatchlistChange) onWatchlistChange(data);
-      }
-      fetchWatchlist();
-    }
-    // eslint-disable-next-line
-  }, [refreshTrigger, topWatchlist]);
+  const streaks = updateStreaks('1m', normalizedRows.map((row) => ({ symbol: row.symbol })));
+  const badgeSymbol = popStar;
 
-  const handleToggleWatchlist = async (symbol) => {
-    // Check if symbol exists in watchlist (handle both string and object formats)
-    const existsInWatchlist = watchlist.some(item => 
-      typeof item === 'string' ? item === symbol : item.symbol === symbol
-    );
-    
-    if (!existsInWatchlist) {
-      setPopStar(symbol);
-      setAddedBadge(symbol);
-      setTimeout(() => setPopStar(null), 350);
-      setTimeout(() => setAddedBadge(null), 1200);
-      
-      // Find current price for this symbol from data
-      const coinData = data.find(coin => coin.symbol === symbol);
-      const currentPrice = coinData ? coinData.price : null;
-      
-      console.log('Adding to watchlist:', symbol, 'at price:', currentPrice);
-      const updated = await addToWatchlist(symbol, currentPrice);
-      console.log('Added to watchlist, new list:', updated);
-      setWatchlist(updated);
-      if (onWatchlistChange) onWatchlistChange(updated);
-    } else {
-      console.log('Symbol already in watchlist, not adding:', symbol);
-    }
-  };
-
-  // Apply optional slicing for two-column layouts
-  const visibleData = Array.isArray(data)
-    ? (typeof sliceStart === 'number' || typeof sliceEnd === 'number')
-      ? data.slice(sliceStart ?? 0, sliceEnd ?? data.length)
-      : data
-    : [];
-
-  if (loading && visibleData.length === 0) {
+  if (error) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-pulse text-blue font-mono">Loading 1-min gainers...</div>
+      <div className="w-full min-h-[320px] flex items-center justify-center text-sm text-red-300 bg-black/20 rounded-xl">
+        Failed to load 1-minute gainers.
       </div>
     );
   }
 
-  if (error && visibleData.length === 0) {
+  if (loading && normalizedRows.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">Backend unavailable (no data)</div>
+      <div className="w-full min-h-[320px] flex items-center justify-center">
+        <div className="animate-pulse text-muted font-mono">Loading 1-min gainers...</div>
       </div>
     );
   }
 
-  if (visibleData.length === 0) {
+  if (!loading && normalizedRows.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">No 1-min gainers data available</div>
+      <div className="w-full min-h-[320px] flex items-center justify-center text-muted font-mono">
+        No 1-minute gainers data available.
       </div>
     );
   }
-
-  // Determine if watchlist is present (from topWatchlist)
-  const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
-  // Show only top 4 gainers by default, expand/collapse for up to 10
-  const desired = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : (showAll ? visibleData.length : Math.min(4, visibleData.length));
-  const rowsToShow = Math.min(desired, visibleData.length);
 
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
-  {visibleData.slice(0, rowsToShow).map((item, idx) => {
-        const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
-        // Check if symbol is in watchlist (handle both string and object formats)
-        const isInWatchlist = watchlist.some(watchlistItem => 
-          typeof watchlistItem === 'string' ? watchlistItem === item.symbol : watchlistItem.symbol === item.symbol
-        );
-        const isPopping = popStar === item.symbol;
-        const showAdded = addedBadge === item.symbol;
-        return (
-          <React.Fragment key={item.symbol}>
-            <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 hover:bg-gray-800 transition`}>
-              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block flex-1">
-                <div
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:text-amber-500 hover:scale-[1.035] hover:z-10"
-                  style={{
-                    boxShadow: 'none', // Remove shadow/border
-                    background: 'rgba(10, 10, 18, 0.18)' // Transparent fill
-                  }}
-                >
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]"
-                      style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
-                        top: '-30%',
-                        left: '-30%',
-                        position: 'absolute',
-                        filter: 'blur(1.5px)'
-                      }}
-                    />
+    <div className="w-full h-full min-h-[320px] px-0">
+      {normalizedRows.map((row, idx) => {
+        const entranceDelay = shouldReduceMotion ? 0 : (idx % 12) * 0.035;
+        const loopDelay = shouldReduceMotion ? 0 : (idx % 8) * 0.12;
+        const streak = streaks(row.symbol);
+        const change = Number(row.change || 0);
+        const positive = Number.isFinite(change) && change >= 0;
+        const prevPrice = Number.isFinite(row.prevPrice) ? row.prevPrice : null;
+
+        const handleStar = (active) => {
+          setPopStar(active ? row.symbol : null);
+          setTimeout(() => setPopStar(null), 350);
+        };
+
+        const handleInfoClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof onSelectCoin === 'function' && row.symbol) {
+            onSelectCoin(row.symbol);
+          }
+        };
+
+        // Note: outer row is rendered as an anchor linking to Coinbase (opens in new tab).
+        // This mirrors `MoverTable.jsx` and avoids nested button/role semantics issues.
+
+        const content = (
+          <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_44px] gap-x-4 items-start">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0" style={{ background: 'rgba(254,164,0,0.28)', color: 'var(--pos)' }}>
+                {row.rank}
+              </div>
+              <div className="min-w-0 flex items-center gap-3">
+                <span className="font-headline font-bold text-white text-lg tracking-wide truncate">{truncateSymbol(row.symbol, 6)}</span>
+                {Number.isFinite(streak) && streak > 1 && (
+                  <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
+                    {Array.from({ length: Math.min(3, streak) }).map((_, dotIdx) => (
+                      <span key={`dot-${row.symbol}-${dotIdx}`} className="w-1.5 h-1.5 rounded-full" style={{ background: '#C026D3' }} />
+                    ))}
                   </span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">{item.rank}</div>
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
-                      {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>}
-                    </div>
-                  </div>
-                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        {typeof item.price === 'number' && Number.isFinite(item.price)
-                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                          : 'N/A'}
-                      </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? `$${(item.price / (1 + item.change / 100)).toFixed(2)}`
-                          : '--'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                        {/* Trend arrow */}
-                        {item.trendDirection && item.trendDirection !== 'flat' && (() => {
-                          const s = Math.max(0, Math.min(3, Number(item.trendScore) || 0));
-                          let fontSize = '0.85em';
-                          if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
-                          const color = item.trendDirection === 'up'
-                            ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                            : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
-                          return (
-                            <span
-                              className="font-semibold"
-                              style={{ fontSize, color }}
-                              title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
-                              aria-label={`trend ${item.trendDirection}`}
-                            >
-                              {item.trendDirection === 'up' ? '↑' : '↓'}
-                            </span>
-                          );
-                        })()}
-                        {/* Peak badge */}
-                        {item.isPeak && (
-                          <span className="px-1.5 py-0.5 rounded bg-purple-700/40 text-purple-200 text-[10px] leading-none font-semibold align-middle">
-                            peak
-                          </span>
-                        )}
-                        {/* Streak chip (only if >=2) */}
-                        {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
-                          <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">
-                            x{item.trendStreak}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
-                    </div>
-                    <button
-                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      tabIndex={0}
-                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                      aria-pressed={isInWatchlist}
-                      className="bg-transparent border-none p-0 m-0 cursor-pointer"
-                      style={{ minWidth: '24px', minHeight: '24px' }}
-                    >
-                      <StarIcon
-                        filled={isInWatchlist}
-                        className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
-                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                </div>
-              </a>
+                )}
+              </div>
             </div>
-            {idx < rowsToShow - 1 && (
-              <div
-                className="mx-auto my-0.5"
-                style={{
-                  height: '2px',
-                  width: '60%',
-                  background: 'linear-gradient(90deg,rgba(0,176,255,0.10) 0%,rgba(10,10,18,0.38) 50%,rgba(0,176,255,0.10) 100%)',
-                  borderRadius: '2px'
-                }}
-              ></div>
-            )}
-          </React.Fragment>
+
+            <div className="w-[152px] pr-6 text-right">
+              <div className="text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                {Number.isFinite(row.price) ? formatPrice(row.price) : '—'}
+              </div>
+              <div className="text-sm leading-tight text-white/80 font-mono tabular-nums whitespace-nowrap">
+                {prevPrice != null ? formatPrice(prevPrice) : '--'}
+              </div>
+            </div>
+
+            <div className="w-[108px] pr-1.5 text-right align-top">
+              <div className={`text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${positive ? 'text-orange' : 'text-neg'}`}>
+                {positive && '+'}{formatPercentage(change)}
+              </div>
+            </div>
+
+            <div className="w-[44px] flex flex-col items-end gap-2">
+              <WatchStar
+                productId={row.symbol}
+                className={badgeSymbol === row.symbol ? 'animate-star-pop' : ''}
+                onToggled={handleStar}
+              />
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleInfoClick(e); }}
+                className="flex items-center justify-center w-6 h-6 transition focus:outline-none focus:ring-1 focus:ring-purple-500/60"
+                aria-label={`Open sentiment panel`}
+              >
+                <FiInfo className={`w-4 h-4 ${colorForSentiment(row)}`} />
+              </button>
+            </div>
+          </div>
         );
-      })}
-      {/* Show More/Show Less button if more than 4 items */}
-  {!hideShowMore && Array.isArray(visibleData) && visibleData.length > 4 && (
-        <button
-          className="mt-2 mx-auto px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
-          style={{ width: 'fit-content' }}
-          onClick={() => setShowAll(s => !s)}
-        >
-      {showAll ? 'Show Less' : `Show More (${Math.min(10, visibleData.length) - 4})`}
-        </button>
-      )}
+
+        if (shouldReduceMotion) {
+          return (
+            <a
+              key={row.symbol || idx}
+              href={cbUrl(row.symbol)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative group block py-5 px-4 mb-1 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
+            >
+              {content}
+            </a>
+          );
+        }
+
+        return (
+          <motion.a
+            key={row.symbol || idx}
+            href={cbUrl(row.symbol)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative group block py-5 px-4 mb-1 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, delay: entranceDelay }}
+            whileHover={{ scale: 1.01 }}
+          >
+            <motion.div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 rounded-xl"
+              style={{ background: 'radial-gradient(circle at 30% 30%, rgba(254,164,0,0.16) 0%, rgba(254,164,0,0.05) 60%, transparent 100%)' }}
+              animate={{ opacity: [0, 0.45, 0], scale: [0.96, 1.02, 0.96] }}
+              transition={{ duration: 3.6, repeat: Infinity, delay: loopDelay, ease: 'easeInOut' }}
+            />
+            <div className="relative z-10">
+              {content}
+            </div>
+          </motion.a>
+        );
+        })}
     </div>
   );
 }
 
 GainersTable1Min.propTypes = {
-  refreshTrigger: PropTypes.any,
-  onWatchlistChange: PropTypes.func,
-  topWatchlist: PropTypes.array,
-  sliceStart: PropTypes.number,
-  sliceEnd: PropTypes.number,
-  fixedRows: PropTypes.number,
-  hideShowMore: PropTypes.bool
+  rows: PropTypes.arrayOf(PropTypes.object),
+  startRank: PropTypes.number,
+  endRank: PropTypes.number,
+  loading: PropTypes.bool,
+  error: PropTypes.any,
+  onSelectCoin: PropTypes.func,
 };
-
-export default GainersTable1Min;

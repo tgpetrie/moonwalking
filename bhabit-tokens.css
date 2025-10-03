@@ -1,0 +1,22 @@
+:root { /* Dark default */
+  --bh-black:  #0A0A0D; --bh-white: #F7F7F9; --bh-gray: #1A1A1F;
+  --bh-orange: #FB923C; --bh-purple:#8B5CF6; --bh-pink:#F472B6;
+  --bh-teal:   #2DD4BF; --bh-aqua:  #22D3EE;
+}
+:root[data-theme="light"], html[data-theme="light"] {
+  --bh-black:  #F7F7F9; --bh-white: #0A0A0D; --bh-gray: #E5E7EB;
+  --bh-orange: #FB923C; --bh-purple:#8B5CF6; --bh-pink:#EC4899;
+  --bh-teal:   #14B8A6; --bh-aqua:  #06B6D4;
+}
+:root[data-theme="light-hc"], html[data-theme="light-hc"] {
+  --bh-black:  #F7F7F9; --bh-white: #0A0A0D; --bh-gray: #525457;
+  --bh-orange: #EA580C; --bh-purple:#6D28D9; --bh-pink:#C02674;
+  --bh-teal:   #0F766E; --bh-aqua:  #0284C7;
+}
+body { background: var(--bh-black); color: var(--bh-white); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+.token { display:inline-block; padding:6px 10px; border-radius:8px; margin:4px; font-size:14px; }
+.token.pos { background: var(--bh-orange); color:#000;}
+.token.neg { background: var(--bh-purple); color:#fff;}
+.token.alert { background: var(--bh-pink); color:#000;}
+.token.live { background: var(--bh-teal); color:#000;}
+.token.prev { background: var(--bh-gray); color:#fff;}

@@ -1,23 +1,36 @@
 import './env-debug.js';
 import React, { useEffect, useState, Suspense } from 'react';
-import { API_ENDPOINTS, fetchData } from './api.js';
-import { WebSocketProvider } from './context/websocketcontext.jsx';
-import { FiRefreshCw } from 'react-icons/fi';
+import { API_ENDPOINTS } from './api.js';
+import { WebSocketProvider, useWebSocket } from './context/websocketcontext.jsx';
+import ToastProvider from './components/ToastProvider.jsx';
+//
+import OneMinGainersColumns from './components/OneMinGainersColumns.jsx';
+import ManualRefreshButton from './components/ManualRefreshButton.jsx';
+import FloatingActionMenu from './components/FloatingActionMenu.jsx';
+import CountdownMeter from './components/CountdownMeter.jsx';
 // Eager (tiny) components
 import AuthPanel from './components/AuthPanel';
-const IndicatorLegend = React.lazy(() => import('./components/IndicatorLegend.jsx'));
 import AlertsIndicator from './components/AlertsIndicator.jsx';
 
-// Lazy-loaded (code split) heavier UI regions
-const TopBannerScroll = React.lazy(() => import('./components/TopBannerScroll'));
-const BottomBannerScroll = React.lazy(() => import('./components/BottomBannerScroll'));
-const GainersTable = React.lazy(() => import('./components/GainersTable'));
-const LosersTable = React.lazy(() => import('./components/LosersTable'));
+const MoverTable = React.lazy(() => import('./components/MoverTable.jsx'));
 const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'));
 import Watchlist from './components/Watchlist';
+import TopBannerScroll from './components/TopBannerScroll.jsx';
+import BottomBannerScroll from './components/BottomBannerScroll.jsx';
+import DebugOverlay from './components/DebugOverlay.jsx';
+// useWebSocket imported via provider consumers inside other components only
+import { flags } from './config.js';
 const WatchlistInsightsPanel = React.lazy(() => import('./components/WatchlistInsightsPanel.jsx'));
 const LastAlertTicker = React.lazy(() => import('./components/LastAlertTicker.jsx'));
 const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'));
+const CodexPanel = React.lazy(() => import('./components/CodexPanel.jsx'));
+const SentimentPanel = React.lazy(() => import('./components/SentimentPanel.jsx'));
+// Mobile debugging component
+const LearnPanel = React.lazy(() => import('./components/LearnPanel.jsx'));
+// Data flow test component
+import DataFlowTest from './components/DataFlowTest.jsx';
+import SymbolPanel from './components/SymbolPanel.jsx';
+import { WatchlistProvider, useWatchlistContext } from './hooks/useWatchlist.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
 
@@ -26,55 +39,49 @@ const POLL_INTERVAL = 30000;
 // Feature toggles
 const ENABLE_WATCHLIST_QUICKVIEW = false; // disabled per request to hide mini watchlist
 
+const TopBanner = () => <TopBannerScroll />;
+const BottomBanner = () => <BottomBannerScroll />;
 
-export default function App() {
-  const [isConnected, setIsConnected] = useState(true);
+function AppUI() {
+  const { list: topWatchlist } = useWatchlistContext();
+  const { isConnected, refreshNow } = useWebSocket();
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
-  const [topWatchlist, setTopWatchlist] = useState([]);
-  const [user, setUser] = useState({ id: 'dev-bypass' });
-  const [checkingAuth, setCheckingAuth] = useState(false);
-  const [showInsights, setShowInsights] = useState(false);
+  const [user] = useState(() => {
+    // Persist plan for easier testing across reloads
+    const savedPlan = typeof window !== 'undefined' ? window.localStorage.getItem('userPlan') : 'free';
+    return { id: 'dev-bypass', plan: savedPlan || 'free' };
+  }); // 'free' or 'premium'
+  const isPremium = user.plan === 'premium';
+  const [checkingAuth] = useState(false);
+  const [uiToggles, setUiToggles] = useState({ insights: false, sentiment: false, learn: false });
   const [oneMinExpanded, setOneMinExpanded] = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
+  const [threeMinExpanded, setThreeMinExpanded] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
-
-  // Handler to sync watchlist state from children
-  const handleWatchlistChange = (list) => {
-    setTopWatchlist(list || []);
-  };
+  const setShowInsights = (updater) => setUiToggles(prev => ({ ...prev, insights: typeof updater === 'function' ? updater(prev.insights) : Boolean(updater) }));
+  const setShowSentiment = (updater) => setUiToggles(prev => ({ ...prev, sentiment: typeof updater === 'function' ? updater(prev.sentiment) : Boolean(updater) }));
+  const setShowLearn = (updater) => setUiToggles(prev => ({ ...prev, learn: typeof updater === 'function' ? updater(prev.learn) : Boolean(updater) }));
+  const [codexCoin, setCodexCoin] = useState(null);
+  const [panelFocus, setPanelFocus] = useState(null);
 
   // Poll backend connection and update countdown
   useEffect(() => {
     let intervalId;
-    let countdownId;
-    const checkConnection = async () => {
-      try {
-        const res = await fetchData(API_ENDPOINTS.serverInfo);
-        setIsConnected(!!res && res.status === 'running');
-      } catch (error) {
-        setIsConnected(false);
-      }
-    };
-    checkConnection();
-    intervalId = setInterval(() => {
-      checkConnection();
-      setLastUpdate(new Date()); // Trigger refresh in child components
-      setCountdown(POLL_INTERVAL / 1000);
-    }, POLL_INTERVAL);
-    countdownId = setInterval(() => {
-      setCountdown((prev) => (prev > 1 ? prev - 1 : POLL_INTERVAL / 1000));
-    }, 1000);
-    return () => {
-      clearInterval(intervalId);
-      clearInterval(countdownId);
-    };
+    // This effect is now only for the timestamp display, not for data polling.
+    intervalId = setInterval(() => setLastUpdate(new Date()), POLL_INTERVAL);
+    return () => clearInterval(intervalId);
   }, []);
-
-  const refreshGainersAndLosers = () => {
-    setLastUpdate(new Date()); // Trigger refresh in child components
-    setCountdown(POLL_INTERVAL / 1000);
+  
+  const refreshGainersAndLosers = async () => {
+    await refreshNow();
+    setLastUpdate(new Date());
   };
+
+  const handleSelectCoinForAnalysis = (symbol) => {
+    setCodexCoin(symbol);
+    // open quick symbol panel (non-blocking)
+    setPanelFocus(symbol);
+  };
+
 
   if (checkingAuth) {
     return (
@@ -92,73 +99,80 @@ export default function App() {
   );
 
   return (
-    <WebSocketProvider>
     <div className="min-h-screen bg-dark text-white relative">
+  <DebugOverlay />
+      {/* MobileDebugger removed per request */}
+      <DataFlowTest />
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
         <img
           src="/purple-rabbit-bg.png"
           alt="BHABIT Background"
-          className="w-96 h-96 sm:w-[32rem] sm:h-[32rem] lg:w-[40rem] lg:h-[40rem]"
+          className={"w-96 h-96 sm:w-[32rem] sm:h-[32rem] lg:w-[40rem] lg:h-[40rem] " + (typeof window !== 'undefined' && window.__BHABIT_BUNNY_ALERT ? 'bunny-alert' : '')}
           style={{ opacity: 0.05 }}
         />
       </div>
 
       {/* Countdown & Refresh (mini watchlist removed) */}
       <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">
-        <div className="flex flex-col items-end gap-1 w-28">
-          <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700 w-full justify-between">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            <span className="font-bold tabular-nums">{String(countdown).padStart(2, '0')}</span>
-          </div>
-          {/* Progress bar for next refresh */}
-            <div className="w-full h-1 bg-gray-700/60 rounded overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-purple-600 via-purple-400 to-purple-700 transition-all duration-1000 ease-linear"
-                style={{ width: `${((POLL_INTERVAL/1000 - countdown) / (POLL_INTERVAL/1000)) * 100}%` }}
-              />
-            </div>
+        <div className="flex items-center gap-1 text-xs font-mono bg-black/40 px-3 py-1 rounded-full border border-gray-700">
+          <span className={`inline-block w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`}></span>
+          <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
-        <button
-          onClick={refreshGainersAndLosers}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-600 to-purple-900 text-white shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-[0_0_25px_rgba(168,85,247,0.6)] focus:outline-none focus:ring-2 focus:ring-purple-400 animate-pulse-glow hover:animate-bounce-subtle"
-          aria-label="Refresh"
-          title="Refresh"
-        >
-          <FiRefreshCw className="text-xl text-purple-300 transition-transform duration-300 hover:rotate-180" />
-        </button>
+        <div className="flex items-center gap-2">
+          <ManualRefreshButton onAfterRefresh={refreshGainersAndLosers} />
+          <CountdownMeter durationMs={30000} running={!showCodex} keySeed={lastUpdate.getTime()} />
+        </div>
         <div className="mt-1">
           <AlertsIndicator />
         </div>
         {/* Quickview removed (toggle retained if needed) */}
         {ENABLE_WATCHLIST_QUICKVIEW && topWatchlist.length > 0 && (
           <div className="mt-2 w-64 max-w-xs bg-black/70 rounded-xl shadow-lg border border-purple-900 p-2 animate-fade-in">
-            <Watchlist quickview topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
+            <Watchlist quickview />
           </div>
         )}
       </div>
 
-      {/* Floating Insights Toggle */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        {showInsights && (
-          <WatchlistInsightsPanel />
+      {/* Panels toggled via floating menu */}
+      <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
+        {isPremium && (
+          <Suspense fallback={chunkFallback('Loading panels...')}>
+            {/* These components manage their own visibility and pointer events */}
+            {/* Watchlist Insights */}
+            <div className="pointer-events-auto"><WatchlistInsightsPanel /></div>
+            {/* Sentiment Panel */}
+            {uiToggles.sentiment && topWatchlist.length > 0 && (
+              <div className="pointer-events-auto">
+                <SentimentPanel symbols={topWatchlist.map(item => item.symbol || item.product_id || item)} />
+              </div>
+            )}
+          </Suspense>
         )}
-        <div className="flex flex-col gap-2 items-end">
-          <button
-            onClick={() => setShowCodex(s => !s)}
-            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-fade-in-up"
-            aria-pressed={showCodex}
-          >{showCodex ? 'Close Codex' : 'Ask Codex'}</button>
-          <button
-            onClick={() => setShowInsights(s => !s)}
-            className="rounded-full px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-fade-in-up"
-            style={{animationDelay: '0.1s'}}
-            aria-pressed={showInsights}
-          >{showInsights ? 'Hide Insights' : 'Insights'}</button>
-        </div>
-        <button
-          onClick={() => setShowInsights(s => !s)}
-          className="hidden" aria-hidden="true" tabIndex={-1}>Insights</button>
+      </div>
+
+      {/* Floating menu + lightweight operational metrics */}
+      <FloatingActionMenu
+        onRefresh={refreshGainersAndLosers}
+        onToggleCodex={() => setShowCodex(s => !s)}
+        onToggleInsights={() => setShowInsights(s => !s)}
+        onToggleSentiment={() => setShowSentiment(s => !s)}
+        onToggleLearn={() => setShowLearn(s => !s)}
+        disabled={{
+          refresh: false,
+          codex: !isPremium,
+          insights: !isPremium,
+          sentiment: topWatchlist.length === 0 || !isPremium,
+          learn: false,
+        }}
+      />
+      {/* Metrics panel removed per user request */}
+
+      {/* hidden state mounts: use toggles so linter sees state read */}
+      <div className="hidden" aria-hidden>
+        {uiToggles.insights ? 'insights-on' : 'insights-off'}
+        {uiToggles.sentiment ? 'sentiment-on' : 'sentiment-off'}
+        {uiToggles.learn ? 'learn-on' : 'learn-off'}
       </div>
 
       {/* Timestamp only at top-left */}
@@ -174,25 +188,41 @@ export default function App() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
-        <header className="flex flex-col items-center justify-center pt-8 pb-6 animate-fade-in-up">
-          <div className="mb-4">
-            <img
-              src="/bhabit-logo.png"
-              alt="BHABIT"
-              className="h-20 sm:h-24 lg:h-28 animate-breathing hover:animate-pulse-glow transition-all duration-500 cursor-pointer"
-            />
-          </div>
-          <img
-            src="/pbi.png"
-            alt="PROFITS BY IMPULSE"
-            className="h-10 sm:h-12 lg:h-14 mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125 animate-fade-in hover:animate-bounce-subtle"
-            style={{animationDelay: '0.2s'}}
-          />
+        <header className="flex flex-col items-center justify-center pt-6 pb-5">
+          {(() => {
+            const size = flags.HEADER_SIZE || 'md';
+            let mainHeights;
+            if (size === 'sm') mainHeights = 'h-16 sm:h-20 lg:h-24';
+            else if (size === 'lg') mainHeights = 'h-24 sm:h-28 lg:h-32';
+            else mainHeights = 'h-20 sm:h-24 lg:h-28';
+            let subHeights;
+            if (size === 'sm') subHeights = 'h-8 sm:h-10 lg:h-12';
+            else if (size === 'lg') subHeights = 'h-12 sm:h-14 lg:h-16';
+            else subHeights = 'h-10 sm:h-12 lg:h-14';
+            return (
+              <>
+                <div className="mb-3">
+                  <img
+                    src={flags.HEADER_LOGO_SRC}
+                    alt="BHABIT"
+                    className={`${mainHeights} animate-breathing`}
+                  />
+                </div>
+                {flags.HEADER_SHOW_SUBLOGO && (
+                  <img
+                    src={flags.HEADER_SUBLOGO_SRC}
+                    alt="PROFITS BY IMPULSE"
+                    className={`${subHeights} mb-4 transition-all duration-300 hover:scale-105 hover:brightness-125`}
+                  />
+                )}
+              </>
+            );
+          })()}
         </header>
   {/* Top Banner - 1H Price (lazy) */}
   <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
           <Suspense fallback={chunkFallback('Loading price banner...')}>
-            <TopBannerScroll refreshTrigger={lastUpdate} />
+            <TopBanner />
           </Suspense>
         </div>
         {/* Refresh Button */}
@@ -200,144 +230,117 @@ export default function App() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-        {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
-        <div className="mb-8 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-          <div className="p-6 bg-transparent w-full">
+  {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
+  <div className="mb-4">
+          <div className="px-0 py-6 bg-transparent w-full">
             <div className="relative">
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] hover:text-shadow-orange transition-all duration-300">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] text-center">
                   1-MIN GAINERS
                 </h2>
-                <button
-                  onClick={() => setShowLegend(v => !v)}
-                  className="ml-2 px-2 py-1 rounded bg-black/40 hover:bg-black/60 border border-purple-900 text-[11px] text-white"
-                  aria-pressed={showLegend}
-                  aria-label="Toggle indicator legend"
-                >
-                  {showLegend ? 'Hide Legend' : 'Legend'}
-                </button>
               </div>
               {/* Line divider under header */}
-              <div className="flex justify-start mb-4">
-                <img
-                  src="/linediv.png"
-                  alt="Divider"
-                  className="w-48 h-auto"
-                  style={{ maxWidth: '100%' }}
+              <div className="flex justify-center mb-4">
+                <div className="section-divider" />
+              </div>
+              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
+                <OneMinGainersColumns
+                  expanded={oneMinExpanded}
+                  onSelectCoin={handleSelectCoinForAnalysis}
                 />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                  <div>
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={0}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
-                  <div>
-                    <GainersTable1Min
-                      refreshTrigger={lastUpdate}
-                      onWatchlistChange={handleWatchlistChange}
-                      topWatchlist={topWatchlist}
-                      sliceStart={oneMinExpanded ? 6 : 4}
-                      sliceEnd={20}
-                      fixedRows={oneMinExpanded ? 6 : 4}
-                      hideShowMore
-                    />
-                  </div>
-                </Suspense>
-              </div>
+              </Suspense>
               {/* Shared Show More below the two tables */}
-              <div className="w-full flex justify-center mt-3">
+              <div className="show-more-wrap">
                 <button
                   onClick={() => setOneMinExpanded(v => !v)}
-                  className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition-all duration-300 hover:scale-105 hover:shadow-lg animate-fade-in"
+                  className="show-more"
                   aria-pressed={oneMinExpanded}
                 >
                   {oneMinExpanded ? 'Show Less' : 'Show More'}
                 </button>
               </div>
-              {/* Overlay Legend (does not affect layout) */}
-              {showLegend && (
-                <div className="absolute top-0 right-0 z-40 w-full md:w-[420px] lg:w-[480px] xl:w-[520px] drop-shadow-xl">
-                  <Suspense fallback={chunkFallback('Loading legend...')}>
-                    <div className="font-raleway">
-                      <IndicatorLegend onClose={() => setShowLegend(false)} />
-                    </div>
-                  </Suspense>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        {/* 3-Minute Gainers and Losers Tables */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 stagger-fade-in">
-          {/* Left Panel - 3-MIN GAINERS */}
-          <div className="p-6 hover:bg-purple-950/10 transition-all duration-500 rounded-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] hover:text-shadow-orange transition-all duration-300">
-                3-MIN GAINERS
-              </h2>
+  {/* 3-Minute Gainers and Losers (separate headers) */}
+  <div className="mb-2">
+          <div className="tables-grid">
+            {/* Left Panel - 3-MIN GAINERS */}
+            <div className="table-card">
+              <div className="px-4 pt-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] text-center">3-MIN GAINERS</h2>
+                </div>
+                <div className="flex justify-center mb-2">
+                  <div className="section-divider" />
+                </div>
+              </div>
+              <Suspense fallback={(
+                <div className="w-full h-full min-h-[400px] flex items-center justify-center">
+                  <div className="animate-pulse text-muted font-mono">Loading 3-min gainers...</div>
+                </div>
+              )}>
+                <MoverTable
+                  tone="gainer"
+                  fallbackEndpoint={API_ENDPOINTS.gainersTable3Min}
+                  initialRows={7}
+                  maxRows={13}
+                  expanded={threeMinExpanded}
+                  onSelectCoin={handleSelectCoinForAnalysis}
+                />
+              </Suspense>
             </div>
-            {/* Line divider directly under 3-MIN GAINERS header */}
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
+
+            {/* Right Panel - 3-MIN LOSERS */}
+            <div className="table-card">
+              <div className="px-4 pt-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <h2 className="text-xl font-headline font-bold tracking-wide text-[#8A2BE2] text-center">3-MIN LOSERS</h2>
+                </div>
+                <div className="flex justify-center mb-2">
+                  <div className="section-divider" />
+                </div>
+              </div>
+              <Suspense fallback={(
+                <div className="w-full h-full min-h-[400px] flex items-center justify-center">
+                  <div className="animate-pulse text-muted font-mono">Loading 3-min losers...</div>
+                </div>
+              )}>
+                <MoverTable
+                  tone="loser"
+                  fallbackEndpoint={API_ENDPOINTS.losersTable3Min}
+                  initialRows={7}
+                  maxRows={13}
+                  expanded={threeMinExpanded}
+                  onSelectCoin={handleSelectCoinForAnalysis}
+                />
+              </Suspense>
             </div>
-            <Suspense fallback={chunkFallback('Loading 3-min gainers...')}>
-              <GainersTable refreshTrigger={lastUpdate} />
-            </Suspense>
           </div>
 
-          {/* Right Panel - 3-MIN LOSERS */}
-          <div className="p-6 hover:bg-pink-950/10 transition-all duration-500 rounded-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold text-pink tracking-wide hover:text-shadow-pink transition-all duration-300">
-                3-MIN LOSERS
-              </h2>
-            </div>
-            {/* Line divider */}
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
-            </div>
-            <Suspense fallback={chunkFallback('Loading 3-min losers...')}>
-              <LosersTable refreshTrigger={lastUpdate} />
-            </Suspense>
+          {/* Shared Show More below the two 3‑min tables */}
+          <div className="show-more-wrap">
+            <button
+              onClick={() => setThreeMinExpanded(v => !v)}
+              className="show-more"
+              aria-pressed={threeMinExpanded}
+            >
+              {threeMinExpanded ? 'Show Less' : 'Show More'}
+            </button>
           </div>
         </div>
 
         {/* Watchlist below 3-Min tables */}
         <div className="mb-8">
           <div className="p-6 bg-transparent w-full">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400]">
-                WATCHLIST
-              </h2>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] text-center">WATCHLIST</h2>
             </div>
-            <div className="flex justify-start mb-4">
-              <img
-                src="/linediv.png"
-                alt="Divider"
-                className="w-48 h-auto"
-                style={{ maxWidth: '100%' }}
-              />
+            <div className="flex justify-center mb-4">
+              <div className="section-divider" />
             </div>
-            <Watchlist topWatchlist={topWatchlist} onWatchlistChange={handleWatchlistChange} />
+            <Watchlist onSelectCoin={handleSelectCoinForAnalysis} />
           </div>
         </div>
         {/* Last Alert Ticker + Bottom Banner - 1H Volume */}
@@ -348,14 +351,13 @@ export default function App() {
             </Suspense>
           </div>
           <Suspense fallback={chunkFallback('Loading volume banner...')}>
-            <BottomBannerScroll refreshTrigger={lastUpdate} />
+            <BottomBanner />
           </Suspense>
         </div>
         {/* Footer */}
         <footer className="text-center py-8 text-muted text-sm font-mono">
-          <p>
-            © 2025 GUISAN DESIGN
-            &nbsp;
+          <p className="flex items-center justify-center gap-2 flex-wrap">
+            <span>© 2025 GUISAN DESIGN</span>
             <span className="inline-flex items-center align-middle">
               <span className="text-pink-400 text-lg" style={{fontWeight: 900}}>⋆</span>
               <span className="text-purple text-lg mx-0.5" style={{fontWeight: 900}}>⋆</span>
@@ -363,7 +365,7 @@ export default function App() {
               <span className="text-purple text-lg mx-0.5" style={{fontWeight: 900}}>⋆</span>
               <span className="text-pink-400 text-lg" style={{fontWeight: 900}}>⋆</span>
             </span>
-            &nbsp; BHABIT &nbsp;
+            <span>BHABIT</span>
             <span className="inline-flex items-center align-middle">
               <span className="text-pink-400 text-lg" style={{fontWeight: 900}}>⋆</span>
               <span className="text-purple text-lg mx-0.5" style={{fontWeight: 900}}>⋆</span>
@@ -371,16 +373,39 @@ export default function App() {
               <span className="text-purple text-lg mx-0.5" style={{fontWeight: 900}}>⋆</span>
               <span className="text-pink-400 text-lg" style={{fontWeight: 900}}>⋆</span>
             </span>
-            &nbsp; TOM PETRIE
+            <span>TOM PETRIE</span>
           </p>
         </footer>
       </div>
-      {showCodex && (
+      {isPremium && showCodex && (
         <Suspense fallback={chunkFallback('Loading Codex...')}>
           <AskCodexPanel onClose={() => setShowCodex(false)} />
         </Suspense>
       )}
+      {codexCoin && (
+        <Suspense fallback={chunkFallback('Loading Insights...')}>
+          <CodexPanel
+            isOpen={!!codexCoin}
+            selectedCoin={codexCoin}
+            onClose={() => setCodexCoin(null)}
+          />
+        </Suspense>
+      )}
+      {panelFocus && (
+        <SymbolPanel symbol={panelFocus} onClose={() => setPanelFocus(null)} />
+      )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <WebSocketProvider>
+      <ToastProvider>
+        <WatchlistProvider refreshMs={10000}>
+          <AppUI />
+        </WatchlistProvider>
+      </ToastProvider>
     </WebSocketProvider>
   );
 }

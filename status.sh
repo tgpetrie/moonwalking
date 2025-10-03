@@ -1,48 +1,102 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# BHABIT CBMOONERS - Quick Status Check
-# Check if everything is running properly
+echo "[status] listening ports:"
+lsof -iTCP -sTCP:LISTEN -n -P | awk 'NR==1 || /127\.0\.0\.1/ {print}'
 
-# Colors
+echo
+echo "[status] curl checks (best-effort):"
+for url in \
+  "http://127.0.0.1:3100" \
+  "http://127.0.0.1:5001/api/server-info" \
+  "http://127.0.0.1:8787" \
+  "http://127.0.0.1:8789/api/server-info"
+do
+  echo; echo "==> $url"
+  curl -sS "$url" | head -c 300 || true
+  echo
+done
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+# BHABIT Status Check Script
+# Shows running processes and tests API endpoints
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo "🐰 BHABIT CBMOONERS - Quick Status Check"
-echo "========================================"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
 
-# Check backend
-if curl -s http://localhost:5001/health > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Backend API${NC} - Running on http://localhost:5001"
+: "${PAGES_PORT:=8789}"
+: "${DO_PORT:=8787}"
+: "${FLASK_PORT:=5001}"
+: "${VITE_PORT:=5173}"
+
+read_pid() { local f=$1; [[ -f "$f" ]] && cat "$f" || echo ""; }
+is_alive() { local p=$1; [[ -n "$p" ]] && ps -p "$p" >/dev/null 2>&1; }
+
+# Check various PIDs
+PAGES_PID=$(read_pid .dev-pages.pid)
+DO_PID=$(read_pid .dev-do.pid)
+
+echo -e "🐰 ${YELLOW}BHABIT Status Check${NC}"
+echo "======================"
+
+# Cloudflare processes
+if is_alive "$PAGES_PID"; then
+  echo -e "${GREEN}Pages dev${NC} PID=$PAGES_PID  URL=http://127.0.0.1:${PAGES_PORT}"
 else
-    echo -e "${RED}❌ Backend API${NC} - Not accessible"
+  echo -e "${RED}Pages dev not running${NC} (expected on :${PAGES_PORT})"
 fi
 
-# Check frontend
-if curl -s http://localhost:5173 > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Frontend App${NC} - Running on http://localhost:5173"
+if is_alive "$DO_PID"; then
+  echo -e "${GREEN}Worker/DO dev${NC} PID=$DO_PID URL=http://127.0.0.1:${DO_PORT}"
 else
-    echo -e "${RED}❌ Frontend App${NC} - Not accessible"
-fi
-
-# Check API data
-API_DATA=$(curl -s http://localhost:5001/api/component/gainers-table 2>/dev/null)
-if echo "$API_DATA" | grep -q "data"; then
-    echo -e "${GREEN}✅ API Data${NC} - Cryptocurrency data is flowing"
-else
-    echo -e "${RED}❌ API Data${NC} - No data or API error"
-fi
-
-# Check external API
-if curl -s https://api.exchange.coinbase.com/products > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ External APIs${NC} - Coinbase accessible"
-else
-    echo -e "${RED}❌ External APIs${NC} - Connectivity issues"
+  echo -e "${RED}Worker/DO dev not running${NC} (expected on :${DO_PORT})"
 fi
 
 echo ""
-echo -e "${BLUE}Quick commands:${NC}"
-echo "• ./dev.sh health     - Detailed health check"
-echo "• ./dev.sh start      - Start both servers"
-echo "• ./dev.sh diagnose   - Fix any issues"
+echo -e "${BLUE}API Health Checks${NC}"
+
+# Test server-info
+SI_URL="http://127.0.0.1:${PAGES_PORT}/api/server-info"
+if command -v curl >/dev/null 2>&1; then
+  echo -n "server-info: "
+  RESP=$(curl -sS --max-time 2 "$SI_URL" 2>/dev/null || echo "")
+  if [[ -n "$RESP" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      echo "$RESP" | jq -c . || echo "$RESP"
+    else
+      echo "$RESP"
+    fi
+  else
+    echo -e "${RED}UNREACHABLE${NC} ($SI_URL)"
+  fi
+
+  # Test watchlist endpoint
+  echo -n "watchlist: "
+  WL_URL="http://127.0.0.1:${PAGES_PORT}/api/watchlist"
+  WL_RESP=$(curl -sS --max-time 2 "$WL_URL" 2>/dev/null || echo "")
+  if [[ -n "$WL_RESP" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+      echo "$WL_RESP" | jq -c . || echo "$WL_RESP"
+    else
+      echo "$WL_RESP"
+    fi
+  else
+    echo -e "${RED}UNREACHABLE${NC} ($WL_URL)"
+  fi
+else
+  echo -e "${YELLOW}curl not found${NC}: cannot perform health checks"
+fi
+
+echo ""
+echo -e "${BLUE}Quick Actions${NC}"
+echo "- Start dev env: ./start_app.sh"
+echo "- View logs:     tail -f .dev-do.log .dev-pages.log"
+echo "- Stop all:      pkill -f wrangler"

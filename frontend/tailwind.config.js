@@ -3,14 +3,16 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Saira', 'sans-serif'], // Use Saira as the default sans-serif font
-        mono: ['Saira', 'monospace'], // Use Saira for mono as well, or keep a monospace if needed
+        // Universal Raleway for all text, including areas that previously used mono
+        sans: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
         orange: '#FF6B00',
         blue: '#00BFFF',
         pink: '#FF69B4',
-        purple: '#810996',
+        // Align with tables' positive accent (#C026D3)
+        purple: '#C026D3',
         teal: '#00C0A5',
         light: '#cccccc',
         dark: '#000000',

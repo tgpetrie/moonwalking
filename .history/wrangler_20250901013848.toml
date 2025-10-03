@@ -1,0 +1,9 @@
+[durable_objects]
+bindings = [
+  { name = "HUB", class_name = "Hub", script_name = "mw-hub" }
+]
+
+[vars]
+# Comma-separated list of symbols to include by default (optional)
+COIN_LIST = "BTC,ETH,SOL,AMP"
+

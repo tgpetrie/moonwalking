@@ -1594,6 +1594,51 @@ def get_gainers_table_1min():
     except Exception as e:
         logging.error(f"Error in 1-minute gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# -----------------------------------------------------------------------------
+# Backwards-compatible aliases requested by the frontend
+# -----------------------------------------------------------------------------
+@app.route('/api/component/gainers-table-3min')
+def get_gainers_table_3min():
+    """Alias for gainers-table to satisfy frontend requests for -3min variant."""
+    # Reuse existing handler which already returns a Flask Response
+    try:
+        return get_gainers_table()
+    except Exception as e:
+        logging.error(f"Alias gainers-table-3min error: {e}")
+        return jsonify({"error": "internal"}), 500
+
+
+@app.route('/api/component/losers-table-3min')
+def get_losers_table_3min():
+    """Alias for losers-table to satisfy frontend requests for -3min variant."""
+    try:
+        return get_losers_table()
+    except Exception as e:
+        logging.error(f"Alias losers-table-3min error: {e}")
+        return jsonify({"error": "internal"}), 500
+
+
+@app.route('/api/products')
+def api_products():
+    """Return a lightweight list of USD product ids (without -USD suffix) for the frontend.
+
+    This mirrors the historical `/products` worker behavior but returns a compact payload.
+    """
+    try:
+        resp = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG.get('API_TIMEOUT', 10))
+        if resp.status_code != 200:
+            logging.error(f"Coinbase products upstream error: {resp.status_code}")
+            return jsonify({"ok": False, "error": "upstream"}), 502
+        products = resp.json()
+        usd_products = [p for p in products if p.get('quote_currency') == 'USD' and p.get('status') == 'online']
+        # Return up to 200 product ids without the -USD suffix
+        ids = [p['id'].replace('-USD', '') for p in usd_products[:200] if 'id' in p]
+        return jsonify({"ok": True, "products": ids})
+    except Exception as e:
+        logging.error(f"Error fetching /api/products: {e}")
+        return jsonify({"ok": False, "error": "internal"}), 500
 # =============================================================================
 
 # Add startup time tracking
@@ -1926,6 +1971,28 @@ def server_info():
         logging.error(f"server-info error: {e}")
         return jsonify({"status": "error", "error": str(e)}), 200
 
+@app.route('/api/data', methods=['GET', 'OPTIONS'])
+def api_data():
+    """Lightweight endpoint used by the frontend for preflight and demo data."""
+    # Let Flask-CORS handle preflight headers; respond to OPTIONS quickly
+    if request.method == 'OPTIONS':
+        return ('', 200)
+
+    try:
+        sample = {
+            "success": True,
+            "timestamp": datetime.now().isoformat(),
+            "data": {
+                "banners": [],
+                "gainers": [],
+                "losers": [],
+            }
+        }
+        return jsonify(sample)
+    except Exception as e:
+        logging.error(f"/api/data error: {e}")
+        return jsonify({"error": "internal"}), 500
+
 @app.route('/api/clear-cache', methods=['POST'])
 def clear_cache():
     """Clear all caches"""
@@ -2041,32 +2108,52 @@ def get_social_sentiment_endpoint(symbol):
         logging.error(f"Error getting social sentiment for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/social-sentiment/<symbol>')
-def get_social_sentiment_endpoint(symbol):
-    """Get social sentiment analysis for a specific cryptocurrency"""
+@app.route('/api/sentiment')
+def get_multi_sentiment():
+    """Get sentiment data for multiple symbols (batch endpoint)"""
     try:
-        from social_sentiment import get_social_sentiment
-        
-        # Validate symbol format
-        symbol = symbol.upper().replace('-USD', '')
-        if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
-            return jsonify({"error": "Invalid symbol format"}), 400
-        
-        # Get social sentiment analysis
-        sentiment_data = get_social_sentiment(symbol)
-        
+        symbols_param = request.args.get('symbols', '')
+        if not symbols_param:
+            return jsonify({"error": "symbols parameter required"}), 400
+
+        # Parse and validate symbols
+        symbols = [s.strip().upper().replace('-USD', '') for s in symbols_param.split(',') if s.strip()]
+        if not symbols:
+            return jsonify({"error": "No valid symbols provided"}), 400
+
+        if len(symbols) > 50:
+            return jsonify({"error": "Maximum 50 symbols allowed"}), 400
+
+        # Get sentiment for each symbol
+        sentiment_data = []
+        for symbol in symbols:
+            if symbol.isalpha() and 2 <= len(symbol) <= 10:
+                try:
+                    sentiment = get_social_sentiment(symbol)
+                    # Simplified response for batch
+                    sentiment_data.append({
+                        "symbol": symbol,
+                        "score": sentiment.get('overall_sentiment', {}).get('score', 0.5),
+                        "label": sentiment.get('overall_sentiment', {}).get('label', 'Neutral'),
+                        "confidence": sentiment.get('overall_sentiment', {}).get('confidence', 0.5),
+                        "fear_greed": sentiment.get('fear_greed_index', 50),
+                        "twitter_mentions": sentiment.get('social_metrics', {}).get('twitter', {}).get('mentions_24h', 0),
+                        "reddit_posts": sentiment.get('social_metrics', {}).get('reddit', {}).get('posts_24h', 0)
+                    })
+                except Exception as e:
+                    logging.warning(f"Failed to get sentiment for {symbol}: {e}")
+                    continue
+
         return jsonify({
-            "success": True,
-            "data": sentiment_data,
+            "ok": True,
+            "sentiment": sentiment_data,
             "timestamp": datetime.now().isoformat()
         })
-        
-    except ImportError as e:
-        logging.error(f"Social sentiment module not available: {e}")
-        return jsonify({"error": "Social sentiment analysis not available"}), 503
+
     except Exception as e:
-        logging.error(f"Error getting social sentiment for {symbol}: {e}")
+        logging.error(f"Error in multi-sentiment endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # =============================================================================
 
