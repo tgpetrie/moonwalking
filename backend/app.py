@@ -3,7 +3,7 @@ import argparse
 import socket
 import subprocess
 import sys
-from flask import Flask, jsonify, request, g
+from flask import Flask, jsonify, request, g, Response
 from flask_cors import CORS
 import requests
 import time
@@ -144,6 +144,45 @@ def api_health():
         'uptime_seconds': round(time.time() - startup_time, 2),
         'errors_5xx': _ERROR_STATS['5xx']
     })
+
+
+# Simple non-prefixed health endpoint (used by some dev tooling)
+@app.route('/health')
+def health():
+    return jsonify({'ok': True}), 200
+
+
+def _filter_headers(h):
+    """
+    Drop hop-by-hop headers that break proxies per RFC 7230 §6.1.
+    """
+    hop = {
+        "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "transfer-encoding", "upgrade"
+    }
+    return {k: v for k, v in h.items() if k.lower() not in hop}
+
+
+WORKER_ORIGIN = os.environ.get('WORKER_ORIGIN', 'http://127.0.0.1:8787')
+
+
+@app.route('/api/snapshots/<path:subpath>', methods=['GET'])
+def proxy_snapshots(subpath):
+    """Proxy GET /api/snapshots/* -> WORKER_ORIGIN/snapshots/*
+    Pass through querystring and filter hop-by-hop headers.
+    """
+    url = f"{WORKER_ORIGIN.rstrip('/')}/snapshots/{subpath}"
+    upstream = requests.get(
+        url,
+        params=request.args,
+        headers=_filter_headers(request.headers),
+        timeout=8,
+    )
+    return Response(
+        upstream.content,
+        status=upstream.status_code,
+        headers=_filter_headers(upstream.headers),
+    )
 
 # -------------------------------- Codex Assistant ---------------------------------
 @app.route('/api/ask-codex', methods=['POST'])
