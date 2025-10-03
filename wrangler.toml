@@ -2,6 +2,10 @@ name = "moonwalking-worker"
 main = "workers/ws.js"
 compatibility_date = "2025-10-02"
 
+# Tell Wrangler/Pages where the static site output lives so `wrangler pages deploy`
+# can be run from the repository root without requiring a cwd change.
+pages_build_output_dir = "./frontend/dist"
+
 [durable_objects]
 bindings = [
   { name = "HUB", class_name = "Hub" }
