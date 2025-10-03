@@ -2,11 +2,16 @@ import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'framer-motion';
 import { FiInfo } from 'react-icons/fi';
+import { colorForSentiment } from '../lib/sentiment';
 import WatchStar from './WatchStar.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import { updateStreaks } from '../logic/streaks';
 
 const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
+
+function cbUrl(symbol) {
+  return `https://www.coinbase.com/advanced-trade/${String(symbol || '').toLowerCase()}-usd`;
+}
 
 const derivePrevPrice = (current, pct) => {
   if (!Number.isFinite(current) || !Number.isFinite(pct) || pct === 0) return null;
@@ -106,6 +111,9 @@ export default function GainersTable1Min({
           }
         };
 
+        // Note: outer row is rendered as an anchor linking to Coinbase (opens in new tab).
+        // This mirrors `MoverTable.jsx` and avoids nested button/role semantics issues.
+
         const content = (
           <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_44px] gap-x-4 items-start">
             <div className="flex items-center gap-4 min-w-0">
@@ -147,11 +155,11 @@ export default function GainersTable1Min({
               />
               <button
                 type="button"
-                onClick={handleInfoClick}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleInfoClick(e); }}
                 className="flex items-center justify-center w-6 h-6 transition focus:outline-none focus:ring-1 focus:ring-purple-500/60"
-                aria-label={`Open ${row.symbol || 'token'} insights`}
+                aria-label={`Open sentiment panel`}
               >
-                <FiInfo className="w-4 h-4" />
+                <FiInfo className={`w-4 h-4 ${colorForSentiment(row)}`} />
               </button>
             </div>
           </div>
@@ -159,15 +167,24 @@ export default function GainersTable1Min({
 
         if (shouldReduceMotion) {
           return (
-            <div key={row.symbol || idx} className="relative group block py-5 px-4 mb-1 rounded-xl bg-white/5 hover:bg-white/8 transition-colors">
+            <a
+              key={row.symbol || idx}
+              href={cbUrl(row.symbol)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative group block py-5 px-4 mb-1 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
+            >
               {content}
-            </div>
+            </a>
           );
         }
 
         return (
-          <motion.div
+          <motion.a
             key={row.symbol || idx}
+            href={cbUrl(row.symbol)}
+            target="_blank"
+            rel="noopener noreferrer"
             className="relative group block py-5 px-4 mb-1 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -183,9 +200,9 @@ export default function GainersTable1Min({
             <div className="relative z-10">
               {content}
             </div>
-          </motion.div>
+          </motion.a>
         );
-      })}
+        })}
     </div>
   );
 }

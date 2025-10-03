@@ -93,6 +93,7 @@ export class Hub {
     this.snapshots = {
       t1m: [],
       t3m: [],
+      losers3m: [],
       topBanner: [],
       bottomBanner: [],
       alerts: [],
@@ -123,6 +124,7 @@ export class Hub {
       if (stored) {
         this.snapshots = stored;
       }
+      if (!this.snapshots.losers3m) this.snapshots.losers3m = [];
 
       if (hist) {
         this.history = hist;
@@ -207,6 +209,10 @@ export class Hub {
       });
 
       const results = (await Promise.all(statsPromises)).filter(r => r !== null);
+      if (!Array.isArray(results) || results.length === 0) {
+        // No fresh data; keep existing snapshots/history
+        return false;
+      }
 
       // Calculate 1-min and 3-min gainers from history
       this.updateSnapshots(results);
@@ -265,50 +271,30 @@ export class Hub {
   updateSnapshots(results) {
     const now = Date.now();
 
-    // Update history
-    results.forEach(item => {
-      if (!this.history[item.symbol]) {
-        this.history[item.symbol] = [];
-      }
-      this.history[item.symbol].push({
-        price: item.current_price,
-        timestamp: now
-      });
+    // Build/extend history with the latest prices
+    for (const item of results) {
+      if (!item || !Number.isFinite(item.current_price)) continue;
+      const symbol = item.symbol;
+      if (!this.history[symbol]) this.history[symbol] = [];
+      this.history[symbol].push({ price: item.current_price, timestamp: now });
       // Keep only last 5 minutes of history
-      this.history[item.symbol] = this.history[item.symbol]
-        .filter(h => now - h.timestamp < 300000);
-    });
+      this.history[symbol] = this.history[symbol].filter(h => now - h.timestamp < 300000);
+    }
 
-    // Calculate 1-min and 3-min changes
+    // Compute deltas only when we actually have lookback samples
     const gainers1m = [];
-    const all3m = [];
+    const gainers3mAll = [];
+    const losers3mAll = [];
 
-    results.forEach(item => {
+    for (const item of results) {
       const hist = this.history[item.symbol] || [];
-
-      // For fresh starts with no history, use 24h data as fallback
-      if (hist.length < 2) {
-        // Use 24h change as proxy until we have real history
-        if (item.price_change_percentage_24h && item.price_change_percentage_24h > 0) {
-          gainers1m.push({
-            ...item,
-            price_change_percentage_1min: item.price_change_percentage_24h,
-            initial_price_1min: item.current_price / (1 + item.price_change_percentage_24h / 100)
-          });
-        }
-        all3m.push({
-          ...item,
-          price_change_percentage_3min: item.price_change_percentage_24h || 0,
-          initial_price_3min: item.current_price / (1 + (item.price_change_percentage_24h || 0) / 100)
-        });
-        return;
-      }
+      if (hist.length < 2) continue;
 
       // 1-min change
-      const oneMinAgo = hist.find(h => now - h.timestamp >= 60000) || hist[0];
+      const oneMinAgo = hist.find(h => now - h.timestamp >= 60000) || null;
       if (oneMinAgo) {
         const change1m = ((item.current_price - oneMinAgo.price) / oneMinAgo.price) * 100;
-        if (change1m > 0) {
+        if (Number.isFinite(change1m) && change1m > 0) {
           gainers1m.push({
             ...item,
             price_change_percentage_1min: change1m,
@@ -317,45 +303,54 @@ export class Hub {
         }
       }
 
-      // 3-min change
-      const threeMinAgo = hist.find(h => now - h.timestamp >= 180000) || hist[0];
+      // 3-min change (both gainers and losers)
+      const threeMinAgo = hist.find(h => now - h.timestamp >= 180000) || null;
       if (threeMinAgo) {
         const change3m = ((item.current_price - threeMinAgo.price) / threeMinAgo.price) * 100;
-        all3m.push({
-          ...item,
-          price_change_percentage_3min: change3m,
-          initial_price_3min: threeMinAgo.price
-        });
+        if (Number.isFinite(change3m)) {
+          const base = {
+            ...item,
+            price_change_percentage_3min: change3m,
+            initial_price_3min: threeMinAgo.price
+          };
+          if (change3m > 0) gainers3mAll.push(base);
+          else if (change3m < 0) losers3mAll.push(base);
+        }
       }
-    });
+    }
+
+    // If we still don't have enough history to compute any deltas, don't clobber previous snapshots
+    const hasAny = gainers1m.length + gainers3mAll.length + losers3mAll.length > 0;
+    if (!hasAny) return;
 
     // Sort and rank
     gainers1m.sort((a, b) => b.price_change_percentage_1min - a.price_change_percentage_1min);
-    all3m.sort((a, b) => b.price_change_percentage_3min - a.price_change_percentage_3min);
-    const gainers3m = all3m.filter(item => item.price_change_percentage_3min > 0);
+    gainers3mAll.sort((a, b) => b.price_change_percentage_3min - a.price_change_percentage_3min);
+    losers3mAll.sort((a, b) => a.price_change_percentage_3min - b.price_change_percentage_3min); // most negative first
 
     gainers1m.forEach((item, idx) => item.rank = idx + 1);
-    gainers3m.forEach((item, idx) => item.rank = idx + 1);
+    gainers3mAll.forEach((item, idx) => item.rank = idx + 1);
+    losers3mAll.forEach((item, idx) => item.rank = idx + 1);
 
-    // Update snapshots
+    // Update snapshots atomically
     this.snapshots = {
       t1m: gainers1m.slice(0, 20),
-      t3m: gainers3m.slice(0, 30),
+      t3m: gainers3mAll.slice(0, 30),
+      losers3m: losers3mAll.slice(0, 30),
       topBanner: gainers1m.slice(0, 10),
-      bottomBanner: gainers3m.slice(0, 10).map(g => ({ ...g, volume: g.volume_24h })),
+      bottomBanner: gainers3mAll.slice(0, 10).map(g => ({ ...g, volume: g.volume_24h })),
       alerts: gainers1m.filter(g => g.price_change_percentage_1min > 5).slice(0, 5),
       updatedAt: now,
     };
-
-    // Persist to storage is handled by throttled writer in fetchCoinbaseData
   }
 
   // Determine if the new snapshot differs materially from the previous one
   _computeChangeSignal() {
     try {
-      // Consider the top 10 of 1m gainers as the change fingerprint
-      const top = (this.snapshots.t1m || []).slice(0, 10);
-      const key = top.map(r => `${r.product_id}:${Math.round((r.price_change_percentage_1min || 0) * 100)}`).join("|");
+      const topG = (this.snapshots.t1m || []).slice(0, 10).map(r => `${r.product_id}:${Math.round((r.price_change_percentage_1min || 0) * 100)}`).join("|");
+      const top3 = (this.snapshots.t3m || []).slice(0, 10).map(r => `${r.product_id}:${Math.round((r.price_change_percentage_3min || 0) * 100)}`).join("|");
+      const low3 = (this.snapshots.losers3m || []).slice(0, 10).map(r => `${r.product_id}:${Math.round((r.price_change_percentage_3min || 0) * 100)}`).join("|");
+      const key = `${topG}__${top3}__${low3}`;
       if (this._lastFingerprint !== key) {
         this._lastFingerprint = key;
         return true;
@@ -412,8 +407,9 @@ export class Hub {
       }, 15000);
       this.clients.add({ writer, keepAliveId });
 
-      // Initial hello
-      await write({ type: "hello", updatedAt: this.snapshots.updatedAt, t1m: (this.snapshots.t1m || []).length });
+      // Initial hello (non-blocking write so we don't deadlock waiting for a client to consume)
+      write({ type: "hello", updatedAt: this.snapshots.updatedAt, t1m: (this.snapshots.t1m || []).length }).catch(() => {});
+      write({ type: "state", updatedAt: this.snapshots.updatedAt, counts: { t1m: (this.snapshots.t1m || []).length, t3m: (this.snapshots.t3m || []).length, l3m: (this.snapshots.losers3m || []).length } }).catch(() => {});
 
       const response = new Response(readable, {
         headers: {
@@ -504,17 +500,12 @@ export class Hub {
       return this._json({ ok: true, rows: this.snapshots.t3m || [], source: "coinbase-api" });
     }
     if (url.pathname.endsWith("/component/losers-table")) {
-      // Return losers sorted ascending by 3min change
-      const losers = [...(this.snapshots.t3m || [])]
-        .sort((a, b) => a.price_change_percentage_3min - b.price_change_percentage_3min)
-        .slice(0, 30);
-      return this._json({ ok: true, rows: losers, source: "coinbase-api" });
+      const losers = this.snapshots.losers3m || [];
+      return this._json({ ok: true, rows: losers.slice(0, 30), source: "coinbase-api" });
     }
     if (url.pathname.endsWith("/component/losers-table-3min")) {
-      const losers = [...(this.snapshots.t3m || [])]
-        .sort((a, b) => a.price_change_percentage_3min - b.price_change_percentage_3min)
-        .slice(0, 30);
-      return this._json({ ok: true, rows: losers, source: "coinbase-api" });
+      const losers = this.snapshots.losers3m || [];
+      return this._json({ ok: true, rows: losers.slice(0, 30), source: "coinbase-api" });
     }
     if (url.pathname.endsWith("/component/top-banner-scroll")) {
       // Return both items (legacy) and rows (new standard) for compatibility
