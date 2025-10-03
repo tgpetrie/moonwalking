@@ -17,3 +17,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 // Option B: module-based loader wiring for bundlers. Import relative module.
 import './bhabitLogoLoaderModule.js';
+
+// Start lightweight SSE subscription to the DO and trigger small refetches on updates
+try {
+  // dynamic import to avoid blocking if the file isn't present in test env
+  import('./lib/sse').then(({ startSSE }) => {
+    const stop = startSSE((msg) => {
+      try {
+        if (msg?.type === 'update' || (msg?.type === 'tick' && msg?.changed)) {
+          // Fire-and-forget light refetches; edge cache will make these cheap
+          fetch('/api/component/gainers-table-1min').catch(() => {});
+          fetch('/api/component/gainers-table-3min').catch(() => {});
+          fetch('/api/component/losers-table-3min').catch(() => {});
+          fetch('/api/component/top-banner-scroll').catch(() => {});
+          fetch('/api/component/bottom-banner-scroll').catch(() => {});
+        }
+      } catch (e) {}
+    });
+
+    // HMR cleanup
+    if (import.meta.hot) import.meta.hot.dispose(() => stop());
+  }).catch(() => {});
+} catch (e) {}
