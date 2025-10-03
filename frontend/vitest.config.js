@@ -7,7 +7,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.js'],
     globals: true,
-    include: ['src/utils/**/*.{test,spec}.js', 'src/context/**/*.{test,spec}.jsx', 'src/context/websocketcontext.test.jsx', 'src/context/websocketcontext.polling.test.jsx'],
+    include: [
+      'src/utils/**/*.{test,spec}.js',
+      'src/context/**/*.{test,spec}.jsx',
+      'src/context/websocketcontext.test.jsx',
+      'src/context/websocketcontext.polling.test.jsx',
+      'src/lib/sentiment.test.js',
+      'src/components/__tests__/RowInfo.behavior.test.jsx'
+    ],
     exclude: ['node_modules','dist'],
     coverage: {
       reporter: ['text','html'],

@@ -29,6 +29,7 @@ const SentimentPanel = React.lazy(() => import('./components/SentimentPanel.jsx'
 const LearnPanel = React.lazy(() => import('./components/LearnPanel.jsx'));
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
+import SymbolPanel from './components/SymbolPanel.jsx';
 import { WatchlistProvider, useWatchlistContext } from './hooks/useWatchlist.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
@@ -60,6 +61,7 @@ function AppUI() {
   const setShowSentiment = (updater) => setUiToggles(prev => ({ ...prev, sentiment: typeof updater === 'function' ? updater(prev.sentiment) : Boolean(updater) }));
   const setShowLearn = (updater) => setUiToggles(prev => ({ ...prev, learn: typeof updater === 'function' ? updater(prev.learn) : Boolean(updater) }));
   const [codexCoin, setCodexCoin] = useState(null);
+  const [panelFocus, setPanelFocus] = useState(null);
 
   // Poll backend connection and update countdown
   useEffect(() => {
@@ -76,6 +78,8 @@ function AppUI() {
 
   const handleSelectCoinForAnalysis = (symbol) => {
     setCodexCoin(symbol);
+    // open quick symbol panel (non-blocking)
+    setPanelFocus(symbol);
   };
 
 
@@ -386,6 +390,9 @@ function AppUI() {
             onClose={() => setCodexCoin(null)}
           />
         </Suspense>
+      )}
+      {panelFocus && (
+        <SymbolPanel symbol={panelFocus} onClose={() => setPanelFocus(null)} />
       )}
     </div>
   );

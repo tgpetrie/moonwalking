@@ -4,6 +4,7 @@ import { formatPrice, formatPercentage, truncateSymbol } from '../utils/formatte
 import { useGainersLosersData } from '../hooks/useGainersLosersData';
 import WatchStar from './WatchStar.jsx';
 import { FiInfo } from 'react-icons/fi';
+import { colorForSentiment } from '../lib/sentiment';
 
 /**
  * MoverTable
@@ -168,12 +169,12 @@ export default function MoverTable({ variant, tone, window = '3min', className =
                       />
                       <button
                         type="button"
-                        onClick={handleInfoClick}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleInfoClick(e); }}
                         className={`flex items-center justify-center w-6 h-6 transition focus:outline-none focus:ring-1 ${infoColorClass}`}
                         style={{ marginTop: '0.2rem' }}
-                        aria-label={`Open ${(r.symbol || 'token')} insights`}
+                        aria-label={`Open sentiment panel`}
                       >
-                        <FiInfo className="w-4 h-4" />
+                        <FiInfo className={`w-4 h-4 ${colorForSentiment(r)}`} />
                       </button>
                     </div>
                   </div>

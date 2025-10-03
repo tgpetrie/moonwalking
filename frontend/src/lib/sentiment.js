@@ -3,7 +3,9 @@ export function inferSentiment(row) {
   if (!row || typeof row !== 'object') return 'neutral';
   const c1 = Number(row.price_change_percentage_1min);
   const c3 = Number(row.price_change_percentage_3min);
-  const delta = Number.isFinite(c1) ? c1 : (Number.isFinite(c3) ? c3 : null);
+  let delta = null;
+  if (Number.isFinite(c1)) delta = c1;
+  else if (Number.isFinite(c3)) delta = c3;
   if (delta == null) return 'neutral';
   if (delta > 0.5) return 'positive';
   if (delta < -0.5) return 'negative';
