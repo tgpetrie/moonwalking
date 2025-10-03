@@ -1,0 +1,5 @@
+Flask>=2.3.2
+requests>=2.31.0
+
+# Optional: install with
+#   python -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt

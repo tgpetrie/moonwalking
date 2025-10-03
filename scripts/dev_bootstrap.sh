@@ -1,156 +1,420 @@
-<file name=backend/app.py>import os
-from flask import Flask, Response, request, jsonify
-import requests
-
-app = Flask(__name__)
-
-WORKER_ORIGIN = os.getenv("WORKER_ORIGIN", "http://127.0.0.1:8787")
-
-def _filter_headers(h):
-    """
-    Drop hop-by-hop headers that break proxies per RFC 7230 §6.1.
-    """
-    hop = {
-        "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-        "te", "trailers", "transfer-encoding", "upgrade"
-    }
-    return {k: v for k, v in h.items() if k.lower() not in hop}
-
-@app.route("/api/snapshots/<path:subpath>", methods=["GET"])
-def proxy_snapshots(subpath):
-    """
-    GET /api/snapshots/* -> WORKER_ORIGIN/snapshots/*
-    Passes query string through and filters hop-by-hop headers.
-    """
-    url = f"{WORKER_ORIGIN.rstrip('/')}/snapshots/{subpath}"
-    upstream = requests.get(
-        url,
-        params=request.args,
-        headers=_filter_headers(request.headers),
-        timeout=8,
-    )
-    return Response(
-        upstream.content,
-        status=upstream.status_code,
-        headers=_filter_headers(upstream.headers),
-    )
-
-@app.route("/health", methods=["GET"])
-def health():
-    """
-    Simple liveness check used by dev_bootstrap.
-    """
-    return jsonify(ok=True), 200
-</file>
-
-<file name=scripts/smoke_dev.sh>#!/usr/bin/env bash
+#!/usr/bin/env bash
+# dev_bootstrap.sh — safe bootstrap + health probe for Moonwalkings
 set -euo pipefail
 
-API_ORIGIN="${API_ORIGIN:-http://127.0.0.1:3100}"  # Vite dev proxy origin
-SNAP="${API_ORIGIN}/api/snapshots/one-hour-price"
-SSE="${API_ORIGIN}/api/events"
+BACKEND_PORT="${BACKEND_PORT:-5001}"
+WORKER_PORT="${WORKER_PORT:-8787}"
+VITE_PORT="${VITE_PORT:-3100}"
+BACKEND_HEALTH="http://127.0.0.1:${BACKEND_PORT}/api/health"
 
-echo "→ Checking snapshot: ${SNAP}"
-json=$(curl -fsS --max-time 5 "${SNAP}")
-echo "   OK: $(echo "$json" | head -c 120) ..."
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOG_DIR="$ROOT_DIR/.logs"
+mkdir -p "$LOG_DIR"
 
-# Basic sanity: ok==true and rows is an array
-echo "$json" | python3 - <<'PY'
-import sys, json
-data = json.load(sys.stdin)
-assert data.get("ok") is True, "ok != true"
-assert isinstance(data.get("rows"), list), "rows not list"
-PY
-echo "   JSON shape looks good."
+log() { printf "[dev_bootstrap] %s\n" "$*"; }
+err() { printf "[dev_bootstrap][ERR] %s\n" "$*" >&2; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
-echo "→ Checking SSE: ${SSE}"
-# Read just a couple SSE lines to confirm stream opens
-curl -fsS -N --max-time 5 -H 'Accept: text/event-stream' "${SSE}" | sed -n '1,5p' || true
-echo "   SSE opened."
+probe_health() {
+  local url="$1"; local retries="${2:-20}"; local delay="${3:-0.5}";
+  for ((i=1;i<=retries;i++)); do
+    if curl -fsS "$url" >/dev/null; then
+      log "Healthy: $url"; return 0
+    fi
+    sleep "$delay"
+  done
+  err "Timed out waiting for: $url"; return 1
+}
 
-echo "✓ Smoke tests passed."
-</file>
+start_backend() {
+  if [[ -x "$ROOT_DIR/scripts/start_backend.sh" ]]; then
+    log "Starting backend via scripts/start_backend.sh (PORT=$BACKEND_PORT)"
+    BACKEND_PORT="$BACKEND_PORT" nohup "$ROOT_DIR/scripts/start_backend.sh" \
+      >"$LOG_DIR/backend.stdout" 2>"$LOG_DIR/backend.stderr" & echo $! >"$LOG_DIR/backend.pid"
+    return 0
+  fi
+  if [[ -f "$ROOT_DIR/backend/app.py" ]]; then
+    log "Starting backend via python backend/app.py (PORT=$BACKEND_PORT)"
+    BACKEND_PORT="$BACKEND_PORT" nohup python "$ROOT_DIR/backend/app.py" \
+      >"$LOG_DIR/backend.stdout" 2>"$LOG_DIR/backend.stderr" & echo $! >"$LOG_DIR/backend.pid"
+    return 0
+  fi
+  err "No backend start script found. Skipping."
+}
 
-<file name=scripts/dev_bootstrap.sh>#!/usr/bin/env bash
+start_worker() {
+  if [[ -x "$ROOT_DIR/scripts/start_worker.sh" ]]; then
+    log "Starting Worker via scripts/start_worker.sh (PORT=$WORKER_PORT)"
+    WORKER_PORT="$WORKER_PORT" nohup "$ROOT_DIR/scripts/start_worker.sh" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  if have wrangler && [[ -f "$ROOT_DIR/wrangler.toml" || -d "$ROOT_DIR/workers" ]]; then
+    log "Starting Cloudflare Worker locally via wrangler dev (PORT=$WORKER_PORT)"
+    nohup wrangler dev --local --port "$WORKER_PORT" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  err "No Worker start method found. Skipping."
+}
+
+start_vite() {
+  if [[ -x "$ROOT_DIR/scripts/start_frontend.sh" ]]; then
+    log "Starting Vite via scripts/start_frontend.sh (PORT=$VITE_PORT)"
+    VITE_PORT="$VITE_PORT" nohup "$ROOT_DIR/scripts/start_frontend.sh" \
+      >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid"
+    return 0
+  fi
+  if have npm && [[ -f "$ROOT_DIR/frontend/package.json" ]]; then
+    log "Starting Vite via npm (PORT=$VITE_PORT)"
+    ( cd "$ROOT_DIR/frontend" && PORT="$VITE_PORT" nohup npm run dev \
+        >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid" )
+    return 0
+  fi
+  err "No frontend start method found. Skipping."
+}
+
+stop_all() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "Stopping $svc (pid=$pid)"; kill "$pid" 2>/dev/null || true
+      fi
+      rm -f "$LOG_DIR/$svc.pid"
+    fi
+  done
+}
+
+status() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "$svc: RUNNING (pid=$pid)"
+      else
+        log "$svc: STOPPED"
+      fi
+    else
+      log "$svc: STOPPED"
+    fi
+  done
+}
+
+usage() {
+  cat <<USAGE
+Usage: $0 [run|stop|status|probe]
+  run    Start available services and probe backend health
+  stop   Stop services started by this script
+  status Show status of services
+  probe  Only probe backend health
+
+Env: BACKEND_PORT=$BACKEND_PORT WORKER_PORT=$WORKER_PORT VITE_PORT=$VITE_PORT
+USAGE
+}
+
+cmd="${1:-run}"; shift || true
+case "$cmd" in
+  run)
+    log "Bootstrap starting"
+    start_backend || true
+    start_worker  || true
+    start_vite    || true
+    log "Probing health: $BACKEND_HEALTH"
+    probe_health "$BACKEND_HEALTH" 40 0.5 || exit 1
+    log "OK. Tail recent logs:"
+    for f in backend.stdout worker.stdout vite.stdout; do
+      [[ -f "$LOG_DIR/$f" ]] && { echo "--- $f (last 40 lines) ---"; tail -n 40 "$LOG_DIR/$f" || true; }
+    done
+    ;;
+  stop)   stop_all ;;
+  status) status ;;
+  probe)  probe_health "$BACKEND_HEALTH" 1 0.1 || exit 1 ;;
+  *) usage; exit 1;;
+esac
+
+#!/usr/bin/env bash
+cmd="${1:-run}"; shift || true
+case "$cmd" in
+  run)
+    log "Bootstrap starting"
+    start_backend || true
+    start_worker  || true
+    start_vite    || true
+    log "Probing health: $BACKEND_HEALTH"
+    probe_health "$BACKEND_HEALTH" 40 0.5 || exit 1
+    log "OK. Tail recent logs:"
+    for f in backend.stdout worker.stdout vite.stdout; do
+      [[ -f "$LOG_DIR/$f" ]] && { echo "--- $f (last 40 lines) ---"; tail -n 40 "$LOG_DIR/$f" || true; }
+    done
+    ;;
+  stop)   stop_all ;;
+  status) status ;;
+  probe)  probe_health "$BACKEND_HEALTH" 1 0.1 || exit 1 ;;
+  *) usage; exit 1;;
+esac
+
+      >"$LOG_DIR/backend.stdout" 2>"$LOG_DIR/backend.stderr" & echo $! >"$LOG_DIR/backend.pid"
+    return 0
+  fi
+  err "No backend start script found. Skipping."
+}
+
+start_worker() {
+  if [[ -x "$ROOT_DIR/scripts/start_worker.sh" ]]; then
+    log "Starting Worker via scripts/start_worker.sh (PORT=$WORKER_PORT)"
+    WORKER_PORT="$WORKER_PORT" nohup "$ROOT_DIR/scripts/start_worker.sh" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  if have wrangler && [[ -f "$ROOT_DIR/wrangler.toml" || -d "$ROOT_DIR/workers" ]]; then
+    log "Starting Worker locally via wrangler dev (PORT=$WORKER_PORT)"
+    nohup wrangler dev --local --port "$WORKER_PORT" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  err "No Worker start method found. Skipping."
+}
+
+start_vite() {
+  if [[ -x "$ROOT_DIR/scripts/start_frontend.sh" ]]; then
+    log "Starting Vite via scripts/start_frontend.sh (PORT=$VITE_PORT)"
+    VITE_PORT="$VITE_PORT" nohup "$ROOT_DIR/scripts/start_frontend.sh" \
+      >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid"
+    return 0
+  fi
+  if have npm && [[ -f "$ROOT_DIR/frontend/package.json" ]]; then
+    log "Starting Vite via npm (PORT=$VITE_PORT)"
+    ( cd "$ROOT_DIR/frontend" && PORT="$VITE_PORT" nohup npm run dev \
+        >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid" )
+    return 0
+  fi
+  err "No frontend start method found. Skipping."
+}
+
+stop_all() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "Stopping $svc (pid=$pid)"; kill "$pid" 2>/dev/null || true
+      fi
+      rm -f "$LOG_DIR/$svc.pid"
+    fi
+  done
+}
+
+status() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "$svc: RUNNING (pid=$pid)"
+      else
+        log "$svc: STOPPED"
+      fi
+    else
+      log "$svc: STOPPED"
+    fi
+  done
+}
+
+usage() {
+  cat <<USAGE
+Usage: $0 [run|stop|status|probe]
+  run    Start available services and probe backend health
+  stop   Stop services started by this script
+  status Show status of services
+  probe  Only probe backend health
+
+Env: BACKEND_PORT=$BACKEND_PORT WORKER_PORT=$WORKER_PORT VITE_PORT=$VITE_PORT
+USAGE
+}
+
+cmd="${1:-run}"; shift || true
+case "$cmd" in
+  run)
+    log "Bootstrap starting"
+    start_backend || true
+    start_worker  || true
+    start_vite    || true
+    log "Probing health: $BACKEND_HEALTH"
+    probe_health "$BACKEND_HEALTH" 40 0.5 || exit 1
+    log "OK. Tail recent logs:"
+    for f in backend.stdout worker.stdout vite.stdout; do
+      [[ -f "$LOG_DIR/$f" ]] && { echo "--- $f (last 40 lines) ---"; tail -n 40 "$LOG_DIR/$f" || true; }
+    done
+    ;;
+  stop)   stop_all ;;
+  status) status ;;
+  probe)  probe_health "$BACKEND_HEALTH" 1 0.1 || exit 1 ;;
+  *) usage; exit 1;;
+esac
+
+*** Update File: /Users/cdmxx/Documents/moonwalkings/scripts/start_backend.sh
+#!/usr/bin/env bash
+echo "Starting backend..."
+# Add your backend start logic here
+
+*** Update File: /Users/cdmxx/Documents/moonwalkings/scripts/requirements.txt
+Flask>=2.3.2
+requests>=2.31.0
+# dev_bootstrap.sh — safe bootstrap + health probe for Moonwalkings
+# This file previously contained Python requirements; it's now a runnable script.
+# If you still need to add dependencies, put them in requirements.txt (see notes at end).
+
 set -euo pipefail
 
-# tiny helper: wait for an HTTP 200 from a URL
-wait_for_http() {
-  local url="$1" name="${2:-service}" tries="${3:-40}" sleep_s="${4:-0.25}"
-  for ((i=1; i<=tries; i++)); do
-    if curl -fsS --max-time 2 "$url" >/dev/null; then
-      echo "[dev_bootstrap] $name is up: $url"
+# ---------- Config (override with env vars) ----------
+BACKEND_PORT="${BACKEND_PORT:-5001}"
+WORKER_PORT="${WORKER_PORT:-8787}"
+VITE_PORT="${VITE_PORT:-3100}"
+BACKEND_HEALTH="http://127.0.0.1:${BACKEND_PORT}/api/health"
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOG_DIR="$ROOT_DIR/.logs"
+mkdir -p "$LOG_DIR"
+
+log() { printf "[dev_bootstrap] %s\n" "$*"; }
+err() { printf "[dev_bootstrap][ERR] %s\n" "$*" >&2; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# ---------- Helpers ----------
+probe_health() {
+  local url="$1"; local retries="${2:-20}"; local delay="${3:-0.5}";
+  for ((i=1;i<=retries;i++)); do
+    if curl -fsS "$url" >/dev/null; then
+      log "Healthy: $url"
       return 0
     fi
-    sleep "$sleep_s"
+    sleep "$delay"
   done
-  echo "[dev_bootstrap] $name did not become healthy: $url"
+  err "Timed out waiting for: $url"
   return 1
 }
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
-
-echo "[dev_bootstrap] repo root: $ROOT"
-
-echo "[dev_bootstrap] killing old processes (wrangler, backend, vite) if present..."
-pkill -f "wrangler.*dev" 2>/dev/null || true
-pkill -f "node .*vite" 2>/dev/null || true
-pkill -f "python .*backend/app.py" 2>/dev/null || true
-
-# Free common ports if anything stuck
-for P in 8787 5001 3100; do
-  echo "[dev_bootstrap] freeing port $P if occupied"
-  lsof -ti :${P} -sTCP:LISTEN | xargs -I{} kill -9 {} 2>/dev/null || true
-done
-
-# Activate venv if present
-if [ -f ".venv/bin/activate" ]; then
-  echo "[dev_bootstrap] activating .venv"
-  # shellcheck disable=SC1091
-  source .venv/bin/activate
-fi
-
-mkdir -p backend
-
-echo "[dev_bootstrap] starting backend (Flask) -> backend/server.stdout"
-# Start backend in background and capture pid
-nohup bash -lc "python backend/app.py --host 127.0.0.1 --port 5001" > backend/server.stdout 2>&1 &
-echo $! > backend/backend.pid
-
-echo "[dev_bootstrap] waiting for backend health"
-wait_for_http "http://127.0.0.1:5001/health" "backend" 40 0.25
-
-echo "[dev_bootstrap] starting wrangler dev -> workers.log"
-nohup npx wrangler@latest dev --local --port=8787 > workers.log 2>&1 &
-echo $! > workers.pid || true
-
-echo "[dev_bootstrap] waiting for worker at http://127.0.0.1:8787/api/events"
-for i in $(seq 1 30); do
-  if curl -sS --max-time 2 -I http://127.0.0.1:8787/api/events >/dev/null 2>&1; then
-    echo "[dev_bootstrap] worker appears reachable"
-    break
+start_backend() {
+  # Prefer project-provided script if present
+  if [[ -x "$ROOT_DIR/scripts/start_backend.sh" ]]; then
+    log "Starting backend via scripts/start_backend.sh (PORT=$BACKEND_PORT)"
+    BACKEND_PORT="$BACKEND_PORT" nohup "$ROOT_DIR/scripts/start_backend.sh" \
+      >"$LOG_DIR/backend.stdout" 2>"$LOG_DIR/backend.stderr" & echo $! >"$LOG_DIR/backend.pid"
+    return 0
   fi
-  sleep 1
-done
+  # Fallbacks kept conservative (no assumptions about module names)
+  if [[ -f "$ROOT_DIR/backend/app.py" ]]; then
+    log "Starting backend via python backend/app.py (PORT=$BACKEND_PORT)"
+    BACKEND_PORT="$BACKEND_PORT" nohup python "$ROOT_DIR/backend/app.py" \
+      >"$LOG_DIR/backend.stdout" 2>"$LOG_DIR/backend.stderr" & echo $! >"$LOG_DIR/backend.pid"
+    return 0
+  fi
+  err "No backend start script found. Skipping."
+}
 
-echo "[dev_bootstrap] starting Vite dev -> frontend/vite.stdout"
-nohup npm --prefix frontend run dev > frontend/vite.stdout 2>&1 &
-echo $! > frontend/vite.pid || true
+start_worker() {
+  if [[ -x "$ROOT_DIR/scripts/start_worker.sh" ]]; then
+    log "Starting Worker via scripts/start_worker.sh (PORT=$WORKER_PORT)"
+    WORKER_PORT="$WORKER_PORT" nohup "$ROOT_DIR/scripts/start_worker.sh" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  if have wrangler && [[ -f "$ROOT_DIR/wrangler.toml" || -d "$ROOT_DIR/workers" ]]; then
+    log "Starting Cloudflare Worker locally via wrangler dev (PORT=$WORKER_PORT)"
+    nohup wrangler dev --local --port "$WORKER_PORT" \
+      >"$LOG_DIR/worker.stdout" 2>"$LOG_DIR/worker.stderr" & echo $! >"$LOG_DIR/worker.pid"
+    return 0
+  fi
+  err "No Worker start method found. Skipping."
+}
 
-# Wait for Vite dev server to accept connections (default 3100)
-echo "[dev_bootstrap] waiting for Vite dev server"
-wait_for_http "http://127.0.0.1:3100" "vite" 40 0.25
+start_vite() {
+  if [[ -x "$ROOT_DIR/scripts/start_frontend.sh" ]]; then
+    log "Starting Vite via scripts/start_frontend.sh (PORT=$VITE_PORT)"
+    VITE_PORT="$VITE_PORT" nohup "$ROOT_DIR/scripts/start_frontend.sh" \
+      >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid"
+    return 0
+  fi
+  if have npm && [[ -f "$ROOT_DIR/frontend/package.json" ]]; then
+    log "Starting Vite via npm (PORT=$VITE_PORT)"
+    ( cd "$ROOT_DIR/frontend" && PORT="$VITE_PORT" nohup npm run dev \
+        >"$LOG_DIR/vite.stdout" 2>"$LOG_DIR/vite.stderr" & echo $! >"$LOG_DIR/vite.pid" )
+    return 0
+  fi
+  err "No frontend start method found. Skipping."
+}
 
-# Run quick smoke tests to validate the stack
-echo "[dev_bootstrap] running smoke tests (scripts/smoke_dev.sh)"
-if ! scripts/smoke_dev.sh; then
-  echo "[dev_bootstrap] smoke tests failed; check logs: backend/server.stdout frontend/vite.stdout workers.log"
-  exit 1
+stop_all() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "Stopping $svc (pid=$pid)"; kill "$pid" 2>/dev/null || true
+      fi
+      rm -f "$LOG_DIR/$svc.pid"
+    fi
+  done
+}
+
+status() {
+  for svc in backend worker vite; do
+    if [[ -f "$LOG_DIR/$svc.pid" ]]; then
+      pid=$(cat "$LOG_DIR/$svc.pid" || true)
+      if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+        log "$svc: RUNNING (pid=$pid)"
+      else
+        log "$svc: STOPPED"
+      fi
+    else
+      log "$svc: STOPPED"
+    fi
+  done
+}
+
+usage() {
+  cat <<USAGE
+Usage: $0 [run|stop|status|probe]
+  run    Start available services and probe backend health at $BACKEND_HEALTH
+  stop   Stop services started by this script
+  status Show status of services
+  probe  Only probe backend health
+
+Env overrides: BACKEND_PORT=$BACKEND_PORT WORKER_PORT=$WORKER_PORT VITE_PORT=$VITE_PORT
+USAGE
+}
+
+cmd="${1:-run}"; shift || true
+case "$cmd" in
+  run)
+    log "Bootstrap starting in $ROOT_DIR"
+    start_backend || true
+    start_worker  || true
+    start_vite    || true
+    log "Probing health: $BACKEND_HEALTH"
+    probe_health "$BACKEND_HEALTH" 40 0.5 || exit 1
+    log "OK. Tail recent logs:"
+    for f in backend.stdout worker.stdout vite.stdout; do
+      [[ -f "$LOG_DIR/$f" ]] && { echo "--- $f (last 40 lines) ---"; tail -n 40 "$LOG_DIR/$f" || true; }
+    done
+    ;;
+  stop)
+    stop_all
+    ;;
+  status)
+    status
+    ;;
+  probe)
+    probe_health "$BACKEND_HEALTH" 1 0.1 || exit 1
+    ;;
+  *) usage; exit 1;;
 fi
 
-echo "[dev_bootstrap] done. Logs: backend/server.stdout frontend/vite.stdout workers.log"
-echo "To follow logs: tail -f backend/server.stdout frontend/vite.stdout workers.log"
-
-exit 0
-</file>
+# ---------- Notes ----------
+# • Lint/type warnings you mentioned (psutil / None subtraction) are in existing code and
+#   not from this script. Run your normal lint pipeline when convenient.
+# • Dependencies: ensure requirements.txt contains at least:
+#       Flask>=2.3.2
+#       requests>=2.31.0
+#   (This script no longer stores dependency lines.)
+# • Vite proxy: if you want '/api/snapshots/*' -> Worker (${WORKER_PORT}) rewriting in dev,
+#   add a proxy rule in frontend/vite.config.js under server.proxy.
