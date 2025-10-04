@@ -219,17 +219,17 @@ export class Hub {
 
       // Periodically persist to KV for cold-start recovery (avoid per-poll writes)
       const now = Date.now();
-      const fiveMin = 5 * 60 * 1000;
-      if (this.env.WATCHLIST_KV && now - (this._lastPersistedAt || 0) >= fiveMin) {
+      const fifteenMin = 15 * 60 * 1000;
+      if (this.env.WATCHLIST_KV && now - (this._lastPersistedAt || 0) >= fifteenMin) {
         try {
           await this.env.WATCHLIST_KV.put("latest_snapshots", JSON.stringify(this.snapshots), {
-            expirationTtl: 300 // 5 minutes
+            expirationTtl: 1800 // 30 minutes (2x persist interval)
           });
           this._lastPersistedAt = now;
         } catch (e) {
           // If we hit KV quota (429), skip this persist and continue; DO keeps in-memory state
           if (String(e).includes('429')) {
-            console.warn('WATCHLIST_KV quota hit; skipping persist');
+            console.warn('WATCHLIST_KV quota hit; skipping persist (free tier limit)');
           } else {
             throw e;
           }
