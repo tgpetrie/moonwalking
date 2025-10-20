@@ -1,24 +1,32 @@
-// Lightweight API helpers focused on same-origin /api via Vite proxy
-const base = '/api';
+// src/lib/api.js
+export const API_ORIGIN =
+  import.meta.env.VITE_API_ORIGIN ||
+  import.meta.env.VITE_API_BASE ||
+  'http://127.0.0.1:5002';
 
-export async function fetchJson(path, init) {
-  const res = await fetch(base + path, { credentials: 'omit', ...init });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
-  }
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : { ok: true, raw: await res.text() };
+async function j(path, init = {}) {
+  const url = path.startsWith('http') ? path : `${API_ORIGIN}${path}`;
+  const res = await fetch(url, { ...init, headers: { 'accept': 'application/json', ...(init?.headers || {}) } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
 }
 
-// Watchlist helpers (align with backend contract)
-// GET /api/watchlist -> ["BTC","ETH",...]
-export async function getWatchlist() {
-  const data = await fetchJson('/watchlist');
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.watchlist)) return data.watchlist; // tolerate {watchlist:[...]}
-  return [];
-}
+export const api = {
+  health: () => j('/api/health'),
+  metrics: () => j('/api/metrics'),
+  topMoversBar: () => j('/api/component/top-movers-bar'),
+  gainers: () => j('/api/component/gainers-table'),
+  losers: () => j('/api/component/losers-table'),
+};
+
+export const getJSON = async (path, opts = {}) => {
+  const res = await fetch(path.startsWith('http') ? path : `${API_ORIGIN}${path}`, {
+    headers: { Accept: 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  return res.json();
+};
 
 // POST /api/watchlist { symbol, price? }
 export async function addToWatchlist(symbol, price) {

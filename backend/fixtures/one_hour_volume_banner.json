@@ -1,0 +1,42 @@
+[
+  {
+    "symbol": "BTC-USD",
+    "current_price": 68000.0,
+    "initial_price_24h": 65500.0,
+    "initial_price_1h": 67650.0,
+    "price_change_24h": 3.82,
+    "price_change_1h": 0.52,
+    "volume_24h": 1850000000.0,
+    "market_cap": 1320000000000.0
+  },
+  {
+    "symbol": "SOL-USD",
+    "current_price": 145.0,
+    "initial_price_24h": 134.0,
+    "initial_price_1h": 143.0,
+    "price_change_24h": 8.21,
+    "price_change_1h": 1.4,
+    "volume_24h": 420000000.0,
+    "market_cap": 65000000000.0
+  },
+  {
+    "symbol": "XRP-USD",
+    "current_price": 0.63,
+    "initial_price_24h": 0.61,
+    "initial_price_1h": 0.62,
+    "price_change_24h": 3.28,
+    "price_change_1h": 0.8,
+    "volume_24h": 580000000.0,
+    "market_cap": 34000000000.0
+  },
+  {
+    "symbol": "BONK-USD",
+    "current_price": 0.000032,
+    "initial_price_24h": 0.000028,
+    "initial_price_1h": 0.000031,
+    "price_change_24h": 14.29,
+    "price_change_1h": 3.23,
+    "volume_24h": 260000000.0,
+    "market_cap": 1600000000.0
+  }
+]

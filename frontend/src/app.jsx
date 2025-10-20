@@ -4,7 +4,7 @@ import { API_ENDPOINTS } from './api.js';
 import { WebSocketProvider, useWebSocket } from './context/websocketcontext.jsx';
 import ToastProvider from './components/ToastProvider.jsx';
 //
-import OneMinGainersColumns from './components/OneMinGainersColumns.jsx';
+// OneMinGainersColumns removed in favor of a single centered GainersTable1Min
 import ManualRefreshButton from './components/ManualRefreshButton.jsx';
 import FloatingActionMenu from './components/FloatingActionMenu.jsx';
 import CountdownMeter from './components/CountdownMeter.jsx';
@@ -13,7 +13,10 @@ import AuthPanel from './components/AuthPanel';
 import AlertsIndicator from './components/AlertsIndicator.jsx';
 
 const MoverTable = React.lazy(() => import('./components/MoverTable.jsx'));
-const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min'));
+const StatusPage = React.lazy(() => import('./pages/Status'));
+const TopMoversDemo = React.lazy(() => import('./pages/TopMoversDemo'));
+const GainersTable1Min = React.lazy(() => import('./components/GainersTable1Min.clean.jsx'));
+import OneMinGainersColumns from './components/OneMinGainersColumns.jsx';
 import Watchlist from './components/Watchlist';
 import TopBannerScroll from './components/TopBannerScroll.jsx';
 import BottomBannerScroll from './components/BottomBannerScroll.jsx';
@@ -27,6 +30,7 @@ const CodexPanel = React.lazy(() => import('./components/CodexPanel.jsx'));
 const SentimentPanel = React.lazy(() => import('./components/SentimentPanel.jsx'));
 // Mobile debugging component
 const LearnPanel = React.lazy(() => import('./components/LearnPanel.jsx'));
+const MobileInsights = React.lazy(() => import('./screens/MobileInsights'));
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
 import SymbolPanel from './components/SymbolPanel.jsx';
@@ -54,14 +58,15 @@ function AppUI() {
   const isPremium = user.plan === 'premium';
   const [checkingAuth] = useState(false);
   const [uiToggles, setUiToggles] = useState({ insights: false, sentiment: false, learn: false });
-  const [oneMinExpanded, setOneMinExpanded] = useState(false);
-  const [threeMinExpanded, setThreeMinExpanded] = useState(false);
+  // oneMinExpanded removed; 1-min columns render compact by default
+  const [threeMinExpanded] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
   const setShowInsights = (updater) => setUiToggles(prev => ({ ...prev, insights: typeof updater === 'function' ? updater(prev.insights) : Boolean(updater) }));
   const setShowSentiment = (updater) => setUiToggles(prev => ({ ...prev, sentiment: typeof updater === 'function' ? updater(prev.sentiment) : Boolean(updater) }));
   const setShowLearn = (updater) => setUiToggles(prev => ({ ...prev, learn: typeof updater === 'function' ? updater(prev.learn) : Boolean(updater) }));
   const [codexCoin, setCodexCoin] = useState(null);
   const [panelFocus, setPanelFocus] = useState(null);
+  const [panelInitialTab, setPanelInitialTab] = useState('overview');
 
   // Poll backend connection and update countdown
   useEffect(() => {
@@ -79,6 +84,13 @@ function AppUI() {
   const handleSelectCoinForAnalysis = (symbol) => {
     setCodexCoin(symbol);
     // open quick symbol panel (non-blocking)
+    setPanelInitialTab('overview');
+    setPanelFocus(symbol);
+  };
+
+  const handleOpenSymbol = (symbol, opts = {}) => {
+    if (!symbol) return;
+    setPanelInitialTab(opts?.initialTab || 'overview');
     setPanelFocus(symbol);
   };
 
@@ -94,9 +106,39 @@ function AppUI() {
     return <AuthPanel onAuth={() => window.location.reload()} />;
   }
 
+  // Simple pathname-based dev routes: /status and /movers
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
   const chunkFallback = (label = 'Loading...') => (
     <div className="text-center text-xs text-gray-400 py-4 animate-pulse" aria-live="polite">{label}</div>
   );
+  if (pathname.startsWith('/status')) {
+    return (
+      <div className="min-h-screen bg-dark text-white relative">
+        <Suspense fallback={chunkFallback('Loading status...')}>
+          <StatusPage />
+        </Suspense>
+      </div>
+    );
+  }
+  if (pathname.startsWith('/movers')) {
+    return (
+      <div className="min-h-screen bg-dark text-white relative">
+        <Suspense fallback={chunkFallback('Loading movers demo...')}>
+          <TopMoversDemo />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (pathname.startsWith('/insights')) {
+    return (
+      <div className="min-h-screen bg-dark text-white relative">
+        <Suspense fallback={chunkFallback('Loading insights...')}>
+          <MobileInsights />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark text-white relative">
@@ -141,12 +183,7 @@ function AppUI() {
             {/* These components manage their own visibility and pointer events */}
             {/* Watchlist Insights */}
             <div className="pointer-events-auto"><WatchlistInsightsPanel /></div>
-            {/* Sentiment Panel */}
-            {uiToggles.sentiment && topWatchlist.length > 0 && (
-              <div className="pointer-events-auto">
-                <SentimentPanel symbols={topWatchlist.map(item => item.symbol || item.product_id || item)} />
-              </div>
-            )}
+            {/* Sentiment Panel moved to centered overlay; removed from bottom-right to avoid duplication */}
           </Suspense>
         )}
       </div>
@@ -201,13 +238,21 @@ function AppUI() {
             else subHeights = 'h-10 sm:h-12 lg:h-14';
             return (
               <>
-                <div className="mb-3">
-                  <img
-                    src={flags.HEADER_LOGO_SRC}
-                    alt="BHABIT"
-                    className={`${mainHeights} animate-breathing`}
-                  />
-                </div>
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        aria-pressed={uiToggles.sentiment}
+                        onClick={() => setShowSentiment(s => !s)}
+                        className="focus:outline-none"
+                        title="Toggle Sentiment"
+                      >
+                        <img
+                          src={flags.HEADER_LOGO_SRC}
+                          alt="BHABIT"
+                          className={`${mainHeights} animate-breathing`}
+                        />
+                      </button>
+                    </div>
                 {flags.HEADER_SHOW_SUBLOGO && (
                   <img
                     src={flags.HEADER_SUBLOGO_SRC}
@@ -219,6 +264,23 @@ function AppUI() {
             );
           })()}
         </header>
+        {/* Centered Sentiment overlay (toggled by header logo) */}
+        {isPremium && uiToggles.sentiment && topWatchlist.length > 0 && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setShowSentiment(false)}
+              aria-hidden
+            />
+            <div className="relative pointer-events-auto max-w-3xl w-full mx-4">
+              <Suspense fallback={chunkFallback('Loading sentiment...')}>
+                <div className="bg-dark/95 border border-gray-700 rounded-xl p-4 shadow-xl">
+                  <SentimentPanel symbols={topWatchlist.map(item => item.symbol || item.product_id || item)} />
+                </div>
+              </Suspense>
+            </div>
+          </div>
+        )}
   {/* Top Banner - 1H Price (lazy) */}
   <div className="mb-8 -mx-2 sm:-mx-8 lg:-mx-16 xl:-mx-24">
           <Suspense fallback={chunkFallback('Loading price banner...')}>
@@ -230,43 +292,53 @@ function AppUI() {
         </div>
         {/* Main Content - Side by Side Panels */}
 
-  {/* 1-Minute Gainers - Two tables full width with a toggleable overlay Legend */}
+  {/* 1-Minute Gainers centered above the 3-min two-table row. The 1-min area renders
+      two compact columns side-by-side but centered in the page; below them are the
+      3-min gainers and losers rendered as two full-height tables to match row sizing. */}
   <div className="mb-4">
-          <div className="px-0 py-6 bg-transparent w-full">
-            <div className="relative">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] text-center">
-                  1-MIN GAINERS
-                </h2>
+    <div className="px-0 py-6 bg-transparent w-full">
+      <div className="relative">
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <h2 className="text-xl font-headline font-bold tracking-wide text-[#FEA400] text-center">
+            MARKET MOVERS
+          </h2>
+        </div>
+        {/* Line divider under header */}
+        <div className="flex justify-center mb-4">
+          <div className="section-divider" />
+        </div>
+
+        {/* 1-min centered two-column strip (compact cards stacked into two columns) */}
+        <div className="w-full flex justify-center mb-6">
+          <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="table-card">
+              <div className="px-4 pt-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <h3 className="text-lg font-headline font-bold tracking-wide text-[#FEA400] text-center">1-MIN</h3>
+                </div>
               </div>
-              {/* Line divider under header */}
-              <div className="flex justify-center mb-4">
-                <div className="section-divider" />
-              </div>
-              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                <OneMinGainersColumns
-                  expanded={oneMinExpanded}
-                  onSelectCoin={handleSelectCoinForAnalysis}
-                />
+              <Suspense fallback={chunkFallback('Loading 1-min left...')}>
+                <OneMinGainersColumns side="left" expanded onSelectCoin={handleSelectCoinForAnalysis} onOpenSymbol={handleOpenSymbol} compact />
               </Suspense>
-              {/* Shared Show More below the two tables */}
-              <div className="show-more-wrap">
-                <button
-                  onClick={() => setOneMinExpanded(v => !v)}
-                  className="show-more"
-                  aria-pressed={oneMinExpanded}
-                >
-                  {oneMinExpanded ? 'Show Less' : 'Show More'}
-                </button>
+            </div>
+
+            <div className="table-card">
+              <div className="px-4 pt-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <h3 className="text-lg font-headline font-bold tracking-wide text-[#FEA400] text-center">1-MIN</h3>
+                </div>
               </div>
+              <Suspense fallback={chunkFallback('Loading 1-min right...')}>
+                <OneMinGainersColumns side="right" expanded onSelectCoin={handleSelectCoinForAnalysis} onOpenSymbol={handleOpenSymbol} compact />
+              </Suspense>
             </div>
           </div>
         </div>
 
-  {/* 3-Minute Gainers and Losers (separate headers) */}
-  <div className="mb-2">
-          <div className="tables-grid">
-            {/* Left Panel - 3-MIN GAINERS */}
+        {/* Below the centered 1-min strip render two wide 3-min tables side-by-side */}
+        <div className="w-full flex justify-center">
+          <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left: 3-min gainers */}
             <div className="table-card">
               <div className="px-4 pt-4">
                 <div className="flex items-center justify-center gap-3 mb-3">
@@ -292,7 +364,7 @@ function AppUI() {
               </Suspense>
             </div>
 
-            {/* Right Panel - 3-MIN LOSERS */}
+            {/* Right: 3-min losers */}
             <div className="table-card">
               <div className="px-4 pt-4">
                 <div className="flex items-center justify-center gap-3 mb-3">
@@ -318,18 +390,12 @@ function AppUI() {
               </Suspense>
             </div>
           </div>
-
-          {/* Shared Show More below the two 3‑min tables */}
-          <div className="show-more-wrap">
-            <button
-              onClick={() => setThreeMinExpanded(v => !v)}
-              className="show-more"
-              aria-pressed={threeMinExpanded}
-            >
-              {threeMinExpanded ? 'Show Less' : 'Show More'}
-            </button>
-          </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  {/* (Duplicate 3-min tables removed — four-column layout above is authoritative) */}
 
         {/* Watchlist below 3-Min tables */}
         <div className="mb-8">
@@ -392,7 +458,7 @@ function AppUI() {
         </Suspense>
       )}
       {panelFocus && (
-        <SymbolPanel symbol={panelFocus} onClose={() => setPanelFocus(null)} />
+        <SymbolPanel symbol={panelFocus} initialTab={panelInitialTab} onClose={() => setPanelFocus(null)} />
       )}
     </div>
   );

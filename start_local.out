@@ -1,0 +1,19 @@
+[deps] backend requirements unchanged
+[deps] frontend dependencies unchanged
+[start_local] stopping existing vite process (97740)
+[start_local] stopping process 97740 from /Users/cdmxx/Documents/moonwalkings/frontend/vite.pid
+[start_local] freeing port 5001 (killing: 2744)
+[start_local] freeing port 3100 (killing: 97772)
+[start_local] frontend/.env.local exists; not overwriting (set FORCE_ENV_WRITE=1 to force)
+[start_local] backend on 5001, Vite on 3100
+[start_local] starting backend (logs -> /Users/cdmxx/Documents/moonwalkings/backend/server.stdout)
+[start_local] starting Vite (logs -> /Users/cdmxx/Documents/moonwalkings/frontend/vite.stdout)
+[start_local] waiting for 127.0.0.1:5001 to be available (timeout 30s)
+[start_local] 127.0.0.1:5001 is listening
+[start_local] waiting for 127.0.0.1:3100 to be available (timeout 30s)
+[start_local] 127.0.0.1:3100 is listening
+[start_local] open http://127.0.0.1:3100 ; API http://127.0.0.1:5001
+[start_local] entering monitor loop (pid backend=7664, vite=7666)
+[start_local] both processes exited; leaving monitor loop
+
+[start_local] stopping...

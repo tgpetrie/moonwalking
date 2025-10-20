@@ -1,0 +1,84 @@
+{
+  "source": "fixtures",
+  "generated_at": "2024-01-01T00:00:00Z",
+  "gainers": [
+    {
+      "symbol": "BTC",
+      "current": 68000.0,
+      "initial_1min": 67850.0,
+      "gain": 0.22,
+      "interval_minutes": 1.0,
+      "peak_gain": 0.25,
+      "trend_direction": "up",
+      "trend_streak": 3,
+      "trend_score": 4.2,
+      "trend_delta": 0.08,
+      "momentum": "strong",
+      "alert_level": "normal"
+    },
+    {
+      "symbol": "SOL",
+      "current": 145.0,
+      "initial_1min": 143.8,
+      "gain": 0.84,
+      "interval_minutes": 1.0,
+      "peak_gain": 0.9,
+      "trend_direction": "up",
+      "trend_streak": 2,
+      "trend_score": 3.6,
+      "trend_delta": 0.12,
+      "momentum": "strong",
+      "alert_level": "normal"
+    },
+    {
+      "symbol": "INJ",
+      "current": 32.5,
+      "initial_1min": 32.2,
+      "gain": 0.93,
+      "interval_minutes": 1.0,
+      "peak_gain": 1.1,
+      "trend_direction": "up",
+      "trend_streak": 4,
+      "trend_score": 5.1,
+      "trend_delta": 0.18,
+      "momentum": "strong",
+      "alert_level": "high"
+    }
+  ],
+  "losers": [
+    {
+      "symbol": "ADA",
+      "current": 0.45,
+      "initial_1min": 0.452,
+      "gain": -0.44,
+      "interval_minutes": 1.0,
+      "peak_gain": -0.5,
+      "trend_direction": "down",
+      "trend_streak": 2,
+      "trend_score": -2.4,
+      "trend_delta": -0.07,
+      "momentum": "moderate",
+      "alert_level": "normal"
+    },
+    {
+      "symbol": "DOGE",
+      "current": 0.19,
+      "initial_1min": 0.191,
+      "gain": -0.52,
+      "interval_minutes": 1.0,
+      "peak_gain": -0.6,
+      "trend_direction": "down",
+      "trend_streak": 3,
+      "trend_score": -3.1,
+      "trend_delta": -0.09,
+      "momentum": "moderate",
+      "alert_level": "normal"
+    }
+  ],
+  "throttled": false,
+  "refresh_seconds": 30,
+  "enter_threshold_pct": 0.15,
+  "stay_threshold_pct": 0.05,
+  "dwell_seconds": 90,
+  "retained": 5
+}

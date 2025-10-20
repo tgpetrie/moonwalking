@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_PID_FILE="${ROOT_DIR}/backend/backend.pid"

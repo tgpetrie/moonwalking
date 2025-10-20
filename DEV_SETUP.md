@@ -111,3 +111,48 @@ Caveats / Follow-ups
     • Ensure KV namespace MW_KV and DO class WatchlistDO exist/attached
     • Keep secrets in Cloudflare Secret Manager (not in config)
     • wrangler login / gh auth login before deploying
+
+Offline / fixture mode (quick local development without internet)
+-------------------------------------------------------------
+
+If your development machine has restricted egress or you prefer a deterministic
+dataset while iterating on frontend UI, the backend can serve representative
+fixture payloads for the main component endpoints (gainers/losers tables and
+banner streams).
+
+Start the backend in fixtures mode:
+
+```bash
+./stop_local.sh
+USE_FIXTURES=1 ./start_local.sh
+```
+
+This will cause the backend to return sample payloads for endpoints such as:
+
+    - /api/component/gainers-table-1min
+    - /api/component/gainers-table-3min
+    - /api/component/losers-table-3min
+    - /api/one-hour-price
+
+You can verify by curling the endpoints and looking for a `mode: "fixtures"` or
+well-formed JSON with non-empty `data` arrays.
+
+To run with live data, ensure the backend can reach the external APIs (unblock
+egress or configure HTTPS_PROXY) and run `./start_local.sh` normally.
+
+Seeded 1-minute data (dev-only)
+--------------------------------
+
+If the 1-minute gainers table is empty on cold start you can enable a small
+dev-only seed so the UI shows realistic rows immediately without enabling the
+full fixtures mode.
+
+Enable it like this:
+
+```bash
+USE_1MIN_SEED=1 ./start_local.sh
+```
+
+This reads `backend/fixtures/top_movers_3m.json`, maps a few entries into the
+1-minute endpoint response, and returns them without writing to persistent
+storage. The default is OFF; do not enable this in CI or production.

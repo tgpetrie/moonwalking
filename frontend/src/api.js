@@ -76,6 +76,7 @@ export const setApiBaseUrl = (url) => {
   try { console.info('[api] Switched API base to', API_BASE_URL); } catch (_) {}
 };
 
+import { normalizeComponentPayload } from './services/normalize.js';
 import { isMobileDevice, getMobileOptimizedConfig } from './utils/mobileDetection.js';
 
 // Fetch data from API with throttling and automatic base fallback
@@ -95,6 +96,11 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
     console.error('API fetch error:', error);
     throw error;
   }
+};
+
+export const fetchComponent = async (endpoint, fetchOptions = {}) => {
+  const payload = await fetchData(endpoint, fetchOptions);
+  return normalizeComponentPayload(payload);
 };
 
 // POST helper with the same dynamic fallback and timeouts as fetchData

@@ -1,0 +1,47 @@
+[
+  {
+    "actual_interval_minutes": 452.8,
+    "alert_level": "normal",
+    "current_price": 1.8615,
+    "initial_price_1min": 1.788,
+    "momentum": "moderate",
+    "peak_gain": 4.110738255033551,
+    "price_change_percentage_1min": 4.110738255033551,
+    "rank": 1,
+    "symbol": "MORPHO-USD",
+    "trend_delta": 0.677,
+    "trend_direction": "up",
+    "trend_score": 3.03,
+    "trend_streak": 2
+  },
+  {
+    "actual_interval_minutes": 453.9,
+    "alert_level": "normal",
+    "current_price": 0.1613,
+    "initial_price_1min": 0.157,
+    "momentum": "moderate",
+    "peak_gain": 2.7388535031847123,
+    "price_change_percentage_1min": 2.7388535031847123,
+    "rank": 2,
+    "symbol": "TREE-USD",
+    "trend_delta": 0.0,
+    "trend_direction": "flat",
+    "trend_score": 0.1,
+    "trend_streak": 1
+  },
+  {
+    "actual_interval_minutes": 443.1,
+    "alert_level": "normal",
+    "current_price": 0.3285,
+    "initial_price_1min": 0.3209,
+    "momentum": "moderate",
+    "peak_gain": 2.3683390464319087,
+    "price_change_percentage_1min": 2.3683390464319087,
+    "rank": 3,
+    "symbol": "DEXT-USD",
+    "trend_delta": 0.0,
+    "trend_direction": "flat",
+    "trend_score": 0.1,
+    "trend_streak": 1
+  }
+]

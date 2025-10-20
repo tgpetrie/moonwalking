@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import GainersTable1Min from '../GainersTable1Min.jsx';
+import GainersTable1Min from '../GainersTable1Min.clean.jsx';
 import { WatchlistProvider } from '../../hooks/useWatchlist.jsx';
 
 const sample = [{

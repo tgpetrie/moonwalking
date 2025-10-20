@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSE Test - Ultra-Live Crypto Data</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+        .log { margin: 5px 0; padding: 5px; background: #000; border-left: 3px solid #0f0; }
+        .error { border-color: #f00; color: #f00; }
+        .data { border-color: #00f; color: #0ff; }
+        h1 { color: #0f0; }
+        #status { padding: 10px; background: #000; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Ultra-Live SSE Crypto Stream (3-5s updates)</h1>
+    <div id="status">Status: Connecting...</div>
+    <div id="logs"></div>
+
+    <script>
+        const logsEl = document.getElementById('logs');
+        const statusEl = document.getElementById('status');
+
+        function addLog(msg, type = 'log') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logsEl.insertBefore(div, logsEl.firstChild);
+            if (logsEl.children.length > 50) logsEl.lastChild.remove();
+        }
+
+        const eventSource = new EventSource('http://127.0.0.1:8787/api/events');
+
+        eventSource.onopen = () => {
+            statusEl.textContent = 'Status: ✅ Connected to SSE stream';
+            statusEl.style.color = '#0f0';
+            addLog('SSE connection established');
+        };
+
+        eventSource.onerror = (err) => {
+            statusEl.textContent = 'Status: ❌ Connection error';
+            statusEl.style.color = '#f00';
+            addLog(`SSE error: ${err}`, 'error');
+        };
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                addLog(`Received: ${JSON.stringify(data, null, 2)}`, 'data');
+
+                if (data.type === 'update') {
+                    statusEl.textContent = `Status: ✅ Live | Last update: ${new Date(data.updatedAt).toLocaleTimeString()} | Count: ${data.count}`;
+                }
+            } catch (e) {
+                addLog(`Parse error: ${e.message}`, 'error');
+            }
+        };
+
+        addLog('Initializing SSE client...');
+    </script>
+</body>
+</html>

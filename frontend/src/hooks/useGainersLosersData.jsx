@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-
-const mapRows = (payload) => {
-  if (!payload) return [];
-  if (Array.isArray(payload?.rows)) return payload.rows;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload)) return payload;
-  return [];
-};
+import { fetchComponent } from '../api.js';
 
 const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
 
@@ -43,25 +36,27 @@ export function useGainersLosersData({ variant = 'gainers', window = '3min', pol
 
         setLoading(true);
 
-        const [gainersRes, losersRes] = await Promise.all([
-          fetch(gainersEndpoint, { signal: controller.signal }).catch(() => null),
-          fetch(losersEndpoint, { signal: controller.signal }).catch(() => null),
+        const [gainersJson, losersJson] = await Promise.all([
+          fetchComponent(gainersEndpoint, { signal: controller.signal }),
+          fetchComponent(losersEndpoint, { signal: controller.signal }),
         ]);
 
         if (!mounted) return;
 
-        const [gainersJson, losersJson] = await Promise.all([
-          gainersRes?.ok ? gainersRes.json().catch(() => ({})) : {},
-          losersRes?.ok ? losersRes.json().catch(() => ({})) : {},
-        ]);
+        const pickRows = (payload) =>
+          Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.rows)
+            ? payload.rows
+            : [];
 
-        const gainersRows = mapRows(gainersJson).map((item, idx) => ({
+        const gainersRows = pickRows(gainersJson).map((item, idx) => ({
           ...item,
           rank: item.rank || idx + 1,
           symbol: sanitizeSymbol(item.symbol || item.pair || item.product_id || ''),
         }));
 
-        const losersRows = mapRows(losersJson).map((item, idx) => ({
+        const losersRows = pickRows(losersJson).map((item, idx) => ({
           ...item,
           rank: item.rank || idx + 1,
           symbol: sanitizeSymbol(item.symbol || item.pair || item.product_id || ''),

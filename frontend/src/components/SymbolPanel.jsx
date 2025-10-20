@@ -1,4 +1,6 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 
 /**
  * SymbolPanel
@@ -11,9 +13,9 @@ import React, { useEffect, useMemo, useState } from 'react';
  * - ESC / ✕ closes
  * - Minimal Tailwind-only styling to match your dark UI
  */
-export default function SymbolPanel({ symbol, onClose }) {
+export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }) {
   const sym = (symbol || '').toUpperCase();
-  const [tab, setTab] = useState('overview'); // overview | technicals | news | social
+  const [tab, setTab] = useState(initialTab); // overview | technicals | news | social
 
   const [loadingTA, setLoadingTA] = useState(false);
   const [ta, setTA] = useState(null);
@@ -65,9 +67,11 @@ export default function SymbolPanel({ symbol, onClose }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
       {/* backdrop */}
-      <div
+      <button
+        type="button"
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
+        aria-label="Close panel backdrop"
       />
 
       {/* panel */}
@@ -141,6 +145,12 @@ export default function SymbolPanel({ symbol, onClose }) {
     </div>
   );
 }
+
+SymbolPanel.propTypes = {
+  symbol: PropTypes.string,
+  onClose: PropTypes.func,
+  initialTab: PropTypes.oneOf(['overview', 'technicals', 'news', 'social']),
+};
 
 function Overview({ symbol }) {
   return (

@@ -1,4 +1,4 @@
-import time, requests, logging, os, threading, random
+import time, requests, logging, os, threading, random, json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Tuple
 from config import CONFIG
@@ -6,6 +6,7 @@ from reliability import CircuitBreaker
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from requests.exceptions import RequestException, ConnectTimeout, ReadTimeout
+from pathlib import Path
 
 COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
 MAJOR_COINS = {
@@ -23,6 +24,27 @@ BACKOFF_BASE = float(os.environ.get('COINBASE_BACKOFF_BASE','1'))
 BACKOFF_MAX = float(os.environ.get('COINBASE_BACKOFF_MAX','30'))
 BACKOFF_RESET_MIN = int(os.environ.get('BACKOFF_SUCCESS_RESET_MIN_PRICES','20'))
 _rate = {"failures":0,"next":0.0,"last_error":None}
+
+_FIXTURE_CACHE = {}
+
+
+def _load_fixture(name: str):
+    if not CONFIG.get('USE_FIXTURES'):
+        return None
+    base = CONFIG.get('FIXTURE_DIR', os.path.join(os.path.dirname(__file__), 'fixtures'))
+    path = Path(base) / name
+    try:
+        if not path.exists():
+            logging.warning("price_fetch fixture missing: %s", path)
+            return None
+        cache_bypass = os.environ.get('FIXTURE_CACHE_BYPASS') in {'1', 'true', 'True'}
+        if cache_bypass or name not in _FIXTURE_CACHE:
+            with path.open('r', encoding='utf-8') as fh:
+                _FIXTURE_CACHE[name] = json.load(fh)
+        return _FIXTURE_CACHE[name]
+    except Exception as exc:
+        logging.error("price_fetch fixture load failed %s: %s", name, exc)
+        return None
 
 # Configure a session with reasonable retry/backoff to reduce transient connection failures
 _SESSION = requests.Session()
@@ -99,7 +121,7 @@ def _load_products(now: float):
             _metrics['products_cache_hits'] += 1
         return _products_cache['items']
     try:
-        r = _SESSION.get(COINBASE_PRODUCTS_URL, timeout=API_TIMEOUT)
+        r = requests.get(COINBASE_PRODUCTS_URL, timeout=API_TIMEOUT)
     except RequestException as e:  # network error
         with _metrics_lock:
             _metrics['errors'] += 1
@@ -148,6 +170,38 @@ def fetch_prices() -> Dict[str,float]:
     now = time.time()
     with _metrics_lock:
         _metrics['total_calls'] += 1
+    if CONFIG.get('USE_FIXTURES'):
+        fixture = _load_fixture('top_movers_3m.json')
+        price_map: Dict[str, float] = {}
+        if isinstance(fixture, dict):
+            combined = []
+            for key in ('gainers', 'losers', 'top24h'):
+                val = fixture.get(key, [])
+                if isinstance(val, list):
+                    combined.extend(val)
+            for entry in combined:
+                if not isinstance(entry, dict):
+                    continue
+                symbol = str(entry.get('symbol', '') or '').upper()
+                if not symbol:
+                    continue
+                raw_price = entry.get('current') if entry.get('current') is not None else entry.get('current_price')
+                try:
+                    price_val = float(raw_price)
+                except (TypeError, ValueError):
+                    continue
+                candidates = [symbol, f"{symbol}-USD"]
+                for candidate in candidates:
+                    if candidate and candidate not in price_map:
+                        price_map[candidate] = price_val
+        if price_map:
+            _last_snapshot['data'] = dict(price_map)
+            _last_snapshot['fetched_at'] = now
+            return price_map
+        logging.warning("Fixtures enabled but top_movers_3m.json missing price payload; returning cached snapshot")
+        if _last_snapshot['data']:
+            return dict(_last_snapshot['data'])
+        return {}
     if now < _rate['next'] and _last_snapshot['data']:
         # Backoff gate active; serve snapshot
         logging.info(
@@ -180,32 +234,33 @@ def fetch_prices() -> Dict[str,float]:
         # Limit concurrent outbound sockets using semaphore to avoid bursts
         acquired = _semaphore.acquire(timeout=10)
         try:
-            try:
-                r = _SESSION.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
-                if r.status_code == 200:
-                    data = r.json(); price = float(data.get('price') or 0)
-                    if price>0: return sym, price
-                elif r.status_code == 429:
-                    with _metrics_lock:
-                        _metrics['errors'] += 1
-                        _metrics['rate_limit_failures'] += 1
-                    return '__RL__', None
-                else:
-                    with _metrics_lock:
-                        _metrics['errors'] += 1
-            except (ConnectTimeout, ReadTimeout) as e:
-                # connection timed out - count and debug
-                logging.debug(f"ticker {sym} timeout {e}")
+            # Use the shared session which has a retry/backoff strategy configured
+            r = _SESSION.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
+            if r.status_code == 200:
+                data = r.json(); price = float(data.get('price') or 0)
+                if price > 0:
+                    return sym, price
+            elif r.status_code == 429:
                 with _metrics_lock:
                     _metrics['errors'] += 1
-            except RequestException as e:
-                logging.debug(f"ticker {sym} err {e}")
+                    _metrics['rate_limit_failures'] += 1
+                return '__RL__', None
+            else:
                 with _metrics_lock:
                     _metrics['errors'] += 1
-            except Exception as e:
-                logging.debug(f"ticker {sym} unexpected {e}")
-                with _metrics_lock:
-                    _metrics['errors'] += 1
+        except (ConnectTimeout, ReadTimeout) as e:
+            # connection timed out - count and debug. Increase visibility because timeouts were observed.
+            logging.warning(f"ticker {sym} timeout {e}")
+            with _metrics_lock:
+                _metrics['errors'] += 1
+        except RequestException as e:
+            logging.debug(f"ticker {sym} err {e}")
+            with _metrics_lock:
+                _metrics['errors'] += 1
+        except Exception as e:
+            logging.debug(f"ticker {sym} unexpected {e}")
+            with _metrics_lock:
+                _metrics['errors'] += 1
             return None, None
         finally:
             if acquired:
@@ -230,6 +285,36 @@ def fetch_prices() -> Dict[str,float]:
                 continue
             if sym and pr:
                 prices[sym]=pr
+    # If no live prices were obtained, try a fixture fallback (useful in dev or when upstream is flaky)
+    if not prices:
+        try:
+            fixture = _load_fixture('top_movers_3m.json')
+            if isinstance(fixture, dict):
+                logging.warning('price_fetch: no live prices collected; attempting fixture fallback')
+                price_map = {}
+                for key in ('gainers', 'losers', 'top24h'):
+                    for entry in fixture.get(key, []) or []:
+                        if not isinstance(entry, dict):
+                            continue
+                        symbol = str(entry.get('symbol', '') or '').upper()
+                        if not symbol:
+                            continue
+                        raw_price = entry.get('current') if entry.get('current') is not None else entry.get('current_price')
+                        try:
+                            price_val = float(raw_price)
+                        except (TypeError, ValueError):
+                            continue
+                        candidates = [symbol, f"{symbol}-USD"]
+                        for candidate in candidates:
+                            if candidate and candidate not in price_map:
+                                price_map[candidate] = price_val
+                if price_map:
+                    prices.update(price_map)
+                    # mark snapshot so other callers can reuse
+                    _last_snapshot['data'] = dict(prices)
+                    _last_snapshot['fetched_at'] = time.time()
+        except Exception:
+            pass
     if prices:
         _last_snapshot['data']=prices
         _last_snapshot['fetched_at']=now

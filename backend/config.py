@@ -13,4 +13,9 @@ CONFIG = {
     'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 1.0)),
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),
+    'USE_FIXTURES': os.environ.get('USE_FIXTURES', '0') in {'1', 'true', 'True'},
+    'FIXTURE_DIR': os.environ.get(
+        'FIXTURE_DIR',
+        os.path.join(os.path.dirname(__file__), 'fixtures'),
+    ),
 }

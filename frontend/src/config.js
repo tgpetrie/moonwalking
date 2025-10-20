@@ -15,3 +15,6 @@ export const flags = {
   HEADER_SUBLOGO_SRC: (getEnv().VITE_HEADER_SUBLOGO_SRC || '/pbi.png').toString(),
   HEADER_SHOW_SUBLOGO: (getEnv().VITE_HEADER_SHOW_SUBLOGO ?? 'true').toString().toLowerCase() !== 'false'
 };
+
+// Whether to enable legacy snapshot REST warmups (dev toggle)
+flags.VITE_USE_SNAPSHOTS = (getEnv().VITE_USE_SNAPSHOTS ?? '1').toString() !== '0';

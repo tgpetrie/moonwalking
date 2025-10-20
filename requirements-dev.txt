@@ -3,3 +3,33 @@ requests>=2.31.0
 
 # Optional: install with
 #   python -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt
+
+# Dev-only convenience set mirroring backend/runtime pins so local runs behave like prod.
+# Usage:
+#   python -m venv .venv && . .venv/bin/activate
+#   pip install --upgrade pip
+#   pip install -r requirements-dev.txt
+
+# --- Core app/runtime (match backend/requirements.txt pins) ---
+Flask==3.1.1
+flask-cors==6.0.1
+flask-socketio==5.3.6
+requests==2.32.2
+gunicorn==21.2.0
+python-dotenv==1.0.1
+sentry-sdk[flask]==2.21.0
+psutil==6.1.1
+flask-limiter==3.8.0
+flask-talisman==1.1.0
+numpy==2.3.3
+pandas==2.3.3
+jsonschema==4.23.0
+pydantic==2.7.4
+
+# --- Test & tooling ---
+pytest==8.3.5
+
+# Notes:
+# - These pins match the working versions we installed via backend/requirements.txt during setup.
+# - Keeping dev pins aligned prevents "works in prod but not in dev" surprises.
+# - If you update backend/requirements.txt, update this file in the same commit.

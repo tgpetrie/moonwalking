@@ -229,12 +229,13 @@ export const WebSocketProvider = ({ children, pollIntervalMs = 12000 }) => {
         },
         onError: (err) => {
           vLog('[SSE] Error', err);
-          if (useSnapshots) {
-            vLog('[SSE] falling back to polling (snapshots enabled)');
-            startPollingLoop();
-          } else {
-            vLog('[SSE] snapshots disabled; not starting polling fallback');
-          }
+          // Always fall back to polling when SSE is unavailable so local dev
+          // can function without the Cloudflare Worker. Previously this only
+          // started polling when snapshots were enabled which left the app
+          // without data when /api/events returned 404. Start the polling
+          // loop unconditionally here.
+          vLog('[SSE] falling back to polling fallback');
+          startPollingLoop();
         },
       });
       if (typeof maybeClose === 'function') {

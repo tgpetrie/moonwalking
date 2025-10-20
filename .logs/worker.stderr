@@ -1,0 +1,71 @@
+Coinbase API error: 400
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMiniflare does not currently trigger scheduled Workers automatically.[0m
+
+  Refer to [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers[0m for more details 
+
+
+n-triggers/#test-cron-triggers[0m for more details 
+
+
+🪵  Logs were written to "/Users/cdmxx/Library/Preferences/.wrangler/logs/wrangler-2025-10-04_04-27-27_448.log"
+fatal error: all goroutines are asleep - deadlock!
+
+goroutine 1 [chan receive]:
+github.com/evanw/esbuild/internal/helpers.(*ThreadSafeWaitGroup).Wait(...)
+	github.com/evanw/esbuild/internal/helpers/waitgroup.go:36
+main.runService.func2()
+	github.com/evanw/esbuild/cmd/esbuild/service.go:114 +0x88
+main.runService(0x1)
+	github.com/evanw/esbuild/cmd/esbuild/service.go:160 +0x47c
+main.main()
+	github.com/evanw/esbuild/cmd/esbuild/main.go:249 +0xaa0
+
+goroutine 7 [chan receive]:
+main.runService.func1()
+	github.com/evanw/esbuild/cmd/esbuild/service.go:98 +0x40
+created by main.runService in goroutine 1
+	github.com/evanw/esbuild/cmd/esbuild/service.go:97 +0x19c
+
+goroutine 8 [chan receive]:
+main.(*serviceType).sendRequest(0x140000e82d0, {0x10480a700, 0x140003f0480})
+	github.com/evanw/esbuild/cmd/esbuild/service.go:192 +0x138
+main.runService.func3()
+	github.com/evanw/esbuild/cmd/esbuild/service.go:125 +0x44
+created by main.runService in goroutine 1
+	github.com/evanw/esbuild/cmd/esbuild/service.go:122 +0x2e4
+
+goroutine 20893 [chan receive]:
+main.(*serviceType).sendRequest(0x140000e82d0, {0x10480a700, 0x1400049c000})
+	github.com/evanw/esbuild/cmd/esbuild/service.go:192 +0x138
+main.(*serviceType).convertPlugins.func2.2()
+	github.com/evanw/esbuild/cmd/esbuild/service.go:959 +0x100
+github.com/evanw/esbuild/pkg/api.(*pluginImpl).onStart-fm.(*pluginImpl).onStart.func1()
+	github.com/evanw/esbuild/pkg/api/api_impl.go:1847 +0x34
+github.com/evanw/esbuild/internal/bundler.ScanBundle.func1({{0x1046d6426, 0x12}, {0x1400058e318, 0x1, 0x1}, {0x140004e5560, 0x1, 0x1}, {0x140004e55c0, 0x1, ...}}, ...)
+	github.com/evanw/esbuild/internal/bundler/bundler.go:1312 +0x7c
+created by github.com/evanw/esbuild/internal/bundler.ScanBundle in goroutine 10084
+	github.com/evanw/esbuild/internal/bundler/bundler.go:1311 +0xb4c
+
+goroutine 20895 [chan send]:
+github.com/evanw/esbuild/internal/bundler.ScanBundle.func2()
+	github.com/evanw/esbuild/internal/bundler/bundler.go:1346 +0x23c
+created by github.com/evanw/esbuild/internal/bundler.ScanBundle in goroutine 10084
+	github.com/evanw/esbuild/internal/bundler/bundler.go:1344 +0x6bc
+
+goroutine 10084 [semacquire]:
+sync.runtime_Semacquire(0x14000317c00?)
+	runtime/sema.go:71 +0x2c
+sync.(*WaitGroup).Wait(0x140001508e0)
+	sync/waitgroup.go:118 +0x74
+github.com/evanw/esbuild/internal/bundler.ScanBundle(_, {_, _, _, _, _, _}, {_, _}, _, ...)
+	github.com/evanw/esbuild/internal/bundler/bundler.go:1395 +0x6c4
+github.com/evanw/esbuild/pkg/api.rebuildImpl({0x1400042a7e0, {0x1400058e390, 0x1, 0x1}, {0x0, 0x0, 0x0}, {0x0, 0x1, 0x0, ...}, ...}, ...)
+	github.com/evanw/esbuild/pkg/api/api_impl.go:1479 +0x1f8
+github.com/evanw/esbuild/pkg/api.(*internalContext).rebuild(_)
+	github.com/evanw/esbuild/pkg/api/api_impl.go:998 +0x2cc
+github.com/evanw/esbuild/pkg/api.(*internalContext).Watch.func1()
+	github.com/evanw/esbuild/pkg/api/api_impl.go:1082 +0x28
+github.com/evanw/esbuild/pkg/api.(*watcher).start.func1()
+	github.com/evanw/esbuild/pkg/api/watcher.go:111 +0xa0
+created by github.com/evanw/esbuild/pkg/api.(*watcher).start in goroutine 10057
+	github.com/evanw/esbuild/pkg/api/watcher.go:92 +0x70

@@ -24,14 +24,24 @@ export default function useOneHourPriceData(pollInterval = 5000) {
 
         setLoading(true);
 
-        const res = await fetch("/api/snapshots/one-hour-price", { signal: ac.signal });
+  // Prefer explicit backend banner endpoint; honor VITE_API_BASE when present.
+  const base = import.meta.env.VITE_API_BASE || '';
+  // Backend exposes /api/banner-1h (and /api/banner-top / banner-bottom). Use /api/banner-1h for one-hour banner data.
+  const url = `${base}/api/banner-1h`.replace(/([^:]\/)(\/+)/g, '$1/');
+  const res = await fetch(url, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const json = await res.json();
         if (!mounted) return;
 
-        // Extract rows from response (handles both {rows: [...]} and direct array)
-        const data = Array.isArray(json?.rows) ? json.rows : (Array.isArray(json) ? json : []);
+        // Extract rows from response (handles {data: [...]}, legacy {rows: [...]}, or direct array)
+        const data = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json?.rows)
+          ? json.rows
+          : Array.isArray(json)
+          ? json
+          : [];
         setRows(data);
         setError(null);
       } catch (e) {

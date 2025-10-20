@@ -1,0 +1,13 @@
+Usage: flask run [OPTIONS]
+Try 'flask run --help' for help.
+
+Error: While importing 'backend.app', an ImportError was raised:
+
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/cli.py", line 245, in locate_app
+    __import__(module_name)
+    ~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/cdmxx/Documents/moonwalkings/backend/app.py", line 16, in <module>
+    from watchlist import watchlist_bp, watchlist_db
+ModuleNotFoundError: No module named 'watchlist'
+

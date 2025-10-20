@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fetchComponent } from "../api.js";
 
 /**
  * Hook for fetching gainers table data via HTTP polling
@@ -9,6 +10,7 @@ export default function useGainersData({ window = "3min", pollInterval = 6000 })
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [raw, setRaw] = useState(null);
   const abortRef = useRef(null);
 
   // Determine endpoint based on window
@@ -29,14 +31,12 @@ export default function useGainersData({ window = "3min", pollInterval = 6000 })
 
         setLoading(true);
 
-        const res = await fetch(endpoint, { signal: ac.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const json = await res.json();
+  const result = await fetchComponent(endpoint, { signal: ac.signal });
+  const data = result.rows;
+  // preserve the raw payload so callers can inspect meta (eg. seeded flag)
+  setRaw(result.raw ?? null);
         if (!mounted) return;
 
-        // Extract rows from response
-        const data = Array.isArray(json?.rows) ? json.rows : (Array.isArray(json) ? json : []);
         setRows(data);
         setError(null);
       } catch (e) {
@@ -50,11 +50,13 @@ export default function useGainersData({ window = "3min", pollInterval = 6000 })
       }
     };
 
-    // Initial fetch
-    fetchData();
-
-    // Poll on interval
-    timer = setInterval(fetchData, pollInterval);
+    // Stagger initial fetch slightly to avoid synchronized requests across windows
+    const jitter = Math.floor(Math.random() * Math.min(1500, Math.max(0, pollInterval)));
+    timer = setTimeout(() => {
+      fetchData();
+      // After the initial jittered run, poll regularly
+      timer = setInterval(fetchData, pollInterval);
+    }, jitter);
 
     return () => {
       mounted = false;
@@ -63,5 +65,5 @@ export default function useGainersData({ window = "3min", pollInterval = 6000 })
     };
   }, [endpoint, pollInterval, window]);
 
-  return { rows, loading, error };
+  return { rows, loading, error, raw };
 }

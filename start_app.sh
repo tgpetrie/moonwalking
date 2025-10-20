@@ -1,3 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# start_app.sh
+# Replacement for accidental React/JSX content that was committed into this
+# file. This script delegates to start_local.sh when present and exits with a
+# friendly message otherwise. To restore prior behavior, inspect git history.
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT_DIR"
+
+if [ -x "${ROOT_DIR}/start_local.sh" ]; then
+  echo "[start_app.sh] delegating to start_local.sh"
+  exec "${ROOT_DIR}/start_local.sh" "$@"
+else
+  echo "[start_app.sh] start_local.sh not found. To start locally run: ./start_local.sh"
+  exit 0
+fi
 import React, { useMemo, useState } from 'react';
 import { formatNumber, formatPct } from '../lib/formatters';
 import { useGainersLosersData } from '../hooks/useGainersLosersData';

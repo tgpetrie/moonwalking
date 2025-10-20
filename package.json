@@ -52,5 +52,8 @@
     "singleQuote": true,
     "semi": true,
     "printWidth": 100
+  },
+  "volta": {
+    "node": "20.12.2"
   }
 }

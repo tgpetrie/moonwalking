@@ -10,6 +10,7 @@ export default defineConfig({
     include: [
       'src/utils/**/*.{test,spec}.js',
       'src/context/**/*.{test,spec}.jsx',
+      'src/components/**/*.{test,spec}.jsx',
       'src/context/websocketcontext.test.jsx',
       'src/context/websocketcontext.polling.test.jsx',
       'src/lib/sentiment.test.js',

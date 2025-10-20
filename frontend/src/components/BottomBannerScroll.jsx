@@ -50,9 +50,11 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
           } catch (err) { console.warn('BottomBanner edge fetch failed, falling back', err); }
           return await fetchData(FALLBACK_API);
         })();
-        let rows = [];
-        if (Array.isArray(raw?.rows)) rows = raw.rows;
-        else if (Array.isArray(raw?.data)) rows = raw.data;
+        const rows = Array.isArray(raw?.data)
+          ? raw.data
+          : Array.isArray(raw?.rows)
+          ? raw.rows
+          : [];
         if (rows && rows.length > 0) {
           const dataWithRanks = rows.map((item, index) => {
             const vol24 = Number(item.volume_24h ?? 0);
