@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchJson } from '../lib/api';
 
 type SentimentPayload = {
@@ -66,21 +66,96 @@ function normalise(raw: any): SentimentPayload {
 
 async function fetchSentiment(symbol: string): Promise<SentimentPayload> {
   const query = encodeURIComponent(symbol);
+
+  // 1) Preferred: unified endpoint with ?symbol=
   try {
     const combined = await fetchJson(`/api/sentiment?symbol=${query}`);
     return normalise(combined);
-  } catch (err) {
-    const settled = await Promise.allSettled(
-      SECTION_ENDPOINTS.map(([key, base]) => fetchJson(`${base}${query}`, { cache: 'no-store' }))
-    );
-    const merged: Record<string, any> = {};
-    settled.forEach((entry, idx) => {
-      if (entry.status === 'fulfilled') {
-        const key = SECTION_ENDPOINTS[idx][0];
-        merged[key] = entry.value;
+  } catch (primaryError) {
+    // 2) Fallback A: backend batch endpoint uses ?symbols=
+    try {
+      const batch = await fetchJson<{ ok?: boolean; sentiment?: any[] }>(`/api/sentiment?symbols=${query}`);
+      const item = Array.isArray(batch?.sentiment)
+        ? batch!.sentiment!.find((s) => (s.symbol || '').toUpperCase() === symbol.toUpperCase())
+        : null;
+
+      // Fetch legacy social/news endpoints in parallel when available
+      const [socialResp, newsResp] = await Promise.allSettled([
+        fetchJson(`/api/social-sentiment/${symbol}`),
+        fetchJson(`/api/news/${symbol}`),
+      ]);
+
+      const merged: Record<string, any> = {};
+
+      if (item) {
+        merged.overview = {
+          score: item.score,
+          label: item.label,
+        };
+        // scores are coarse in batch; leave detailed split to social payload if present
       }
-    });
-    return normalise(merged);
+
+      if (socialResp.status === 'fulfilled') {
+        const s = socialResp.value?.data || socialResp.value || {};
+        merged.scores = merged.scores || {};
+        const dist = s.sentiment_distribution || {};
+        merged.scores.bulls = dist.positive || dist.pos || 0;
+        merged.scores.bears = dist.negative || dist.neg || 0;
+        merged.scores.neutral = dist.neutral || dist.neu || 0;
+
+        const sm = s.social_metrics || {};
+        const twitter = sm.twitter || {};
+        const reddit = sm.reddit || {};
+        const news = sm.news || {};
+        const youtube = sm.youtube || {};
+        const mentions = (twitter.mentions_24h || 0) + (reddit.posts_24h || 0);
+        const top = [
+          { source: 'twitter', count: twitter.mentions_24h || 0 },
+          { source: 'reddit', count: reddit.posts_24h || 0 },
+          { source: 'news', count: news.articles_24h || 0 },
+          { source: 'youtube', count: youtube.videos_24h || 0 },
+        ].filter((x) => x.count > 0);
+
+        merged.social = {
+          buzz: (twitter.sentiment_score ?? 0) + (reddit.sentiment_score ?? 0),
+          mentions,
+          sources: top.length,
+          top,
+        };
+      }
+
+      if (newsResp.status === 'fulfilled') {
+        const n = newsResp.value || {};
+        merged.news = {
+          articles: (n.articles || []).map((a: any) => ({
+            title: a.title || a.headline,
+            url: a.url || a.link,
+            ts: a.published || a.ts || a.time,
+          })),
+        };
+      }
+
+      // onchain not provided by backend yet; leave defaults
+      return normalise(merged);
+    } catch (batchError) {
+      // 3) Fallback B: hypothetical per-section endpoints (if provided by another backend flavor)
+      try {
+        const settled = await Promise.allSettled(
+          SECTION_ENDPOINTS.map(([key, base]) => fetchJson(`${base}${query}`, { cache: 'no-store' }))
+        );
+        const merged: Record<string, any> = {};
+        settled.forEach((entry, idx) => {
+          if (entry.status === 'fulfilled') {
+            const key = SECTION_ENDPOINTS[idx][0];
+            merged[key] = entry.value;
+          }
+        });
+        return normalise(merged);
+      } catch (sectionError) {
+        // propagate original
+        throw primaryError;
+      }
+    }
   }
 }
 
