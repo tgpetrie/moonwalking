@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root { color-scheme: light dark; }
+html, body, #root { height: 100%; margin: 0; }
+
+/* Lightweight utilities for app layout (kept minimal to avoid style drift) */
+.tables-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+/* Show two columns starting at small breakpoint for wider availability */
+@media (min-width: 640px) { .tables-grid { grid-template-columns: 1fr 1fr; } }
+.table-card { background: transparent; border-radius: 0.75rem; transition: background 0.3s ease; }
+.table-card:hover { background: rgba(129, 9, 150, 0.06); }
+.section-divider { height: 2px; width: 12rem; margin: 0 auto; background: linear-gradient(90deg, rgba(129,9,150,0.18) 0%, rgba(129,9,150,0.38) 50%, rgba(129,9,150,0.18) 100%); border-radius: 2px; }
+.show-more-wrap { display: flex; justify-content: center; margin-top: 0.5rem; }
+.show-more { padding: 0.25rem 1rem; border-radius: 0.5rem; background: #1e1b2e; color: #fff; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(129, 9, 150, 0.4); }
+.show-more:hover { background: #2a2440; }
+.text-pos { color: rgb(254, 164, 0); } /* positive: orange (design) */
+.text-neg { color: #8A2BE2; } /* negative: purple (design) */
+.text-teal { color: #14B8A6; } /* price figures: teal */
+.text-orange { color: rgb(254, 164, 0); }
+
+/* Limit hover to the row being hovered */
+.mover-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Optional zebra striping for readability */
+tbody tr:nth-child(odd).mover-row {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+tbody tr:nth-child(even).mover-row {
+  background-color: transparent;
+}
