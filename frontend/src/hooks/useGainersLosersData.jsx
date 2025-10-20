@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchComponent } from '../api.js';
+import { fetchComponent, endpoints } from '../lib/api';
 
 const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
 
@@ -18,11 +18,11 @@ export function useGainersLosersData({ variant = 'gainers', window = '3min', pol
   const normalizedVariant = String(variant || 'gainers').toLowerCase();
 
   const gainersEndpoint = normalizedWindow === '1min'
-    ? '/api/component/gainers-table-1min'
-    : '/api/component/gainers-table-3min';
+    ? endpoints.gainers1m
+    : endpoints.gainers3m;
 
   // Cloudflare worker currently only exposes 3-min losers.
-  const losersEndpoint = '/api/component/losers-table-3min';
+  const losersEndpoint = endpoints.losers3m;
 
   useEffect(() => {
     let mounted = true;

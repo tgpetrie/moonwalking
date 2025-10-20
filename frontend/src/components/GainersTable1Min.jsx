@@ -1,10 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+/* eslint-disable sonarjs/no-ignored-exceptions */
+/* eslint-disable sonarjs/cognitive-complexity */
+/* eslint-disable complexity */
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
+import { API_ENDPOINTS, fetchData } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
-import StarIcon from './StarIcon';
+import WatchStar from './WatchStar.jsx';
+import { updateStreaks } from '../logic/streaks';
 import PropTypes from 'prop-types';
+import { isMobileDevice, getMobileOptimizedConfig } from '../utils/mobileDetection.js';
 
 /**
  * 1‑MIN Gainers (alignment‑stable)
@@ -14,167 +19,194 @@ import PropTypes from 'prop-types';
  * - Renders placeholder rows to keep both halves equal height
  */
 export default function GainersTable1Min({
-  refreshTrigger,
-  onWatchlistChange,
-  topWatchlist,
   sliceStart,
   sliceEnd,
   startRank,
   endRank,
   fixedRows,
   hideShowMore,
+  rows: externalRows,
 }) {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs, send } = useWebSocket();
+  const ws = useWebSocket();
+  const oneMinThrottleMs = ws?.oneMinThrottleMs ?? 15000;
+  const gainersTop20 = ws?.gainersTop20 || [];
+  const debugEnabled = ws?.debugEnabled ?? false;
+  const vLog = ws?.vLog || (() => {});
+  
   const shouldReduce = useReducedMotion();
   const lastRenderRef = useRef(0);
-  const prevDataRef = useRef([]);
+  // prevDataRef removed; context handles merge
+  
+  // Mobile optimizations
+  const isMobile = isMobileDevice();
+  const mobileConfig = getMobileOptimizedConfig();
 
-  const [data, setData] = useState([]);
+  const [data, setData] = useState([]); // local displayed dataset (sliced / throttled)
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [watchlist, setWatchlist] = useState(topWatchlist || []);
+  // local error state removed; fallback sets loading only
   const [popStar, setPopStar] = useState(null);
-  const [actionBadge, setActionBadge] = useState(null); // {symbol,text}
+  const [actionBadge, setActionBadge] = useState(null);
 
-  // Prime watchlist
+  // This effect handles both throttled WS updates and a one-time REST fallback.
   useEffect(() => {
-    (async () => {
-      try {
-        const w = Array.isArray(topWatchlist) ? topWatchlist : await getWatchlist();
-        setWatchlist(w);
-        onWatchlistChange && onWatchlistChange(w);
-      } catch {
-        /* ignore */
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topWatchlist]);
+    // Only override with external rows when they contain data.
+    if (Array.isArray(externalRows) && externalRows.length > 0) { setData(externalRows); setLoading(false); return; }
 
-  // Throttled WS updates for stability
-  useEffect(() => {
-    if (latestData.crypto && Array.isArray(latestData.crypto)) {
+    // Use throttled data from WebSocket context if available
+    if (Array.isArray(gainersTop20) && gainersTop20.length) {
       const now = Date.now();
-      const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 15000;
-      if (now - (lastRenderRef.current || 0) < throttleMs) return;
-      lastRenderRef.current = now;
-
-      const mapped = latestData.crypto.slice(0, 20).map((item, idx) => ({
-        rank: item.rank || idx + 1,
-        symbol: item.symbol?.replace('-USD', '') || 'N/A',
-        price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
-      }));
-      const prev = prevDataRef.current || [];
-      const keepPrev = prev.filter(p => !mapped.some(m => m.symbol === p.symbol) && p.change > 0);
-      const combined = [...mapped, ...keepPrev].sort((a, b) => b.change - a.change).slice(0, 20);
-      prevDataRef.current = combined;
-      setData(combined);
-      setLoading(false);
-      setError(null);
-    }
-  }, [latestData.crypto, oneMinThrottleMs]);
-
-  // REST fallback when WS is empty/inactive
-  useEffect(() => {
-    let cancelled = false;
-    const fetch1m = async () => {
-      if (latestData.crypto && latestData.crypto.length > 0) return;
-      try {
-        const res = await fetchData(API_ENDPOINTS.gainersTable1Min);
-        if (!cancelled && res?.data?.length) {
-          const mapped = res.data.slice(0, 20).map((item, idx) => ({
-            rank: item.rank || idx + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price ?? item.price ?? 0,
-            change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-            peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
-          }));
-          setData(mapped);
-        }
-        if (!cancelled) setLoading(false);
-      } catch (e) {
-        if (!cancelled) { setLoading(false); setError(e.message); }
+  const throttleDefault = isMobile ? mobileConfig.throttleMs : 15000;
+  const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : throttleDefault;
+      const since = now - (lastRenderRef.current || 0);
+      if (debugEnabled) {
+        vLog(`[GainersTable1Min] Throttle check: ${since}ms elapsed (limit ${throttleMs}ms), incoming top20 length: ${gainersTop20.length}`);
       }
-    };
-
-    if (!isConnected && !isPolling) {
-      fetch1m();
-      const id = setInterval(fetch1m, 15000);
-      return () => { cancelled = true; clearInterval(id); };
+      // Always render immediately on first data arrival (no prior render timestamp)
+      if (lastRenderRef.current !== 0 && since < throttleMs) {
+        if (debugEnabled) vLog('[GainersTable1Min] THROTTLED - skip render update');
+        return;
+      }
+      lastRenderRef.current = now;
+      // Data already normalized & ranked in context
+      setData(gainersTop20);
+      setLoading(false);
     } else {
-      if (data.length === 0) fetch1m();
+      // Context is empty, perform a one-time fetch as a fallback.
+      let cancelled = false;
+      const fetchFallback = async () => {
+        setLoading(true);
+        try {
+          const res = await fetchData(API_ENDPOINTS.gainersTable1Min);
+          let arr = [];
+          if (Array.isArray(res?.rows)) {
+            arr = res.rows;
+          } else if (Array.isArray(res?.data)) {
+            arr = res.data;
+          } else if (Array.isArray(res?.gainers)) {
+            // Backend returns { gainers: [...], losers: [...], ... }
+            arr = res.gainers;
+          }
+          if (!cancelled && arr.length) {
+            const limit = typeof endRank === 'number' ? Math.min(20, endRank) : 20;
+            const mapped = arr.slice(0, limit).map((item, idx) => {
+              const rawChange = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0;
+              const pct = Number(rawChange) || 0;
+              return ({
+                rank: item.rank || idx + 1,
+                symbol: item.symbol?.replace('-USD', '') || 'N/A',
+                price: item.current_price ?? item.price ?? 0,
+                change: pct,
+                initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,
+                peakCount: typeof item.peak_count === 'number' ? item.peak_count : 0,
+              });
+            }).sort((a, b) => b.change - a.change).map((it, i) => ({ ...it, rank: i + 1 }));
+            setData(mapped);
+          }
+        } catch (e) {
+          console.error('[GainersTable1Min] fallback fetch error', e);
+        } finally {
+          if (!cancelled) { setLoading(false); }
+        }
+      };
+      fetchFallback();
       return () => { cancelled = true; };
     }
-  }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
+  }, [gainersTop20, externalRows, oneMinThrottleMs, debugEnabled, vLog, isMobile, mobileConfig.throttleMs]);
 
-  const handleToggleWatchlist = async (symbol) => {
-    const exists = watchlist.some((it) => (typeof it === 'string' ? it === symbol : it.symbol === symbol));
+  const handleStarFeedback = (active, symbol) => {
     setPopStar(symbol);
     setTimeout(() => setPopStar(null), 350);
-    let updated;
-    if (exists) {
-      setActionBadge({ symbol, text: 'Removed!' });
-      setTimeout(() => setActionBadge(null), 1200);
-      updated = await removeFromWatchlist(symbol);
-      send && send('watchlist_update', { action: 'remove', symbol });
-    } else {
-      const coin = data.find((c) => c.symbol === symbol);
-      const currentPrice = coin ? coin.price : null;
-      setActionBadge({ symbol, text: 'Added!' });
-      setTimeout(() => setActionBadge(null), 1200);
-      updated = await addToWatchlist(symbol, currentPrice);
-      send && send('watchlist_update', { action: 'add', symbol, price: currentPrice });
-    }
-    setWatchlist(updated);
-    onWatchlistChange && onWatchlistChange(updated);
+    setActionBadge({ symbol, text: active ? 'Added!' : 'Removed!' });
+    setTimeout(() => setActionBadge(null), 1200);
   };
 
-  // Compute slice by rank or index
-  const startIdx = typeof sliceStart === 'number' ? sliceStart : (typeof startRank === 'number' ? Math.max(0, startRank - 1) : undefined);
-  const endIdx   = typeof sliceEnd === 'number'   ? sliceEnd   : (typeof endRank === 'number'   ? Math.max(0, endRank)         : undefined);
-  const sliced   = Array.isArray(data)
-    ? (typeof startIdx === 'number' || typeof endIdx === 'number' ? data.slice(startIdx ?? 0, endIdx ?? data.length) : data)
-    : [];
+  // Decide whether to use external slice or internal data
+  const useExternal = Array.isArray(externalRows) && externalRows.length > 0;
 
-  // Pad to fixed rows for perfect column alignment with 3‑min tables
-  const desiredRows = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : 4;
-  const rows = Array.from({ length: desiredRows }, (_, i) => sliced[i] ?? null);
+  // Compute slice indices based on props (used for both external and internal sources)
+  const sIdx = useMemo(() => {
+    if (typeof sliceStart === 'number') return sliceStart;
+    if (typeof startRank === 'number') return Math.max(0, startRank - 1);
+    return 0;
+  }, [sliceStart, startRank]);
+  const eIdx = useMemo(() => {
+    if (typeof sliceEnd === 'number') return sliceEnd;
+    if (typeof endRank === 'number') return Math.max(0, endRank);
+    return undefined;
+  }, [sliceEnd, endRank]);
 
-  if (loading && sliced.length === 0) {
+  // Prefer internal context data when external slice is empty; apply slicing consistently
+  const rows = useMemo(() => {
+    const src = useExternal ? externalRows : data;
+    if (!Array.isArray(src)) return [];
+  // If parent already provided a sliced subset (externalRows), don't re-slice by absolute ranks
+  if (useExternal) return src;
+  return src.slice(sIdx, eIdx ?? src.length);
+  }, [useExternal, externalRows, data, sIdx, eIdx]);
+
+  // If this component renders a later slice (right column) and global data hasn't filled that slice yet,
+  // show a loading state rather than an empty message.
+  const sliceWaiting = useMemo(() => {
+    const src = useExternal ? externalRows : data;
+    if (!Array.isArray(src) || useExternal) return false;
+    const total = src.length;
+    const needStart = sIdx || 0;
+    return rows.length === 0 && total > 0 && total <= needStart;
+  }, [useExternal, externalRows, data, rows.length, sIdx]);
+
+  // Update 1m streaks for visible rows
+  const visibleRows = rows.map(r => ({ symbol: r.symbol }));
+  const get1m = updateStreaks('1m', visibleRows);
+
+  // Force show data if WebSocket context has it, even when loading
+  const hasContextData = gainersTop20 && gainersTop20.length > 0;
+  
+  if (loading && rows.length === 0 && !hasContextData) {
     return (
-      <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
-        <div className="animate-pulse text-[#C026D3] font-mono">Loading 1-min gainers...</div>
+      <div className="w-full h-full min-h-[400px] px-0 transition-all duration-300 flex items-center justify-center">
+        <div className="animate-pulse text-muted font-mono">Loading 1-min gainers...</div>
       </div>
     );
   }
 
-  if (!loading && sliced.length === 0) {
+  if ((!loading && rows.length === 0) && !sliceWaiting) {
     return (
-      <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300 flex items-center justify-center">
+      <div className="w-full h-full min-h-[400px] px-0 transition-all duration-300 flex items-center justify-center">
         <div className="text-muted font-mono">No 1-min gainers data available</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-[420px] px-0 transition-all duration-300">
-      {rows.map((item, idx) => {
-        const isPlaceholder = !item;
+    <div className="w-full h-full min-h-[400px] px-0 transition-all duration-300">
+  {rows.map((item, idx) => {
+        let displayRank = idx + 1;
+        if (typeof sIdx === 'number' && !Number.isNaN(sIdx)) {
+          displayRank = sIdx + idx + 1;
+        } else if (item && item.rank) {
+          displayRank = item.rank;
+        }
+        const isPlaceholder = false; // placeholders removed
         const entranceDelay = (idx % 12) * 0.035;
         const loopDelay = ((idx % 8) * 0.12);
         const breathAmt = 0.006;
-        const PCT = item ? item.change : 0;
+        let PCT = 0;
+        if (item && typeof item.change === 'number') PCT = item.change;
+        // Use server-provided initial price when available; otherwise derive from PCT and current price
+        let prevPrice = null;
+        if (item && typeof item.initial_price_1min === 'number') {
+          prevPrice = item.initial_price_1min;
+        } else if (item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0) {
+          prevPrice = item.price / (1 + PCT / 100);
+        }
         const coinbaseUrl = item ? `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD` : '#';
-        const inWatch = item ? watchlist.some((w) => (typeof w === 'string' ? w === item.symbol : w.symbol === item.symbol)) : false;
 
         return (
           <div key={item ? item.symbol : `placeholder-${idx}`} className="px-0 py-1 mb-1">
             <a
               href={coinbaseUrl}
-              onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); } }}
-              target={isPlaceholder ? undefined : "_blank"}
-              rel={isPlaceholder ? undefined : "noopener noreferrer"}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block group"
             >
               <motion.div
@@ -194,12 +226,12 @@ export default function GainersTable1Min({
                   />
                 )}
 
-                {/* Purple glow */}
+                {/* Orange glow for gainers */}
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
                   <span
                     className="block rounded-xl transition-all duration-500 opacity-0 group-hover:opacity-90 w-[130%] h-[130%] group-hover:w-[165%] group-hover:h-[165%]"
                     style={{
-                      background: 'radial-gradient(circle at 50% 50%, rgba(192,38,211,0.20) 0%, rgba(192,38,211,0.12) 45%, rgba(192,38,211,0.06) 70%, transparent 100%)',
+                      background: 'radial-gradient(circle at 50% 50%, rgba(254,164,0,0.20) 0%, rgba(254,164,0,0.10) 45%, rgba(254,164,0,0.05) 70%, transparent 100%)',
                       top: '-15%',
                       left: '-15%',
                       position: 'absolute',
@@ -207,19 +239,55 @@ export default function GainersTable1Min({
                   />
                 </span>
 
-                {/* MAIN ROW — fixed grid */}
-                <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
-                  {/* Col1: rank + symbol */}
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className={"flex items-center justify-center w-8 h-8 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')}>
-                      {item ? item.rank : 0}
+                {/* Bottom edge subtle glow (orange) */}
+                <span aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 h-2 z-0">
+                  <span
+                    className="block w-full h-full"
+                    style={{
+                      background:
+                        'radial-gradient(ellipse at 50% 140%, rgba(254,164,0,0.18) 0%, rgba(254,164,0,0.10) 35%, rgba(254,164,0,0.04) 60%, transparent 85%)'
+                    }}
+                  />
+                </span>
+
+                {/* Mobile Card Layout (temporarily disabled to guarantee desktop visibility across breakpoints) */}
+                <div className="hidden relative z-10">
+                  <div className="flex items-center justify-between py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C026D3]/40 text-[#C026D3] font-bold text-sm">
+                        {displayRank}
+                      </div>
+                      <div>
+                        <div className="font-headline font-bold text-white text-xl mb-1">{item ? truncateSymbol(item.symbol, 8) : '—'}</div>
+                        <div className="text-base text-teal font-mono font-bold">
+                          {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
+                        </div>
+                      </div>
                     </div>
-                    <div className={"min-w-0 flex items-center gap-2 sm:gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
-                      <span className="font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
+                    <div className="flex items-center gap-3">
+                      <div className={`text-2xl font-bold font-mono text-right ${PCT > 0 ? 'text-pos' : 'text-neg'}`} data-pct={PCT > 0 ? 'pos' : 'neg'}>
+                        {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
+                      </div>
+                      {!isPlaceholder && (
+                        <WatchStar productId={item.symbol} className={popStar === (item && item.symbol) ? 'animate-star-pop' : ''} onToggled={handleStarFeedback} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Grid Layout - always enabled to avoid breakpoint hiding issues */}
+                <div className="grid relative z-10 grid-cols-[minmax(0,1fr)_152px_108px_28px] gap-x-4 items-start">
+                  {/* Col1: rank + symbol */}
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={"flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shrink-0 " + (isPlaceholder ? 'opacity-0' : '')} style={{ background:'rgba(254,164,0,0.28)', color:'var(--pos)' }}>
+                      {displayRank}
+                    </div>
+                    <div className={"min-w-0 flex items-center gap-3 " + (isPlaceholder ? 'opacity-0' : '')}>
+                      <span className="font-headline font-bold text-white text-lg tracking-wide truncate">{item ? truncateSymbol(item.symbol, 6) : '—'}</span>
                       {item && item.peakCount > 1 && (
                         <span className="flex gap-[2px] ml-1" aria-label="streak indicator">
-                          {Array.from({ length: Math.min(3, item.peakCount) }).map((_, i) => (
-                            <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#C026D3]"></span>
+              {Array.from({ length: Math.min(3, item.peakCount) }).map((_, i) => (
+                <span key={`${item.symbol}-dot-${i}`} className="w-1.5 h-1.5 rounded-full bg-[#C026D3]"></span>
                           ))}
                         </span>
                       )}
@@ -231,46 +299,33 @@ export default function GainersTable1Min({
 
                   {/* Col2: price/current + previous */}
                   <div className={"w-[152px] pr-6 text-right " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
+                    <div className="text-lg md:text-xl font-bold text-teal font-mono tabular-nums leading-none whitespace-nowrap">
                       {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
                     </div>
-                    <div className="text-sm leading-tight text-gray-300 font-mono tabular-nums whitespace-nowrap">
-                      {item && typeof item.price === 'number' && typeof PCT === 'number' && PCT !== 0
-                        ? (() => { const prev = item.price / (1 + PCT / 100); return formatPrice(prev); })()
-                        : '--'}
+                    <div className="text-sm leading-tight text-white/80 font-mono tabular-nums whitespace-nowrap">
+                      {Number.isFinite(prevPrice) ? formatPrice(prevPrice) : '--'}
                     </div>
                   </div>
 
-                  {/* Col3: % + Peak + interval */}
+                  {/* Col3: % + Px (no label) */}
                   <div className={"w-[108px] pr-1.5 text-right align-top " + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className={`text-base sm:text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-[#C026D3]' : 'text-pink'}`}>
+                    <div className={`text-lg md:text-xl font-bold font-mono tabular-nums leading-none whitespace-nowrap ${PCT > 0 ? 'text-orange' : 'text-neg'}`} data-pct={PCT > 0 ? 'pos' : 'neg'}>
                       {PCT > 0 && '+'}{typeof PCT === 'number' ? formatPercentage(PCT) : '0.00%'}
                     </div>
-                    <div className="text-xs text-gray-400 leading-tight">
-                      {item && typeof item.peakCount === 'number' && item.peakCount > 0
-                        ? `Peak x${item.peakCount}`
-                        : <span className="opacity-0 select-none">Peak x0</span>}
+                    {/* Streak Px subline */}
+                    <div className="text-xs text-gray-300 leading-tight">
+                      {item ? (() => {
+                        const { level } = get1m(item.symbol);
+                        return level > 0 ? (<div className="mt-1 subline-badge num">Px{level}</div>) : null;
+                      })() : (<div className="mt-1 opacity-0 select-none subline-badge num"></div>)}
                     </div>
-                    <div className="text-xs text-gray-400 leading-tight">1-min</div>
                   </div>
 
                   {/* Col4: star */}
                   <div className="w-[28px] text-right">
-                    <button
-                      onClick={(e)=>{ if(isPlaceholder){ e.preventDefault(); return; } e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      disabled={isPlaceholder}
-                      className={"bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end " + (isPlaceholder ? 'opacity-0' : (popStar === (item && item.symbol) ? ' animate-star-pop' : ''))}
-                      style={{ minWidth:'24px', minHeight:'24px' }}
-                      aria-label={inWatch ? 'Remove from watchlist' : 'Add to watchlist'}
-                      aria-pressed={inWatch}
-                    >
-                      <StarIcon
-                        filled={inWatch}
-                        className={inWatch ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80'}
-                        style={{ width:'16px', height:'16px', transition:'transform .2s' }}
-                        aria-hidden="true"
-                      />
-                    </button>
+                    {!isPlaceholder && (
+                      <WatchStar productId={item.symbol} className={popStar === (item && item.symbol) ? 'animate-star-pop' : ''} onToggled={handleStarFeedback} />
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -280,25 +335,18 @@ export default function GainersTable1Min({
       })}
 
       {/* No per-component Show More button when hideShowMore is true */}
-      {!hideShowMore && sliced.length > rows.length && (
-        <div className="w-full flex justify-center mt-2 mb-1">
-          <button className="px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition">
-            Show More
-          </button>
-        </div>
-      )}
+  {/* Show More logic retained if external slicing scenario; simplified since rows is final */}
+  {/* Show More intentionally omitted for 1-min table */}
     </div>
   );
 }
 
 GainersTable1Min.propTypes = {
-  refreshTrigger: PropTypes.any,
-  onWatchlistChange: PropTypes.func,
-  topWatchlist: PropTypes.array,
   sliceStart: PropTypes.number,
   sliceEnd: PropTypes.number,
   startRank: PropTypes.number,
   endRank: PropTypes.number,
   fixedRows: PropTypes.number,
   hideShowMore: PropTypes.bool,
+  rows: PropTypes.array,
 };

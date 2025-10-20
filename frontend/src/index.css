@@ -1,7 +1,13 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Prosto+One&family=Raleway:wght@400;600;700&family=Fragment+Mono&display=swap');
 
 :root { color-scheme: light dark; }
 html, body, #root { height: 100%; margin: 0; }
+html, body {
+  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background-color: #000;
+  color: #fff;
+}
 
 /* Lightweight utilities for app layout (kept minimal to avoid style drift) */
 .tables-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
@@ -17,6 +23,13 @@ html, body, #root { height: 100%; margin: 0; }
 .text-neg { color: #8A2BE2; } /* negative: purple (design) */
 .text-teal { color: #14B8A6; } /* price figures: teal */
 .text-orange { color: rgb(254, 164, 0); }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+.fade-in { animation: fadeIn 0.22s ease-out both; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* Limit hover to the row being hovered */
 .mover-row:hover {
@@ -29,4 +42,9 @@ tbody tr:nth-child(odd).mover-row {
 }
 tbody tr:nth-child(even).mover-row {
   background-color: transparent;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }

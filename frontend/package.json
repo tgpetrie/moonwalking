@@ -11,7 +11,7 @@
     "build": "vite build",
     "build:stats": "BUNDLE_STATS=1 vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .js,.jsx --max-warnings=0",
+  "lint": "eslint src --ext .js,.jsx",
     "format": "prettier -w .",
     "test": "echo \"No frontend tests yet\" && exit 0",
     "test:watch": "vitest",

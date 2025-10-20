@@ -1,25 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import { endpoints, httpGet as fetchData } from '../lib/api';
 
 const AlertsIndicator = () => {
   const [count, setCount] = useState(0);
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
-  const [_, setSeenCount] = useState(0);
+  const seenCountRef = useRef(0);
   const pollMs = useMemo(() => {
     const v = Number(import.meta?.env?.VITE_ALERTS_POLL_MS);
     return Number.isFinite(v) && v >= 5000 ? v : 30000; // default 30s, min 5s
   }, []);
   const timerRef = useRef(null);
 
+  const alertsEnabled = String(import.meta?.env?.VITE_ALERTS_ENABLED || '').toLowerCase() === 'true';
+
   useEffect(() => {
+    if (!alertsEnabled) return; // gate off in dev unless explicitly enabled
     let mounted = true;
     const limit = 25;
     const poll = async () => {
       try {
-        const url = (API_ENDPOINTS.alertsRecent || '/api/alerts/recent') + `?limit=${limit}`;
-        const res = await fetchData(url);
+  const url = endpoints.alertsRecent(limit);
+  const res = await fetchData(url);
         if (!mounted) return;
         if (res && Array.isArray(res.alerts)) {
           setItems(res.alerts.slice(-limit));
@@ -28,6 +31,7 @@ const AlertsIndicator = () => {
         }
       } catch (e) {
         if (!mounted) return;
+        console.warn('alerts poll failed', e);
         setError('alerts offline');
       } finally {
         timerRef.current = setTimeout(poll, pollMs);
@@ -38,14 +42,29 @@ const AlertsIndicator = () => {
       mounted = false;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [pollMs]);
+  }, [pollMs, alertsEnabled]);
 
   // When the panel opens, mark current count as seen so badge resets
   useEffect(() => {
-    if (open) setSeenCount(count);
+    if (open) seenCountRef.current = count;
   }, [open, count]);
 
   // Badge-only UI; unseen count logic retained for future but not rendered
+
+  if (!alertsEnabled) {
+    // Render a tiny disabled indicator to preserve layout spacing
+    return (
+      <div className="relative">
+        <button
+          className="flex items-center justify-center w-7 h-7 rounded-full bg-gray-700 text-gray-300 text-[10px] font-extrabold opacity-60 cursor-not-allowed"
+          title="Alerts disabled"
+          aria-label="Alerts disabled"
+        >
+          —
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

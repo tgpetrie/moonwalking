@@ -1,49 +1,99 @@
-// src/lib/api.js
-export const API_ORIGIN =
-  import.meta.env.VITE_API_ORIGIN ||
-  import.meta.env.VITE_API_BASE ||
-  'http://127.0.0.1:5002';
+export const API_BASE = import.meta.env?.VITE_API_BASE || '';
 
-async function j(path, init = {}) {
-  const url = path.startsWith('http') ? path : `${API_ORIGIN}${path}`;
-  const res = await fetch(url, { ...init, headers: { 'accept': 'application/json', ...(init?.headers || {}) } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-}
-
-export const api = {
-  health: () => j('/api/health'),
-  metrics: () => j('/api/metrics'),
-  topMoversBar: () => j('/api/component/top-movers-bar'),
-  gainers: () => j('/api/component/gainers-table'),
-  losers: () => j('/api/component/losers-table'),
+const normalise = (path) => {
+  if (!path) return path;
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/')) return `${API_BASE}${path}`;
+  return `${API_BASE}/${path}`;
 };
 
-export const getJSON = async (path, opts = {}) => {
-  const res = await fetch(path.startsWith('http') ? path : `${API_ORIGIN}${path}`, {
-    headers: { Accept: 'application/json' },
-    ...opts,
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-  return res.json();
+export async function fetchJson(url, init = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  try {
+    const res = await fetch(normalise(url), {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json', ...(init.headers || {}) },
+      ...init,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      const suffix = text ? ` :: ${text.slice(0, 180)}` : '';
+      throw new Error(`HTTP ${res.status} ${res.statusText} @ ${url}${suffix}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export const httpGet = fetchJson;
+export const fetchComponent = fetchJson;
+
+export const endpoints = {
+  health: normalise('/api/health'),
+  gainers1m: normalise('/api/component/gainers-table-1min'),
+  gainers3m: normalise('/api/component/gainers-table'),
+  losers3m: normalise('/api/component/losers-table'),
+  banner1h: normalise('/api/component/top-movers-bar'),
+  bannerVolume1h: normalise('/api/component/banner-volume-1h'),
+  topMoversBar: normalise('/api/component/top-movers-bar'),
+  alertsRecent: (limit = 25) => normalise(`/api/alerts/recent?limit=${limit}`),
+  metrics: normalise('/api/metrics'),
 };
 
-// POST /api/watchlist { symbol, price? }
-export async function addToWatchlist(symbol, price) {
-  const body = price != null ? { symbol, price } : { symbol };
-  return fetchJson('/watchlist', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+const coerceArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload?.rows && Array.isArray(payload.rows)) return payload.rows;
+  if (payload?.data && Array.isArray(payload.data)) return payload.data;
+  return [];
+};
 
-// DELETE /api/watchlist/:symbol
-export async function removeFromWatchlist(symbol) {
-  const res = await fetchJson(`/watchlist/${encodeURIComponent(symbol)}`, {
-    method: 'DELETE',
-  });
-  // Backend returns { message, watchlist: [...] }
-  if (Array.isArray(res)) return res;
-  return res && Array.isArray(res.watchlist) ? res.watchlist : [];
-}
+export const mapRow = (row = {}) => {
+  const symbol = String(row.ticker ?? row.symbol ?? row.product_id ?? '')
+    .replace(/-USD$/i, '')
+    .toUpperCase();
+  const price = Number(row.last ?? row.current_price ?? row.price ?? 0);
+  const changePctRaw =
+    typeof row.changePct === 'number'
+      ? row.changePct
+      : typeof row.pct === 'number'
+      ? row.pct
+      : typeof row.price_change_percentage_1min === 'number'
+      ? row.price_change_percentage_1min
+      : typeof row.price_change_percentage_3min === 'number'
+      ? row.price_change_percentage_3min
+      : typeof row.change === 'number'
+      ? row.change
+      : 0;
+  return {
+    symbol,
+    price,
+    changePct: Number(changePctRaw) || 0,
+  };
+};
+
+export const mapBanner = (row = {}) => {
+  const symbol = String(row.symbol ?? row.ticker ?? '')
+    .replace(/-USD$/i, '')
+    .toUpperCase();
+  const price = Number(row.price ?? row.last ?? row.current_price ?? 0);
+  const pctRaw =
+    typeof row.pct === 'number'
+      ? row.pct
+      : typeof row.changePct === 'number'
+      ? row.changePct
+      : typeof row.change === 'number'
+      ? row.change
+      : 0;
+  return {
+    symbol,
+    price,
+    pct: Number(pctRaw) || 0,
+    label: row.label ?? row.tag ?? '',
+  };
+};
+
+export const mapRows = (payload, transform = mapRow) => coerceArray(payload).map(transform);
+export const mapBanners = (payload) => coerceArray(payload).map(mapBanner);

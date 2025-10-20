@@ -1,19 +1,11 @@
 import React from 'react';
-
+import { endpoints, httpGet as fetchJSON } from '../lib/api';
 // @ts-ignore - Vite injects import.meta.env at build/runtime
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || '';
-// @ts-ignore
 const pollMs = Number((import.meta as any).env?.VITE_POLL_MS || 10000);
-
-async function fetchJSON(url: string) {
-  const r = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
 
 export default function useGainersData() {
   const [data, setData] = React.useState<any[]>([]);
-  const [isLoading, setLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<any>(null);
 
   React.useEffect(() => {
@@ -21,16 +13,34 @@ export default function useGainersData() {
 
     async function tick() {
       try {
-        const j = await fetchJSON(`${API_BASE}/api/component/gainers-table-1min`);
-        const rows = Array.isArray(j) ? j : (j?.data ?? []);
+        const j = await fetchJSON(endpoints.gainers1m);
+        let rawRows: any[] = [];
+        const anyJ: any = j as any;
+        if (Array.isArray(anyJ?.data)) rawRows = anyJ.data;
+        else if (Array.isArray(anyJ?.rows)) rawRows = anyJ.rows;
+        else if (Array.isArray(anyJ)) rawRows = anyJ;
+        const rows = rawRows.map((item: any, idx: number) => {
+          const symbol = String(item.symbol || item.pair || item.product_id || '').replace(/-USD$/i, '');
+          const price = Number(item.current_price ?? item.price ?? 0);
+          const change = Number(
+            item.price_change_percentage_1min ?? item.change ?? item.change1m ?? item.gain ?? 0,
+          );
+          return {
+            ...item,
+            rank: item.rank || idx + 1,
+            symbol,
+            current_price: price,
+            changePct: change,
+          };
+        });
         if (alive) {
           setData(rows);
-          setLoading(false);
+            setIsLoading(false);
         }
       } catch (e) {
         if (alive) {
           setError(e);
-          setLoading(false);
+          setIsLoading(false);
         }
       }
     }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { endpoints } from '../lib/api'
 
 type SWRBlock = {
   source: string
@@ -41,8 +42,7 @@ export default function TopMovers() {
   async function fetchOnce() {
     setError(null)
     try {
-      const base = (import.meta as any).env?.VITE_API_BASE || ''
-      const res = await fetch(`${base}/api/component/top-movers-bar`, { headers: { accept: 'application/json' } })
+  const res = await fetch(endpoints.topMoversBar, { headers: { accept: 'application/json' } })
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const json: TopMoversAPI = await res.json()
       setPayload(json)

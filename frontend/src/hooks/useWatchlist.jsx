@@ -1,74 +1,87 @@
-import * as React from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-// import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../lib/api.js'; // Disabled for localStorage-only
 
-const Ctx = React.createContext(null);
+const STORAGE_KEY = 'bhabit_watchlist_v2';
 
-export function WatchlistProvider({ children, refreshMs = 10000 }) {
-  const value = useWatchlistInternal({ refreshMs });
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+const WatchlistContext = createContext(null);
+
+export function WatchlistProvider({ children }) {
+  const value = useMemo(() => createWatchlistApi(), []);
+  return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }
 
 WatchlistProvider.propTypes = {
   children: PropTypes.node,
-  refreshMs: PropTypes.number,
 };
 
 export function useWatchlistContext() {
-  const ctx = React.useContext(Ctx);
-  if (!ctx) throw new Error('useWatchlist must be used within WatchlistProvider');
+  const ctx = useContext(WatchlistContext);
+  if (!ctx) throw new Error('useWatchlistContext must be used within WatchlistProvider');
   return ctx;
 }
 
-export function useWatchlist({ refreshMs } = {}) {
-  // Public hook that reads from provider; allows per-component override of refreshMs via provider props
+export function useWatchlist() {
   return useWatchlistContext();
 }
 
-function useWatchlistInternal({ refreshMs = 10000 } = {}) {
-  const [list, setList] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const lastLoadRef = React.useRef(0);
-
-  const load = React.useCallback(async () => {
-    setLoading(true);
+function createWatchlistApi() {
+  const [store, setStore] = useState(() => {
     try {
-      const stored = localStorage.getItem('watchlist');
-      const wl = stored ? JSON.parse(stored) : [];
-      setList(Array.isArray(wl) ? wl : []);
-    } finally {
-      setLoading(false);
-      lastLoadRef.current = Date.now();
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
     }
-  }, []);
+  });
 
-  // Optimistic toggle with localStorage sync
-  const toggle = React.useCallback(async (symbol) => {
-    const sym = String(symbol || '').toUpperCase();
-    if (!sym) return;
-    setSaving(true);
-    const wasIn = list.includes(sym);
-    // optimistic update
-    const newList = wasIn ? list.filter((s) => s !== sym) : [...list, sym];
-    setList(newList);
-  try {
-      localStorage.setItem('watchlist', JSON.stringify(newList));
-    } catch (e) {
-      // rollback on failure silently; persistence layer failed
-      setList(list);
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch {
+      // ignore storage failures
     }
-  }, [list]);
+  }, [store]);
 
-  // Initial load + polling to keep in sync with other tabs/devices
-  React.useEffect(() => {
-    load();
-    if (!refreshMs) return;
-    const id = setInterval(load, refreshMs);
-    return () => clearInterval(id);
-  }, [load, refreshMs]);
+  const has = (symbol) => Boolean(symbol && store[symbol]);
 
-  return { list, loading, saving, load, toggle, setList };
+  const add = (symbol, priceNow) => {
+    if (!symbol) return;
+    const numeric = typeof priceNow === 'number' && !Number.isNaN(priceNow) ? priceNow : null;
+    setStore((prev) => ({
+      ...prev,
+      [symbol]: { price: numeric, at: Date.now() },
+    }));
+  };
+
+  const remove = (symbol) => {
+    if (!symbol) return;
+    setStore((prev) => {
+      if (!prev[symbol]) return prev;
+      const next = { ...prev };
+      delete next[symbol];
+      return next;
+    });
+  };
+
+  const baselineFor = (symbol) => (symbol ? store[symbol] : undefined);
+
+  const toggle = (symbol, priceNow) => {
+    if (!symbol) return;
+    if (has(symbol)) remove(symbol);
+    else add(symbol, priceNow);
+  };
+
+  const list = Object.keys(store);
+
+  return {
+    has,
+    add,
+    remove,
+    baselineFor,
+    toggle,
+    list,
+    loading: false,
+    saving: false,
+    all: store,
+  };
 }

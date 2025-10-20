@@ -1,3 +1,4 @@
+import React from 'react';
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 const pollMs = Number(import.meta.env.VITE_POLL_MS || 10000);
 
@@ -7,7 +8,7 @@ async function fetchJSON(url) {
   return r.json();
 }
 
-export default function useGainersLosersData() {
+function useGainersLosersData() {
   const [data, setData] = React.useState([]);
   const [isLoading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -36,3 +37,6 @@ export default function useGainersLosersData() {
 
   return { data, isLoading, error };
 }
+
+export { useGainersLosersData };
+export default useGainersLosersData;

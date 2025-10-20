@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { endpoints } from "../lib/api";
 
 /**
  * Hook for fetching 1-hour price data via HTTP polling
@@ -24,24 +25,18 @@ export default function useOneHourPriceData(pollInterval = 5000) {
 
         setLoading(true);
 
-  // Prefer explicit backend banner endpoint; honor VITE_API_BASE when present.
-  const base = import.meta.env.VITE_API_BASE || '';
-  // Backend exposes /api/banner-1h (and /api/banner-top / banner-bottom). Use /api/banner-1h for one-hour banner data.
-  const url = `${base}/api/banner-1h`.replace(/([^:]\/)(\/+)/g, '$1/');
-  const res = await fetch(url, { signal: ac.signal });
+  // Use centralized endpoint for one-hour banner data.
+  const res = await fetch(endpoints.banner1h, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const json = await res.json();
         if (!mounted) return;
 
         // Extract rows from response (handles {data: [...]}, legacy {rows: [...]}, or direct array)
-        const data = Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.rows)
-          ? json.rows
-          : Array.isArray(json)
-          ? json
-          : [];
+        let data = [];
+        if (Array.isArray(json?.data)) data = json.data;
+        else if (Array.isArray(json?.rows)) data = json.rows;
+        else if (Array.isArray(json)) data = json;
         setRows(data);
         setError(null);
       } catch (e) {

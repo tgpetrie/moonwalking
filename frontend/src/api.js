@@ -29,12 +29,8 @@ if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
 API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 
 // Enhanced runtime debug output
-try {
-  console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s ENABLE_LOCAL_PROBE=%s API_BASE_URL=%s RAW_ENV_BASE=%s',
-    String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(ENABLE_LOCAL_PROBE), String(API_BASE_URL), String(RAW_ENV_BASE));
-} catch (e) {
-  // ignore when console is unavailable
-}
+console.info('[api.debug] RUNTIME_IS_DEV=%s RUNTIME_IS_LOCAL_HOST=%s ENABLE_LOCAL_PROBE=%s API_BASE_URL=%s RAW_ENV_BASE=%s',
+  String(RUNTIME_IS_DEV), String(RUNTIME_IS_LOCAL_HOST), String(ENABLE_LOCAL_PROBE), String(API_BASE_URL), String(RAW_ENV_BASE));
 
 const buildApiEndpoints = (base) => ({
   topBanner: `${base}/component/top-banner-scroll`,
@@ -64,20 +60,19 @@ const buildApiEndpoints = (base) => ({
   products: `${base}/products`,
 });
 
-// Use '/api' when using same-origin relative mode so we hit Functions/Backend routes
-const resolveBase = () => (API_BASE_URL === '' ? '/api' : API_BASE_URL);
-export let API_ENDPOINTS = buildApiEndpoints(resolveBase());
+// Use '/api' when using same-origin relative mode so we hit Backend routes consistently
+const resolveBase = () => (API_BASE_URL === '' || API_BASE_URL === 'relative' ? '/api' : API_BASE_URL);
+export const API_ENDPOINTS = buildApiEndpoints(resolveBase());
 
 export const getApiBaseUrl = () => API_BASE_URL;
 export const setApiBaseUrl = (url) => {
   if (!url) return;
   API_BASE_URL = url.replace(/\/$/, '');
-  API_ENDPOINTS = buildApiEndpoints(resolveBase());
-  try { console.info('[api] Switched API base to', API_BASE_URL); } catch (_) {}
+  Object.assign(API_ENDPOINTS, buildApiEndpoints(resolveBase()));
+  console.info('[api] Switched API base to', API_BASE_URL);
 };
 
 import { normalizeComponentPayload } from './services/normalize.js';
-import { isMobileDevice, getMobileOptimizedConfig } from './utils/mobileDetection.js';
 
 // Fetch data from API with throttling and automatic base fallback
 export const fetchData = async (endpoint, fetchOptions = {}) => {

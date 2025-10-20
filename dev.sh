@@ -88,19 +88,27 @@ case "${1:-help}" in
     "start")
         print_status "Starting BHABIT CBMOONERS (local)…"
         ensure_deps
-        ./start_local.sh
+        BACKEND_PORT=${BACKEND_PORT:-5001} VITE_LPS_TWO_COL_1M=${VITE_LPS_TWO_COL_1M:-0} VITE_LEMON_PEPPER_MODE=${VITE_LEMON_PEPPER_MODE:-0} ./start_local.sh
         ;;
 
     "backend")
-        print_status "Starting backend server only..."
+        BACKEND_PORT=${BACKEND_PORT:-5001}
+        print_status "Starting backend server on ${BACKEND_PORT}..."
         activate_venv
         cd backend
-        python app.py
+        python app.py --host 127.0.0.1 --port "${BACKEND_PORT}"
         ;;
     
     "frontend")
         print_status "Starting frontend server only..."
         ensure_deps
+        BACKEND_PORT=${BACKEND_PORT:-5001}
+        export VITE_API_BASE="${VITE_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
+        export VITE_API_URL="${VITE_API_URL:-http://127.0.0.1:${BACKEND_PORT}}"
+        export VITE_WS_URL="${VITE_WS_URL:-ws://127.0.0.1:${BACKEND_PORT}/ws}"
+        export VITE_EVENTS_ENABLED="${VITE_EVENTS_ENABLED:-true}"
+        export VITE_LEMON_PEPPER_MODE="${VITE_LEMON_PEPPER_MODE:-0}"
+        export VITE_LPS_TWO_COL_1M="${VITE_LPS_TWO_COL_1M:-0}"
         cd frontend
         npm run dev
         ;;

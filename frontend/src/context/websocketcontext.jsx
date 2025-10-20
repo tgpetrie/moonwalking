@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import PropTypes from 'prop-types';
-import { API_ENDPOINTS, fetchComponent } from '../api.js';
+import { endpoints, fetchComponent } from '../lib/api';
 import { flags } from '../config.js';
 import { openSSE } from '../services/sse.js';
 import { subscribeToWebSocket } from '../services/websocket.js';
@@ -91,11 +91,11 @@ export const WebSocketProvider = ({ children, pollIntervalMs = 12000 }) => {
     setIsPolling(true);
     try {
       const [oneMin, threeMin, losersRes, topBannerRes, bottomBannerRes] = await Promise.all([
-        safeFetch(API_ENDPOINTS.gainersTable1Min || '/api/component/gainers-table-1min'),
-        safeFetch(API_ENDPOINTS.gainersTable3Min || '/api/component/gainers-table-3min'),
-        safeFetch(API_ENDPOINTS.losersTable3Min || '/api/component/losers-table-3min'),
-        safeFetch(API_ENDPOINTS.topBanner || '/api/component/top-banner-scroll'),
-        safeFetch(API_ENDPOINTS.bottomBanner || '/api/component/bottom-banner-scroll'),
+        safeFetch(endpoints.gainers1m),
+        safeFetch(endpoints.gainers3m),
+        safeFetch(endpoints.losers3m),
+        safeFetch(endpoints.bannerTop),
+        safeFetch(endpoints.bannerBot),
       ]);
 
       const now = Date.now();

@@ -1,160 +1,94 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useWebSocket } from '../context/websocketcontext.jsx';
-import GainersTable1Min from './GainersTable1Min.clean.jsx';
+import { useGainers } from '../hooks/useData';
+import RowActions from './tables/RowActions';
+import '../styles/rows.css';
 
-const POLL_MS = Number.parseInt(import.meta?.env?.VITE_POLL_MS ?? '30000', 10);
+const LIMIT_COMPACT = 8;
+const LIMIT_EXPANDED = 12;
 
-const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
-
-const uniqBySymbol = (rows = []) => {
-  const seen = new Set();
-  const out = [];
-  for (const it of rows) {
-    const sym = sanitizeSymbol(it?.symbol || it?.pair || it?.product_id || '');
-    if (!sym) continue;
-    if (seen.has(sym)) continue;
-    seen.add(sym);
-    out.push(it);
-  }
-  return out;
+const Card = ({ rank, symbol, price, changePct }) => {
+  const pct = Number(changePct ?? 0);
+  const priceNum = typeof price === 'number' ? price : Number(price);
+  return (
+    <div className="relative rounded-2xl bg-black/40 border border-white/5 px-4 py-4 flex flex-col gap-3 hover:border-white/15 transition-colors">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange/30 text-orange font-semibold text-sm">
+            {rank}
+          </div>
+          <div className="min-w-0">
+            <div className="font-headline text-lg tracking-wide truncate">{symbol}</div>
+            <div className="text-sm text-white/70 tabular-nums">
+              ${Number.isFinite(priceNum) ? (priceNum < 1 ? priceNum.toFixed(4) : priceNum.toFixed(2)) : '—'}
+            </div>
+          </div>
+        </div>
+        <div className={`text-right font-mono text-lg tabular-nums ${pct >= 0 ? 'text-gain' : 'text-loss'}`}>
+          {pct >= 0 ? '+' : ''}{Number.isFinite(pct) ? pct.toFixed(3) : '0.000'}%
+        </div>
+      </div>
+      <div className="flex items-center justify-end">
+        <RowActions symbol={symbol} price={priceNum} />
+      </div>
+    </div>
+  );
 };
 
-export default function OneMinGainersColumns({ expanded = false, onSelectCoin, onOpenSymbol, side = null, compact = false }) {
-  const { gainersTop20, gainers3mTop, latestData } = useWebSocket();
-  const loading = false;
-  const error = null;
-  const raw = latestData?.raw ?? null;
-  const [localExpanded, setLocalExpanded] = React.useState(false);
+Card.propTypes = {
+  rank: PropTypes.number.isRequired,
+  symbol: PropTypes.string.isRequired,
+  price: PropTypes.number,
+  changePct: PropTypes.number,
+};
 
-  // Prefer 1-min feed; fallback to 3-min gainers for dev / cold starts
-  const allRows = useMemo(() => {
-    if (Array.isArray(gainersTop20) && gainersTop20.length > 0) return gainersTop20;
-    if (Array.isArray(gainers3mTop) && gainers3mTop.length > 0) return gainers3mTop;
-    return [];
-  }, [gainersTop20, gainers3mTop]);
+export default function OneMinGainersColumns({ expanded = false }) {
+  const { rows, loading } = useGainers('1m');
+  const limit = expanded ? LIMIT_EXPANDED : LIMIT_COMPACT;
+  const sliced = useMemo(() => rows.slice(0, limit), [rows, limit]);
 
-  const normalized = useMemo(() => {
-    const base = Array.isArray(allRows) ? uniqBySymbol(allRows) : [];
-    return base.map((item, idx) => ({
-      ...item,
-      rank: item.rank || idx + 1,
-      symbol: sanitizeSymbol(item.symbol || item.pair || item.product_id || ''),
-    }));
-  }, [allRows]);
+  const prepared = useMemo(
+    () => sliced.map((item, idx) => ({ ...item, rank: idx + 1 })),
+    [sliced]
+  );
 
-  const { left, right } = useMemo(() => {
-    const baseLimit = 8;
-    const expandLimit = 16;
-    const targetTotal = localExpanded || expanded ? expandLimit : baseLimit;
-    const available = normalized.length;
-    const total = Math.min(targetTotal, available);
-    const top = normalized.slice(0, total);
+  const left = prepared.filter((_, idx) => idx % 2 === 0);
+  const right = prepared.filter((_, idx) => idx % 2 === 1);
 
-    // Interleave evenly: even indexes → left, odd → right
-    const leftArr = [];
-    const rightArr = [];
-    for (let i = 0; i < top.length; i += 1) {
-      if (i % 2 === 0) leftArr.push(top[i]);
-      else rightArr.push(top[i]);
-    }
+  const renderColumn = (entries) => (
+    <div className="flex flex-col gap-3">
+      {entries.map((item, idx) => (
+        <Card key={item.symbol} rank={item.rank} symbol={item.symbol} price={item.price} changePct={item.changePct} />
+      ))}
+      {(!entries.length && loading) &&
+        Array.from({ length: limit / 2 }).map((_, i) => (
+          <div key={`skeleton-${i}`} className="rounded-2xl bg-white/5 h-24 animate-pulse" />
+        ))}
+    </div>
+  );
 
-    // Defensive dedupe: ensure left/right do not share the same symbol
-    const seen = new Set();
-    const compact = (arr) => arr.filter((it) => {
-      const s = sanitizeSymbol(it?.symbol || it?.pair || it?.product_id || '');
-      if (!s) return false;
-      if (seen.has(s)) return false;
-      seen.add(s);
-      return true;
-    });
-
-    return {
-      left: compact(leftArr),
-      right: compact(rightArr),
-    };
-  }, [normalized, expanded, localExpanded]);
-
-  // decide which rows to render based on side prop
-  const seeded = Boolean(import.meta?.env?.DEV && (raw?.seeded || raw?.swr?.source === 'fixture-seed'));
-  const derived = Boolean(import.meta?.env?.DEV && (raw?.swr?.source === 'derived-from-3min'));
-  const allowEmpty = Boolean(seeded || derived || import.meta?.env?.DEV);
-
-  // If side is provided, render just that column; otherwise render both columns side-by-side
-  if (side === 'left' || side === 'right') {
-    const rows = side === 'left' ? left : right;
+  if (!sliced.length && loading) {
     return (
-      <div className="w-full h-full min-h-[320px]">
-        <GainersTable1Min
-          rows={rows}
-          startRank={1}
-          endRank={rows.length}
-          loading={loading}
-          error={error}
-          seeded={seeded}
-          allowEmpty={allowEmpty}
-          onSelectCoin={onSelectCoin}
-          onOpenSymbol={onOpenSymbol}
-          compact={compact}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {Array.from({ length: 2 }).map((_, col) => (
+          <div key={col} className="flex flex-col gap-3">
+            {Array.from({ length: limit / 2 }).map((__, i) => (
+              <div key={`${col}-${i}`} className="rounded-2xl bg-white/5 h-24 animate-pulse" />
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <GainersTable1Min
-            rows={left}
-            startRank={1}
-            endRank={left.length}
-            loading={loading}
-            error={error}
-            seeded={seeded}
-            allowEmpty={allowEmpty}
-            onSelectCoin={onSelectCoin}
-            onOpenSymbol={onOpenSymbol}
-            compact={compact}
-          />
-        </div>
-        <div>
-          <GainersTable1Min
-            rows={right}
-            startRank={left.length + 1}
-            endRank={left.length + right.length}
-            loading={loading}
-            error={error}
-            seeded={seeded}
-            allowEmpty={allowEmpty}
-            onSelectCoin={onSelectCoin}
-            onOpenSymbol={onOpenSymbol}
-            compact={compact}
-          />
-        </div>
-      </div>
-
-      {/* show more / show less matching MoverTable behavior */}
-      {Array.isArray(normalized) && normalized.length > 8 && (
-        <div className="w-full mt-3 flex justify-center">
-          <button
-            type="button"
-            onClick={() => setLocalExpanded((s) => !s)}
-            className="text-sm font-medium text-slate-200 bg-white/5 hover:bg-white/10 px-3 py-1 rounded-md"
-            aria-expanded={localExpanded}
-          >
-            {localExpanded ? 'Show Less' : `Show more (${Math.min(normalized.length, 16)} max)`}
-          </button>
-        </div>
-      )}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {renderColumn(left)}
+      {renderColumn(right)}
     </div>
   );
 }
 
 OneMinGainersColumns.propTypes = {
   expanded: PropTypes.bool,
-  onSelectCoin: PropTypes.func,
-  onOpenSymbol: PropTypes.func,
-  side: PropTypes.oneOf(['left', 'right', null]),
-  compact: PropTypes.bool,
 };

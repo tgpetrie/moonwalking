@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchComponent } from "../api.js";
+import { fetchComponent, endpoints } from "../lib/api";
 
 /**
  * Hook for fetching gainers table data via HTTP polling
@@ -14,9 +14,7 @@ export default function useGainersData({ window = "3min", pollInterval = 6000 })
   const abortRef = useRef(null);
 
   // Determine endpoint based on window
-  const endpoint = window === "1min"
-    ? "/api/component/gainers-table-1min"
-    : "/api/component/gainers-table-3min";
+  const endpoint = window === "1min" ? endpoints.gainers1m : endpoints.gainers3m;
 
   useEffect(() => {
     let mounted = true;

@@ -1,0 +1,14 @@
+.bhabit-row {
+  background: transparent;
+  position: relative;
+}
+.bhabit-row::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+  background: linear-gradient(90deg, #ff7a1a 0%, #4aa8ff 50%, #ff65b6 100%);
+}
+.bhabit-row:hover::after { opacity: 0.6; }

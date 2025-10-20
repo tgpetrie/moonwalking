@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Local dev launcher for Moonwalkings
-# - Starts Flask backend on PORT (default 5002)
+# - Starts Flask backend on PORT (default 5001)
 # - Optionally starts Cloudflare Worker via wrangler on EDGE_PORT (default 8787) if WRANGLER=1
 # - Starts Vite frontend on VITE_PORT (default 5173) using pnpm if available, else npm
 
 set -euo pipefail
 
-PORT=${PORT:-5002}
+PORT=${PORT:-5001}
 HOST=${HOST:-127.0.0.1}
 EDGE_PORT=${EDGE_PORT:-8787}
 VITE_PORT=${VITE_PORT:-5173}

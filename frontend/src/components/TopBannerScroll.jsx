@@ -1,136 +1,86 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import useOneHourPriceData from '../hooks/useOneHourPriceData.jsx';
+import { useBanner1h } from '../hooks/useData';
+import Marquee from './banners/Marquee';
 
-const sanitizeSymbol = (symbol = '') => String(symbol).replace(/-USD$/i, '');
+const FALLBACK_ITEMS = [
+  { symbol: 'BTC', price: 45231.12, pct: 1.42 },
+  { symbol: 'ETH', price: 3280.45, pct: 1.18 },
+  { symbol: 'SOL', price: 98.13, pct: 2.67 },
+  { symbol: 'AVAX', price: 36.44, pct: -0.82 },
+  { symbol: 'PEPE', price: 0.0000019, pct: 4.35 },
+];
 
 const TopBannerScroll = ({ refreshTrigger }) => {
-  const { rows, error } = useOneHourPriceData(5000);
-  const [data, setData] = useState([]);
-  const startRef = useRef(Date.now());
-  const SCROLL_DURATION_SEC = 180; // matches .animate-scroll in index.css
+  const { items, loading, refresh } = useBanner1h();
 
-  const getBadgeStyle = (change) => {
-    const absChange = Math.abs(Number(change || 0));
-    if (absChange >= 5) return 'STRONG HIGH';
-    if (absChange >= 2) return 'STRONG';
-    return '';
-  };
-
-  const animDelay = useMemo(() => {
-    const elapsed = (Date.now() - startRef.current) / 1000;
-    const offset = elapsed % SCROLL_DURATION_SEC;
-    return `-${offset}s`;
-  }, []);
+  React.useEffect(() => {
+    if (refreshTrigger !== undefined) refresh();
+  }, [refreshTrigger, refresh]);
 
   const marqueeRows = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const repeats = Math.max(2, Math.ceil(30 / data.length));
+    const source = (items && items.length ? items : FALLBACK_ITEMS).slice(0, 24);
+    const repeats = Math.max(2, Math.ceil(32 / Math.max(source.length, 1)));
     const expanded = [];
     for (let r = 0; r < repeats; r += 1) {
-      expanded.push(...data.map((coin, idx) => ({ ...coin, _marqueeId: `${coin.symbol}-${r}-${idx}` })));
+      expanded.push(
+        ...source.map((coin, idx) => ({
+          ...coin,
+          _id: `${coin.symbol}-${r}-${idx}`,
+        }))
+      );
     }
     return expanded;
-  }, [data]);
+  }, [items]);
 
-  // Map fetched rows to display shape
-  useEffect(() => {
-    if (error) {
-      setData([]);
-      return;
-    }
-    if (Array.isArray(rows) && rows.length > 0) {
-      const mapped = rows.map((item, index) => {
-        const pair = String(item.symbol || item.pair || `${item.base_currency || ''}-USD`).toUpperCase();
-        const base = sanitizeSymbol(pair) || 'N/A';
-        const price = Number(item.current_price ?? item.price ?? 0);
-        const change = Number(item.price_change_1h ?? item.change ?? 0);
-        return {
-          rank: index + 1,
-          symbol: base,
-          pair,
-          price,
-          change,
-          badge: getBadgeStyle(change),
-        };
-      });
-      setData(mapped.slice(0, 20));
-    }
-  }, [rows, error, refreshTrigger]);
+  if (!marqueeRows.length && loading) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl w-full max-w-full" style={{ background: 'transparent' }}>
-      {/* Header */}
+    <section className="relative overflow-hidden rounded-3xl w-full max-w-full" aria-label="1H Price Change • Live Market Feed">
       <div className="px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase text-orange">
+          <h3 className="text-base font-prosto tracking-wide uppercase text-orange">
             1H Price Change • Live Market Feed
           </h3>
         </div>
       </div>
-
-      {/* Scrolling Content */}
-      <div className="relative h-16 overflow-hidden">
-        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
-        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
-
-      <div className="absolute inset-0 flex items-center">
-          <div className="flex whitespace-nowrap animate-scroll" style={{ animationDelay: animDelay }}>
-            {marqueeRows.map((coin, index) => (
-              <div key={coin._marqueeId || `loop-${coin.symbol}-${index}`} className="flex-shrink-0 mx-8">
-                <a
-                  href={`https://www.coinbase.com/trade/${(coin.pair || (coin.symbol + '-USD')).toLowerCase()}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className={
-                    "flex items-center gap-4 px-5 py-2 rounded-full transition-all duration-300 group hover:scale-105 will-change-transform bg-black/20 border border-gray-800 " +
-                    (coin.change >= 0 ? 'hover:text-purple hover:text-shadow-purple' : 'hover:text-pink hover:text-shadow-pink')
-                  }
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-pos">#{coin.rank}</span>
-                    <span className="text-base font-headline font-bold tracking-wide">{coin.symbol}</span>
-                    <span className="text-lg font-bold text-teal">
-                      ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 font-bold">
-                    {(() => {
-                      const ch = Number(coin.change || 0);
-                      const cls = ch >= 0 ? 'text-pos' : 'text-neg';
-                      return (
-                        <span className={`${cls} text-xl`}>
-                          {ch >= 0 ? '+' : ''}{Number.isFinite(ch) ? ch.toFixed(3) : '0.000'}%
-                        </span>
-                      );
-                    })()}
-                    {(() => {
-                      const ch = Number(coin.change || 0);
-                      if (!Number.isFinite(ch) || Math.abs(ch) < 0.01) return null;
-                      const color = ch >= 0 ? 'var(--pos)' : 'var(--neg)';
-                      const mag = Math.abs(ch);
-                      let fontSize = '0.9em';
-                      if (mag >= 2) fontSize = '1.2em';
-                      else if (mag >= 0.5) fontSize = '1.0em';
-                      return <span className="font-semibold" style={{ fontSize, color }} aria-label={ch >= 0 ? 'trend up' : 'trend down'}>{ch >= 0 ? '↑' : '↓'}</span>;
-                    })()}
-                  </div>
-                  {getBadgeStyle(coin.change) ? (
-                    <div className="px-2 py-0.5 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/40 text-purple">
-                      {getBadgeStyle(coin.change)}
+      <div className="relative h-16">
+        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-0 flex items-center">
+          <Marquee speed={50}>
+            {marqueeRows.map((coin) => {
+              const price = Number(coin.price || 0);
+              const pct = Number(coin.pct || 0);
+              return (
+                <div key={coin._id} className="flex-shrink-0">
+                  <div className="flex items-center gap-4 px-4 py-2 rounded-full transition-transform duration-300 hover:scale-[1.02] bg-black/25 shadow-none">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-orange uppercase tracking-wide">{coin.symbol}</span>
+                      <span className="text-base font-semibold text-teal tabular-nums">
+                        ${Number.isFinite(price) ? (price < 1 ? price.toFixed(4) : price.toFixed(2)) : '—'}
+                      </span>
                     </div>
-                  ) : null}
-                </a>
-              </div>
-            ))}
-          </div>
+                    <div className="flex items-center gap-1 font-bold tabular-nums">
+                      <span className={pct >= 0 ? 'text-pos' : 'text-neg'}>
+                        {pct >= 0 ? '+' : ''}
+                        {Number.isFinite(pct) ? pct.toFixed(3) : '0.000'}%
+                      </span>
+                      {coin.label ? <span className="text-xs uppercase tracking-wide text-purple/80">{coin.label}</span> : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </Marquee>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
-
-export default TopBannerScroll;
 
 TopBannerScroll.propTypes = {
   refreshTrigger: PropTypes.any,
 };
+
+export default TopBannerScroll;
