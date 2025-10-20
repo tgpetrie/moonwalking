@@ -11,12 +11,13 @@
     "build": "vite build",
     "build:stats": "BUNDLE_STATS=1 vite build",
     "preview": "vite preview",
-  "lint": "eslint src --ext .js,.jsx",
+    "lint": "eslint src --ext .js,.jsx",
     "format": "prettier -w .",
     "test": "echo \"No frontend tests yet\" && exit 0",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "smoke": "node ./scripts/smoke.js"
   },
   "dependencies": {
     "framer-motion": "^11.0.0",
