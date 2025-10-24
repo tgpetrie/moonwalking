@@ -1,5 +1,6 @@
 import React from 'react';
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+
+const API_BASE = (String(import.meta.env.VITE_API_URL || '')).replace(/\/$/, '');
 const pollMs = Number(import.meta.env.VITE_POLL_MS || 10000);
 
 async function fetchJSON(url) {

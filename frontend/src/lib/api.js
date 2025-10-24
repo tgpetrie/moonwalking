@@ -1,4 +1,9 @@
-export const API_BASE = import.meta.env?.VITE_API_BASE || '';
+const rawBase = import.meta.env?.VITE_API_URL ?? '';
+export const API_BASE = typeof rawBase === 'string' ? rawBase.replace(/\/$/, '') : '';
+
+if (typeof window !== 'undefined') {
+  window.__API_BASE__ = API_BASE;
+}
 
 const normalise = (path) => {
   if (!path) return path;
@@ -11,7 +16,8 @@ export async function fetchJson(url, init = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 9000);
   try {
-    const res = await fetch(normalise(url), {
+    const target = normalise(url);
+    const res = await fetch(target, {
       credentials: 'same-origin',
       headers: { accept: 'application/json', ...(init.headers || {}) },
       ...init,
@@ -20,7 +26,7 @@ export async function fetchJson(url, init = {}) {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       const suffix = text ? ` :: ${text.slice(0, 180)}` : '';
-      throw new Error(`HTTP ${res.status} ${res.statusText} @ ${url}${suffix}`);
+      throw new Error(`HTTP ${res.status} ${res.statusText} @ ${target}${suffix}`);
     }
     return res.json();
   } finally {

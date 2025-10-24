@@ -19,7 +19,6 @@ if (RAW_ENV_BASE && RAW_ENV_BASE !== 'relative') {
 } else {
   // Enhanced fallback: check multiple env var names
   const fallbackBase = (
-    import.meta.env.VITE_API_BASE ||
     import.meta.env.PUBLIC_API_BASE ||
     import.meta.env.API_BASE_URL ||
     '' // default to relative base (no localhost)

@@ -103,7 +103,6 @@ case "${1:-help}" in
         print_status "Starting frontend server only..."
         ensure_deps
         BACKEND_PORT=${BACKEND_PORT:-5001}
-        export VITE_API_BASE="${VITE_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
         export VITE_API_URL="${VITE_API_URL:-http://127.0.0.1:${BACKEND_PORT}}"
         export VITE_WS_URL="${VITE_WS_URL:-ws://127.0.0.1:${BACKEND_PORT}/ws}"
         export VITE_EVENTS_ENABLED="${VITE_EVENTS_ENABLED:-true}"

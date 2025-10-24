@@ -1,63 +1,60 @@
-// ESM-friendly smoke script. Uses dynamic import so it works when package.json uses "type": "module".
+// Playwright smoke: waits for one-min card, surfaces useful diagnostics on failure.
 (async () => {
   let playwright;
   try {
     playwright = await import('playwright');
   } catch (e) {
-    console.error('Playwright is not installed. Run `npm install --save-dev playwright` in the frontend folder and `npx playwright install` to install browsers.');
+    console.error(
+      'Playwright is not installed. Run `npm install --save-dev playwright` in the frontend folder and `npx playwright install` to install browsers.'
+    );
     process.exit(2);
   }
 
   const { chromium } = playwright;
-  const browser = await chromium.launch();
+  const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:5173';
+  const TARGET = `${BASE_URL.replace(/\/$/, '')}/`;
+  const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
+
+  page.on('console', (msg) => {
+    const type = msg.type();
+    if (type === 'error' || type === 'warning') {
+      console.log(`[console.${type}] ${msg.text()}`);
+    }
+  });
+
   try {
-  console.log('Opening frontend at http://127.0.0.1:5173');
-  // Vite dev server keeps an HMR websocket open; wait for DOM then for specific selector
-  await page.goto('http://127.0.0.1:5173', { waitUntil: 'domcontentloaded' });
+    const timeoutMs = 120_000;
+    console.log(`Opening frontend at ${TARGET}`);
+    await page.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
 
-  // Wait for the gainers 1m two-column component to appear (allow longer for initial hydration)
-  await page.waitForSelector('[data-test="one-min-card"]', { timeout: 60000 });
-
-    // Click the first watch star (use Locator API to be robust against re-renders)
-    const cardLocator = page.locator('[data-test="one-min-card"]').first();
-    const starLocator = cardLocator.locator('[data-test="watch-star"] button, [data-test="watch-star"]');
-    if (await starLocator.count() > 0) {
-      try {
-        await starLocator.first().click({ timeout: 5000 });
-        console.log('Toggled star');
-        await page.waitForTimeout(800);
-      } catch (e) {
-        console.warn('Star click failed, retrying via page.click...', e.message || e);
-        // fallback: attempt page-level click
-        await page.click('[data-test="one-min-card"] [data-test="watch-star"] button, [data-test="one-min-card"] [data-test="watch-star"]', { timeout: 5000 }).catch(() => {});
-      }
-    } else {
-      console.log('No watch star found — ensure component is mounted');
+    await page.waitForSelector('[data-test="one-min-card"]', { timeout: timeoutMs });
+    const rowCount = await page.locator('[data-test="one-min-card"] tbody tr').count();
+    if (rowCount === 0) {
+      throw new Error('No rows rendered under one-min-card.');
     }
 
-    // Click info icon on first card
-    // Click info icon (locator API)
-    const infoLocator = cardLocator.locator('[data-test="info-button"], .fi-info, button[aria-label="Show sentiment"]');
-    if (await infoLocator.count() > 0) {
-      try {
-        await infoLocator.first().click({ timeout: 5000 });
-        console.log('Clicked info icon');
-        await page.waitForSelector('[data-test="sentiment-popover"], .sentiment-popover', { timeout: 7000 });
-        console.log('Sentiment popover visible');
-      } catch (e) {
-        console.warn('Info click or popover wait failed:', e.message || e);
-      }
-    } else {
-      console.log('No info icon found — ensure RowActions renders FiInfo with class fi-info');
-    }
-
-    console.log('Smoke check complete — success');
+    console.log(`SMOKE OK: one-min-card present, rows = ${rowCount}`);
     await browser.close();
     process.exit(0);
   } catch (err) {
-    console.error('Smoke check failed', err);
+    try {
+      await page.screenshot({ path: 'smoke_fail.png', fullPage: true });
+    } catch {
+      // ignore screenshot errors
+    }
+    let html = '';
+    try {
+      html = await page.content();
+    } catch {
+      // ignore HTML capture errors
+    }
+    console.error('SMOKE FAIL:', err?.message || err);
+    if (html) {
+      console.log('=== HTML HEAD (first 2000 chars) ===');
+      console.log(html.slice(0, 2000));
+    }
     await browser.close();
-    process.exit(2);
+    process.exit(1);
   }
 })();

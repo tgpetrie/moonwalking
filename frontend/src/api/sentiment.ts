@@ -105,7 +105,7 @@ export interface LearnProgressResponse {
   swr?: SwrMeta;
 }
 
-const envBase = ((import.meta as any)?.env?.VITE_API_BASE ?? '').trim();
+const envBase = String(((import.meta as any)?.env?.VITE_API_URL ?? '') || '').trim();
 const API_BASE = envBase.replace(/\/$/, '');
 
 const buildUrl = (path: string): string => {

@@ -2419,3 +2419,206 @@
 2025-10-23 19:00:56,074 - INFO - None - ===============================
 2025-10-23 19:00:56,074 - INFO - None - Running in production mode (Vercel)
 2025-10-23 19:00:56,075 - INFO - None - 1-min seeded from fixture early path count=6
+2025-10-24 10:53:06,927 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 10:53:06,927 - INFO - None - CACHE_TTL: 60
+2025-10-24 10:53:06,928 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 10:53:06,928 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 10:53:06,928 - INFO - None - PORT: 5001
+2025-10-24 10:53:06,928 - INFO - None - HOST: 0.0.0.0
+2025-10-24 10:53:06,929 - INFO - None - DEBUG: False
+2025-10-24 10:53:06,929 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 10:53:06,929 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 10:53:06,929 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 10:53:06,930 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 10:53:06,930 - INFO - None - API_TIMEOUT: 10
+2025-10-24 10:53:06,930 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 10:53:06,930 - INFO - None - USE_FIXTURES: False
+2025-10-24 10:53:06,931 - INFO - None - FIXTURE_DIR: /Users/cdmxx/Documents/moonwalkings/backend/fixtures
+2025-10-24 10:53:06,931 - INFO - None - ===============================
+2025-10-24 10:53:06,938 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 10:53:06,938 - INFO - None - CACHE_TTL: 60
+2025-10-24 10:53:06,939 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 10:53:06,939 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 10:53:06,939 - INFO - None - PORT: 5001
+2025-10-24 10:53:06,939 - INFO - None - HOST: 0.0.0.0
+2025-10-24 10:53:06,940 - INFO - None - DEBUG: False
+2025-10-24 10:53:06,940 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 10:53:06,940 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 10:53:06,940 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 10:53:06,941 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 10:53:06,941 - INFO - None - API_TIMEOUT: 10
+2025-10-24 10:53:06,941 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 10:53:06,941 - INFO - None - ENABLE_1MIN: True
+2025-10-24 10:53:06,942 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-24 10:53:06,942 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-24 10:53:06,942 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-24 10:53:06,942 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-24 10:53:06,943 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-24 10:53:06,943 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-24 10:53:06,943 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-24 10:53:06,943 - INFO - None - ===============================
+2025-10-24 10:53:06,944 - INFO - None - Running in production mode (Vercel)
+2025-10-24 11:12:15,221 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:12:15,225 - WARNING - None - No crypto data available - 50 current prices, 50 symbols with history
+2025-10-24 11:12:15,230 - INFO - None - 1-min seeded from fixture early path count=6
+2025-10-24 11:12:30,259 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:12:31,836 - INFO - None - Successfully fetched Coinbase 24h top movers: 1 gainers, 10 losers
+2025-10-24 11:12:31,838 - INFO - None - Successfully processed data: 7 gainers, 4 losers, 11 banner items
+2025-10-24 11:13:03,325 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:13:03,328 - WARNING - None - No 1-min crypto data available after calculation - 50 current prices, 50 symbols with history
+2025-10-24 11:13:03,329 - INFO - None - 1-min derived from 3-min data count=7
+2025-10-24 11:15:55,609 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:15:57,164 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 10 losers
+2025-10-24 11:15:57,166 - INFO - None - Successfully processed data: 15 gainers, 1 losers, 12 banner items
+2025-10-24 11:15:58,685 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:15:58,687 - INFO - None - 1-min data processed (throttle 45s) retained=5 gainers=5 losers=0
+2025-10-24 11:16:05,795 - INFO - None - 1-min data processed (throttle 45s) retained=5 gainers=5 losers=0
+2025-10-24 11:16:12,444 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:16:12,445 - INFO - None - 1-min data processed (throttle 45s) retained=4 gainers=4 losers=0
+2025-10-24 11:16:17,810 - INFO - None - 1-min data processed (throttle 45s) retained=4 gainers=4 losers=0
+2025-10-24 11:16:27,719 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:16:27,722 - INFO - None - 1-min data processed (throttle 45s) retained=8 gainers=8 losers=0
+2025-10-24 11:16:29,832 - INFO - None - 1-min data processed (throttle 45s) retained=8 gainers=8 losers=0
+2025-10-24 11:16:41,701 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:16:41,703 - INFO - None - 1-min data processed (throttle 45s) retained=9 gainers=9 losers=0
+2025-10-24 11:16:48,161 - INFO - None - 1-min data processed (throttle 45s) retained=9 gainers=9 losers=0
+2025-10-24 11:16:55,300 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:16:55,303 - INFO - None - 1-min data processed (throttle 45s) retained=11 gainers=10 losers=1
+2025-10-24 11:16:56,695 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:16:58,199 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-10-24 11:16:58,201 - INFO - None - Successfully processed data: 15 gainers, 2 losers, 4 banner items
+2025-10-24 11:18:10,632 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:18:10,636 - INFO - None - 1-min data processed (throttle 45s) retained=16 gainers=16 losers=0
+2025-10-24 11:18:41,236 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:18:41,245 - INFO - None - 1-min data processed (throttle 45s) retained=25 gainers=24 losers=1
+2025-10-24 11:19:34,620 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:34,620 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:34,620 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:34,620 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:34,620 - INFO - None - PORT: 5001
+2025-10-24 11:19:34,620 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:34,620 - INFO - None - DEBUG: False
+2025-10-24 11:19:34,620 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:34,620 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:34,620 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:34,620 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:34,620 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:34,620 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:34,620 - INFO - None - USE_FIXTURES: False
+2025-10-24 11:19:34,620 - INFO - None - FIXTURE_DIR: /Users/cdmxx/Documents/moonwalkings/backend/fixtures
+2025-10-24 11:19:34,620 - INFO - None - ===============================
+2025-10-24 11:19:34,627 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:34,627 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:34,627 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:34,627 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:34,627 - INFO - None - PORT: 5001
+2025-10-24 11:19:34,627 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:34,627 - INFO - None - DEBUG: False
+2025-10-24 11:19:34,627 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:34,627 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:34,627 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:34,627 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:34,627 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:34,627 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:34,627 - INFO - None - ENABLE_1MIN: True
+2025-10-24 11:19:34,627 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-24 11:19:34,627 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-24 11:19:34,627 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-24 11:19:34,628 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-24 11:19:34,628 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-24 11:19:34,628 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-24 11:19:34,628 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-24 11:19:34,628 - INFO - None - ===============================
+2025-10-24 11:19:34,628 - INFO - None - Running in production mode (Vercel)
+2025-10-24 11:19:34,851 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:34,851 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:34,851 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:34,851 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:34,851 - INFO - None - PORT: 5001
+2025-10-24 11:19:34,851 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:34,851 - INFO - None - DEBUG: False
+2025-10-24 11:19:34,851 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:34,851 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:34,851 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:34,851 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:34,851 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:34,851 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:34,851 - INFO - None - USE_FIXTURES: False
+2025-10-24 11:19:34,851 - INFO - None - FIXTURE_DIR: /Users/cdmxx/Documents/moonwalkings/backend/fixtures
+2025-10-24 11:19:34,851 - INFO - None - ===============================
+2025-10-24 11:19:34,852 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:34,852 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:34,852 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:34,852 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:34,852 - INFO - None - PORT: 5001
+2025-10-24 11:19:34,852 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:34,852 - INFO - None - DEBUG: False
+2025-10-24 11:19:34,852 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:34,852 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:34,852 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:34,852 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:34,852 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:34,852 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:34,852 - INFO - None - ENABLE_1MIN: True
+2025-10-24 11:19:34,852 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-24 11:19:34,852 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-24 11:19:34,852 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-24 11:19:34,852 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-24 11:19:34,852 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-24 11:19:34,852 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-24 11:19:34,852 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-24 11:19:34,852 - INFO - None - ===============================
+2025-10-24 11:19:34,852 - INFO - None - Running in production mode (Vercel)
+2025-10-24 11:19:36,541 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:19:36,542 - WARNING - None - No crypto data available - 50 current prices, 50 symbols with history
+2025-10-24 11:19:38,110 - INFO - None - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-10-24 11:19:39,105 - INFO - None - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-10-24 11:19:40,268 - INFO - None - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-10-24 11:19:41,380 - INFO - None - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-10-24 11:19:41,434 - INFO - None - price_fetch.snapshot_due_to_backoff
+2025-10-24 11:19:43,076 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-24 11:19:43,077 - WARNING - None - No 1-min crypto data available after calculation - 50 current prices, 50 symbols with history
+2025-10-24 11:19:43,077 - INFO - None - 1-min derived from 3-min data count=3
+2025-10-24 11:19:43,085 - WARNING - None - No 1-min crypto data available after calculation - 50 current prices, 50 symbols with history
+2025-10-24 11:19:43,086 - INFO - None - 1-min derived from 3-min data count=3
+2025-10-24 11:19:43,227 - INFO - None - 1-min seeded from fixture early path count=6
+2025-10-24 11:19:43,233 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:43,233 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:43,233 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:43,234 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:43,234 - INFO - None - PORT: 5001
+2025-10-24 11:19:43,234 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:43,234 - INFO - None - DEBUG: False
+2025-10-24 11:19:43,234 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:43,234 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:43,234 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:43,234 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:43,235 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:43,235 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:43,235 - INFO - None - USE_FIXTURES: False
+2025-10-24 11:19:43,235 - INFO - None - FIXTURE_DIR: /Users/cdmxx/Documents/moonwalkings/backend/fixtures
+2025-10-24 11:19:43,235 - INFO - None - ===============================
+2025-10-24 11:19:43,235 - INFO - None - === CBMo4ers Configuration ===
+2025-10-24 11:19:43,235 - INFO - None - CACHE_TTL: 60
+2025-10-24 11:19:43,235 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-24 11:19:43,235 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-24 11:19:43,235 - INFO - None - PORT: 5001
+2025-10-24 11:19:43,235 - INFO - None - HOST: 0.0.0.0
+2025-10-24 11:19:43,235 - INFO - None - DEBUG: False
+2025-10-24 11:19:43,235 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-24 11:19:43,235 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-24 11:19:43,235 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-24 11:19:43,236 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-24 11:19:43,236 - INFO - None - API_TIMEOUT: 10
+2025-10-24 11:19:43,236 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-24 11:19:43,236 - INFO - None - ENABLE_1MIN: True
+2025-10-24 11:19:43,236 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-24 11:19:43,236 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-24 11:19:43,236 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-24 11:19:43,236 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-24 11:19:43,236 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-24 11:19:43,236 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-24 11:19:43,236 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-24 11:19:43,237 - INFO - None - ===============================
+2025-10-24 11:19:43,237 - INFO - None - Running in production mode (Vercel)
+2025-10-24 11:19:43,237 - INFO - None - 1-min seeded from fixture early path count=6
