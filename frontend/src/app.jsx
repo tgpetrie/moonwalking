@@ -4,7 +4,6 @@ import { API_ENDPOINTS } from './api.js';
 import { WebSocketProvider, useWebSocket } from './context/websocketcontext.jsx';
 import ToastProvider from './components/ToastProvider.jsx';
 //
-import OneMinGainersColumns from './components/OneMinGainersColumns.jsx';
 import ManualRefreshButton from './components/ManualRefreshButton.jsx';
 import FloatingActionMenu from './components/FloatingActionMenu.jsx';
 import CountdownMeter from './components/CountdownMeter.jsx';
@@ -14,6 +13,7 @@ import AlertsIndicator from './components/AlertsIndicator.jsx';
 
 const MoverTable = React.lazy(() => import('./components/MoverTable.jsx'));
 import Watchlist from './components/Watchlist';
+import WatchlistPanel from './components/WatchlistPanel.jsx';
 import TopBannerScroll from './components/TopBannerScroll.jsx';
 import BottomBannerScroll from './components/BottomBannerScroll.jsx';
 import DebugOverlay from './components/DebugOverlay.jsx';
@@ -28,6 +28,7 @@ const SentimentPanel = React.lazy(() => import('./components/SentimentPanel.jsx'
 const LearnPanel = React.lazy(() => import('./components/LearnPanel.jsx'));
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
+import GainersTable1Min from './components/GainersTable1Min.jsx';
 import { WatchlistProvider, useWatchlistContext } from './hooks/useWatchlist.jsx';
 
 // Live data polling interval (ms)
@@ -39,7 +40,9 @@ const TopBanner = () => <TopBannerScroll />;
 const BottomBanner = () => <BottomBannerScroll />;
 
 function AppUI() {
-  const { list: topWatchlist } = useWatchlistContext();
+  const watchlistContext = useWatchlistContext();
+  const { list: topWatchlist = [] } = watchlistContext || {};
+  const hasWatchlist = topWatchlist.length > 0;
   const { isConnected, refreshNow } = useWebSocket();
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [user] = useState(() => {
@@ -50,7 +53,6 @@ function AppUI() {
   const isPremium = user.plan === 'premium';
   const [checkingAuth] = useState(false);
   const [uiToggles, setUiToggles] = useState({ insights: false, sentiment: false, learn: false });
-  const [oneMinExpanded, setOneMinExpanded] = useState(false);
   const [threeMinExpanded, setThreeMinExpanded] = useState(false);
   const [showCodex, setShowCodex] = useState(false);
   const setShowInsights = (updater) => setUiToggles(prev => ({ ...prev, insights: typeof updater === 'function' ? updater(prev.insights) : Boolean(updater) }));
@@ -230,21 +232,15 @@ function AppUI() {
               <div className="flex justify-center mb-4">
                 <div className="section-divider" />
               </div>
-              <Suspense fallback={chunkFallback('Loading 1-min gainers...')}>
-                <OneMinGainersColumns
-                  expanded={oneMinExpanded}
-                  onSelectCoin={handleSelectCoinForAnalysis}
-                />
-              </Suspense>
-              {/* Shared Show More below the two tables */}
-              <div className="show-more-wrap">
-                <button
-                  onClick={() => setOneMinExpanded(v => !v)}
-                  className="show-more"
-                  aria-pressed={oneMinExpanded}
-                >
-                  {oneMinExpanded ? 'Show Less' : 'Show More'}
-                </button>
+              <div className={`grid gap-4 ${hasWatchlist ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+                <section>
+                  <GainersTable1Min />
+                </section>
+                {hasWatchlist && (
+                  <aside>
+                    <WatchlistPanel topWatchlist={topWatchlist} />
+                  </aside>
+                )}
               </div>
             </div>
           </div>

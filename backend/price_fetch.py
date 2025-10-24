@@ -234,8 +234,10 @@ def fetch_prices() -> Dict[str,float]:
         # Limit concurrent outbound sockets using semaphore to avoid bursts
         acquired = _semaphore.acquire(timeout=10)
         try:
-            # Use the shared session which has a retry/backoff strategy configured
-            r = _SESSION.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
+            # Use requests.get directly here so tests that monkeypatch requests.get behave
+            # predictably (avoids _SESSION being a shared object with internal state
+            # that some tests may not patch). Keep the same timeout contract.
+            r = requests.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
             if r.status_code == 200:
                 data = r.json(); price = float(data.get('price') or 0)
                 if price > 0:

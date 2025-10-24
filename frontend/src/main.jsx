@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './app.jsx';
 import '../index.css';
 import './styles/animations.css';
+import './styles/glow.css';
 import './styles/rows.css';
 
 // Responsive best practices: index.css already includes Tailwind and responsive settings.
@@ -31,11 +32,11 @@ try {
       const type = msg?.type;
       const changed = msg?.changed;
       if (type === 'update' || (type === 'tick' && changed)) {
-  fetch(endpoints.gainers1m).catch(() => {});
-  fetch(endpoints.gainers3m).catch(() => {});
-  fetch(endpoints.losers3m).catch(() => {});
-  fetch(endpoints.bannerTop).catch(() => {});
-  fetch(endpoints.bannerBot).catch(() => {});
+        fetch(endpoints.gainers1m).catch(() => {});
+        fetch(endpoints.gainers3m).catch(() => {});
+        fetch(endpoints.losers3m).catch(() => {});
+        fetch(endpoints.banner1h).catch(() => {});
+        fetch(endpoints.bannerVolume1h).catch(() => {});
       }
     } catch (e) {
       console.warn('sse message handler failed', e);

@@ -17,7 +17,8 @@ def test_gainers_table_1min_seeded(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert isinstance(data, dict)
-    # seeded marker must exist when USE_1MIN_SEED is set
-    assert data.get('seeded') is True or data.get('swr', {}).get('source') == 'fixture-seed'
+    # seeded marker must exist when USE_1MIN_SEED is set and use canonical marker
+    assert data.get('swr', {}).get('source') == 'fixture-seed'
+    assert data.get('swr', {}).get('seed') is True
     assert data.get('count', 0) > 0
     assert isinstance(data.get('data'), list)

@@ -94,8 +94,8 @@ export const WebSocketProvider = ({ children, pollIntervalMs = 12000 }) => {
         safeFetch(endpoints.gainers1m),
         safeFetch(endpoints.gainers3m),
         safeFetch(endpoints.losers3m),
-        safeFetch(endpoints.bannerTop),
-        safeFetch(endpoints.bannerBot),
+        safeFetch(endpoints.banner1h),
+        safeFetch(endpoints.bannerVolume1h),
       ]);
 
       const now = Date.now();

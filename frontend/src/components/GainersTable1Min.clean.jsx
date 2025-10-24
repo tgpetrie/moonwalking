@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { FiInfo } from 'react-icons/fi';
 import WatchStar from './WatchStar.jsx';
+import StatusNote from './StatusNote.jsx';
 import { formatPercentage, truncateSymbol, formatPrice } from '../utils/formatters.js';
 import { colorForSentiment } from '../lib/sentiment';
 
@@ -35,19 +36,15 @@ export default function GainersTable1Min({
   const displayRows = Array.from({ length: minRows }, (_, i) => sliced[i] ?? null);
 
   if (loading && sliced.length === 0) {
-    return (
-      <div className="relative w-full h-full min-h-[320px] px-0 transition-all duration-300 flex items-center justify-center">
-        <div className="animate-pulse text-[#C026D3] font-mono">Loading 1‑min gainers…</div>
-      </div>
-    );
+    return <StatusNote state="loading" />;
   }
 
   if (!loading && error && sliced.length === 0 && !allowEmpty) {
-    return (
-      <div className="relative w-full h-full min-h-[320px] px-0 transition-all duration-300 flex items-center justify-center">
-        <div className="text-red-400 font-mono">Error loading 1‑min gainers: {String(error)}</div>
-      </div>
-    );
+    return <StatusNote state="error" />;
+  }
+
+  if (!loading && !error && sliced.length === 0 && !allowEmpty) {
+    return <StatusNote state="empty" message="No 1-min data available" />;
   }
 
   return (

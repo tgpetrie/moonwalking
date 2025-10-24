@@ -415,6 +415,43 @@ Exit 0 indicates pass; failures list missing/invalid endpoints.
 
 ---
 
+## Developer: Deterministic seeded 1-minute mode (local dev & tests)
+
+For fast, repeatable local development and CI, the backend supports an explicit seeded mode that serves deterministic 1‑minute fixtures rather than live egress.
+
+Key points:
+
+- Enable seeded mode by setting the environment variable `USE_1MIN_SEED=1` before starting the backend or running tests.
+- When seeded mode is enabled the server enforces a canonical SWR source marker: `"fixture-seed"` and also annotates responses with `swr.seed=true`. Tests and the frontend rely on this contract to detect fixture-driven responses.
+- Endpoints that currently enforce the seeded contract include:
+   - `/api/component/gainers-table-1min`
+   - `/api/metrics`
+   - `/debug/cache`
+
+Quick examples:
+
+Start the backend in seeded mode (recommended from repository root):
+
+```bash
+export USE_1MIN_SEED=1
+source .venv/bin/activate
+cd backend
+python app.py   # runs on http://localhost:5001 by default
+```
+
+Run the backend tests with seeded mode enabled (CI-friendly):
+
+```bash
+cd backend
+USE_1MIN_SEED=1 pytest -q
+```
+
+Notes for contributors:
+
+- The backend contains import-time guards so lightweight test harnesses (including a minimal MockFlask) can import `backend/app.py` without raising attribute errors. This keeps the current module-level app pattern stable for tests. A future cleanup could introduce a `create_app()` factory for cleaner test wiring.
+- Tests assert the SWR contract (`swr.source == 'fixture-seed'` and `swr.seed is True`) when `USE_1MIN_SEED` is set. If you add new 1‑minute endpoints that surface SWR metadata, follow the same enforcement pattern to remain consistent with the seeded-mode contract.
+
+
 ## Contributing
 
 1. Fork the repository

@@ -2,7 +2,7 @@ import json
 import pytest
 from jsonschema import validate
 
-from app import app
+from app import app, _seed_marker
 from schemas import DATA_SCHEMA, SIGNALS_SCHEMA
 
 @pytest.fixture(scope="module")
@@ -58,6 +58,31 @@ def test_metrics_endpoint_contract(client):
     if pf:
         for k in ["total_calls","products_cache_hits","snapshot_served"]:
             assert k in pf
+
+
+def test_metrics_seed_marker(monkeypatch, client):
+    monkeypatch.setenv("USE_1MIN_SEED", "1")
+    resp = client.get("/api/metrics")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data.get("seed_marker") == _seed_marker()
+    assert data.get("seeded") is True
+    swr = data.get("swr", {})
+    assert swr.get("source") == _seed_marker()
+    assert swr.get("seed") is True
+
+
+def test_debug_cache_seed_marker(monkeypatch, client):
+    monkeypatch.setenv("USE_1MIN_SEED", "1")
+    resp = client.get("/debug/cache")
+    # Endpoint is disabled unless seeding or debug flag set; seeded env ensures access.
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload.get("seed_marker") == _seed_marker()
+    assert payload.get("seeded") is True
+    swr = payload.get("swr", {})
+    assert swr.get("source") == _seed_marker()
+    assert swr.get("seed") is True
 
 def test_signals_schema_example():
     sample = [

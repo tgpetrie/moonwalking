@@ -47,18 +47,16 @@ export default function OneMinGainersColumns({ expanded = false }) {
   const limit = expanded ? LIMIT_EXPANDED : LIMIT_COMPACT;
   const sliced = useMemo(() => rows.slice(0, limit), [rows, limit]);
 
-  const prepared = useMemo(
-    () => sliced.map((item, idx) => ({ ...item, rank: idx + 1 })),
-    [sliced]
-  );
-
-  const left = prepared.filter((_, idx) => idx % 2 === 0);
-  const right = prepared.filter((_, idx) => idx % 2 === 1);
+  const mid = Math.ceil(sliced.length / 2);
+  const left = sliced.slice(0, mid).map((item, idx) => ({ ...item, rank: idx + 1 }));
+  const right = sliced.slice(mid).map((item, idx) => ({ ...item, rank: mid + idx + 1 }));
 
   const renderColumn = (entries) => (
     <div className="flex flex-col gap-3">
       {entries.map((item, idx) => (
-        <Card key={item.symbol} rank={item.rank} symbol={item.symbol} price={item.price} changePct={item.changePct} />
+        <div key={item.symbol} data-test="one-min-card">
+          <Card rank={item.rank} symbol={item.symbol} price={item.price} changePct={item.changePct} />
+        </div>
       ))}
       {(!entries.length && loading) &&
         Array.from({ length: limit / 2 }).map((_, i) => (

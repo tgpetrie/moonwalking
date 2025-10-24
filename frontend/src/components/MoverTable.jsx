@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useGainersLosersData } from '../hooks/useGainersLosersData';
 import SharedMoverRow from './SharedMoverRow.jsx';
+import StatusNote from './StatusNote.jsx';
 
 /**
  * MoverTable
@@ -28,32 +29,25 @@ export default function MoverTable({ variant, tone, window = '3min', className =
   const wrapperClasses = `block w-full overflow-x-auto ${className}`.trim();
 
   const content = useMemo(() => {
+    const wrapStatus = (node) => (
+      <div className={wrapperClasses}>
+        <div className="min-h-[180px] flex items-center justify-center">
+          {node}
+        </div>
+      </div>
+    );
+    const noRows = !rows || rows.length === 0;
+
     if (error) {
-      return (
-        <div className={wrapperClasses}>
-          <div className="text-red-400 text-sm">Failed to load {variant} ({window})</div>
-        </div>
-      );
+      return wrapStatus(<StatusNote state="error" />);
     }
 
-    if (loading && (!rows || rows.length === 0)) {
-      return (
-        <div className={wrapperClasses}>
-          <div className="min-h-[180px] flex items-center justify-center">
-            <div className="text-slate-400 text-sm">Loading ({String(window)})…</div>
-          </div>
-        </div>
-      );
+    if (loading && noRows) {
+      return wrapStatus(<StatusNote state="loading" />);
     }
 
-    if (!loading && (!rows || rows.length === 0)) {
-      return (
-        <div className={wrapperClasses}>
-          <div className="min-h-[180px] flex items-center justify-center">
-            <div className="text-white/80 text-sm">No {String(window)} {String(resolvedVariant).toLowerCase()} data available</div>
-          </div>
-        </div>
-      );
+    if (!loading && noRows) {
+      return wrapStatus(<StatusNote state="empty" message={`No ${String(window)} ${String(resolvedVariant).toLowerCase()} data available`} />);
     }
 
     const toneName = resolvedVariant || 'gainers';

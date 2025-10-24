@@ -1,10 +1,10 @@
 #!/bin/zsh
 # Backend smoke & health check (local dev)
-# Targets backend on port 5002 and validates the contract we actually support.
+# Targets backend on port 5001 and validates the contract we actually support.
 
 set -euo pipefail
 
-PORT=${PORT:-5002}
+PORT=${PORT:-5001}
 BASE="http://127.0.0.1:${PORT}"
 JQ=${JQ:-jq}
 CURL="curl -sS --fail --connect-timeout 2 --max-time 5"

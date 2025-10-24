@@ -24,10 +24,20 @@ export async function fetchJson<T = any>(url: string, init: RequestInit = {}): P
       signal: controller.signal,
     });
     if (!res.ok) {
+      // Special-case: component endpoints may legitimately return 404 when
+      // a particular banner/component isn't present yet (dev or cold-start).
+      // Treat 404s on /api/component/* as an empty payload to keep the UI
+      // resilient and reduce noisy error logs.
+      if (res.status === 404 && String(url).includes('/api/component/')) {
+        // return sensible empty shapes: arrays for mappers that expect arrays
+        return ([]) as unknown as T;
+      }
+
       const text = await res.text().catch(() => "");
       const suffix = text ? ` :: ${text.slice(0, 180)}` : "";
       throw new Error(`HTTP ${res.status} ${res.statusText} @ ${url}${suffix}`);
     }
+
     return (await res.json()) as T;
   } finally {
     clearTimeout(timeoutId);

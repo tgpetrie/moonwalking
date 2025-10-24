@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>PR Preview - Gainers Table</title>
+    <style>
+      body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:#0b0b0b; color:#e6e6e6; padding:24px }
+      table { width: 700px; border-collapse: collapse; }
+      th { text-align: left; font-size:12px; color:#bfbfbf; text-transform:uppercase; }
+      td { padding:12px 8px; font-size:14px; }
+      .card { background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:12px }
+      .watch-star { cursor:pointer; color:#f6c; padding:6px; border-radius:6px }
+      .info-btn { cursor:pointer; color:#bca; padding:6px }
+      .sentiment-popover { position:absolute; right:16px; background:#0b0b0b; border:1px solid rgba(255,255,255,0.06); padding:12px; border-radius:10px; width:260px }
+      .row { position:relative }
+    </style>
+  </head>
+  <body>
+    <h2>PR Preview — Gainers Table</h2>
+    <p>Use this simple page to visually confirm the watch star and sentiment popover behavior.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Price</th>
+          <th>Δ%</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row card" style="margin-bottom:8px;">
+          <td>BTC</td>
+          <td style="text-align:right">$34,123.45</td>
+          <td style="text-align:right;color:#ffa500">+0.123%</td>
+          <td style="text-align:right;position:relative">
+            <span data-test="watch-star" class="watch-star">☆</span>
+            <button data-test="info-button" class="info-btn">i</button>
+            <div data-test="sentiment-popover" class="sentiment-popover" style="display:none">
+              <strong>Overview</strong>
+              <div>Score: 0.78 · Very Bullish</div>
+              <hr />
+              <strong>Social</strong>
+              <div>Buzz 123 · Mentions 456</div>
+            </div>
+          </td>
+        </tr>
+        <tr class="row card" style="margin-top:8px;">
+          <td>ETH</td>
+          <td style="text-align:right">$1,923.11</td>
+          <td style="text-align:right;color:#cf6">+1.234%</td>
+          <td style="text-align:right;position:relative">
+            <span data-test="watch-star" class="watch-star">☆</span>
+            <button data-test="info-button" class="info-btn">i</button>
+            <div data-test="sentiment-popover" class="sentiment-popover" style="display:none">
+              <strong>Overview</strong>
+              <div>Score: 0.62 · Bullish</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <script>
+      // Toggle star
+      document.querySelectorAll('[data-test="watch-star"]').forEach(el => {
+        el.addEventListener('click', () => {
+          el.textContent = el.textContent === '☆' ? '★' : '☆';
+        });
+      });
+
+      // Toggle popover
+      document.querySelectorAll('[data-test="info-button"]').forEach((btn, idx) => {
+        btn.addEventListener('click', (e) => {
+          const row = btn.closest('.row');
+          if (!row) return;
+          const pop = row.querySelector('[data-test="sentiment-popover"]');
+          if (!pop) return;
+          pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
+        });
+      });
+    </script>
+  </body>
+</html>

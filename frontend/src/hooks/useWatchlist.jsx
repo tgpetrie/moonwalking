@@ -6,7 +6,9 @@ const STORAGE_KEY = 'bhabit_watchlist_v2';
 const WatchlistContext = createContext(null);
 
 export function WatchlistProvider({ children }) {
-  const value = useMemo(() => createWatchlistApi(), []);
+  // use a proper hook here so React Hook rules are satisfied and state/effects
+  // behave correctly across re-renders
+  const value = useWatchlistInternal();
   return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }
 
@@ -23,8 +25,8 @@ export function useWatchlistContext() {
 export function useWatchlist() {
   return useWatchlistContext();
 }
-
-function createWatchlistApi() {
+// Converted to a real hook so it can use React state/effects safely.
+function useWatchlistInternal() {
   const [store, setStore] = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);

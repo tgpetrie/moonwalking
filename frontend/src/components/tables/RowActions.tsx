@@ -20,7 +20,9 @@ export default function RowActions({ symbol, price }: Props) {
 
   return (
     <div className="relative flex flex-col items-end gap-1">
-      <WatchStar productId={symbol} price={price} />
+      <span data-test="watch-star">
+        <WatchStar productId={symbol} price={price} onToggled={() => {}} />
+      </span>
       {delta != null && (
         <span className={`text-[10px] tabular-nums ${delta >= 0 ? "text-gain" : "text-loss"}`}>
           {delta >= 0 ? "+" : ""}{delta.toFixed(2)}%
@@ -29,7 +31,8 @@ export default function RowActions({ symbol, price }: Props) {
       <button
         type="button"
         aria-label="Show sentiment"
-        className="text-purple-200 hover:text-purple-100"
+        data-test="info-button"
+        className="text-purple-200 hover:text-purple-100 fi-info"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -39,7 +42,7 @@ export default function RowActions({ symbol, price }: Props) {
         <FiInfo size={16} />
       </button>
       {showInfo && (
-        <div className="absolute right-7 top-1 z-30 w-64 rounded-xl border border-white/10 bg-black/90 p-3 shadow-xl text-left text-xs">
+        <div data-test="sentiment-popover" className="absolute right-7 top-1 z-30 w-64 rounded-xl border border-white/10 bg-black/90 p-3 shadow-xl text-left text-xs sentiment-popover">
           <SentimentCard symbol={symbol} ttlSec={45} />
         </div>
       )}
