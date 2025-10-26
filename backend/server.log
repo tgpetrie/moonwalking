@@ -23533,3 +23533,381 @@
 2025-09-06 23:25:13,430 - INFO - None - Successfully processed data: 15 gainers, 15 losers, 9 banner items
 2025-09-06 23:25:13,467 - INFO - None - Successfully fetched Coinbase 24h top movers: 7 gainers, 2 losers
 2025-09-06 23:25:13,468 - INFO - None - Successfully processed data: 15 gainers, 15 losers, 9 banner items
+2025-10-25 20:15:42,715 - INFO - None - === CBMo4ers Configuration ===
+2025-10-25 20:15:42,715 - INFO - None - CACHE_TTL: 60
+2025-10-25 20:15:42,715 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-25 20:15:42,715 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-25 20:15:42,715 - INFO - None - PORT: 5001
+2025-10-25 20:15:42,715 - INFO - None - HOST: 127.0.0.1
+2025-10-25 20:15:42,715 - INFO - None - DEBUG: False
+2025-10-25 20:15:42,715 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-25 20:15:42,715 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-25 20:15:42,715 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-25 20:15:42,715 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-25 20:15:42,715 - INFO - None - API_TIMEOUT: 10
+2025-10-25 20:15:42,715 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-25 20:15:42,715 - INFO - None - ENABLE_1MIN: True
+2025-10-25 20:15:42,715 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-25 20:15:42,715 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-25 20:15:42,715 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-25 20:15:42,715 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-25 20:15:42,715 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-25 20:15:42,715 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-25 20:15:42,715 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-25 20:15:42,715 - INFO - None - ===============================
+2025-10-25 20:15:42,720 - INFO - None - === CBMo4ers Configuration ===
+2025-10-25 20:15:42,720 - INFO - None - CACHE_TTL: 60
+2025-10-25 20:15:42,720 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-25 20:15:42,720 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-25 20:15:42,720 - INFO - None - PORT: 5001
+2025-10-25 20:15:42,720 - INFO - None - HOST: 127.0.0.1
+2025-10-25 20:15:42,720 - INFO - None - DEBUG: False
+2025-10-25 20:15:42,720 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-25 20:15:42,720 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-25 20:15:42,721 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-25 20:15:42,721 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-25 20:15:42,721 - INFO - None - API_TIMEOUT: 10
+2025-10-25 20:15:42,721 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-25 20:15:42,721 - INFO - None - ENABLE_1MIN: True
+2025-10-25 20:15:42,721 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-25 20:15:42,721 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-25 20:15:42,721 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-25 20:15:42,721 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-25 20:15:42,721 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-25 20:15:42,721 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-25 20:15:42,721 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-25 20:15:42,721 - INFO - None - ===============================
+2025-10-25 20:15:42,721 - INFO - None - Found available port: 5001
+2025-10-25 20:15:42,721 - INFO - None - Using available port: 5001
+2025-10-25 20:15:42,721 - INFO - None - Starting CBMo4ers Crypto Dashboard Backend...
+2025-10-25 20:15:42,721 - INFO - None - Background update thread started
+2025-10-25 20:15:42,721 - INFO - None - Server starting on http://127.0.0.1:5001
+2025-10-25 20:15:42,729 - INFO - None - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-10-25 20:15:42,729 - INFO - None - [33mPress CTRL+C to quit[0m
+2025-10-25 20:15:47,998 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:15:48,001 - WARNING - None - No crypto data available - 50 current prices, 50 symbols with history
+2025-10-25 20:15:52,885 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:16:58,361 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:17:04,333 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 6 losers
+2025-10-25 20:17:04,336 - INFO - None - Successfully processed data: 15 gainers, 0 losers, 8 banner items
+2025-10-25 20:17:04,336 - INFO - None - 3-min cache updated: 15 gainers, 0 losers, 8 banner items
+2025-10-25 20:17:09,641 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:17:26,205 - INFO - None - === CBMo4ers Configuration ===
+2025-10-25 20:17:26,206 - INFO - None - CACHE_TTL: 60
+2025-10-25 20:17:26,206 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-25 20:17:26,206 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-25 20:17:26,206 - INFO - None - PORT: 5001
+2025-10-25 20:17:26,206 - INFO - None - HOST: 127.0.0.1
+2025-10-25 20:17:26,206 - INFO - None - DEBUG: False
+2025-10-25 20:17:26,206 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-25 20:17:26,206 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-25 20:17:26,206 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-25 20:17:26,206 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-25 20:17:26,206 - INFO - None - API_TIMEOUT: 10
+2025-10-25 20:17:26,206 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-25 20:17:26,206 - INFO - None - ENABLE_1MIN: True
+2025-10-25 20:17:26,206 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-25 20:17:26,206 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-25 20:17:26,206 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-25 20:17:26,206 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-25 20:17:26,206 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-25 20:17:26,206 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-25 20:17:26,206 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-25 20:17:26,206 - INFO - None - ===============================
+2025-10-25 20:17:26,211 - INFO - None - === CBMo4ers Configuration ===
+2025-10-25 20:17:26,211 - INFO - None - CACHE_TTL: 60
+2025-10-25 20:17:26,211 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-25 20:17:26,211 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-25 20:17:26,211 - INFO - None - PORT: 5001
+2025-10-25 20:17:26,211 - INFO - None - HOST: 127.0.0.1
+2025-10-25 20:17:26,211 - INFO - None - DEBUG: False
+2025-10-25 20:17:26,211 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-25 20:17:26,211 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-25 20:17:26,211 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-25 20:17:26,212 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-25 20:17:26,212 - INFO - None - API_TIMEOUT: 10
+2025-10-25 20:17:26,212 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-25 20:17:26,212 - INFO - None - ENABLE_1MIN: True
+2025-10-25 20:17:26,212 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-25 20:17:26,212 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-25 20:17:26,212 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-25 20:17:26,212 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-25 20:17:26,212 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-25 20:17:26,212 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-25 20:17:26,212 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-25 20:17:26,212 - INFO - None - ===============================
+2025-10-25 20:17:26,212 - INFO - None - Found available port: 5001
+2025-10-25 20:17:26,212 - INFO - None - Using available port: 5001
+2025-10-25 20:17:26,212 - INFO - None - Starting CBMo4ers Crypto Dashboard Backend...
+2025-10-25 20:17:26,212 - INFO - None - Background update thread started
+2025-10-25 20:17:26,212 - INFO - None - Server starting on http://127.0.0.1:5001
+2025-10-25 20:17:26,218 - INFO - None - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-10-25 20:17:26,218 - INFO - None - [33mPress CTRL+C to quit[0m
+2025-10-25 20:17:31,341 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:17:31,343 - WARNING - None - No crypto data available - 50 current prices, 50 symbols with history
+2025-10-25 20:17:37,982 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:17:42,989 - INFO - 4c6513ecd26840b986086d25 - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:17:48,126 - INFO - 4c6513ecd26840b986086d25 - Successfully fetched Coinbase 24h top movers: 4 gainers, 3 losers
+2025-10-25 20:17:48,127 - INFO - 4c6513ecd26840b986086d25 - Successfully processed data: 0 gainers, 6 losers, 7 banner items
+2025-10-25 20:17:48,128 - INFO - 4c6513ecd26840b986086d25 - 127.0.0.1 - - [25/Oct/2025 20:17:48] "GET / HTTP/1.1" 200 -
+2025-10-25 20:18:03,055 - INFO - 6c8032a4295b4a34a24bcabf - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:18:03,056 - INFO - 6c8032a4295b4a34a24bcabf - 1-min data processed (throttle 45s) retained=1 gainers=0 losers=1
+2025-10-25 20:18:03,056 - INFO - 6c8032a4295b4a34a24bcabf - 127.0.0.1 - - [25/Oct/2025 20:18:03] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-25 20:18:44,008 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:18:50,553 - INFO - None - Successfully fetched Coinbase 24h top movers: 4 gainers, 8 losers
+2025-10-25 20:18:50,554 - INFO - None - Successfully processed data: 1 gainers, 15 losers, 12 banner items
+2025-10-25 20:18:50,554 - INFO - None - 3-min cache updated: 1 gainers, 15 losers, 12 banner items
+2025-10-25 20:18:56,228 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:20:16,265 - ERROR - None - Error fetching current prices from Coinbase: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Max retries exceeded with url: /products (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x104e2d160>, 'Connection to api.exchange.coinbase.com timed out. (connect timeout=10)'))
+2025-10-25 20:20:16,268 - WARNING - None - No current prices available
+2025-10-25 20:20:26,967 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-25 20:21:32,974 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:21:38,375 - INFO - None - Successfully fetched Coinbase 24h top movers: 4 gainers, 7 losers
+2025-10-25 20:21:38,376 - INFO - None - Successfully processed data: 3 gainers, 15 losers, 11 banner items
+2025-10-25 20:21:38,376 - INFO - None - 3-min cache updated: 3 gainers, 15 losers, 11 banner items
+2025-10-25 20:21:43,752 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:22:48,963 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:22:53,707 - INFO - None - Successfully fetched Coinbase 24h top movers: 4 gainers, 4 losers
+2025-10-25 20:22:53,707 - INFO - None - Successfully processed data: 2 gainers, 15 losers, 8 banner items
+2025-10-25 20:22:53,707 - INFO - None - 3-min cache updated: 2 gainers, 15 losers, 8 banner items
+2025-10-25 20:22:59,500 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-25 20:24:04,677 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:24:10,462 - INFO - None - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-10-25 20:24:10,463 - INFO - None - Successfully processed data: 15 gainers, 7 losers, 6 banner items
+2025-10-25 20:24:10,463 - INFO - None - 3-min cache updated: 15 gainers, 7 losers, 6 banner items
+2025-10-25 20:24:16,827 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-25 20:25:22,500 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:25:27,427 - INFO - None - Successfully fetched Coinbase 24h top movers: 4 gainers, 2 losers
+2025-10-25 20:25:27,427 - INFO - None - Successfully processed data: 15 gainers, 6 losers, 6 banner items
+2025-10-25 20:25:27,428 - INFO - None - 3-min cache updated: 15 gainers, 6 losers, 6 banner items
+2025-10-25 20:25:33,354 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:26:39,037 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:26:44,705 - INFO - None - Successfully fetched Coinbase 24h top movers: 3 gainers, 5 losers
+2025-10-25 20:26:44,705 - INFO - None - Successfully processed data: 11 gainers, 12 losers, 8 banner items
+2025-10-25 20:26:44,705 - INFO - None - 3-min cache updated: 11 gainers, 12 losers, 8 banner items
+2025-10-25 20:26:49,802 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:27:55,222 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:28:01,498 - INFO - None - Successfully fetched Coinbase 24h top movers: 3 gainers, 3 losers
+2025-10-25 20:28:01,498 - INFO - None - Successfully processed data: 3 gainers, 15 losers, 6 banner items
+2025-10-25 20:28:01,498 - INFO - None - 3-min cache updated: 3 gainers, 15 losers, 6 banner items
+2025-10-25 20:28:08,107 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:29:14,662 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:29:20,902 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-10-25 20:29:20,902 - INFO - None - Successfully processed data: 8 gainers, 15 losers, 6 banner items
+2025-10-25 20:29:20,902 - INFO - None - 3-min cache updated: 8 gainers, 15 losers, 6 banner items
+2025-10-25 20:29:25,914 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:30:31,591 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:30:36,682 - INFO - None - Successfully fetched Coinbase 24h top movers: 5 gainers, 5 losers
+2025-10-25 20:30:36,683 - INFO - None - Successfully processed data: 15 gainers, 4 losers, 10 banner items
+2025-10-25 20:30:36,683 - INFO - None - 3-min cache updated: 15 gainers, 4 losers, 10 banner items
+2025-10-25 20:30:42,154 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:31:47,568 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:31:52,089 - INFO - None - Successfully fetched Coinbase 24h top movers: 0 gainers, 7 losers
+2025-10-25 20:31:52,089 - INFO - None - Successfully processed data: 15 gainers, 5 losers, 7 banner items
+2025-10-25 20:31:52,089 - INFO - None - 3-min cache updated: 15 gainers, 5 losers, 7 banner items
+2025-10-25 20:31:58,534 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:33:05,178 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:33:10,022 - INFO - None - Successfully fetched Coinbase 24h top movers: 0 gainers, 4 losers
+2025-10-25 20:33:10,023 - INFO - None - Successfully processed data: 15 gainers, 6 losers, 4 banner items
+2025-10-25 20:33:10,023 - INFO - None - 3-min cache updated: 15 gainers, 6 losers, 4 banner items
+2025-10-25 20:33:16,512 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:34:22,363 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-25 20:34:27,148 - WARNING - None - Error processing Coinbase 24h data for TURBO-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-25 20:34:27,188 - WARNING - None - Error processing Coinbase 24h data for TIME-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-25 20:34:27,491 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-10-25 20:34:27,491 - INFO - None - Successfully processed data: 15 gainers, 14 losers, 4 banner items
+2025-10-25 20:34:27,491 - INFO - None - 3-min cache updated: 15 gainers, 14 losers, 4 banner items
+2025-10-25 20:34:32,090 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:35:37,256 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-25 20:35:40,922 - WARNING - None - Error processing Coinbase 24h data for XCN-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-25 20:35:42,678 - INFO - None - Successfully fetched Coinbase 24h top movers: 2 gainers, 9 losers
+2025-10-25 20:35:42,678 - INFO - None - Successfully processed data: 7 gainers, 15 losers, 11 banner items
+2025-10-25 20:35:42,678 - INFO - None - 3-min cache updated: 7 gainers, 15 losers, 11 banner items
+2025-10-25 20:35:47,926 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 14:58:44,638 - INFO - None - === CBMo4ers Configuration ===
+2025-10-26 14:58:44,638 - INFO - None - CACHE_TTL: 60
+2025-10-26 14:58:44,638 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-26 14:58:44,638 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-26 14:58:44,638 - INFO - None - PORT: 5001
+2025-10-26 14:58:44,638 - INFO - None - HOST: 127.0.0.1
+2025-10-26 14:58:44,638 - INFO - None - DEBUG: False
+2025-10-26 14:58:44,638 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-26 14:58:44,638 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-26 14:58:44,638 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-26 14:58:44,638 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-26 14:58:44,638 - INFO - None - API_TIMEOUT: 10
+2025-10-26 14:58:44,638 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-26 14:58:44,638 - INFO - None - ENABLE_1MIN: True
+2025-10-26 14:58:44,638 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-26 14:58:44,638 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-26 14:58:44,638 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-26 14:58:44,638 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-26 14:58:44,638 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-26 14:58:44,638 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-26 14:58:44,638 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-26 14:58:44,638 - INFO - None - ===============================
+2025-10-26 14:58:44,642 - INFO - None - === CBMo4ers Configuration ===
+2025-10-26 14:58:44,642 - INFO - None - CACHE_TTL: 60
+2025-10-26 14:58:44,642 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-26 14:58:44,642 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-26 14:58:44,642 - INFO - None - PORT: 5001
+2025-10-26 14:58:44,642 - INFO - None - HOST: 127.0.0.1
+2025-10-26 14:58:44,642 - INFO - None - DEBUG: False
+2025-10-26 14:58:44,642 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-26 14:58:44,642 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-26 14:58:44,642 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-26 14:58:44,642 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-26 14:58:44,642 - INFO - None - API_TIMEOUT: 10
+2025-10-26 14:58:44,642 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-26 14:58:44,642 - INFO - None - ENABLE_1MIN: True
+2025-10-26 14:58:44,642 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-26 14:58:44,642 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-26 14:58:44,642 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-26 14:58:44,642 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-26 14:58:44,642 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-26 14:58:44,643 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-26 14:58:44,643 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-26 14:58:44,643 - INFO - None - ===============================
+2025-10-26 14:58:44,643 - INFO - None - Found available port: 5001
+2025-10-26 14:58:44,643 - INFO - None - Using available port: 5001
+2025-10-26 14:58:44,643 - INFO - None - Starting CBMo4ers Crypto Dashboard Backend...
+2025-10-26 14:58:44,643 - INFO - None - Background update thread started
+2025-10-26 14:58:44,643 - INFO - None - Server starting on http://127.0.0.1:5001
+2025-10-26 14:58:44,662 - INFO - None - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-10-26 14:58:44,662 - INFO - None - [33mPress CTRL+C to quit[0m
+2025-10-26 14:58:50,462 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 14:58:50,463 - WARNING - None - No crypto data available - 49 current prices, 49 symbols with history
+2025-10-26 14:58:55,525 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 14:59:31,793 - INFO - 34d9c453f74d4d56be35fc00 - Successfully fetched 50 prices from Coinbase
+2025-10-26 14:59:31,798 - INFO - 34d9c453f74d4d56be35fc00 - 1-min data processed (throttle 45s) retained=6 gainers=2 losers=4
+2025-10-26 14:59:31,800 - INFO - 34d9c453f74d4d56be35fc00 - 127.0.0.1 - - [26/Oct/2025 14:59:31] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-26 15:00:01,454 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:00:08,105 - WARNING - None - Error processing Coinbase 24h data for DAI-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-26 15:00:08,107 - INFO - None - Successfully fetched Coinbase 24h top movers: 9 gainers, 3 losers
+2025-10-26 15:00:08,109 - INFO - None - Successfully processed data: 2 gainers, 15 losers, 12 banner items
+2025-10-26 15:00:08,109 - INFO - None - 3-min cache updated: 2 gainers, 15 losers, 12 banner items
+2025-10-26 15:00:15,003 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:01:20,896 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:01:26,609 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-10-26 15:01:26,612 - INFO - None - Successfully processed data: 8 gainers, 15 losers, 13 banner items
+2025-10-26 15:01:26,612 - INFO - None - 3-min cache updated: 8 gainers, 15 losers, 13 banner items
+2025-10-26 15:01:32,121 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:02:37,334 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:02:44,159 - INFO - None - Successfully fetched Coinbase 24h top movers: 8 gainers, 2 losers
+2025-10-26 15:02:44,163 - INFO - None - Successfully processed data: 12 gainers, 10 losers, 10 banner items
+2025-10-26 15:02:44,164 - INFO - None - 3-min cache updated: 12 gainers, 10 losers, 10 banner items
+2025-10-26 15:02:49,442 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:03:55,424 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:04:00,808 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2025-10-26 15:04:00,810 - INFO - None - Successfully processed data: 15 gainers, 8 losers, 14 banner items
+2025-10-26 15:04:00,810 - INFO - None - 3-min cache updated: 15 gainers, 8 losers, 14 banner items
+2025-10-26 15:04:07,089 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:05:13,353 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:05:19,419 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-10-26 15:05:19,421 - INFO - None - Successfully processed data: 5 gainers, 15 losers, 10 banner items
+2025-10-26 15:05:19,421 - INFO - None - 3-min cache updated: 5 gainers, 15 losers, 10 banner items
+2025-10-26 15:05:25,532 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:06:30,910 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:06:36,012 - WARNING - None - Error processing Coinbase 24h data for RSR-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-26 15:06:36,013 - INFO - None - Successfully fetched Coinbase 24h top movers: 7 gainers, 2 losers
+2025-10-26 15:06:36,016 - INFO - None - Successfully processed data: 8 gainers, 15 losers, 9 banner items
+2025-10-26 15:06:36,016 - INFO - None - 3-min cache updated: 8 gainers, 15 losers, 9 banner items
+2025-10-26 15:06:41,276 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:07:47,388 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:07:52,486 - INFO - None - Successfully fetched Coinbase 24h top movers: 8 gainers, 2 losers
+2025-10-26 15:07:52,487 - INFO - None - Successfully processed data: 15 gainers, 10 losers, 10 banner items
+2025-10-26 15:07:52,488 - INFO - None - 3-min cache updated: 15 gainers, 10 losers, 10 banner items
+2025-10-26 15:07:59,089 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:09:04,581 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:09:09,342 - INFO - None - Successfully fetched Coinbase 24h top movers: 6 gainers, 2 losers
+2025-10-26 15:09:09,344 - INFO - None - Successfully processed data: 15 gainers, 4 losers, 8 banner items
+2025-10-26 15:09:09,344 - INFO - None - 3-min cache updated: 15 gainers, 4 losers, 8 banner items
+2025-10-26 15:09:13,927 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:22:33,616 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:22:38,655 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-10-26 15:22:38,656 - INFO - None - Successfully processed data: 15 gainers, 9 losers, 10 banner items
+2025-10-26 15:22:38,657 - INFO - None - 3-min cache updated: 15 gainers, 9 losers, 10 banner items
+2025-10-26 15:22:43,441 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:23:48,700 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:23:54,447 - WARNING - None - Error processing Coinbase 24h data for ARB-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-26 15:23:54,449 - INFO - None - Successfully fetched Coinbase 24h top movers: 8 gainers, 2 losers
+2025-10-26 15:23:54,452 - INFO - None - Successfully processed data: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:23:54,452 - INFO - None - 3-min cache updated: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:24:00,477 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:25:05,897 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-26 15:25:11,629 - INFO - None - Successfully fetched Coinbase 24h top movers: 9 gainers, 2 losers
+2025-10-26 15:25:11,631 - INFO - None - Successfully processed data: 8 gainers, 15 losers, 11 banner items
+2025-10-26 15:25:11,631 - INFO - None - 3-min cache updated: 8 gainers, 15 losers, 11 banner items
+2025-10-26 15:25:17,641 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:26:24,348 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:26:31,717 - WARNING - None - Error processing Coinbase 24h data for XRP-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-26 15:26:31,719 - INFO - None - Successfully fetched Coinbase 24h top movers: 7 gainers, 3 losers
+2025-10-26 15:26:31,721 - INFO - None - Successfully processed data: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:26:31,721 - INFO - None - 3-min cache updated: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:26:37,350 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:27:42,843 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:27:47,943 - INFO - None - Successfully fetched Coinbase 24h top movers: 9 gainers, 2 losers
+2025-10-26 15:27:47,945 - INFO - None - Successfully processed data: 7 gainers, 15 losers, 11 banner items
+2025-10-26 15:27:47,945 - INFO - None - 3-min cache updated: 7 gainers, 15 losers, 11 banner items
+2025-10-26 15:27:53,503 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:29:00,399 - INFO - None - Successfully fetched 46 prices from Coinbase
+2025-10-26 15:29:05,214 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2025-10-26 15:29:05,215 - INFO - None - Successfully processed data: 7 gainers, 15 losers, 11 banner items
+2025-10-26 15:29:05,215 - INFO - None - 3-min cache updated: 7 gainers, 15 losers, 11 banner items
+2025-10-26 15:29:10,559 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:30:16,041 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:30:21,482 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2025-10-26 15:30:21,484 - INFO - None - Successfully processed data: 1 gainers, 15 losers, 12 banner items
+2025-10-26 15:30:21,484 - INFO - None - 3-min cache updated: 1 gainers, 15 losers, 12 banner items
+2025-10-26 15:30:28,267 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:31:33,487 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:31:38,563 - INFO - None - Successfully fetched Coinbase 24h top movers: 7 gainers, 6 losers
+2025-10-26 15:31:38,566 - INFO - None - Successfully processed data: 2 gainers, 15 losers, 13 banner items
+2025-10-26 15:31:38,566 - INFO - None - 3-min cache updated: 2 gainers, 15 losers, 13 banner items
+2025-10-26 15:31:44,342 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:32:50,335 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:32:56,848 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2025-10-26 15:32:56,850 - INFO - None - Successfully processed data: 15 gainers, 11 losers, 11 banner items
+2025-10-26 15:32:56,850 - INFO - None - 3-min cache updated: 15 gainers, 11 losers, 11 banner items
+2025-10-26 15:33:02,294 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:34:08,251 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:34:14,839 - WARNING - None - Error processing Coinbase 24h data for DOGINME-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-10-26 15:34:15,839 - WARNING - None - Error processing Coinbase 24h data for ACH-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=3)
+2025-10-26 15:34:15,840 - INFO - None - Successfully fetched Coinbase 24h top movers: 7 gainers, 1 losers
+2025-10-26 15:34:15,842 - INFO - None - Successfully processed data: 15 gainers, 6 losers, 8 banner items
+2025-10-26 15:34:15,843 - INFO - None - 3-min cache updated: 15 gainers, 6 losers, 8 banner items
+2025-10-26 15:34:20,972 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:35:27,180 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:35:32,780 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2025-10-26 15:35:32,783 - INFO - None - Successfully processed data: 15 gainers, 13 losers, 11 banner items
+2025-10-26 15:35:32,783 - INFO - None - 3-min cache updated: 15 gainers, 13 losers, 11 banner items
+2025-10-26 15:35:38,097 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:40:27,636 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:40:32,949 - INFO - None - Successfully fetched Coinbase 24h top movers: 9 gainers, 2 losers
+2025-10-26 15:40:32,951 - INFO - None - Successfully processed data: 15 gainers, 1 losers, 11 banner items
+2025-10-26 15:40:32,951 - INFO - None - 3-min cache updated: 15 gainers, 1 losers, 11 banner items
+2025-10-26 15:40:39,199 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-26 15:41:44,719 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:41:51,392 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2025-10-26 15:41:51,394 - INFO - None - Successfully processed data: 15 gainers, 2 losers, 12 banner items
+2025-10-26 15:41:51,394 - INFO - None - 3-min cache updated: 15 gainers, 2 losers, 12 banner items
+2025-10-26 15:41:57,842 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-26 15:43:02,993 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:43:09,883 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2025-10-26 15:43:09,886 - INFO - None - Successfully processed data: 15 gainers, 4 losers, 12 banner items
+2025-10-26 15:43:09,886 - INFO - None - 3-min cache updated: 15 gainers, 4 losers, 12 banner items
+2025-10-26 15:43:15,873 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:44:22,039 - INFO - None - Successfully fetched 48 prices from Coinbase
+2025-10-26 15:44:27,442 - WARNING - None - Error processing Coinbase 24h data for NOICE-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=3)
+2025-10-26 15:44:27,444 - INFO - None - Successfully fetched Coinbase 24h top movers: 9 gainers, 1 losers
+2025-10-26 15:44:27,446 - INFO - None - Successfully processed data: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:44:27,446 - INFO - None - 3-min cache updated: 15 gainers, 15 losers, 10 banner items
+2025-10-26 15:44:32,704 - INFO - None - Successfully fetched 49 prices from Coinbase
+2025-10-26 15:45:39,487 - INFO - None - Successfully fetched 50 prices from Coinbase
+2025-10-26 15:45:44,516 - INFO - None - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2025-10-26 15:45:44,518 - INFO - None - Successfully processed data: 14 gainers, 15 losers, 11 banner items
+2025-10-26 15:45:44,518 - INFO - None - 3-min cache updated: 14 gainers, 15 losers, 11 banner items
+2025-10-26 15:45:50,043 - INFO - None - Successfully fetched 50 prices from Coinbase

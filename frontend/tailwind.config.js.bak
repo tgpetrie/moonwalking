@@ -1,0 +1,42 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './index.html',
+    './src/**/*.{js,jsx,ts,tsx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        // Everything uses Raleway
+        sans: ['Raleway', 'system-ui', 'sans-serif'],
+        display: ['Raleway', 'system-ui', 'sans-serif'],
+        mono: [
+          'Fragment Mono',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Consolas',
+          'monospace',
+        ],
+      },
+      colors: {
+        // Keep top-level color keys so utilities like "border-line" work
+        black: '#0a0a0c',
+        card: '#111216',
+        line: '#1c1e25',
+        blue: '#31c3ff',
+        pink: '#ff3e8e',
+        cream: '#ffe6c7',
+        orange: '#ff7a1a',
+        purple: '#8e55ff',
+      },
+      boxShadow: {
+        glow: '0 0 18px rgba(142, 85, 255, 0.55)',
+      },
+      backgroundImage: {
+        'row-hover': 'linear-gradient(to right, rgba(142,85,255,.18), rgba(49,195,255,.18))',
+      },
+    },
+  },
+  plugins: [],
+};

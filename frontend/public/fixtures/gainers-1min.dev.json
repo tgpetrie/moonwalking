@@ -1,0 +1,10 @@
+[
+  { "symbol": "MORPHO-USD", "changePct": 4.11, "rank": 1 },
+  { "symbol": "TREE-USD", "changePct": 2.74, "rank": 2 },
+  { "symbol": "DEXT-USD", "changePct": 2.37, "rank": 3 },
+  { "symbol": "ALPHA-USD", "changePct": 1.9, "rank": 4 },
+  { "symbol": "BETA-USD", "changePct": 1.7, "rank": 5 },
+  { "symbol": "GAMMA-USD", "changePct": 1.5, "rank": 6 },
+  { "symbol": "DELTA-USD", "changePct": 1.2, "rank": 7 },
+  { "symbol": "EPS-USD", "changePct": 1.0, "rank": 8 }
+]
