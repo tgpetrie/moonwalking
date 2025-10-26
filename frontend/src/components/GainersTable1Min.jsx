@@ -63,7 +63,7 @@ export default function GainersTable1Min({
         /* ignore */
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [topWatchlist]);
 
   // Throttled WS updates (skip when external rows provided)

@@ -38,30 +38,30 @@ try {
   // ignore when console is unavailable
 }
 const buildEndpoints = () => ({
-  topBanner: `${API_BASE_URL}/component/top-banner-scroll`,
-  bottomBanner: `${API_BASE_URL}/component/bottom-banner-scroll`,
-  gainersTable: `${API_BASE_URL}/component/gainers-table`,
-  gainersTable1Min: `${API_BASE_URL}/component/gainers-table-1min`,
+  topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
+  bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
+  gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
+  gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
   // 3m endpoints (Cloudflare functions provide compatibility wrappers)
-  gainersTable3Min: `${API_BASE_URL}/component/gainers-table-3min`,
-  losersTable3Min: `${API_BASE_URL}/component/losers-table-3min`,
-  losersTable: `${API_BASE_URL}/component/losers-table`,
-  alertsRecent: `${API_BASE_URL}/alerts/recent`,
-  topMoversBar: `${API_BASE_URL}/component/top-movers-bar`,
-  crypto: `${API_BASE_URL}/crypto`,
-  health: `${API_BASE_URL}/health`,
-  serverInfo: `${API_BASE_URL}/server-info`,
-  metrics: `${API_BASE_URL}/metrics`,
-  marketOverview: `${API_BASE_URL}/market-overview`,
-  watchlistInsights: `${API_BASE_URL}/watchlist/insights`,
-  watchlistInsightsLog: `${API_BASE_URL}/watchlist/insights/log`,
-  watchlistInsightsPrice: `${API_BASE_URL}/watchlist/insights/price`,
-  technicalAnalysis: (symbol) => `${API_BASE_URL}/technical-analysis/${symbol}`,
-  cryptoNews: (symbol) => `${API_BASE_URL}/news/${symbol}`,
-  socialSentiment: (symbol) => `${API_BASE_URL}/social-sentiment/${symbol}`,
-  sentiment: (symbols) => `${API_BASE_URL}/sentiment?symbols=${encodeURIComponent(symbols)}`,
-  watchlist: `${API_BASE_URL}/watchlist`,
-  askCodex: `${API_BASE_URL}/ask-codex`,
+  gainersTable3Min: `${API_BASE_URL}/api/component/gainers-table-3min`,
+  losersTable3Min: `${API_BASE_URL}/api/component/losers-table-3min`,
+  losersTable: `${API_BASE_URL}/api/component/losers-table`,
+  alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
+  topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
+  crypto: `${API_BASE_URL}/api/crypto`,
+  health: `${API_BASE_URL}/api/health`,
+  serverInfo: `${API_BASE_URL}/api/server-info`,
+  metrics: `${API_BASE_URL}/api/metrics`,
+  marketOverview: `${API_BASE_URL}/api/market-overview`,
+  watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
+  watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
+  watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
+  technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
+  cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
+  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
+  sentiment: (symbols) => `${API_BASE_URL}/api/sentiment?symbols=${encodeURIComponent(symbols)}`,
+  watchlist: `${API_BASE_URL}/api/watchlist`,
+  askCodex: `${API_BASE_URL}/api/ask-codex`,
 });
 
 export let API_ENDPOINTS = buildEndpoints();
@@ -76,7 +76,7 @@ export const setApiBaseUrl = (url) => {
 export async function fetchLatestAlerts(symbols = []) {
   if (!Array.isArray(symbols) || symbols.length === 0) return {};
   try {
-    const res = await fetch(`${API_BASE_URL}/watchlist/insights/latest`, {
+    const res = await fetch(`${API_BASE_URL}/api/watchlist/insights/latest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbols })

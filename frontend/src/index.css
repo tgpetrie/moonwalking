@@ -1,32 +1,47 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  color-scheme: light dark;
-  --text: #e6e6e6;
-  --muted: #9aa0a6;
-  --up: #16a34a;
-  --down: #dc2626;
-  --bg: #0b0f16;
+  --font-primary: 'Raleway', sans-serif;
+  --color-bg: #000;
+  --color-surface: rgba(22,22,28,0.65);
+  --color-line: rgba(255,255,255,0.08);
+  --color-gold: #ffb84d;
+  --color-purple: #d46cff;
+  --color-blue: #4fd1ff;
+  --color-orange: #ff7a3d;
+  --color-text: #fff;
+  --color-text-dim: rgba(255,255,255,0.6);
+  /* Row hover gradients used by TokenRow (gain / lose) */
+  --row-hover-gain: linear-gradient(90deg,#f1b43a22,#f1b43a00);
+  --row-hover-lose: linear-gradient(90deg,#ae4bf522,#ae4bf500);
 }
 
-html, body, #root {
-  height: 100%;
-  margin: 0;
-  color: var(--text);
-  background: var(--bg);
+/* Global */
+html, body, #root { height: 100%; }
+body { @apply font-sans text-white bg-bg antialiased; }
+
+/* Sections */
+.section-header { @apply uppercase tracking-wide text-sm text-gold font-semibold; letter-spacing: .05em; }
+.section-divider { @apply h-px w-full bg-line my-3; }
+.card { @apply bg-surface rounded-2xl backdrop-blur-md border border-line; }
+
+/* Tables */
+.table { @apply w-full text-sm; }
+.table thead th { @apply text-left font-semibold tracking-wide text-textDim uppercase; }
+.table td, .table th { @apply py-2.5 px-3 border-b border-line; }
+.table tbody tr { @apply transition-colors; }
+.table tbody tr.gainer:hover {
+  background-image: theme('backgroundImage.row-hover-up');
+  background-size: 100% 100%;
+}
+.table tbody tr.loser:hover {
+  background-image: theme('backgroundImage.row-hover-down');
+  background-size: 100% 100%;
 }
 
-/* Desktop responsive grid for tables */
-@media (min-width: 1024px) {
-  .tables-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    align-items: start;
-  }
-}
-
-/* Consistent color classes */
-.table .pos { color: var(--up); }
-.table .neg { color: var(--down); }
-.table .muted { color: var(--muted); }
+/* Pills */
+.pill { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono text-xs border border-line; }
+.pill.up   { @apply text-blue; }
+.pill.down { @apply text-pink; }

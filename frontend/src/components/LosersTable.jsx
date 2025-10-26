@@ -1,6 +1,6 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable sonarjs/cognitive-complexity */
-/* eslint-disable complexity */
+ 
+ 
+ 
 import React, { useEffect, useState, memo } from 'react';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'framer-motion';

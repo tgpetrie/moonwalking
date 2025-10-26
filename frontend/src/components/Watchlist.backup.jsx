@@ -122,7 +122,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     }
     setSearchResults(results);
     setSearchError(results.length === 0 ? 'No coins found or already in watchlist.' : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [search, symbols.join('|'), allSymbols.length, catalogLoaded]);
 
   const handleAddFromSearch = async (symbol) => {
@@ -192,7 +192,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
       }
     });
     setWatchlistData((prev) => ({ ...prev, ...map }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [latestData, symbols.join('|')]);
 
   // Fallback: refresh any missing prices every ~60s via Coinbase
@@ -215,7 +215,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     refreshMissing();
     timer = setInterval(refreshMissing, 60000);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [symbols.join('|'), isConnected, isPolling]);
 
   const handleRemove = async (symbol) => {

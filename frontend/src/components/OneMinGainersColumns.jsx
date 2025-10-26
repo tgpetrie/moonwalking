@@ -65,7 +65,7 @@ export default function OneMinGainersColumns({
   const rightSliceStart = left.length; // 4 when collapsed, 6 when expanded
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mt-3">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
       <GainersTable1Min
         refreshTrigger={refreshTrigger}
         onWatchlistChange={onWatchlistChange}

@@ -16,4 +16,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 );
 
 // Option B: module-based loader wiring for bundlers. Import relative module.
-import './bhabitLogoLoaderModule.js';
+// import './bhabitLogoLoaderModule.js'; // Disabled - we don't want the logo loader

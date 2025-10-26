@@ -2,27 +2,59 @@ import { isMobileDevice, getMobileOptimizedConfig, addVisibilityChangeListener, 
 import { flags } from '../config.js';
 
 class WebSocketManager {
-  constructor() {
+  constructor(flags = {}) {
     this.socket = null; // Native WebSocket
+    this.callbacks = new Map();
     this.isConnected = false;
-    this.subscribers = new Map();
     this.reconnectAttempts = 0;
-    this.isMobile = isMobileDevice();
-    this.config = getMobileOptimizedConfig();
-    this.maxReconnectAttempts = this.config.maxReconnectAttempts;
-    this.isVisible = !document.hidden;
-    this.networkInfo = null;
-    
-    // Setup mobile-specific listeners
-    this.setupMobileOptimizations();
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelayMs = 1000;
+    this.connectionCheckInterval = 1000 * 30;
+    this.healthTimer = null; // For heartbeat
+    this.mobileOptimizations = this.initializeMobileOptimizations();
+
     // Prefer explicit WS url (VITE_WS_URL), else same-origin
     const originWs = (typeof location !== 'undefined')
       ? ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
       : 'ws://127.0.0.1:8787';
-    const wsHost = (import.meta.env?.VITE_WS_URL || originWs).replace(/\/$/, '');
-    this.baseUrl = wsHost; // host only; endpoint is /ws
+    
+    // Normalize WebSocket URL to prevent double /ws
+    const rawWsUrl = import.meta.env?.VITE_WS_URL || originWs;
+    const normalizedWsUrl = this.normalizeWsUrl(rawWsUrl);
+    this.baseUrl = normalizedWsUrl; // normalized URL without /ws
+    
     // Use shared flags (default: enabled unless explicitly disabled)
     this.disabled = flags.VITE_DISABLE_WS === true;
+  }
+
+  // Initialize mobile detection and optimization settings
+  initializeMobileOptimizations() {
+    this.isMobile = isMobileDevice();
+    this.isVisible = !document.hidden;
+    
+    const config = getMobileOptimizedConfig();
+    this.maxReconnectAttempts = config.maxReconnectAttempts;
+    this.reconnectDelayMs = config.reconnectDelay;
+    
+    // Set up mobile-specific event listeners
+    this.setupMobileOptimizations();
+    
+    return {
+      isMobile: this.isMobile,
+      config: config
+    };
+  }
+
+  // Normalize WebSocket URL to prevent double /ws paths
+  normalizeWsUrl(url) {
+    const cleanUrl = (url || '').trim().replace(/\/$/, '');
+    if (!cleanUrl) return '';
+    
+    // Remove any trailing /ws to avoid double-append
+    const withoutWs = cleanUrl.replace(/\/ws\/?$/i, '');
+    
+    // Collapse any accidental double slashes (except protocol)
+    return withoutWs.replace(/([^:]\/)\/+/g, '$1');
   }
 
   connect() {

@@ -8,7 +8,7 @@
  * @param {boolean} [opts.fillMissing=true] - Use previous entry to fill missing peakCount or price when symbol repeats.
  * @returns {{combined:Array,nextPrev:Array}}
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity, complexity
+ 
 export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
   const { limit = 20, mergePrev = true, fillMissing = true } = opts;
   if (!Array.isArray(latestRaw) || latestRaw.length === 0) {

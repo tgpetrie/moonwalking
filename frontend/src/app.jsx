@@ -245,7 +245,7 @@ export default function App() {
         </div>
 
   {/* 3-Minute Gainers and Losers Tables (treat as single paired component for equal sizing) */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 mb-2 items-stretch content-stretch">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2 items-stretch content-stretch">
           {/* Left Panel - 3-MIN GAINERS */}
     <div className="pt-6 pb-6 px-0 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6">

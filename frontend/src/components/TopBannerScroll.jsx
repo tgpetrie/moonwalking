@@ -71,7 +71,7 @@ const TopBannerScroll = ({ refreshTrigger }) => {
 
     fetchTopBannerData().then(() => scheduleAtBoundary());
     return () => { isMounted = false; clearTimeout(timerId); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [refreshTrigger]);
 
   return (

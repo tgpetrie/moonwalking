@@ -15,6 +15,7 @@ module.exports = [
     },
     plugins: {
       react: require('eslint-plugin-react'),
+      'react-hooks': require('eslint-plugin-react-hooks'),
       'sonarjs': require('eslint-plugin-sonarjs')
     },
     settings: { react: { version: 'detect' } },

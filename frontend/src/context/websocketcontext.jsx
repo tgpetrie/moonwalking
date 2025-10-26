@@ -383,7 +383,7 @@ export const WebSocketProvider = ({ children, pollingScheduler }) => {
       }
     } catch (e) {
       // Ignore in constrained environments intentionally
-      // eslint-disable-next-line no-unused-vars
+       
       const _ignored = e;
     }
 

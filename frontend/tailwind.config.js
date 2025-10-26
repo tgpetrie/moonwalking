@@ -1,101 +1,45 @@
+/** BHABIT Tailwind Design Tokens — Final */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {
-        // Universal Raleway for all text, including areas that previously used mono
-        sans: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['Raleway', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ["Raleway", "ui-sans-serif", "system-ui"],
+        display: ["Raleway", "ui-sans-serif", "system-ui"],
+        mono: ["Fragment Mono", "monospace"],
       },
       colors: {
-        orange: '#FF6B00',
-        blue: '#00BFFF',
-        pink: '#FF69B4',
-        // Align with tables' positive accent (#C026D3)
-        purple: '#C026D3',
-        teal: '#00C0A5',
-        light: '#cccccc',
-        dark: '#000000',
-        'mid-dark': '#111111',
-        'light-dark': '#1a1a1a',
-        muted: '#888888',
+        bg: "#000000",
+        surface: "rgba(22,22,28,0.65)",
+        line: "rgba(255,255,255,0.08)",
+        text: "#FFFFFF",
+        textDim: "rgba(255,255,255,0.6)",
+        gold: "#FFB84D",
+        purple: "#D46CFF",
+        orange: "#FF7A3D",
+        blue: "#4FD1FF",
+        success: "#5BF7A5",
+        error: "#FF6B81",
       },
-      keyframes: {
-        marquee: {
-          '0%': { transform: 'translateX(0%)' },
-          '100%': { transform: 'translateX(-100%)' }
-        },
-        scroll: {
-          '0%': { transform: 'translateX(0%)' },
-          '100%': { transform: 'translateX(-100%)' }
-        },
-        'fade-in-up': {
-          '0%': { 
-            opacity: '0', 
-            transform: 'translateY(20px)' 
-          },
-          '100%': { 
-            opacity: '1', 
-            transform: 'translateY(0)' 
-          }
-        },
-        breathing: {
-          '0%, 100%': { 
-            transform: 'scale(1)', 
-            opacity: '1' 
-          },
-          '50%': { 
-            transform: 'scale(1.05)', 
-            opacity: '0.9' 
-          }
-        },
-        gradient: {
-          '0%': { 'background-position': '0% 50%' },
-          '50%': { 'background-position': '100% 50%' },
-          '100%': { 'background-position': '0% 50%' }
-        }
+      backgroundImage: {
+        "banner-top":
+          "linear-gradient(to right, rgba(255,184,77,0.08), rgba(212,108,255,0.08))",
+        "banner-bottom":
+          "linear-gradient(to right, rgba(212,108,255,0.08), rgba(79,209,255,0.08))",
+        "row-hover-up":
+          "linear-gradient(to right, rgba(255,184,77,0.25), rgba(255,184,77,0.05))",
+        "row-hover-down":
+          "linear-gradient(to right, rgba(212,108,255,0.25), rgba(212,108,255,0.05))",
       },
-      animation: {
-        marquee: 'marquee 7200s linear infinite',
-        scroll: 'scroll 115200s linear infinite',
-        'fade-in-up': 'fade-in-up 0.6s ease-out',
-        breathing: 'breathing 3s ease-in-out infinite',
-        gradient: 'gradient 3s ease infinite'
-      }
-    }
+      boxShadow: {
+        glowGold: "0 0 15px rgba(255,184,77,0.35)",
+        glowPurple: "0 0 15px rgba(212,108,255,0.35)",
+      },
+      borderRadius: {
+        xl: "1rem",
+        "2xl": "1.25rem",
+      },
+    },
   },
-  plugins: [
-    function ({ addUtilities, theme }) {
-      const newUtilities = {
-        '.text-shadow-purple': {
-          textShadow: `0 0 5px ${theme('colors.purple')}, 0 0 10px ${theme('colors.purple')}`,
-        },
-        '.text-shadow-light-purple': {
-          textShadow: `0 0 2px ${theme('colors.purple')}, 0 0 5px ${theme('colors.purple')}`,
-        },
-        '.text-shadow-blue': {
-          textShadow: `0 0 5px ${theme('colors.blue')}, 0 0 10px ${theme('colors.blue')}`,
-        },
-        '.text-shadow-orange': {
-          textShadow: `0 0 5px ${theme('colors.orange')}, 0 0 10px ${theme('colors.orange')}`,
-        },
-        '.text-shadow-pink': {
-          textShadow: `0 0 5px ${theme('colors.pink')}, 0 0 10px ${theme('colors.pink')}`,
-        },
-      };
-      addUtilities(newUtilities, ['responsive', 'hover']);
-    },
-    function ({ addUtilities, theme }) {
-      const colors = theme('colors');
-      const newUtilities = {
-        '.group-hover\\:radial-gradient-pink': {
-          '--tw-gradient-from': `${colors.pink}10 var(--tw-gradient-from-position)`,
-          '--tw-gradient-to': 'transparent var(--tw-gradient-to-position)',
-          '--tw-gradient-stops': 'var(--tw-gradient-from), var(--tw-gradient-to)',
-          backgroundImage: 'radial-gradient(circle at center, var(--tw-gradient-stops))',
-        },
-      };
-      addUtilities(newUtilities, ['responsive', 'group-hover']);
-    },
-  ]
-}
+  plugins: [],
+};
