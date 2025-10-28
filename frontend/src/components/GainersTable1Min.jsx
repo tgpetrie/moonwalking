@@ -30,12 +30,8 @@ export default function GainersTable1Min() {
         1-MIN GAINERS
       </div>
 
-      {/* table or empty */}
-      {!hasData ? (
-        <div className="mt-6 text-[12px] font-mono text-white/70">
-          No 1-min gainers data available
-        </div>
-      ) : (
+      {/* table or empty (prefer positive condition to satisfy lint) */}
+      {hasData ? (
         <div className="mt-6 w-full overflow-x-auto">
           <table className="w-full border-collapse min-w-[260px]">
             <tbody>
@@ -57,6 +53,10 @@ export default function GainersTable1Min() {
               Show more
             </button>
           )}
+        </div>
+      ) : (
+        <div className="mt-6 text-[12px] font-mono text-white/70">
+          No 1-min gainers data available
         </div>
       )}
     </section>
