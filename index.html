@@ -3,13 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <title>BHABIT — loader + tokens demo</title>
-    <link rel="stylesheet" href="./bhabit-tokens.css" />
-    <script src="./bhabit-logo-loader.js" defer></script>
+  <link rel="stylesheet" href="./bhabit-tokens.css" />
+  <!-- Logo loader disabled to avoid runtime DOM mutation during local/dev runs -->
   </head>
   <body style="padding:24px;">
     <h1>BHABIT loader + tokens</h1>
 
-    <img alt="BHABIT" data-bhabit-logo width="220" height="70" />
+  <!-- Explicit logo image (no data-bhabit-logo hook) -->
+  <img alt="BHABIT" src="/bhabit-logo.png" width="220" height="70" />
 
     <div style="margin-top:16px; display:flex; gap:8px;">
       <button onclick="document.documentElement.setAttribute('data-theme','dark'); BHABITLogoRefresh()">Dark</button>

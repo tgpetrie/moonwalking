@@ -1,31 +1,53 @@
-const rawBase = import.meta.env?.VITE_API_URL ?? '';
-export const API_BASE = typeof rawBase === 'string' ? rawBase.replace(/\/$/, '') : '';
+const rawBase = import.meta.env?.VITE_API_URL ?? "";
+const trimmedBase = typeof rawBase === "string" ? rawBase.trim() : "";
+export const API_BASE =
+  trimmedBase && trimmedBase !== "relative"
+    ? trimmedBase.replace(/\/$/, "")
+    : "";
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.__API_BASE__ = API_BASE;
 }
 
+const preferredBase = API_BASE || "";
 const normalise = (path) => {
   if (!path) return path;
-  if (path.startsWith('http')) return path;
-  if (path.startsWith('/')) return `${API_BASE}${path}`;
-  return `${API_BASE}/${path}`;
+  if (path.startsWith("http")) return path;
+  if (path.startsWith("/")) return `${preferredBase}${path}`;
+  return `${preferredBase}/${path}`;
 };
 
-export async function fetchJson(url, init = {}) {
+export const endpoints = {
+  banner1h: normalise("/api/component/top-movers-bar"),
+  bannerVolume1h: normalise("/api/component/banner-volume-1h"),
+  gainers1m: normalise("/api/component/gainers-table-1min"),
+  gainers3m: normalise("/api/component/gainers-table"),
+  losers3m: normalise("/api/component/losers-table"),
+  vol1h: normalise("/api/component/banner-volume-1h"),
+  health: normalise("/api/health"),
+  topMoversBar: normalise("/api/component/top-movers-bar"),
+  alertsRecent: (limit = 25) =>
+    normalise(`/api/alerts/recent?limit=${limit}`),
+  metrics: normalise("/api/metrics"),
+};
+
+export async function fetchJson(url, init = {}, ms = 9000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  const timeoutId = setTimeout(() => controller.abort(), ms);
   try {
     const target = normalise(url);
     const res = await fetch(target, {
-      credentials: 'same-origin',
-      headers: { accept: 'application/json', ...(init.headers || {}) },
+      credentials: init.credentials ?? "same-origin",
+      headers: {
+        accept: "application/json",
+        ...(init.headers || {}),
+      },
       ...init,
       signal: controller.signal,
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      const suffix = text ? ` :: ${text.slice(0, 180)}` : '';
+      const text = await res.text().catch(() => "");
+      const suffix = text ? ` :: ${text.slice(0, 180)}` : "";
       throw new Error(`HTTP ${res.status} ${res.statusText} @ ${target}${suffix}`);
     }
     return res.json();
@@ -36,18 +58,6 @@ export async function fetchJson(url, init = {}) {
 
 export const httpGet = fetchJson;
 export const fetchComponent = fetchJson;
-
-export const endpoints = {
-  health: normalise('/api/health'),
-  gainers1m: normalise('/api/component/gainers-table-1min'),
-  gainers3m: normalise('/api/component/gainers-table'),
-  losers3m: normalise('/api/component/losers-table'),
-  banner1h: normalise('/api/component/top-movers-bar'),
-  bannerVolume1h: normalise('/api/component/banner-volume-1h'),
-  topMoversBar: normalise('/api/component/top-movers-bar'),
-  alertsRecent: (limit = 25) => normalise(`/api/alerts/recent?limit=${limit}`),
-  metrics: normalise('/api/metrics'),
-};
 
 const coerceArray = (payload) => {
   if (Array.isArray(payload)) return payload;

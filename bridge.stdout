@@ -1,0 +1,4 @@
+[bridge] listening on http://127.0.0.1:5100
+[bridge] non-200 from http://127.0.0.1:5001/api/component/gainers-table 503
+[bridge] non-200 from http://127.0.0.1:5001/api/component/losers-table 503
+[bridge] fetch fail http://127.0.0.1:5001/api/component/gainers-table request to http://127.0.0.1:5001/api/component/gainers-table failed, reason: socket hang up

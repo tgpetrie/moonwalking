@@ -1,5 +1,6 @@
 export function loadConfig() {
-  const port = Number(process.env.PORT || 3100);
+  // Default dev server port: prefer 5100 to avoid conflicting local stacks
+  const port = Number(process.env.PORT || 5100);
   const host = process.env.HOST || '127.0.0.1';
   const openAiKey = process.env.OPENAI_API_KEY || '';
   return { port, host, openAiKey };

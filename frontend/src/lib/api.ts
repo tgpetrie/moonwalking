@@ -2,26 +2,46 @@
 // Centralised endpoint map + fetch helpers + response mappers.
 
 const rawBase = String(((import.meta as any)?.env?.VITE_API_URL ?? "") || "");
-export const API_BASE: string = rawBase.replace(/\/$/, "");
+const trimmedBase = rawBase.trim();
+export const API_BASE =
+  trimmedBase && trimmedBase !== "relative" ? trimmedBase.replace(/\/$/, "") : "";
 
 if (typeof window !== "undefined") {
   (window as any).__API_BASE__ = API_BASE;
 }
 
+const preferredBase = API_BASE || "";
 const normalise = (path: string) => {
   if (!path) return path;
   if (path.startsWith("http")) return path;
-  if (path.startsWith("/")) return `${API_BASE}${path}`;
-  return `${API_BASE}/${path}`;
+  if (path.startsWith("/")) return `${preferredBase}${path}`;
+  return `${preferredBase}/${path}`;
 };
 
-export async function fetchJson<T = any>(url: string, init: RequestInit = {}): Promise<T> {
+export const endpoints = {
+  banner1h: normalise("/api/component/top-movers-bar"),
+  bannerVolume1h: normalise("/api/component/banner-volume-1h"),
+  gainers1m: normalise("/api/component/gainers-table-1min"),
+  gainers3m: normalise("/api/component/gainers-table"),
+  losers3m: normalise("/api/component/losers-table"),
+  vol1h: normalise("/api/component/banner-volume-1h"),
+  health: normalise("/api/health"),
+  topMoversBar: normalise("/api/component/top-movers-bar"),
+  alertsRecent: (limit = 25) => normalise(`/api/alerts/recent?limit=${limit}`),
+  metrics: normalise("/api/metrics"),
+};
+
+export async function fetchJson<T = any>(
+  url: string,
+  init: RequestInit = {},
+  ms = 9000,
+): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  const timeoutId = setTimeout(() => controller.abort(), ms);
   try {
     const target = normalise(url);
     const res = await fetch(target, {
-      credentials: "same-origin",
+      credentials: init.credentials ?? "same-origin",
       headers: {
         accept: "application/json",
         ...(init.headers || {}),
@@ -30,20 +50,10 @@ export async function fetchJson<T = any>(url: string, init: RequestInit = {}): P
       signal: controller.signal,
     });
     if (!res.ok) {
-      // Special-case: component endpoints may legitimately return 404 when
-      // a particular banner/component isn't present yet (dev or cold-start).
-      // Treat 404s on /api/component/* as an empty payload to keep the UI
-      // resilient and reduce noisy error logs.
-      if (res.status === 404 && String(target).includes("/api/component/")) {
-        // return sensible empty shapes: arrays for mappers that expect arrays
-        return [] as unknown as T;
-      }
-
       const text = await res.text().catch(() => "");
       const suffix = text ? ` :: ${text.slice(0, 180)}` : "";
       throw new Error(`HTTP ${res.status} ${res.statusText} @ ${target}${suffix}`);
     }
-
     return (await res.json()) as T;
   } finally {
     clearTimeout(timeoutId);
@@ -53,18 +63,6 @@ export async function fetchJson<T = any>(url: string, init: RequestInit = {}): P
 // Legacy helper retained for backwards compat.
 export const httpGet = fetchJson;
 export const fetchComponent = fetchJson;
-
-export const endpoints = {
-  health: normalise("/api/health"),
-  gainers1m: normalise("/api/component/gainers-table-1min"),
-  gainers3m: normalise("/api/component/gainers-table"),
-  losers3m: normalise("/api/component/losers-table"),
-  banner1h: normalise("/api/component/top-movers-bar"),
-  bannerVolume1h: normalise("/api/component/banner-volume-1h"),
-  topMoversBar: normalise("/api/component/top-movers-bar"),
-  alertsRecent: (limit = 25) => normalise(`/api/alerts/recent?limit=${limit}`),
-  metrics: normalise("/api/metrics"),
-};
 
 const coerceArray = (payload: any): any[] => {
   if (Array.isArray(payload)) return payload;

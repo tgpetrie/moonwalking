@@ -1,1 +1,12 @@
-/* same loader as above */ (function(){const MAP={plain:{dark:'./bhabit-logo-plain-dark.svg',light:'./bhabit-logo-plain-light.svg','light-hc':'./bhabit-logo-plain-light.svg'},spray:{dark:'./bhabit-logo-spray-dark.svg',light:'./bhabit-logo-spray-light.svg','light-hc':'./bhabit-logo-spray-light.svg'}};function t(){return document.documentElement.getAttribute('data-theme')||'dark'}function s(){return document.body.getAttribute('data-logo-style')||'plain'}function p(e){const o=e.getAttribute('data-logo-variant')||t(),a=e.getAttribute('data-logo-style')||s();return(MAP[a]||MAP.plain)[o]||(MAP[a]||MAP.plain).dark}function a(){document.querySelectorAll('[data-bhabit-logo]').forEach(e=>{const o=p(e);if(e.tagName==='IMG')e.src=o;else if(e.tagName==='OBJECT'||e.tagName==='EMBED')e.data=o;else e.setAttribute('src',o)})}document.addEventListener('DOMContentLoaded',a);new MutationObserver(e=>{if(e.some(r=>r.attributeName==='data-theme'))a()}).observe(document.documentElement,{attributes:!0,attributeFilter:['data-theme']});window.BHABITLogoRefresh=a;})();
+// Public BHABIT logo loader disabled: no-op to avoid automatic DOM mutation.
+(function(){
+	try {
+		if (typeof window !== 'undefined' && window.console && window.console.debug) {
+			window.console.debug('[public/bhabit-logo-loader] disabled');
+		}
+		// Provide a no-op global named function for compatibility with legacy pages
+		window.BHABITLogoRefresh = function(){ if (window && window.console && window.console.debug) window.console.debug('[public/bhabit-logo-loader] BHABITLogoRefresh noop'); };
+	} catch (e) {
+		// ignore errors
+	}
+})();

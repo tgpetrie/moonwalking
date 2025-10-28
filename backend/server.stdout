@@ -1,0 +1,117 @@
+2025-10-28 11:06:38,792 - INFO - None - === CBMo4ers Configuration ===
+2025-10-28 11:06:38,792 - INFO - None - CACHE_TTL: 60
+2025-10-28 11:06:38,792 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-28 11:06:38,792 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-28 11:06:38,792 - INFO - None - PORT: 5001
+2025-10-28 11:06:38,792 - INFO - None - HOST: 0.0.0.0
+2025-10-28 11:06:38,792 - INFO - None - DEBUG: False
+2025-10-28 11:06:38,792 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-28 11:06:38,792 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-28 11:06:38,792 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-28 11:06:38,792 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-28 11:06:38,792 - INFO - None - API_TIMEOUT: 10
+2025-10-28 11:06:38,792 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-28 11:06:38,792 - INFO - None - ENABLE_1MIN: True
+2025-10-28 11:06:38,792 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-28 11:06:38,792 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-28 11:06:38,792 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-28 11:06:38,792 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-28 11:06:38,792 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-28 11:06:38,792 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-28 11:06:38,792 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-28 11:06:38,792 - INFO - None - ===============================
+2025-10-28 11:06:38,796 - INFO - None - === CBMo4ers Configuration ===
+2025-10-28 11:06:38,796 - INFO - None - CACHE_TTL: 60
+2025-10-28 11:06:38,796 - INFO - None - INTERVAL_MINUTES: 3
+2025-10-28 11:06:38,796 - INFO - None - MAX_PRICE_HISTORY: 20
+2025-10-28 11:06:38,796 - INFO - None - PORT: 5001
+2025-10-28 11:06:38,796 - INFO - None - HOST: 127.0.0.1
+2025-10-28 11:06:38,796 - INFO - None - DEBUG: False
+2025-10-28 11:06:38,796 - INFO - None - UPDATE_INTERVAL: 60
+2025-10-28 11:06:38,796 - INFO - None - MAX_COINS_PER_CATEGORY: 15
+2025-10-28 11:06:38,796 - INFO - None - MIN_VOLUME_THRESHOLD: 1000000
+2025-10-28 11:06:38,796 - INFO - None - MIN_CHANGE_THRESHOLD: 1.0
+2025-10-28 11:06:38,796 - INFO - None - API_TIMEOUT: 10
+2025-10-28 11:06:38,796 - INFO - None - CHART_DAYS_LIMIT: 30
+2025-10-28 11:06:38,796 - INFO - None - ENABLE_1MIN: True
+2025-10-28 11:06:38,796 - INFO - None - ONE_MIN_REFRESH_SECONDS: 45
+2025-10-28 11:06:38,796 - INFO - None - ONE_MIN_ENTER_PCT: 0.15
+2025-10-28 11:06:38,796 - INFO - None - ONE_MIN_STAY_PCT: 0.05
+2025-10-28 11:06:38,796 - INFO - None - ONE_MIN_MAX_COINS: 25
+2025-10-28 11:06:38,796 - INFO - None - ONE_MIN_DWELL_SECONDS: 90
+2025-10-28 11:06:38,796 - INFO - None - ALERTS_COOLDOWN_SECONDS: 300
+2025-10-28 11:06:38,796 - INFO - None - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-10-28 11:06:38,796 - INFO - None - ===============================
+2025-10-28 11:06:38,796 - INFO - None - Starting CBMo4ers Crypto Dashboard Backend...
+2025-10-28 11:06:38,797 - INFO - None - Background update thread started
+2025-10-28 11:06:38,797 - INFO - None - Server starting on http://127.0.0.1:5001
+ * Serving Flask app 'app'
+ * Debug mode: off
+2025-10-28 11:06:38,801 - INFO - None - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-10-28 11:06:38,801 - INFO - None - [33mPress CTRL+C to quit[0m
+2025-10-28 11:06:41,645 - INFO - None - Successfully fetched 40 prices from Coinbase
+2025-10-28 11:06:41,646 - WARNING - None - No crypto data available - 40 current prices, 40 symbols with history
+2025-10-28 11:06:41,725 - INFO - 3ed46c0c50d14cf5a5cb2def - Successfully fetched 42 prices from Coinbase
+2025-10-28 11:06:41,725 - WARNING - 3ed46c0c50d14cf5a5cb2def - No crypto data available - 42 current prices, 47 symbols with history
+2025-10-28 11:06:41,726 - INFO - 3ed46c0c50d14cf5a5cb2def - 127.0.0.1 - - [28/Oct/2025 11:06:41] "[35m[1mGET /api/component/gainers-table HTTP/1.1[0m" 503 -
+2025-10-28 11:06:41,727 - INFO - f73354f12a8a46449ad05579 - Successfully fetched 41 prices from Coinbase
+2025-10-28 11:06:41,727 - WARNING - f73354f12a8a46449ad05579 - No crypto data available - 41 current prices, 48 symbols with history
+2025-10-28 11:06:41,728 - INFO - f73354f12a8a46449ad05579 - 127.0.0.1 - - [28/Oct/2025 11:06:41] "[35m[1mGET /api/component/losers-table HTTP/1.1[0m" 503 -
+2025-10-28 11:06:42,070 - INFO - b2be7f43a9254e9a8b36e9f8 - Successfully fetched 40 prices from Coinbase
+2025-10-28 11:06:42,322 - INFO - fc2af171b2f44d27973bb364 - Successfully fetched 43 prices from Coinbase
+2025-10-28 11:06:42,322 - WARNING - fc2af171b2f44d27973bb364 - No 1-min crypto data available after calculation - 43 current prices, 43 symbols with history
+2025-10-28 11:06:42,323 - INFO - fc2af171b2f44d27973bb364 - 127.0.0.1 - - [28/Oct/2025 11:06:42] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:06:43,239 - INFO - None - Successfully fetched 24 prices from Coinbase
+2025-10-28 11:06:45,561 - WARNING - None - Error processing Coinbase 24h data for BNB-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=3)
+2025-10-28 11:06:45,563 - INFO - b2be7f43a9254e9a8b36e9f8 - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers
+2025-10-28 11:06:45,564 - INFO - b2be7f43a9254e9a8b36e9f8 - Successfully processed data: 1 gainers, 0 losers, 2 banner items
+2025-10-28 11:06:45,564 - INFO - b2be7f43a9254e9a8b36e9f8 - 127.0.0.1 - - [28/Oct/2025 11:06:45] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:06:50,571 - INFO - 749e4be6412740968063b55f - 127.0.0.1 - - [28/Oct/2025 11:06:50] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:06:50,571 - INFO - 4edba57e64e04908ac4190c6 - 127.0.0.1 - - [28/Oct/2025 11:06:50] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:06:50,572 - INFO - 8f30789613ae463785b00f0e - 127.0.0.1 - - [28/Oct/2025 11:06:50] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:06:50,572 - INFO - 029d3186613a41ea8678f58b - 127.0.0.1 - - [28/Oct/2025 11:06:50] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:06:55,585 - INFO - cab2cdbc7856408096878c90 - 127.0.0.1 - - [28/Oct/2025 11:06:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:06:55,586 - INFO - ca72ed5f859848b8b736de02 - 127.0.0.1 - - [28/Oct/2025 11:06:55] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:06:55,587 - INFO - d10548521db847708fcb521a - 127.0.0.1 - - [28/Oct/2025 11:06:55] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:06:55,588 - INFO - ac1d16d8ae8345d4901d486f - 127.0.0.1 - - [28/Oct/2025 11:06:55] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:06:57,642 - INFO - 35f1027e2eca4dda9e6185dd - 127.0.0.1 - - [28/Oct/2025 11:06:57] "GET /api/health HTTP/1.1" 200 -
+2025-10-28 11:07:00,598 - INFO - cc2134c3e205472192cac0df - 127.0.0.1 - - [28/Oct/2025 11:07:00] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:00,599 - INFO - 1dda7290f0734fd09e3fd5c0 - 127.0.0.1 - - [28/Oct/2025 11:07:00] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:00,600 - INFO - af821d34f6774e578e2983aa - 127.0.0.1 - - [28/Oct/2025 11:07:00] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:00,600 - INFO - e1343132835e4aa0ab6afc76 - 127.0.0.1 - - [28/Oct/2025 11:07:00] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:02,669 - INFO - ed6326dff07c475eac74f9c1 - 127.0.0.1 - - [28/Oct/2025 11:07:02] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:05,604 - INFO - bbfce5be8328482a9241a1ed - 127.0.0.1 - - [28/Oct/2025 11:07:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:05,604 - INFO - f3897ea17c164f5492dc137e - 127.0.0.1 - - [28/Oct/2025 11:07:05] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:05,605 - INFO - 4cec182038564743a50cda65 - 127.0.0.1 - - [28/Oct/2025 11:07:05] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:05,605 - INFO - 433cc3c699d44b1485594f50 - 127.0.0.1 - - [28/Oct/2025 11:07:05] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:07,993 - INFO - 154f6d97ca3e4c7888fc88e3 - 127.0.0.1 - - [28/Oct/2025 11:07:07] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:10,609 - INFO - 744b328247814321b440eff3 - 127.0.0.1 - - [28/Oct/2025 11:07:10] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:10,609 - INFO - afd9e64e94be41c690e864d4 - 127.0.0.1 - - [28/Oct/2025 11:07:10] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:10,610 - INFO - 782ce835eb5b4500933b185e - 127.0.0.1 - - [28/Oct/2025 11:07:10] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:10,611 - INFO - c749deecaffe4fa1a591f7d5 - 127.0.0.1 - - [28/Oct/2025 11:07:10] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:15,620 - INFO - 75bcf3e6776d4cc9b085a5ee - 127.0.0.1 - - [28/Oct/2025 11:07:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:15,621 - INFO - 0ea32b8e2c014f55ad8c86b2 - 127.0.0.1 - - [28/Oct/2025 11:07:15] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:15,623 - INFO - ab59557a837346dfabfd9a73 - 127.0.0.1 - - [28/Oct/2025 11:07:15] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:15,624 - INFO - a7f9147926574af893b85f86 - 127.0.0.1 - - [28/Oct/2025 11:07:15] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:20,631 - INFO - a5bc4873d1854dbc9bbaa50c - 127.0.0.1 - - [28/Oct/2025 11:07:20] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:20,632 - INFO - f2caf207e3c44f95a7ad7d45 - 127.0.0.1 - - [28/Oct/2025 11:07:20] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:20,632 - INFO - b9f40cca3d5c4800b8ce8b93 - 127.0.0.1 - - [28/Oct/2025 11:07:20] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:20,633 - INFO - e466909f316c457dacee6e81 - 127.0.0.1 - - [28/Oct/2025 11:07:20] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:25,641 - INFO - 621f20aa33ad47bcbf4fe9b6 - 127.0.0.1 - - [28/Oct/2025 11:07:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:25,643 - INFO - 6575ca46ef804227b2a1a7b0 - 127.0.0.1 - - [28/Oct/2025 11:07:25] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:25,644 - INFO - b8e480126c344409b9b73d85 - 127.0.0.1 - - [28/Oct/2025 11:07:25] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:25,646 - INFO - 76f83d57dc0b40d7ae867030 - 127.0.0.1 - - [28/Oct/2025 11:07:25] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:27,040 - INFO - None - Successfully fetched 47 prices from Coinbase
+2025-10-28 11:07:27,042 - INFO - None - 1-min data processed (throttle 45s) retained=6 gainers=4 losers=2
+2025-10-28 11:07:30,653 - INFO - 0fcc0e19c44c4c399d4a37f1 - 127.0.0.1 - - [28/Oct/2025 11:07:30] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:30,655 - INFO - 04ba58bc606249be8cdafafe - 127.0.0.1 - - [28/Oct/2025 11:07:30] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:30,655 - INFO - 112d56cfcc914b7cba72e81c - 127.0.0.1 - - [28/Oct/2025 11:07:30] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:30,657 - INFO - f38e62b7eb824f2eb66f7be0 - 127.0.0.1 - - [28/Oct/2025 11:07:30] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:35,663 - INFO - 65dccb2d896f41e2a500305b - 127.0.0.1 - - [28/Oct/2025 11:07:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:35,664 - INFO - 06f99dc15da540b7b3f079e2 - 127.0.0.1 - - [28/Oct/2025 11:07:35] "GET /api/component/gainers-table HTTP/1.1" 200 -
+2025-10-28 11:07:35,664 - INFO - c777b24f613448c889348af3 - 127.0.0.1 - - [28/Oct/2025 11:07:35] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:35,665 - INFO - 8eb44669ac1a4562ac88c0bc - 127.0.0.1 - - [28/Oct/2025 11:07:35] "GET /api/component/top-movers-bar HTTP/1.1" 200 -
+2025-10-28 11:07:40,670 - INFO - f8b8eb21e46c47858868fdf8 - 127.0.0.1 - - [28/Oct/2025 11:07:40] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-10-28 11:07:40,672 - INFO - 4efa49636d574624aeb54f52 - 127.0.0.1 - - [28/Oct/2025 11:07:40] "GET /api/component/losers-table HTTP/1.1" 200 -
+2025-10-28 11:07:40,673 - INFO - c61dd2545ba14aef8cf4f073 - 127.0.0.1 - - [28/Oct/2025 11:07:40] "GET /api/component/top-movers-bar HTTP/1.1" 200 -

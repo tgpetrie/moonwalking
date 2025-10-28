@@ -1,26 +1,13 @@
-// Simple non-module loader that replaces <img data-bhabit-logo> or elements with data-bhabit-logo
+// BHABIT logo loader disabled in dev: no-op to avoid automatic logo injection.
+// If you need the logo injection behavior, restore the original loader implementation
+// from project history or static-demo/bhabit-logo-loader.js.
 (function(){
+  // intentionally do nothing
   try {
-    const SRC = '/bhabit-logo-main.svg';
-    const query = '[data-bhabit-logo]';
-    const nodes = Array.from(document.querySelectorAll(query));
-    if (nodes.length === 0) return;
-    nodes.forEach((el) => {
-      if (el.tagName === 'IMG') {
-        el.src = SRC;
-        el.setAttribute('alt', 'BHABIT');
-      } else {
-        // inject an image node for non-img elements
-        const img = document.createElement('img');
-        img.src = SRC;
-        img.alt = 'BHABIT';
-        img.width = el.getAttribute('data-bhabit-width') || 160;
-        img.height = el.getAttribute('data-bhabit-height') || 48;
-        el.appendChild(img);
-      }
-    });
+    if (typeof window !== 'undefined' && window.console && window.console.debug) {
+      window.console.debug('[bhabit-logo-loader] disabled');
+    }
   } catch (e) {
-    // graceful degrade
-    try { console.error('bhabit-logo-loader failed', e); } catch (_) {}
+    // ignore
   }
 })();

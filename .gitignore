@@ -96,3 +96,10 @@ dist/
 # allow the mobile scaffold
 !moonwalking_mobile/
 !moonwalking_mobile/**
+
+# Dev runtime logs (do not commit)
+/backend/server.stdout
+/bridge.stdout
+/frontend/vite.stdout
+/backend/server.log
+/backend/backend/*.log

@@ -158,6 +158,7 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
           actionBadge={actionBadge}
           popStar={popStar}
           onToggle={handleToggleWatchlist}
+          isGainer={false}
         />
       ))}
       {/* Show More / Less (uncontrolled only) */}
@@ -176,7 +177,7 @@ const LosersTable = ({ refreshTrigger, initialRows = 7, maxRows = 13, expanded }
   );
 };
 
-const MoverRow = memo(function MoverRow({ row: r, idx, shouldReduce, get3m, watchlist, actionBadge, popStar, onToggle }) {
+const MoverRow = memo(function MoverRow({ row: r, idx, shouldReduce, get3m, watchlist, actionBadge, popStar, onToggle, isGainer = false }) {
 LosersTable.propTypes = {
   refreshTrigger: PropTypes.any,
   initialRows: PropTypes.number,
@@ -210,11 +211,18 @@ MoverRow.propTypes = {
     : ((typeof r.price === 'number' && typeof r.change3m === 'number' && r.change3m !== 0)
       ? (r.price / (1 + r.change3m / 100))
       : null);
+  const gainHover = 'hover:[background-image:var(--row-hover-gain)]';
+  const loseHover = 'hover:[background-image:var(--row-hover-lose)]';
+
   return (
     <div className="px-0 py-1 mb-1">
       <a href={url} target="_blank" rel="noopener noreferrer" className="block group">
         <motion.div
-          className="relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform"
+          className={[
+            'relative overflow-hidden rounded-xl p-4 h-[96px] hover:scale-[1.02] sm:hover:scale-[1.035] transition-transform will-change-transform',
+            isGainer ? gainHover : loseHover,
+            'hover:bg-no-repeat hover:bg-left-bottom hover:[background-size:100%_2px]'
+          ].join(' ')}
           initial={shouldReduce ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: 'easeOut', delay: entranceDelay }}
@@ -260,6 +268,7 @@ MoverRow.propTypes = {
               <div className="flex items-center gap-2">
                 <div className={`text-2xl font-bold ${r.change3m < 0 ? 'text-pink' : 'text-[#C026D3]'}`}>{typeof r.change3m === 'number' ? formatPercentage(r.change3m) : '0.00%'}</div>
                 <button
+                  data-stop
                   onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onToggle(r.symbol); }}
                   className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-center"
                   style={{ minWidth:'24px', minHeight:'24px' }}
@@ -295,6 +304,7 @@ MoverRow.propTypes = {
             </div>
             <div className="w-[28px] text-right">
               <button
+                data-stop
                 onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onToggle(r.symbol); }}
                 className="bg-transparent border-none p-0 m-0 cursor-pointer inline-flex items-center justify-end"
                 style={{ minWidth:'24px', minHeight:'24px' }}

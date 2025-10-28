@@ -1,114 +1,114 @@
-import { useState, lazy, Suspense } from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
 
-const SentimentCard = lazy(() => import('./SentimentCard.jsx'));
+/**
+ * TokenRow
+ *
+ * Renders a single token row with:
+ * - star + info stack (not clickable for navigation)
+ * - symbol / price / %change
+ * - row click -> opens Coinbase Advanced Trade for that symbol in a new tab
+ *
+ * Props:
+ *   row: one element from the backend payload.data array
+ *   isGainer: boolean, controls gold vs purple hover glow
+ */
+export default function TokenRow({ row, isGainer }) {
+  if (!row) return null;
 
-export default function TokenRow({ row, isWatched = false, onToggleWatch = undefined, isGainer = false }) {
-  const [open, setOpen] = useState(false);
-  const symbol = (row.symbol || '').toUpperCase().replace(/-USD$/, '');
-  const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${symbol}-USD`;
-  const price = typeof row.current_price === 'number' ? row.current_price : row.price;
-  const pct = typeof row.price_change_percentage_3min === 'number'
-    ? row.price_change_percentage_3min
-    : (typeof row.change3m === 'number' ? row.change3m : row.change);
+  const symbolRaw = row.symbol || ""; // e.g. "TAO-USD"
+  // We'll show TAO instead of TAO-USD as the main title:
+  const baseSymbol = symbolRaw.replace("-USD", "");
 
-  const formatPct = () => {
-    if (typeof pct !== 'number' || Number.isNaN(pct)) {
-      return '—';
-    }
-    const prefix = pct >= 0 ? '+' : '';
-    return `${prefix}${pct.toFixed(2)}%`;
-  };
+  // price
+  const price =
+    typeof row.current_price === "number"
+      ? row.current_price.toFixed(2)
+      : row.current_price ?? "-";
+
+  // pick % field: 1-min table gives price_change_percentage_1min,
+  // 3-min tables give price_change_percentage_3min
+  const pctChangeRaw =
+    row.price_change_percentage_1min ??
+    row.price_change_percentage_3min ??
+    row.price_change_pct ??
+    0;
+
+  // format percent with 2 decimals, include sign
+  const pctChangeNum = Number(pctChangeRaw) || 0;
+  const pctDisplay = pctChangeNum.toFixed(2);
+
+  // hover gradients (literal class strings so Tailwind JIT keeps them)
+  const gainHover = "hover:[background-image:var(--row-hover-gain)]";
+  const loseHover = "hover:[background-image:var(--row-hover-lose)]";
+
+  const rowHover = isGainer ? gainHover : loseHover;
 
   const handleRowClick = (e) => {
-    // Allow elements with [data-stop] to prevent row navigation (icons, buttons)
-    if (e && e.target && typeof e.target.closest === 'function' && e.target.closest('[data-stop]')) return;
-    if (typeof window !== 'undefined') {
-      window.open(coinbaseUrl, '_blank', 'noopener');
-    }
-  };
+    // don't navigate if click was on star/info block
+    if (e.target.closest("[data-stop]")) return;
 
-  const handleWatchClick = (event) => {
-    event.stopPropagation();
-    onToggleWatch?.(symbol);
+    const pair = symbolRaw.toUpperCase(); // already like TAO-USD
+    const url = `https://www.coinbase.com/advanced-trade/${pair}`;
+    window.open(url, "_blank", "noopener");
   };
-
-  const handleSentimentClick = (event) => {
-    event.stopPropagation();
-    setOpen(true);
-  };
-
-  const openStyle = open
-    ? {
-        backgroundImage:
-          'linear-gradient(to right, rgba(255,122,0,0.3), rgba(155,91,255,0.3), rgba(71,167,255,0.3))',
-        backgroundSize: '100% 2px',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'bottom left',
-      }
-    : undefined;
 
   return (
-    <>
-      <tr
-        className={[
-          'group transition-colors cursor-pointer',
-          isGainer ? 'hover:bg-[image:var(--row-hover-gain)]' : 'hover:bg-[image:var(--row-hover-lose)]',
-          'hover:bg-no-repeat hover:bg-left-bottom hover:bg-[length:100%_2px]'
-        ].join(' ')}
-        style={openStyle}
-        onClick={handleRowClick}
-      >
-        <td className="px-3 py-2 font-semibold tracking-wide">{symbol || '—'}</td>
-        <td className="px-3 py-2 tabular-nums">{typeof price === 'number' ? price.toFixed(4) : '—'}</td>
-        <td className="px-3 py-2 tabular-nums">
-          <span className={pct >= 0 ? 'pill up' : 'pill down'}>
-            {formatPct()}
-          </span>
-        </td>
-        <td className="px-3 py-2 text-center">
-          <div className="relative flex flex-col items-center control-cluster">
-            <button
-              data-stop
-              className={`text-[15px] block transition-transform hover:scale-110 ${isWatched ? 'text-yellow-300' : 'text-yellow-400'}`}
-              onClick={handleWatchClick}
-              title="Toggle watchlist"
-              type="button"
-            >
-              ★
-            </button>
-            <button
-              data-stop
-              className="text-[13px] block text-gray-300 hover:text-blue mt-1"
-              onClick={handleSentimentClick}
-              title={`View ${symbol} sentiment`}
-              type="button"
-            >
-              ℹ️
-            </button>
-          </div>
-        </td>
-      </tr>
+    <tr
+      className={`cursor-pointer border-b border-white/5 bg-[rgba(0,0,0,0.2)] bg-no-repeat bg-left-top bg-[length:100%_100%] ${rowHover} transition-colors`}
+      onClick={handleRowClick}
+    >
+      {/* star + info stack */}
+      <td className="align-top p-2 pr-3">
+        <div
+          data-stop
+          className="flex flex-col items-center gap-1 text-[10px] leading-none text-white/60"
+        >
+          <button
+            className="px-1 py-[1px] rounded-[3px] bg-white/5 border border-white/20 text-[10px] leading-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              // TODO: add watchlist toggle
+              console.log("watch clicked", symbolRaw);
+            }}
+          >
+            ★
+          </button>
+          <button
+            className="px-1 py-[1px] rounded-[3px] bg-white/5 border border-white/20 text-[10px] leading-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              // TODO: open detail panel / modal
+              console.log("info clicked", symbolRaw);
+            }}
+          >
+            ⓘ
+          </button>
+        </div>
+      </td>
 
-      {open && (
-        <Suspense fallback={null}>
-          <SentimentCard symbols={[symbol]} onClose={() => setOpen(false)} />
-        </Suspense>
-      )}
-    </>
+      {/* symbol / price / pct */}
+      <td className="p-2 align-top text-left font-mono text-white text-[12px] leading-tight">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <div className="text-white font-semibold text-[12px] leading-tight">
+            {baseSymbol}
+          </div>
+          <div className="text-white/40 text-[10px] leading-tight">
+            {symbolRaw}
+          </div>
+        </div>
+
+        <div className="mt-[2px] text-[11px] text-white/70 leading-tight">
+          <span className="text-white">${price}</span>{" "}
+          <span
+            className={
+              pctChangeNum >= 0 ? "text-green-400/80" : "text-red-400/80"
+            }
+          >
+            {pctChangeNum >= 0 ? "+" : ""}
+            {pctDisplay}%
+          </span>
+        </div>
+      </td>
+    </tr>
   );
 }
-
-TokenRow.propTypes = {
-  row: PropTypes.shape({
-    symbol: PropTypes.string,
-    current_price: PropTypes.number,
-    price: PropTypes.number,
-    price_change_percentage_3min: PropTypes.number,
-    change3m: PropTypes.number,
-    change: PropTypes.number,
-  }).isRequired,
-  isWatched: PropTypes.bool,
-  onToggleWatch: PropTypes.func,
-  isGainer: PropTypes.bool,
-};
