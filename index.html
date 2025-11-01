@@ -1,32 +1,18 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>BHABIT — loader + tokens demo</title>
-  <link rel="stylesheet" href="./bhabit-tokens.css" />
-  <!-- Logo loader disabled to avoid runtime DOM mutation during local/dev runs -->
+    <meta http-equiv="refresh" content="0; url=/frontend/" />
+    <title>Redirecting to Dashboard…</title>
+    <script>
+      (function(){
+        try { window.location.replace('/frontend/'); } catch(e) { window.location.href='/frontend/'; }
+      })();
+    </script>
+    <style>body{font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;padding:24px;color:#e6e6e6;background:#101010}</style>
   </head>
-  <body style="padding:24px;">
-    <h1>BHABIT loader + tokens</h1>
-
-  <!-- Explicit logo image (no data-bhabit-logo hook) -->
-  <img alt="BHABIT" src="/bhabit-logo.png" width="220" height="70" />
-
-    <div style="margin-top:16px; display:flex; gap:8px;">
-      <button onclick="document.documentElement.setAttribute('data-theme','dark'); BHABITLogoRefresh()">Dark</button>
-      <button onclick="document.documentElement.setAttribute('data-theme','light'); BHABITLogoRefresh()">Light</button>
-      <button onclick="document.documentElement.setAttribute('data-theme','light-hc'); BHABITLogoRefresh()">Light-HC</button>
-      <button onclick="document.body.setAttribute('data-logo-style','spray'); BHABITLogoRefresh()">Spray</button>
-      <button onclick="document.body.setAttribute('data-logo-style','plain'); BHABITLogoRefresh()">Plain</button>
-    </div>
-
-    <h2 style="margin-top:24px;">Semantic tokens</h2>
-    <div>
-      <span class="token pos">Positive (Orange)</span>
-      <span class="token neg">Negative (Purple)</span>
-      <span class="token alert">Alert (Pink)</span>
-      <span class="token live">Live (Teal)</span>
-      <span class="token prev">Previous (Gray)</span>
-    </div>
+  <body>
+    <h1>Redirecting to Dashboard…</h1>
+    <p>If you are not redirected automatically, <a href="/frontend/">click here</a>.</p>
   </body>
 </html>

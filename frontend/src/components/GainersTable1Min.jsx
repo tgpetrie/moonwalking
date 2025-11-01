@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
+import SymbolInfoPanel from "./SymbolInfoPanel";
 
 export default function GainersTable1Min() {
-  // hook gives us socket+poll data
   const { data: payload = {} } = useHybridLiveNamed({
     endpoint: "/api/component/gainers-table-1min",
     eventName: "gainers1m",
@@ -11,53 +11,58 @@ export default function GainersTable1Min() {
     initial: [],
   });
 
-  // unwrap backend shape: { data: [...] }
-  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  // unwrap { data: [...] }
+  const raw = Array.isArray(payload?.data) ? payload.data : [];
 
-  // collapse behavior: show top 8 until expanded
-  const [expanded, setExpanded] = useState(false);
-  const visibleRows = useMemo(() => {
-    if (!rows || rows.length === 0) return [];
-    return expanded ? rows : rows.slice(0, 8);
-  }, [rows, expanded]);
+  // map backend row -> TokenRow props (ticker-only symbol)
+  const mapped = raw.map((row, idx) => {
+    const ticker = (row.symbol || "").replace(/-USD$/i, "") || row.symbol;
+    return {
+      rank: row.rank ?? idx + 1,
+      symbol: ticker,
+      current_price: row.current_price,
+      previous_price: row.initial_price_1min,
+      price_change_percentage_1min: row.price_change_percentage_1min,
+      price_change_percentage_3min: undefined,
+      isGainer: true, // gainer styling (gold/orange)
+    };
+  });
 
-  const hasData = rows.length > 0;
+  const [selectedSymbol, setSelectedSymbol] = useState(null);
+  const visible = useMemo(() => mapped.slice(0, 12), [mapped]);
+  const hasData = visible.length > 0;
 
   return (
-    <section className="text-center text-white max-w-[480px] mx-auto">
-      {/* header pill */}
-      <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-mono font-semibold text-[#f9c86b] shadow-glowGold">
+    <section className="text-left text-white text-[12px] font-mono">
+      {/* header & underline per style guide */}
+      <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
         1-MIN GAINERS
       </div>
+      <div className="mt-2 h-px w-full max-w-[240px] border-b border-[#f9c86b80] shadow-glowGold" />
 
-      {/* table or empty (prefer positive condition to satisfy lint) */}
       {hasData ? (
-        <div className="mt-6 w-full overflow-x-auto">
+        <div className="mt-4 w-full overflow-x-auto">
           <table className="w-full border-collapse min-w-[260px]">
             <tbody>
-              {visibleRows.map((row, idx) => (
+              {visible.map((rowProps, idx) => (
                 <TokenRow
-                  key={row.symbol || idx}
-                  {...row}
-                  isGainer={true}
+                  key={`${rowProps.symbol}-${idx}`}
+                  {...rowProps}
+                  onInfo={(sym) => setSelectedSymbol(sym)}
                 />
               ))}
             </tbody>
           </table>
-
-          {!expanded && rows.length > 8 && (
-            <button
-              className="mt-4 inline-block rounded-[4px] border border-[#f9c86b80] bg-black/70 px-3 py-1 text-[11px] font-mono text-white shadow-glowGold"
-              onClick={() => setExpanded(true)}
-            >
-              Show more
-            </button>
-          )}
         </div>
       ) : (
-        <div className="mt-6 text-[12px] font-mono text-white/70">
-          No 1-min gainers data available
-        </div>
+        <div className="mt-4 text-white/50">Loading (1min)..</div>
+      )}
+
+      {selectedSymbol && (
+        <SymbolInfoPanel
+          symbol={selectedSymbol}
+          onClose={() => setSelectedSymbol(null)}
+        />
       )}
     </section>
   );

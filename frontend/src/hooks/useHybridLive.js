@@ -50,7 +50,18 @@ function useHybridLive({
       const run = async () => {
         try {
           const next = await fetchJson(endpoint);
-          if (active) setData(Array.isArray(next) ? next : []);
+          if (!active) return;
+
+          // Support two transport shapes:
+          // - legacy: endpoint returns an array of rows
+          // - new: endpoint returns { component, count, data: [...] }
+          if (Array.isArray(next)) {
+            setData(next);
+          } else if (next && Array.isArray(next.data)) {
+            setData(next.data);
+          } else {
+            setData([]);
+          }
         } catch (err) {
           if (active) {
             console.warn("[poll] request failed", endpoint, err?.message || err);
@@ -68,10 +79,20 @@ function useHybridLive({
         socketUnsub.current();
         socketUnsub.current = null;
       }
-      const socket = getSocket();
+  // warm socket instance
+  getSocket();
       ensureSubscribed(eventName);
       socketUnsub.current = on(eventName, (payload) => {
-        if (active) setData(Array.isArray(payload) ? payload : []);
+        if (!active) return;
+
+        // Bridge emits either an array or an envelope { data: [...] }
+        if (Array.isArray(payload)) {
+          setData(payload);
+        } else if (payload && Array.isArray(payload.data)) {
+          setData(payload.data);
+        } else {
+          setData([]);
+        }
       });
       setSource("socket");
     };
@@ -85,10 +106,10 @@ function useHybridLive({
       startPolling();
     }
 
-    cleanupFns.current.push(on("connect", () => active && startSocket()));
-    cleanupFns.current.push(on("disconnect", () => active && startPolling()));
     cleanupFns.current.push(
-      on("connect_error", () => active && startPolling()),
+      on("connect", () => active && startSocket()),
+      on("disconnect", () => active && startPolling()),
+      on("connect_error", () => active && startPolling())
     );
 
     return () => {
@@ -98,13 +119,13 @@ function useHybridLive({
         socketUnsub.current();
         socketUnsub.current = null;
       }
-      cleanupFns.current.forEach((fn) => {
+      for (const fn of cleanupFns.current) {
         try {
           fn?.();
         } catch {
           // ignore
         }
-      });
+      }
       cleanupFns.current = [];
     };
   }, [endpoint, eventName, pollMs]);

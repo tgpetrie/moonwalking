@@ -1,6 +1,17 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
+import ReactDOM from "react-dom/client";
 import "./index.css";
-import App from "./App";
+import Dashboard from "./components/Dashboard.jsx";
 
-createRoot(document.getElementById("root")).render(<App />);
+const root = document.getElementById("root") || (() => {
+  const el = document.createElement("div");
+  el.id = "root";
+  document.body.appendChild(el);
+  return el;
+})();
+
+ReactDOM.createRoot(root).render(
+  <React.StrictMode>
+    <Dashboard />
+  </React.StrictMode>
+);

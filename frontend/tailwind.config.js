@@ -4,9 +4,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Raleway", "ui-sans-serif", "system-ui"],
-        display: ["Raleway", "ui-sans-serif", "system-ui"],
-        mono: ["Fragment Mono", "monospace"],
+        // main UI font everywhere
+        sans: ["Raleway", "system-ui", "sans-serif"],
+
+        // override "mono" to ALSO be Raleway so we don't get Fragment Mono / monospace
+        mono: ["Raleway", "system-ui", "sans-serif"],
       },
       colors: {
         bg: "#000000",
@@ -32,8 +34,8 @@ export default {
           "linear-gradient(to right, rgba(212,108,255,0.25), rgba(212,108,255,0.05))",
       },
       boxShadow: {
-        glowGold: "0 0 15px rgba(255,184,77,0.35)",
-        glowPurple: "0 0 15px rgba(212,108,255,0.35)",
+        glowGold: "0 0 16px rgba(249,200,107,.5)",
+        glowPurple: "0 0 16px rgba(162,75,255,.5)",
       },
       borderRadius: {
         xl: "1rem",

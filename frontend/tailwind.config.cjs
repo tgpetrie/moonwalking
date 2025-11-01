@@ -23,9 +23,11 @@ module.exports = {
         },
       },
       fontFamily: {
+        sans: ["Raleway", "system-ui", "sans-serif"],
+        mono: ["Raleway", "system-ui", "sans-serif"],
         bhTitle: ["Raleway", "system-ui", "sans-serif"],
-        bhMono: ["'Fragment Mono'", "ui-monospace", "monospace"],
-        ui: ["Inter","system-ui","sans-serif"],
+        bhMono: ["Raleway", "system-ui", "sans-serif"],
+        ui: ["Raleway", "system-ui", "sans-serif"],
       },
       boxShadow: {
         glowGold: "0 0 30px rgba(249,200,107,0.35)",

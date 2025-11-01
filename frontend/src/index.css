@@ -5,9 +5,24 @@
 :root {
   --row-hover-gain: linear-gradient(90deg,#f1b43a22,#f1b43a00);
   --row-hover-lose: linear-gradient(90deg,#ae4bf522,#ae4bf500);
+  font-family: 'Raleway', system-ui, sans-serif;
 }
 
 /* globals */
 html, body, #root { height: 100%; background-color: #000; color: #fff; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* smooth horizontal ticker loop */
+@keyframes marquee-left {
+  0%   { transform: translateX(0%);   }
+  100% { transform: translateX(-50%); }
+}
+
+.banner-scroll {
+  animation: marquee-left 30s linear infinite;
+  will-change: transform;
+  width: max-content;
+  min-width: 200%;
+  filter: drop-shadow(0 0 8px rgba(0,0,0,.8));
+}

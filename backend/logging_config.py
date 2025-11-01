@@ -53,13 +53,13 @@ def setup_logging():
     ch.addFilter(CorrelationIdFilter())
     root.addHandler(ch)
     # Rotating file handler (5 MB, keep 3 backups)
-    try:
-        fh = RotatingFileHandler(LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3)
-        fh.setFormatter(fmt)
-        fh.addFilter(CorrelationIdFilter())
-        root.addHandler(fh)
-    except Exception:
-        root.warning('Could not attach rotating file handler; continuing with console only')
+    # try:
+    #     fh = RotatingFileHandler(LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3)
+    #     fh.setFormatter(fmt)
+    #     fh.addFilter(CorrelationIdFilter())
+    #     root.addHandler(fh)
+    # except Exception:
+    #     root.warning('Could not attach rotating file handler; continuing with console only')
 
 def log_config(config):
     """Log current configuration"""

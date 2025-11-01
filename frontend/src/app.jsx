@@ -91,8 +91,20 @@ export default function App() {
       </div>
 
       {/* top headline row under header */}
-      <div className="relative z-10 mt-6">
-        <TopBannerScroll />
+      <div className="relative z-10 mt-6 px-4">
+        <div className="text-[11px] tracking-[0.15em] text-white/80 font-mono uppercase">
+          1H PRICE CHANGE • LIVE MARKET FEED
+        </div>
+
+        {/* 1H price change ticker */}
+        <div className="mt-3">
+          <TopBannerScroll />
+        </div>
+
+        {/* 1H volume ticker */}
+        <div className="mt-1">
+          <VolumeBannerScroll />
+        </div>
       </div>
 
       {/* HERO center block: 1-MIN GAINERS */}
@@ -104,9 +116,6 @@ export default function App() {
           <GainersTable3Min />
           <LosersTable3Min />
         </div>
-
-        {/* volume / flow strip placeholder */}
-        <VolumeBannerScroll />
       </main>
 
       {/* floating purple lightbulb in bottom-right */}

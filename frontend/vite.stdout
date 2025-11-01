@@ -14,3 +14,110 @@
 11:48:26 AM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
 11:48:26 AM [vite] hmr update /src/components/LosersTable3Min.jsx
 11:48:26 AM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+11:55:37 AM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+11:55:37 AM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+11:55:37 AM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+11:55:37 AM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:02:27 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:07:05 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:07:56 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:08:53 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:10:57 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:14:51 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /src/index.css, /src/components/VolumeBannerScroll.jsx, /src/components/GainersTable1Min.jsx, /src/components/GainersTable3Min.jsx, /src/components/LosersTable3Min.jsx
+12:15:15 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /src/index.css, /src/components/VolumeBannerScroll.jsx, /src/components/GainersTable1Min.jsx, /src/components/GainersTable3Min.jsx, /src/components/LosersTable3Min.jsx
+12:15:29 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /src/index.css, /src/components/VolumeBannerScroll.jsx, /src/components/GainersTable1Min.jsx, /src/components/GainersTable3Min.jsx, /src/components/LosersTable3Min.jsx
+12:17:21 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:17:21 PM [vite] Internal server error: /Users/cdmxx/Documents/moonwalkings/frontend/src/components/TokenRow.jsx: 'import' and 'export' may only appear at the top level. (46:8)
+
+  44 |         const base = "https://www.coinbase.com/advanced-trade";
+  45 |         // incoming symbols are like "TAO-USD", "SOL-USD", etc.
+> 46 |         import React from "react";
+     |         ^
+  47 |
+  48 |         // One row in any table. Handles:
+  49 |         // - hover gradient (gold for gainers, purple for losers)
+  Plugin: vite:react-babel
+  File: /Users/cdmxx/Documents/moonwalkings/frontend/src/components/TokenRow.jsx:46:8
+  44 |          const base = "https://www.coinbase.com/advanced-trade";
+  45 |          // incoming symbols are like "TAO-USD", "SOL-USD", etc.
+  46 |          import React from "react";
+     |          ^
+  47 |  
+  48 |          // One row in any table. Handles:
+      at constructor (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:367:19)
+      at JSXParserMixin.raise (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:6624:19)
+      at JSXParserMixin.parseStatementContent (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12947:18)
+      at JSXParserMixin.parseStatementLike (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12843:17)
+      at JSXParserMixin.parseStatementListItem (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12823:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:13392:61)
+      at JSXParserMixin.parseBlockBody (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:13385:10)
+      at JSXParserMixin.parseBlock (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:13373:10)
+      at JSXParserMixin.parseFunctionBody (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12174:24)
+      at JSXParserMixin.parseArrowExpression (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12149:10)
+      at JSXParserMixin.parseParenAndDistinguishExpression (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11759:12)
+      at JSXParserMixin.parseExprAtom (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11395:23)
+      at JSXParserMixin.parseExprAtom (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4793:20)
+      at JSXParserMixin.parseExprSubscripts (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11145:23)
+      at JSXParserMixin.parseUpdate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11130:21)
+      at JSXParserMixin.parseMaybeUnary (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11110:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10963:61)
+      at JSXParserMixin.parseExprOps (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10968:23)
+      at JSXParserMixin.parseMaybeConditional (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10945:23)
+      at JSXParserMixin.parseMaybeAssign (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10895:21)
+      at JSXParserMixin.parseExpressionBase (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10848:23)
+      at /Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10844:39
+      at JSXParserMixin.allowInAnd (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12500:12)
+      at JSXParserMixin.parseExpression (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10844:17)
+      at JSXParserMixin.jsxParseExpressionContainer (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4661:31)
+      at JSXParserMixin.jsxParseAttributeValue (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4633:21)
+      at JSXParserMixin.jsxParseAttribute (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4682:38)
+      at JSXParserMixin.jsxParseOpeningElementAfterName (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4696:28)
+      at JSXParserMixin.jsxParseOpeningElementAt (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4691:17)
+      at JSXParserMixin.jsxParseElementAt (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4715:33)
+      at JSXParserMixin.jsxParseElement (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4778:17)
+      at JSXParserMixin.parseExprAtom (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4788:19)
+      at JSXParserMixin.parseExprSubscripts (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11145:23)
+      at JSXParserMixin.parseUpdate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11130:21)
+      at JSXParserMixin.parseMaybeUnary (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11110:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10963:61)
+      at JSXParserMixin.parseExprOps (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10968:23)
+      at JSXParserMixin.parseMaybeConditional (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10945:23)
+      at JSXParserMixin.parseMaybeAssign (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10895:21)
+      at /Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10864:39
+      at JSXParserMixin.allowInAnd (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12500:12)
+      at JSXParserMixin.parseMaybeAssignAllowIn (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10864:17)
+      at JSXParserMixin.parseMaybeAssignAllowInOrVoidPattern (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:12567:17)
+      at JSXParserMixin.parseParenAndDistinguishExpression (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11747:28)
+      at JSXParserMixin.parseExprAtom (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11395:23)
+      at JSXParserMixin.parseExprAtom (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:4793:20)
+      at JSXParserMixin.parseExprSubscripts (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11145:23)
+      at JSXParserMixin.parseUpdate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11130:21)
+      at JSXParserMixin.parseMaybeUnary (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:11110:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/@babel/parser/lib/index.js:10963:61)
+12:20:41 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:20:48 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:20:51 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:20:58 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:21:01 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:21:09 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:21:12 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:21:18 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:21:24 PM [vite] page reload index.html
+12:21:36 PM [vite] hmr update /src/index.css
+12:22:11 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:22:11 PM [vite] hmr update /src/components/TopBannerScroll.jsx, /src/index.css, /src/components/VolumeBannerScroll.jsx
+12:22:11 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:22:11 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:22:11 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:26:15 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:27:05 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:27:54 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:28:23 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:29:01 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
+12:29:16 PM [vite] page reload tailwind.config.js
+12:32:34 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+12:32:34 PM [vite] ✨ new dependencies optimized: prop-types
+12:32:34 PM [vite] ✨ optimized dependencies changed. reloading
+12:32:53 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+12:33:10 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+12:33:27 PM [vite] hmr update /src/components/LosersTable3Min.jsx, /src/index.css
