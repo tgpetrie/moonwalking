@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "workbench.editor.enablePreview": false,
+    "files.exclude": {
+      "**/.git": false
+    }
+  }
+}
