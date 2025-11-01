@@ -11,7 +11,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 cd frontend && npm install
-```
 
 Quick start (hydration + env files)
 
@@ -27,6 +26,69 @@ Daily run (local API + Vite)
 
 ```bash
 ./start_local.sh
+
+Secrets & Models — quick workflow
+--------------------------------
+
+Keep secrets out of the repository and prefer a per-project `.env` + a launcher so GUI apps inherit values.
+
+1) Per-project `.env` (recommended)
+
+    - Create `.env` from `.env.example` and edit locally:
+
+        ```bash
+        cp .env.example .env
+        # edit .env with real keys (do not commit)
+        chmod 600 .env
+        ```
+
+    - Launch VS Code so it inherits the env vars (launcher included in repo):
+
+        ```bash
+        ./scripts/launch-vscode-with-env.sh .
+        ```
+
+2) Pre-commit scanning (detect-secrets)
+
+    - Install and create a baseline to avoid noisy failures on existing non-secret files:
+
+        ```bash
+        pip install --user detect-secrets pre-commit
+        detect-secrets scan > .secrets.baseline
+        git add .secrets.baseline
+        git commit -m "chore: add detect-secrets baseline"
+        pre-commit install
+        ```
+
+3) Model pulls and pruning (disk conscious on 8 GB machines)
+
+    - Prefer small models for default work: `phi3:mini`, `qwen2.5-coder:1.5b-base`, `qwen3:4b`.
+    - Avoid running Llama3-8B by default on an 8 GB Air; use cloud for heavy passes.
+    - Remove unused models:
+
+        ```bash
+        ollama list
+        ollama rm <model-name>
+        ```
+
+4) Quick sanity checks
+
+    - Ollama reachable:
+        ```bash
+        curl -sS http://127.0.0.1:11434/api/tags | jq .
+        ```
+    - Continue YAML parse test:
+        ```bash
+        python3 - <<'PY'
+        import pathlib, yaml
+        p = pathlib.Path.cwd()/'.continue'/'config.yaml'
+        if not p.exists(): p = pathlib.Path.home()/'.continue'/'config.yaml'
+        yaml.safe_load(p.read_text())
+        print('YAML OK:', p)
+        PY
+        ```
+
+These small steps keep your local dev fast, safe, and predictable.
 ```
 
     •	Auto-picks a free backend port
