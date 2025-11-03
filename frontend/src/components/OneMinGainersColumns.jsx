@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import formatSymbol from '../lib/format.js';
 import GainersTable1Min from './GainersTable1Min.jsx';
 
 export default function OneMinGainersColumns({
@@ -33,7 +34,7 @@ export default function OneMinGainersColumns({
         const pct = needsScale ? Number(raw) * 100 : Number(raw) || 0;
         return ({
           rank: item.rank || idx + 1,
-          symbol: item.symbol?.replace('-USD', '') || 'N/A',
+          symbol: formatSymbol(item.symbol) || 'N/A',
           price: item.current_price ?? item.price ?? 0,
           change: pct,
           initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,

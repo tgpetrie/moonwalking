@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useBannerStream } from "../hooks/useBannerStream";
+import { formatSymbol } from "../lib/format";
 
 function formatVolume(v) {
   const num = Number(v);
@@ -17,13 +18,14 @@ function formatVolume(v) {
   return num.toFixed(0);
 }
 
-export default function VolumeBannerScroll() {
+export default function VolumeBannerScroll({ items: incoming }) {
   const { volBanner } = useBannerStream();
 
   const items = useMemo(() => {
-    return (volBanner || []).map((row, idx) => {
+    const source = Array.isArray(incoming) && incoming.length ? incoming : (volBanner || []);
+    return source.map((row, idx) => {
       const rawSymbol = row.symbol || row.ticker || row.asset || "";
-      const cleanSymbol = rawSymbol.replace("-USD", "");
+      const cleanSymbol = formatSymbol(rawSymbol) || rawSymbol || "--";
       const pair = rawSymbol.toUpperCase();
 
       const price =
@@ -63,7 +65,7 @@ export default function VolumeBannerScroll() {
         volPctStr,
       };
     });
-  }, [volBanner]);
+  }, [volBanner, incoming]);
 
   if (!items.length) {
     return null;

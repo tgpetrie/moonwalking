@@ -9,6 +9,8 @@
  * @returns {{combined:Array,nextPrev:Array}}
  */
  
+import formatSymbol from '../lib/format.js';
+
 export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
   const { limit = 20, mergePrev = true, fillMissing = true } = opts;
   if (!Array.isArray(latestRaw) || latestRaw.length === 0) {
@@ -16,7 +18,7 @@ export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
   }
 
   const prevMap = (fillMissing && Array.isArray(prev) && prev.length)
-    ? new Map(prev.filter(p => p && p.symbol).map(p => [p.symbol, p]))
+    ? new Map(prev.filter(p => p && p.symbol).map(p => [formatSymbol(p.symbol), p]))
     : null;
 
   const take = Math.min(latestRaw.length, limit);
@@ -26,7 +28,7 @@ export function computeTop20Gainers(latestRaw, prev = [], opts = {}) {
     if (!item) {
       continue;
     }
-    const symbol = item.symbol?.replace('-USD', '') || 'N/A';
+  const symbol = formatSymbol(item.symbol) || 'N/A';
     const base = prevMap ? prevMap.get(symbol) : undefined;
     const price = item.current_price ?? item.price ?? (base ? base.price : 0);
     const change = item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? (base ? base.change : 0);

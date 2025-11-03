@@ -1,0 +1,11 @@
+{
+  "gainers": [
+    {
+      "symbol": "BTC-USD",
+      "current_price": 30000,
+      "price_change_percentage_1min": 0.5,
+      "price_change_percentage_3min": 1.2
+    }
+  ],
+  "losers": []
+}

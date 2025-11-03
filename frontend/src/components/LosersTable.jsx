@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
+import { formatSymbol } from "../lib/format";
 import SymbolInfoPanel from "./SymbolInfoPanel";
 
-export default function LosersTable() {
+export default function LosersTable({ items: incoming }) {
   const { data: payload = {} } = useHybridLiveNamed({
     endpoint: "/api/component/losers-table",
     eventName: "losers3m",
@@ -11,12 +12,14 @@ export default function LosersTable() {
     initial: [],
   });
 
+  const source = Array.isArray(incoming) && incoming.length ? incoming : payload?.data;
+
   // unwrap { data: [...] }
-  const raw = Array.isArray(payload?.data) ? payload.data : [];
+  const raw = Array.isArray(source) ? source : [];
 
   // map backend row -> TokenRow props (ticker-only symbol)
   const mapped = raw.map((row, idx) => {
-    const ticker = (row.symbol || "").replace(/-USD$/i, "") || row.symbol;
+    const ticker = formatSymbol(row.symbol) || row.symbol;
     return {
       rank: row.rank ?? idx + 1,
       symbol: ticker,
@@ -49,6 +52,7 @@ export default function LosersTable() {
                   key={`${rowProps.symbol}-${idx}`}
                   {...rowProps}
                   onInfo={(sym) => setSelectedSymbol(sym)}
+                  isGainer={false}
                 />
               ))}
             </tbody>

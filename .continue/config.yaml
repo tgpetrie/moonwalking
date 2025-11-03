@@ -1,0 +1,82 @@
+name: Local Ollama
+version: 1.0.0
+schema: v1
+
+models:
+  - title: "Chat • llama3.1:8b"
+    provider: ollama
+    model: llama3.1:8b
+  - title: "Autocomplete • qwen2.5-coder:1.5b-base"
+    provider: ollama
+    model: qwen2.5-coder:1.5b-base
+
+defaultModel: "Chat • llama3.1:8b"
+
+tabAutocompleteModel:
+  provider: ollama
+  model: qwen2.5-coder:1.5b-base
+
+context:
+  - provider: folder
+    path: ${workspaceFolder}/docs/ai
+  - provider: code
+
+# Workspace UI rules (informational + enforceable by downstream checks/CI)
+rules:
+  - id: trim-usd
+    title: "Trim -USD suffix"
+    description: "All UI components must display symbols without trailing '-USD' and use the shared formatter (frontend/src/lib/format.js)."
+    enforce: true
+    paths:
+      - "frontend/**"
+
+  - id: dashboard-root
+    title: "Dashboard mounted as root"
+    description: "The Dashboard component should be mounted as the primary root panel (frontend/src/Dashboard.jsx)."
+    enforce: true
+    paths:
+      - "frontend/src/Dashboard.jsx"
+
+  - id: gainers-columns
+    title: "1m gainers 2-column behavior"
+    description: "1-minute Gainers UI switches to two-column layout when >4 entries."
+    enforce: true
+    paths:
+      - "frontend/src/components/GainersTable1Min.jsx"
+      - "frontend/src/components/OneMinGainersColumns.jsx"
+
+  - id: color-tokens
+    title: "Use color tokens for gainers/losers"
+    description: "Use defined CSS tokens/classes for gain/ loss colors instead of inline hex colors."
+    enforce: true
+    paths:
+      - "frontend/**"
+
+  - id: hover-line
+    title: "Faint gradient hover line on rows"
+    description: "Token rows should reveal a faint gradient underline on hover via .row-hover-line."
+    enforce: true
+    paths:
+      - "frontend/**"
+
+# Workspace actions appear in Continue UI and run repository scripts locally.
+actions:
+  - id: start-stack
+    title: "Start Full Stack"
+    description: "Start local backend + frontend services for development (runs backend/start_full_stack.sh)."
+    command: "./backend/start_full_stack.sh"
+    cwd: "${workspaceFolder}"
+    shell: true
+
+  - id: health-check
+    title: "Backend Health Check"
+    description: "Run quick backend health & smoke tests."
+    command: "./backend/check_backend.sh"
+    cwd: "${workspaceFolder}"
+    shell: true
+
+  - id: reload-continue
+    title: "Reload Continue Config"
+    description: "Reload Continue config in VS Code (helper action)."
+    command: "code --command 'continue.reloadConfig'"
+    shell: true

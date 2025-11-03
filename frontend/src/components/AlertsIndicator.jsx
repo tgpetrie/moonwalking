@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import formatSymbol from '../lib/format.js';
 
 const AlertsIndicator = () => {
   const [count, setCount] = useState(0);
@@ -75,12 +76,12 @@ const AlertsIndicator = () => {
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <a
-                    href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol||'').toLowerCase()}-USD`}
+                    href={`https://www.coinbase.com/advanced-trade/spot/${(formatSymbol(a.symbol)||'').toLowerCase()}-USD`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-bold hover:text-amber-400"
                   >
-                    {a.symbol}
+                    {formatSymbol(a.symbol) || a.symbol}
                   </a>
                   <span className={`${a.direction==='up'?'text-green-300':'text-red-300'}`}>{a.direction === 'up' ? '↑' : a.direction === 'down' ? '↓' : '·'}</span>
                   {typeof a.streak === 'number' && a.streak > 0 && (

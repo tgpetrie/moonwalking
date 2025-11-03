@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
+import { formatSymbol } from "../lib/format";
 import SymbolInfoPanel from "./SymbolInfoPanel";
 
-export default function GainersTable3Min() {
+export default function GainersTable3Min({ items: incoming }) {
   const { data: payload = {} } = useHybridLiveNamed({
     endpoint: "/api/component/gainers-table",
     eventName: "gainers3m",
@@ -11,12 +12,14 @@ export default function GainersTable3Min() {
     initial: [],
   });
 
+  const source = Array.isArray(incoming) && incoming.length ? incoming : payload?.data;
+
   // unwrap { data: [...] }
-  const raw = Array.isArray(payload?.data) ? payload.data : [];
+  const raw = Array.isArray(source) ? source : [];
 
   // map backend row -> TokenRow props
   const mapped = raw.map((row, idx) => {
-    const ticker = (row.symbol || "").replace(/-USD$/i, "") || row.symbol;
+    const ticker = formatSymbol(row.symbol) || row.symbol;
     return {
       rank: row.rank ?? idx + 1,
       symbol: ticker, // ticker-only (no "-USD")
@@ -24,7 +27,7 @@ export default function GainersTable3Min() {
       previous_price: row.initial_price_3min,
       price_change_percentage_1min: undefined,
       price_change_percentage_3min: row.price_change_percentage_3min,
-      isGainer: true, // ORANGE accent
+      isGainer: true,
     };
   });
 
@@ -38,7 +41,7 @@ export default function GainersTable3Min() {
   const hasData = visible.length > 0;
 
   return (
-    <section className="text-left text-white text-[12px] font-mono max-w-[480px]">
+    <section className="text-left text-white text-[12px] font-mono">
       {/* orange header pill */}
       <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
         3-MIN GAINERS
@@ -76,10 +79,12 @@ export default function GainersTable3Min() {
         <div className="mt-4 text-white/50">Loading (3min)..</div>
       )}
 
-      <SymbolInfoPanel
-        symbol={selectedSymbol}
-        onClose={() => setSelectedSymbol(null)}
-      />
+      {selectedSymbol && (
+        <SymbolInfoPanel
+          symbol={selectedSymbol}
+          onClose={() => setSelectedSymbol(null)}
+        />
+      )}
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { formatSymbol } from "../lib/format";
 
 export default function TokenRow(props) {
   const {
@@ -12,8 +13,8 @@ export default function TokenRow(props) {
     onInfo,
   } = props;
 
-  // Defensive: ticker-only symbol (trim "-USD")
-  const ticker = (symbol || "").replace(/-USD$/i, "") || symbol;
+  // Defensive: ticker-only symbol (trim "-USD") via shared util
+  const ticker = formatSymbol(symbol) || symbol || "--";
 
   // debug so we know we're on the right build
   useEffect(() => {
@@ -44,13 +45,12 @@ export default function TokenRow(props) {
     const val = Number(pctRaw);
     if (Number.isNaN(val)) return "0.00%";
     const sign = val >= 0 ? "+" : "";
-    return `${sign}${val.toFixed(2)}%`;
+    return `${sign}${val.toFixed(3)}%`;
   })();
 
   // orange for gainers, purple for losers
-  const pctColorClass = isGainer
-    ? "text-[#f9c86b] drop-shadow-[0_0_6px_rgba(249,200,107,.6)]"
-    : "text-[#a24bff] drop-shadow-[0_0_6px_rgba(162,75,255,.6)]";
+  // prefer utility classes defined in index.css
+  const pctColorClass = isGainer ? "gain-text" : "loss-text";
 
   //
   // PRICE COLORS
@@ -59,15 +59,19 @@ export default function TokenRow(props) {
   const livePriceClass =
     "text-[#00f5b5] drop-shadow-[0_0_6px_rgba(0,245,181,.6)] font-semibold leading-none text-[12px]";
 
-  const prevPriceClass =
-    "text-white/40 text-[10px] leading-none";
+  const prevPriceClass = "text-white/40 text-[10px] leading-none";
+
+  const fmtPrice = (n) => {
+    const num = Number(n);
+    if (!Number.isFinite(num)) return "--";
+    if (num >= 1) return `$${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return `$${num.toPrecision(4)}`;
+  };
 
   //
   // ROW HOVER BG (we assume you already defined --row-hover-gain / --row-hover-lose in index.css)
   //
-  const hoverBg = isGainer
-    ? "hover:[background-image:var(--row-hover-gain)]"
-    : "hover:[background-image:var(--row-hover-lose)]";
+  // hover handled by .row-hover-line in CSS
 
   //
   // CLICK ANYWHERE BUT STAR/INFO -> open Coinbase advanced trade for that pair
@@ -82,7 +86,7 @@ export default function TokenRow(props) {
   return (
     <tr
       dir="ltr"
-      className={`cursor-pointer text-[12px] font-mono text-white/80 leading-tight bg-black/0 ${hoverBg} border-b border-white/[0.05] align-top`}
+      className={`cursor-pointer text-[12px] font-mono text-white/80 leading-tight bg-black/0 border-b border-white/[0.05] align-top`}
       onClick={handleRowClick}
     >
       {/* LEFT: rank bubble */}
@@ -104,7 +108,7 @@ export default function TokenRow(props) {
       </td>
 
       {/* MID: symbol / prices / % change */}
-      <td className="py-2 px-2 text-left align-top w-full">
+  <td className="py-2 px-2 text-left align-top w-full relative">
         {/* top line: SYMBOL + (current/prev price block) */}
         <div className="flex flex-row flex-wrap items-baseline gap-2 leading-tight">
           <div className="text-white text-[12px] font-semibold tracking-wide leading-none">
@@ -112,23 +116,20 @@ export default function TokenRow(props) {
           </div>
 
           <div className="flex flex-col leading-tight">
-            <div className={livePriceClass}>
-              ${Number(current_price ?? 0).toFixed(2)}
-            </div>
+            <div className={livePriceClass}>{fmtPrice(current_price)}</div>
             {previous_price != null && (
-              <div className={prevPriceClass}>
-                ${Number(previous_price).toFixed(2)}
-              </div>
+              <div className={prevPriceClass}>{fmtPrice(previous_price)}</div>
             )}
           </div>
         </div>
 
         {/* BIG % line below */}
-        <div
-          className={`mt-1 text-[12px] font-bold leading-none ${pctColorClass}`}
-        >
+        <div className={`mt-1 text-[12px] font-bold leading-none ${pctColorClass}`}>
           {pctStr}
         </div>
+
+        {/* faint gradient line, appears on row hover (styled in index.css) */}
+        <div className="row-hover-line absolute inset-x-0 bottom-0 h-px opacity-0 transition-opacity duration-150 pointer-events-none" aria-hidden />
       </td>
 
       {/* RIGHT: ★ / ⓘ vertical stack */}

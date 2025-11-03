@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import formatSymbol from '../lib/format.js';
 
 // Prefer an edge Worker URL when provided; fallback to backend route
 const EDGE_URL = import.meta.env?.VITE_BOTTOM_BANNER_URL;
@@ -51,7 +52,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             const isEst = !(item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)));
             return ({
               rank: index + 1,
-              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              symbol: formatSymbol(item.symbol) || 'N/A',
               price: Number(item.current_price ?? item.price ?? 0),
               volume_24h: vol24,
               volume_change: pctRaw,
@@ -137,10 +138,10 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             {/* First set of data */}
             {data.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
-                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-transparent">
+                <a href={`https://www.coinbase.com/advanced-trade/spot/${(coin.symbol||'').toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple bg-transparent">
                     <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
-                      {coin.symbol}
+                      {formatSymbol(coin.symbol) || coin.symbol}
                     </span>
                   </div>
                   <div className="text-lg font-semibold text-teal" title={`24h volume: $${Number(coin.volume_24h||0).toLocaleString()}`}>
@@ -184,10 +185,10 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             {/* Duplicate set for seamless scrolling */}
             {data.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8" role="listitem" tabIndex={0} aria-label={`${coin.symbol}, Vol $${formatAbbrev(coin.volume_24h)}, 1H ${coin.volume_change >= 0 ? '+' : ''}${Number(coin.volume_change||0).toFixed(3)}%`}>
-                <a href={`https://www.coinbase.com/advanced-trade/spot/${coin.symbol.toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple">
+                <a href={`https://www.coinbase.com/advanced-trade/spot/${(coin.symbol||'').toLowerCase()}-USD`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group hover:text-purple focus:ring-2 focus:ring-purple">
                   <div className="flex items-center gap-2">
                     <span className="text-base font-headline font-bold tracking-wide">
-                      {coin.symbol}
+                      {formatSymbol(coin.symbol) || coin.symbol}
                     </span>
                   </div>
                   <div className="text-lg font-semibold text-teal" title={`24h volume: $${coin.volume_24h.toLocaleString()}`}>

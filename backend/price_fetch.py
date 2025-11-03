@@ -92,7 +92,8 @@ def _load_products(now: float):
             _metrics['products_cache_hits'] += 1
         return _products_cache['items']
     try:
-        r = _SESSION.get(COINBASE_PRODUCTS_URL, timeout=API_TIMEOUT)
+        # Use requests.get so tests that patch `requests.get` intercept calls.
+        r = requests.get(COINBASE_PRODUCTS_URL, timeout=API_TIMEOUT)
     except RequestException as e:  # network error
         with _metrics_lock:
             _metrics['errors'] += 1
@@ -174,10 +175,12 @@ def fetch_prices() -> Dict[str,float]:
         acquired = _semaphore.acquire(timeout=10)
         try:
             try:
-                r = _SESSION.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
+                # Call requests.get here so test patches against `requests.get` will apply.
+                r = requests.get(f"https://api.exchange.coinbase.com/products/{sym}/ticker", timeout=TICKER_TIMEOUT)
                 if r.status_code == 200:
                     data = r.json(); price = float(data.get('price') or 0)
-                    if price>0: return sym, price
+                    if price > 0:
+                        return sym, price
                 elif r.status_code == 429:
                     with _metrics_lock:
                         _metrics['errors'] += 1
@@ -267,6 +270,26 @@ def fetch_prices() -> Dict[str,float]:
         if not placed:
             _hist_overflow += 1
     return prices
+
+
+def _reset_test_caches():
+    """Reset module-level caches and rate state to a clean baseline for tests.
+    Tests can call price_fetch._reset_test_caches() to ensure deterministic behavior.
+    """
+    global _products_cache, _last_snapshot, _rate, _metrics
+    _products_cache = {"items": None, "fetched_at": 0.0, "ttl": PRODUCTS_CACHE_TTL}
+    _last_snapshot = {"data": {}, "fetched_at": 0.0}
+    _rate.update({"failures": 0, "next": 0.0, "last_error": None})
+    with _metrics_lock:
+        # reset numeric counters while preserving list types
+        _metrics['total_calls'] = 0
+        _metrics['snapshot_served'] = 0
+        _metrics['products_cache_hits'] = 0
+        _metrics['rate_limit_failures'] = 0
+        _metrics['last_fetch_duration_ms'] = 0.0
+        _metrics['last_success_time'] = 0.0
+        _metrics['errors'] = 0
+        _metrics['durations_ms'] = []
 
 
 def get_price_fetch_metrics():

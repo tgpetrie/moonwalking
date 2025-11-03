@@ -1,27 +1,19 @@
 import React, { useMemo } from "react";
 import { useBannerStream } from "../hooks/useBannerStream";
+import { formatSymbol } from "../lib/format";
 
-export default function TopBannerScroll() {
+export default function TopBannerScroll({ items: incoming }) {
   const { priceBanner } = useBannerStream();
 
   const items = useMemo(() => {
-    return (priceBanner || []).map((row, idx) => {
+    const source = Array.isArray(incoming) && incoming.length ? incoming : (priceBanner || []);
+    return source.map((row, idx) => {
       const symbol = row.symbol || row.ticker || row.asset || "";
-      const cleanSymbol = symbol.replace("-USD", "");
+      const cleanSymbol = formatSymbol(symbol) || symbol || "--";
 
-      const price =
-        row.current_price ??
-        row.price ??
-        row.last_price ??
-        null;
+      const price = row.current_price ?? row.price ?? row.last_price ?? null;
 
-      const pctRaw =
-        row.price_change_percentage_1h ??
-        row.pct_change_1h ??
-        row.percent_change ??
-        row.change_pct ??
-        0;
-
+      const pctRaw = row.price_change_percentage_1h ?? row.pct_change_1h ?? row.percent_change ?? row.change_pct ?? 0;
       const pctNum = Number(pctRaw) || 0;
       const pctSign = pctNum >= 0 ? "+" : "";
       const pctStr = `${pctSign}${pctNum.toFixed(2)}%`;
@@ -29,13 +21,13 @@ export default function TopBannerScroll() {
       return {
         key: symbol || `row-${idx}`,
         symbol: cleanSymbol,
-        pair: symbol.toUpperCase(),
+        pair: (symbol || "").toUpperCase(),
         price,
         pctNum,
         pctStr,
       };
     });
-  }, [priceBanner]);
+  }, [priceBanner, incoming]);
 
   if (!items.length) return null;
 

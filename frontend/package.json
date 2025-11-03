@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "VITE_ENABLE_WS=1 VITE_API_URL=${VITE_API_URL:-http://127.0.0.1:5001} vitest -c vitest.integration.config.ts --run"
   },
   "dependencies": {
     "framer-motion": "^11.0.0",

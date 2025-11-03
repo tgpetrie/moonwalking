@@ -26,3 +26,20 @@ html, body, #root { height: 100%; background-color: #000; color: #fff; }
   min-width: 200%;
   filter: drop-shadow(0 0 8px rgba(0,0,0,.8));
 }
+
+/* UI refresh tokens */
+:root{
+  --row-hover-line: linear-gradient(90deg,#ff7a1a 0%, #4aa8ff 50%, #ff65b6 100%);
+}
+.shadow-glowGold{ box-shadow:0 0 0 1px rgba(249,200,107,.50), 0 0 22px rgba(249,200,107,.08) }
+.shadow-glowPurple{ box-shadow:0 0 0 1px rgba(161,109,255,.50), 0 0 22px rgba(161,109,255,.08) }
+.text-teal{ color:#2dd4bf; }
+
+/* Gain / loss tokens and hover underline */
+.gain-text { color: #f9c86b; text-shadow: 0 0 6px rgba(249,200,107,.45); }
+.loss-text { color: #a24bff; text-shadow: 0 0 6px rgba(162,75,255,.35); }
+.row-hover-line { background-image: var(--row-hover-line); background-size: 200% 100%; }
+
+/* show the faint gradient line when any row is hovered */
+tr:hover td .row-hover-line { opacity: 1; }
+
