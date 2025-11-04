@@ -146,56 +146,64 @@ startup_time = time.time()
 # Configure allowed CORS origins from environment
 cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
 if cors_env == '*':
-    cors_origins = '*'
+    # Default development restriction: only allow local dev origins so we don't ship a
+    # permissive CORS policy accidentally. This is intended for local tooling only.
+    dev_origins = [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ]
+    try:
+        CORS(app, resources={r"/*": {"origins": dev_origins}})
+    except Exception:
+        # If tests replace Flask with a very small MockFlask lacking expected
+        # lifecycle helper methods, provide no-op shims so import-time setup
+        # doesn't crash test collection.
+        def _no_op_decorator(fn):
+            return fn
+        def _no_op_function(*args, **kwargs):
+            return None
+
+        for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
+            if not hasattr(app, name):
+                try:
+                    setattr(app, name, _no_op_decorator)
+                except Exception:
+                    pass
+
+        for name in ('register_blueprint', 'add_url_rule'):
+            if not hasattr(app, name):
+                try:
+                    setattr(app, name, _no_op_function)
+                except Exception:
+                    pass
+        # route and HTTP method shortcuts (get/post/put/delete) are decorators;
+        # provide no-op decorators if missing or not callable so import-time
+        # endpoint definitions don't fail under a minimalist MockFlask.
+        def _ensure_decorator(name):
+            try:
+                existing = getattr(app, name, None)
+            except Exception:
+                existing = None
+            if not existing or not callable(existing):
+                try:
+                    setattr(app, name, lambda *a, **k: (lambda f: f))
+                except Exception:
+                    pass
+
+        for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
+            _ensure_decorator(_d)
+
+        # Retry CORS now that shims are present; if it still fails, continue silently.
+        try:
+            CORS(app, resources={r"/*": {"origins": dev_origins}})
+        except Exception:
+            logging.exception('CORS initialization skipped due to MockFlask limitations')
 else:
     cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
-
-try:
-    CORS(app, origins=cors_origins)
-except Exception:
-    # If tests replace Flask with a very small MockFlask lacking expected
-    # lifecycle helper methods, provide no-op shims so import-time setup
-    # doesn't crash test collection.
-    def _no_op_decorator(fn):
-        return fn
-    def _no_op_function(*args, **kwargs):
-        return None
-
-    for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
-        if not hasattr(app, name):
-            try:
-                setattr(app, name, _no_op_decorator)
-            except Exception:
-                pass
-
-    for name in ('register_blueprint', 'add_url_rule'):
-        if not hasattr(app, name):
-            try:
-                setattr(app, name, _no_op_function)
-            except Exception:
-                pass
-    # route and HTTP method shortcuts (get/post/put/delete) are decorators;
-    # provide no-op decorators if missing or not callable so import-time
-    # endpoint definitions don't fail under a minimalist MockFlask.
-    def _ensure_decorator(name):
-        try:
-            existing = getattr(app, name, None)
-        except Exception:
-            existing = None
-        if not existing or not callable(existing):
-            try:
-                setattr(app, name, lambda *a, **k: (lambda f: f))
-            except Exception:
-                pass
-
-    for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
-        _ensure_decorator(_d)
-
-    # Retry CORS now that shims are present; if it still fails, continue silently.
     try:
         CORS(app, origins=cors_origins)
     except Exception:
-        logging.exception('CORS initialization skipped due to MockFlask limitations')
+        logging.exception('CORS initialization skipped due to environment limitations')
 
 # Register blueprints after final app creation
 try:

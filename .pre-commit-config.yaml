@@ -1,4 +1,20 @@
 repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+- repo: https://github.com/psf/black
+  rev: 24.8.0
+  hooks:
+  - id: black
+- repo: https://github.com/pre-commit/mirrors-eslint
+  rev: v9.11.1
+  hooks:
+  - id: eslint
+    additional_dependencies: ["eslint", "@eslint/js"]
+    files: ^frontend/
+repos:
   - repo: https://github.com/Yelp/detect-secrets
     # pin to a released tag or a commit SHA to avoid tag drift
     rev: v1.5.0

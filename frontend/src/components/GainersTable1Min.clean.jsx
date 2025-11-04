@@ -50,7 +50,7 @@ export default function GainersTable1Min({
   return (
     <div className="relative w-full h-full min-h-[320px] px-0 transition-all duration-300">
       {seeded && (
-        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-700/70 text-white font-bold tracking-wide">DEV</span>
+        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-700/70 text-white font-bold tracking-wide">seeded (dev)</span>
       )}
 
       {displayRows.map((item, idx) => {
