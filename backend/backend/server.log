@@ -21118,3 +21118,93 @@
 2025-08-13 23:48:48,172 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:48] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
 2025-08-13 23:48:51,923 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=1 HTTP/1.1" 200 -
 2025-08-13 23:48:51,925 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=25 HTTP/1.1" 200 -
+2025-11-05 20:53:20,384 - INFO - === CBMo4ers Configuration ===
+2025-11-05 20:53:20,384 - INFO - CACHE_TTL: 60
+2025-11-05 20:53:20,384 - INFO - INTERVAL_MINUTES: 3
+2025-11-05 20:53:20,384 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-05 20:53:20,384 - INFO - PORT: 5001
+2025-11-05 20:53:20,384 - INFO - HOST: 0.0.0.0
+2025-11-05 20:53:20,384 - INFO - DEBUG: False
+2025-11-05 20:53:20,384 - INFO - UPDATE_INTERVAL: 60
+2025-11-05 20:53:20,384 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-05 20:53:20,384 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-05 20:53:20,384 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-05 20:53:20,384 - INFO - API_TIMEOUT: 10
+2025-11-05 20:53:20,384 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-05 20:53:20,384 - INFO - ENABLE_1MIN: True
+2025-11-05 20:53:20,384 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-05 20:53:20,384 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-05 20:53:20,384 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-05 20:53:20,384 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-05 20:53:20,384 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-05 20:53:20,384 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-05 20:53:20,384 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-05 20:53:20,384 - INFO - ===============================
+2025-11-05 20:53:20,388 - INFO - === CBMo4ers Configuration ===
+2025-11-05 20:53:20,388 - INFO - CACHE_TTL: 60
+2025-11-05 20:53:20,388 - INFO - INTERVAL_MINUTES: 3
+2025-11-05 20:53:20,388 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-05 20:53:20,388 - INFO - PORT: 5001
+2025-11-05 20:53:20,388 - INFO - HOST: 127.0.0.1
+2025-11-05 20:53:20,388 - INFO - DEBUG: False
+2025-11-05 20:53:20,388 - INFO - UPDATE_INTERVAL: 60
+2025-11-05 20:53:20,388 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-05 20:53:20,388 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-05 20:53:20,388 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-05 20:53:20,388 - INFO - API_TIMEOUT: 10
+2025-11-05 20:53:20,388 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-05 20:53:20,388 - INFO - ENABLE_1MIN: True
+2025-11-05 20:53:20,388 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-05 20:53:20,388 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-05 20:53:20,388 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-05 20:53:20,388 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-05 20:53:20,388 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-05 20:53:20,388 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-05 20:53:20,388 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-05 20:53:20,388 - INFO - ===============================
+2025-11-05 20:53:20,388 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-11-05 20:53:20,388 - INFO - Background update thread started
+2025-11-05 20:53:20,388 - INFO - Server starting on http://127.0.0.1:5001
+2025-11-05 20:53:20,444 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5001
+2025-11-05 20:53:20,444 - INFO - [33mPress CTRL+C to quit[0m
+2025-11-05 20:53:21,187 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:21] "GET /api/health HTTP/1.1" 200 -
+2025-11-05 20:53:21,726 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:53:21,727 - WARNING - No crypto data available - 50 current prices, 50 symbols with history
+2025-11-05 20:53:23,152 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:53:30,719 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:30] "GET /api/health HTTP/1.1" 200 -
+2025-11-05 20:53:30,910 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:30] "GET /api/health HTTP/1.1" 200 -
+2025-11-05 20:53:32,256 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:53:32,257 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:32] "GET /api/component/top-banner-scroll HTTP/1.1" 200 -
+2025-11-05 20:53:33,418 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:53:33,419 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:33] "GET /api/component/bottom-banner-scroll HTTP/1.1" 200 -
+2025-11-05 20:53:33,551 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:33] "GET /api/snapshots/one-hour-volume HTTP/1.1" 200 -
+2025-11-05 20:53:34,920 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:53:34,922 - INFO - 1-min data processed (throttle 45s) retained=3 gainers=1 losers=2
+2025-11-05 20:53:34,923 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:34] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-05 20:53:35,916 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:53:36,941 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:53:36,943 - INFO - Successfully processed data: 4 gainers, 13 losers, 13 banner items
+2025-11-05 20:53:36,952 - INFO - 127.0.0.1 - - [05/Nov/2025 20:53:36] "GET /api/component/losers-table-3min HTTP/1.1" 200 -
+2025-11-05 20:54:23,176 - INFO - 3-min cache updated: 4 gainers, 13 losers, 13 banner items
+2025-11-05 20:54:24,510 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:55:25,879 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:55:27,319 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2025-11-05 20:55:27,320 - INFO - Successfully processed data: 9 gainers, 15 losers, 12 banner items
+2025-11-05 20:55:27,320 - INFO - 3-min cache updated: 9 gainers, 15 losers, 12 banner items
+2025-11-05 20:55:28,481 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:56:29,421 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:29] "GET /api/health HTTP/1.1" 200 -
+2025-11-05 20:56:29,610 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:29] "GET /api/health HTTP/1.1" 200 -
+2025-11-05 20:56:29,994 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:56:31,205 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:56:31,208 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:31] "GET /api/component/top-banner-scroll HTTP/1.1" 200 -
+2025-11-05 20:56:31,258 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:56:31,259 - INFO - Successfully processed data: 15 gainers, 3 losers, 13 banner items
+2025-11-05 20:56:31,259 - INFO - 3-min cache updated: 15 gainers, 3 losers, 13 banner items
+2025-11-05 20:56:32,145 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2025-11-05 20:56:32,146 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:32] "GET /api/component/bottom-banner-scroll HTTP/1.1" 200 -
+2025-11-05 20:56:32,219 - INFO - Successfully fetched 50 prices from Coinbase
+2025-11-05 20:56:32,281 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:32] "GET /api/snapshots/one-hour-volume HTTP/1.1" 200 -
+2025-11-05 20:56:32,566 - INFO - 1-min data processed (throttle 45s) retained=10 gainers=5 losers=5
+2025-11-05 20:56:32,569 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:32] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-05 20:56:32,687 - INFO - 127.0.0.1 - - [05/Nov/2025 20:56:32] "GET /api/component/losers-table-3min HTTP/1.1" 200 -

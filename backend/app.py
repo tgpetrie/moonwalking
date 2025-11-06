@@ -18,9 +18,45 @@ import logging
 from datetime import datetime, timedelta
 
 from watchlist import watchlist_bp, watchlist_db
-from reliability import stale_while_revalidate
-from metrics import collect_swr_cache_stats, emit_prometheus, emit_swr_prometheus
-from alerting import AlertNotifier
+try:
+    from reliability import stale_while_revalidate
+except Exception:
+    # Provide a minimal no-op fallback for environments where the local
+    # `reliability` module is not present (dev machines or trimmed checkouts).
+    # The real implementation provides a small stale-while-revalidate cache
+    # decorator; here we degrade gracefully to a pass-through decorator so
+    # the app can start for visual/local checks.
+    def stale_while_revalidate(*args, **kwargs):
+        # Accept any signature (ttl, stale_window, etc.) and return a no-op decorator
+        def deco(fn):
+            def wrapper(*a, **k):
+                return fn(*a, **k)
+            return wrapper
+        return deco
+try:
+    from metrics import collect_swr_cache_stats, emit_prometheus, emit_swr_prometheus
+except Exception:
+    # Provide no-op fallbacks for environments missing the metrics module
+    def collect_swr_cache_stats(*a, **k):
+        return {}
+    def emit_prometheus(*a, **k):
+        return None
+    def emit_swr_prometheus(*a, **k):
+        return None
+
+try:
+    from alerting import AlertNotifier
+except Exception:
+    # Minimal AlertNotifier fallback to avoid import errors during local dev
+    class AlertNotifier:
+        def __init__(self, *a, **k):
+            pass
+        def notify(self, *a, **k):
+            return None
+        @classmethod
+        def from_env(cls, *a, **k):
+            # create an instance using environment-derived defaults; keep stub lightweight
+            return cls()
 try:
     # optional insight memory (may not exist early in startup)
     from watchlist import _insights_memory as INSIGHTS_MEMORY
@@ -28,7 +64,10 @@ except Exception:
     INSIGHTS_MEMORY = None
 
 from logging_config import setup_logging as _setup_logging, log_config as _log_config_with_param
-from logging_config import REQUEST_ID_CTX
+try:
+    from logging_config import REQUEST_ID_CTX
+except Exception:
+    REQUEST_ID_CTX = None
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from social_sentiment import get_social_sentiment

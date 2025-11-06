@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { normalizeBannerRow } from '../lib/adapters';
 
 const BottomBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
@@ -10,22 +11,22 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
       try {
         const response = await fetchData(API_ENDPOINTS.bottomBanner);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const dataWithRanks = response.data.map((item, index) => ({
-            rank: index + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            volume_change: (typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct))
-              ? item.volume_change_1h_pct
-              : (typeof item.volume_change_estimate === 'number' ? item.volume_change_estimate : 0),
-            isEstimated: (typeof item.volume_change_is_estimated === 'boolean')
-              ? item.volume_change_is_estimated
-              : (!(typeof item.volume_change_1h_pct === 'number' && !Number.isNaN(item.volume_change_1h_pct)) && (typeof item.volume_change_estimate === 'number')),
-            volume_24h: item.volume_24h || 0,
-            badge: getBadgeStyle(item.volume_24h || 0),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
-          }));
+          const dataWithRanks = response.data.map((item, index) => {
+            const nr = normalizeBannerRow(item || {});
+            return {
+              rank: index + 1,
+              symbol: nr.symbol || item.symbol || 'N/A',
+              price: nr.currentPrice ?? (item.current_price ?? 0),
+              volume_change: nr.volumeChangePct ?? (typeof item.volume_change_1h_pct === 'number' ? item.volume_change_1h_pct : (typeof item.volume_change_estimate === 'number' ? item.volume_change_estimate : 0)),
+              isEstimated: Boolean(nr.volumeChangeIsEstimated),
+              volume_24h: nr.volume24h ?? (item.volume_24h || 0),
+              badge: getBadgeStyle(nr.volume24h ?? (item.volume_24h || 0)),
+              trendDirection: nr.trendDirection ?? item.trend_direction ?? 'flat',
+              trendStreak: nr.trendStreak ?? item.trend_streak ?? 0,
+              trendScore: nr.trendScore ?? item.trend_score ?? 0,
+              _raw: item,
+            };
+          });
           if (isMounted) {
             // Update data with real live data
             setData(dataWithRanks.slice(0, 20));

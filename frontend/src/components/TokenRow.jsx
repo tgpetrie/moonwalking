@@ -1,5 +1,13 @@
 import React, { useEffect } from "react";
-import { formatSymbol } from "../lib/format";
+// local copy of formatSymbol to avoid build-time resolution issues
+function formatSymbol(raw) {
+  if (!raw) return "";
+  try {
+    return String(raw).replace(/-USD$/i, "");
+  } catch (e) {
+    return String(raw || "");
+  }
+}
 import { formatPercentage } from "../utils/formatters.js";
 
 export default function TokenRow(props) {

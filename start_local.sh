@@ -64,11 +64,51 @@ echo "[start_local] starting backend (Flask @5001)..."
 (
   cd "$ROOT_DIR/backend"
   mkdir -p "$DEVLOG_DIR"
-  nohup env DISABLE_TALISMAN=1 python3 app.py --port 5001 --host 127.0.0.1 > "$BACKEND_LOG" 2>&1 &
+
+  # Prefer using a local virtualenv at backend/.venv. If Flask isn't importable, create venv and install requirements.
+  PYTHON_BIN=python3
+  if ! $PYTHON_BIN -c "import flask" >/dev/null 2>&1; then
+    if [ -x "$ROOT_DIR/backend/.venv/bin/python" ]; then
+      PYTHON_BIN="$ROOT_DIR/backend/.venv/bin/python"
+    else
+      echo "[start_local] python Flask not available; creating virtualenv and installing backend dependencies..."
+      $PYTHON_BIN -m venv "$ROOT_DIR/backend/.venv"
+      export PATH="$ROOT_DIR/backend/.venv/bin:$PATH"
+      # upgrade pip and install requirements (non-interactive)
+      "$ROOT_DIR/backend/.venv/bin/python" -m pip install --upgrade pip wheel >/dev/null 2>&1 || true
+      if [ -f "$ROOT_DIR/backend/requirements.txt" ]; then
+        "$ROOT_DIR/backend/.venv/bin/python" -m pip install -r "$ROOT_DIR/backend/requirements.txt" >/dev/null 2>&1 || true
+      fi
+      PYTHON_BIN="$ROOT_DIR/backend/.venv/bin/python"
+    fi
+  fi
+
+  # Ensure Python can import local backend modules by adding backend dir to PYTHONPATH
+  export PYTHONPATH="$ROOT_DIR/backend${PYTHONPATH:+:$PYTHONPATH}"
+  # Execute app.py by absolute path so Python's sys.path[0] is the backend directory
+  nohup env DISABLE_TALISMAN=1 PYTHONPATH="$PYTHONPATH" "$PYTHON_BIN" "$ROOT_DIR/backend/app.py" --port 5001 --host 127.0.0.1 > "$BACKEND_LOG" 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
 )
 sleep 1
 echo "[start_local] backend pid $(cat "$BACKEND_PID_FILE")"
+echo "[start_local] waiting for backend to accept connections..."
+for i in 1 2 3 4 5 6 7 8; do
+  if curl -sS "http://127.0.0.1:${FLASK_PORT}/api/health" >/dev/null 2>&1; then
+    echo "[start_local] backend responding"
+    break
+  else
+    sleep 1
+  fi
+  if [ "$i" -eq 8 ]; then
+    echo "[start_local] backend did not start or is unhealthy. Tail of backend log:" 
+    tail -n 120 "$BACKEND_LOG" || true
+    echo "If the backend failed to start due to missing Python dependencies, you can create a venv and install requirements:"
+    echo "  python3 -m venv backend/.venv"
+    echo "  backend/.venv/bin/python -m pip install --upgrade pip wheel"
+    echo "  backend/.venv/bin/python -m pip install -r backend/requirements.txt"
+    echo "Then re-run ./start_local.sh"
+  fi
+done
 
 echo "[start_local] starting bridge (Node @5100)..."
 (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { normalizeBannerRow } from '../lib/adapters';
 
 const TopBannerScroll = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
@@ -10,16 +11,20 @@ const TopBannerScroll = ({ refreshTrigger }) => {
       try {
         const response = await fetchData(API_ENDPOINTS.topBanner);
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const dataWithRanks = response.data.map((item, index) => ({
-            rank: index + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_1h || 0,
-            badge: getBadgeStyle(Math.abs(item.price_change_1h || 0)),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
-          }));
+          const dataWithRanks = response.data.map((item, index) => {
+            const nr = normalizeBannerRow(item || {});
+            return {
+              rank: index + 1,
+              symbol: nr.symbol || item.symbol || 'N/A',
+              price: nr.currentPrice ?? (item.current_price ?? 0),
+              change: nr.priceChange1h ?? (item.price_change_1h ?? 0),
+              badge: getBadgeStyle(Math.abs(nr.priceChange1h ?? (item.price_change_1h ?? 0))),
+              trendDirection: nr.trendDirection ?? item.trend_direction ?? 'flat',
+              trendStreak: nr.trendStreak ?? item.trend_streak ?? 0,
+              trendScore: nr.trendScore ?? item.trend_score ?? 0,
+              _raw: item,
+            };
+          });
           if (isMounted) {
             // Update data with real live data
             setData(dataWithRanks.slice(0, 20));
