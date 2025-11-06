@@ -24,3 +24,10 @@
 Error: read ECONNRESET
     at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
 6:01:37 PM [vite] page reload src/components/Watchlist.backup.jsx
+7:02:34 PM [vite] hmr update /src/components/GainersTable1Min.jsx, /src/index.css
+7:02:45 PM [vite] hmr update /src/components/GainersTable3Min.jsx, /src/index.css
+7:02:55 PM [vite] hmr update /src/components/LosersTable.jsx, /src/index.css
+7:03:09 PM [vite] page reload src/components/LosersTable3Min.jsx
+7:03:35 PM [vite] page reload src/utils/formatters.js
+7:04:03 PM [vite] hmr update /src/components/TokenRow.jsx, /src/index.css
+7:04:36 PM [vite] page reload src/App.legacy.jsx

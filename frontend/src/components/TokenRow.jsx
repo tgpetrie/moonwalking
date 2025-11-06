@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { formatSymbol } from "../lib/format";
+import { formatPercentage } from "../utils/formatters.js";
 
 export default function TokenRow(props) {
   const {
@@ -47,8 +48,9 @@ export default function TokenRow(props) {
   const pctStr = (() => {
     const val = Number(pctRaw);
     if (Number.isNaN(val)) return "0.00%";
-    const sign = val >= 0 ? "+" : "";
-    return `${sign}${val.toFixed(3)}%`;
+    // Backend historically returns percent as a raw percentage (e.g. 0.23 -> 0.23%)
+    // formatPercentage expects fraction=false to treat the number as percent value.
+    return formatPercentage(val, { sign: true, fraction: false });
   })();
 
   // orange for gainers, purple for losers

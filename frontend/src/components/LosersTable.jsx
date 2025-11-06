@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
 import { formatSymbol } from "../lib/format";
+import { normalizeTableRow } from "../lib/adapters";
 import SymbolInfoPanel from "./SymbolInfoPanel";
 
 export default function LosersTable({ items: incoming }) {
@@ -19,14 +20,15 @@ export default function LosersTable({ items: incoming }) {
 
   // map backend row -> TokenRow props (ticker-only symbol)
   const mapped = raw.map((row, idx) => {
-    const ticker = formatSymbol(row.symbol) || row.symbol;
+    const nr = normalizeTableRow(row);
+    const ticker = formatSymbol(nr.symbol || row.symbol) || nr.symbol || row.symbol;
     return {
-      rank: row.rank ?? idx + 1,
+      rank: nr.rank ?? row.rank ?? idx + 1,
       symbol: ticker,
-      current_price: row.current_price,
-      previous_price: row.initial_price_3min,
+      current_price: nr.currentPrice ?? row.current_price,
+      previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
       price_change_percentage_1min: undefined,
-      price_change_percentage_3min: row.price_change_percentage_3min,
+      price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
       isGainer: false, // loser styling (purple)
     };
   });

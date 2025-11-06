@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
+import { normalizeTableRow } from "../lib/adapters";
 
 export default function LosersTable3Min() {
   const { data: payload = {} } = useHybridLiveNamed({
@@ -12,15 +13,18 @@ export default function LosersTable3Min() {
 
   const raw = Array.isArray(payload?.data) ? payload.data : [];
 
-  const mapped = raw.map((row, idx) => ({
-    rank: row.rank ?? idx + 1,
-    symbol: row.symbol,
-    current_price: row.current_price,
-    previous_price: row.initial_price_3min,
-    price_change_percentage_1min: undefined,
-    price_change_percentage_3min: row.price_change_percentage_3min,
-    isGainer: false, // PURPLE accent
-  }));
+  const mapped = raw.map((row, idx) => {
+    const nr = normalizeTableRow(row);
+    return {
+      rank: nr.rank ?? row.rank ?? idx + 1,
+      symbol: nr.symbol ?? row.symbol,
+      current_price: nr.currentPrice ?? row.current_price,
+      previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
+      price_change_percentage_1min: undefined,
+      price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
+      isGainer: false, // PURPLE accent
+    };
+  });
 
   const [expanded, setExpanded] = useState(false);
   const visible = useMemo(

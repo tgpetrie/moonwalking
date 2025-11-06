@@ -111,7 +111,7 @@ export default function App() {
           src="/purple-rabbit-bg.png"
           alt="BHABIT Background"
           className="w-96 h-96 sm:w-[32rem] sm:h-[32rem] lg:w-[40rem] lg:h-[40rem]"
-          style={{ opacity: 0.05 }}
+          style={{ opacity: 0.08, filter: 'blur(18px) saturate(120%)' }}
         />
       </div>
 

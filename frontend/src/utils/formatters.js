@@ -71,7 +71,7 @@ export function formatCurrency(value, { currency = formatterRegistry.currency, c
   return `${negative ? '-' : (sign && !negative ? '+' : '')}${formatted} ${currency}`.trim();
 }
 
-export function formatPercent(value, { fromFraction = true, max = 2, trim = true, sign = true, locale = formatterRegistry.locale } = {}) {
+export function formatPercent(value, { fromFraction = true, max = 3, trim = true, sign = true, locale = formatterRegistry.locale } = {}) {
   const n = Number(value);
   if (!Number.isFinite(n)) {
     return PLACEHOLDER;
@@ -98,7 +98,7 @@ export const formatPrice = (price) => formatCurrency(price, { currency: formatte
 
 export const formatPercentage = (
   value,
-  { decimals = 3, sign = false, fraction = false } = {}
+  { decimals = 4, sign = false, fraction = false } = {}
 ) => {
   const n = Number(value);
   if (!Number.isFinite(n)) {

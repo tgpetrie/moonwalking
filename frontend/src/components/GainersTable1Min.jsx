@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import TokenRow from "./TokenRow";
 import { formatSymbol } from "../lib/format";
+import { normalizeTableRow } from "../lib/adapters";
 import SymbolInfoPanel from "./SymbolInfoPanel";
 
 export default function GainersTable1Min({ items: incoming }) {
@@ -19,13 +20,15 @@ export default function GainersTable1Min({ items: incoming }) {
 
   // map backend row -> TokenRow props (ticker-only symbol)
   const mapped = raw.map((row, idx) => {
-    const ticker = formatSymbol(row.symbol) || row.symbol;
+    const nr = normalizeTableRow(row);
+    const ticker = formatSymbol(nr.symbol || row.symbol) || nr.symbol || row.symbol;
     return {
-      rank: row.rank ?? idx + 1,
+      rank: nr.rank ?? row.rank ?? idx + 1,
       symbol: ticker,
-      current_price: row.current_price,
-      previous_price: row.initial_price_1min,
-      price_change_percentage_1min: row.price_change_percentage_1min,
+      // prefer normalized canonical fields but fall back to raw 1min fields when present
+      current_price: nr.currentPrice ?? row.current_price,
+      previous_price: row.initial_price_1min ?? nr._raw?.initial_price_1min ?? null,
+      price_change_percentage_1min: row.price_change_percentage_1min ?? nr._raw?.price_change_percentage_1min ?? null,
       price_change_percentage_3min: undefined,
       isGainer: true,
     };
