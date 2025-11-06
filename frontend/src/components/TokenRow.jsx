@@ -11,6 +11,9 @@ export default function TokenRow(props) {
     price_change_percentage_3min,
     isGainer = true,
     onInfo,
+    // optional override: when true, prefer showing volume (abbreviated)
+    volume,
+    displayVolumeAsPrice = false,
   } = props;
 
   // Defensive: ticker-only symbol (trim "-USD") via shared util
@@ -68,6 +71,18 @@ export default function TokenRow(props) {
     return `$${num.toPrecision(4)}`;
   };
 
+  const fmtVolume = (v) => {
+    const n = Number(v || 0);
+    if (!Number.isFinite(n) || n === 0) return '--';
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1e12) return sign + (abs / 1e12).toFixed(2).replace(/\.0+$/,'') + 'T';
+    if (abs >= 1e9)  return sign + (abs / 1e9).toFixed(2).replace(/\.0+$/,'') + 'B';
+    if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(2).replace(/\.0+$/,'') + 'M';
+    if (abs >= 1e3)  return sign + (abs / 1e3).toFixed(1).replace(/\.0+$/,'') + 'k';
+    return sign + String(abs.toFixed(0));
+  };
+
   //
   // ROW HOVER BG (we assume you already defined --row-hover-gain / --row-hover-lose in index.css)
   //
@@ -116,7 +131,7 @@ export default function TokenRow(props) {
           </div>
 
           <div className="flex flex-col leading-tight">
-            <div className={livePriceClass}>{fmtPrice(current_price)}</div>
+            <div className={livePriceClass}>{displayVolumeAsPrice ? fmtVolume(volume) : fmtPrice(current_price)}</div>
             {previous_price != null && (
               <div className={prevPriceClass}>{fmtPrice(previous_price)}</div>
             )}

@@ -9,6 +9,8 @@
   --primary-orange: #FF6B00;
   --primary-blue: #00BFFF;
   --primary-pink: #FF69B4;
+  /* Primary purple used across gradients and glows (was missing causing gradient failures) */
+  --primary-purple: #8A2BE2;
   
   /* Accent */
   --accent-purple: #8A2BE2;

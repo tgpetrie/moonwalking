@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api';
 import { formatPrice } from '../utils/formatters.js';
+import { normalizeTableRow } from '../lib/adapters';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import { RiDeleteBinLine } from 'react-icons/ri';
 import { FiSearch } from 'react-icons/fi';
@@ -185,11 +186,14 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     const map = {};
     symbols.forEach((s) => {
       if (latestData?.prices?.[s]) {
-        map[s] = { price: latestData.prices[s].price, change: latestData.prices[s].changePercent ?? latestData.prices[s].change ?? null };
-      } else if (Array.isArray(latestData?.crypto)) {
-        const hit = latestData.crypto.find((c) => (c.symbol?.replace('-USD','') || c.symbol) === s);
-        if (hit) map[s] = { price: hit.current_price ?? hit.price ?? null, change: hit.price_change_percentage_1min ?? hit.change ?? null };
-      }
+          map[s] = { price: latestData.prices[s].price, change: latestData.prices[s].changePercent ?? latestData.prices[s].change ?? null };
+        } else if (Array.isArray(latestData?.crypto)) {
+          const hit = latestData.crypto.find((c) => (c.symbol?.replace('-USD','') || c.symbol) === s);
+          if (hit) {
+            const nr = normalizeTableRow(hit);
+            map[s] = { price: nr.currentPrice ?? nr._raw?.current_price ?? nr._raw?.price ?? null, change: nr.priceChange1h ?? nr._raw?.price_change_percentage_1min ?? nr._raw?.change ?? null };
+          }
+        }
     });
     setWatchlistData((prev) => ({ ...prev, ...map }));
      

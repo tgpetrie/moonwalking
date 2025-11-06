@@ -21,22 +21,12 @@ type Options = {
 const CACHE = new Map<string, CacheEntry>();
 const DEFAULT_TTL = 60_000;
 
+import { fetchJson } from '../lib/api';
+
 async function fetchSentiment(symbol: string): Promise<SentimentData> {
-  const resp = await fetch(`/api/sentiment?symbol=${encodeURIComponent(symbol)}`, {
-    method: 'GET',
-    headers: { accept: 'application/json' },
-    cache: 'no-store',
-  });
-  if (!resp.ok) {
-    const error = new Error(`Sentiment fetch failed: ${resp.status}`);
-    (error as any).status = resp.status;
-    throw error;
-  }
-  const payload = await resp.json();
-  if (payload && typeof payload === 'object' && 'data' in payload) {
-    return (payload as any).data;
-  }
-  return payload;
+  const payload = await fetchJson(`/api/sentiment?symbol=${encodeURIComponent(symbol)}`, { cache: 'no-store' });
+  if (payload && typeof payload === 'object' && 'data' in payload) return (payload as any).data;
+  return payload as SentimentData;
 }
 
 export function useSentiment(symbol: string | undefined, options: Options = {}): SentimentState {

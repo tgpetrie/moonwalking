@@ -23,6 +23,7 @@ const AskCodexPanel = React.lazy(() => import('./components/AskCodexPanel.jsx'))
 // Mobile debugging component
 // Data flow test component
 import DataFlowTest from './components/DataFlowTest.jsx';
+import DevDataOverlay from './components/DevDataOverlay.jsx';
 import MetricsPanel from './components/MetricsPanel.jsx';
 // SharedOneMinGainers appears unused directly here; keep as deferred import if needed later.
 // const SharedOneMinGainers = React.lazy(() => import('./components/SharedOneMinGainers.jsx'));
@@ -103,6 +104,7 @@ export default function App() {
     <div className="min-h-screen bg-dark text-white relative">
       {/* MobileDebugger removed per request */}
       <DataFlowTest />
+  <DevDataOverlay />
       {/* Background Purple Rabbit */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
         <img

@@ -1,12 +1,9 @@
 import React from 'react';
-import { endpoints } from '../lib/api.ts';
+import { endpoints, fetchJson } from '../lib/api';
 const pollMs = Number(import.meta.env.VITE_POLL_MS || 10000);
 
-async function fetchJSON(url) {
-  const r = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
+// Use centralized fetchJson which normalizes API paths and handles timeouts
+const fetchJSON = fetchJson;
 
 function useGainersData() {
   const [rows, setRows] = React.useState([]);

@@ -94,6 +94,11 @@ _setup_logging()
 
 # Flask App Setup (final app instance)
 app = Flask(__name__)
+# Provide optional snapshot-based volume helper (working913 compatibility)
+try:
+    from utils import get_1h_volume_weighted_data  # type: ignore
+except Exception:
+    get_1h_volume_weighted_data = None
 # Ensure minimal lifecycle and routing helpers exist even when tests replace
 # Flask with a very small MockFlask. This prevents import-time endpoint
 # decorators from failing during test collection.
@@ -151,6 +156,15 @@ if cors_env == '*':
     dev_origins = [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        # Also accept the static-serve port (5174) commonly used for built SPA
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
+        # Allow local LAN addresses on the 192.168.*.* range so devices on the
+        # same network (or the host using the network IP) can access the API
+        # when the SPA is served from that address during development. This is
+        # intentionally restricted to the private 192.168.* range and not a
+        # permissive wildcard for production.
+        r"^https?://192\.168\.\d+\.\d+(:\d+)?$",
     ]
     try:
         CORS(app, resources={r"/*": {"origins": dev_origins}})
@@ -555,6 +569,32 @@ def api_health():
         'errors_5xx': _ERROR_STATS['5xx']
     }
     return jsonify(HealthResponse(**payload).model_dump())
+
+
+@app.route("/api/snapshots/one-hour-volume", methods=["GET"])
+def one_hour_volume():
+    """Return 1h volume change rows expected by VolumeBannerScroll."""
+    try:
+        if callable(get_1h_volume_weighted_data):
+            rows = get_1h_volume_weighted_data()
+            normalized = []
+            for item in (rows or []):
+                vol_now = item.get("volume_now") or item.get("volume") or item.get("current_volume")
+                vol_ago = item.get("volume_1h_ago") or item.get("prev_volume") or item.get("previous_volume")
+                pct = item.get("volume_change_pct") or item.get("percent_change")
+                if pct is None and isinstance(vol_now, (int, float)) and isinstance(vol_ago, (int, float)) and vol_ago:
+                    pct = ((vol_now - vol_ago) / vol_ago) * 100.0
+                normalized.append({
+                    **item,
+                    "volume_now": vol_now,
+                    "volume_1h_ago": vol_ago,
+                    "volume_change_pct": pct,
+                    "percent_change": pct,
+                })
+            return jsonify({"data": normalized}), 200
+        return jsonify({"data": []}), 200
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/metrics')
 def metrics():

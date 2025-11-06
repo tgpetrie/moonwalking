@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import { API_ENDPOINTS } from '../api.js';
+import { fetchJson } from '../lib/api.js';
+import { formatPercent } from '../utils/formatters';
 import formatSymbol from '../lib/format.js';
+import { normalizeBannerRow } from '../lib/adapters';
 
 // Prefer an edge Worker URL when provided; fallback to backend route
 const EDGE_URL = import.meta.env?.VITE_BOTTOM_BANNER_URL;
@@ -32,40 +35,49 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
     let timerId = null;
     const fetchBottomBannerData = async () => {
       try {
+        // Use canonical fetchJson. Try EDGE url first, then fall back to backend route.
         const raw = await (async () => {
           try {
-            const res = await fetch(BANNER_API);
-            if (res.ok) return await res.json();
-          } catch (_) { /* fall back below */ }
-          return await fetchData(FALLBACK_API);
+            const tryRes = await fetchJson(BANNER_API);
+            if (tryRes) return tryRes;
+          } catch (_e) {
+            // ignore and fall back
+          }
+          return await fetchJson(FALLBACK_API);
         })();
         const rows = Array.isArray(raw?.rows) ? raw.rows
                   : (Array.isArray(raw?.data) ? raw.data : []);
         if (rows && rows.length > 0) {
-          const dataWithRanks = rows.map((item, index) => {
-            const vol24 = Number(item.volume_24h ?? 0);
-            const pctRaw = (item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)))
-              ? Number(item.volume_change_1h_pct)
-              : (item.volume_change_estimate != null && !Number.isNaN(Number(item.volume_change_estimate))
-                  ? Number(item.volume_change_estimate)
-                  : (Number(item.price_change_1h ?? 0) * 0.5));
-            const isEst = !(item.volume_change_1h_pct != null && !Number.isNaN(Number(item.volume_change_1h_pct)));
+          // normalize rows with adapter first
+          const normalized = rows.map((r) => normalizeBannerRow(r));
+          const dataWithRanks = normalized.map((item, index) => {
+            const vol24 = Number(item.volume24h ?? 0) || Number(item.volume24h ?? 0);
+            const pctRaw = item.volumeChangePct != null ? Number(item.volumeChangePct) : 0;
             return ({
               rank: index + 1,
               symbol: formatSymbol(item.symbol) || 'N/A',
-              price: Number(item.current_price ?? item.price ?? 0),
+              price: Number(item.currentPrice ?? 0),
               volume_24h: vol24,
               volume_change: pctRaw,
-              isEstimated: Boolean(item.volume_change_is_estimated ?? isEst),
+              isEstimated: Boolean(item.volumeChangeIsEstimated),
               badge: getBadgeStyle(vol24),
-              trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-              trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-              trendScore: item.trend_score ?? item.trendScore ?? 0
+              trendDirection: item.trendDirection ?? item.trendDirection ?? 'flat',
+              trendStreak: item.trendStreak ?? item.trendStreak ?? 0,
+              trendScore: item.trendScore ?? item.trendScore ?? 0
             });
           });
           if (isMounted) {
             // Update data with real live data
             setData(dataWithRanks.slice(0, 20));
+          }
+          // dev: show a quick console snapshot when running Vite in dev
+          try {
+            if (import.meta.env.DEV && typeof console !== 'undefined') {
+              // log summary: length and first item
+              console.debug('[BottomBannerScroll] normalized data length', normalized.length, 'first:', normalized[0]);
+            }
+          } catch (e) {
+            // ignore logging errors
           }
         } else if (isMounted && data.length === 0) {
           // Only use fallback if we have no data at all
@@ -150,7 +162,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
                       <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
+                        Vol: {formatPercent(vc, { fromFraction: false, max: 3, sign: true })}
                       </span>
                     ); })()}
                     {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}
@@ -197,7 +209,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   <div className="flex items-center gap-1 font-bold">
                     {(() => { const vc = Number(coin.volume_change || 0); return (
                       <span className={(vc >= 0 ? 'text-purple' : 'text-pink') + ' text-xl'}>
-                        Vol: {vc >= 0 ? '+' : ''}{Number.isFinite(vc) ? vc.toFixed(3) : '0.000'}%
+                        Vol: {formatPercent(vc, { fromFraction: false, max: 3, sign: true })}
                       </span>
                     ); })()}
                     {(() => { const vc = Number(coin.volume_change || 0); if (!Number.isFinite(vc) || Math.abs(vc) < 0.01) return null; const color = vc >= 0 ? '#C026D3' : '#FF69B4'; const fontSize = Math.abs(vc) >= 2 ? '1.2em' : Math.abs(vc) >= 0.5 ? '1.0em' : '0.9em'; return (<span className="font-semibold" style={{ fontSize, color }} aria-label={vc >= 0 ? 'trend up' : 'trend down'}>{vc >= 0 ? '↑' : '↓'}</span>); })()}

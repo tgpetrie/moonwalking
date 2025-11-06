@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import TokenRow from './TokenRow.jsx';
+import { normalizeTableRow } from '../lib/adapters';
 import {
   API_ENDPOINTS,
   fetchData,
@@ -37,35 +38,19 @@ export default function GainersTable({ refreshMs = DEFAULT_REFRESH_MS }) {
     let cancelled = false;
     let timer;
 
-    const normalizeRows = (data = []) =>
-      data.map((row) => {
-        const rawSymbol = row.symbol || row.ticker || '';
-        const normalizedSymbol = rawSymbol.toUpperCase().replace(/-USD$/, '');
-        const candidatePrices = [row.current_price, row.price, row.last_price, row.currentPrice];
-        const priceValue = candidatePrices.find((value) => typeof value === 'number');
-        const candidatePctFields = [
-          row.price_change_percentage_3min,
-          row.change3m,
-          row.change,
-          row.percent_change,
-        ];
-        const pctValue = candidatePctFields.reduce((acc, value) => {
-          if (acc !== null) return acc;
-          if (typeof value === 'number') return value;
-          const parsed = Number(value);
-          if (!Number.isNaN(parsed)) {
-            return parsed;
-          }
-          return null;
-        }, null);
-
-        return {
-          ...row,
-          symbol: normalizedSymbol,
-          current_price: priceValue ?? null,
-          price_change_percentage_3min: pctValue ?? 0,
-        };
-      });
+    // prefer adapter normalization to keep shapes consistent across components
+    const normalizeRows = (data = []) => data.map((row) => {
+      const norm = normalizeTableRow(row || {});
+      return {
+        ...row,
+        symbol: (norm.symbol || '').toUpperCase().replace(/-USD$/, ''),
+        current_price: (norm.currentPrice != null ? Number(norm.currentPrice) : null),
+        price_change_percentage_3min: (norm.priceChange1h != null ? Number(norm.priceChange1h) : 0),
+        // include canonical volume fields for downstream components
+        volume_24h: Number(norm.volume24h || 0),
+        volume_change_pct: Number(norm.volumeChangePct || 0),
+      };
+    });
 
     const fetchRows = async () => {
       try {
@@ -73,7 +58,15 @@ export default function GainersTable({ refreshMs = DEFAULT_REFRESH_MS }) {
         const response = await fetchData(endpoint);
         if (cancelled) return;
         const dataset = Array.isArray(response?.data) ? response.data : [];
-        setRows(normalizeRows(dataset));
+        const normalized = normalizeRows(dataset);
+        setRows(normalized);
+        // Dev: log samples so we can verify UI data presence quickly
+        try {
+          if (import.meta.env && import.meta.env.DEV && typeof console !== 'undefined') {
+            console.debug('[GainersTable] fetched dataset sample', dataset.slice(0,3));
+            console.debug('[GainersTable] normalized sample', normalized.slice(0,3));
+          }
+        } catch (e) {}
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -152,10 +145,12 @@ export default function GainersTable({ refreshMs = DEFAULT_REFRESH_MS }) {
       return (
         <TokenRow
           key={`${row.symbol || 'row'}-${index}`}
-          row={row}
+          {...row}
           isWatched={isWatched}
           isGainer={true}
           onToggleWatch={handleToggleWatch}
+          volume={row.volume_24h}
+          displayVolumeAsPrice={true}
         />
       );
     });

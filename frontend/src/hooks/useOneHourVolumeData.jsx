@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fetchJson } from "../lib/api";
 
 /**
  * Hook for fetching 1-hour volume data via HTTP polling
@@ -16,13 +17,6 @@ export default function useOneHourVolumeData(pollInterval = 7000) {
     let timer;
 
     const fetchData = async () => {
-      const SNAPSHOTS_ENABLED = String(import.meta.env.VITE_USE_SNAPSHOTS || "false") === "true";
-      if (!SNAPSHOTS_ENABLED) {
-        // snapshots disabled in dev; no-op and keep empty rows
-        setLoading(false);
-        setError(null);
-        return;
-      }
       try {
         // Abort any in-flight request
         abortRef.current?.abort();
@@ -31,10 +25,7 @@ export default function useOneHourVolumeData(pollInterval = 7000) {
 
         setLoading(true);
 
-        const res = await fetch("/api/snapshots/one-hour-volume", { signal: ac.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const json = await res.json();
+        const json = await fetchJson("/api/snapshots/one-hour-volume", { signal: ac.signal });
         if (!mounted) return;
 
         // Extract rows from response
@@ -45,7 +36,37 @@ export default function useOneHourVolumeData(pollInterval = 7000) {
           : Array.isArray(json)
           ? json
           : [];
-        setRows(data);
+
+        // Normalize to ensure volume percent change is available for the UI
+        const normalized = data.map((item) => {
+          const volNow =
+            item.volume_now ?? item.volume ?? item.vol_now ?? item.now ?? item.current_volume ?? null;
+          const volAgo =
+            item.volume_1h_ago ?? item.prev_volume ?? item.volume_prev ?? item.ago ?? item.previous_volume ?? null;
+          let pct = item.volume_change_pct ?? item.percent_change ?? null;
+
+          if (
+            (pct === null || Number.isNaN(pct)) &&
+            typeof volNow === "number" &&
+            typeof volAgo === "number" &&
+            isFinite(volNow) &&
+            isFinite(volAgo) &&
+            volAgo > 0
+          ) {
+            pct = ((volNow - volAgo) / volAgo) * 100;
+          }
+
+          return {
+            ...item,
+            volume_now: volNow,
+            volume_1h_ago: volAgo,
+            volume_change_pct: pct,
+            // Many UI components expect `percent_change`; mirror it if missing
+            percent_change: pct,
+          };
+        });
+
+        setRows(normalized);
         setError(null);
       } catch (e) {
         if (!mounted) return;

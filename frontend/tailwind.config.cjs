@@ -21,6 +21,25 @@ module.exports = {
           danger: "#ff3b3b",
           chipBg: "#0a0a0f",
         },
+        // Back-compat aliases used across components
+        dark: '#000000',
+        teal: '#00f5b5',
+        'teal-300': '#2dd4bf',
+        purple: {
+          DEFAULT: '#a24bff',
+          300: '#caa3ff',
+          400: '#b67bff',
+          600: '#8a2be2',
+          700: '#6b21c8'
+        },
+        pink: {
+          DEFAULT: '#FF69B4',
+          300: '#ff9bbf',
+          400: '#ff79c7'
+        },
+        fuchsia: {
+          400: '#d946ef'
+        }
       },
       fontFamily: {
         sans: ["Raleway", "system-ui", "sans-serif"],

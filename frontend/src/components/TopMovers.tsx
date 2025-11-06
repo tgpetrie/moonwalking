@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { endpoints } from '../lib/api'
+import { endpoints, fetchJson } from '../lib/api'
+import { formatPercent } from '../utils/formatters'
 
 type SWRBlock = {
   source: string
@@ -42,9 +43,7 @@ export default function TopMovers() {
   async function fetchOnce() {
     setError(null)
     try {
-  const res = await fetch(endpoints.topMoversBar, { headers: { accept: 'application/json' } })
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      const json: TopMoversAPI = await res.json()
+      const json: TopMoversAPI = await fetchJson(endpoints.topMoversBar)
       setPayload(json)
     } catch (e: any) {
       setError(e?.message || 'fetch failed')
@@ -114,7 +113,7 @@ export default function TopMovers() {
                 <span style={{ fontSize: 12, opacity: 0.8 }}>${fmt(price, 4)}</span>
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: up ? 'green' : 'crimson' }}>
-                {up ? '+' : ''}{fmt(change, 2)}%
+                {formatPercent(change, { fromFraction: false, max: 2 })}
               </div>
             </div>
           )

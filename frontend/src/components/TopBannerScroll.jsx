@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { useBannerStream } from "../hooks/useBannerStream";
 import { formatSymbol } from "../lib/format";
+import { normalizeBannerRow } from "../lib/adapters";
 
 export default function TopBannerScroll({ items: incoming }) {
   const { priceBanner } = useBannerStream();
@@ -8,13 +9,11 @@ export default function TopBannerScroll({ items: incoming }) {
   const items = useMemo(() => {
     const source = Array.isArray(incoming) && incoming.length ? incoming : (priceBanner || []);
     return source.map((row, idx) => {
-      const symbol = row.symbol || row.ticker || row.asset || "";
+      const n = normalizeBannerRow(row);
+      const symbol = n.symbol || row.symbol || row.ticker || row.asset || "";
       const cleanSymbol = formatSymbol(symbol) || symbol || "--";
-
-      const price = row.current_price ?? row.price ?? row.last_price ?? null;
-
-      const pctRaw = row.price_change_percentage_1h ?? row.pct_change_1h ?? row.percent_change ?? row.change_pct ?? 0;
-      const pctNum = Number(pctRaw) || 0;
+      const price = n.currentPrice ?? row.current_price ?? row.price ?? row.last_price ?? null;
+      const pctNum = Number(n.priceChange1h ?? 0) || 0;
       const pctSign = pctNum >= 0 ? "+" : "";
       const pctStr = `${pctSign}${pctNum.toFixed(2)}%`;
 

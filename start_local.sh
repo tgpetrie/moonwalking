@@ -56,12 +56,13 @@ VITE_WS_URL=ws://127.0.0.1:5173
 # Default to enabled websockets; override with VITE_ENABLE_WS=0 when desired
 VITE_ENABLE_WS=${VITE_ENABLE_WS:-1}
 VITE_DISABLE_LOCAL_PROBE=1
+VITE_USE_SNAPSHOTS=1
 EOF
 
 echo "[start_local] starting backend (Flask @5001)..."
 (
   cd "$ROOT_DIR/backend"
-  nohup python3 app.py --port 5001 --host 127.0.0.1 > "$BACKEND_LOG" 2>&1 &
+  nohup env DISABLE_TALISMAN=1 python3 app.py --port 5001 --host 127.0.0.1 > "$BACKEND_LOG" 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
 )
 sleep 1

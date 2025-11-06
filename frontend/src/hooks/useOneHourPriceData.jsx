@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { endpoints } from "../lib/api";
+import { endpoints, fetchJson } from "../lib/api";
 
 /**
  * Hook for fetching 1-hour price data via HTTP polling
@@ -25,11 +25,8 @@ export default function useOneHourPriceData(pollInterval = 5000) {
 
         setLoading(true);
 
-  // Use centralized endpoint for one-hour banner data.
-  const res = await fetch(endpoints.banner1h, { signal: ac.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const json = await res.json();
+  // Use centralized endpoint for one-hour banner data via fetchJson
+  const json = await fetchJson(endpoints.banner1h, { signal: ac.signal });
         if (!mounted) return;
 
         // Extract rows from response (handles {data: [...]}, legacy {rows: [...]}, or direct array)

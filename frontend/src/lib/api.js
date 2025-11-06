@@ -1,21 +1,98 @@
 const rawBase = import.meta.env?.VITE_API_URL ?? "";
 const trimmedBase = typeof rawBase === "string" ? rawBase.trim() : "";
-export const API_BASE =
-  trimmedBase && trimmedBase !== "relative"
-    ? trimmedBase.replace(/\/$/, "")
-    : "";
+// Normalize API base: empty or 'relative' means no injected base.
+let API_BASE = trimmedBase && trimmedBase !== "relative" ? trimmedBase.replace(/\/$/, "") : "";
+// If someone set VITE_API_URL to include a trailing '/api', strip it so we don't
+// accidentally produce '/api/api' when joining with paths that start with /api.
+if (API_BASE && API_BASE.endsWith('/api')) {
+  API_BASE = API_BASE.replace(/\/api\/*$/, '');
+}
 
 if (typeof window !== "undefined") {
   window.__API_BASE__ = API_BASE;
 }
 
-const preferredBase = API_BASE || "";
-const normalise = (path) => {
-  if (!path) return path;
-  if (path.startsWith("http")) return path;
-  if (path.startsWith("/")) return `${preferredBase}${path}`;
-  return `${preferredBase}/${path}`;
+const joinUrl = (base, path) => {
+  // base may be empty -> return path as-is
+  if (!path) return path || '';
+  if (path.startsWith('http')) return path;
+
+  // If base looks like an absolute URL (has protocol://), prefer URL resolution
+  // which preserves the protocol slashes instead of collapsing them.
+  try {
+    if (base && /^(https?:)?\/\//i.test(base)) {
+      // new URL(path, base) handles leading/trailing slashes correctly
+      return new URL(path, base).toString();
+    }
+  } catch (e) {
+    // fall through to safe string join
+  }
+
+  const b = (base || '').replace(/\/+$/, '');
+  const p = path.replace(/^\/+/, '');
+  if (!b) return `/${p}`.replace(/\/+/g, '/');
+  return `${b}/${p}`.replace(/\/+/g, '/');
 };
+
+function normalizeApiPath(path) {
+  if (!path) return '/api';
+  let p = typeof path === 'string' ? path : String(path);
+  if (!p.startsWith('/')) p = `/${p}`;
+  // Collapse repeated leading /api segments: '/api/api/...', '/api/api/api/...' => '/api/...'
+  p = p.replace(/^\/(?:api\/)+/, '/api/');
+  // Ensure it begins with /api
+  if (!p.startsWith('/api')) {
+    // avoid producing '/api//' for root
+    p = p === '/' ? '/api' : `/api${p}`;
+  }
+  return p;
+}
+
+const normalise = (path) => {
+  // If caller passed an absolute URL (eg. 'http://...'), return it unchanged.
+  // This avoids producing '/api/http://...' when callers accidentally pass
+  // fully-qualified endpoints into helpers that expect a path.
+  if (typeof path === 'string' && /^(https?:)?\/\//i.test(path)) {
+    return path;
+  }
+  return joinUrl(API_BASE, normalizeApiPath(path));
+};
+
+// If the app is being served from a different origin (eg. static build on 5174)
+// and an absolute VITE_API_URL is provided, rewrite any browser fetch() calls
+// that use relative paths beginning with '/api/' to point at the API base.
+if (typeof window !== 'undefined' && API_BASE) {
+  try {
+    const apiOrigin = new URL(API_BASE).origin;
+    const pageOrigin = window.location.origin;
+    if (apiOrigin !== pageOrigin) {
+      const _nativeFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        try {
+          let url = input;
+          // Handle Request objects
+          if (input && typeof input === 'object' && input.url) {
+            url = input.url;
+          }
+          if (typeof url === 'string' && url.startsWith('/api/')) {
+            url = joinUrl(API_BASE, url);
+            // If original input was a Request, clone it pointing to new url
+            if (input && typeof input === 'object' && input.url) {
+              input = new Request(url, input);
+            } else {
+              input = url;
+            }
+          }
+          return _nativeFetch(input, init);
+        } catch (e) {
+          return _nativeFetch(input, init);
+        }
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 export const endpoints = {
   banner1h: normalise("/api/component/top-movers-bar"),
@@ -32,8 +109,13 @@ export const endpoints = {
 };
 
 export async function fetchJson(url, init = {}, ms = 9000) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
+  const hasExternalSignal = Boolean(init && init.signal);
+  let controller;
+  let timeoutId;
+  if (!hasExternalSignal) {
+    controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), ms);
+  }
   try {
     const target = normalise(url);
     const res = await fetch(target, {
@@ -43,7 +125,7 @@ export async function fetchJson(url, init = {}, ms = 9000) {
         ...(init.headers || {}),
       },
       ...init,
-      signal: controller.signal,
+      signal: hasExternalSignal ? init.signal : controller.signal,
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -52,8 +134,12 @@ export async function fetchJson(url, init = {}, ms = 9000) {
     }
     return res.json();
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId) clearTimeout(timeoutId);
   }
+}
+
+export async function getJSON(path) {
+  return fetchJson(path);
 }
 
 export const httpGet = fetchJson;

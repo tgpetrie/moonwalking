@@ -36,25 +36,19 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
     if (!sym) return;
     if (tab === 'technicals' && !ta && !loadingTA) {
       setLoadingTA(true);
-      fetch(`/api/technical-analysis/${sym}`)
-        .then(r => r.json())
-        .then(setTA)
-        .catch(() => {})
-        .finally(() => setLoadingTA(false));
+      import('../lib/api').then(({ fetchJson }) => {
+        fetchJson(`/api/technical-analysis/${sym}`).then(setTA).catch(() => {}).finally(() => setLoadingTA(false));
+      }).catch(() => setLoadingTA(false));
     } else if (tab === 'news' && !news && !loadingNews) {
       setLoadingNews(true);
-      fetch(`/api/news/${sym}`)
-        .then(r => r.json())
-        .then(setNews)
-        .catch(() => {})
-        .finally(() => setLoadingNews(false));
+      import('../lib/api').then(({ fetchJson }) => {
+        fetchJson(`/api/news/${sym}`).then(setNews).catch(() => {}).finally(() => setLoadingNews(false));
+      }).catch(() => setLoadingNews(false));
     } else if (tab === 'social' && !social && !loadingSocial) {
       setLoadingSocial(true);
-      fetch(`/api/social-sentiment/${sym}`)
-        .then(r => r.json())
-        .then(setSocial)
-        .catch(() => {})
-        .finally(() => setLoadingSocial(false));
+      import('../lib/api').then(({ fetchJson }) => {
+        fetchJson(`/api/social-sentiment/${sym}`).then(setSocial).catch(() => {}).finally(() => setLoadingSocial(false));
+      }).catch(() => setLoadingSocial(false));
     }
   }, [sym, tab, ta, news, social, loadingTA, loadingNews, loadingSocial]);
 
