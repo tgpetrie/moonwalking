@@ -6,6 +6,12 @@ export default function TokenRow(props) {
   const {
     rank,
     symbol,
+    // prefer canonical adapter fields when present (camelCase)
+    currentPrice,
+    previousPrice,
+    priceChange1min,
+    priceChange3min,
+    // legacy snake_case (back-compat)
     current_price,
     previous_price, // optional, gray
     price_change_percentage_1min,
@@ -21,29 +27,26 @@ export default function TokenRow(props) {
   const ticker = formatSymbol(symbol) || symbol || "--";
 
   // debug so we know we're on the right build
+  // compute effective values preferring canonical fields from adapters
+  const effectiveCurrent = typeof currentPrice === 'number' ? currentPrice : current_price;
+  const effectivePrevious = typeof previousPrice === 'number' ? previousPrice : previous_price;
+  const effectivePct1 = typeof priceChange1min === 'number' ? priceChange1min : price_change_percentage_1min;
+  const effectivePct3 = typeof priceChange3min === 'number' ? priceChange3min : price_change_percentage_3min;
+
   useEffect(() => {
     console.log("[TokenRow FINAL v-rightControls+priceColor]", {
       symbol: ticker,
       rank,
       isGainer,
-      pct1: price_change_percentage_1min,
-      pct3: price_change_percentage_3min,
+      pct1: effectivePct1,
+      pct3: effectivePct3,
     });
-  }, [
-    ticker,
-    rank,
-    isGainer,
-    price_change_percentage_1min,
-    price_change_percentage_3min,
-  ]);
+  }, [ticker, rank, isGainer, effectivePct1, effectivePct3]);
 
   //
   // % CHANGE
   //
-  const pctRaw =
-    price_change_percentage_1min ??
-    price_change_percentage_3min ??
-    0;
+  const pctRaw = effectivePct1 ?? effectivePct3 ?? 0;
 
   const pctStr = (() => {
     const val = Number(pctRaw);
@@ -133,9 +136,9 @@ export default function TokenRow(props) {
           </div>
 
           <div className="flex flex-col leading-tight">
-            <div className={livePriceClass}>{displayVolumeAsPrice ? fmtVolume(volume) : fmtPrice(current_price)}</div>
-            {previous_price != null && (
-              <div className={prevPriceClass}>{fmtPrice(previous_price)}</div>
+            <div className={livePriceClass}>{displayVolumeAsPrice ? fmtVolume(volume) : fmtPrice(effectiveCurrent)}</div>
+            {effectivePrevious != null && (
+              <div className={prevPriceClass}>{fmtPrice(effectivePrevious)}</div>
             )}
           </div>
         </div>
