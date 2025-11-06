@@ -97,6 +97,10 @@ dist/
 !moonwalking_mobile/
 !moonwalking_mobile/**
 
+# But do not track node_modules inside mobile or nested folders
+moonwalking_mobile/node_modules/
+**/node_modules/
+
 # Dev runtime logs (do not commit)
 # Dev runtime logs (do not commit)
 backend/*.stdout
