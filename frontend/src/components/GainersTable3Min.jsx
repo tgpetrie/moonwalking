@@ -5,7 +5,7 @@ import { formatSymbol } from "../lib/format";
 import { normalizeTableRow } from "../lib/adapters";
 import SymbolInfoPanel from "./SymbolInfoPanel";
 
-export default function GainersTable3Min({ items: incoming }) {
+export default function GainersTable3Min({ items: incoming, rows, loading, error, onInfo }) {
   const { data: payload = {} } = useHybridLiveNamed({
     endpoint: "/api/component/gainers-table",
     eventName: "gainers3m",
@@ -13,7 +13,8 @@ export default function GainersTable3Min({ items: incoming }) {
     initial: [],
   });
 
-  const source = Array.isArray(incoming) && incoming.length ? incoming : payload?.data;
+  const external = Array.isArray(rows) ? rows : null;
+  const source = external ?? (Array.isArray(incoming) && incoming.length ? incoming : payload?.data);
 
   // unwrap { data: [...] }
   const raw = Array.isArray(source) ? source : [];
@@ -41,9 +42,10 @@ export default function GainersTable3Min({ items: incoming }) {
   );
 
   const hasData = visible.length > 0;
+  const showError = !external && !loading && error && !hasData;
 
   return (
-    <section className="text-left text-white text-[12px] font-mono">
+    <section className="text-left text-white text-[12px]">
       {/* orange header pill */}
       <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
         3-MIN GAINERS
@@ -52,7 +54,9 @@ export default function GainersTable3Min({ items: incoming }) {
       {/* underline */}
       <div className="mt-2 h-px w-full max-w-[240px] border-b border-[#f9c86b80] shadow-glowGold" />
 
-      {hasData ? (
+      {showError ? (
+        <div className="mt-4 text-white/50">Backend unavailable (no data)</div>
+      ) : hasData ? (
         <>
           <div className="mt-4 w-full overflow-x-auto">
             <table className="w-full border-collapse min-w-[260px]">
@@ -61,7 +65,7 @@ export default function GainersTable3Min({ items: incoming }) {
                   <TokenRow
                     key={`${rowProps.symbol}-${idx}`}
                     {...rowProps}
-                    onInfo={(sym) => setSelectedSymbol(sym)}
+                    onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
                   />
                 ))}
               </tbody>

@@ -1,0 +1,20 @@
+{
+  "name": "BHABIT CBMo4ers",
+  "version": "1.0",
+  "services": {
+    "backend": { "port": 5001, "health": "/api/health" },
+    "bridge":  { "port": 5100 },
+    "frontend": { "port": 5173, "entry": "frontend/src/main.jsx" }
+  },
+  "ui": {
+    "root_component": "Dashboard",
+    "no_loader_demos": true,
+    "components": ["GainersTable1Min","GainersTable3Min","LosersTable3Min","TopBannerScroll","VolumeBannerScroll","WatchlistPanel","SymbolInfoPanel"]
+  },
+  "events": ["gainers1m","gainers3m","losers3m","banner1h","vol1h","heartbeat"],
+  "http_components": ["/api/component/gainers-table-1min","/api/component/gainers-table","/api/component/losers-table","/api/component/top-movers-bar","/api/component/banner-volume-1h"],
+  "ask_bhabit": { "log": "/api/ask/log", "metrics": "/api/ask/metrics" },
+  "learning":   { "complete": "/api/learn/complete", "state": "/api/learn/state" },
+  "sentiment":  { "history": "/api/sentiment/history", "batch": "/api/sentiment/batch" },
+  "docs": { "index": "docs/ai/AI_INDEX.md", "routes": "docs/ai/ROUTES.md", "shapes": "docs/ai/DATA_SHAPES.md", "style": "docs/ai/STYLE_GUIDE.md" }
+}

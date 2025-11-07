@@ -2164,6 +2164,102 @@ def _compute_top_banner_data_safe():
             continue
     return out
 
+# ---------------- Simple snapshot helpers for /data -----------------
+
+def _wrap_rows_and_ts(payload):
+    """Utility: extract (rows, ts) from component payloads.
+
+    Accepts shapes like {data: [...], last_updated: iso} or returns ([], None).
+    """
+    try:
+        if isinstance(payload, dict):
+            rows = payload.get('data') or []
+            ts = payload.get('last_updated') or None
+            return rows, ts
+    except Exception:
+        pass
+    return [], None
+
+def get_gainers_1m():
+    """Return (rows, ts) for 1m gainers from SWR snapshot."""
+    data = _get_gainers_table_1min_swr()
+    return _wrap_rows_and_ts(data)
+
+def get_gainers_3m():
+    """Return (rows, ts) for 3m gainers from SWR snapshot."""
+    data = _get_gainers_table_3min_swr()
+    return _wrap_rows_and_ts(data)
+
+def get_losers_3m():
+    """Return (rows, ts) for 3m losers from SWR snapshot."""
+    data = _get_losers_table_3min_swr()
+    return _wrap_rows_and_ts(data)
+
+def get_banner_1h():
+    """Return (rows, ts) for 1h price-change banner. Mark as computed."""
+    rows = _compute_top_banner_data_safe() or []
+    ts = datetime.now().isoformat()
+    return rows, ts
+
+@app.route('/data')
+def data_aggregate():
+    """Aggregate data endpoint that never fabricates data.
+
+    Returns a JSON payload of shape { data, meta, errors } with HTTP 200
+    when all slices present, or 206 (Partial Content) when some are missing.
+    """
+    data = {}
+    meta = {}
+    errors = {}
+
+    # 1m gainers
+    try:
+        rows, ts = get_gainers_1m()
+        if rows:
+            data['gainers_1m'] = rows
+            meta['gainers_1m'] = {'source': 'snapshot', 'ts': ts}
+        else:
+            raise RuntimeError('empty')
+    except Exception:
+        errors['gainers_1m'] = 'missing_snapshot'
+
+    # 3m gainers
+    try:
+        rows, ts = get_gainers_3m()
+        if rows:
+            data['gainers_3m'] = rows
+            meta['gainers_3m'] = {'source': 'snapshot', 'ts': ts}
+        else:
+            raise RuntimeError('empty')
+    except Exception:
+        errors['gainers_3m'] = 'missing_snapshot'
+
+    # 3m losers
+    try:
+        rows, ts = get_losers_3m()
+        if rows:
+            data['losers_3m'] = rows
+            meta['losers_3m'] = {'source': 'snapshot', 'ts': ts}
+        else:
+            raise RuntimeError('empty')
+    except Exception:
+        errors['losers_3m'] = 'missing_snapshot'
+
+    # 1h banner (computed)
+    try:
+        rows, ts = get_banner_1h()
+        if rows:
+            data['banner_1h'] = rows
+            meta['banner_1h'] = {'source': 'computed', 'ts': ts}
+        else:
+            # banner is optional – mark as missing but do not fail hard
+            errors['banner_1h'] = 'unavailable'
+    except Exception:
+        errors['banner_1h'] = 'unavailable'
+
+    status = 200 if not errors else 206
+    return jsonify({'data': data, 'meta': meta, 'errors': errors}), status
+
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():
     """Individual endpoint for top scrolling banner - 1-hour price change data (resilient, no trends/sparklines)."""

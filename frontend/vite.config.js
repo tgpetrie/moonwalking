@@ -21,6 +21,12 @@ export default defineConfig({
             }
         }
     },
-    server: { port: 5173 },
+    server: {
+        port: 5173,
+        proxy: {
+            '/data': 'http://127.0.0.1:5001',
+            // '/sentiment': 'http://127.0.0.1:5001', // enable if needed
+        }
+    },
     preview: { port: 5173 }
 })

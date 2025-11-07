@@ -1,0 +1,19 @@
+name: Validate UI rules
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.continue/**'
+
+jobs:
+  ui-rules:
+    name: UI Rules Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run UI rules validator
+        run: bash ./scripts/validate_ui_rules.sh
+        shell: bash

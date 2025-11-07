@@ -114,7 +114,7 @@ export default function TokenRow(props) {
   return (
     <tr
       dir="ltr"
-      className={`cursor-pointer text-[12px] font-mono text-white/80 leading-tight bg-black/0 border-b border-white/[0.05] align-top`}
+      className={`cursor-pointer text-[12px] text-white/80 leading-tight bg-black/0 border-b border-white/[0.05] align-top`}
       onClick={handleRowClick}
     >
       {/* LEFT: rank bubble */}

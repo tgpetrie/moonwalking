@@ -1,0 +1,38 @@
+name: BHABIT Local
+version: 1.0.0
+schema: v1
+models:
+  - name: Phi3-mini
+    provider: ollama
+    model: phi3:mini
+    roles: [chat, code]
+  - name: Qwen-1.5B
+    provider: ollama
+    model: qwen:1.5b
+    roles: [code, autocomplete, edit]
+  - name: Llama3-8B
+    provider: ollama
+    model: llama3:8b
+    roles: [chat, plan]
+  - name: Nomic-Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles: [embed]
+defaultModel: Phi3-mini
+defaultEmbeddingsModel: Nomic-Embed
+context:
+  - provider: folder
+    path: ${workspaceFolder}/docs/ai
+  - provider: folder
+    path: ${workspaceFolder}/frontend/src
+  - provider: folder
+    path: ${workspaceFolder}/backend
+  - provider: code
+  - provider: docs
+  - provider: diff
+  - provider: terminal
+  - provider: problems
+rules:
+  - "AI_INDEX.md is the source of truth."
+  - "No loaders; mount Dashboard."
+  - "Trim -USD; color rules per STYLE_GUIDE.md."

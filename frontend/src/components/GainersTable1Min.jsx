@@ -3,11 +3,59 @@ import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatch
 import { formatPrice, formatPercentage } from '../utils/formatters.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
+import TokenRow from './TokenRow.jsx';
 
 // Accept onWatchlistChange and topWatchlist for proper state sync
 import PropTypes from 'prop-types';
 
-const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
+const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore, snapshotInfo = null, rows: externalRows, loading: externalLoading, error: externalError, onInfo }) => {
+  // If parent provides rows/loading/error, render TokenRow table directly
+  if (Array.isArray(externalRows)) {
+    const FALLBACK_MSG = "Backend unavailable (no data)";
+    const loading = !!externalLoading;
+    const error = externalError;
+    const rows = externalRows;
+    if (loading && rows.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-white/60">Loading gainers...</div>
+        </div>
+      );
+    }
+    if (!loading && error && rows.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-white/60">{FALLBACK_MSG}</div>
+        </div>
+      );
+    }
+    if (!loading && !error && rows.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <div className="text-white/60">No 1-min gainers.</div>
+        </div>
+      );
+    }
+    return (
+      <table className="w-full border-collapse">
+        <tbody>
+          {rows.map((row, idx) => (
+            <TokenRow
+              key={row.symbol || idx}
+              rank={row.rank ?? idx + 1}
+              symbol={row.symbol}
+              currentPrice={row.current_price ?? row.currentPrice}
+              previousPrice={row.previous_price ?? row.previousPrice}
+              priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
+              priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
+              isGainer={true}
+              onInfo={onInfo}
+            />
+          ))}
+        </tbody>
+      </table>
+    );
+  }
   const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
   const lastRenderRef = useRef(0);
   // Inject animation styles for pop/fade effects
@@ -215,8 +263,15 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
   const desired = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : (showAll ? visibleData.length : Math.min(4, visibleData.length));
   const rowsToShow = Math.min(desired, visibleData.length);
 
+  const isSnapshot = snapshotInfo && snapshotInfo.source === 'snapshot';
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
+    <div className="relative">
+      {isSnapshot && (
+        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-700/70 text-white font-bold tracking-wide">
+          snapshot
+        </span>
+      )}
+      <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
   {visibleData.slice(0, rowsToShow).map((item, idx) => {
         const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
         // Check if symbol is in watchlist (handle both string and object formats)
@@ -348,6 +403,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
       {showAll ? 'Show Less' : `Show More (${Math.min(10, visibleData.length) - 4})`}
         </button>
       )}
+      </div>
     </div>
   );
 }
@@ -360,6 +416,8 @@ GainersTable1Min.propTypes = {
   sliceEnd: PropTypes.number,
   fixedRows: PropTypes.number,
   hideShowMore: PropTypes.bool
+  ,
+  snapshotInfo: PropTypes.any
 };
 
 export default GainersTable1Min;

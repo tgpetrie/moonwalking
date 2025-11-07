@@ -21,6 +21,7 @@ export default function GainersTable1Min({
   loading = false,
   error = null,
   seeded = false,
+  snapshotInfo = null,
   allowEmpty = false,
   onSelectCoin,
   onOpenSymbol,
@@ -90,10 +91,11 @@ export default function GainersTable1Min({
     return <StatusNote state="empty" message="No 1‑min data available" />;
   }
 
+  const isSnapshot = snapshotInfo && snapshotInfo.source === 'snapshot';
   return (
     <div className="relative w-full h-full min-h-[320px] px-0 transition-all duration-300">
-      {seeded && (
-        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-700/70 text-white font-bold tracking-wide">seeded (dev)</span>
+      {isSnapshot && (
+        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-700/70 text-white font-bold tracking-wide">snapshot</span>
       )}
 
       {displayRows.map((item, idx) => {
