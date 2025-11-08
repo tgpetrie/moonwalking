@@ -1,0 +1,36 @@
+import { useEffect, useState } from "react";
+
+export default function useUnifiedData() {
+  const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [errs, setErrs] = useState({});
+
+  useEffect(() => {
+    let alive = true;
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/data");
+        const json = await res.json();
+        if (!alive) return;
+        setData(json.data || {});
+        setErrs(json.errors || {});
+        setLoading(false);
+      } catch (e) {
+        if (!alive) return;
+        setErrs((prev) => ({ ...prev, fetch: e.message }));
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const id = setInterval(fetchData, 5000); // 5s
+
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  return { data, loading, errs };
+}

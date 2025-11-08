@@ -1,7 +1,7 @@
 
-
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
-let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5002').replace(/\/$/, '');
+// Use relative base in dev so Vite proxy handles CORS
+let API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const buildEndpoints = () => ({
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
@@ -68,13 +68,10 @@ const probeBase = async (baseUrl, timeoutMs = 1500) => {
 };
 
 const CANDIDATE_BASES = [
-  'http://localhost:5002', 'http://127.0.0.1:5002',
+  '', // prefer relative via Vite proxy
   'http://localhost:5001', 'http://127.0.0.1:5001',
-  'http://localhost:5003', 'http://127.0.0.1:5003',
-  'http://localhost:5004', 'http://127.0.0.1:5004',
-  'http://localhost:5005', 'http://127.0.0.1:5005',
-  'http://localhost:5006', 'http://127.0.0.1:5006',
-  'http://localhost:5007', 'http://127.0.0.1:5007'
+  'http://localhost:5002', 'http://127.0.0.1:5002',
+  'http://localhost:5003', 'http://127.0.0.1:5003'
 ];
 
 // Fetch data from API with throttling and automatic base fallback
@@ -108,15 +105,15 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
         if (!ok) continue;
         // Rebuild the endpoint using the probed base (don't switch global base until confirmed OK)
         let path = endpoint;
-        if (endpoint.startsWith(oldBase)) {
-          path = endpoint.substring(oldBase.length);
-        } else {
-          try {
-            const u = new URL(endpoint);
+        try {
+          if (oldBase && endpoint.startsWith(oldBase)) {
+            path = endpoint.substring(oldBase.length);
+          } else {
+            const u = new URL(endpoint, 'http://placeholder');
             path = u.pathname + (u.search || '');
-          } catch (_) {}
-        }
-        const newEndpoint = `${base.replace(/\/$/, '')}${path}`;
+          }
+        } catch (_) {}
+        const newEndpoint = `${(base || '').replace(/\/$/, '')}${path}`;
         const retryRes = await fetch(newEndpoint, fetchOptions);
         if (retryRes.ok) {
           // Commit base change only after endpoint success

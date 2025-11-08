@@ -75,9 +75,9 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
       {/* Header */}
       <div className="px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center gap-2 sm:gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: 'rgb(254, 164, 0)' }} tabIndex={0} aria-label="1H Volume Change Live Market Feed">
-            1H Volume Change • Live Market Feed
-          </h3>
+            <h3 className="text-base font-headline font-bold tracking-wide uppercase gain-text" tabIndex={0} aria-label="1H Volume Change Live Market Feed">
+              1H Volume Change • Live Market Feed
+            </h3>
         </div>
       </div>
       {/* Scrolling Content */}
@@ -102,7 +102,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                     ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                   </div>
                   <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.volume_change >= 0 ? 'text-blue' : 'text-pink'}>
+                    <span className={coin.volume_change >= 0 ? 'gain-text' : 'loss-text'}>
                         Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
@@ -130,7 +130,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                       <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 bg-transparent">
+                  <div className={`banner-chip ${coin.volume_change >= 0 ? 'banner-chip-gain' : 'banner-chip-loss'}`}>
                     {coin.badge}
                   </div>
                 </div>
@@ -149,8 +149,8 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                   <div className="font-mono text-sm text-teal">
                     ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
                   </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span className={coin.volume_change >= 0 ? 'text-blue' : 'text-pink'}>
+                    <div className="flex items-center gap-1 text-sm font-bold">
+                    <span className={coin.volume_change >= 0 ? 'gain-text' : 'loss-text'}>
                         Vol: {coin.volume_change >= 0 ? '+' : ''}{coin.volume_change.toFixed(2)}%
                         {coin.isEstimated && (
                           <sup title="Estimated from price when 1h volume history is incomplete">≈</sup>
@@ -178,7 +178,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
                       <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
                     )}
                   </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
+                  <div className={`banner-chip ${coin.volume_change >= 0 ? 'banner-chip-gain' : 'banner-chip-loss'}`}>
                     {coin.badge}
                   </div>
                 </div>

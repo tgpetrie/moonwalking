@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RiDeleteBinLine } from 'react-icons/ri';
-import { getWatchlist, addToWatchlist, removeFromWatchlist, fetchLatestAlerts } from '../api.js';
+import { fetchLatestAlerts } from '../api.js';
 import { useWebSocket } from '../context/websocketcontext.jsx';
+import { useWatchlist } from '../context/WatchlistContext.jsx';
 
 const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   // All hooks must be called unconditionally
@@ -15,28 +16,24 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   const [priceHistory, setPriceHistory] = useState({}); // {SYM: [{t, p}, ...max 20]}
   const [latestAlerts, setLatestAlerts] = useState({});
 
-  // Fetch watchlist on mount and when topWatchlist changes
+  // Use watchlist from context (symbols Set + toggle)
+  const { symbols: wlSymbols, toggle } = useWatchlist();
+
+  // Fetch watchlist prices on change of the context symbols or topWatchlist prop
   useEffect(() => {
     const normalizeAndSet = async () => {
       try {
         setLoading(true);
-        // Load from localStorage first
-        const data = await getWatchlist();
-        console.log('📋 Fetched watchlist from localStorage:', data.length, 'items');
-        let symbols = data.map((item) => (typeof item === 'string' ? item : item.symbol));
-        // If parent provided additional symbols, merge them in
+        // Build symbols array from context + optional parent-provided topWatchlist
+        const fromCtx = Array.from(wlSymbols || []);
+        let symbols = fromCtx.slice();
         if (Array.isArray(topWatchlist) && topWatchlist.length > 0) {
           const extra = topWatchlist.map((it) => (typeof it === 'string' ? it : it.symbol)).filter(Boolean);
           symbols = Array.from(new Set([...symbols, ...extra]));
         }
+
         const realPrices = await fetchPricesForSymbols(symbols);
-        console.log('💰 Fetched real prices for watchlist:', Object.keys(realPrices).length, 'symbols');
-        const storedMap = {};
-        data.forEach((it) => {
-          const sym = typeof it === 'string' ? it : it.symbol;
-          const pa = typeof it === 'object' ? it.priceAtAdd : undefined;
-          if (sym) storedMap[sym] = pa;
-        });
+        const storedMap = {}; // no local stored priceAtAdd from context — default to current if missing
         const processedData = symbols.map((symbol) => {
           const priceAtAdd = storedMap[symbol] ?? 0;
           let currentPrice = priceAtAdd;
@@ -47,7 +44,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
           }
           return {
             symbol,
-            priceAtAdd: priceAtAdd || currentPrice || 100, // use current price as fallback
+            priceAtAdd: priceAtAdd || currentPrice || 100,
             currentPrice: currentPrice || priceAtAdd || 100,
           };
         });
@@ -55,7 +52,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
         if (onWatchlistChange) onWatchlistChange(symbols);
         setError(null);
       } catch (error) {
-        console.error('Failed to fetch watchlist:', error);
+        console.error('Failed to fetch watchlist prices:', error);
         setError('Failed to fetch watchlist');
         setWatchlist([]);
       } finally {
@@ -64,7 +61,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
     };
     normalizeAndSet();
     // eslint-disable-next-line
-  }, [topWatchlist]);
+  }, [Array.from(wlSymbols || []), topWatchlist]);
 
   // Update prices from WebSocket context
   useEffect(() => {
@@ -132,36 +129,8 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   const handleRemove = async (symbol) => {
     setLoading(true);
     try {
-      const data = await removeFromWatchlist(symbol);
-      console.log('🗑️ Removed from watchlist:', symbol);
-      
-      // Get real prices for remaining symbols
-      const symbols = data.map(item => typeof item === 'string' ? item : item.symbol);
-      const realPrices = await fetchPricesForSymbols(symbols);
-      
-      // Process the data with real prices
-      const processedData = data.map((item) => {
-        const itemSymbol = typeof item === 'string' ? item : item.symbol;
-        const priceAtAdd = typeof item === 'object' ? item.priceAtAdd : 0;
-        
-        // Get current price from real data
-        let currentPrice = priceAtAdd;
-        if (realPrices[itemSymbol]) {
-          currentPrice = realPrices[itemSymbol].price;
-        } else if (latestData.prices && latestData.prices[itemSymbol]) {
-          currentPrice = latestData.prices[itemSymbol].price;
-        }
-        
-        return {
-          symbol: itemSymbol,
-          priceAtAdd: priceAtAdd || currentPrice || 100,
-          currentPrice: currentPrice || priceAtAdd || 100
-        };
-      });
-      
-  setWatchlist(processedData);
-  // notify parent with symbols only
-  if (onWatchlistChange) onWatchlistChange(symbols);
+      // Toggle will remove from provider, effect above will update the local list
+      toggle(symbol);
       setError(null);
     } catch (error) {
       console.error(`Failed to remove ${symbol}:`, error);
@@ -173,53 +142,18 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
   const handleAdd = async () => {
     const symbol = newSymbol.trim().toUpperCase();
     if (!symbol) return;
-    
+    setLoading(true);
     try {
-      // Get real current price for the symbol
-      const realPrices = await fetchPricesForSymbols([symbol]);
-      let currentPrice = 100; // fallback price
-      
-      if (realPrices[symbol]) {
-        currentPrice = realPrices[symbol].price;
-      } else if (latestData.prices && latestData.prices[symbol]) {
-        currentPrice = latestData.prices[symbol].price;
-      }
-      
-      console.log('➕ Adding to watchlist:', symbol, 'at price:', currentPrice);
-  const updated = await addToWatchlist(symbol, currentPrice);
-      
-  // Get real prices for all symbols in updated watchlist
-  const symbols = updated.map(item => typeof item === 'string' ? item : item.symbol);
-      const allRealPrices = await fetchPricesForSymbols(symbols);
-      
-      const processedData = updated.map((item) => {
-        const itemSymbol = typeof item === 'string' ? item : item.symbol;
-        const priceAtAdd = typeof item === 'object' ? item.priceAtAdd : currentPrice;
-        
-        // Get current price from real data
-        let itemCurrentPrice = priceAtAdd;
-        if (allRealPrices[itemSymbol]) {
-          itemCurrentPrice = allRealPrices[itemSymbol].price;
-        } else if (latestData.prices && latestData.prices[itemSymbol]) {
-          itemCurrentPrice = latestData.prices[itemSymbol].price;
-        }
-        
-        return {
-          symbol: itemSymbol,
-          priceAtAdd: priceAtAdd || itemCurrentPrice || 100,
-          currentPrice: itemCurrentPrice || priceAtAdd || 100
-        };
-      });
-      
-  setWatchlist(processedData);
-  // notify parent with symbols only for cross-component includes()
-  if (onWatchlistChange) onWatchlistChange(symbols);
+      // Optionally prime prices for a snappier UI, but provider persists and effect will update list
+      await fetchPricesForSymbols([symbol]);
+      toggle(symbol);
       setNewSymbol('');
       setError(null);
     } catch (error) {
       console.error(`Failed to add ${symbol}:`, error);
       setError(`Failed to add ${symbol}`);
     }
+    setLoading(false);
   };
 
   const filteredWatchlist = search
@@ -369,7 +303,7 @@ const Watchlist = ({ onWatchlistChange, topWatchlist, quickview }) => {
                           </span>
                         </div>
                         <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                          <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                          <div className={`flex items-center gap-1 font-bold text-base sm:text-lg md:text-xl ${change > 0 ? 'gain-text' : 'loss-text'}`}> 
                             <span>{change > 0 ? '+' : ''}{change.toFixed(2)}%</span>
                           </div>
                           <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">Total</span>

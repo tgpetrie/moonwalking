@@ -7,7 +7,22 @@ const WebSocketContext = createContext(null);
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
   if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
+    // Be defensive: return a safe, no-op shaped object instead of throwing.
+    return {
+      isConnected: false,
+      connectionStatus: 'disconnected',
+      latestData: { crypto: [], prices: {}, watchlist: null },
+      wsManager: null,
+      isPolling: true,
+      oneMinThrottleMs: Number(import.meta?.env?.VITE_ONE_MIN_WS_THROTTLE_MS) || 7000,
+      // convenience methods as no-ops or simple fallbacks
+      subscribe: () => () => {},
+      getStatus: () => 'disconnected',
+      send: () => {},
+      fetchPricesForSymbols: async () => ({}),
+      startPolling: () => {},
+      stopPolling: () => {},
+    };
   }
   return context;
 };

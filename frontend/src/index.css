@@ -2,45 +2,205 @@
 @tailwind components;
 @tailwind utilities;
 
+/* global font + bg */
+:root,
+body,
+#root {
+  font-family: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  background: #000;
+  color: #fff;
+  height: 100%;
+}
+
+/* brand tokens */
 :root {
-  --row-hover-gain: linear-gradient(90deg,#f1b43a22,#f1b43a00);
-  --row-hover-lose: linear-gradient(90deg,#ae4bf522,#ae4bf500);
+  --brand-gold: #f9c86b;
+  --brand-purple: #a24bff;
 }
 
-/* Force Raleway globally */
-:root, body, #root { font-family: "Raleway" !important; }
-
-/* globals */
-html, body, #root { height: 100%; background-color: #000; color: #fff; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* smooth horizontal ticker loop */
-@keyframes marquee-left {
-  0%   { transform: translateX(0%);   }
-  100% { transform: translateX(-50%); }
+/* section headers like "1-MIN GAINERS" */
+.section-block {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.section-title-gold {
+  color: var(--brand-gold);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+.section-title-purple {
+  color: var(--brand-purple);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+.section-underline-gold {
+  height: 2px;
+  width: 160px;
+  background: linear-gradient(90deg, var(--brand-gold), rgba(249, 200, 107, 0));
+}
+.section-underline-purple {
+  height: 2px;
+  width: 160px;
+  background: linear-gradient(90deg, var(--brand-purple), rgba(162, 75, 255, 0));
 }
 
-.banner-scroll {
-  animation: marquee-left 30s linear infinite;
-  will-change: transform;
-  width: max-content;
-  min-width: 200%;
-  filter: drop-shadow(0 0 8px rgba(0,0,0,.8));
+/* ROW LIVENESS + HOVER ------------------------------------ */
+.table-row,
+.mw-table-row {
+  background: transparent;
+  position: relative;
+  transform-origin: center;
+  animation: row-breathe 6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
-/* UI refresh tokens */
-:root{
-  --row-hover-line: linear-gradient(90deg,#ff7a1a 0%, #4aa8ff 50%, #ff65b6 100%);
+@keyframes row-breathe {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.004);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-.shadow-glowGold{ box-shadow:0 0 0 1px rgba(249,200,107,.50), 0 0 22px rgba(249,200,107,.08) }
-.shadow-glowPurple{ box-shadow:0 0 0 1px rgba(161,109,255,.50), 0 0 22px rgba(161,109,255,.08) }
-.text-teal{ color:#2dd4bf; }
 
-/* Gain / loss tokens and hover underline */
-.gain-text { color: #f9c86b; text-shadow: 0 0 6px rgba(249,200,107,.45); }
-.loss-text { color: #a24bff; text-shadow: 0 0 6px rgba(162,75,255,.35); }
-.row-hover-line { background-image: var(--row-hover-line); background-size: 200% 100%; }
+.table-row:hover,
+.mw-table-row:hover {
+  transform: scale(1.012);
+  transition: transform 0.12s ease-out;
+}
 
-/* show the faint gradient line when any row is hovered */
-tr:hover td .row-hover-line { opacity: 1; }
+/* bottom “diamond-ish” glow, gainers vs losers */
+.row-hover-foot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -12px;
+  width: 70%;
+  height: 26px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  border-radius: 9999px;
+  filter: drop-shadow(0 0 14px rgba(0, 0, 0, 0.35));
+}
+
+.row-hover-foot-gain {
+  background: radial-gradient(
+    circle at center,
+    rgba(249, 200, 107, 0.9) 0%,
+    rgba(249, 200, 107, 0.35) 48%,
+    rgba(249, 200, 107, 0) 100%
+  );
+}
+.row-hover-foot-loss {
+  background: radial-gradient(
+    circle at center,
+    rgba(162, 75, 255, 0.9) 0%,
+    rgba(162, 75, 255, 0.4) 48%,
+    rgba(162, 75, 255, 0) 100%
+  );
+}
+
+.table-row:hover .row-hover-foot,
+.mw-table-row:hover .row-hover-foot {
+  opacity: 1;
+}
+
+/* watchlist underline colors can stay separate, no change */
+
+/* --- lemon-pepper headers + rows + glow (final) --- */
+:root {
+  --brand-gold: #f9c86b;
+  --brand-purple: #a24bff;
+}
+
+/* headers */
+.section-title-gold {
+  color: var(--brand-gold);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.section-title-purple {
+  color: var(--brand-purple);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.section-underline-gold,
+.section-underline-purple {
+  height: 2px;
+  width: 180px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+.section-underline-gold {
+  background: linear-gradient(90deg, var(--brand-gold), rgba(249,200,107,0));
+}
+.section-underline-purple {
+  background: linear-gradient(90deg, var(--brand-purple), rgba(162,75,255,0));
+}
+
+/* base row like old branches */
+.table-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  white-space: nowrap;
+  position: relative;
+  background: transparent;
+  transform-origin: center;
+  animation: row-breathe 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes row-breathe {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.003); }
+  100% { transform: scale(1); }
+}
+.table-row:hover {
+  transform: scale(1.01);
+  transition: transform .12s ease-out;
+}
+
+/* long low glow under row */
+.row-hover-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 34px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease-out;
+  filter: drop-shadow(0 0 12px rgba(0,0,0,.35));
+  border-radius: 9999px;
+}
+.row-hover-glow-gain {
+  background: radial-gradient(circle at center,
+    rgba(249,200,107,.7) 0%,
+    rgba(249,200,107,.16) 40%,
+    rgba(249,200,107,0) 75%);
+}
+.row-hover-glow-loss {
+  background: radial-gradient(circle at center,
+    rgba(162,75,255,.75) 0%,
+    rgba(162,75,255,.22) 40%,
+    rgba(162,75,255,0) 75%);
+}
+.table-row:hover .row-hover-glow {
+  opacity: 1;
+}
+
+/* helper colors */
+.text-teal { color: #4aded0; }
+.gain-text { color: #f9c86b; }
+.loss-text { color: #a24bff; }

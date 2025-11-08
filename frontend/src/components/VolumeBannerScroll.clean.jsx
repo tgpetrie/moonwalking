@@ -33,8 +33,8 @@ export default function VolumeBannerScroll() {
   return (
     <section className="w-full bg-black/0 text-white font-mono text-[11px] leading-tight px-4 mt-8">
       <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-start md:justify-between">
-        <div className="text-[11px] font-mono text-[#a24bff] leading-snug flex items-center gap-2">
-          <span className="font-semibold text-[#a24bff] drop-shadow-[0_0_6px_rgba(162,75,255,.6)]">1H VOLUME / FLOW</span>
+        <div className="text-[11px] font-mono loss-text leading-snug flex items-center gap-2">
+          <span className="font-semibold loss-text">1H VOLUME / FLOW</span>
           <span className="text-white/40 font-normal">• LIQUIDITY WATCH</span>
         </div>
       </div>
@@ -47,12 +47,14 @@ export default function VolumeBannerScroll() {
             const symRaw = item?.symbol || item?.ticker || "";
             const sym = symRaw.replace(/-USD$/i, "").toUpperCase();
             const metric = getVolMetric(item || {});
+            const str = String(metric || '');
+            const isPositive = str.startsWith('+') || str.startsWith('x');
 
             return (
-              <span key={`${sym}-${idx}`} className="inline-flex items-center bg-black/70 border border-[#a24bff40] rounded-[4px] px-2 py-[4px] mr-2 mb-2 shadow-[0_0_30px_rgba(162,75,255,.35)]">
+              <span key={`${sym}-${idx}`} className={`inline-flex items-center ${isPositive ? 'banner-chip banner-chip-gain' : 'banner-chip banner-chip-loss'} mr-2 mb-2`}>
                 <span className="text-white text-[11px] font-semibold mr-2 tracking-wide">{sym || "--"}</span>
                 {metric ? (
-                  <span className="text-[11px] font-semibold text-[#a24bff] drop-shadow-[0_0_6px_rgba(162,75,255,.6)]">{metric}</span>
+                  <span className="text-[11px] font-semibold">{metric}</span>
                 ) : (
                   <span className="text-[11px] font-semibold text-white/40">flow</span>
                 )}

@@ -13,7 +13,7 @@ const safeFetch = async (url) => {
 };
 
 export function useDataFeed(pollMs = 5000) {
-  const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5001";
+  const API = import.meta.env.VITE_API_URL || ""; // use relative paths in dev via Vite proxy
   const [banner1h, setBanner1h] = useState([]);
   const [vol1h, setVol1h] = useState([]);
   const [gainers1m, setGainers1m] = useState([]);

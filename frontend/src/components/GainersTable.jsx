@@ -8,12 +8,15 @@ import TokenRow from './TokenRow.jsx';
  * Keeps polling behavior from the original component but renders using
  * the hardened TokenRow to ensure consistent click/info/star behavior.
  */
-export default function GainersTable({ refreshTrigger }) {
+export default function GainersTable({ refreshTrigger, rows: externalRows, loading: externalLoading, error: externalError, onInfo }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const usingExternal = Array.isArray(externalRows);
+
   useEffect(() => {
+    if (usingExternal) return; // parent-provided path
     let mounted = true;
     const fetchRows = async () => {
       setLoading(true);
@@ -22,14 +25,12 @@ export default function GainersTable({ refreshTrigger }) {
         const data = (res && Array.isArray(res.data)) ? res.data : [];
         const normalized = data.map((r, i) => {
           const base = normalizeTableRow(r || {});
-          // preserve 3-min change if backend provides it
           return {
             rank: base.rank ?? (i + 1),
             symbol: base.symbol,
             currentPrice: base.currentPrice ?? (r.current_price ?? r.price ?? null),
             previousPrice: r.previous_price ?? null,
             priceChange3min: r.price_change_percentage_3min ?? r.change_pct_3min ?? null,
-            // pass through trend metadata
             trendDirection: base.trendDirection,
             trendScore: base.trendScore,
             trendStreak: base.trendStreak,
@@ -47,31 +48,34 @@ export default function GainersTable({ refreshTrigger }) {
     fetchRows();
     const id = setInterval(fetchRows, 30_000);
     return () => { mounted = false; clearInterval(id); };
-  }, [refreshTrigger]);
+  }, [refreshTrigger, usingExternal]);
 
-  if (loading && rows.length === 0) return <div className="text-center py-8">Loading...</div>;
-  if (!loading && error && rows.length === 0) return <div className="text-center py-8">Error loading gainers</div>;
-  if (!loading && !error && rows.length === 0) return <div className="text-center py-8">No gainers data</div>;
+  const finalRows = usingExternal ? externalRows : rows;
+  const finalLoading = usingExternal ? !!externalLoading : loading;
+  const finalError = usingExternal ? externalError : error;
+
+  if (finalLoading && finalRows.length === 0) return <div className="text-center py-8">Loading...</div>;
+  if (!finalLoading && finalError && finalRows.length === 0) return <div className="text-center py-8">Backend unavailable (no data)</div>;
+  if (!finalLoading && !finalError && finalRows.length === 0) return <div className="text-center py-8">No gainers data</div>;
 
   return (
     <div className="overflow-auto w-full">
-      <table className="w-full table-fixed border-collapse">
-        <tbody>
-          {rows.map((r, idx) => (
-            <TokenRow
-              key={r.symbol || idx}
-              rank={r.rank}
-              symbol={r.symbol}
-              currentPrice={r.currentPrice}
-              previousPrice={r.previousPrice}
-              priceChange1min={r.priceChange1min}
-              priceChange3min={r.priceChange3min}
-              isGainer={true}
-              onInfo={() => { /* TokenRow will call parent handlers if provided; keep noop here */ }}
-            />
-          ))}
-        </tbody>
-      </table>
+      <div className="flex flex-col gap-1">
+        {finalRows.map((r, idx) => (
+          <TokenRow
+            key={r.symbol || idx}
+            index={typeof r.rank === 'number' ? r.rank - 1 : idx}
+            symbol={r.symbol}
+            price={r.currentPrice ?? r.current_price ?? r.price ?? null}
+            prevPrice={r.previousPrice ?? r.previous_price ?? null}
+            changePct={
+              r.priceChange3min ?? r.priceChange1min ?? r.price_change_3min ?? r.price_change_percentage_3min ?? null
+            }
+            side={r.isGainer === false ? 'loss' : 'gain'}
+            onInfo={onInfo}
+          />
+        ))}
+      </div>
     </div>
   );
 }

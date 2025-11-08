@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 
+const backendPort = process.env.BACKEND_PORT || '5001'
+const vitePort = Number(process.env.VITE_PORT || 5173)
+
 export default defineConfig({
     plugins: [
         react(),
@@ -22,11 +25,18 @@ export default defineConfig({
         }
     },
     server: {
-        port: 5173,
+        port: vitePort,
         proxy: {
-            '/data': 'http://127.0.0.1:5001',
-            // '/sentiment': 'http://127.0.0.1:5001', // enable if needed
+            '/data': {
+                target: `http://127.0.0.1:${backendPort}`,
+                changeOrigin: true,
+            },
+            '/api': {
+                target: `http://127.0.0.1:${backendPort}`,
+                changeOrigin: true,
+            },
+            // '/sentiment': `http://127.0.0.1:${backendPort}`,
         }
     },
-    preview: { port: 5173 }
+    preview: { port: vitePort }
 })

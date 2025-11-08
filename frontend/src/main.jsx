@@ -1,13 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './app.jsx';
-import '../index.css';
+import App from './App.jsx';
+import './index.css';
 import './styles/animations.css';
+import { WatchlistProvider } from './context/WatchlistContext.jsx';
+import { WebSocketProvider } from './context/websocketcontext.jsx';
 
-// Responsive best practices: index.css already includes Tailwind and responsive settings.
-// No changes needed here, but ensure root element is used for hydration.
+// Wrap the app with WebSocketProvider so any component calling useWebSocket()
+// won't throw due to missing provider. WebSocketProvider should be above
+// WatchlistProvider because some watchlist components call the websocket hook.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <WebSocketProvider>
+      <WatchlistProvider>
+        <App />
+      </WatchlistProvider>
+    </WebSocketProvider>
   </React.StrictMode>
 );

@@ -32,8 +32,8 @@ export default function TopBannerScroll() {
   return (
     <section className="w-full bg-black/0 text-white font-mono text-[11px] leading-tight px-4">
       <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row md:items-start md:justify-between">
-        <div className="text-[11px] font-mono text-[#f9c86b] leading-snug flex items-center gap-2">
-          <span className="font-semibold text-[#f9c86b] drop-shadow-[0_0_6px_rgba(249,200,107,.6)]">1H PRICE CHANGE</span>
+        <div className="text-[11px] font-mono gain-text leading-snug flex items-center gap-2">
+          <span className="font-semibold gain-text">1H PRICE CHANGE</span>
           <span className="text-white/40 font-normal">• LIVE MARKET FEED</span>
         </div>
       </div>
@@ -47,12 +47,12 @@ export default function TopBannerScroll() {
             const sym = symRaw.replace(/-USD$/i, "").toUpperCase();
             const pctNum = getPct(item || {});
             const pctStr = formatPct(pctNum);
-            const pctColorClass = pctNum >= 0 ? "text-[#f9c86b] drop-shadow-[0_0_6px_rgba(249,200,107,.6)]" : "text-[#a24bff] drop-shadow-[0_0_6px_rgba(162,75,255,.6)]";
+            const isUp = pctNum >= 0;
 
             return (
-              <span key={`${sym}-${idx}`} className="inline-flex items-center bg-black/70 border border-[#f9c86b40] rounded-[4px] px-2 py-[4px] mr-2 mb-2 shadow-[0_0_30px_rgba(249,200,107,.35)]">
+              <span key={`${sym}-${idx}`} className={`inline-flex items-center ${isUp ? 'banner-chip banner-chip-gain' : 'banner-chip banner-chip-loss'} mr-2 mb-2`}>
                 <span className="text-white text-[11px] font-semibold mr-2 tracking-wide">{sym || "--"}</span>
-                <span className={`text-[11px] font-semibold ${pctColorClass}`}>{pctStr}</span>
+                <span className="text-[11px] font-semibold">{pctStr}</span>
               </span>
             );
           })

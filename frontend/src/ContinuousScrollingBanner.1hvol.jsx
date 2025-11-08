@@ -22,17 +22,11 @@ const formatCurrency = val => new Intl.NumberFormat('en-US', {
 const StatusBadge = ({ isConnected, lastUpdate }) => (
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-3">
-      <div className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
-        isConnected 
-          ? 'bg-[#FF5E00]/20 text-[#FF5E00] border border-[#FF5E00]/50 shadow-lg shadow-[#FF5E00]/40' 
-          : 'bg-[#FF3B30]/20 text-[#FF3B30] border border-[#FF3B30]/50 shadow-lg shadow-[#FF3B30]/40'
-      }`}>
-        <div className={`w-2.5 h-2.5 rounded-full ${
-          isConnected ? 'bg-[#FF5E00] animate-pulse shadow-lg shadow-[#FF5E00]/60' : 'bg-[#FF3B30]'
-        }`}></div>
-        <span>📡</span>
-        {isConnected ? 'LIVE' : 'OFFLINE'}
-      </div>
+      <div className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isConnected ? 'banner-chip banner-chip-gain' : 'banner-chip banner-chip-loss'}`}>
+            <div className={`w-2.5 h-2.5 rounded-full bg-current ${isConnected ? 'animate-pulse' : ''}`}></div>
+            <span>📡</span>
+            {isConnected ? 'LIVE' : 'OFFLINE'}
+          </div>
       <div className="flex items-center gap-2 text-xs font-medium text-[#E0E0E0] tracking-wide">
         <span>🕐</span>
         UPDATED {lastUpdate.toLocaleTimeString()}
@@ -73,7 +67,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {formatCurrency(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-2 text-2xl font-extrabold ${
-                    (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
+                    (coin.volume_change_1h || 0) >= 0 ? 'gain-text' : 'loss-text'
                   }`}>
                     <span>{(coin.volume_change_1h || 0) >= 0 ? '🚀' : '📉'}</span>
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
@@ -100,7 +94,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {formatCurrency(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-1 text-sm font-bold ${
-                    (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
+                    (coin.volume_change_1h || 0) >= 0 ? 'gain-text' : 'loss-text'
                   }`}>
                     <span>{(coin.volume_change_1h || 0) >= 0 ? '🚀' : '📉'}</span>
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
