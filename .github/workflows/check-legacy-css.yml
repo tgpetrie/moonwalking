@@ -1,0 +1,26 @@
+name: Check legacy CSS selectors
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - getting-there-November-8
+
+jobs:
+  check-legacy-css:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies (frontend)
+        run: |
+          cd frontend
+          npm ci
+      - name: Lint for legacy selectors
+        run: |
+          cd frontend
+          npm run lint:css:legacy

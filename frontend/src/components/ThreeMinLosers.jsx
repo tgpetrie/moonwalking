@@ -17,7 +17,7 @@ export default function ThreeMinLosers({ rows = [], loading = false, error = nul
       )}
 
       {!loading && hasData && (
-        <div className="bg-black/0 rounded-md overflow-hidden">
+  <div className="bg-black/0 rounded-md overflow-hidden panel-3m">
           <table className="w-full border-separate border-spacing-0">
             <tbody>
               {top.map((row, idx) => (

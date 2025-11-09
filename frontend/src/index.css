@@ -50,6 +50,10 @@ body,
   transform-origin: center;
   animation: row-breathe 6s ease-in-out infinite;
   will-change: transform, opacity;
+  /* vertical rhythm and baseline lock */
+  min-height: 44px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 @keyframes row-breathe { 0% { transform: scale(1); } 50% { transform: scale(1.003); } 100% { transform: scale(1); } }
 .table-row:hover { transform: scale(1.01); transition: transform 0.12s ease-out; }
@@ -59,28 +63,28 @@ body,
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -12px;
-  width: 72%;                      /* not full row → looks intentional */
-  height: 26px;
+  /* tightened, tucked lower */
+  bottom: -8px;
+  width: 66%;                      /* tightened width for diamond-ish underline */
+  height: 10px;                    /* thin, tucked glow */
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out;
-  filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.28));
   border-radius: 9999px;
   z-index: 1; /* below content, above ambient */
 
-  /* mask so the glow only lights the lower band under the row
-     - tweak the 48%/62% stops to raise/lower the lit band */
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 62%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 62%);
+  /* shallow lower slice so the glow reads as an underline/diamond */
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
 }
 
 /* gold version */
 .row-hover-glow-gain {
   background: radial-gradient(
     circle at center,
-    rgba(249, 200, 107, 0.55) 0%,
-    rgba(249, 200, 107, 0.18) 58%,
+    rgba(249, 200, 107, 0.50) 0%,
+    rgba(249, 200, 107, 0.16) 60%,
     rgba(249, 200, 107, 0) 100%
   );
 }
@@ -89,8 +93,8 @@ body,
 .row-hover-glow-loss {
   background: radial-gradient(
     circle at center,
-    rgba(162, 75, 255, 0.55) 0%,
-    rgba(162, 75, 255, 0.2) 58%,
+    rgba(162, 75, 255, 0.50) 0%,
+    rgba(162, 75, 255, 0.16) 60%,
     rgba(162, 75, 255, 0) 100%
   );
 }
@@ -202,3 +206,54 @@ body,
 .text-teal { color: #4aded0; }
 .gain-text { color: var(--brand-gold); }
 .loss-text { color: var(--brand-purple); }
+
+/*
+  Pixel-locked layout helpers for 3-minute panels. Wrap your rows in
+  an element with .panel-3m (components have been updated) to get
+  consistent column widths and alignment across gainers/losers.
+
+  Fallback aliases are included so older markup using .rk/.sym/.last/.chg
+  or data-col attributes will also align.
+*/
+.panel-3m .rank-badge,
+.panel-3m .rk,
+.panel-3m [data-col="rank"] {
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-3m .price,
+.panel-3m [data-col="price"],
+.panel-3m .val,
+.panel-3m .last {
+  flex: 0 0 108px;
+  width: 108px;
+  min-width: 108px;
+  text-align: right;
+}
+
+.panel-3m .pct,
+.panel-3m [data-col="pct"],
+.panel-3m .chg,
+.panel-3m .delta {
+  flex: 0 0 80px;
+  width: 80px;
+  min-width: 80px;
+  text-align: right;
+}
+
+.panel-3m .symbol,
+.panel-3m [data-col="symbol"],
+.panel-3m .sym {
+  min-width: 0; /* allow truncation instead of pushing layout */
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

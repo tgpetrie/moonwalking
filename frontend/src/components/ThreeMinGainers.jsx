@@ -17,7 +17,7 @@ export default function ThreeMinGainers({ rows = [], loading = false, error = nu
       )}
 
       {!loading && hasData && (
-        <div className="bg-black/0 rounded-md overflow-hidden">
+  <div className="bg-black/0 rounded-md overflow-hidden panel-3m">
           <table className="w-full border-separate border-spacing-0">
             <tbody>
               {top.map((row, idx) => (

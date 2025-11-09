@@ -3,28 +3,91 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 
 function cleanSymbol(sym) {
   if (!sym) return "";
-  return sym.replace(/-(USD|USDT)$/i, "");
+  return String(sym).replace(/-(USD|USDT)$/i, "");
 }
 
-export default function TokenRow({
-  index,
-  symbol,
-  price,
-  prevPrice,
-  changePct,
-  side = "gain", // "gain" | "loss"
-  onInfo,
-}) {
-  // safe watchlist access
-  const wl = (typeof useWatchlist === "function" ? useWatchlist() : null) || {};
-  const isWatched = wl.isWatched ? wl.isWatched : () => false;
-  const toggle = wl.toggle ? wl.toggle : () => {};
+export default function TokenRow(props) {
+  // accept multiple prop name shapes from legacy and new feeds
+  const {
+    index: propIndex,
+    rank,
+    symbol,
+    price: propPrice,
+    currentPrice,
+    current_price,
+    prevPrice,
+    previousPrice,
+    previous_price,
+    changePct: propChange,
+    priceChange1min,
+    priceChange3min,
+    price_change_percentage_1min,
+    price_change_percentage_3min,
+    side: propSide,
+    isGainer,
+    onInfo,
+  } = props;
+
+  // normalize index: the UI expects to show index+1 when index is zero-based.
+  // legacy callers sometimes pass `rank` 1-based. If rank is present use rank-1.
+  const index =
+    typeof propIndex === "number" ? propIndex : typeof rank === "number" ? rank - 1 : undefined;
+
+  // normalize prices
+  const price =
+    typeof propPrice === "number"
+      ? propPrice
+      : typeof currentPrice === "number"
+      ? currentPrice
+      : typeof current_price === "number"
+      ? current_price
+      : undefined;
+  const prev =
+    typeof prevPrice === "number"
+      ? prevPrice
+      : typeof previousPrice === "number"
+      ? previousPrice
+      : typeof previous_price === "number"
+      ? previous_price
+      : undefined;
+
+  // normalize percent: prefer explicit changePct, then 1min then 3min
+  const changePct =
+    typeof propChange === "number"
+      ? propChange
+      : typeof priceChange1min === "number"
+      ? priceChange1min
+      : typeof price_change_percentage_1min === "number"
+      ? price_change_percentage_1min
+      : typeof priceChange3min === "number"
+      ? priceChange3min
+      : typeof price_change_percentage_3min === "number"
+      ? price_change_percentage_3min
+      : undefined;
+
+  // normalize side: explicit prop, then isGainer flag, then infer from changePct
+  const side =
+    propSide ||
+    (typeof isGainer === "boolean"
+      ? isGainer
+        ? "gain"
+        : "loss"
+      : typeof changePct === "number"
+      ? changePct < 0
+        ? "loss"
+        : "gain"
+      : "gain");
+
+  // safe watchlist access (defensive when context missing)
+  const wl = typeof useWatchlist === "function" ? useWatchlist() : null;
+  const isWatched = wl && typeof wl.isWatched === "function" ? wl.isWatched : () => false;
+  const toggle = wl && typeof wl.toggle === "function" ? wl.toggle : () => {};
 
   const s = cleanSymbol(symbol);
   const watched = isWatched(s);
 
   const hasPrice = typeof price === "number" && !Number.isNaN(price);
-  const hasPrev = typeof prevPrice === "number" && !Number.isNaN(prevPrice);
+  const hasPrev = typeof prev === "number" && !Number.isNaN(prev);
   const hasPct = typeof changePct === "number" && !Number.isNaN(changePct);
 
   const pctClass = side === "loss" ? "loss-text" : "gain-text";
@@ -36,47 +99,55 @@ export default function TokenRow({
   const handleRowClick = (e) => {
     if (e.target.closest("[data-stop]")) return;
     if (!s) return;
-    window.open(
-      `https://www.coinbase.com/advanced-trade/spot/${s.toLowerCase()}-usd`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    try {
+      window.open(
+        `https://www.coinbase.com/advanced-trade/spot/${s.toLowerCase()}-usd`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (err) {
+      // ignore in SSR / test envs
+    }
   };
 
   return (
     <div
-      className="table-row flex items-center gap-4 py-2 pl-1 pr-3 relative"
+      className={
+        "table-row flex items-center gap-4 py-2 pl-1 pr-3 relative " +
+        (side === "loss" ? "is-loss" : "is-gain")
+      }
+      data-state={side}
       onClick={handleRowClick}
     >
       {/* 1) rank + symbol */}
-      <div className="flex items-center gap-3 shrink-0 w-[155px]">
+      <div className="flex items-center gap-3 shrink-0">
         {typeof index === "number" && (
           <span
             className={
-              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold " +
+              "rank-badge w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold " +
               rankClasses
             }
           >
             {index + 1}
           </span>
         )}
-        <span className="text-sm font-semibold tracking-wide uppercase">
+        <span className="symbol text-sm font-semibold tracking-wide uppercase">
           {s || "—"}
         </span>
       </div>
 
       {/* 2) price stack */}
-      <div className="flex flex-col items-end shrink-0 w-[120px] text-right">
+      <div className="price flex flex-col items-end shrink-0 text-right">
         <span className="text-sm font-semibold text-teal leading-tight">
           {hasPrice ? `$${price.toLocaleString()}` : "—"}
         </span>
         <span className="text-[10px] text-white/40 leading-tight">
-          {hasPrev ? `$${prevPrice.toLocaleString()}` : ""}
+          {hasPrev ? `$${prev.toLocaleString()}` : ""}
         </span>
       </div>
 
       {/* 3) percent */}
-      <div className="shrink-0 w-[70px] text-right">
+      <div className="pct shrink-0 text-right">
         <span className={`text-sm font-semibold ${pctClass}`}>
           {hasPct ? `${changePct.toFixed(3)}%` : "—"}
         </span>
@@ -87,9 +158,7 @@ export default function TokenRow({
         <button
           data-stop
           onClick={() => toggle(s)}
-          className={`text-xs ${
-            watched ? "gain-text" : "text-white/35"
-          } hover:gain-text`}
+          className={`text-xs ${watched ? "gain-text" : "text-white/35"} hover:gain-text`}
         >
           ★
         </button>
@@ -102,11 +171,10 @@ export default function TokenRow({
         </button>
       </div>
 
-      {/* bottom glow (full row, not just center) */}
+      {/* bottom glow (centered, thin) */}
       <div
         className={
-          "row-hover-glow " +
-          (side === "loss" ? "row-hover-glow-loss" : "row-hover-glow-gain")
+          "row-hover-glow " + (side === "loss" ? "row-hover-glow-loss" : "row-hover-glow-gain")
         }
       />
     </div>

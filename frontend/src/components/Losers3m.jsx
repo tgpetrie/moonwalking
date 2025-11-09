@@ -12,7 +12,7 @@ export default function Losers3m({ rows = [], loading, onInfo }) {
         <div className="text-sm text-white/35 py-3">No 3-min losers.</div>
       )}
       {!loading && rows.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 panel-3m">
           {rows.slice(0, 8).map((row, i) => (
             <TokenRow
               key={row.symbol || i}

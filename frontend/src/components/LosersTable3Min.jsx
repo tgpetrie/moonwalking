@@ -46,7 +46,7 @@ export default function LosersTable3Min() {
 
       {hasData ? (
         <>
-          <div className="mt-4 w-full overflow-x-auto">
+          <div className="mt-4 w-full overflow-x-auto panel-3m">
             <table className="w-full border-collapse min-w-[260px]">
               <tbody>
                 {visible.map((rowProps, idx) => (
