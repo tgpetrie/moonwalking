@@ -58,32 +58,22 @@ body,
 @keyframes row-breathe { 0% { transform: scale(1); } 50% { transform: scale(1.003); } 100% { transform: scale(1); } }
 .table-row:hover { transform: scale(1.01); transition: transform 0.12s ease-out; }
 
-/* the long, low, centered glow */
+/* the long, low, centered glow (scoped per-panel to avoid full-width divider) */
 .row-hover-glow {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -8px;
-  width: 66%;
-  height: 8px; /* was 10px */
+  bottom: -6px;             /* a hair higher */
+  width: 54%;               /* was 66% → narrower underline */
+  height: 8px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out;
-  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.28));
   border-radius: 9999px;
   z-index: 1;
 
-  /* slightly higher slice → thinner diamond */
-  -webkit-mask-image: radial-gradient(
-    ellipse at 50% 100%,
-    rgba(0, 0, 0, 1) 46%,
-    rgba(0, 0, 0, 0) 62%
-  );
-  mask-image: radial-gradient(
-    ellipse at 50% 100%,
-    rgba(0, 0, 0, 1) 46%,
-    rgba(0, 0, 0, 0) 62%
-  );
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 62%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 62%);
 }
 
 /* gold version */
@@ -139,31 +129,31 @@ body,
 /* Ambient lower-aura: always-on, subtle, masked to the lower slice. Use
    either .is-gain / .is-loss classes or data-state="gain" / data-state="loss"
    on the .table-row to color it. Children are stacked above the aura. */
+/* 1. softer, thinner ambient on ALL rows */
 .table-row::before {
   content: '';
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -6px;
-  width: 80%;
-  height: 16px;
+  bottom: -4px;             /* was -6px */
+  width: 70%;               /* was 80% */
+  height: 8px;              /* was 16px → much thinner */
   pointer-events: none;
   border-radius: 9999px;
-  z-index: 0; /* beneath hover glow (z-index:1) and beneath content */
+  z-index: 0;
   opacity: 1;
-  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
 }
 
 /* ambient color variants (soft, low-opacity) */
 .table-row.is-gain::before,
 .table-row[data-state="gain"]::before {
-  background: radial-gradient(circle at center, rgba(249,200,107,0.18) 0%, rgba(249,200,107,0.06) 48%, rgba(249,200,107,0) 100%);
+  background: radial-gradient(circle at center, rgba(249,200,107,0.12) 0%, rgba(249,200,107,0) 100%);
 }
 .table-row.is-loss::before,
 .table-row[data-state="loss"]::before {
-  background: radial-gradient(circle at center, rgba(162,75,255,0.16) 0%, rgba(162,75,255,0.05) 48%, rgba(162,75,255,0) 100%);
+  background: radial-gradient(circle at center, rgba(162,75,255,0.12) 0%, rgba(162,75,255,0) 100%);
 }
 
 /* ensure row children render above glows */
@@ -179,29 +169,28 @@ body,
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -6px;
-  width: 80%;
-  height: 16px;
+  bottom: -4px;
+  width: 70%;
+  height: 8px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 0;
   opacity: 1;
-  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
 }
 
 .crypto-row.is-gain::before,
 .crypto-row[data-state="gain"]::before,
 .mw-table-row.is-gain::before,
 .mw-table-row[data-state="gain"]::before {
-  background: radial-gradient(circle at center, rgba(249,200,107,0.18) 0%, rgba(249,200,107,0.06) 48%, rgba(249,200,107,0) 100%);
+  background: radial-gradient(circle at center, rgba(249,200,107,0.12) 0%, rgba(249,200,107,0) 100%);
 }
 .crypto-row.is-loss::before,
 .crypto-row[data-state="loss"]::before,
 .mw-table-row.is-loss::before,
 .mw-table-row[data-state="loss"]::before {
-  background: radial-gradient(circle at center, rgba(162,75,255,0.16) 0%, rgba(162,75,255,0.05) 48%, rgba(162,75,255,0) 100%);
+  background: radial-gradient(circle at center, rgba(162,75,255,0.12) 0%, rgba(162,75,255,0) 100%);
 }
 
 .crypto-row > *,
@@ -222,6 +211,11 @@ body,
   Fallback aliases are included so older markup using .rk/.sym/.last/.chg
   or data-col attributes will also align.
 */
+.panel-3m {
+  overflow: visible; /* allow hover glow to show */
+  position: relative;
+}
+
 .panel-3m .rank-badge,
 .panel-3m .rk,
 .panel-3m [data-col="rank"] {
