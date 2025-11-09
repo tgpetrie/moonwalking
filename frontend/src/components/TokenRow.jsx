@@ -7,6 +7,9 @@ function cleanSymbol(sym) {
   return String(sym).replace(/-(USD|USDT)$/i, "");
 }
 
+// Single, authoritative TokenRow implementation. Supports legacy prop shapes,
+// defensive watchlist access, single-formatting helpers, and stops event
+// propagation on inner controls.
 export default function TokenRow(props) {
   const {
     index: propIndex,
@@ -28,15 +31,9 @@ export default function TokenRow(props) {
     onInfo,
   } = props;
 
-  // index / rank
   const index =
-    typeof propIndex === "number"
-      ? propIndex
-      : typeof rank === "number"
-      ? rank - 1
-      : undefined;
+    typeof propIndex === "number" ? propIndex : typeof rank === "number" ? rank - 1 : undefined;
 
-  // prices
   const price =
     typeof propPrice === "number"
       ? propPrice
@@ -55,7 +52,6 @@ export default function TokenRow(props) {
       ? previous_price
       : undefined;
 
-  // percent
   const changePct =
     typeof propChange === "number"
       ? propChange
@@ -69,7 +65,6 @@ export default function TokenRow(props) {
       ? price_change_percentage_3min
       : undefined;
 
-  // gain / loss
   const side =
     propSide ||
     (typeof isGainer === "boolean"
@@ -82,18 +77,18 @@ export default function TokenRow(props) {
         : "gain"
       : "gain");
 
-  // watchlist (defensive)
+  // defensive watchlist
   let wl = null;
   try {
     wl = useWatchlist();
   } catch {
     wl = null;
   }
-  const toggleFn = wl?.toggle ?? (() => {});
-  const isWatchedFn = wl?.isWatched ?? (() => false);
+  const toggle = wl?.toggle ?? (() => {});
+  const isWatched = wl?.isWatched ?? (() => false);
 
   const s = cleanSymbol(symbol);
-  const watched = isWatchedFn(s);
+  const watched = isWatched(s);
 
   const pctClass = side === "loss" ? "loss-text" : "gain-text";
   const rankClasses =
@@ -101,86 +96,55 @@ export default function TokenRow(props) {
       ? "bg-[rgba(162,75,255,.22)] border border-[#a24bff55]"
       : "bg-[rgba(249,200,107,.22)] border border-[#f9c86b55]";
 
-  const handleRowClick = () => {
+  const handleRowClick = (e) => {
+    // if an inner control has data-stop, don't trigger the row click
+    if (e.target && e.target.closest && e.target.closest("[data-stop]")) return;
     if (!s) return;
-    window.open(
-      `https://www.coinbase.com/advanced-trade/spot/${s.toLowerCase()}-usd`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    try {
+      window.open(
+        `https://www.coinbase.com/advanced-trade/spot/${s.toLowerCase()}-usd`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (err) {}
   };
+
+  const hasPrice = typeof price === "number" && !Number.isNaN(price);
+  const hasPrev = typeof prev === "number" && !Number.isNaN(prev);
+  const hasPct = typeof changePct === "number" && !Number.isNaN(changePct);
 
   return (
     <div
-      className={
-        "table-row flex items-center gap-4 py-2 pl-1 pr-3 relative " +
-        (side === "loss" ? "is-loss" : "is-gain")
-      }
+      className={`table-row flex items-center gap-4 py-2 pl-1 pr-3 relative ${
+        side === "loss" ? "is-loss" : "is-gain"
+      }`}
       data-state={side}
       onClick={handleRowClick}
     >
       <div className="flex items-center gap-3 shrink-0">
         {typeof index === "number" && (
-          <span
-            className={
-              "rank-badge w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold " +
-              rankClasses
-            }
-          >
+          <span className={`rank-badge w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${rankClasses}`}>
             {index + 1}
           </span>
         )}
-        <span className="symbol text-sm font-semibold tracking-wide uppercase">
-          {s || "—"}
-        </span>
+        <span className="symbol text-sm font-semibold tracking-wide uppercase">{s || "—"}</span>
       </div>
 
       <div className="price flex flex-col items-end shrink-0 text-right">
-        <span className="text-sm font-semibold text-teal leading-tight">
-          {typeof price === "number" ? formatPrice(price) : "—"}
-        </span>
-        <span className="text-[10px] text-white/40 leading-tight">
-          {typeof prev === "number" ? formatPrice(prev) : ""}
-        </span>
+        <span className="text-sm font-semibold text-teal leading-tight">{hasPrice ? formatPrice(price) : "—"}</span>
+        <span className="text-[10px] text-white/40 leading-tight">{hasPrev ? formatPrice(prev) : ""}</span>
       </div>
 
       <div className="pct shrink-0 text-right">
-        <span className={`text-sm font-semibold ${pctClass}`}>
-          {typeof changePct === "number" ? formatPercent(changePct) : "—"}
-        </span>
+        <span className={`text-sm font-semibold ${pctClass}`}>{hasPct ? formatPercent(changePct) : "—"}</span>
       </div>
 
       <div className="flex flex-col items-center gap-1 shrink-0 w-[30px]">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFn(s);
-          }}
-          className={`text-xs ${
-            watched ? "gain-text" : "text-white/35"
-          } hover:gain-text`}
-        >
-          ★
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onInfo?.(s);
-          }}
-          className="text-white/35 hover:text-white/80 text-[10px]"
-        >
-          ⓘ
-        </button>
+        <button data-stop onClick={(e) => { e.stopPropagation(); toggle(s); }} className={`text-xs ${watched ? "gain-text" : "text-white/35"} hover:gain-text`}>★</button>
+        <button data-stop onClick={(e) => { e.stopPropagation(); onInfo?.(s); }} className="text-white/35 hover:text-white/80 text-[10px]">ⓘ</button>
       </div>
 
-      <div
-        className={
-          "row-hover-glow " +
-          (side === "loss" ? "row-hover-glow-loss" : "row-hover-glow-gain")
-        }
-      />
+      <div className={`row-hover-glow ${side === "loss" ? "row-hover-glow-loss" : "row-hover-glow-gain"}`} />
     </div>
   );
 }
