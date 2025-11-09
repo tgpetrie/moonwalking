@@ -340,3 +340,44 @@ body {
   padding: 8px 1rem;
   min-height: 52px;
 }
+
+/* --- UI freeze block provided by user ------------------------------------------------ */
+
+/* headings */
+.section-head { display:flex; align-items:center; gap:.6rem; }
+.section-title { font-weight:700; font-size:13px; letter-spacing:.02em; }
+.section-sub { color:rgba(255,255,255,.36); font-size:11px }
+
+/* panel shell for approx 3-minute blocks */
+.panel-3m { position:relative; padding:12px 12px 8px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); }
+.panel-3m-empty { min-height:90px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.08); font-size:12px }
+
+/* token-row shell */
+.token-row { display:flex; gap:8px; align-items:center; padding:6px 8px; position:relative; }
+.token-row .tr-col { display:flex; align-items:center }
+.tr-col-symbol { min-width:110px; gap:8px }
+.tr-col-price { width:112px; flex-direction:column; align-items:flex-end; }
+.tr-col-pct { width:86px; justify-content:flex-end }
+.tr-col-actions { width:44px; justify-content:center; flex-direction:column }
+
+/* thin centered accent line behind tokens */
+.token-row-line { position:absolute; inset:0 auto 0 0; left:50%; transform:translateX(-50%); width:calc(100% - 56px); height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.035), transparent); z-index:0; pointer-events:none }
+.token-row > * { position:relative; z-index:1 }
+
+/* kill legacy outer glow while keeping markup intact */
+.row-hover-glow, .row-hover-glow-gain, .row-hover-glow-loss { opacity:0; pointer-events:none; height:0; width:0 }
+
+/* pct colors */
+.token-pct-gain { color:#c8f09b; }
+.token-pct-loss { color:#e6a7ff; }
+
+/* tr alias widths to avoid table wrapping */
+.tr-col { white-space:nowrap }
+.tr-col-symbol .tr-symbol { font-weight:600 }
+.tr-rank { width:28px; text-align:center; display:inline-block }
+
+/* small helpers */
+.reveal { animation:tokenFade .34s ease both }
+@keyframes tokenFade { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+
+/* EOF UI freeze block --------------------------------------------------------------- */
