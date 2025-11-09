@@ -63,20 +63,27 @@ body,
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  /* tightened, tucked lower */
   bottom: -8px;
-  width: 66%;                      /* tightened width for diamond-ish underline */
-  height: 10px;                    /* thin, tucked glow */
+  width: 66%;
+  height: 8px; /* was 10px */
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out;
   filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.28));
   border-radius: 9999px;
-  z-index: 1; /* below content, above ambient */
+  z-index: 1;
 
-  /* shallow lower slice so the glow reads as an underline/diamond */
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+  /* slightly higher slice → thinner diamond */
+  -webkit-mask-image: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(0, 0, 0, 1) 46%,
+    rgba(0, 0, 0, 0) 62%
+  );
+  mask-image: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(0, 0, 0, 1) 46%,
+    rgba(0, 0, 0, 0) 62%
+  );
 }
 
 /* gold version */
