@@ -28,159 +28,78 @@ body,
 }
 .section-title-gold { color: var(--brand-gold); }
 .section-title-purple { color: var(--brand-purple); }
-.section-underline-gold,
-.section-underline-purple {
-  height: 2px;
-  width: 180px;
-  margin-top: 8px;
-  margin-bottom: 18px;
-}
-.section-underline-gold { background: linear-gradient(90deg, var(--brand-gold), rgba(249, 200, 107, 0)); }
-.section-underline-purple { background: linear-gradient(90deg, var(--brand-purple), rgba(162, 75, 255, 0)); }
-
-/* base row */
 .table-row {
   display: flex;
   align-items: center;
   gap: 1rem;
-  white-space: nowrap;
   position: relative;
-  overflow: visible;              /* so the glow can stick out */
+  overflow: visible;
   background: transparent;
-  transform-origin: center;
-  animation: row-breathe 6s ease-in-out infinite;
-  will-change: transform, opacity;
-  /* vertical rhythm and baseline lock */
   min-height: 44px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-@keyframes row-breathe { 0% { transform: scale(1); } 50% { transform: scale(1.003); } 100% { transform: scale(1); } }
-.table-row:hover { transform: scale(1.01); transition: transform 0.12s ease-out; }
-
-/* the long, low, centered glow (scoped per-panel to avoid full-width divider) */
-.row-hover-glow {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: -6px;             /* a hair higher */
-  width: 54%;               /* was 66% → narrower underline */
-  height: 8px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.12s ease-out;
-  border-radius: 9999px;
-  z-index: 1;
-
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 62%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 62%);
+  padding: 4px 0;
 }
 
-/* gold version */
-.row-hover-glow-gain {
-  background: radial-gradient(
-    circle at center,
-    rgba(249, 200, 107, 0.50) 0%,
-    rgba(249, 200, 107, 0.16) 60%,
-    rgba(249, 200, 107, 0) 100%
-  );
-}
-
-/* purple version */
-.row-hover-glow-loss {
-  background: radial-gradient(
-    circle at center,
-    rgba(162, 75, 255, 0.50) 0%,
-    rgba(162, 75, 255, 0.16) 60%,
-    rgba(162, 75, 255, 0) 100%
-  );
-}
-.table-row:hover .row-hover-glow { opacity: 1; }
-
-/* slim tapered underline (diamond-ish) for surgical hover underline option
-   Usage (optional):
-
-   Example markup:
-   <div class="table-row">
-     <div class="row-hover-glow row-hover-glow-gain"></div>
-     <div class="row-hover-line row-hover-line-gain"></div>
-   </div>
-
-   Tweak knobs: width (70-76%), bottom (-1px -> -3px), mask stops on .row-hover-glow */
-.row-hover-line {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: -2px;
-  width: 74%;
-  height: 2px; /* trimmed to 2px so it works with the ambient aura */
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
-  border-radius: 9999px;
-  /* tapered center highlight using a center-heavy linear gradient */
-  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(249,200,107,0.95) 50%, rgba(0,0,0,0) 100%);
-  box-shadow: 0 4px 14px rgba(249,200,107,0.08);
-}
-.row-hover-line-gain { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(249,200,107,0.95) 50%, rgba(0,0,0,0) 100%); box-shadow: 0 6px 22px rgba(249,200,107,0.12);} 
-.row-hover-line-loss { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(162,75,255,0.95) 50%, rgba(0,0,0,0) 100%); box-shadow: 0 6px 22px rgba(162,75,255,0.10);} 
-.table-row:hover .row-hover-line { opacity: 1; }
-
-/* Ambient lower-aura: always-on, subtle, masked to the lower slice. Use
-   either .is-gain / .is-loss classes or data-state="gain" / data-state="loss"
-   on the .table-row to color it. Children are stacked above the aura. */
-/* 1. softer, thinner ambient on ALL rows */
+/* subtle, per-row aura — color still comes from is-gain / is-loss */
 .table-row::before {
   content: '';
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -4px;             /* was -6px */
-  width: 70%;               /* was 80% */
-  height: 8px;              /* was 16px → much thinner */
+  bottom: -3px;
+  width: 58%;
+  height: 6px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 0;
   opacity: 1;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
 }
 
-/* ambient color variants (soft, low-opacity) */
+/* use your existing brand vars + row flags */
 .table-row.is-gain::before,
 .table-row[data-state="gain"]::before {
-  background: radial-gradient(circle at center, rgba(249,200,107,0.12) 0%, rgba(249,200,107,0) 100%);
+  background: radial-gradient(circle at center, rgba(249, 200, 107, 0.10) 0%, rgba(249, 200, 107, 0) 100%);
 }
+
 .table-row.is-loss::before,
 .table-row[data-state="loss"]::before {
-  background: radial-gradient(circle at center, rgba(162,75,255,0.12) 0%, rgba(162,75,255,0) 100%);
+  background: radial-gradient(circle at center, rgba(162, 75, 255, 0.10) 0%, rgba(162, 75, 255, 0) 100%);
 }
 
-/* ensure row children render above glows */
-.table-row > * { position: relative; z-index: 2; }
-
-/* Alias support for older branches and alternate row classnames (crypto-row, mw-table-row, etc.)
-   so the ambient aura and stacking apply without changing JSX across branches */
-.crypto-row::before,
-.mw-table-row::before,
-.mw-row::before,
-.mw-tr::before {
-  content: '';
+/* tight, centered hover — not a divider */
+.row-hover-glow {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -4px;
-  width: 70%;
-  height: 8px;
+  bottom: -5px;
+  width: 46%;
+  height: 6px;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease-out;
   border-radius: 9999px;
-  z-index: 0;
-  opacity: 1;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 78%);
+  z-index: 1;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 64%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 64%);
 }
 
-.crypto-row.is-gain::before,
+/* keep current palette mapping */
+.row-hover-glow-gain {
+  background: radial-gradient(circle, rgba(249, 200, 107, 0.55) 0%, rgba(249, 200, 107, 0) 100%);
+}
+
+.row-hover-glow-loss {
+  background: radial-gradient(circle, rgba(162, 75, 255, 0.55) 0%, rgba(162, 75, 255, 0) 100%);
+}
+
+.table-row:hover .row-hover-glow {
+  opacity: 1;
+}
+
+/* keep the 3-min alignment you added */
+.panel-3m {
+  position: relative;
+  overflow: visible;
+}
 .crypto-row[data-state="gain"]::before,
 .mw-table-row.is-gain::before,
 .mw-table-row[data-state="gain"]::before {
