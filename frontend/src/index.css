@@ -12,6 +12,13 @@ body,
   height: 100%;
 }
 
+body {
+  background-image: url("/rabbit-bg.svg"); /* adjust path to real asset */
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+}
+
 /* --- Active stylesheet (clean, single :root, no legacy hover-foot) --- */
 
 :root {
@@ -28,69 +35,65 @@ body,
 }
 .section-title-gold { color: var(--brand-gold); }
 .section-title-purple { color: var(--brand-purple); }
+
+/* ROW RESET: kill scale/breathe */
 .table-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
   position: relative;
-  overflow: visible;
-  background: transparent;
   min-height: 44px;
   padding: 4px 0;
 }
+.table-row > * {
+  position: relative;
+  z-index: 2;
+}
 
-/* subtle, per-row aura — color still comes from is-gain / is-loss */
+/* ambient */
 .table-row::before {
   content: '';
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -3px;
-  width: 58%;
-  height: 6px;
+  bottom: -4px;
+  width: 62%;
+  height: 8px;
   pointer-events: none;
   border-radius: 9999px;
   z-index: 0;
-  opacity: 1;
 }
-
-/* use your existing brand vars + row flags */
 .table-row.is-gain::before,
 .table-row[data-state="gain"]::before {
-  background: radial-gradient(circle at center, rgba(249, 200, 107, 0.10) 0%, rgba(249, 200, 107, 0) 100%);
+  background: radial-gradient(circle, rgba(249,200,107,0.16) 0%, rgba(249,200,107,0) 100%);
 }
-
 .table-row.is-loss::before,
 .table-row[data-state="loss"]::before {
-  background: radial-gradient(circle at center, rgba(162, 75, 255, 0.10) 0%, rgba(162, 75, 255, 0) 100%);
+  background: radial-gradient(circle, rgba(162,75,255,0.16) 0%, rgba(162,75,255,0) 100%);
 }
 
-/* tight, centered hover — not a divider */
+/* visible hover diamond */
 .row-hover-glow {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: -5px;
-  width: 46%;
-  height: 6px;
+  bottom: -6px;
+  width: 58%;
+  height: 10px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 80ms ease-out;
+  transition: opacity 90ms ease-out;
   border-radius: 9999px;
   z-index: 1;
-  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 64%);
-  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 48%, rgba(0,0,0,0) 64%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 65%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 46%, rgba(0,0,0,0) 65%);
 }
-
-/* keep current palette mapping */
 .row-hover-glow-gain {
-  background: radial-gradient(circle, rgba(249, 200, 107, 0.55) 0%, rgba(249, 200, 107, 0) 100%);
+  background: radial-gradient(circle, rgba(249,200,107,0.65) 0%, rgba(249,200,107,0.16) 60%, rgba(249,200,107,0) 100%);
 }
-
 .row-hover-glow-loss {
-  background: radial-gradient(circle, rgba(162, 75, 255, 0.55) 0%, rgba(162, 75, 255, 0) 100%);
+  background: radial-gradient(circle, rgba(162,75,255,0.65) 0%, rgba(162,75,255,0.16) 60%, rgba(162,75,255,0) 100%);
 }
-
 .table-row:hover .row-hover-glow {
   opacity: 1;
 }
