@@ -24,7 +24,7 @@ body,
 .section-title-purple {
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: up  VITE_PORT=5173 BACKEND_PORT=5001 npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173percase;
 }
 .section-title-gold { color: var(--brand-gold); }
 .section-title-purple { color: var(--brand-purple); }
@@ -45,6 +45,7 @@ body,
   gap: 1rem;
   white-space: nowrap;
   position: relative;
+  overflow: visible;              /* so the glow can stick out */
   background: transparent;
   transform-origin: center;
   animation: row-breathe 6s ease-in-out infinite;
@@ -53,33 +54,38 @@ body,
 @keyframes row-breathe { 0% { transform: scale(1); } 50% { transform: scale(1.003); } 100% { transform: scale(1); } }
 .table-row:hover { transform: scale(1.01); transition: transform 0.12s ease-out; }
 
-/* long, low glow */
+/* the long, low, centered glow */
 .row-hover-glow {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -10px;
-  height: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -12px;
+  width: 72%;                      /* not full row → looks intentional */
+  height: 26px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out;
   filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.35));
   border-radius: 9999px;
 }
+
+/* gold version */
 .row-hover-glow-gain {
   background: radial-gradient(
     circle at center,
-    rgba(249, 200, 107, 0.7) 0%,
-    rgba(249, 200, 107, 0.16) 40%,
-    rgba(249, 200, 107, 0) 75%
+    rgba(249, 200, 107, 0.55) 0%,
+    rgba(249, 200, 107, 0.18) 58%,
+    rgba(249, 200, 107, 0) 100%
   );
 }
+
+/* purple version */
 .row-hover-glow-loss {
   background: radial-gradient(
     circle at center,
-    rgba(162, 75, 255, 0.75) 0%,
-    rgba(162, 75, 255, 0.22) 40%,
-    rgba(162, 75, 255, 0) 75%
+    rgba(162, 75, 255, 0.55) 0%,
+    rgba(162, 75, 255, 0.2) 58%,
+    rgba(162, 75, 255, 0) 100%
   );
 }
 .table-row:hover .row-hover-glow { opacity: 1; }
