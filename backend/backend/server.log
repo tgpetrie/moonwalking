@@ -11353,3 +11353,310 @@
 2025-11-09 02:03:01,979 - WARNING - No crypto data available - 24 current prices, 42 symbols with history
 2025-11-09 02:03:03,164 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 5 losers
 2025-11-09 02:03:03,166 - INFO - 127.0.0.1 - - [09/Nov/2025 02:03:03] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-09 03:03:23,695 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:23] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:03:26,421 - INFO - Successfully fetched 37 prices from Coinbase
+2025-11-09 03:03:26,423 - INFO - 1-min data processed (throttle 45s) retained=15 gainers=2 losers=13
+2025-11-09 03:03:26,431 - INFO - Successfully fetched 36 prices from Coinbase
+2025-11-09 03:03:26,433 - INFO - 1-min data processed (throttle 45s) retained=15 gainers=2 losers=13
+2025-11-09 03:03:26,433 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:26] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:03:26,509 - INFO - Successfully fetched 37 prices from Coinbase
+2025-11-09 03:03:26,512 - INFO - 1-min data processed (throttle 45s) retained=16 gainers=2 losers=14
+2025-11-09 03:03:26,512 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:26] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:03:28,437 - INFO - Successfully fetched 31 prices from Coinbase
+2025-11-09 03:03:30,136 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 3 losers
+2025-11-09 03:03:30,137 - INFO - Successfully processed data: 1 gainers, 8 losers, 4 banner items
+2025-11-09 03:03:31,745 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 6 losers
+2025-11-09 03:03:31,747 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:31] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:03:52,596 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:52] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:03:52,598 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:52] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:03:52,619 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:52] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:03:52,633 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:52] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:03:52,639 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:52] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:03:53,977 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-11-09 03:03:53,979 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:53] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:03:55,874 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 4 losers
+2025-11-09 03:03:55,877 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:55] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:03:59,292 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-11-09 03:03:59,295 - INFO - 127.0.0.1 - - [09/Nov/2025 03:03:59] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:02,598 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:02] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:02,631 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:02] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:02,637 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:02] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:03,958 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 5 losers
+2025-11-09 03:04:03,959 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:03] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:09,387 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 8 losers
+2025-11-09 03:04:09,391 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:09] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:14,609 - INFO - Successfully fetched 30 prices from Coinbase
+2025-11-09 03:04:14,611 - INFO - 1-min data processed (throttle 45s) retained=12 gainers=1 losers=11
+2025-11-09 03:04:14,715 - INFO - Successfully fetched 30 prices from Coinbase
+2025-11-09 03:04:14,717 - INFO - 1-min data processed (throttle 45s) retained=12 gainers=1 losers=11
+2025-11-09 03:04:14,718 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:14] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:14,744 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:14] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:14,751 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:14] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:16,067 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers
+2025-11-09 03:04:16,069 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:16] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:19,049 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-09 03:04:19,051 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:19] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:24,434 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 5 losers
+2025-11-09 03:04:24,437 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:24] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:24,758 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:24] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:24,789 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:24] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:24,796 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:24] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:29,497 - INFO - Successfully fetched 40 prices from Coinbase
+2025-11-09 03:04:31,194 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 4 losers
+2025-11-09 03:04:31,196 - INFO - Successfully processed data: 2 gainers, 15 losers, 4 banner items
+2025-11-09 03:04:32,606 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 6 losers
+2025-11-09 03:04:32,608 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:32] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:33,438 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 6 losers
+2025-11-09 03:04:33,439 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:33] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:34,804 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:34] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:34,829 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:34] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:34,834 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:34] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:38,916 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 2 losers
+2025-11-09 03:04:38,918 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:38] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:44,383 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-09 03:04:44,387 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:44] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:44,840 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:44] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:44,868 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:44] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:44,875 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:44] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:49,505 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 4 losers
+2025-11-09 03:04:49,507 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:49] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:54,417 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-11-09 03:04:54,419 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:54] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:04:54,884 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:54] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:04:54,917 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:54] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:04:54,922 - INFO - 127.0.0.1 - - [09/Nov/2025 03:04:54] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:01,608 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 3 losers
+2025-11-09 03:05:01,609 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:01] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:04,370 - INFO - Successfully fetched 35 prices from Coinbase
+2025-11-09 03:05:04,373 - INFO - 1-min data processed (throttle 45s) retained=16 gainers=2 losers=14
+2025-11-09 03:05:04,928 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:04] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:04,949 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:04] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:04,953 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:04] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:05,898 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 3 losers
+2025-11-09 03:05:05,900 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:05] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:09,178 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 10 losers
+2025-11-09 03:05:09,179 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:09] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:14,145 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 3 losers
+2025-11-09 03:05:14,147 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:14] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:14,959 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:14] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:14,986 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:14] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:14,992 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:14] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:19,436 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-11-09 03:05:19,439 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:19] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:24,999 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:24] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:25,033 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:25] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:25,039 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:25,063 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 7 losers
+2025-11-09 03:05:25,064 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:25] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:29,167 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 9 losers
+2025-11-09 03:05:29,169 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:29] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:34,632 - INFO - Successfully fetched 33 prices from Coinbase
+2025-11-09 03:05:35,050 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:35,081 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:35] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:35,086 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:36,229 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-09 03:05:36,232 - INFO - Successfully processed data: 7 gainers, 14 losers, 6 banner items
+2025-11-09 03:05:37,685 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-09 03:05:37,687 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:37] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:39,073 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 6 losers
+2025-11-09 03:05:39,076 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:39] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:43,984 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 6 losers
+2025-11-09 03:05:43,987 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:43] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:45,092 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:45,118 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:45] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:45,125 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:49,369 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-11-09 03:05:49,371 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:49] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:05:54,981 - INFO - Successfully fetched 39 prices from Coinbase
+2025-11-09 03:05:54,983 - INFO - 1-min data processed (throttle 45s) retained=19 gainers=3 losers=16
+2025-11-09 03:05:55,135 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:55,156 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:55] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:05:55,163 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:05:57,760 - WARNING - Error processing Coinbase 24h data for FLR-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-11-09 03:05:57,761 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers
+2025-11-09 03:05:57,764 - INFO - 127.0.0.1 - - [09/Nov/2025 03:05:57] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:00,229 - WARNING - Error processing Coinbase 24h data for FLR-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=2)
+2025-11-09 03:06:00,231 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 7 losers
+2025-11-09 03:06:00,233 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:00] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:04,370 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 7 losers
+2025-11-09 03:06:04,372 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:04] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:05,173 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:05,201 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:05] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:05,207 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:09,048 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 4 losers
+2025-11-09 03:06:09,050 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:09] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:14,197 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers
+2025-11-09 03:06:14,199 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:14] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:15,216 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:15,245 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:15] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:15,250 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:18,898 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 8 losers
+2025-11-09 03:06:18,901 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:18] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:24,186 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 5 losers
+2025-11-09 03:06:24,188 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:24] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:25,257 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:25,281 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:25] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:25,286 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:29,480 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-09 03:06:29,482 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:29] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:34,464 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 3 losers
+2025-11-09 03:06:34,468 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:34] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:35,296 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:35,321 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:35] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:35,332 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:39,544 - INFO - Successfully fetched 41 prices from Coinbase
+2025-11-09 03:06:39,545 - INFO - 1-min data processed (throttle 45s) retained=18 gainers=2 losers=16
+2025-11-09 03:06:41,186 - INFO - Successfully fetched 24 prices from Coinbase
+2025-11-09 03:06:42,457 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers
+2025-11-09 03:06:42,457 - INFO - Successfully processed data: 8 gainers, 5 losers, 3 banner items
+2025-11-09 03:06:43,928 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-09 03:06:43,931 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:43] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:45,341 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:45,376 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:45] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:45,382 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:45,619 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-11-09 03:06:45,621 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:45] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:49,037 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 7 losers
+2025-11-09 03:06:49,039 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:49] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:53,972 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 5 losers
+2025-11-09 03:06:53,973 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:53] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:06:55,390 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:55,414 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:55] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:06:55,420 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:06:59,447 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-11-09 03:06:59,449 - INFO - 127.0.0.1 - - [09/Nov/2025 03:06:59] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:03,970 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-09 03:07:03,971 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:03] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:05,431 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:05,464 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:05] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:05,471 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:09,437 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 7 losers
+2025-11-09 03:07:09,440 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:09] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:14,260 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-11-09 03:07:14,263 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:14] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:15,479 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:15,505 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:15] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:15,510 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:19,291 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 3 losers
+2025-11-09 03:07:19,295 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:19] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:24,644 - INFO - Successfully fetched 43 prices from Coinbase
+2025-11-09 03:07:24,649 - INFO - 1-min data processed (throttle 45s) retained=21 gainers=4 losers=17
+2025-11-09 03:07:25,516 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:25,542 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:25] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:25,548 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:26,191 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 2 losers
+2025-11-09 03:07:26,195 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:26] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:29,574 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 8 losers
+2025-11-09 03:07:29,579 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:29] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:34,237 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-09 03:07:34,240 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:34] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:35,556 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:35,582 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:35] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:35,586 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:39,127 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 7 losers
+2025-11-09 03:07:39,137 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:39] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:44,573 - INFO - Successfully fetched 42 prices from Coinbase
+2025-11-09 03:07:45,594 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:45,612 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:45] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:45,616 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:45] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:45,839 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 0 losers
+2025-11-09 03:07:45,840 - INFO - Successfully processed data: 15 gainers, 2 losers, 0 banner items
+2025-11-09 03:07:48,547 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 2 losers
+2025-11-09 03:07:48,550 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:48] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:49,563 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-11-09 03:07:49,565 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:49] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:54,143 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 2 losers
+2025-11-09 03:07:54,149 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:54] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:07:55,623 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:55,649 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:55] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:07:55,655 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:55] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:07:59,379 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 3 losers
+2025-11-09 03:07:59,381 - INFO - 127.0.0.1 - - [09/Nov/2025 03:07:59] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:04,337 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-09 03:08:04,340 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:04] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:05,661 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:05,723 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:05] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:08:05,734 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:05] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:09,025 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 8 losers
+2025-11-09 03:08:09,027 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:09] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:13,933 - INFO - Successfully fetched 29 prices from Coinbase
+2025-11-09 03:08:13,936 - INFO - 1-min data processed (throttle 45s) retained=18 gainers=4 losers=14
+2025-11-09 03:08:14,889 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 0 losers
+2025-11-09 03:08:14,893 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:14] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-09 03:08:15,742 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:15,771 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:15] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:08:15,776 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:15] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:19,193 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 5 losers
+2025-11-09 03:08:19,195 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:19] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:24,118 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers
+2025-11-09 03:08:24,121 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:24] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:25,784 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:25,815 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:25] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:08:25,821 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:25] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:28,977 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 7 losers
+2025-11-09 03:08:28,979 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:28] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:34,580 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-09 03:08:34,584 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:34] "GET /data HTTP/1.1" 200 -
+2025-11-09 03:08:35,830 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:35,868 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:35] "GET /api/server-info HTTP/1.1" 200 -
+2025-11-09 03:08:35,874 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:35] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
+2025-11-09 03:08:39,056 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-11-09 03:08:39,056 - INFO - 127.0.0.1 - - [09/Nov/2025 03:08:39] "GET /data HTTP/1.1" 200 -
+2025-11-09 04:45:43,140 - INFO - === CBMo4ers Configuration ===
+2025-11-09 04:45:43,140 - INFO - CACHE_TTL: 60
+2025-11-09 04:45:43,140 - INFO - INTERVAL_MINUTES: 3
+2025-11-09 04:45:43,140 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-09 04:45:43,140 - INFO - PORT: 5001
+2025-11-09 04:45:43,140 - INFO - HOST: 0.0.0.0
+2025-11-09 04:45:43,140 - INFO - DEBUG: False
+2025-11-09 04:45:43,140 - INFO - UPDATE_INTERVAL: 60
+2025-11-09 04:45:43,140 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-09 04:45:43,140 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-09 04:45:43,140 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-09 04:45:43,140 - INFO - API_TIMEOUT: 10
+2025-11-09 04:45:43,140 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-09 04:45:43,140 - INFO - ENABLE_1MIN: True
+2025-11-09 04:45:43,140 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-09 04:45:43,140 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-09 04:45:43,140 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-09 04:45:43,140 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-09 04:45:43,140 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-09 04:45:43,140 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-09 04:45:43,140 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-09 04:45:43,140 - INFO - ===============================
+2025-11-09 04:45:43,145 - INFO - === CBMo4ers Configuration ===
+2025-11-09 04:45:43,145 - INFO - CACHE_TTL: 60
+2025-11-09 04:45:43,145 - INFO - INTERVAL_MINUTES: 3
+2025-11-09 04:45:43,145 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-09 04:45:43,145 - INFO - PORT: 5001
+2025-11-09 04:45:43,145 - INFO - HOST: 0.0.0.0
+2025-11-09 04:45:43,145 - INFO - DEBUG: False
+2025-11-09 04:45:43,145 - INFO - UPDATE_INTERVAL: 60
+2025-11-09 04:45:43,145 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-09 04:45:43,145 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-09 04:45:43,145 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-09 04:45:43,145 - INFO - API_TIMEOUT: 10
+2025-11-09 04:45:43,145 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-09 04:45:43,145 - INFO - ENABLE_1MIN: True
+2025-11-09 04:45:43,145 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-09 04:45:43,145 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-09 04:45:43,145 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-09 04:45:43,145 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-09 04:45:43,145 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-09 04:45:43,145 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-09 04:45:43,145 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-09 04:45:43,145 - INFO - ===============================
+2025-11-09 04:45:43,145 - WARNING - Port 5001 is in use, trying next...
+2025-11-09 04:45:43,145 - INFO - Found available port: 5002
+2025-11-09 04:45:43,145 - INFO - Using available port: 5002
+2025-11-09 04:45:43,145 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-11-09 04:45:43,146 - INFO - Background update thread started
+2025-11-09 04:45:43,146 - INFO - Server starting on http://0.0.0.0:5002
+2025-11-09 04:45:43,163 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5002
+ * Running on http://192.168.68.121:5002
+2025-11-09 04:45:43,163 - INFO - [33mPress CTRL+C to quit[0m
+2025-11-09 04:45:44,405 - INFO - Successfully fetched 32 prices from Coinbase
+2025-11-09 04:45:44,411 - WARNING - No crypto data available - 32 current prices, 32 symbols with history
+2025-11-09 04:45:45,459 - INFO - Successfully fetched 27 prices from Coinbase

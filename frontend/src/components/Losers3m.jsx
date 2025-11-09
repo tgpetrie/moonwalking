@@ -9,7 +9,7 @@ export default function Losers3m({ rows = [], loading, onInfo }) {
 
       {loading && <div className="text-sm text-white/35 py-3">Loading…</div>}
       {!loading && !rows.length && (
-        <div className="text-sm text-white/35 py-3">No 3-min losers.</div>
+        <div className="panel-3m panel-3m-empty">No 3-min losers.</div>
       )}
       {!loading && rows.length > 0 && (
         <div className="flex flex-col gap-1 panel-3m">

@@ -58,18 +58,14 @@ export default function GainersTable3Min({ items: incoming, rows, loading, error
         <div className="mt-4 text-white/50">Backend unavailable (no data)</div>
       ) : hasData ? (
         <>
-          <div className="mt-4 w-full overflow-x-auto panel-3m">
-            <table className="w-full border-collapse min-w-[260px]">
-              <tbody>
-                {visible.map((rowProps, idx) => (
-                  <TokenRow
-                    key={`${rowProps.symbol}-${idx}`}
-                    {...rowProps}
-                    onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 w-full overflow-x-hidden panel-3m flex flex-col gap-1">
+            {visible.map((rowProps, idx) => (
+              <TokenRow
+                key={`${rowProps.symbol}-${idx}`}
+                {...rowProps}
+                onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
+              />
+            ))}
           </div>
 
           {!expanded && mapped.length > 8 && (

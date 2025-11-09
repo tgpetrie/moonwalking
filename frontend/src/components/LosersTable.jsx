@@ -54,24 +54,20 @@ export default function LosersTable({ refreshTrigger, rows: externalRows, loadin
   if (!finalLoading && !finalError && finalRows.length === 0) return <div className="text-center py-8">No losers data</div>;
 
   return (
-    <div className="overflow-auto w-full">
-      <table className="w-full table-fixed border-collapse">
-        <tbody>
-          {finalRows.map((r, idx) => (
-            <TokenRow
-              key={r.symbol || idx}
-              rank={r.rank}
-              symbol={r.symbol}
-              currentPrice={r.currentPrice}
-              previousPrice={r.previousPrice}
-              priceChange1min={r.priceChange1min}
-              priceChange3min={r.priceChange3min}
-              isGainer={false}
-              onInfo={onInfo}
-            />
-          ))}
-        </tbody>
-      </table>
+    <div className="overflow-visible w-full panel-3m flex flex-col gap-1">
+      {finalRows.map((r, idx) => (
+        <TokenRow
+          key={r.symbol || idx}
+          rank={r.rank}
+          symbol={r.symbol}
+          currentPrice={r.currentPrice}
+          previousPrice={r.previousPrice}
+          priceChange1min={r.priceChange1min}
+          priceChange3min={r.priceChange3min}
+          isGainer={false}
+          onInfo={onInfo}
+        />
+      ))}
     </div>
   );
 }

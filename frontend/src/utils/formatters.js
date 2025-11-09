@@ -1,21 +1,4 @@
 // frontend/src/utils/formatters.js
-export function formatPrice(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
-
-  if (value >= 1000) {
-    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  }
-  if (value >= 1) {
-    return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-  // tiny coins → 3 decimals
-  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
-}
-
-export function formatPercent(pct) {
-  if (typeof pct !== 'number' || Number.isNaN(pct)) return '--';
-  return `${pct.toFixed(3)}%`;
-}
 // ---- Rule-based precision system & registry ----
 
 export const DEFAULT_PRECISION_RULES = [

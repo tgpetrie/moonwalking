@@ -9,12 +9,13 @@ import TokenRow from './TokenRow.jsx';
 import PropTypes from 'prop-types';
 
 const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore, snapshotInfo = null, rows: externalRows, loading: externalLoading, error: externalError, onInfo }) => {
-  // If parent provides rows/loading/error, render TokenRow table directly
+  // If parent provides rows/loading/error, render a two-column grid using TokenRow
   if (Array.isArray(externalRows)) {
     const FALLBACK_MSG = "Backend unavailable (no data)";
     const loading = !!externalLoading;
     const error = externalError;
-    const rows = externalRows;
+    const rows = externalRows || [];
+
     if (loading && rows.length === 0) {
       return (
         <div className="text-center py-8">
@@ -36,24 +37,53 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         </div>
       );
     }
+
+    const top = rows.slice(0, 8);
+    const left = top.slice(0, 4);
+    const right = top.slice(4, 8);
+
     return (
-      <table className="w-full border-collapse">
-        <tbody>
-          {rows.map((row, idx) => (
-            <TokenRow
-              key={row.symbol || idx}
-              rank={row.rank ?? idx + 1}
-              symbol={row.symbol}
-              currentPrice={row.current_price ?? row.currentPrice}
-              previousPrice={row.previous_price ?? row.previousPrice}
-              priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
-              priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
-              isGainer={true}
-              onInfo={onInfo}
-            />
-          ))}
-        </tbody>
-      </table>
+      <section className="text-left text-white text-[12px]">
+        {/* gold header to match BHABIT styling */}
+        <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
+          1-MIN GAINERS
+        </div>
+        <div className="mt-2 h-px w-full max-w-[240px] border-b border-[#f9c86b80] shadow-glowGold" />
+
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="panel-3m flex flex-col gap-1">
+            {left.map((row, idx) => (
+              <TokenRow
+                key={row.symbol || idx}
+                rank={row.rank ?? idx + 1}
+                symbol={row.symbol}
+                currentPrice={row.current_price ?? row.currentPrice}
+                previousPrice={row.previous_price ?? row.previousPrice}
+                priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
+                priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
+                isGainer={true}
+                onInfo={onInfo}
+              />
+            ))}
+          </div>
+
+          <div className="panel-3m flex flex-col gap-1">
+            {right.map((row, idx) => (
+              <TokenRow
+                key={row.symbol || `r-${idx}`}
+                rank={row.rank ?? left.length + idx + 1}
+                symbol={row.symbol}
+                currentPrice={row.current_price ?? row.currentPrice}
+                previousPrice={row.previous_price ?? row.previousPrice}
+                priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
+                priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
+                isGainer={true}
+                onInfo={onInfo}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
     );
   }
   const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
@@ -324,7 +354,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                       </span>
                     </div>
                     <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
+                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'gain-text' : 'loss-text'}`}> 
                         <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
                         {/* Trend arrow */}
                         {item.trendDirection && item.trendDirection !== 'flat' && (() => {

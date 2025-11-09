@@ -46,14 +46,10 @@ export default function LosersTable3Min() {
 
       {hasData ? (
         <>
-          <div className="mt-4 w-full overflow-x-auto panel-3m">
-            <table className="w-full border-collapse min-w-[260px]">
-              <tbody>
-                {visible.map((rowProps, idx) => (
-                  <TokenRow key={`${rowProps.symbol}-${idx}`} {...rowProps} />
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4 w-full overflow-x-hidden panel-3m flex flex-col gap-1">
+            {visible.map((rowProps, idx) => (
+              <TokenRow key={`${rowProps.symbol}-${idx}`} {...rowProps} />
+            ))}
           </div>
 
           {!expanded && mapped.length > 8 && (

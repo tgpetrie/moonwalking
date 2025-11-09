@@ -19,45 +19,37 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
       )}
 
       {!loading && hasData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-black/0 rounded-md overflow-hidden">
-            <table className="w-full border-separate border-spacing-0">
-              <tbody>
-                {left.map((row, idx) => (
-                  <TokenRow
-                    key={row.symbol || idx}
-                    rank={row.rank ?? idx + 1}
-                    symbol={row.symbol}
-                    currentPrice={row.currentPrice ?? row.current_price}
-                    previousPrice={row.previousPrice ?? row.previous_price}
-                    priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
-                    priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
-                    isGainer={true}
-                    onInfo={onInfo}
-                  />
-                ))}
-              </tbody>
-            </table>
+        <div className="one-min-grid">
+          <div className="bg-black/0 rounded-md overflow-hidden panel-3m flex flex-col gap-1">
+            {left.map((row, idx) => (
+              <TokenRow
+                key={row.symbol || idx}
+                rank={row.rank ?? idx + 1}
+                symbol={row.symbol}
+                currentPrice={row.currentPrice ?? row.current_price}
+                previousPrice={row.previousPrice ?? row.previous_price}
+                priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
+                priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
+                isGainer={true}
+                onInfo={onInfo}
+              />
+            ))}
           </div>
 
-          <div className="bg-black/0 rounded-md overflow-hidden">
-            <table className="w-full border-separate border-spacing-0">
-              <tbody>
-                {right.map((row, idx) => (
-                  <TokenRow
-                    key={row.symbol || `r-${idx}`}
-                    rank={row.rank ?? left.length + idx + 1}
-                    symbol={row.symbol}
-                    currentPrice={row.currentPrice ?? row.current_price}
-                    previousPrice={row.previousPrice ?? row.previous_price}
-                    priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
-                    priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
-                    isGainer={true}
-                    onInfo={onInfo}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="bg-black/0 rounded-md overflow-hidden panel-3m flex flex-col gap-1">
+            {right.map((row, idx) => (
+              <TokenRow
+                key={row.symbol || `r-${idx}`}
+                rank={row.rank ?? left.length + idx + 1}
+                symbol={row.symbol}
+                currentPrice={row.currentPrice ?? row.current_price}
+                previousPrice={row.previousPrice ?? row.previous_price}
+                priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
+                priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
+                isGainer={true}
+                onInfo={onInfo}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -72,4 +64,3 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
     </section>
   );
 }
-

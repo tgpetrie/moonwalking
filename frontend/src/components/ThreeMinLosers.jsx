@@ -17,24 +17,20 @@ export default function ThreeMinLosers({ rows = [], loading = false, error = nul
       )}
 
       {!loading && hasData && (
-  <div className="bg-black/0 rounded-md overflow-hidden panel-3m">
-          <table className="w-full border-separate border-spacing-0">
-            <tbody>
-              {top.map((row, idx) => (
-                <TokenRow
-                  key={row.symbol || idx}
-                  rank={row.rank ?? idx + 1}
-                  symbol={row.symbol}
-                  currentPrice={row.currentPrice ?? row.current_price}
-                  previousPrice={row.previousPrice ?? row.previous_price}
-                  priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
-                  priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
-                  isGainer={false}
-                  onInfo={onInfo}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-black/0 rounded-md overflow-hidden panel-3m flex flex-col gap-1">
+          {top.map((row, idx) => (
+            <TokenRow
+              key={row.symbol || idx}
+              rank={row.rank ?? idx + 1}
+              symbol={row.symbol}
+              currentPrice={row.currentPrice ?? row.current_price}
+              previousPrice={row.previousPrice ?? row.previous_price}
+              priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
+              priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
+              isGainer={false}
+              onInfo={onInfo}
+            />
+          ))}
         </div>
       )}
 
@@ -48,4 +44,3 @@ export default function ThreeMinLosers({ rows = [], loading = false, error = nul
     </section>
   );
 }
-
