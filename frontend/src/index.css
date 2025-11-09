@@ -67,6 +67,7 @@ body,
   transition: opacity 0.12s ease-out;
   filter: drop-shadow(0 0 12px rgba(0, 0, 0, 0.35));
   border-radius: 9999px;
+  z-index: 1; /* below content, above ambient */
 
   /* mask so the glow only lights the lower band under the row
      - tweak the 48%/62% stops to raise/lower the lit band */
@@ -111,18 +112,91 @@ body,
   transform: translateX(-50%);
   bottom: -2px;
   width: 74%;
-  height: 6px;
+  height: 2px; /* trimmed to 2px so it works with the ambient aura */
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease-out, transform 0.12s ease-out;
   border-radius: 9999px;
   /* tapered center highlight using a center-heavy linear gradient */
   background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(249,200,107,0.95) 50%, rgba(0,0,0,0) 100%);
-  box-shadow: 0 6px 18px rgba(249,200,107,0.10);
+  box-shadow: 0 4px 14px rgba(249,200,107,0.08);
 }
 .row-hover-line-gain { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(249,200,107,0.95) 50%, rgba(0,0,0,0) 100%); box-shadow: 0 6px 22px rgba(249,200,107,0.12);} 
 .row-hover-line-loss { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(162,75,255,0.95) 50%, rgba(0,0,0,0) 100%); box-shadow: 0 6px 22px rgba(162,75,255,0.10);} 
 .table-row:hover .row-hover-line { opacity: 1; }
+
+/* Ambient lower-aura: always-on, subtle, masked to the lower slice. Use
+   either .is-gain / .is-loss classes or data-state="gain" / data-state="loss"
+   on the .table-row to color it. Children are stacked above the aura. */
+.table-row::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -6px;
+  width: 80%;
+  height: 16px;
+  pointer-events: none;
+  border-radius: 9999px;
+  z-index: 0; /* beneath hover glow (z-index:1) and beneath content */
+  opacity: 1;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+}
+
+/* ambient color variants (soft, low-opacity) */
+.table-row.is-gain::before,
+.table-row[data-state="gain"]::before {
+  background: radial-gradient(circle at center, rgba(249,200,107,0.18) 0%, rgba(249,200,107,0.06) 48%, rgba(249,200,107,0) 100%);
+}
+.table-row.is-loss::before,
+.table-row[data-state="loss"]::before {
+  background: radial-gradient(circle at center, rgba(162,75,255,0.16) 0%, rgba(162,75,255,0.05) 48%, rgba(162,75,255,0) 100%);
+}
+
+/* ensure row children render above glows */
+.table-row > * { position: relative; z-index: 2; }
+
+/* Alias support for older branches and alternate row classnames (crypto-row, mw-table-row, etc.)
+   so the ambient aura and stacking apply without changing JSX across branches */
+.crypto-row::before,
+.mw-table-row::before,
+.mw-row::before,
+.mw-tr::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -6px;
+  width: 80%;
+  height: 16px;
+  pointer-events: none;
+  border-radius: 9999px;
+  z-index: 0;
+  opacity: 1;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+}
+
+.crypto-row.is-gain::before,
+.crypto-row[data-state="gain"]::before,
+.mw-table-row.is-gain::before,
+.mw-table-row[data-state="gain"]::before {
+  background: radial-gradient(circle at center, rgba(249,200,107,0.18) 0%, rgba(249,200,107,0.06) 48%, rgba(249,200,107,0) 100%);
+}
+.crypto-row.is-loss::before,
+.crypto-row[data-state="loss"]::before,
+.mw-table-row.is-loss::before,
+.mw-table-row[data-state="loss"]::before {
+  background: radial-gradient(circle at center, rgba(162,75,255,0.16) 0%, rgba(162,75,255,0.05) 48%, rgba(162,75,255,0) 100%);
+}
+
+.crypto-row > *,
+.mw-table-row > *,
+.mw-row > *,
+.mw-tr > * { position: relative; z-index: 2; }
 
 /* shared colors */
 .text-teal { color: #4aded0; }
