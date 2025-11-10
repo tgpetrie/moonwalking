@@ -22,7 +22,7 @@ export function WatchlistProvider({ children }) {
       add: (s, priceNow) =>
         setStore((m) =>
           typeof priceNow === "number"
-            ? { ...m, [s]: { price: priceNow, at: Date.now() } }
+            ? { ...m, [s]: { price: priceNow, current: priceNow, at: Date.now() } }
             : m
         ),
       remove: (s) =>
@@ -31,6 +31,20 @@ export function WatchlistProvider({ children }) {
           return rest;
         }),
       baselineFor: (s) => store[s],
+      // Update current prices without altering baseline price
+      reconcilePrices: (priceMap = {}) =>
+        setStore((m) => {
+          let changed = false;
+          const next = { ...m };
+          for (const key of Object.keys(m)) {
+            const p = priceMap[key];
+            if (typeof p === "number" && m[key]?.current !== p) {
+              next[key] = { ...m[key], current: p };
+              changed = true;
+            }
+          }
+          return changed ? next : m;
+        }),
     }),
     [store]
   );

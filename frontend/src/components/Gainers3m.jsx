@@ -1,27 +1,24 @@
-import React from "react";
 import TokenRow from "./TokenRow.jsx";
 
 export default function Gainers3m({ rows = [], loading, onInfo }) {
   return (
-    <div className="flex flex-col gap-1">
-      <header className="panel-head">
-        <h2 className="section-head section-head-gain">3-MIN GAINERS</h2>
-        <div className="section-head-line section-head-line-gain" />
-      </header>
-      {loading && <div className="panel-placeholder">Loading…</div>}
-      {!loading &&
-        rows.slice(0, 8).map((row, i) => (
+    <section className="panel panel-left panel-bottom">
+      <header className="panel-header">3-MIN GAINERS</header>
+      <div className="panel-body">
+        {loading && !rows.length ? <div className="panel-empty">Loading…</div> : null}
+        {rows.map((row, idx) => (
           <TokenRow
-            key={row.symbol || i}
-            index={i}
+            key={row.symbol || idx}
+            index={idx + 1}
             symbol={row.symbol}
-            price={row.price}
+            price={row.current_price}
             prevPrice={row.initial_price_3min}
-            changePct={row.changePct}
-            side="gain"
+            changePct={row.price_change_percentage_3min}
+            side="up"
             onInfo={onInfo}
           />
         ))}
-    </div>
+      </div>
+    </section>
   );
 }

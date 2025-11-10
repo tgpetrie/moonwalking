@@ -36,6 +36,10 @@ const joinUrl = (base, path) => {
 
 function normalizeApiPath(path) {
   if (!path) return '/api';
+  // allow direct /data passthrough: callers may explicitly want the /data
+  // aggregate endpoint instead of the legacy /api/component/... routes.
+  if (typeof path === 'string' && path.startsWith('/data')) return path;
+  if (!path) return '/api';
   let p = typeof path === 'string' ? path : String(path);
   if (!p.startsWith('/')) p = `/${p}`;
   // Collapse repeated leading /api segments: '/api/api/...', '/api/api/api/...' => '/api/...'
@@ -95,17 +99,17 @@ if (typeof window !== 'undefined' && API_BASE) {
 }
 
 export const endpoints = {
-  banner1h: normalise("/api/component/top-movers-bar"),
-  bannerVolume1h: normalise("/api/component/banner-volume-1h"),
-  gainers1m: normalise("/api/component/gainers-table-1min"),
-  gainers3m: normalise("/api/component/gainers-table"),
-  losers3m: normalise("/api/component/losers-table"),
-  vol1h: normalise("/api/component/banner-volume-1h"),
-  health: normalise("/api/health"),
-  topMoversBar: normalise("/api/component/top-movers-bar"),
-  alertsRecent: (limit = 25) =>
-    normalise(`/api/alerts/recent?limit=${limit}`),
-  metrics: normalise("/api/metrics"),
+  // point everything at the single /data aggregate endpoint the backend currently provides
+  banner1h: '/data',
+  bannerVolume1h: '/data',
+  gainers1m: '/data',
+  gainers3m: '/data',
+  losers3m: '/data',
+  vol1h: '/data',
+  health: '/data',
+  topMoversBar: '/data',
+  alertsRecent: (limit = 25) => `/data?limit=${limit}`,
+  metrics: '/data',
 };
 
 export async function fetchJson(url, init = {}, ms = 9000) {
@@ -169,7 +173,10 @@ export const mapRow = (row = {}) => {
       : typeof row.change === 'number'
       ? row.change
       : 0;
+  // Preserve original fields (like initial_price_1min / initial_price_3min)
+  // while providing normalized properties the UI expects.
   return {
+    ...row,
     symbol,
     price,
     changePct: Number(changePctRaw) || 0,

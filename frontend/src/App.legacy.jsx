@@ -1,3 +1,71 @@
+// frontend/src/app.legacy.jsx
+// Legacy copy of the rabbit dashboard kept for reference. The active
+// entrypoint is `App.jsx` (capital-A). Rename or remove this file if you
+// want to permanently discard the legacy UI.
+import React, { useState, useCallback } from "react";
+import { WatchlistProvider } from "./context/WatchlistContext.jsx";
+import { useGainers, useLosers3m } from "./hooks/useData.js";
+import RefreshTicker from "./components/RefreshTicker.jsx";
+import Gainers1m from "./components/Gainers1m.jsx";
+import ThreeMinRow from "./components/ThreeMinRow.jsx";
+import AssetTabbedPanel from "./components/AssetTabbedPanel.jsx";
+import InsightsTabbed from "./components/InsightsTabbed.jsx";
+
+export default function LegacyApp() {
+  // SWR-backed data
+  const g1m = useGainers("1m");
+  const g3m = useGainers("3m");
+  const losers = useLosers3m();
+
+  // big right panel
+  const [selected, setSelected] = useState(null);
+  // small floating insights card
+  const [selectedRow, setSelectedRow] = useState(null);
+
+  // called by the ticker every 30s
+  const handleRefresh = useCallback(() => {
+    g1m.mutate && g1m.mutate();
+    g3m.mutate && g3m.mutate();
+    losers.mutate && losers.mutate();
+  }, [g1m, g3m, losers]);
+
+  // called by TokenRow via onInfo(...)
+  const handleInfo = useCallback((payload) => {
+    // payload looks like: { symbol, price, prevPrice, changePct }
+    setSelected(payload);
+    setSelectedRow(payload);
+  }, []);
+
+  return (
+    <WatchlistProvider>
+      {/* top countdown */}
+      <RefreshTicker seconds={30} onRefresh={handleRefresh} />
+
+      {/* main dashboard stack */}
+      <main>
+        <Gainers1m rows={g1m.rows} loading={g1m.loading} onInfo={handleInfo} />
+
+        <ThreeMinRow
+          gainers={g3m.rows}
+          losers={losers.rows}
+          loading={g3m.loading || losers.loading}
+          onInfo={handleInfo}
+        />
+      </main>
+
+      {/* small floating insights card – uses your updated InsightsTabbed.jsx */}
+      {selectedRow ? (
+        <div style={{ position: "fixed", right: "1rem", top: "4rem", zIndex: 80 }}>
+          <InsightsTabbed row={selectedRow} />
+        </div>
+      ) : null}
+
+      {/* big sentiment/asset panel – the one you added */}
+      <AssetTabbedPanel asset={selected} onClose={() => setSelected(null)} />
+    </WatchlistProvider>
+  );
+}
+
 import './env-debug.js';
 import React, { useEffect, useState, Suspense } from 'react';
 import { API_ENDPOINTS, fetchData } from './api.js';

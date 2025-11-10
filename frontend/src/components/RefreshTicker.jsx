@@ -4,16 +4,20 @@ export default function RefreshTicker({ seconds = 30, onRefresh }) {
   const [left, setLeft] = useState(seconds);
 
   useEffect(() => {
-    const t = setInterval(() => {
+    const id = setInterval(() => {
       setLeft((prev) => {
-        if (prev <= 1) {
-          onRefresh && onRefresh();
+        const next = prev - 1;
+        if (next <= 0) {
+          // reset visible counter
+          // call onRefresh asynchronously to avoid React 'update during render' warnings
+          setTimeout(() => onRefresh && onRefresh(), 0);
           return seconds;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
-    return () => clearInterval(t);
+
+    return () => clearInterval(id);
   }, [seconds, onRefresh]);
 
   return <div className="refresh-ticker">Auto refresh in {left}s</div>;
