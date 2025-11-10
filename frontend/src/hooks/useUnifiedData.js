@@ -26,9 +26,17 @@ export default function useUnifiedData() {
     fetchData();
     const id = setInterval(fetchData, 5000); // 5s
 
+    // allow external components to trigger an immediate refresh by dispatching
+    // a `unified-data-refresh` event on window
+    const onRefresh = () => {
+      fetchData();
+    };
+    window.addEventListener("unified-data-refresh", onRefresh);
+
     return () => {
       alive = false;
       clearInterval(id);
+      window.removeEventListener("unified-data-refresh", onRefresh);
     };
   }, []);
 

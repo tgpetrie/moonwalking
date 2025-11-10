@@ -1,10 +1,21 @@
-import React, { useEffect, useRef } from "react";
-import { formatSymbol, smartPrice } from "../utils/formatters.js";
+import React from "react";
+import RowActions from "./tables/RowActions.jsx";
 
-function computePercent(price, prevPrice, fallback) {
-  const c = Number(price);
-  const p = Number(prevPrice);
-  if (p && !Number.isNaN(c) && !Number.isNaN(p)) {
+function formatSymbol(sym = "") {
+  return sym.replace(/-(USD|USDT|PERP)$/i, "");
+}
+function formatPrice(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1000) return `$${n.toFixed(0)}`;
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  if (n >= 0.01) return `$${n.toFixed(3)}`;
+  return `$${n.toFixed(6)}`;
+}
+function computePct(cur, prev, fallback) {
+  const c = Number(cur);
+  const p = Number(prev);
+  if (p && Number.isFinite(c) && Number.isFinite(p)) {
     return ((c - p) / p) * 100;
   }
   return typeof fallback === "number" ? fallback : null;
@@ -12,70 +23,55 @@ function computePercent(price, prevPrice, fallback) {
 
 export default function TokenRow({
   index = 0,
-  symbol = "—",
+  symbol,
   price,
   prevPrice,
   changePct,
-  side = "gain",          // "gain" | "loss"
+  side = "gain",
   onInfo,
 }) {
-  const rootRef = useRef(null);
-
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    // simple one-shot reveal
-    el.classList.add("reveal");
-    const t = setTimeout(() => el.classList.remove("reveal"), 400);
-    return () => clearTimeout(t);
-  }, []);
-
-  const pct = computePercent(price, prevPrice, changePct);
-  const pctDisplay = typeof pct === "number" ? `${Number(pct).toFixed(3).replace(/\.?0+$/, "")}%` : "—";
+  const pct = computePct(price, prevPrice, changePct);
+  const pctDisplay = typeof pct === "number" ? `${pct.toFixed(3)}%` : "—";
+  const cleanSymbol = formatSymbol(symbol);
 
   return (
-    <div
-      ref={rootRef}
-      className={`token-row ${side === "loss" ? "is-loss" : "is-gain"}`}
-      data-state={side}
-    >
-      {/* inner line, goes behind content */}
+    <div className={`token-row ${side === "loss" ? "is-loss" : "is-gain"}`}>
       <div className="token-row-line" aria-hidden />
 
-      {/* col 1: rank + symbol */}
       <div className="tr-col tr-col-symbol">
-        <span className="tr-rank">{typeof index === "number" ? index : ""}</span>
-        <span className="tr-symbol">{formatSymbol(symbol)}</span>
+        <span className="tr-rank">{index + 1}</span>
+        <span className="tr-symbol">{cleanSymbol}</span>
       </div>
 
-      {/* col 2: price block (2 lines) */}
-      <div className="tr-col tr-col-price price-block">
-        <div className="tr-price-current">{price ? `$${smartPrice(price)}` : "—"}</div>
-        <div className="tr-price-prev">{prevPrice ? `$${smartPrice(prevPrice)}` : ""}</div>
+      <div className="tr-col tr-col-price">
+        <div className="tr-price-current">{formatPrice(price)}</div>
+        <div className="tr-price-prev">
+          {prevPrice ? formatPrice(prevPrice) : ""}
+        </div>
       </div>
 
-      {/* col 3: percent */}
       <div className="tr-col tr-col-pct">
-        <span
-          className={side === "loss" ? "token-pct-loss" : "token-pct-gain"}
-        >
+        <span className={side === "loss" ? "token-pct-loss" : "token-pct-gain"}>
           {pctDisplay}
         </span>
       </div>
 
-      {/* col 4: actions (star on top, info below) */}
-      <div className="tr-col tr-col-actions row-actions">
-        <button type="button" className="action-btn" data-stop>
-          ★
-        </button>
-        <button
-          type="button"
-          className="action-btn"
-          data-stop
-          onClick={() => onInfo && onInfo(symbol)}
-        >
-          ⓘ
-        </button>
+      <div className="tr-col tr-col-actions">
+        <RowActions
+          symbol={cleanSymbol}
+          priceNow={typeof price === "number" ? price : Number(price)}
+          onInfo={
+            onInfo
+              ? () =>
+                  onInfo({
+                    symbol: cleanSymbol,
+                    price,
+                    prevPrice,
+                    changePct: pct,
+                  })
+              : undefined
+          }
+        />
       </div>
     </div>
   );
