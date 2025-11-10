@@ -7,8 +7,10 @@
     <link rel="icon" type="image/png" href="/bhabit-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BHABITS CB INSIGHT</title>
-    <!-- Preload critical shared chunks (react core); names rely on manualChunks config -->
-    <link rel="preload" as="script" href="/assets/react.js" />
+    <!-- NOTE: manualChunks -> react will create a hashed asset only at build time.
+        Removing the hardcoded preload to avoid 404s in dev (Vite dev serves modules differently).
+        If you want to preload a production build chunk, use server-side templating to insert the
+        exact build filename, or let Vite inject modulepreload links during build. -->
         <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
         <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
         <script>
