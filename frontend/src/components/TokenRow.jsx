@@ -1,4 +1,5 @@
 import RowActions from "./tables/RowActions.jsx";
+import { formatPrice, formatPct } from "../lib/format.js";
 
 export default function TokenRow({
   index,
@@ -11,12 +12,7 @@ export default function TokenRow({
 }) {
   const pctClass =
     side === "down" ? "token-pct token-pct-loss" : "token-pct token-pct-gain";
-  const pctDisplay = (() => {
-    if (typeof changePct !== "number") return "—";
-    const abs = Math.abs(changePct);
-    const places = abs < 1 ? 3 : 2;
-    return `${changePct.toFixed(places)}%`;
-  })();
+  const pctDisplay = formatPct(changePct);
 
   return (
     <div className={`token-row ${index === 1 ? "token-row--top" : ""}`} tabIndex={0}>
@@ -34,11 +30,9 @@ export default function TokenRow({
       <div className="tr-col tr-col-price">
         <div className="tr-line" />
         <div className="tr-price-block">
-          <div className="tr-price-current">
-            {price != null ? `$${Number(price).toFixed(3)}` : "—"}
-          </div>
+        <div className="tr-price-current">{formatPrice(price)}</div>
           <div className="tr-price-prev">
-            {prevPrice != null ? `$${Number(prevPrice).toFixed(3)}` : ""}
+            {prevPrice != null ? formatPrice(prevPrice) : ""}
           </div>
         </div>
       </div>
@@ -61,7 +55,7 @@ export default function TokenRow({
 
       {/* actions */}
       <div className="tr-col tr-col-actions">
-        <RowActions symbol={String(symbol || "").replace("-USD", "")} priceNow={price} onInfo={onInfo} />
+        <RowActions symbol={String(symbol || "").replace("-USD", "")} price={price} onInfo={onInfo} />
       </div>
     </div>
   );

@@ -65,7 +65,7 @@ export function useBannerVolume1h() {
 
 // Aggregate data hook that returns the full backend /data payload.
 export function useData() {
-  const { data, error, isLoading, mutate } = useSWR('/data', fetchJson, SWR_COMMON);
+  const { data, error, isLoading, mutate } = useSWR(endpoints.metrics, fetchJson, SWR_COMMON);
   const unwrapped = data?.data ?? data ?? {};
   return { data: unwrapped, isLoading, error, mutate };
 }

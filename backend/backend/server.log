@@ -14003,3 +14003,318 @@
 2025-11-10 05:58:43,433 - INFO - Successfully processed data: 4 gainers, 15 losers, 2 banner items
 2025-11-10 05:58:43,433 - INFO - 3-min cache updated: 4 gainers, 15 losers, 2 banner items
 2025-11-10 05:58:44,470 - INFO - Successfully fetched 16 prices from Coinbase
+2025-11-10 05:59:01,505 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:06,457 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:06,459 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:06,593 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:11,468 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:16,467 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:23,879 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:23] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:31,493 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:36,448 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:36,454 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:36,477 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:45,617 - INFO - Successfully fetched 42 prices from Coinbase
+2025-11-10 05:59:46,460 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 05:59:46,579 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 05:59:46,581 - INFO - Successfully processed data: 10 gainers, 15 losers, 6 banner items
+2025-11-10 05:59:46,582 - INFO - 3-min cache updated: 10 gainers, 15 losers, 6 banner items
+2025-11-10 05:59:47,609 - INFO - Successfully fetched 24 prices from Coinbase
+2025-11-10 05:59:56,533 - INFO - 127.0.0.1 - - [10/Nov/2025 05:59:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:01,611 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:06,453 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:06,456 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:11,462 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:11,504 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:16,467 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:16,514 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:26,497 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:36,450 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:36,454 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:36,471 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:41,461 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:41,481 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:46,465 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:00:48,856 - INFO - Successfully fetched 33 prices from Coinbase
+2025-11-10 06:00:49,747 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-11-10 06:00:49,748 - INFO - Successfully processed data: 15 gainers, 11 losers, 2 banner items
+2025-11-10 06:00:49,748 - INFO - 3-min cache updated: 15 gainers, 11 losers, 2 banner items
+2025-11-10 06:00:51,137 - INFO - Successfully fetched 18 prices from Coinbase
+2025-11-10 06:00:56,628 - INFO - 127.0.0.1 - - [10/Nov/2025 06:00:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:01,473 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:03,891 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:03] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:06,452 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:06,454 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:11,479 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:11,513 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:16,459 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:16,542 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:26,487 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:36,455 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:36,459 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:41,469 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:46,472 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:51,514 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:01:52,199 - INFO - Successfully fetched 29 prices from Coinbase
+2025-11-10 06:01:53,113 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 0 losers
+2025-11-10 06:01:53,114 - INFO - Successfully processed data: 8 gainers, 15 losers, 3 banner items
+2025-11-10 06:01:53,114 - INFO - 3-min cache updated: 8 gainers, 15 losers, 3 banner items
+2025-11-10 06:01:54,143 - INFO - Successfully fetched 18 prices from Coinbase
+2025-11-10 06:01:56,489 - INFO - 127.0.0.1 - - [10/Nov/2025 06:01:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:06,461 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:06,474 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:16,471 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:16,480 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:16,495 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:26,506 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:36,462 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:36,463 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:41,473 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:46,477 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:51,491 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:02:55,302 - INFO - Successfully fetched 33 prices from Coinbase
+2025-11-10 06:02:56,146 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-11-10 06:02:56,150 - INFO - Successfully processed data: 3 gainers, 15 losers, 2 banner items
+2025-11-10 06:02:56,150 - INFO - 3-min cache updated: 3 gainers, 15 losers, 2 banner items
+2025-11-10 06:02:57,253 - INFO - Successfully fetched 24 prices from Coinbase
+2025-11-10 06:02:57,488 - INFO - 127.0.0.1 - - [10/Nov/2025 06:02:57] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:02,523 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:02] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:12,546 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:12] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:27,533 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:27] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:27,536 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:27] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:32,548 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:32] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:42,197 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:42] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:52,402 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:52] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:56,071 - INFO - 127.0.0.1 - - [10/Nov/2025 06:03:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:03:59,077 - INFO - Successfully fetched 29 prices from Coinbase
+2025-11-10 06:04:00,106 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:04:00,108 - INFO - Successfully processed data: 1 gainers, 15 losers, 4 banner items
+2025-11-10 06:04:00,108 - INFO - 3-min cache updated: 1 gainers, 15 losers, 4 banner items
+2025-11-10 06:04:01,156 - INFO - Successfully fetched 22 prices from Coinbase
+2025-11-10 06:04:01,168 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:16,258 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:26,023 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:26,025 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:31,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:36,052 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:46,093 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:56,032 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:56,036 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:04:56,059 - INFO - 127.0.0.1 - - [10/Nov/2025 06:04:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:01,044 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:02,552 - INFO - Successfully fetched 37 prices from Coinbase
+2025-11-10 06:05:03,674 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:05:03,675 - INFO - Successfully processed data: 3 gainers, 15 losers, 5 banner items
+2025-11-10 06:05:03,676 - INFO - 3-min cache updated: 3 gainers, 15 losers, 5 banner items
+2025-11-10 06:05:04,741 - INFO - Successfully fetched 22 prices from Coinbase
+2025-11-10 06:05:06,280 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:11,061 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:26,043 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:26,046 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:31,053 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:41,067 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:41,103 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:51,071 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:56,018 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:56,021 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:05:56,073 - INFO - 127.0.0.1 - - [10/Nov/2025 06:05:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:01,024 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:01,076 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:01,289 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:06,239 - INFO - Successfully fetched 39 prices from Coinbase
+2025-11-10 06:06:07,099 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 0 losers
+2025-11-10 06:06:07,102 - INFO - Successfully processed data: 8 gainers, 15 losers, 5 banner items
+2025-11-10 06:06:07,103 - INFO - 3-min cache updated: 8 gainers, 15 losers, 5 banner items
+2025-11-10 06:06:08,236 - INFO - Successfully fetched 19 prices from Coinbase
+2025-11-10 06:06:21,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:26,036 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:26,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:31,044 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:46,094 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:51,055 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:56,022 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:56,027 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:56,072 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:06:56,112 - INFO - 127.0.0.1 - - [10/Nov/2025 06:06:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:01,051 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:06,035 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:09,307 - INFO - Successfully fetched 34 prices from Coinbase
+2025-11-10 06:07:10,237 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:07:10,238 - INFO - Successfully processed data: 15 gainers, 9 losers, 4 banner items
+2025-11-10 06:07:10,238 - INFO - 3-min cache updated: 15 gainers, 9 losers, 4 banner items
+2025-11-10 06:07:11,062 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:11,334 - INFO - Successfully fetched 18 prices from Coinbase
+2025-11-10 06:07:16,095 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:21,044 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:26,040 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:26,043 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:26,063 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:31,059 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:36,099 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:56,029 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:56,039 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:07:56,071 - INFO - 127.0.0.1 - - [10/Nov/2025 06:07:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:01,071 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:06,043 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:11,056 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:12,511 - INFO - Successfully fetched 38 prices from Coinbase
+2025-11-10 06:08:13,337 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 1 losers
+2025-11-10 06:08:13,338 - INFO - Successfully processed data: 15 gainers, 15 losers, 2 banner items
+2025-11-10 06:08:13,338 - INFO - 3-min cache updated: 15 gainers, 15 losers, 2 banner items
+2025-11-10 06:08:14,412 - INFO - Successfully fetched 20 prices from Coinbase
+2025-11-10 06:08:16,058 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:26,101 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:26,108 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:31,077 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:31,121 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:36,142 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:41,072 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:41,079 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:51,142 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:56,022 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:56,024 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:56,108 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:08:56,155 - INFO - 127.0.0.1 - - [10/Nov/2025 06:08:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:01,037 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:01,079 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:15,673 - INFO - Successfully fetched 35 prices from Coinbase
+2025-11-10 06:09:16,778 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 1 losers
+2025-11-10 06:09:16,780 - INFO - Successfully processed data: 13 gainers, 15 losers, 3 banner items
+2025-11-10 06:09:16,780 - INFO - 3-min cache updated: 13 gainers, 15 losers, 3 banner items
+2025-11-10 06:09:17,850 - INFO - Successfully fetched 23 prices from Coinbase
+2025-11-10 06:09:21,050 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:26,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:26,050 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:31,055 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:36,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:36,080 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:46,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:46,298 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:51,063 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:51,074 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:51,123 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:51,165 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:56,023 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:09:56,027 - INFO - 127.0.0.1 - - [10/Nov/2025 06:09:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:06,041 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:11,080 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:16,075 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:19,106 - INFO - Successfully fetched 28 prices from Coinbase
+2025-11-10 06:10:20,192 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-11-10 06:10:20,193 - INFO - Successfully processed data: 15 gainers, 10 losers, 4 banner items
+2025-11-10 06:10:20,193 - INFO - 3-min cache updated: 15 gainers, 10 losers, 4 banner items
+2025-11-10 06:10:21,110 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:21,761 - INFO - Successfully fetched 21 prices from Coinbase
+2025-11-10 06:10:26,077 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:26,083 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:31,097 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:41,173 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:51,073 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:51,109 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:56,027 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:56,029 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:10:56,089 - INFO - 127.0.0.1 - - [10/Nov/2025 06:10:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:06,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:11,116 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:21,062 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:23,232 - INFO - Successfully fetched 32 prices from Coinbase
+2025-11-10 06:11:24,231 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 0 losers
+2025-11-10 06:11:24,235 - INFO - Successfully processed data: 15 gainers, 7 losers, 5 banner items
+2025-11-10 06:11:24,236 - INFO - 3-min cache updated: 15 gainers, 7 losers, 5 banner items
+2025-11-10 06:11:25,275 - INFO - Successfully fetched 25 prices from Coinbase
+2025-11-10 06:11:26,076 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:26,081 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:31,096 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:31,111 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:36,101 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:41,178 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:46,108 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:51,071 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:51,091 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:51,120 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:56,022 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:56,024 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:11:56,087 - INFO - 127.0.0.1 - - [10/Nov/2025 06:11:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:01,030 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:01,090 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:01,106 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:06,083 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:06,113 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:16,055 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:26,023 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:26,027 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:26,098 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:26,111 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:26,440 - INFO - Successfully fetched 42 prices from Coinbase
+2025-11-10 06:12:27,222 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:12:27,224 - INFO - Successfully processed data: 15 gainers, 6 losers, 4 banner items
+2025-11-10 06:12:27,224 - INFO - 3-min cache updated: 15 gainers, 6 losers, 4 banner items
+2025-11-10 06:12:28,241 - INFO - Successfully fetched 28 prices from Coinbase
+2025-11-10 06:12:31,034 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:36,039 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:36,182 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:46,045 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:46,125 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:51,043 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:51,065 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:56,025 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:12:56,029 - INFO - 127.0.0.1 - - [10/Nov/2025 06:12:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:01,104 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:06,046 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:06,107 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:11,056 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:16,063 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:26,034 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:26,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:29,525 - INFO - Successfully fetched 36 prices from Coinbase
+2025-11-10 06:13:30,343 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 0 losers
+2025-11-10 06:13:30,343 - INFO - Successfully processed data: 15 gainers, 10 losers, 1 banner items
+2025-11-10 06:13:30,343 - INFO - 3-min cache updated: 15 gainers, 10 losers, 1 banner items
+2025-11-10 06:13:31,041 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:31,454 - INFO - Successfully fetched 20 prices from Coinbase
+2025-11-10 06:13:36,045 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:41,048 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:41] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:46,057 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:46,074 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:46] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:51,121 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:51] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:56,022 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:13:56,025 - INFO - 127.0.0.1 - - [10/Nov/2025 06:13:56] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:01,051 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:01,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:01,070 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:01,116 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:01] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:06,033 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:06] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:11,070 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:11] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:16,064 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:16,118 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:16] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:21,041 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:21] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:26,028 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:26,030 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:26,054 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:26] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:31,041 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:31] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:32,791 - INFO - Successfully fetched 35 prices from Coinbase
+2025-11-10 06:14:33,893 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-11-10 06:14:33,893 - INFO - Successfully processed data: 7 gainers, 15 losers, 2 banner items
+2025-11-10 06:14:33,893 - INFO - 3-min cache updated: 7 gainers, 15 losers, 2 banner items
+2025-11-10 06:14:34,849 - INFO - Successfully fetched 19 prices from Coinbase
+2025-11-10 06:14:36,041 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:36] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:39,013 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:39] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:14:49,047 - INFO - 127.0.0.1 - - [10/Nov/2025 06:14:49] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:09,024 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:09] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:09,028 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:09] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:14,031 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:14] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:14,059 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:14] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:36,295 - INFO - Successfully fetched 41 prices from Coinbase
+2025-11-10 06:15:37,294 - INFO - Successfully fetched Coinbase 24h top movers: 8 gainers, 0 losers
+2025-11-10 06:15:37,295 - INFO - Successfully processed data: 8 gainers, 15 losers, 8 banner items
+2025-11-10 06:15:37,295 - INFO - 3-min cache updated: 8 gainers, 15 losers, 8 banner items
+2025-11-10 06:15:38,340 - INFO - Successfully fetched 22 prices from Coinbase
+2025-11-10 06:15:39,020 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:39] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:39,022 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:39] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:39,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:39] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:44,123 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:44] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:15:49,039 - INFO - 127.0.0.1 - - [10/Nov/2025 06:15:49] "[33mGET /api/data HTTP/1.1[0m" 404 -
+2025-11-10 06:16:03,819 - INFO - Successfully fetched 36 prices from Coinbase
+2025-11-10 06:16:03,825 - INFO - 1-min data processed (throttle 45s) retained=25 gainers=6 losers=19
+2025-11-10 06:16:04,824 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:16:04,825 - INFO - 127.0.0.1 - - [10/Nov/2025 06:16:04] "GET /data HTTP/1.1" 200 -

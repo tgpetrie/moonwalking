@@ -31,6 +31,21 @@ export function WatchlistProvider({ children }) {
           return rest;
         }),
       baselineFor: (s) => store[s],
+      // New: refresh prices from a symbol→row map (supports {price} or {current_price})
+      refreshFromData: (bySymbol = {}) =>
+        setStore((m) => {
+          let changed = false;
+          const next = { ...m };
+          for (const key of Object.keys(m)) {
+            const row = bySymbol[key];
+            const p = row?.price ?? row?.current_price;
+            if (typeof p === "number" && next[key]?.current !== p) {
+              next[key] = { ...next[key], current: p };
+              changed = true;
+            }
+          }
+          return changed ? next : m;
+        }),
       // Update current prices without altering baseline price
       reconcilePrices: (priceMap = {}) =>
         setStore((m) => {

@@ -2,7 +2,7 @@
 import useSWR from "swr";
 import { fetchJson } from "../lib/api";
 
-const DATA_URL = "/api/data"; // unified dashboard payload
+const DATA_URL = "/data"; // unified dashboard payload
 
 // map raw backend row to UI row while preserving initial prices for panels
 function mapRowWithInitial(x = {}) {
@@ -67,4 +67,3 @@ export function useDashboardData() {
     mutate,
   };
 }
-

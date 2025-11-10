@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { fetchJson } from "../lib/api";
+import { fetchJson, endpoints } from "../lib/api";
 import { normalizeBannerRow, normalizeTableRow } from "../lib/adapters";
 
 const safeFetch = async (url) => {
@@ -27,9 +27,9 @@ export function useDataFeed(pollMs = 5000) {
   useEffect(() => {
     let alive = true;
     const fetchAll = async () => {
-      // Preferred: aggregate /data endpoint with truthful slices and meta/errors
+      // Preferred: aggregate unified endpoint with truthful slices and meta/errors
       try {
-        const agg = await fetchJson(`${API}/data`, { cache: 'no-store' });
+        const agg = await fetchJson(endpoints.metrics, { cache: 'no-store' });
         if (!alive || !mounted.current) return;
         const d = agg?.data || {};
         const m = agg?.meta || null;

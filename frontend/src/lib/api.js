@@ -112,6 +112,18 @@ export const endpoints = {
   metrics: '/data',
 };
 
+// If your backend exposes the unified aggregate at '/api/data' (common when
+// the API is mounted under /api), prefer that path. The dev server proxies
+// both /data and /api to the backend, so either can work; change these if
+// your backend's path is different.
+// Example convenience endpoint for sentiment lookups:
+endpoints.sentiment = (symbol) => `/api/sentiment?symbol=${encodeURIComponent(symbol)}`;
+
+export async function fetchSentiment(symbol) {
+  if (!symbol) return null;
+  return fetchJson(endpoints.sentiment(symbol));
+}
+
 export async function fetchJson(url, init = {}, ms = 9000) {
   const hasExternalSignal = Boolean(init && init.signal);
   let controller;
@@ -206,6 +218,28 @@ export const mapBanner = (row = {}) => {
 
 export const mapRows = (payload, transform = mapRow) => coerceArray(payload).map(transform);
 export const mapBanners = (payload) => coerceArray(payload).map(mapBanner);
+
+// Normalizer that preserves initial price fields and provides displaySymbol
+export function normalizeRow(row = {}) {
+  const symbolRaw = row.symbol ?? row.ticker ?? row.product_id ?? '';
+  const symbol = String(symbolRaw).toUpperCase();
+  const displaySymbol = symbol.replace(/-(USD|USDT|PERP)$/i, '');
+  const price = Number(row.current_price ?? row.last ?? row.price ?? 0);
+  const prevPrice = row.initial_price_1min ?? row.initial_price_3min;
+  const changePct =
+    typeof row.price_change_percentage_1min === 'number'
+      ? row.price_change_percentage_1min
+      : typeof row.price_change_percentage_3min === 'number'
+      ? row.price_change_percentage_3min
+      : typeof row.changePct === 'number'
+      ? row.changePct
+      : typeof row.pct === 'number'
+      ? row.pct
+      : typeof row.change === 'number'
+      ? row.change
+      : undefined;
+  return { ...row, symbol, displaySymbol, price, prevPrice, changePct };
+}
 
 // ---- Watchlist helpers (localStorage-backed) -------------------------------
 
