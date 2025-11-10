@@ -1,36 +1,46 @@
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
 
-export default function Losers3m({ rows = [], loading = false, onInfo }) {
+export default function ThreeMinLosers({ rows = [], loading = false, error = null, onInfo, title = "3-min losers" }) {
+  const top = Array.isArray(rows) ? rows.slice(0, 8) : [];
+  const hasData = top.length > 0;
+
   return (
-    <section className="w-full panel-shell">
-      <div className="text-center">
-        <h2 className="section-title-purple">3-MIN LOSERS</h2>
-        <div className="section-underline-purple"></div>
+    <section className="w-full">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[16px] font-bold tracking-wide text-[#a24bff] uppercase">{title}</h2>
       </div>
 
-      <div className="panel-3m">
-        {loading && <div className="panel-3m-empty">Loading…</div>}
+      {loading && <div className="py-6 text-sm text-white/40">Loading…</div>}
+      {!loading && error && !hasData && (
+        <div className="py-6 text-sm text-white/40">Backend unavailable (no data)</div>
+      )}
 
-        {!loading && rows.length === 0 && (
-          <div className="panel-3m-empty">No 3-min losers.</div>
-        )}
-
-        {!loading &&
-          rows.length > 0 &&
-          rows.slice(0, 8).map((row, i) => (
+      {!loading && hasData && (
+        <div className="bg-black/0 rounded-md overflow-hidden panel-3m flex flex-col gap-1">
+          {top.map((row, idx) => (
             <TokenRow
-              key={row.symbol || i}
-              index={i + 1}
+              key={row.symbol || idx}
+              rank={row.rank ?? idx + 1}
               symbol={row.symbol}
-              price={row.current_price}
-              prevPrice={row.initial_price_3min}
-              changePct={row.price_change_percentage_3min}
-              side="loss"
+              currentPrice={row.currentPrice ?? row.current_price}
+              previousPrice={row.previousPrice ?? row.previous_price}
+              priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
+              priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
+              isGainer={false}
               onInfo={onInfo}
             />
           ))}
-      </div>
+        </div>
+      )}
+
+      {!loading && hasData && rows.length > 8 && (
+        <div className="mt-3 flex justify-center">
+          <button type="button" className="px-4 py-1.5 rounded-full bg-[#2a2335] text-sm text-white/80 hover:bg-[#3a314a]">
+            Show More
+          </button>
+        </div>
+      )}
     </section>
   );
 }
