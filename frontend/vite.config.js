@@ -15,11 +15,15 @@ export default defineConfig({
         sourcemap: true,
         rollupOptions: {
             output: {
+                // Commented out manualChunks entries that pointed to legacy or moved files
+                // so Rollup/Vite doesn't fail trying to resolve them. If you prefer
+                // to keep manualChunks, re-add the entries but ensure the paths exist
+                // under ./src or adjust to the new locations.
                 manualChunks: {
                     react: ['react','react-dom'],
-                    tables: ['./src/components/GainersTable.jsx','./src/components/LosersTable.jsx','./src/components/GainersTable1Min.jsx'],
-                    banners: ['./src/components/TopBannerScroll.jsx','./src/components/BottomBannerScroll.jsx'],
-                    watchlist: ['./src/components/Watchlist.jsx','./src/components/WatchlistInsightsPanel.jsx']
+                    // tables: ['./src/components/GainersTable.jsx','./src/components/LosersTable.jsx','./src/components/GainersTable1Min.jsx'],
+                    // banners: ['./src/components/TopBannerScroll.jsx','./src/components/BottomBannerScroll.jsx'],
+                    // watchlist: ['./src/components/Watchlist.jsx','./src/components/WatchlistInsightsPanel.jsx']
                 }
             }
         }
