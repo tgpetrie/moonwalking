@@ -10,7 +10,7 @@ export default function RowActions({ symbol, price, onInfo }) {
       <button
         type="button"
         className={`wl-btn ${watching ? "wl-btn--active" : ""}`}
-        onClick={() => (watching ? remove(symbol) : add(symbol, price))}
+        onClick={() => (watching ? remove(symbol) : add({ symbol, price }))}
         aria-label={watching ? "Remove from watchlist" : "Add to watchlist"}
       >
         ★

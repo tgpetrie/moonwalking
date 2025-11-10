@@ -17,3 +17,6 @@ export function formatPct(value) {
   return `${n.toFixed(2)}%`;
 }
 
+export function normalizeSymbol(sym = "") {
+  return String(sym).replace(/-USD$/i, "").trim().toUpperCase();
+}

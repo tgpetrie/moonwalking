@@ -46,7 +46,7 @@ export default function App() {
           </div>
           <div className="bh-right-col">
             <Losers3m rows={data.losers3m.rows} loading={data.losers3m.loading} message={data.losers3m.message} onInfo={handleInfo} />
-            <WatchlistPanel onInfo={(symbol) => handleInfo({ symbol })} />
+            <WatchlistPanel bySymbol={bySymbol} onInfo={(symbol) => handleInfo({ symbol })} />
           </div>
         </main>
 

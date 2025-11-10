@@ -1,80 +1,84 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 
-const Ctx = createContext(null);
-const KEY = "bhabit_watchlist_v2";
+const STORAGE_KEY = "bhabit_watchlist_v2";
+const WatchlistCtx = createContext(null);
+
+function loadInitial() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
 
 export function WatchlistProvider({ children }) {
-  const [store, setStore] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(KEY) || "{}");
-    } catch {
-      return {};
+  const [items, setItems] = useState(loadInitial);
+
+  const persist = (next) => {
+    setItems(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
-  });
+  };
 
-  useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(store));
-  }, [store]);
-
-  const api = useMemo(
-    () => ({
-      has: (s) => !!store[s],
-      add: (s, priceNow) =>
-        setStore((m) =>
-          typeof priceNow === "number"
-            ? { ...m, [s]: { price: priceNow, current: priceNow, at: Date.now() } }
-            : m
-        ),
-      remove: (s) =>
-        setStore((m) => {
-          const { [s]: _, ...rest } = m;
-          return rest;
-        }),
-      baselineFor: (s) => store[s],
-      // derive arrays for rendering
-      symbols: Object.keys(store),
-      items: Object.entries(store).map(([symbol, v]) => ({
-        symbol,
-        baselinePrice: v?.price,
-        currentPrice: v?.current,
-        at: v?.at,
-      })),
-      // New: refresh prices from a symbol→row map (supports {price} or {current_price})
-      refreshFromData: (bySymbol = {}) =>
-        setStore((m) => {
-          let changed = false;
-          const next = { ...m };
-          for (const key of Object.keys(m)) {
-            const row = bySymbol[key];
-            const p = row?.price ?? row?.current_price;
-            if (typeof p === "number" && next[key]?.current !== p) {
-              next[key] = { ...next[key], current: p };
-              changed = true;
-            }
-          }
-          return changed ? next : m;
-        }),
-      // Update current prices without altering baseline price
-      reconcilePrices: (priceMap = {}) =>
-        setStore((m) => {
-          let changed = false;
-          const next = { ...m };
-          for (const key of Object.keys(m)) {
-            const p = priceMap[key];
-            if (typeof p === "number" && m[key]?.current !== p) {
-              next[key] = { ...m[key], current: p };
-              changed = true;
-            }
-          }
-          return changed ? next : m;
-        }),
-    }),
-    [store]
+  const has = useCallback(
+    (symbol) => items.some((it) => it.symbol === symbol),
+    [items]
   );
 
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+  const add = useCallback(
+    ({ symbol, price }) => {
+      if (!symbol) return;
+      if (items.some((it) => it.symbol === symbol)) return;
+      const baseline = typeof price === "number" ? price : null;
+      const next = [
+        ...items,
+        {
+          symbol,
+          baseline,
+          current: price ?? null,
+        },
+      ];
+      persist(next);
+    },
+    [items]
+  );
+
+  const remove = useCallback(
+    (symbol) => {
+      persist(items.filter((it) => it.symbol !== symbol));
+    },
+    [items]
+  );
+
+  const refreshFromData = useCallback(
+    (bySymbol) => {
+      if (!bySymbol) return;
+      const next = items.map((it) => {
+        const live = bySymbol[it.symbol];
+        if (live && typeof live.current_price === "number") {
+          return { ...it, current: live.current_price };
+        }
+        return it;
+      });
+      persist(next);
+    },
+    [items]
+  );
+
+  return (
+    <WatchlistCtx.Provider
+      value={{ items, has, add, remove, refreshFromData }}
+    >
+      {children}
+    </WatchlistCtx.Provider>
+  );
 }
 
 export function useWatchlist() {
-  return useContext(Ctx);
+  const ctx = useContext(WatchlistCtx);
+  if (!ctx) throw new Error("useWatchlist must be used inside provider");
+  return ctx;
 }
