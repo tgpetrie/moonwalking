@@ -240,3 +240,35 @@ html, body {
   margin-right: auto;
   padding: 0 1.5rem;
 }
+
+/* ===== insights panel ===== */
+.insights-card {
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.03);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  backdrop-filter: blur(6px);
+}
+.insights-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.insights-tabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.65rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+.insights-tabs button.active {
+  border-color: rgba(255,179,71,0.5);
+  color: #fff;
+}
+.insights-body { min-height: 140px; }
+.insights-placeholder {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.35);
+}

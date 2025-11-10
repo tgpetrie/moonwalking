@@ -3,6 +3,7 @@ import SentimentCard from "./cards/SentimentCard.jsx";
 
 export default function InsightsTabbed({ row }) {
   const [active, setActive] = useState("charts");
+  const symbol = row?.symbol || row?.ticker || "";
 
   return (
     <div className="insights-card">
@@ -28,9 +29,15 @@ export default function InsightsTabbed({ row }) {
       </div>
 
       <div className="insights-body">
-        {active === "charts" && <div className="insights-placeholder">[chart goes here]</div>}
-        {active === "sentiment" && <SentimentCard row={row} />}
-        {active === "social" && <div className="insights-placeholder">[social feed]</div>}
+        {active === "charts" && (
+          <div className="insights-placeholder">[chart goes here]</div>
+        )}
+        {active === "sentiment" && (
+          <SentimentCard symbol={symbol} ttlSec={30} />
+        )}
+        {active === "social" && (
+          <div className="insights-placeholder">[social feed]</div>
+        )}
       </div>
     </div>
   );

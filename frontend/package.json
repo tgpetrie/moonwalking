@@ -11,6 +11,7 @@
     "smoke:screenshot": "node scripts/smokeScreenshot.js"
   },
   "dependencies": {
+    "swr": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "axios": "^1.6.7",
     "prop-types": "^15.8.1",
