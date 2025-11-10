@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { formatSymbol, smartPrice } from "../utils/formatters.js";
 
 function computePercent(price, prevPrice, fallback) {
   const c = Number(price);
@@ -30,7 +31,7 @@ export default function TokenRow({
   }, []);
 
   const pct = computePercent(price, prevPrice, changePct);
-  const pctDisplay = typeof pct === "number" ? `${pct.toFixed(3)}%` : "—";
+  const pctDisplay = typeof pct === "number" ? `${Number(pct).toFixed(3).replace(/\.?0+$/, "")}%` : "—";
 
   return (
     <div
@@ -43,20 +44,14 @@ export default function TokenRow({
 
       {/* col 1: rank + symbol */}
       <div className="tr-col tr-col-symbol">
-        <span className="tr-rank">
-          {typeof index === "number" ? index + 1 : ""}
-        </span>
-        <span className="tr-symbol">{symbol}</span>
+        <span className="tr-rank">{typeof index === "number" ? index : ""}</span>
+        <span className="tr-symbol">{formatSymbol(symbol)}</span>
       </div>
 
       {/* col 2: price block (2 lines) */}
-      <div className="tr-col tr-col-price">
-        <div className="tr-price-current">
-          {price ? `$${Number(price).toFixed(4)}` : "—"}
-        </div>
-        <div className="tr-price-prev">
-          {prevPrice ? `$${Number(prevPrice).toFixed(4)}` : ""}
-        </div>
+      <div className="tr-col tr-col-price price-block">
+        <div className="tr-price-current">{price ? `$${smartPrice(price)}` : "—"}</div>
+        <div className="tr-price-prev">{prevPrice ? `$${smartPrice(prevPrice)}` : ""}</div>
       </div>
 
       {/* col 3: percent */}
@@ -69,13 +64,13 @@ export default function TokenRow({
       </div>
 
       {/* col 4: actions (star on top, info below) */}
-      <div className="tr-col tr-col-actions">
-        <button type="button" className="tr-star" data-stop>
-          ☆
+      <div className="tr-col tr-col-actions row-actions">
+        <button type="button" className="action-btn" data-stop>
+          ★
         </button>
         <button
           type="button"
-          className="tr-info"
+          className="action-btn"
           data-stop
           onClick={() => onInfo && onInfo(symbol)}
         >

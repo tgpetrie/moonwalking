@@ -1,3 +1,19 @@
+export function formatSymbol(raw = "") {
+  return raw.replace(/[-/](USDT?|USD)$/i, "").toUpperCase();
+}
+
+export function smartPrice(n) {
+  if (n == null || n === "") return "";
+  const num = Number(n);
+  if (Number.isNaN(num)) return n;
+
+  if (num >= 1000) return num.toLocaleString();
+  if (num >= 100) return num.toFixed(0);
+  if (num >= 10) return num.toFixed(2);
+  if (num >= 1) return num.toFixed(3);
+  if (num >= 0.01) return num.toFixed(4);
+  return num.toFixed(6);
+}
 // frontend/src/utils/formatters.js
 // ---- Rule-based precision system & registry ----
 

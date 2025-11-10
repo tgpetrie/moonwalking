@@ -1,26 +1,27 @@
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
 
-export default function Losers3m({ rows = [], loading, onInfo }) {
+export default function Losers3m({ rows = [], loading = false, onInfo }) {
   return (
-    <section className="w-full">
-      <div className="section-head">
-        <div className="section-title">3-minute losers</div>
-        <div className="section-sub">recent 3m performance</div>
+    <section className="w-full panel-shell">
+      <div className="text-center">
+        <h2 className="section-title-purple">3-MIN LOSERS</h2>
+        <div className="section-underline-purple"></div>
       </div>
 
-      {loading && <div className="text-sm text-white/35 py-3">Loading…</div>}
+      <div className="panel-3m">
+        {loading && <div className="panel-3m-empty">Loading…</div>}
 
-      {!loading && !rows.length && (
-        <div className="panel-3m panel-3m-empty">No 3-min losers.</div>
-      )}
+        {!loading && rows.length === 0 && (
+          <div className="panel-3m-empty">No 3-min losers.</div>
+        )}
 
-      {!loading && rows.length > 0 && (
-        <div className="flex flex-col gap-1 panel-3m">
-          {rows.slice(0, 8).map((row, i) => (
+        {!loading &&
+          rows.length > 0 &&
+          rows.slice(0, 8).map((row, i) => (
             <TokenRow
               key={row.symbol || i}
-              index={i}
+              index={i + 1}
               symbol={row.symbol}
               price={row.current_price}
               prevPrice={row.initial_price_3min}
@@ -29,14 +30,7 @@ export default function Losers3m({ rows = [], loading, onInfo }) {
               onInfo={onInfo}
             />
           ))}
-        </div>
-      )}
-
-      {rows.length > 8 && (
-        <div className="mt-5">
-          <button className="px-5 py-2 rounded-full bg-[#242131] text-xs">Show More</button>
-        </div>
-      )}
+      </div>
     </section>
   );
 }

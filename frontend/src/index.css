@@ -13,7 +13,7 @@ body,
 }
 
 body {
-  background-image: url("/rabbit-bg.svg"); /* adjust path to real asset */
+  background-image: url("/purple-rabbit-bg.png"); /* adjusted to existing asset in /public */
   background-repeat: no-repeat;
   background-position: center top;
   background-size: cover;
@@ -341,43 +341,88 @@ body {
   min-height: 52px;
 }
 
-/* --- UI freeze block provided by user ------------------------------------------------ */
+/* --- UI freeze block provided by user (trimmed) ------------------------------------------------ */
 
-/* headings */
-.section-head { display:flex; align-items:center; gap:.6rem; }
-.section-title { font-weight:700; font-size:13px; letter-spacing:.02em; }
-.section-sub { color:rgba(255,255,255,.36); font-size:11px }
+/* Keep only the header/title variants and the underline gradients from the freeze block.
+  The rest of the original freeze-block rules are intentionally disabled below so they
+  don't override the active layout rules earlier in this file. */
 
-/* panel shell for approx 3-minute blocks */
+.section-title-gold { font-weight:600; font-size:.9rem; letter-spacing:.06em; text-transform:uppercase; color:#ffb347 }
+.section-title-purple { font-weight:600; font-size:.9rem; letter-spacing:.06em; text-transform:uppercase; color:#c084fc }
+.section-underline-gold { height:2px; width:90px; margin:6px auto 16px; background:linear-gradient(90deg, rgba(255,179,71,0.95), rgba(255,179,71,0.15)); border-radius:2px }
+.section-underline-purple { height:2px; width:90px; margin:6px auto 16px; background:linear-gradient(90deg, rgba(192,132,252,0.95), rgba(192,132,252,0.15)); border-radius:2px }
+
+/* Keep the explicit disabling of legacy outer glow markup so older markup remains inert. */
+.row-hover-glow, .row-hover-glow-gain, .row-hover-glow-loss { opacity:0 !important; pointer-events:none !important; height:0 !important; width:0 !important }
+
+/* OVERRIDES FROM FREEZE BLOCK — DISABLED
+  The original freeze block contained many layout rules (panel-3m, token-row, panel-shell,
+  pct colors, etc.) that conflict with the active, intended layout defined above. They are
+  left here commented so they can be restored if needed, but won't affect the final cascade.
+
 .panel-3m { position:relative; padding:12px 12px 8px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); }
 .panel-3m-empty { min-height:90px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.08); font-size:12px }
-
-/* token-row shell */
 .token-row { display:flex; gap:8px; align-items:center; padding:6px 8px; position:relative; }
 .token-row .tr-col { display:flex; align-items:center }
 .tr-col-symbol { min-width:110px; gap:8px }
 .tr-col-price { width:112px; flex-direction:column; align-items:flex-end; }
 .tr-col-pct { width:86px; justify-content:flex-end }
 .tr-col-actions { width:44px; justify-content:center; flex-direction:column }
-
-/* thin centered accent line behind tokens */
 .token-row-line { position:absolute; inset:0 auto 0 0; left:50%; transform:translateX(-50%); width:calc(100% - 56px); height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,.035), transparent); z-index:0; pointer-events:none }
 .token-row > * { position:relative; z-index:1 }
-
-/* kill legacy outer glow while keeping markup intact */
-.row-hover-glow, .row-hover-glow-gain, .row-hover-glow-loss { opacity:0; pointer-events:none; height:0; width:0 }
-
-/* pct colors */
+.panel-shell { max-width:1180px; margin-left:auto; margin-right:auto; padding:1.5rem; }
+.panel-3m-empty { min-height:180px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.35); font-size:12px }
 .token-pct-gain { color:#c8f09b; }
 .token-pct-loss { color:#e6a7ff; }
-
-/* tr alias widths to avoid table wrapping */
 .tr-col { white-space:nowrap }
 .tr-col-symbol .tr-symbol { font-weight:600 }
 .tr-rank { width:28px; text-align:center; display:inline-block }
-
-/* small helpers */
 .reveal { animation:tokenFade .34s ease both }
 @keyframes tokenFade { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
 
+*/
+
 /* EOF UI freeze block --------------------------------------------------------------- */
+
+/* Token/action helpers added for stacked star/info and price blocks */
+.price-block {
+  width: 5.6rem;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row-actions {
+  width: 2.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.35);
+}
+.action-btn {
+  line-height: 1;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* three-min grid wrapper used by ThreeMinSection */
+.three-min-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(520px, 1fr));
+  gap: 2.25rem;
+  align-items: start;
+}
+.show-more-btn {
+  background: rgba(11,11,14,0.6);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 9999px;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.35rem 1.9rem 0.4rem;
+}
+.show-more-btn:hover { background: rgba(11,11,14,0.95); }
+

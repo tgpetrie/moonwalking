@@ -6,9 +6,11 @@ export default function Gainers1m({ rows = [], loading, error, onInfo }) {
   const right = rows.slice(4, 8);
 
   return (
-    <section className="w-full">
-      <h2 className="section-title-gold">1-MIN GAINERS</h2>
-      <div className="section-underline-gold" />
+    <section className="panel-shell">
+      <div className="text-center">
+        <h2 className="section-title-gold">1-MIN GAINERS</h2>
+        <div className="section-underline-gold" />
+      </div>
 
       {loading && <div className="text-sm text-white/35 py-3">Loading…</div>}
       {!loading && error && !rows.length && (
@@ -21,7 +23,7 @@ export default function Gainers1m({ rows = [], loading, error, onInfo }) {
             {left.map((row, i) => (
               <TokenRow
                 key={row.symbol || i}
-                index={i}
+                index={i + 1}
                 symbol={row.symbol}
                 price={row.current_price}
                 prevPrice={row.initial_price_1min}
@@ -35,7 +37,7 @@ export default function Gainers1m({ rows = [], loading, error, onInfo }) {
             {right.map((row, i) => (
               <TokenRow
                 key={row.symbol || i}
-                index={i + 4}
+                index={i + 1 + left.length}
                 symbol={row.symbol}
                 price={row.current_price}
                 prevPrice={row.initial_price_1min}
@@ -50,9 +52,7 @@ export default function Gainers1m({ rows = [], loading, error, onInfo }) {
 
       {rows.length > 8 && (
         <div className="mt-4">
-          <button className="px-4 py-2 rounded-full bg-[#242131] text-xs">
-            Show More
-          </button>
+          <button className="px-4 py-2 rounded-full bg-[#242131] text-xs">Show More</button>
         </div>
       )}
     </section>

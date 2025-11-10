@@ -3,6 +3,7 @@ import useUnifiedData from "./hooks/useUnifiedData.js";
 import Gainers1m from "./components/Gainers1m.jsx";
 import Gainers3m from "./components/Gainers3m.jsx";
 import Losers3m from "./components/Losers3m.jsx";
+import ThreeMinSection from "./components/ThreeMinSection.jsx";
 
 export default function App() {
   const { data, loading, errs } = useUnifiedData();
@@ -25,18 +26,14 @@ export default function App() {
           onInfo={setInfoSymbol}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-          <Gainers3m
-            rows={data.gainers_3m || []}
-            loading={loading}
-            onInfo={setInfoSymbol}
-          />
-          <Losers3m
-            rows={data.losers_3m || []}
-            loading={loading}
-            onInfo={setInfoSymbol}
-          />
-        </div>
+        <ThreeMinSection
+          gainers={data.gainers_3m || []}
+          losers={data.losers_3m || []}
+          loadingGainers={loading}
+          loadingLosers={loading}
+          onInfo={setInfoSymbol}
+          onShowMore={() => console.log("Show more clicked")}
+        />
       </div>
     </main>
   );
