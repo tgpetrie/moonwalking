@@ -6,6 +6,7 @@ import Gainers1m from "./components/Gainers1m.jsx";
 import Gainers3m from "./components/Gainers3m.jsx";
 import Losers3m from "./components/Losers3m.jsx";
 import RefreshTicker from "./components/RefreshTicker.jsx";
+import WatchlistPanel from "./components/WatchlistPanel.jsx";
 
 // these are the real ones you said are in the repo
 import InsightsTabbed from "./components/InsightsTabbed.jsx";
@@ -42,6 +43,7 @@ export default function App() {
           </div>
           <div className="col col-right">
             <Losers3m rows={data.losers3m.rows} loading={data.losers3m.loading} message={data.losers3m.message} onInfo={handleInfo} />
+            <WatchlistPanel onInfo={(symbol) => handleInfo({ symbol })} />
           </div>
         </main>
 

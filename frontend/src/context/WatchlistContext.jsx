@@ -31,6 +31,14 @@ export function WatchlistProvider({ children }) {
           return rest;
         }),
       baselineFor: (s) => store[s],
+      // derive arrays for rendering
+      symbols: Object.keys(store),
+      items: Object.entries(store).map(([symbol, v]) => ({
+        symbol,
+        baselinePrice: v?.price,
+        currentPrice: v?.current,
+        at: v?.at,
+      })),
       // New: refresh prices from a symbol→row map (supports {price} or {current_price})
       refreshFromData: (bySymbol = {}) =>
         setStore((m) => {
