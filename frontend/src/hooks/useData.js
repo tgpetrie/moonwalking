@@ -1,72 +1,44 @@
 // frontend/src/hooks/useData.js
 import useSWR from "swr";
-import { endpoints, fetchJson, mapRow, mapBanner } from "../lib/api";
+import { endpoints, fetchJson, normalizeRow } from "../lib/api.js";
 
 const SWR_COMMON = {
   revalidateOnFocus: true,
   keepPreviousData: true,
   dedupingInterval: 10000,
-  refreshInterval: () =>
-    document.visibilityState === "visible" ? 15000 : 0,
+  refreshInterval: () => (document.visibilityState === "visible" ? 15000 : 0),
   errorRetryCount: 3,
   errorRetryInterval: (attempt) => Math.min(10000, 1000 * 2 ** attempt),
 };
 
-export function useHealth() {
-  return useSWR(endpoints.health, fetchJson, {
-    refreshInterval: 30000,
-    dedupingInterval: 30000,
-  });
-}
-
-export function useGainers(interval) {
-  const key = interval === "1m" ? endpoints.gainers1m : endpoints.gainers3m;
-  const { data, error, isLoading, mutate } = useSWR(key, fetchJson, SWR_COMMON);
-  // backend /data returns { data: { gainers_1m: [], gainers_3m: [], losers_3m: [] } }
-  const unwrapped = data?.data ?? data ?? {};
-  const rowsRaw = interval === "1m" ? unwrapped.gainers_1m : unwrapped.gainers_3m;
-  const rows = (rowsRaw ?? [])
-    .map(mapRow)
-    .sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0));
-  return { rows, loading: isLoading && !rows.length, error, mutate };
-}
-
-export function useLosers3m() {
+// Aggregate data hook that returns panel-shaped data and a symbol map
+export function useData() {
   const { data, error, isLoading, mutate } = useSWR(
-    endpoints.losers3m,
+    endpoints.metrics,
     fetchJson,
     SWR_COMMON
   );
-  const unwrapped = data?.data ?? data ?? {};
-  const rows = (unwrapped.losers_3m ?? [])
-    .map(mapRow)
-    .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0));
-  return { rows, loading: isLoading && !rows.length, error, mutate };
-}
+  const buckets = data?.data ?? data ?? {};
+  const errs = data?.errors ?? {};
 
-export function useBanner1h() {
-  const { data, ...rest } = useSWR(endpoints.banner1h, fetchJson, {
-    ...SWR_COMMON,
-    refreshInterval: 20000,
+  const g1 = Array.isArray(buckets.gainers_1m) ? buckets.gainers_1m.map(normalizeRow) : [];
+  const g3 = Array.isArray(buckets.gainers_3m) ? buckets.gainers_3m.map(normalizeRow) : [];
+  const l3 = Array.isArray(buckets.losers_3m) ? buckets.losers_3m.map(normalizeRow) : [];
+
+  const bySymbol = {};
+  [...g1, ...g3, ...l3].forEach((r) => {
+    if (r?.symbol) bySymbol[r.symbol] = r;
   });
-  const unwrapped = data?.data ?? data ?? {};
-  const items = (unwrapped.banner_1h ?? []).map(mapBanner);
-  return { items, ...rest };
-}
 
-export function useBannerVolume1h() {
-  const { data, ...rest } = useSWR(endpoints.bannerVolume1h, fetchJson, {
-    ...SWR_COMMON,
-    refreshInterval: 25000,
-  });
-  const items = (data?.items ?? data ?? []).map(mapBanner);
-  return { items, ...rest };
-}
+  const panels = {
+    gainers1m: {
+      rows: g1,
+      loading: isLoading || errs.gainers_1m === "missing_snapshot",
+      message: errs.gainers_1m === "missing_snapshot" ? "Waiting for 1-minute snapshot…" : null,
+    },
+    gainers3m: { rows: g3, loading: isLoading, message: null },
+    losers3m: { rows: l3, loading: isLoading, message: null },
+  };
 
-// Aggregate data hook that returns the full backend /data payload.
-export function useData() {
-  const { data, error, isLoading, mutate } = useSWR(endpoints.metrics, fetchJson, SWR_COMMON);
-  const unwrapped = data?.data ?? data ?? {};
-  return { data: unwrapped, isLoading, error, mutate };
+  return { data: panels, isLoading, error, mutate, bySymbol };
 }
-
