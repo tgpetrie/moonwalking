@@ -25,30 +25,33 @@ export default function App() {
   return (
     <WatchlistProvider>
       <WatchlistReconciler bySymbol={bySymbol} />
-      <div className="bhabit-shell">
-        <header className="topbar">
-          <div className="topbar-left">
-            <div className="logo-mark" />
-            <div className="topbar-title">BHABITS CB INSIGHT</div>
+      <div className="bh-app">
+        <header className="bh-topbar">
+          <div className="bh-logo">
+            <span className="bh-logo-icon">🐇</span>
+            <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           </div>
-          <div className="topbar-right">
+          <div className="bh-topbar-right">
             <RefreshTicker onRefresh={mutate} />
           </div>
         </header>
 
-        <main className="main-grid">
-          <div className="col col-left">
+        {/* background rabbit under content */}
+        <div className="bh-rabbit-bg" aria-hidden="true" />
+
+        <main className="bh-main">
+          <div className="bh-left-col">
             <Gainers1m rows={data.gainers1m.rows} loading={data.gainers1m.loading} message={data.gainers1m.message} onInfo={handleInfo} />
             <Gainers3m rows={data.gainers3m.rows} loading={data.gainers3m.loading} message={data.gainers3m.message} onInfo={handleInfo} />
           </div>
-          <div className="col col-right">
+          <div className="bh-right-col">
             <Losers3m rows={data.losers3m.rows} loading={data.losers3m.loading} message={data.losers3m.message} onInfo={handleInfo} />
             <WatchlistPanel onInfo={(symbol) => handleInfo({ symbol })} />
           </div>
         </main>
 
         {selectedRow && (
-          <div className="insight-floating">
+          <div className="bh-insight-float">
             <InsightsTabbed row={selectedRow} />
           </div>
         )}

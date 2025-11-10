@@ -552,3 +552,114 @@ html, body { background-size: 680px !important; }
   .one-min-grid { grid-template-columns: 1fr; row-gap: 1rem; }
   .three-min-grid { grid-template-columns: 1fr; row-gap: 1rem; }
 }
+
+/* ===== BHABIT DASHBOARD (authoritative) ===== */
+
+:root {
+  --bh-bg: #0b080b;
+  --bh-gain: #ffb347;
+  --bh-loss: #a889ff;
+  --bh-price: #80d3ff;
+  --bh-muted: rgba(255, 255, 255, 0.35);
+}
+
+body { background: var(--bh-bg); color: #fff; }
+
+.bh-app { min-height: 100vh; position: relative; }
+
+.bh-topbar {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-bottom: 1px solid rgba(255, 179, 71, 0.1);
+  background: radial-gradient(circle at top, #120d17 0%, #0b080b 60%);
+  z-index: 20;
+  position: relative;
+}
+
+.bh-logo { display: flex; gap: 8px; align-items: center; }
+.bh-logo-text { letter-spacing: 0.22em; font-size: 0.7rem; text-transform: uppercase; }
+
+.bh-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 28px 80px;
+  display: grid;
+  grid-template-columns: 400px 400px;
+  column-gap: 180px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 10;
+}
+
+.bh-left-col, .bh-right-col { display: flex; flex-direction: column; gap: 20px; }
+
+.bh-rabbit-bg {
+  position: fixed;
+  top: 55px;
+  left: 50%;
+  width: 520px;
+  height: 520px;
+  transform: translateX(-50%);
+  background: url("/rabbit.png") center center / contain no-repeat;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(0 0 20px rgba(174, 108, 255, 0.35));
+  transition: opacity 150ms ease-out;
+}
+
+/* panels */
+.panel, .bh-panel, .bh-watchlist {
+  background: rgba(6, 4, 8, 0.85);
+  border: 1px solid rgba(255, 179, 71, 0.04);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+.bh-panel__header { padding: 10px 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.bh-panel__title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em; color: #fdd19b; }
+.bh-panel__body { padding: 6px 8px 10px; }
+
+/* rows */
+.token-row {
+  display: grid;
+  grid-template-columns: 36px minmax(70px, 1fr) 120px 90px 70px;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  border-bottom: 1px solid rgba(255, 179, 71, 0.03);
+}
+.token-row:last-child { border-bottom: none; }
+.tr-col-rank { display: flex; justify-content: center; }
+.tr-rank-circle { width: 24px; height: 24px; border-radius: 999px; border: 1px solid rgba(250,220,170,0.4); display:flex; align-items:center; justify-content:center; font-size: 0.6rem; }
+.tr-symbol { font-weight: 500; font-size: 0.72rem; }
+.tr-col-price { display: flex; flex-direction: column; line-height: 1; }
+.tr-price-current { color: var(--bh-price); font-size: 0.68rem; }
+.tr-price-prev { color: rgba(255,206,158,0.9); font-size: 0.6rem; }
+.tr-col-pct { text-align: right; font-size: 0.65rem; cursor: pointer; }
+.token-pct-gain { color: var(--bh-gain); }
+.token-pct-loss { color: var(--bh-loss); }
+.tr-col-actions { display:flex; justify-content:flex-end; gap:6px; }
+.wl-btn, .info-btn { width:28px; height:28px; border-radius:999px; background:rgba(9,8,11,0.5); border:1px solid rgba(255,191,120,0.1); display:flex; align-items:center; justify-content:center; font-size:0.6rem; }
+.wl-btn--active { background: rgba(255,191,120,0.25); border-color: rgba(255,191,120,0.4); }
+
+/* watchlist panel */
+.bh-watchlist { min-height: 180px; }
+.bh-panel__empty { font-size: 0.65rem; color: rgba(255,255,255,0.35); }
+.bh-watchlist-row { display:grid; grid-template-columns:1fr auto auto auto; gap:6px; align-items:center; padding:4px 4px; border-radius:999px; }
+.bh-watchlist-row__symbol { font-size:0.68rem; text-transform:uppercase; }
+.bh-watchlist-row__price { font-size:0.62rem; color: var(--bh-price); }
+.bh-watchlist-row__delta { font-size:0.62rem; text-align:right; }
+.bh-watchlist-row__actions { display:flex; gap:4px; }
+
+/* floating insight */
+.bh-insight-float { position: fixed; right:28px; bottom:28px; width:360px; z-index:40; }
+
+/* responsive */
+@media (max-width: 1180px) {
+  .bh-main { display: flex; flex-direction: column; gap: 20px; padding: 20px 16px 80px; }
+  .bh-rabbit-bg { opacity: 0.03; background-size: 420px auto; }
+  .bh-right-col { order: 100; }
+}

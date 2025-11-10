@@ -14612,3 +14612,147 @@
 2025-11-10 06:32:32,005 - INFO - 127.0.0.1 - - [10/Nov/2025 06:32:32] "GET /data HTTP/1.1" 200 -
 2025-11-10 06:32:32,759 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
 2025-11-10 06:32:32,760 - INFO - 127.0.0.1 - - [10/Nov/2025 06:32:32] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:32:53,317 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 1 losers
+2025-11-10 06:32:53,318 - INFO - 127.0.0.1 - - [10/Nov/2025 06:32:53] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:02,429 - INFO - Successfully fetched 38 prices from Coinbase
+2025-11-10 06:33:02,431 - INFO - 1-min data processed (throttle 45s) retained=21 gainers=14 losers=7
+2025-11-10 06:33:03,476 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-11-10 06:33:03,477 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:03] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:04,295 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:33:04,297 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:04] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:24,708 - INFO - Successfully fetched 38 prices from Coinbase
+2025-11-10 06:33:26,094 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-11-10 06:33:26,096 - INFO - Successfully processed data: 14 gainers, 14 losers, 4 banner items
+2025-11-10 06:33:26,217 - INFO - 3-min cache updated: 14 gainers, 14 losers, 4 banner items
+2025-11-10 06:33:26,936 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 1 losers
+2025-11-10 06:33:26,939 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:26] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:27,340 - INFO - Successfully fetched 21 prices from Coinbase
+2025-11-10 06:33:32,348 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:33:32,350 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:32] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:33,159 - INFO - Successfully fetched Coinbase 24h top movers: 7 gainers, 0 losers
+2025-11-10 06:33:33,161 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:33] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:54,040 - INFO - Successfully fetched 31 prices from Coinbase
+2025-11-10 06:33:54,046 - INFO - 1-min data processed (throttle 45s) retained=20 gainers=13 losers=7
+2025-11-10 06:33:55,297 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:33:55,299 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:55] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:33:56,224 - INFO - Successfully fetched Coinbase 24h top movers: 8 gainers, 0 losers
+2025-11-10 06:33:56,226 - INFO - 127.0.0.1 - - [10/Nov/2025 06:33:56] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:03,436 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 1 losers
+2025-11-10 06:34:03,440 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:03] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:04,539 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 1 losers
+2025-11-10 06:34:04,543 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:04] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:09,136 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:34:09,138 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:09] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:24,517 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-11-10 06:34:24,551 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:25,638 - INFO - Successfully fetched 28 prices from Coinbase
+2025-11-10 06:34:26,467 - INFO - Successfully fetched Coinbase 24h top movers: 7 gainers, 0 losers
+2025-11-10 06:34:26,469 - INFO - Successfully processed data: 10 gainers, 15 losers, 7 banner items
+2025-11-10 06:34:27,235 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-11-10 06:34:27,237 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:27] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:27,347 - INFO - 3-min cache updated: 10 gainers, 15 losers, 7 banner items
+2025-11-10 06:34:28,487 - INFO - Successfully fetched 23 prices from Coinbase
+2025-11-10 06:34:43,375 - INFO - Successfully fetched 39 prices from Coinbase
+2025-11-10 06:34:43,379 - INFO - 1-min data processed (throttle 45s) retained=25 gainers=9 losers=16
+2025-11-10 06:34:44,230 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:34:44,233 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:44] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:54,207 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:34:54,210 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:34:55,014 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 2 losers
+2025-11-10 06:34:55,016 - INFO - 127.0.0.1 - - [10/Nov/2025 06:34:55] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:15,436 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 1 losers
+2025-11-10 06:35:15,439 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:15] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:24,496 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 06:35:24,509 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:25,553 - INFO - Successfully fetched Coinbase 24h top movers: 8 gainers, 1 losers
+2025-11-10 06:35:25,555 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:25] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:29,845 - INFO - Successfully fetched 33 prices from Coinbase
+2025-11-10 06:35:30,955 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:35:30,958 - INFO - Successfully processed data: 6 gainers, 15 losers, 4 banner items
+2025-11-10 06:35:30,958 - INFO - 3-min cache updated: 6 gainers, 15 losers, 4 banner items
+2025-11-10 06:35:31,997 - INFO - Successfully fetched 23 prices from Coinbase
+2025-11-10 06:35:46,699 - INFO - Successfully fetched 39 prices from Coinbase
+2025-11-10 06:35:46,703 - INFO - 1-min data processed (throttle 45s) retained=25 gainers=10 losers=15
+2025-11-10 06:35:47,897 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 06:35:47,898 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:47] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:54,114 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:35:54,116 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:35:54,907 - INFO - Successfully fetched Coinbase 24h top movers: 9 gainers, 1 losers
+2025-11-10 06:35:54,910 - INFO - 127.0.0.1 - - [10/Nov/2025 06:35:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:19,234 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 0 losers
+2025-11-10 06:36:19,236 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:19] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:24,034 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:36:24,039 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:25,035 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 0 losers
+2025-11-10 06:36:25,038 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:25] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:33,284 - INFO - Successfully fetched 34 prices from Coinbase
+2025-11-10 06:36:34,111 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 1 losers
+2025-11-10 06:36:34,112 - INFO - Successfully processed data: 4 gainers, 15 losers, 2 banner items
+2025-11-10 06:36:34,112 - INFO - 3-min cache updated: 4 gainers, 15 losers, 2 banner items
+2025-11-10 06:36:35,129 - INFO - Successfully fetched 25 prices from Coinbase
+2025-11-10 06:36:50,325 - INFO - Successfully fetched 32 prices from Coinbase
+2025-11-10 06:36:50,329 - INFO - 1-min data processed (throttle 45s) retained=24 gainers=3 losers=21
+2025-11-10 06:36:51,410 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 0 losers
+2025-11-10 06:36:51,413 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:51] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:54,064 - INFO - Successfully fetched Coinbase 24h top movers: 9 gainers, 0 losers
+2025-11-10 06:36:54,066 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:36:54,801 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-11-10 06:36:54,803 - INFO - 127.0.0.1 - - [10/Nov/2025 06:36:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:07,760 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 0 losers
+2025-11-10 06:37:07,763 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:07] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:24,008 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:37:24,011 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:24,957 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 06:37:24,982 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:25,771 - INFO - Successfully fetched Coinbase 24h top movers: 7 gainers, 3 losers
+2025-11-10 06:37:25,775 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:25] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:36,302 - INFO - Successfully fetched 45 prices from Coinbase
+2025-11-10 06:37:37,318 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 06:37:37,320 - INFO - Successfully processed data: 5 gainers, 15 losers, 6 banner items
+2025-11-10 06:37:37,320 - INFO - 3-min cache updated: 5 gainers, 15 losers, 6 banner items
+2025-11-10 06:37:38,389 - INFO - Successfully fetched 16 prices from Coinbase
+2025-11-10 06:37:39,029 - INFO - 1-min data processed (throttle 45s) retained=12 gainers=4 losers=8
+2025-11-10 06:37:39,781 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 0 losers
+2025-11-10 06:37:39,782 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:39] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:54,341 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:37:54,343 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:37:55,136 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:37:55,138 - INFO - 127.0.0.1 - - [10/Nov/2025 06:37:55] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:11,156 - INFO - Successfully fetched Coinbase 24h top movers: 5 gainers, 1 losers
+2025-11-10 06:38:11,160 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:11] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:24,527 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 1 losers
+2025-11-10 06:38:24,530 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:24] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:25,706 - INFO - Successfully fetched 22 prices from Coinbase
+2025-11-10 06:38:25,712 - INFO - 1-min data processed (throttle 45s) retained=15 gainers=3 losers=12
+2025-11-10 06:38:26,704 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 0 losers
+2025-11-10 06:38:26,710 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:26] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:39,710 - INFO - Successfully fetched 34 prices from Coinbase
+2025-11-10 06:38:40,362 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 0 losers
+2025-11-10 06:38:40,363 - INFO - Successfully processed data: 6 gainers, 15 losers, 3 banner items
+2025-11-10 06:38:40,363 - INFO - 3-min cache updated: 6 gainers, 15 losers, 3 banner items
+2025-11-10 06:38:41,802 - INFO - Successfully fetched 19 prices from Coinbase
+2025-11-10 06:38:42,815 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 0 losers
+2025-11-10 06:38:42,816 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:42] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:54,911 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 1 losers
+2025-11-10 06:38:54,913 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:38:55,653 - INFO - Successfully fetched Coinbase 24h top movers: 7 gainers, 1 losers
+2025-11-10 06:38:55,654 - INFO - 127.0.0.1 - - [10/Nov/2025 06:38:55] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:14,169 - INFO - Successfully fetched 31 prices from Coinbase
+2025-11-10 06:39:14,172 - INFO - 1-min data processed (throttle 45s) retained=21 gainers=5 losers=16
+2025-11-10 06:39:15,177 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:39:15,179 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:15] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:25,140 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 1 losers
+2025-11-10 06:39:25,144 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:25] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:25,946 - INFO - Successfully fetched Coinbase 24h top movers: 8 gainers, 1 losers
+2025-11-10 06:39:25,947 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:25] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:43,260 - INFO - Successfully fetched 34 prices from Coinbase
+2025-11-10 06:39:44,049 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
+2025-11-10 06:39:44,050 - INFO - Successfully processed data: 4 gainers, 15 losers, 4 banner items
+2025-11-10 06:39:44,050 - INFO - 3-min cache updated: 4 gainers, 15 losers, 4 banner items
+2025-11-10 06:39:45,038 - INFO - Successfully fetched 25 prices from Coinbase
+2025-11-10 06:39:46,062 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 0 losers
+2025-11-10 06:39:46,065 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:46] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:54,929 - INFO - Successfully fetched Coinbase 24h top movers: 6 gainers, 0 losers
+2025-11-10 06:39:54,931 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:54] "GET /data HTTP/1.1" 200 -
+2025-11-10 06:39:56,030 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2025-11-10 06:39:56,032 - INFO - 127.0.0.1 - - [10/Nov/2025 06:39:56] "GET /data HTTP/1.1" 200 -
