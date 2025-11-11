@@ -1,8 +1,8 @@
-// src/components/Losers3m.jsx
+// src/components/ThreeMinGainers.jsx
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
 
-export default function Losers3m({
+export default function ThreeMinGainers({
   rows = [],
   loading = false,
   onInfo = () => {},
@@ -10,7 +10,7 @@ export default function Losers3m({
 }) {
   return (
     <div className="panel">
-      {showTitle && <div className="panel-title">3-MINUTE LOSERS</div>}
+      {showTitle && <div className="panel-title">3-MINUTE GAINERS</div>}
       <div className="panel-body">
         {loading ? (
           <div className="panel-empty">Loading…</div>

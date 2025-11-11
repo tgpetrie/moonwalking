@@ -1,25 +1,40 @@
 // src/App.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
 import { useData } from "./hooks/useData.js";
-import Gainers1m from "./components/Gainers1m.jsx";
-import Gainers3m from "./components/Gainers3m.jsx";
-import Losers3m from "./components/Losers3m.jsx";
 import RefreshTicker from "./components/RefreshTicker.jsx";
+import Gainers1m from "./components/Gainers1m.jsx";
+import ThreeMinRow from "./components/ThreeMinRow.jsx";
+import Losers3m from "./components/Losers3m.jsx";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
-
-// these are the real ones you said are in the repo
 import InsightsTabbed from "./components/InsightsTabbed.jsx";
-import AssetTabbedPanel from "./components/AssetTabbedPanel.jsx";
+
+function WatchlistReconciler({ bySymbol }) {
+  const { refreshFromData } = useWatchlist();
+  useEffect(() => {
+    refreshFromData(bySymbol);
+  }, [bySymbol, refreshFromData]);
+  return null;
+}
 
 export default function App() {
-  const { data, isLoading, mutate, bySymbol } = useData();
-  const [selectedRow, setSelectedRow] = useState(null);
+  const { data, bySymbol, mutate } = useData();
+  const [active, setActive] = useState(null);
+  const [lit, setLit] = useState(false);
 
-  const handleInfo = (payload) => {
-    if (!payload) return;
-    const sym = (payload.symbol || payload.ticker || "").replace("-USD", "");
-    setSelectedRow({ ...payload, symbol: sym });
+  const handleRefresh = async () => {
+    try {
+      await mutate();
+    } finally {
+      setLit(true);
+      setTimeout(() => setLit(false), 300);
+    }
+  };
+
+  const handleInfo = (rowOrSymbol) => {
+    setActive(
+      typeof rowOrSymbol === "string" ? { symbol: rowOrSymbol } : rowOrSymbol
+    );
   };
 
   return (
@@ -32,39 +47,45 @@ export default function App() {
             <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           </div>
           <div className="bh-topbar-right">
-            <RefreshTicker onRefresh={mutate} />
+            <RefreshTicker onRefresh={handleRefresh} />
           </div>
         </header>
 
-        {/* background rabbit under content */}
-        <div className="bh-rabbit-bg" aria-hidden="true" />
+        <div
+          className={`bh-rabbit-bg ${lit ? "is-lit" : ""}`}
+          aria-hidden="true"
+        />
 
         <main className="bh-main">
           <div className="bh-left-col">
-            <Gainers1m rows={data.gainers1m.rows} loading={data.gainers1m.loading} message={data.gainers1m.message} onInfo={handleInfo} />
-            <Gainers3m rows={data.gainers3m.rows} loading={data.gainers3m.loading} message={data.gainers3m.message} onInfo={handleInfo} />
+            <Gainers1m
+              title="1-MINUTE GAINERS"
+              rows={data.gainers1m.rows}
+              loading={data.gainers1m.loading}
+              onInfo={handleInfo}
+            />
+            <ThreeMinRow
+              title="3-MINUTE GAINERS"
+              rows={data.gainers3m.rows}
+              onInfo={handleInfo}
+            />
           </div>
           <div className="bh-right-col">
-            <Losers3m rows={data.losers3m.rows} loading={data.losers3m.loading} message={data.losers3m.message} onInfo={handleInfo} />
-            <WatchlistPanel bySymbol={bySymbol} onInfo={(symbol) => handleInfo({ symbol })} />
+            <Losers3m
+              title="3-MINUTE LOSERS"
+              rows={data.losers3m.rows}
+              onInfo={handleInfo}
+            />
+            <WatchlistPanel title="WATCHLIST" onInfo={handleInfo} />
           </div>
         </main>
 
-        {selectedRow && (
+        {active && (
           <div className="bh-insight-float">
-            <InsightsTabbed row={selectedRow} />
+            <InsightsTabbed row={active} />
           </div>
         )}
       </div>
     </WatchlistProvider>
   );
-}
-
-// keeps watchlist current price in sync with unified /api/data
-function WatchlistReconciler({ bySymbol }) {
-  const { refreshFromData } = useWatchlist();
-  useEffect(() => {
-    if (bySymbol && Object.keys(bySymbol).length) refreshFromData(bySymbol);
-  }, [bySymbol, refreshFromData]);
-  return null;
 }

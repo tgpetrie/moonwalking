@@ -1,72 +1,95 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-const STORAGE_KEY = "bhabit_watchlist_v2";
+const KEY = "bhabit_watchlist_v2";
 const WatchlistCtx = createContext(null);
 
-function loadInitial() {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
+// helper: turn the old object shape into the new array shape
+function normalizeStored(value) {
+  if (!value) return [];
+  // If it is already an array, just return it
+  if (Array.isArray(value)) return value;
+
+  // If it's an object from the old version, convert to array
+  if (typeof value === "object") {
+    return Object.keys(value).map((symbol) => {
+      const entry = value[symbol] || {};
+      return {
+        symbol,
+        baseline: entry.baseline ?? entry.price ?? null,
+        current: entry.current ?? entry.price ?? null,
+      };
+    });
   }
+
+  // Anything else -> start fresh
+  return [];
 }
 
 export function WatchlistProvider({ children }) {
-  const [items, setItems] = useState(loadInitial);
-
-  const persist = (next) => {
-    setItems(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  const [items, setItems] = useState(() => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return normalizeStored(parsed);
+    } catch (e) {
+      console.warn("[watchlist] failed to read storage, resetting", e);
+      return [];
     }
-  };
+  });
 
-  const has = useCallback(
-    (symbol) => items.some((it) => it.symbol === symbol),
-    [items]
-  );
+  // always store as array
+  useEffect(() => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(items));
+    } catch (e) {
+      console.warn("[watchlist] failed to write storage", e);
+    }
+  }, [items]);
 
-  const add = useCallback(
-    ({ symbol, price }) => {
-      if (!symbol) return;
-      if (items.some((it) => it.symbol === symbol)) return;
-      const baseline = typeof price === "number" ? price : null;
-      const next = [
-        ...items,
+  const has = useCallback((symbol) => items.some((i) => i.symbol === symbol), [
+    items,
+  ]);
+
+  const add = useCallback(({ symbol, price }) => {
+    if (!symbol) return;
+    setItems((prev) => {
+      // if already there, keep it
+      if (prev.some((i) => i.symbol === symbol)) return prev;
+      return [
+        ...prev,
         {
           symbol,
-          baseline,
-          current: price ?? null,
+          baseline: typeof price === "number" ? price : null,
+          current: typeof price === "number" ? price : null,
         },
       ];
-      persist(next);
-    },
-    [items]
-  );
+    });
+  }, []);
 
-  const remove = useCallback(
-    (symbol) => {
-      persist(items.filter((it) => it.symbol !== symbol));
-    },
-    [items]
-  );
+  const remove = useCallback((symbol) => {
+    setItems((prev) => prev.filter((i) => i.symbol !== symbol));
+  }, []);
 
-  const refreshFromData = useCallback(
-    (bySymbol) => {
-      if (!bySymbol) return;
-      const next = items.map((it) => {
-        const live = bySymbol[it.symbol];
+  // called from App when /data updates
+  const refreshFromData = useCallback((symbolMap) => {
+    if (!symbolMap) return;
+    setItems((prev) =>
+      prev.map((i) => {
+        const live = symbolMap[i.symbol];
         if (live && typeof live.current_price === "number") {
-          return { ...it, current: live.current_price };
+          return { ...i, current: live.current_price };
         }
-        return it;
-      });
-      persist(next);
-    },
-    [items]
-  );
+        return i;
+      })
+    );
+  }, []);
 
   return (
     <WatchlistCtx.Provider
@@ -79,6 +102,8 @@ export function WatchlistProvider({ children }) {
 
 export function useWatchlist() {
   const ctx = useContext(WatchlistCtx);
-  if (!ctx) throw new Error("useWatchlist must be used inside provider");
+  if (!ctx) {
+    throw new Error("useWatchlist must be used inside WatchlistProvider");
+  }
   return ctx;
 }

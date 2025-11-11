@@ -1,4 +1,4 @@
-// src/components/TokenRow.jsx
+// src/components/TokenRowSimple.jsx
 import React from "react";
 import RowActions from "./tables/RowActions.jsx";
 
@@ -17,15 +17,15 @@ function formatPct(value) {
   return `${n.toFixed(2)}%`;
 }
 
-export default function TokenRow({ index, row, onInfo }) {
+export default function TokenRowSimple({ index, row }) {
+  // defensive picks
   const symbol =
     (row?.symbol && String(row.symbol).replace(/-USD$/i, "")) ||
     (row?.ticker && String(row.ticker).replace(/-USD$/i, "")) ||
     "--";
 
   const price = row?.price ?? row?.current_price ?? null;
-  const prev =
-    row?.prevPrice ?? row?.initial_price_1min ?? row?.initial_price_3min ?? null;
+
   const pct =
     row?.pct ??
     row?.price_change_percentage_1min ??
@@ -38,7 +38,9 @@ export default function TokenRow({ index, row, onInfo }) {
       <div className="token-symbol">{symbol}</div>
       <div className="token-price">
         <div>{formatPrice(price)}</div>
-        {prev != null && <div className="token-price-sub">{formatPrice(prev)}</div>}
+        {price != null && (
+          <div className="token-price-sub">${Number(price).toFixed(3)}</div>
+        )}
       </div>
       <div
         className={`token-pct ${
@@ -48,7 +50,7 @@ export default function TokenRow({ index, row, onInfo }) {
         {formatPct(pct)}
       </div>
       <div className="token-actions">
-        <RowActions symbol={symbol} price={price} onInfo={onInfo} />
+        <RowActions symbol={symbol} price={price} onInfo={() => {}} />
       </div>
     </div>
   );

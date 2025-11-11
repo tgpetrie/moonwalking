@@ -1,24 +1,27 @@
-import Panel from "./Panel.jsx";
+// src/components/Gainers1m.jsx
+import React from "react";
 import TokenRow from "./TokenRow.jsx";
 
-export default function Gainers1m({ rows = [], loading, message, onInfo }) {
+export default function Gainers1m({
+  rows = [],
+  loading = false,
+  onInfo = () => {},
+  showTitle = true,
+}) {
   return (
-    <Panel title="1-Minute Gainers">
-      {loading && <div className="panel-empty">Loading 1m snapshot…</div>}
-      {!loading && message && <div className="panel-empty">{message}</div>}
-      {!loading && !message &&
-        rows.map((row, idx) => (
-          <TokenRow
-            key={row.symbol || idx}
-            index={idx + 1}
-            symbol={row.symbol}
-            price={row.price}
-            prevPrice={row.initial_price_1min}
-            changePct={row.changePct}
-            side="up"
-            onInfo={onInfo}
-          />
-        ))}
-    </Panel>
+    <div className="panel">
+      {showTitle && <div className="panel-title">1-MINUTE GAINERS</div>}
+      <div className="panel-body">
+        {loading ? (
+          <div className="panel-empty">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="panel-empty">No data.</div>
+        ) : (
+          rows.map((row, idx) => (
+            <TokenRow key={row.symbol || idx} index={idx} row={row} onInfo={onInfo} />
+          ))
+        )}
+      </div>
+    </div>
   );
 }

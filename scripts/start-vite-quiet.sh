@@ -14,7 +14,7 @@ rm -f frontend/vite.pid vite.pid || true
 
 echo "STEP 3: start vite (assume deps already installed)"
 cd frontend || exit 1
-nohup npm run dev -- --host --port 5173 > ../frontend/vite.stdout 2>&1 &
+nohup npm run dev -- --host 127.0.0.1 --port 5173 > ../frontend/vite.stdout 2>&1 &
 echo $! > ../frontend/vite.pid
 echo "Vite started pid=$(cat ../frontend/vite.pid 2>/dev/null || echo none)"
 

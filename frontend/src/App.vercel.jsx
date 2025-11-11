@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import '../index.css';
 import logobro from './logobro.png';
 
 // ...existing code from App.jsx...

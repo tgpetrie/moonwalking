@@ -1,44 +1,63 @@
-// frontend/src/hooks/useData.js
+// src/hooks/useData.js
 import useSWR from "swr";
-import { endpoints, fetchJson, normalizeRow } from "../lib/api.js";
+import { fetchData } from "../api.js";
 
-const SWR_COMMON = {
-  revalidateOnFocus: true,
-  keepPreviousData: true,
-  dedupingInterval: 10000,
-  refreshInterval: () => (document.visibilityState === "visible" ? 15000 : 0),
-  errorRetryCount: 3,
-  errorRetryInterval: (attempt) => Math.min(10000, 1000 * 2 ** attempt),
-};
+const KEY = "/data";
 
-// Aggregate data hook that returns panel-shaped data and a symbol map
+function cleanSymbol(s) {
+  if (!s) return "";
+  return s.replace(/-USD$/i, "");
+}
+
+function normalize1m(arr = []) {
+  return arr.map((item, idx) => ({
+    __raw: item,
+    symbol: cleanSymbol(item.symbol),
+    price: item.current_price ?? null,
+    prevPrice: item.initial_price_1min ?? null,
+    pct: item.price_change_percentage_1min ?? null,
+    rank: item.rank ?? idx + 1,
+  }));
+}
+
+function normalize3m(arr = []) {
+  return arr.map((item, idx) => ({
+    __raw: item,
+    symbol: cleanSymbol(item.symbol),
+    price: item.current_price ?? null,
+    prevPrice: item.initial_price_3min ?? null,
+    pct: item.price_change_percentage_3min ?? null,
+    rank: item.rank ?? idx + 1,
+  }));
+}
+
 export function useData() {
-  const { data, error, isLoading, mutate } = useSWR(
-    endpoints.metrics,
-    fetchJson,
-    SWR_COMMON
-  );
-  const buckets = data?.data ?? data ?? {};
-  const errs = data?.errors ?? {};
-
-  const g1 = Array.isArray(buckets.gainers_1m) ? buckets.gainers_1m.map(normalizeRow) : [];
-  const g3 = Array.isArray(buckets.gainers_3m) ? buckets.gainers_3m.map(normalizeRow) : [];
-  const l3 = Array.isArray(buckets.losers_3m) ? buckets.losers_3m.map(normalizeRow) : [];
-
-  const bySymbol = {};
-  [...g1, ...g3, ...l3].forEach((r) => {
-    if (r?.symbol) bySymbol[r.symbol] = r;
+  const { data, error, mutate } = useSWR(KEY, () => fetchData(KEY), {
+    revalidateOnFocus: true,
   });
 
-  const panels = {
-    gainers1m: {
-      rows: g1,
-      loading: isLoading || errs.gainers_1m === "missing_snapshot",
-      message: errs.gainers_1m === "missing_snapshot" ? "Waiting for 1-minute snapshot…" : null,
-    },
-    gainers3m: { rows: g3, loading: isLoading, message: null },
-    losers3m: { rows: l3, loading: isLoading, message: null },
-  };
+  const inner = data && typeof data === "object" ? data.data : null;
 
-  return { data: panels, isLoading, error, mutate, bySymbol };
+  const gainers1m = inner?.gainers_1m ? normalize1m(inner.gainers_1m) : [];
+  const gainers3m = inner?.gainers_3m ? normalize3m(inner.gainers_3m) : [];
+  const losers3m = inner?.losers_3m ? normalize3m(inner.losers_3m) : [];
+  const banner1h = Array.isArray(inner?.banner_1h) ? inner.banner_1h : [];
+
+  const bySymbol = {};
+  [...gainers1m, ...gainers3m, ...losers3m].forEach((row) => {
+    if (row.symbol) bySymbol[row.symbol] = row;
+  });
+
+  return {
+    data: {
+      gainers1m: { rows: gainers1m, loading: false },
+      gainers3m: { rows: gainers3m, loading: false },
+      losers3m: { rows: losers3m, loading: false },
+      banner1h,
+    },
+    bySymbol,
+    isLoading: !data && !error,
+    isError: !!error,
+    mutate,
+  };
 }

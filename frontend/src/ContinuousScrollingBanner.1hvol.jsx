@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from "react";
-import '../index.css';
-import logobro from './logobro.png';
+import React from "react";
 
 const formatDecimal = (value, decimals = 2) => {
   if (value === null || value === undefined || isNaN(value) || value === '') {
@@ -35,7 +33,17 @@ const StatusBadge = ({ isConnected, lastUpdate }) => (
   </div>
 );
 
-const ContinuousScrollingBanner = ({ data }) => {
+const ContinuousScrollingBanner = ({ items }) => {
+  const list = Array.isArray(items) ? items : [];
+
+  if (!list.length) {
+    return (
+      <div className="bh-1h-empty">
+        <span>1h volume banner: no data</span>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-hidden bg-gradient-to-r from-black/80 via-black/60 to-black/80 rounded-3xl shadow-none border-none backdrop-blur-3xl animate-fade-in-up">
       {/* Glossy overlay effect */}
@@ -52,7 +60,7 @@ const ContinuousScrollingBanner = ({ data }) => {
         <div className="absolute inset-0 flex items-center">
           <div className="flex animate-scroll whitespace-nowrap">
             {/* First set of data */}
-            {data.map((coin, index) => (
+            {list.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
                   href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
@@ -79,7 +87,7 @@ const ContinuousScrollingBanner = ({ data }) => {
               </div>
             ))}
             {/* Duplicate set for seamless scrolling */}
-            {data.map((coin, index) => (
+            {list.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
                   href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
@@ -111,5 +119,10 @@ const ContinuousScrollingBanner = ({ data }) => {
     </div>
   );
 };
+
+// Export the banner as the module default so imports that expect a default
+// (e.g. `import OneHourVolumeBanner from './ContinuousScrollingBanner.1hvol.jsx'`)
+// will work correctly.
+export default ContinuousScrollingBanner;
 
 // ...existing code from App.jsx continues...

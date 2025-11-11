@@ -9,8 +9,17 @@ export default function RefreshTicker({ seconds = 30, onRefresh }) {
         const next = prev - 1;
         if (next <= 0) {
           // reset visible counter
-          // call onRefresh asynchronously to avoid React 'update during render' warnings
-          setTimeout(() => onRefresh && onRefresh(), 0);
+          // call onRefresh asynchronously and protect it with try/catch so failed fetches
+          // don't surface as uncaught exceptions in the console
+          setTimeout(async () => {
+            try {
+              await onRefresh?.();
+            } catch (e) {
+              // keep noise low but log for debugging
+              // eslint-disable-next-line no-console
+              console.warn("RefreshTicker: onRefresh failed", e);
+            }
+          }, 0);
           return seconds;
         }
         return next;

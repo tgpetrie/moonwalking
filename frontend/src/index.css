@@ -1,665 +1,204 @@
-/* frontend/src/index.css */
+/* src/index.css */
 
-/* ===== root tokens ===== */
+/* basic reset */
+* {
+  box-sizing: border-box;
+}
+
 :root {
-  --bh-bg: #060308;
-  --bh-panel: rgba(0, 0, 0, 0);
-  --bh-gain: #ffb347;   /* UP */
-  --bh-loss: #c084fc;   /* DOWN */
-  --bh-price: #7ff0ff;  /* current price (teal) */
-  --bh-muted: rgba(255, 255, 255, 0.35); /* previous price */
+  --bh-bg: #0f172a;
+  --bh-surface: rgba(15, 23, 42, 0.55);
+  --bh-panel: rgba(15, 23, 42, 0.85);
+  --bh-border: rgba(255, 255, 255, 0.04);
+  --bh-text: #e2e8f0;
+  --bh-text-muted: rgba(226, 232, 240, 0.55);
+  --bh-accent: #f97316;
+  --bh-radius-lg: 16px;
 }
 
-html, body {
-  background: #060308 url("/purple-rabbit-bg.png") center 120px no-repeat;
-  background-size: 980px;
-  color: #fff;
-  min-height: 100vh;
-  font-family: "Raleway", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* numeric helpers */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "zero" 0, "tnum" 1;
-}
-
-/* ===== section headers (shared) ===== */
-.section-head {
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  display: inline-block;
-}
-.section-head-gain { color: var(--bh-gain); }
-.section-head-loss { color: var(--bh-loss); }
-
-.section-head-line {
-  height: 2px;
-  width: 90px;
-  margin-top: 6px;
-  margin-bottom: 16px;
-}
-.section-head-line-gain {
-  background: linear-gradient(90deg, var(--bh-gain) 0%, rgba(255,179,71,0) 100%);
-}
-.section-head-line-loss {
-  background: linear-gradient(90deg, var(--bh-loss) 0%, rgba(192,132,252,0) 100%);
-}
-
-/* ===== 1-min layout ===== */
-.one-min-shell {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-.one-min-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(520px, 1fr));
-  column-gap: 2rem;
-}
-.panel-3m {
-  overflow: visible;
-}
-.panel-placeholder {
-  min-height: 180px;
-  display: flex;
-  align-items: center;
-  color: var(--bh-muted);
-  font-size: 0.75rem;
-}
-
-/* ===== 3-min layout ===== */
-.three-min-shell {
-  max-width: 1180px;
-  margin: 1.5rem auto 0;
-  padding: 0 1.5rem;
-}
-.three-min-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 2.5rem;
-  align-items: flex-start;
-}
-.three-min-more {
-  text-align: center;
-  margin-top: 1.3rem;
-}
-.btn-secondary {
-  background: #201c2c;
-  border: 1px solid rgba(255,255,255,0.03);
-  border-radius: 9999px;
-  padding: 0.4rem 1.4rem;
-  font-size: 0.7rem;
-  color: #fff;
-}
-
-/* token-row / helper styles moved to BHABIT section below to avoid duplicate/conflicting rules
-   The BHABIT-specific token-row styles (appearance/layout) live under "BHABIT dashboard additions"
-   later in this file. Keeping a single authoritative set avoids layout drift caused by conflicting
-   duplicated selectors. */
-
-/* ==================== BHABIT dashboard layout additions ==================== */
-
-/* lay out whole shell */
-.mw-shell {
-  min-height: 100vh;
-  background: #0b0910 url("/src/assets/rabbit-bg.png") center center no-repeat;
-  background-size: 54rem;
-  color: #fff;
+body {
+  margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #111827 0%, #020617 45%, #020617 100%);
+  color: var(--bh-text);
+  min-height: 100vh;
 }
 
-.mw-topbar {
-  height: 44px;
-  padding: 0 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 179, 71, 0.2);
+#root {
+  min-height: 100vh;
 }
 
-.mw-logo-text {
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #ffb347;
-}
-
-.mw-main {
-  position: relative;
-  display: grid;
-  grid-template-columns: 18rem 1fr 18rem;
-  gap: 1.25rem;
-  padding: 1.25rem 1.5rem 2.5rem;
-}
-
-/* columns */
-.mw-left-column {
+/* overall app container */
+.bh-app {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  z-index: 5;
 }
 
-.mw-right-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  z-index: 5;
-  align-items: flex-end;
-}
-
-.mw-side-panels {
-  position: absolute;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  width: 17rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* section headers */
-.mw-section-header {
-  text-align: left;
-}
-.mw-section-header.centered {
-  text-align: center;
-}
-.mw-section-header h2 {
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  color: #ffb347;
-  margin-bottom: 0.35rem;
-}
-.mw-section-underline {
-  display: block;
-  height: 2px;
-  width: 4rem;
-  background: linear-gradient(90deg, #ffb347 0%, rgba(255, 179, 71, 0) 100%);
-}
-
-/* panels */
-.panel {
-  background: transparent;
-}
-.panel-loading {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-/* rows */
-.token-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 0.4rem;
-  border-radius: 9999px;
-  transition: transform 0.12s ease-out, background 0.12s ease-out;
-}
-.token-row:hover {
-  transform: scale(1.01);
-  background: radial-gradient(circle, rgba(143, 77, 255, 0.3) 0%, rgba(11, 9, 16, 0) 70%);
-}
-
-.tr-col {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.tr-col-rank {
-  width: 1.6rem;
-  align-items: center;
-}
-.tr-rank {
-  width: 1.45rem;
-  height: 1.45rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.55rem;
-}
-
-.tr-col-symbol {
-  min-width: 3.7rem;
-}
-.tr-symbol {
-  font-size: 0.63rem;
-  letter-spacing: 0.02em;
-}
-
-.tr-col-price {
-  min-width: 4.8rem;
-  text-align: right;
-}
-.tr-price-current {
-  font-size: 0.6rem;
-}
-.tr-price-prev {
-  font-size: 0.5rem;
-  color: rgba(255, 179, 71, 0.72); /* visible amber */
-  line-height: 1;
-}
-
-.tr-col-pct {
-  min-width: 3.25rem;
-  text-align: right;
-}
-
-.token-pct {
-  font-size: 0.55rem;
-}
-.token-pct-gain {
-  color: #f4ad4f;
-}
-.token-pct-loss {
-  color: #a876ff;
-}
-
-.token-row-loss .tr-symbol {
-  color: #a876ff;
-}
-
-/* actions */
-.tr-col-actions {
-  margin-left: 0.35rem;
-}
-.row-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-.wl-btn,
-.info-btn {
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 0.45rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(5, 5, 7, 0.28);
-  color: #fff;
-  font-size: 0.55rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.wl-btn.wl-on {
-  background: #ffb347;
-  color: #100a0d;
-}
-.wl-btn:hover,
-.info-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-/* top-right ticker */
-.refresh-ticker {
-  font-size: 0.55rem;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-/* ==================== End BHABIT additions ==================== */
-
-/* ===== insights panel ===== */
-.insights-card {
-  background: rgba(0,0,0,0.7);
-  border: 1px solid rgba(255,255,255,0.03);
-  border-radius: 0.75rem;
-  padding: 0.75rem;
-  backdrop-filter: blur(6px);
-}
-.insights-tabs {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 0.6rem;
-}
-.insights-tabs button {
-  background: transparent;
-  border: 1px solid transparent;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.65rem;
-  padding: 0.25rem 0.8rem;
-  border-radius: 9999px;
-  cursor: pointer;
-}
-.insights-tabs button.active {
-  border-color: rgba(255,179,71,0.5);
-  color: #fff;
-}
-.insights-body { min-height: 140px; }
-.insights-placeholder {
-  font-size: 0.7rem;
-  color: rgba(255,255,255,0.35);
-}
-
-/* ===== BHABIT: precise panel + row overrides (drop-in) ===== */
-/* layout panels */
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.panel-header {
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #f7d199;
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.panel-header::after {
-  content: "";
-  flex: 1 1 auto;
-  height: 2px;
-  background: linear-gradient(90deg, #f7d199 0%, rgba(247, 209, 153, 0) 100%);
-}
-.panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-/* token row */
-.token-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-height: 40px;
-}
-.token-row--top {
-  background: radial-gradient(circle at center, rgba(139, 96, 255, 0.35), rgba(5, 4, 7, 0));
-  border-radius: 0.75rem;
-}
-.tr-col {
-  display: flex;
-  align-items: center;
-}
-.tr-col-rank {
-  width: 36px;
-}
-.tr-rank {
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-}
-.tr-col-symbol {
-  width: 70px;
-}
-.tr-symbol {
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.tr-col-price {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-}
-.tr-line {
-  position: absolute;
-  left: -0.25rem;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(184, 135, 75, 0.4) 0%, rgba(0, 0, 0, 0) 100%);
-  pointer-events: none;
-}
-.tr-price-block {
-  position: relative;
-  background: #0f0e11;
-  padding: 0.15rem 0.25rem 0.15rem 0.4rem;
-  border-radius: 0.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-.tr-price-current {
-  color: #5dd3ff;
-  font-size: 0.7rem;
-  line-height: 1;
-}
-.tr-price-prev {
-  color: rgba(247, 209, 153, 0.82);
-  font-size: 0.6rem;
-  line-height: 1;
-}
-
-/* pct */
-.tr-col-pct {
-  width: 90px;
-  justify-content: flex-end;
-}
-.token-pct {
-  font-weight: 600;
-  font-size: 0.8rem;
-}
-.token-pct-gain {
-  color: #f7c87d;
-}
-.token-pct-loss {
-  color: #ba85ff;
-}
-
-/* actions */
-.tr-col-actions {
-  width: 70px;
-  justify-content: flex-end;
-}
-.row-actions {
-  display: flex;
-  gap: 0.35rem;
-}
-.wl-btn,
-.info-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-.wl-btn--active {
-  background: radial-gradient(circle, #f7c87d 0%, rgba(247, 200, 125, 0) 80%);
-  color: #0f0e11;
-  border-color: rgba(247, 200, 125, 0.7);
-}
-.info-btn {
-  font-weight: 600;
-}
-
-/* end drop-in */
-
-/* ===== Strong layout overrides to ensure two-column rails and tame rabbit bg ===== */
-/* These selectors are intentionally specific and placed last so they take precedence
-   over older, conflicting rules in this file during development. */
-.bhabit-shell .main-grid {
-  display: grid !important;
-  /* left column flexible, right column fixed for predictable layout */
-  grid-template-columns: minmax(360px, 1fr) 360px !important;
-  gap: 1.2rem !important;
-  max-width: 1220px !important;
-  margin: 0 auto !important;
-  padding: 1.2rem 1.6rem 2rem !important;
-}
-.bhabit-shell .col {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1rem !important;
-}
-.bhabit-shell .col-left { min-width: 360px !important; }
-.bhabit-shell .col-right { min-width: 320px !important; }
-
-/* Tame the large rabbit background if multiple backgrounds are present */
-.rabbit-bg, .bhabit-shell::before {
-  pointer-events: none !important;
-  opacity: 0.12 !important;
-  background-size: 420px auto !important;
-}
-
-/* Ensure panel bodies don't become full-width single-column blocks */
-.bhabit-shell .panel { width: 100%; box-sizing: border-box; }
-.bhabit-shell .panel-body { max-width: 100%; }
-
-/* Force-remove large background rabbit images during dev so layout is testable. */
-html, body, .mw-shell, .bhabit-shell {
-  background-image: none !important;
-  background-repeat: no-repeat !important;
-  background-position: center top !important;
-  background-size: contain !important;
-  background-color: #060308 !important;
-}
-.rabbit-bg { display: none !important; }
-
-/* Make sure rows and price blocks sit above any remaining decorations */
-.token-row { position: relative; z-index: 5; }
-.tr-price-block { z-index: 6; position: relative; }
-
-/* Reduce any centered giant rabbit that may be injected elsewhere */
-img[src*="rabbit"], [style*="rabbit"] { display: none !important; }
-
-/* Make sure the central price rail stays inside each row, not centered on page */
-.bhabit-shell .tr-col-price { position: relative !important; flex: 1 1 auto !important; }
-.bhabit-shell .tr-line { left: -0.3rem !important; right: 0.35rem !important; }
-
-/* reduce visual prominence of any extra background images that may have loaded */
-html, body { background-size: 680px !important; }
-
-/* Accessibility and interactivity */
-.token-row:focus-within { outline: none; transform: translateY(-1px); }
-.tr-col-pct.clickable { cursor: pointer; }
-
-/* Responsive collapse for narrow screens */
-@media (max-width: 1180px) {
-  .one-min-grid { grid-template-columns: 1fr; row-gap: 1rem; }
-  .three-min-grid { grid-template-columns: 1fr; row-gap: 1rem; }
-}
-
-/* ===== BHABIT DASHBOARD (authoritative) ===== */
-
-:root {
-  --bh-bg: #0b080b;
-  --bh-gain: #ffb347;
-  --bh-loss: #a889ff;
-  --bh-price: #80d3ff;
-  --bh-muted: rgba(255, 255, 255, 0.35);
-}
-
-body { background: var(--bh-bg); color: #fff; }
-
-.bh-app { min-height: 100vh; position: relative; }
-
+/* top bar */
 .bh-topbar {
-  height: 50px;
+  height: 54px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 28px;
-  border-bottom: 1px solid rgba(255, 179, 71, 0.1);
-  background: radial-gradient(circle at top, #120d17 0%, #0b080b 60%);
-  z-index: 20;
-  position: relative;
+  padding: 0 1.6rem;
+  gap: 1rem;
+  background: rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(14px);
 }
 
-.bh-logo { display: flex; gap: 8px; align-items: center; }
-.bh-logo-text { letter-spacing: 0.22em; font-size: 0.7rem; text-transform: uppercase; }
+.bh-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
 
-.bh-main {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 20px 28px 80px;
+.bh-logo-mark {
+  width: 30px;
+  height: 30px;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 999px;
   display: grid;
-  grid-template-columns: 400px 400px;
-  column-gap: 180px;
-  align-items: flex-start;
-  position: relative;
-  z-index: 10;
+  place-items: center;
+  font-size: 1.1rem;
 }
 
-.bh-left-col, .bh-right-col { display: flex; flex-direction: column; gap: 20px; }
+.bh-top-title h1 {
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
 
-.bh-rabbit-bg {
-  position: fixed;
-  top: 55px;
-  left: 50%;
-  width: 520px;
-  height: 520px;
-  transform: translateX(-50%);
-  background: url("/rabbit.png") center center / contain no-repeat;
-  opacity: 0.1;
-  pointer-events: none;
-  z-index: 1;
-  filter: drop-shadow(0 0 20px rgba(174, 108, 255, 0.35));
-  transition: opacity 150ms ease-out;
+.bh-top-title p {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--bh-text-muted);
+}
+
+/* optional scrolling banner */
+.bh-top-banner {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  background: rgba(2, 6, 23, 0.35);
+  min-height: 34px;
+}
+
+/* main layout */
+.bh-main {
+  flex: 1;
+  padding: 1.2rem 1.6rem 2.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  max-width: 1240px;
+  width: min(1240px, 100%);
+}
+
+.bh-section-heading {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bh-text-muted);
+}
+
+/* generic row */
+.bh-row {
+  display: flex;
+  gap: 1.2rem;
+  width: 100%;
 }
 
 /* panels */
-.panel, .bh-panel, .bh-watchlist {
-  background: rgba(6, 4, 8, 0.85);
-  border: 1px solid rgba(255, 179, 71, 0.04);
-  border-radius: 6px;
-  backdrop-filter: blur(4px);
+.bh-panel {
+  background: radial-gradient(circle at top, rgba(13, 16, 30, 0.4) 0%, rgba(2, 6, 23, 0.35) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.015);
+  border-radius: 14px;
+  padding: 0.65rem 0.75rem;
+  backdrop-filter: blur(14px);
+  min-height: 70px;
 }
-.bh-panel__header { padding: 10px 12px 4px; border-bottom: 1px solid rgba(255,255,255,0.02); }
-.bh-panel__title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em; color: #fdd19b; }
-.bh-panel__body { padding: 6px 8px 10px; }
 
-/* rows */
-.token-row {
+.bh-panel-nopad {
+  padding: 0;
+}
+
+/* 1-minute row: two columns */
+.bh-row-1m {
   display: grid;
-  grid-template-columns: 36px minmax(70px, 1fr) 120px 90px 70px;
-  align-items: center;
-  gap: 10px;
-  height: 40px;
-  border-bottom: 1px solid rgba(255, 179, 71, 0.03);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
 }
-.token-row:last-child { border-bottom: none; }
-.tr-col-rank { display: flex; justify-content: center; }
-.tr-rank-circle { width: 24px; height: 24px; border-radius: 999px; border: 1px solid rgba(250,220,170,0.4); display:flex; align-items:center; justify-content:center; font-size: 0.6rem; }
-.tr-symbol { font-weight: 500; font-size: 0.72rem; }
-.tr-col-price { display: flex; flex-direction: column; line-height: 1; }
-.tr-price-current { color: var(--bh-price); font-size: 0.68rem; }
-.tr-price-prev { color: rgba(255,206,158,0.9); font-size: 0.6rem; }
-.tr-col-pct { text-align: right; font-size: 0.65rem; cursor: pointer; }
-.token-pct-gain { color: var(--bh-gain); }
-.token-pct-loss { color: var(--bh-loss); }
-.tr-col-actions { display:flex; justify-content:flex-end; gap:6px; }
-.wl-btn, .info-btn { width:28px; height:28px; border-radius:999px; background:rgba(9,8,11,0.5); border:1px solid rgba(255,191,120,0.1); display:flex; align-items:center; justify-content:center; font-size:0.6rem; }
-.wl-btn--active { background: rgba(255,191,120,0.25); border-color: rgba(255,191,120,0.4); }
 
-/* watchlist panel */
-.bh-watchlist { min-height: 180px; }
-.bh-panel__empty { font-size: 0.65rem; color: rgba(255,255,255,0.35); }
-.bh-watchlist-row { display:grid; grid-template-columns:1fr auto auto auto; gap:6px; align-items:center; padding:4px 4px; border-radius:999px; }
-.bh-watchlist-row__symbol { font-size:0.68rem; text-transform:uppercase; }
-.bh-watchlist-row__price { font-size:0.62rem; color: var(--bh-price); }
-.bh-watchlist-row__delta { font-size:0.62rem; text-align:right; }
-.bh-watchlist-row__actions { display:flex; gap:4px; }
+/* fallback when there’s only one list */
+.bh-row-1m-single {
+  display: flex;
+}
 
-/* floating insight */
-.bh-insight-float { position: fixed; right:28px; bottom:28px; width:360px; z-index:40; }
+.bh-row-3m {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
 
-/* responsive */
-@media (max-width: 1180px) {
-  .bh-main { display: flex; flex-direction: column; gap: 20px; padding: 20px 16px 80px; }
-  .bh-rabbit-bg { opacity: 0.03; background-size: 420px auto; }
-  .bh-right-col { order: 100; }
+.bh-row-watchlist,
+.bh-row-1h {
+  display: flex;
+  gap: 1.2rem;
+}
+
+@media (max-width: 900px) {
+  .bh-main {
+    padding: 1rem;
+  }
+  .bh-row,
+  .bh-row-1m,
+  .bh-row-3m,
+  .bh-row-watchlist,
+  .bh-row-1h {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* generic token rows if your child comps don't style themselves */
+.bh-token-row {
+  display: grid;
+  grid-template-columns: 2.3rem 1.4fr 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.015);
+  font-size: 0.68rem;
+}
+.bh-token-row:last-child {
+  border-bottom: 0;
+}
+
+.bh-token-rank {
+  width: 1.5rem;
+  height: 1.2rem;
+  border-radius: 6px;
+  background: rgba(248, 113, 113, 0.05);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  display: grid;
+  place-items: center;
+  font-size: 0.6rem;
+}
+
+.bh-token-symbol {
+  font-weight: 500;
+}
+
+.bh-token-price,
+.bh-token-change-up,
+.bh-token-change-down {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-token-change-up {
+  color: #22c55e;
+}
+.bh-token-change-down {
+  color: #f97316;
 }

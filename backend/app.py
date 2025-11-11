@@ -2207,58 +2207,67 @@ def data_aggregate():
 
     Returns a JSON payload of shape { data, meta, errors } with HTTP 200
     when all slices present, or 206 (Partial Content) when some are missing.
+    Hard-guards the whole handler so it never emits a 5xx in dev.
     """
-    data = {}
-    meta = {}
-    errors = {}
-
-    # 1m gainers
     try:
-        rows, ts = get_gainers_1m()
-        if rows:
-            data['gainers_1m'] = rows
-            meta['gainers_1m'] = {'source': 'snapshot', 'ts': ts}
-        else:
-            raise RuntimeError('empty')
-    except Exception:
-        errors['gainers_1m'] = 'missing_snapshot'
+        data = {}
+        meta = {}
+        errors = {}
 
-    # 3m gainers
-    try:
-        rows, ts = get_gainers_3m()
-        if rows:
-            data['gainers_3m'] = rows
-            meta['gainers_3m'] = {'source': 'snapshot', 'ts': ts}
-        else:
-            raise RuntimeError('empty')
-    except Exception:
-        errors['gainers_3m'] = 'missing_snapshot'
+        # 1m gainers
+        try:
+            rows, ts = get_gainers_1m()
+            if rows:
+                data['gainers_1m'] = rows
+                meta['gainers_1m'] = {'source': 'snapshot', 'ts': ts}
+            else:
+                raise RuntimeError('empty')
+        except Exception:
+            errors['gainers_1m'] = 'missing_snapshot'
 
-    # 3m losers
-    try:
-        rows, ts = get_losers_3m()
-        if rows:
-            data['losers_3m'] = rows
-            meta['losers_3m'] = {'source': 'snapshot', 'ts': ts}
-        else:
-            raise RuntimeError('empty')
-    except Exception:
-        errors['losers_3m'] = 'missing_snapshot'
+        # 3m gainers
+        try:
+            rows, ts = get_gainers_3m()
+            if rows:
+                data['gainers_3m'] = rows
+                meta['gainers_3m'] = {'source': 'snapshot', 'ts': ts}
+            else:
+                raise RuntimeError('empty')
+        except Exception:
+            errors['gainers_3m'] = 'missing_snapshot'
 
-    # 1h banner (computed)
-    try:
-        rows, ts = get_banner_1h()
-        if rows:
-            data['banner_1h'] = rows
-            meta['banner_1h'] = {'source': 'computed', 'ts': ts}
-        else:
-            # banner is optional – mark as missing but do not fail hard
+        # 3m losers
+        try:
+            rows, ts = get_losers_3m()
+            if rows:
+                data['losers_3m'] = rows
+                meta['losers_3m'] = {'source': 'snapshot', 'ts': ts}
+            else:
+                raise RuntimeError('empty')
+        except Exception:
+            errors['losers_3m'] = 'missing_snapshot'
+
+        # 1h banner (computed)
+        try:
+            rows, ts = get_banner_1h()
+            if rows:
+                data['banner_1h'] = rows
+                meta['banner_1h'] = {'source': 'computed', 'ts': ts}
+            else:
+                # banner is optional – mark as missing but do not fail hard
+                errors['banner_1h'] = 'unavailable'
+        except Exception:
             errors['banner_1h'] = 'unavailable'
-    except Exception:
-        errors['banner_1h'] = 'unavailable'
 
-    status = 200 if not errors else 206
-    return jsonify({'data': data, 'meta': meta, 'errors': errors}), status
+        status = 200 if not errors else 206
+        return jsonify({'data': data, 'meta': meta, 'errors': errors}), status
+    except Exception as e:
+        # Absolute guardrail: never 5xx in local dev for /data
+        try:
+            app.logger.exception("/data aggregate fatal: %s", e)
+        except Exception:
+            pass
+        return jsonify({'data': {}, 'meta': {}, 'errors': {'fatal': str(e)}}), 206
 
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():
