@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api';
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api';
+import { API_ENDPOINTS, fetchData } from '../api.js';
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { RiDeleteBinLine } from 'react-icons/ri';
 
 const COIN_LIST = [

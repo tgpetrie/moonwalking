@@ -1,55 +1,72 @@
-// src/components/TokenRow.jsx
 import React from "react";
-import RowActions from "./tables/RowActions.jsx";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { useSentiment } from "../context/SentimentContext.jsx";
+import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
+import { classForDelta } from "../theme/brandTokens.js";
 
-function formatPrice(value) {
-  if (value == null) return "--";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "--";
-  if (n >= 1000) return `$${n.toLocaleString()}`;
-  return `$${n.toFixed(3)}`;
-}
+// TokenRow: supports props row|token|item; strict <tr><td>… only
+export default function TokenRow({ row, token, item, index = 0, rank, changeKey } = {}) {
+  const data = row || token || item || {};
+  const idx = Number.isFinite(index) ? index : 0;
 
-function formatPct(value) {
-  if (value == null) return "--";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "--";
-  return `${n.toFixed(2)}%`;
-}
-
-export default function TokenRow({ index, row, onInfo }) {
+  // Normalize symbol ("BTC-USD" -> "BTC")
+  const rawSymbol = data.symbol || data.ticker || "";
   const symbol =
-    (row?.symbol && String(row.symbol).replace(/-USD$/i, "")) ||
-    (row?.ticker && String(row.ticker).replace(/-USD$/i, "")) ||
-    "--";
+    rawSymbol && rawSymbol.includes("-") ? tickerFromSymbol(rawSymbol) : (rawSymbol || "—");
 
-  const price = row?.price ?? row?.current_price ?? null;
-  const prev =
-    row?.prevPrice ?? row?.initial_price_1min ?? row?.initial_price_3min ?? null;
-  const pct =
-    row?.pct ??
-    row?.price_change_percentage_1min ??
-    row?.price_change_percentage_3min ??
-    null;
+  // Price fallback chain
+  const price = data.current_price ?? data.price ?? data.last_price ?? null;
+
+  // Percent change (explicit key first, then common fallbacks)
+  const pctRaw = changeKey
+    ? data?.[changeKey]
+    : (data.price_change_1m ??
+       data.price_change_percentage_3min ??
+       data.price_change_1h ??
+       data.changePercent ??
+       0);
+  const pctNum = Number(pctRaw);
+  const pct = Number.isFinite(pctNum) ? pctNum : 0;
+
+  // Watchlist / sentiment
+  const { has, add, remove } = useWatchlist();
+  const { sentiment } = useSentiment() || {};
+  const starred = has(symbol);
+
+  function toggleStar() {
+    if (!symbol || symbol === "—") return;
+    if (starred) remove(symbol);
+    else add({ symbol, price });
+  }
 
   return (
-    <div className="token-row">
-      <div className="token-rank">{index + 1}</div>
-      <div className="token-symbol">{symbol}</div>
-      <div className="token-price">
-        <div>{formatPrice(price)}</div>
-        {prev != null && <div className="token-price-sub">{formatPrice(prev)}</div>}
-      </div>
-      <div
-        className={`token-pct ${
-          pct != null && pct < 0 ? "token-pct-loss" : "token-pct-gain"
-        }`}
-      >
+    <tr className={`table-row ${classForDelta(pct)}`} data-row="token">
+      <td className="bh-token-rank">{rank ?? idx + 1}</td>
+      <td className="bh-token-symbol">
+        {symbol}
+        {sentiment ? (
+          <span
+            className="sentiment-dot"
+            title={`FG ${sentiment?.fear_greed?.value ?? "?"}`}
+            aria-label="Sentiment indicator"
+          />
+        ) : null}
+      </td>
+      <td className="bh-token-price">{formatPrice(price)}</td>
+      <td className={pct >= 0 ? "bh-token-change bh-token-change-up"
+                              : "bh-token-change bh-token-change-down"}>
         {formatPct(pct)}
-      </div>
-      <div className="token-actions">
-        <RowActions symbol={symbol} price={price} onInfo={onInfo} />
-      </div>
-    </div>
+      </td>
+      <td className="bh-token-actions">
+        <button
+          type="button"
+          onClick={toggleStar}
+          className={starred ? "bh-star active" : "bh-star"}
+          aria-label={starred ? "Remove from watchlist" : "Add to watchlist"}
+        >
+          ★
+        </button>
+      </td>
+    </tr>
   );
 }

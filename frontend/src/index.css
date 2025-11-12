@@ -33,6 +33,23 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* background watermark (rabbit) */
+.bh-app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("/nbg.png");
+  background-repeat: no-repeat;
+  background-position: right -60px bottom -40px;
+  background-size: 520px auto;
+  opacity: 0.055;
+  filter: drop-shadow(0 0 36px rgba(249, 115, 22, 0.35));
+  mix-blend-mode: screen;
+  z-index: 0;
 }
 
 /* top bar */
@@ -116,6 +133,8 @@ body {
   padding: 0.65rem 0.75rem;
   backdrop-filter: blur(14px);
   min-height: 70px;
+  position: relative;
+  z-index: 1;
 }
 
 .bh-panel-nopad {
@@ -169,6 +188,8 @@ body {
   padding: 0.35rem 0.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.015);
   font-size: 0.68rem;
+  position: relative;
+  z-index: 1;
 }
 .bh-token-row:last-child {
   border-bottom: 0;
@@ -196,9 +217,112 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.bh-token-change-up {
-  color: #22c55e;
+.bh-token-change-up { color: #D88900; }
+.bh-token-change-down { color: #7B3EF3; }
+
+/* banner strip */
+.bh-banner-strip {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
 }
-.bh-token-change-down {
-  color: #f97316;
+
+.bh-banner-chip {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.025);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  font-size: 0.63rem;
+  white-space: nowrap;
 }
+
+/* Row base */
+tr.table-row { position: relative; }
+
+/* Ambient per-row aura (subtle, always on, very low opacity) */
+tr.table-row::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -3px;
+  width: 58%;
+  height: 6px;
+  opacity: 0.10; /* faint */
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 0%, black 48%, black 64%, transparent 100%);
+}
+
+/* Tight hover glow (centered line) */
+tr.table-row::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -5px;
+  width: 46%;
+  height: 6px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 0%, black 48%, black 64%, transparent 100%);
+}
+tr.table-row:hover::after { opacity: 1; }
+
+/* Brand tints: gainers (gold/orange), losers (purple) */
+tr.table-row.is-gain::before,
+tr.table-row.is-gain::after {
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #D88900 50%, rgba(0,0,0,0) 100%);
+}
+tr.table-row.is-loss::before,
+tr.table-row.is-loss::after {
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #7B3EF3 50%, rgba(0,0,0,0) 100%);
+}
+
+/* Optional: neutral row */
+tr.table-row.is-flat::before,
+tr.table-row.is-flat::after {
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #444 50%, rgba(0,0,0,0) 100%);
+  opacity: 0.05;
+}
+
+
+/* Badge and rule styles */
+.badge-gold {
+  background: rgba(240, 164, 0, 0.15);
+  color: #f0a400;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.rule-gold {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #f0a400, transparent);
+}
+
+/* Table typography/spacing normalization */
+.bh-table { width: 100%; border-collapse: collapse; }
+.bh-table th,
+.bh-table td { padding: 8px 10px; vertical-align: middle; }
+.bh-table thead th {
+  font-weight: 600; letter-spacing: .02em;
+  text-transform: none; /* keep your design: no all-caps */
+}
+.bh-token-rank { width: 44px; text-align: right; opacity: 0.9; }
+.bh-token-symbol { font-weight: 600; }
+.bh-token-price { text-align: right; }
+.bh-token-change { text-align: right; white-space: nowrap; }
+.bh-token-actions { width: 44px; text-align: center; }
+.bh-star { background: transparent; border: 0; cursor: pointer; opacity: .6; }
+.bh-star.active { opacity: 1; }
+.bh-token-change-up { color: #D88900; }   /* gold/orange */
+.bh-token-change-down { color: #7B3EF3; } /* purple */
+.sentiment-dot { display:inline-block; width:6px; height:6px; border-radius:999px; margin-left:8px; background:#888; }

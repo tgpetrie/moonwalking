@@ -29,7 +29,14 @@ export default defineConfig({
         }
     },
     server: {
+        host: '127.0.0.1',
         port: vitePort,
+        strictPort: true,
+        hmr: {
+            host: '127.0.0.1',
+            port: vitePort,
+            protocol: 'ws'
+        },
         proxy: {
             '/data': {
                 target: `http://127.0.0.1:${backendPort}`,

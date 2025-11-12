@@ -1,105 +1,82 @@
 // src/AppRoot.jsx
 import React from "react";
-import { WatchlistProvider } from "./context/WatchlistContext.jsx";
-import { useData } from "./hooks/useData.js";
-
-import TopBannerScroll from "./components/TopBannerScroll.jsx";
+import { useData } from "./context/DataContext.jsx";
+import { useWatchlist } from "./context/WatchlistContext.jsx";
+import AlertsIndicator from "./components/AlertsIndicator.jsx";
+import AskBhabitPanel from "./components/AskBhabitPanel.jsx";
 import Gainers1m from "./components/Gainers1m.jsx";
-import ThreeMinGainers from "./components/ThreeMinGainers.jsx";
-import Losers3m from "./components/Losers3m.jsx";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
-import OneHourVolumeBanner from "./ContinuousScrollingBanner.1hvol.jsx";
+import ThreeMinuteGainers from "./components/ThreeMinuteGainers.jsx";
+import ThreeMinuteLosers from "./components/ThreeMinuteLosers.jsx";
+import SentimentCard from "./components/SentimentCard.jsx";
+import TopBannerVolume1h from "./components/TopBannerVolume1h.jsx";
 
 export default function AppRoot() {
-  const { data = {} } = useData();
+  const { data, loading } = useData();
+  const { refreshFromData } = useWatchlist();
 
-  // 1m, 3m, banner
-  const rows1m = data.gainers1m?.rows || [];
-  const rows3mGainers = data.gainers3m?.rows || [];
-  const rows3mLosers = data.losers3m?.rows || [];
-  const banner1h = Array.isArray(data.banner_1h || data.banner1h)
-    ? (data.banner_1h || data.banner1h)
-    : [];
+  const payload = data?.data || {};
+  const gainers1m = payload.gainers_1m || [];
+  const gainers3m = payload.gainers_3m || [];
+  const losers3m = payload.losers_3m || [];
+  const banner1h = payload.banner_1h || [];
 
-  const hasTwoCols = rows1m.length > 4;
-  const left1m = hasTwoCols ? rows1m.slice(0, 4) : rows1m;
-  const right1m = hasTwoCols ? rows1m.slice(4, 8) : [];
+  // keep watchlist prices in sync
+  React.useEffect(() => {
+    const idx = {};
+    [banner1h, gainers1m, gainers3m, losers3m].forEach((list) => {
+      if (Array.isArray(list)) {
+        list.forEach((t) => {
+          if (t && t.symbol) idx[t.symbol] = t;
+        });
+      }
+    });
+    refreshFromData(idx);
+  }, [banner1h, gainers1m, gainers3m, losers3m, refreshFromData]);
 
   return (
-    <WatchlistProvider>
-      <div className="bh-app">
-        {/* top bar */}
-        <header className="bh-topbar">
-          <div className="bh-topbar-left">
-            <div className="bh-logo-mark">🐇</div>
-            <div className="bh-top-title">
-              <h1>BHABITS CB INSIGHT</h1>
-              <p>Realtime Coinbase movers</p>
-            </div>
-          </div>
-        </header>
+    <div className="bh-app">
+      <header className="bh-topbar">
+        <div className="bh-logo-mark">B</div>
+        <div className="bh-top-title">
+          <h1>BHABIT Crypto Dashboard</h1>
+          <p>Live momentum · sentiment · signals</p>
+        </div>
+      </header>
 
-        {/* scrolling banner */}
-        <div className="bh-top-banner">
-          <TopBannerScroll />
+  <AlertsIndicator />
+
+      {/* NEW: 1h volume banner */}
+      <TopBannerVolume1h items={banner1h} />
+
+      <main className="bh-main">
+        <div className="bh-row">
+          <div className="bh-panel bh-panel-nopad" style={{ flex: 1.3 }}>
+            <SentimentCard />
+          </div>
+          <div className="bh-panel bh-panel-nopad" style={{ flex: 0.7 }}>
+            <AskBhabitPanel />
+          </div>
         </div>
 
-        <main className="bh-main">
-          {/* 1m heading */}
-          <div className="bh-section-heading">
-            <span>1-MINUTE GAINERS</span>
+        <div className="bh-row bh-row-1m">
+          <div className="bh-panel bh-panel-nopad">
+            <Gainers1m rows={gainers1m} loading={loading} />
           </div>
-
-          {/* 1m row */}
-          {hasTwoCols ? (
-            <div className="bh-row bh-row-1m">
-              <div className="bh-panel">
-                <Gainers1m rows={left1m} showTitle={false} />
-              </div>
-              <div className="bh-panel">
-                <Gainers1m rows={right1m} showTitle={false} />
-              </div>
-            </div>
-          ) : (
-            <div className="bh-row bh-row-1m bh-row-1m-single">
-              <div className="bh-panel">
-                <Gainers1m rows={left1m} showTitle={false} />
-              </div>
-            </div>
-          )}
-
-          {/* 3m row */}
-          <div className="bh-row bh-row-3m">
-            <div className="bh-panel">
-              <ThreeMinGainers rows={rows3mGainers} />
-            </div>
-            <div className="bh-panel">
-              <Losers3m rows={rows3mLosers} />
-            </div>
+          <div className="bh-panel bh-panel-nopad">
+            <WatchlistPanel />
           </div>
+        </div>
 
-          {/* watchlist */}
-          <div className="bh-row bh-row-watchlist">
-            <div className="bh-panel">
-              <WatchlistPanel title="Watchlist" />
-            </div>
+        <div className="bh-row bh-row-3m">
+          <div className="bh-panel bh-panel-nopad">
+            <ThreeMinuteGainers rows={gainers3m} loading={loading} />
           </div>
-
-          {/* 1h volume banner */}
-          <div className="bh-row bh-row-1h">
-            <div className="bh-panel bh-panel-nopad">
-              {banner1h.length > 0 ? (
-                <OneHourVolumeBanner items={banner1h} />
-              ) : (
-                <div style={{ padding: "0.5rem 1rem", opacity: 0.4 }}>
-                  1h volume banner
-                </div>
-              )}
-            </div>
+          <div className="bh-panel bh-panel-nopad">
+            <ThreeMinuteLosers rows={losers3m} loading={loading} />
           </div>
-        </main>
-      </div>
-    </WatchlistProvider>
+        </div>
+      </main>
+    </div>
   );
 }
-

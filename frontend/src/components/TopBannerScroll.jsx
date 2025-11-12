@@ -1,44 +1,50 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { formatPrice, formatPct } from "../utils/format.js";
 
-function cleanSymbol(sym = "") {
-  return sym.replace(/-(USD|USDT)$/i, "").toUpperCase();
-}
-
-export default function TopBannerScroll({ items }) {
-  const [data, setData] = useState(items || []);
-
-  useEffect(() => {
-    if (items && items.length) return;
-    fetch("/api/component/top-banner-scroll")
-      .then((r) => r.json())
-      .then((j) => setData(j.items || j || []))
-      .catch(() => {});
-  }, [items]);
-
-  const list = items && items.length ? items : data;
-  if (!list.length) return null;
-
+export default function TopBannerScroll({ banner = [] }) {
+  if (!banner || !banner.length) return null;
   return (
-    <div className="overflow-hidden w-full py-2 px-4">
-      <div className="banner-scroll flex gap-4">
-        {list.map((it, idx) => {
-          const symbol = cleanSymbol ? cleanSymbol(it.symbol) : it.symbol;
-          const pct = it.price_change_1h ?? it.change_pct ?? 0;
-          const up = pct >= 0;
-          return (
-            <span
-              key={idx}
-              className={`banner-chip ${up ? "banner-chip-gain" : "banner-chip-loss"}`}
-            >
-              <span>{symbol}</span>
-              {typeof it.current_price === "number" && (
-                <span>${it.current_price}</span>
-              )}
-              <span>{pct.toFixed(2)}%</span>
+    <div className="bh-top-banner">
+      <div className="bh-banner-track">
+        {banner.map((item) => (
+          <div key={item.symbol} className="bh-banner-chip">
+            <span>{item.symbol}</span>
+            <span>{formatPrice(item.current_price)}</span>
+            <span className={item.price_change_1h >= 0 ? "up small" : "down small"}>
+              {formatPct(item.price_change_1h)}
             </span>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
+import React from "react";
+import { formatPrice, formatPct } from "../utils/format.js";
+
+export default function TopBannerScroll({ items = [], loading }) {
+  return (
+    <div className="bh-top-banner">
+      {loading && !items.length ? (
+        <span style={{ opacity: 0.6, fontSize: "0.7rem", padding: "0.35rem 0.75rem", display: "inline-block" }}>
+          loading 1h volume…
+        </span>
+      ) : !items.length ? (
+        <span style={{ opacity: 0.5, fontSize: "0.7rem", padding: "0.35rem 0.75rem", display: "inline-block" }}>
+          no 1h banner data
+        </span>
+      ) : (
+        <div className="bh-banner-strip">
+          {items.map((it, i) => (
+            <div key={(it.symbol || it.ticker || i) + "-chip"} className="bh-banner-chip">
+              <span>{it.symbol || it.ticker}</span>
+              {it.current_price != null && <span>{formatPrice(it.current_price)}</span>}
+              {it.price_change_1h != null && <span>{formatPct(it.price_change_1h)}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -834,6 +834,36 @@ def api_sentiment():
             continue
     return jsonify(out)
 
+
+try:
+    from sentiment_orchestrator import get_basic_sentiment
+except Exception:
+    get_basic_sentiment = None
+
+
+@app.route('/api/sentiment-basic')
+def api_sentiment_basic():
+    """Return a small, fast basic sentiment payload for the frontend SentimentCard.
+
+    If a richer orchestrator is present (get_basic_sentiment), delegate to it.
+    Otherwise return a lightweight mock useful for local development.
+    """
+    if get_basic_sentiment is None:
+        return jsonify({
+            "fear_greed": {"value": 52, "classification": "neutral"},
+            "btc_funding": {"rate_percentage": 0.0012},
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        })
+    try:
+        data = get_basic_sentiment()
+        return jsonify(data)
+    except Exception:
+        return jsonify({
+            "fear_greed": {"value": 50, "classification": "neutral"},
+            "btc_funding": {"rate_percentage": 0.0},
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        })
+
 @app.route('/api/signals/pumpdump')
 def api_signals_pumpdump():
     """Stub signals endpoint to keep mobile/web screens functional.
