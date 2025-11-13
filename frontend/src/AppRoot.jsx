@@ -9,11 +9,13 @@ import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import ThreeMinuteGainers from "./components/ThreeMinuteGainers.jsx";
 import ThreeMinuteLosers from "./components/ThreeMinuteLosers.jsx";
 import SentimentCard from "./components/SentimentCard.jsx";
+import SentimentCardSymbol from "./components/cards/SentimentCard.jsx";
 import TopBannerVolume1h from "./components/TopBannerVolume1h.jsx";
 
 export default function AppRoot() {
   const { data, loading } = useData();
   const { refreshFromData } = useWatchlist();
+  const [selectedSymbol, setSelectedSymbol] = React.useState(null);
 
   const payload = data?.data || {};
   const gainers1m = payload.gainers_1m || [];
@@ -61,7 +63,7 @@ export default function AppRoot() {
 
         <div className="bh-row bh-row-1m">
           <div className="bh-panel bh-panel-nopad">
-            <Gainers1m rows={gainers1m} loading={loading} />
+            <Gainers1m rows={gainers1m} loading={loading} onInfo={setSelectedSymbol} />
           </div>
           <div className="bh-panel bh-panel-nopad">
             <WatchlistPanel />
@@ -70,13 +72,23 @@ export default function AppRoot() {
 
         <div className="bh-row bh-row-3m">
           <div className="bh-panel bh-panel-nopad">
-            <ThreeMinuteGainers rows={gainers3m} loading={loading} />
+            <ThreeMinuteGainers rows={gainers3m} loading={loading} onInfo={setSelectedSymbol} />
           </div>
           <div className="bh-panel bh-panel-nopad">
-            <ThreeMinuteLosers rows={losers3m} loading={loading} />
+            <ThreeMinuteLosers rows={losers3m} loading={loading} onInfo={setSelectedSymbol} />
           </div>
         </div>
       </main>
+
+      {selectedSymbol && (
+        <div className="bh-info-overlay" onClick={() => setSelectedSymbol(null)}>
+          <div className="bh-info-panel" onClick={(e) => e.stopPropagation()}>
+            <button className="bh-info-close" onClick={() => setSelectedSymbol(null)}>×</button>
+            <h2>{selectedSymbol}</h2>
+            <SentimentCardSymbol symbol={selectedSymbol} ttlSec={30} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

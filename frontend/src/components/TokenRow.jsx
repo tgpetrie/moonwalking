@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useCallback, memo } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { useSentiment } from "../context/SentimentContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
 import { classForDelta } from "../theme/brandTokens.js";
 
 // TokenRow: supports props row|token|item; strict <tr><td>… only
-export default function TokenRow({ row, token, item, index = 0, rank, changeKey } = {}) {
+function TokenRow({ row, token, item, index = 0, rank, changeKey, onInfo } = {}) {
   const data = row || token || item || {};
   const idx = Number.isFinite(index) ? index : 0;
 
@@ -20,11 +20,14 @@ export default function TokenRow({ row, token, item, index = 0, rank, changeKey 
   // Percent change (explicit key first, then common fallbacks)
   const pctRaw = changeKey
     ? data?.[changeKey]
-    : (data.price_change_1m ??
-       data.price_change_percentage_3min ??
-       data.price_change_1h ??
-       data.changePercent ??
-       0);
+    : (
+        data.price_change_percentage_1min ?? // 1-min percent from backend
+        data.price_change_1m ??              // alt 1-min key, if ever used
+        data.price_change_percentage_3min ?? // 3-min percent
+        data.price_change_1h ??              // 1-hour percent
+        data.changePercent ??                // generic fallback
+        0
+      );
   const pctNum = Number(pctRaw);
   const pct = Number.isFinite(pctNum) ? pctNum : 0;
 
@@ -33,11 +36,14 @@ export default function TokenRow({ row, token, item, index = 0, rank, changeKey 
   const { sentiment } = useSentiment() || {};
   const starred = has(symbol);
 
-  function toggleStar() {
+  const toggleStar = useCallback(() => {
     if (!symbol || symbol === "—") return;
-    if (starred) remove(symbol);
-    else add({ symbol, price });
-  }
+    if (starred) {
+      remove(symbol);
+    } else {
+      add({ symbol, price });
+    }
+  }, [symbol, starred, add, remove, price]);
 
   return (
     <tr className={`table-row ${classForDelta(pct)}`} data-row="token">
@@ -66,7 +72,19 @@ export default function TokenRow({ row, token, item, index = 0, rank, changeKey 
         >
           ★
         </button>
+        {onInfo && (
+          <button
+            type="button"
+            onClick={() => onInfo(symbol)}
+            className="bh-info"
+            aria-label={`Show info for ${symbol}`}
+          >
+            ⓘ
+          </button>
+        )}
       </td>
     </tr>
   );
 }
+
+export default memo(TokenRow);

@@ -1,49 +1,45 @@
-import React from "react";
-import { formatPrice, formatPct } from "../utils/format.js";
+import React, { useEffect, useRef } from "react";
+import { useData } from "../context/useData";
+import { fmt } from "../utils/formatters";
 
-export default function TopBannerScroll({ banner = [] }) {
-  if (!banner || !banner.length) return null;
+export default function TopBannerScroll({ items: propItems = [], loading: propLoading = false }) {
+  const { data } = useData();
+  const items = propItems.length ? propItems : data?.top_banner_1h ?? [];
+  const loading = propLoading;
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || items.length === 0) return;
+    const anim = el.animate(
+      [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
+      { duration: 30000, iterations: Infinity, easing: "linear" }
+    );
+    return () => anim.cancel();
+  }, [items?.length]);
+
+  if (!items || items.length === 0) return null;
+
+  const normalize = (t) => ({
+    symbol: t.symbol || t.ticker || "--",
+    price: t.current_price ?? t.price ?? t.last_price ?? null,
+    pct: t.price_change_1h ?? t.price_change_percentage_1h ?? t.pct_change_1h ?? t.pct_change ?? 0,
+  });
+
   return (
-    <div className="bh-top-banner">
-      <div className="bh-banner-track">
-        {banner.map((item) => (
-          <div key={item.symbol} className="bh-banner-chip">
-            <span>{item.symbol}</span>
-            <span>{formatPrice(item.current_price)}</span>
-            <span className={item.price_change_1h >= 0 ? "up small" : "down small"}>
-              {formatPct(item.price_change_1h)}
+    <div className="ticker">
+      <div className="track" ref={ref}>
+        {[...items, ...items].map((t, i) => {
+          const it = normalize(t);
+          return (
+            <span key={`${it.symbol}-${i}`} className={it.pct >= 0 ? "is-gain" : "is-loss"} style={{ marginRight: 24 }}>
+              <b>{it.symbol}</b>&nbsp;
+              <span className="price">{fmt.price(it.price)}</span>&nbsp;
+              <span>{fmt.pct(it.pct)}</span>
             </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
-  );
-}
-import React from "react";
-import { formatPrice, formatPct } from "../utils/format.js";
-
-export default function TopBannerScroll({ items = [], loading }) {
-  return (
-    <div className="bh-top-banner">
-      {loading && !items.length ? (
-        <span style={{ opacity: 0.6, fontSize: "0.7rem", padding: "0.35rem 0.75rem", display: "inline-block" }}>
-          loading 1h volume…
-        </span>
-      ) : !items.length ? (
-        <span style={{ opacity: 0.5, fontSize: "0.7rem", padding: "0.35rem 0.75rem", display: "inline-block" }}>
-          no 1h banner data
-        </span>
-      ) : (
-        <div className="bh-banner-strip">
-          {items.map((it, i) => (
-            <div key={(it.symbol || it.ticker || i) + "-chip"} className="bh-banner-chip">
-              <span>{it.symbol || it.ticker}</span>
-              {it.current_price != null && <span>{formatPrice(it.current_price)}</span>}
-              {it.price_change_1h != null && <span>{formatPct(it.price_change_1h)}</span>}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

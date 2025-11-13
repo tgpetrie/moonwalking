@@ -18,7 +18,7 @@ export default function Losers3m({
           <div className="panel-empty">No data.</div>
         ) : (
           rows.map((row, idx) => (
-            <TokenRow key={row.symbol || idx} index={idx} row={row} onInfo={onInfo} />
+            <TokenRow key={row.symbol || idx} index={idx} rank={idx + 1} row={row} changeKey="price_change_percentage_3min" onInfo={onInfo} />
           ))
         )}
       </div>

@@ -24,7 +24,7 @@ export function formatPrice(n, opts = {}) {
 
 // --- percentage formatting ---
 export function formatPct(n, { sign = true } = {}) {
-  const val = toNum(n, 0);
+  const val = toNum(n, 0) * 100; // backend sends decimal fraction (0.0158 -> 1.58%)
   const abs = Math.abs(val);
   let digits = 2;
   if (abs >= 100) digits = 0;

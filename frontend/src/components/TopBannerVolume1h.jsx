@@ -1,8 +1,22 @@
-import React from "react";
-import { formatCompact, formatPct, calcVolumeChange1h } from "../utils/format.js";
+import React, { useEffect, useRef } from "react";
+import { useData } from "../context/useData";
+import { fmt } from "../utils/formatters";
 
-export default function TopBannerVolume1h({ items = [] }) {
-  // items: this should be your payload.banner_1h from /data
+export default function TopBannerVolume1h({ items: propItems = [] }) {
+  const { data } = useData();
+  const items = propItems.length ? propItems : data?.volume_banner_1h ?? [];
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || items.length === 0) return;
+    const anim = el.animate(
+      [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
+      { duration: 30000, iterations: Infinity, easing: "linear" }
+    );
+    return () => anim.cancel();
+  }, [items?.length]);
+
   if (!Array.isArray(items) || items.length === 0) {
     return (
       <div className="bh-top-banner">
@@ -11,61 +25,23 @@ export default function TopBannerVolume1h({ items = [] }) {
     );
   }
 
+  const normalize = (t) => ({
+    symbol: t.symbol || t.ticker || "--",
+    volume_now: t.volume_1h ?? t.volume_60m ?? t.volume_last_1h ?? t.volume_1h_usd ?? null,
+    volume_pct: t.volume_change_pct_1h ?? t.volume_pct ?? t.volume_change_1h ?? 0,
+  });
+
   return (
-    <div className="bh-top-banner bh-top-banner-scroll">
-      <div className="bh-top-banner-track">
-        {items.map((t, idx) => {
-          const symbol = t.symbol || t.ticker || `#${idx + 1}`;
-          const volChange = calcVolumeChange1h(t);
-          // show the actual 1h volume too if we have it
-          const volActual =
-            t.volume_1h ?? t.volume_60m ?? t.volume_last_1h ?? t.volume_1h_usd ?? null;
-
+    <div className="ticker">
+      <div className="track" ref={ref}>
+        {[...items, ...items].map((t, i) => {
+          const it = normalize(t);
           return (
-            <div key={symbol + idx} className="bh-banner-chip">
-              <span className="bh-banner-symbol">{symbol}</span>
-              {volChange != null ? (
-                <span
-                  className={
-                    volChange >= 0 ? "bh-banner-change up" : "bh-banner-change down"
-                  }
-                >
-                  {formatPct(volChange)}
-                </span>
-              ) : (
-                <span className="bh-banner-change muted">—</span>
-              )}
-              {volActual != null ? (
-                <span className="bh-banner-vol">{formatCompact(volActual)} / 1h</span>
-              ) : null}
-            </div>
-          );
-        })}
-        {/* duplicate once so it can scroll infinitely if you animate it */}
-        {items.map((t, idx) => {
-          const symbol = t.symbol || t.ticker || `#${idx + 1}-dup`;
-          const volChange = calcVolumeChange1h(t);
-          const volActual =
-            t.volume_1h ?? t.volume_60m ?? t.volume_last_1h ?? t.volume_1h_usd ?? null;
-
-          return (
-            <div key={symbol + "-dup"} className="bh-banner-chip">
-              <span className="bh-banner-symbol">{symbol}</span>
-              {volChange != null ? (
-                <span
-                  className={
-                    volChange >= 0 ? "bh-banner-change up" : "bh-banner-change down"
-                  }
-                >
-                  {formatPct(volChange)}
-                </span>
-              ) : (
-                <span className="bh-banner-change muted">—</span>
-              )}
-              {volActual != null ? (
-                <span className="bh-banner-vol">{formatCompact(volActual)} / 1h</span>
-              ) : null}
-            </div>
+            <span key={`${it.symbol}-${i}`} className={it.volume_pct >= 0 ? "is-gain" : "is-loss"} style={{ marginRight: 24 }}>
+              <b>{it.symbol}</b>&nbsp;
+              <span>Vol {fmt.vol(it.volume_now)}</span>&nbsp;
+              <span>{fmt.pct(it.volume_pct)}</span>
+            </span>
           );
         })}
       </div>

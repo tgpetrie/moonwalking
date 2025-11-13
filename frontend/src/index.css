@@ -148,9 +148,27 @@ body {
   gap: 1.2rem;
 }
 
-/* fallback when there’s only one list */
+/* fallback when there's only one list */
 .bh-row-1m-single {
   display: flex;
+}
+
+/* 1-minute hero grid: 4+4 column layout */
+.one-min-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  width: 100%;
+}
+
+.one-min-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* When there are 4 or fewer items, single column */
+.one-min-grid:has(.one-min-col:only-child) {
+  grid-template-columns: 1fr;
 }
 
 .bh-row-3m {
@@ -173,7 +191,8 @@ body {
   .bh-row-1m,
   .bh-row-3m,
   .bh-row-watchlist,
-  .bh-row-1h {
+  .bh-row-1h,
+  .one-min-grid {
     display: flex;
     flex-direction: column;
   }

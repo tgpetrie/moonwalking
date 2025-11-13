@@ -7,7 +7,7 @@ export default function OneMinuteGainers({ rows = [] }) {
       <div className="bh-section-heading">1 MIN GAINERS</div>
       {rows.length === 0 && <div className="muted small-pad">No 1m data.</div>}
       {rows.map((row, idx) => (
-        <TokenRow key={row.symbol} index={idx} item={row} />
+        <TokenRow key={row.symbol} index={idx} item={row} changeKey="price_change_percentage_1min" />
       ))}
     </div>
   );
@@ -23,8 +23,8 @@ export default function OneMinuteGainers({ title, items = [], loading }) {
         <div style={{ padding: "0.75rem" }}>Loading…</div>
       ) : !items.length ? (
         <div style={{ padding: "0.75rem" }}>No data.</div>
-      ) : (
-        items.map((item, idx) => (
+        ) : (
+          items.map((item, idx) => (
           <TokenRow
             key={item.symbol || idx}
             index={idx}

@@ -1,73 +1,83 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 
 const DataContext = createContext(null);
+export const useData = () => useContext(DataContext);
 
-export function DataProvider({ children, pollMs = 15000 }) {
-  const [data, setData] = useState(null);       // aggregated component data
-  const [loading, setLoading] = useState(true);
+// shallow-ish equality good enough for our aggregated shapes
+const shallowEqual = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ak = Object.keys(a), bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) {
+    const av = a[k], bv = b[k];
+    if (Array.isArray(av) && Array.isArray(bv)) {
+      if (av.length !== bv.length) return false;
+      for (let i = 0; i < av.length; i++) if (av[i] !== bv[i]) return false;
+    } else if (av !== bv) return false;
+  }
+  return true;
+};
+
+export function DataProvider({ children, pollMs = 5000 }) {
+  const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const lastRef = useRef(null);
+  const abortRef = useRef(null);
+
+  const fetchUnified = useCallback(async () => {
     try {
-      async function get(path) {
-        try {
-          const r = await fetch(path);
-          if (!r.ok) return null;
-          return await r.json();
-        } catch (_e) {
-          return null;
-        }
-      }
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+      const res = await fetch("/data", { signal: abortRef.current.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
 
-      const [g1m, g3m, l3m, topbar, b1h] = await Promise.all([
-        get("/api/component/gainers-table-1min"),
-        get("/api/component/gainers-table"),
-        get("/api/component/losers-table"),
-        get("/api/component/top-movers-bar"),
-        get("/api/component/banner-volume-1h"),
-      ]);
-
-      const agg = {
-        data: {
-          gainers_1m: Array.isArray(g1m?.data) ? g1m.data : [],
-          gainers_3m: Array.isArray(g3m?.data) ? g3m.data : [],
-          losers_3m: Array.isArray(l3m?.data) ? l3m.data : [],
-          banner_1h: Array.isArray(b1h?.data)
-            ? b1h.data
-            : Array.isArray(topbar?.data)
-            ? topbar.data
-            : [],
-        },
+      const normalized = {
+        gainers_1m: json.data?.gainers_1m ?? json.gainers_1m ?? json.gainers1m ?? [],
+        gainers_3m: json.data?.gainers_3m ?? json.gainers_3m ?? json.gainers3m ?? [],
+        losers_3m:  json.data?.losers_3m  ?? json.losers_3m  ?? json.losers3m  ?? [],
+        top_banner_1h: json.data?.banner_1h ?? json.banner_1h_price ?? json.top_banner_1h ?? json.banner_1h ?? [],
+        volume_banner_1h: json.data?.volume_banner_1h ?? json.banner_1h_volume ?? json.volume_banner_1h ?? [],
+        updated_at: json.updated_at ?? Date.now(),
       };
-      setData(agg);
+
+      if (!shallowEqual(lastRef.current, normalized)) {
+        lastRef.current = normalized;
+        setData(normalized);
+      }
       setError(null);
-    } catch (err) {
-      console.error("[data] failed:", err);
-      setError(err);
-    } finally {
+      setLoading(false);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.warn('[DataContext] Fetch failed:', e.message);
+      setError(e);
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const id = setInterval(fetchData, pollMs);
-    return () => clearInterval(id);
-  }, [fetchData, pollMs]);
+    let mounted = true;
+    
+    const doFetch = async () => {
+      if (!mounted) return;
+      await fetchUnified();
+    };
 
-  return (
-    <DataContext.Provider value={{ data, loading, error, refetch: fetchData }}>
-      {children}
-    </DataContext.Provider>
-  );
+    doFetch();
+    const id = setInterval(doFetch, pollMs);
+    
+    return () => {
+      mounted = false;
+      clearInterval(id);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [fetchUnified, pollMs]);
+
+  const value = useMemo(() => ({ data, error, loading, refetch: fetchUnified }), [data, error, loading, fetchUnified]);
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
-export function useData() {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData must be used inside DataProvider");
-  return ctx;
-}
-
-// backwards-compat alias
-export const useDataContext = useData;
+export default DataContext;

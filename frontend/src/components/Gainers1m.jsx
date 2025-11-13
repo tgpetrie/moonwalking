@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import TokenRow from "./TokenRow.jsx";
 
 function SkeletonRow({ index }) {
@@ -21,10 +21,20 @@ export default function Gainers1m({
   rows = [],
   loading = false,
   showTitle = true,
+  onInfo,
 }) {
-  const skeleton = Array.from({ length: 6 }).map((_, i) => ({ _sk: i }));
-  const dataToRender = rows.length ? rows : skeleton;
-  const twoCol = dataToRender.length > 4;
+  const INITIAL_LIMIT = 8; // 4+4 columns before "Show more"
+  const EXPANDED_LIMIT = 16; // Max after expansion
+  
+  const [expanded, setExpanded] = useState(false);
+  
+  const limit = expanded ? EXPANDED_LIMIT : INITIAL_LIMIT;
+  const visible = rows.slice(0, limit);
+  const hasMore = rows.length > limit;
+  
+  // Split into left (ranks 1-4) and right (ranks 5-8, or 5-16 when expanded)
+  const left = visible.slice(0, Math.min(4, visible.length));
+  const right = visible.slice(4, limit);
 
   return (
     <section className="mt-4">
@@ -33,15 +43,61 @@ export default function Gainers1m({
         <span className="rule-gold" />
       </header>
 
-      <div className={twoCol ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
-        <table className="w-full border-collapse text-[12px] font-mono leading-5">
-          <tbody>
-            {dataToRender.map((row, idx) =>
-              row._sk ? <SkeletonRow key={idx} index={idx} /> : <TokenRow key={row.symbol || idx} row={row} index={idx} isGainer />
-            )}
-          </tbody>
-        </table>
+      <div className="one-min-grid">
+        <div className="one-min-col">
+          <table className="w-full border-collapse text-[12px] font-mono leading-5">
+            <tbody>
+              {left.length === 0 ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonRow key={i} index={i} />
+                ))
+              ) : (
+                left.map((row, idx) => (
+                  <TokenRow 
+                    key={row.symbol || idx} 
+                    row={row} 
+                    index={idx} 
+                    isGainer 
+                    changeKey="price_change_percentage_1min" 
+                    onInfo={onInfo} 
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {right.length > 0 && (
+          <div className="one-min-col">
+            <table className="w-full border-collapse text-[12px] font-mono leading-5">
+              <tbody>
+                {right.map((row, idx) => (
+                  <TokenRow 
+                    key={row.symbol || idx} 
+                    row={row} 
+                    index={idx + left.length} 
+                    isGainer 
+                    changeKey="price_change_percentage_1min" 
+                    onInfo={onInfo} 
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {hasMore && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="px-4 py-1 text-xs rounded-full border border-white/20 bg-transparent text-white/70 hover:bg-white/10 hover:text-white/90 transition-all"
+          >
+            {expanded ? "Show Less" : "Show More"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -48,7 +48,7 @@ export default function LosersTable3Min() {
         <>
           <div className="mt-4 w-full overflow-x-hidden panel-3m flex flex-col gap-1">
             {visible.map((rowProps, idx) => (
-              <TokenRow key={`${rowProps.symbol}-${idx}`} {...rowProps} />
+              <TokenRow key={`${rowProps.symbol}-${idx}`} {...rowProps} changeKey="price_change_percentage_3min" />
             ))}
           </div>
 

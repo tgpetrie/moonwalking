@@ -10,12 +10,10 @@ export default function Gainers3m({ rows = [], loading, message, onInfo }) {
         rows.map((row, idx) => (
           <TokenRow
             key={row.symbol || idx}
-            index={idx + 1}
-            symbol={row.symbol}
-            price={row.price}
-            prevPrice={row.initial_price_3min}
-            changePct={row.changePct}
-            side="up"
+            index={idx}
+            rank={idx + 1}
+            row={row}
+            changeKey="price_change_percentage_3min"
             onInfo={onInfo}
           />
         ))}

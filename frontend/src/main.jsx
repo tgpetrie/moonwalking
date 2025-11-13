@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./styles/info-modal.css";
 import AppRoot from "./AppRoot.jsx";
 import { DataProvider } from "./context/DataContext.jsx";
 import { WatchlistProvider } from "./context/WatchlistContext.jsx";

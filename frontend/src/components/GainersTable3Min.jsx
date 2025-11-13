@@ -63,6 +63,7 @@ export default function GainersTable3Min({ items: incoming, rows, loading, error
               <TokenRow
                 key={`${rowProps.symbol}-${idx}`}
                 {...rowProps}
+                changeKey="price_change_percentage_3min"
                 onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
               />
             ))}

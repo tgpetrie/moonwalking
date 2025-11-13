@@ -12,7 +12,7 @@ export default function GainersTable1Min({ rows = [], loading }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <TokenRow key={row.symbol || i} row={row} index={i} changeKey="price_change_1m" />
+            <TokenRow key={row.symbol || i} row={row} index={i} changeKey="price_change_percentage_1min" />
           ))}
         </tbody>
       </table>
@@ -35,7 +35,7 @@ export default function GainersTable1Min({ rows = [], loading }) {
                 key={(row.symbol || "row") + "-" + i}
                 row={row}
                 index={i + (cIdx === 0 ? 0 : mid)}
-                changeKey="price_change_1m"
+                changeKey="price_change_percentage_1min"
               />
             ))}
           </tbody>

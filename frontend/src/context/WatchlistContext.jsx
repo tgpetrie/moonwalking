@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -76,21 +77,30 @@ export function WatchlistProvider({ children }) {
   // let the app push fresh prices into the watchlist
   const refreshFromData = useCallback((symbolMap) => {
     if (!symbolMap) return;
-    setItems((prev) =>
-      prev.map((i) => {
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((i) => {
         const live = symbolMap[i.symbol];
         if (live && typeof live.current_price === "number") {
-          return { ...i, current: live.current_price };
+          if (i.current !== live.current_price) {
+            changed = true;
+            return { ...i, current: live.current_price };
+          }
         }
         return i;
-      })
-    );
+      });
+      // If nothing changed, return prev to avoid needless re-renders
+      return changed ? next : prev;
+    });
   }, []);
 
+  const value = useMemo(
+    () => ({ items, has, add, remove, refreshFromData }),
+    [items, has, add, remove, refreshFromData]
+  );
+
   return (
-    <WatchlistContext.Provider
-      value={{ items, has, add, remove, refreshFromData }}
-    >
+    <WatchlistContext.Provider value={value}>
       {children}
     </WatchlistContext.Provider>
   );

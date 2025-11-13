@@ -17,7 +17,7 @@ function SkeletonRow({ index }) {
   );
 }
 
-export default function ThreeMinuteGainers({ title = "3 MIN GAINERS", rows = [], loading = false }) {
+export default function ThreeMinuteGainers({ title = "3 MIN GAINERS", rows = [], loading = false, onInfo }) {
   const items = rows; // accept both props for compatibility
   const skeleton = Array.from({ length: 6 }).map((_, i) => ({ _sk: i }));
   const dataToRender = items.length ? items : skeleton;
@@ -28,7 +28,7 @@ export default function ThreeMinuteGainers({ title = "3 MIN GAINERS", rows = [],
       <table className="w-full border-collapse text-[12px] font-mono leading-5">
         <tbody>
           {dataToRender.map((item, idx) =>
-            item._sk ? <SkeletonRow key={idx} index={idx} /> : <TokenRow key={item.symbol || idx} index={idx} item={item} changeKey="price_change_percentage_3min" />
+            item._sk ? <SkeletonRow key={idx} index={idx} /> : <TokenRow key={item.symbol || idx} index={idx} item={item} changeKey="price_change_percentage_3min" onInfo={onInfo} />
           )}
         </tbody>
       </table>
