@@ -1,47 +1,99 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import TokenRow from "./TokenRow.jsx";
 
-export default function GainersTable1Min({ rows = [], loading }) {
-  const ready = Array.isArray(rows) && rows.length > 0;
-  const twoCol = ready && rows.length > 4; // flip only when > 4
-  if (!twoCol) {
+const INITIAL_LIMIT = 8;
+const EXPANDED_LIMIT = 16;
+
+export default function GainersTable1Min({ packet, rows, loading, onInfo, onRowHover }) {
+  // support either packet={ rows, loading } or rows prop for backward compatibility
+  const packetRows = packet?.rows ?? rows ?? [];
+  const isLoading = packet?.loading ?? loading ?? false;
+
+  const [expanded, setExpanded] = useState(false);
+
+  const limit = expanded ? EXPANDED_LIMIT : INITIAL_LIMIT;
+  const visible = packetRows.slice(0, Math.min(packetRows.length, limit));
+
+  const [left, right] = useMemo(() => {
+    if (visible.length <= 4) return [visible, []];
+    const first = visible.slice(0, 4);
+    const rest = visible.slice(4);
+    return [first, rest];
+  }, [visible]);
+
+  if (!packetRows.length && isLoading) {
     return (
-      <table className="bh-table bh-table-1m">
-        <thead>
-          <tr><th>#</th><th>Asset</th><th>Price</th><th>1m</th><th>★</th></tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <TokenRow key={row.symbol || i} row={row} index={i} changeKey="price_change_percentage_1min" />
-          ))}
-        </tbody>
-      </table>
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="panel-title">1-MIN GAINERS</h2>
+        </div>
+        <div className="panel-body">
+          <div className="panel-empty">Waiting for 1-minute snapshot…</div>
+        </div>
+      </section>
     );
   }
-  // two columns: split list roughly in half
-  const mid = Math.ceil(rows.length / 2);
-  const left = rows.slice(0, mid);
-  const right = rows.slice(mid);
+
+  if (!packetRows.length && !isLoading) {
+    return (
+      <section className="panel">
+        <div className="panel-header">
+          <h2 className="panel-title">1-MIN GAINERS</h2>
+        </div>
+        <div className="panel-body">
+          <div className="panel-empty">Waiting for 1-minute snapshot…</div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {[left, right].map((col, cIdx) => (
-        <table key={cIdx} className="bh-table bh-table-1m">
-          <thead>
-            <tr><th>#</th><th>Asset</th><th>Price</th><th>1m</th><th>★</th></tr>
-          </thead>
-          <tbody>
-            {col.map((row, i) => (
+    <section className="panel">
+      <div className="panel-header">
+        <h2 className="panel-title">1-MIN GAINERS</h2>
+        <div className="panel-line" />
+      </div>
+
+      <div className="panel-body">
+        <div className="one-min-grid">
+          <div className="one-min-col">
+            {left.map((r, i) => (
               <TokenRow
-                key={(row.symbol || "row") + "-" + i}
-                row={row}
-                index={i + (cIdx === 0 ? 0 : mid)}
+                key={r.symbol || `l-${i}`}
+                index={i + 1}
+                row={r}
                 changeKey="price_change_percentage_1min"
+                onInfo={onInfo}
+                onHover={onRowHover}
               />
             ))}
-          </tbody>
-        </table>
-      ))}
-    </div>
+          </div>
+
+          {right.length > 0 && (
+            <div className="one-min-col">
+              {right.map((r, i) => (
+                <TokenRow
+                  key={r.symbol || `r-${i}`}
+                  index={i + 1 + left.length}
+                  row={r}
+                  changeKey="price_change_percentage_1min"
+                  onInfo={onInfo}
+                  onHover={onRowHover}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {packetRows.length > INITIAL_LIMIT && (
+          <div className="panel-show-more">
+            <button className="btn-pill" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
