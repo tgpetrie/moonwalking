@@ -1,5 +1,58 @@
 // src/hooks/useData.js
 import useSWR from "swr";
+import { fetchMetrics, endpoints } from "../lib/api";
+
+function kit(rows, isLoading, message) {
+  const list = Array.isArray(rows) ? rows : [];
+  return {
+    rows: list,
+    loading: isLoading && list.length === 0,
+    message: list.length === 0 ? message || null : null,
+  };
+}
+
+export function useData() {
+  const { data, error, isLoading, mutate } = useSWR(
+    endpoints.metrics,
+    fetchMetrics,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 8_000,
+    }
+  );
+
+  const payload = data?.data || {};
+  const meta = data?.meta || {};
+
+  const bySymbol = {};
+  const push = (row) => {
+    if (!row?.symbol) return;
+    bySymbol[row.symbol] = row;
+  };
+
+  (payload.gainers_1m || []).forEach(push);
+  (payload.gainers_3m || []).forEach(push);
+  (payload.losers_3m || []).forEach(push);
+  (payload.top_1h_price || []).forEach(push);
+  (payload.top_1h_volume || []).forEach(push);
+
+  return {
+    data: {
+      gainers1m: kit(payload.gainers_1m, isLoading, "Waiting for 1-minute snapshot…"),
+      gainers3m: kit(payload.gainers_3m, isLoading, null),
+      losers3m: kit(payload.losers_3m, isLoading, null),
+      top1hPrice: kit(payload.top_1h_price, isLoading, null),
+      top1hVolume: kit(payload.top_1h_volume, isLoading, null),
+      meta,
+    },
+    bySymbol,
+    isLoading,
+    mutate,
+    error,
+  };
+}
+// src/hooks/useData.js
+import useSWR from "swr";
 import { fetchData } from "../api.js";
 
 const KEY = "/data";

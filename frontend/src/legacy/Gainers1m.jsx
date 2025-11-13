@@ -1,3 +1,8 @@
+// LEGACY UI COMPONENT
+// This file is not used in the current BHABIT home dashboard.
+// See `docs/UI_HOME_DASHBOARD.md` for the canonical component list.
+//
+// Keep this file here for historical reference. Do not re-import into AppRoot.jsx.
 import React, { useState } from "react";
 import TokenRow from "./TokenRow.jsx";
 

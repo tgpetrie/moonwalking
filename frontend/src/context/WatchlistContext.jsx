@@ -17,76 +17,57 @@ function normalizeStored(value) {
   if (typeof value === "object") {
     return Object.keys(value).map((symbol) => {
       const entry = value[symbol] || {};
-      return {
-        symbol,
-        baseline: entry.baseline ?? entry.price ?? null,
-        current: entry.current ?? entry.price ?? null,
-      };
-    });
-  }
-  return [];
-}
+      import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-export function WatchlistProvider({ children }) {
-  const [items, setItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      return normalizeStored(JSON.parse(raw));
-    } catch (e) {
-      console.warn("[watchlist] failed to read localStorage", e);
-      return [];
-    }
-  });
+      const KEY = "bhabit_watchlist_v2";
+      const Ctx = createContext(null);
 
-  // persist
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    } catch (e) {
-      console.warn("[watchlist] failed to write localStorage", e);
-    }
-  }, [items]);
-
-  const has = useCallback(
-    (symbol) => items.some((i) => i.symbol === symbol),
-    [items]
-  );
-
-  const add = useCallback(({ symbol, price }) => {
-    if (!symbol) return;
-    const sym = symbol.toUpperCase();
-    setItems((prev) => {
-      if (prev.some((i) => i.symbol === sym)) return prev;
-      return [
-        ...prev,
-        {
-          symbol: sym,
-          baseline: typeof price === "number" ? price : null,
-          current: typeof price === "number" ? price : null,
-        },
-      ];
-    });
-  }, []);
-
-  const remove = useCallback((symbol) => {
-    const sym = symbol.toUpperCase();
-    setItems((prev) => prev.filter((i) => i.symbol !== sym));
-  }, []);
-
-  // let the app push fresh prices into the watchlist
-  const refreshFromData = useCallback((symbolMap) => {
-    if (!symbolMap) return;
-    setItems((prev) => {
-      let changed = false;
-      const next = prev.map((i) => {
-        const live = symbolMap[i.symbol];
-        if (live && typeof live.current_price === "number") {
-          if (i.current !== live.current_price) {
-            changed = true;
-            return { ...i, current: live.current_price };
+      export function WatchlistProvider({ children }) {
+        const [items, setItems] = useState(() => {
+          try {
+            return JSON.parse(localStorage.getItem(KEY)) || [];
+          } catch {
+            return [];
           }
-        }
+        });
+
+        useEffect(() => {
+          try {
+            localStorage.setItem(KEY, JSON.stringify(items));
+          } catch {
+            // ignore
+          }
+        }, [items]);
+
+        const has = useCallback((symbol) => items.some((i) => i.symbol === symbol), [items]);
+
+        const add = useCallback(({ symbol, price }) => {
+          setItems((prev) => {
+            if (!symbol || prev.some((i) => i.symbol === symbol)) return prev;
+            const v = typeof price === "number" ? price : null;
+            return [...prev, { symbol, baseline: v, current: v }];
+          });
+        }, []);
+
+        const remove = useCallback((symbol) => {
+          setItems((prev) => prev.filter((i) => i.symbol !== symbol));
+        }, []);
+
+        const refreshFromData = useCallback((symbolMap) => {
+          if (!symbolMap) return;
+          setItems((prev) =>
+            prev.map((i) => {
+              const live = symbolMap[i.symbol];
+              if (live?.current_price == null) return i;
+              return { ...i, current: live.current_price };
+            })
+          );
+        }, []);
+
+        return <Ctx.Provider value={{ items, has, add, remove, refreshFromData }}>{children}</Ctx.Provider>;
+      }
+
+      export const useWatchlist = () => useContext(Ctx);
         return i;
       });
       // If nothing changed, return prev to avoid needless re-renders

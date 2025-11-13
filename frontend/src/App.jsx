@@ -1,6 +1,50 @@
 // src/App.jsx
 import React, { useEffect, useState } from "react";
 import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
+import { useData } from "./hooks/useData";
+import DashboardShell from "./components/DashboardShell.jsx";
+import InsightsTabbed from "./components/InsightsTabbed.jsx";
+
+function WatchlistReconciler({ bySymbol }) {
+  const { refreshFromData } = useWatchlist();
+  useEffect(() => {
+    refreshFromData(bySymbol);
+  }, [bySymbol, refreshFromData]);
+  return null;
+}
+
+export default function App() {
+  const { data, bySymbol, mutate } = useData();
+  const [active, setActive] = useState(null);
+  const [rabbitLit, setRabbitLit] = useState(false);
+
+  const handleRefresh = async () => {
+    await mutate();
+    setRabbitLit(true);
+    setTimeout(() => setRabbitLit(false), 280);
+  };
+
+  const handleInfo = (rowOrSymbol) => {
+    setActive(rowOrSymbol);
+  };
+
+  return (
+    <WatchlistProvider>
+      <WatchlistReconciler bySymbol={bySymbol} />
+
+      <DashboardShell data={data} onInfo={handleInfo} onRefresh={handleRefresh} rabbitLit={rabbitLit} />
+
+      {active && (
+        <div className="bh-insight-float">
+          <InsightsTabbed row={typeof active === "string" ? { symbol: active } : active} onClose={() => setActive(null)} />
+        </div>
+      )}
+    </WatchlistProvider>
+  );
+}
+// src/App.jsx
+import React, { useEffect, useState } from "react";
+import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
 import { useData } from "./hooks/useData.js";
 import RefreshTicker from "./components/RefreshTicker.jsx";
 import Gainers1m from "./components/Gainers1m.jsx";

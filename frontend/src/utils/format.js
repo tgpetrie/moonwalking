@@ -1,3 +1,40 @@
+// src/utils/format.js
+export function formatPrice(n) {
+  if (n == null || Number.isNaN(n)) return "--";
+  const v = Number(n);
+  const abs = Math.abs(v);
+  const decimals =
+    abs >= 1000 ? 0 : abs >= 100 ? 1 : abs >= 1 ? 2 : 3;
+  return `$${v.toFixed(decimals)}`;
+}
+
+export function formatPct(n) {
+  if (n == null || Number.isNaN(n)) return "--";
+  const v = Number(n) * 100;
+  const abs = Math.abs(v);
+  const decimals = abs < 1 ? 3 : 2;
+  const sign = v > 0 ? "+" : v < 0 ? "−" : "";
+  return `${sign}${Math.abs(v).toFixed(decimals)}%`;
+}
+
+export const pctClass = (n) => (n < 0 ? "token-pct-loss" : "token-pct-gain");
+
+export function map1hPriceBannerItem(row) {
+  if (!row) return { symbol: "--", price: null, pct: null };
+  return {
+    symbol: row.symbol,
+    price: row.current_price ?? row.price ?? null,
+    pct: row.price_change_percentage_1h ?? row.pct ?? null,
+  };
+}
+
+export function colorForDelta(n) {
+  if (n == null) return "neutral";
+  const v = Number(n);
+  if (v > 0) return "gain";
+  if (v < 0) return "loss";
+  return "neutral";
+}
 // Formatting + adapters shared by tables & banners.
 
 // --- symbol helpers ---

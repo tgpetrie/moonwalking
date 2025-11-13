@@ -1,76 +1,61 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
-import { useData } from "../context/DataContext.jsx";
-import { formatPrice } from "../utils/format.js";
+import { formatPrice, formatPct } from "../utils/format";
 
-export default function WatchlistPanel() {
-  const { items, add, remove } = useWatchlist();
-  const { data } = useData();
-  const [query, setQuery] = useState("");
-
-  const liveIndex = buildLiveIndex(data);
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const sym = query.trim().toUpperCase();
-    if (!sym) return;
-    add({ symbol: sym });
-    setQuery("");
-  }
-
-  return (
-    <div className="bh-panel watchlist-panel">
-      <div className="watchlist-header">
-        <h3>Watchlist</h3>
-      </div>
-      <form onSubmit={handleSubmit} className="watchlist-search">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Add symbol e.g. SOL-USD"
-        />
-        <button type="submit">Add</button>
-      </form>
-      <div className="watchlist-items">
-        {items.length === 0 && (
-          <p className="watchlist-empty">Star a token or add one above.</p>
-        )}
-        {items.map((it) => {
-          const live = liveIndex[it.symbol];
-          return (
-            <div key={it.symbol} className="watchlist-item-row">
-              <span className="watchlist-symbol">{it.symbol}</span>
-              <span className="watchlist-price">
-                {live ? formatPrice(live.current_price) : "—"}
-              </span>
-              <button
-                type="button"
-                className="watchlist-remove"
-                onClick={() => remove(it.symbol)}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function deltaPct(baseline, current) {
+  if (baseline == null || current == null) return null;
+  return ((current - baseline) / baseline) * 100;
 }
 
-function buildLiveIndex(data) {
-  const idx = {};
-  if (!data) return idx;
-  // support both shapes: envelope { data: {...} } or direct data object
-  const payload = data.data || data;
-  if (!payload) return idx;
-  const { banner_1h, gainers_3m, losers_3m, gainers_1m, losers_1m } = payload;
-  [banner_1h, gainers_3m, losers_3m, gainers_1m, losers_1m].forEach((list) => {
-    if (Array.isArray(list)) {
-      list.forEach((t) => {
-        if (t && t.symbol) idx[t.symbol] = t;
-      });
-    }
-  });
-  return idx;
+export default function WatchlistPanel({ title = "WATCHLIST", onInfo }) {
+  const { items, add, remove } = useWatchlist();
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toUpperCase();
+    if (!term) return items;
+    return items.filter((i) => i.symbol.toUpperCase().includes(term));
+  }, [items, q]);
+
+  const tryAdd = (e) => {
+    e.preventDefault();
+    const sym = q.trim().toUpperCase();
+    if (!sym) return;
+    add({ symbol: sym, price: null });
+    setQ("");
+  };
+
+  return (
+    <section className="panel bh-watchlist">
+      <div className="panel-header">
+        <h2 className="panel-title">{title}</h2>
+        <div className="panel-line" />
+      </div>
+      <div className="panel-body">
+        <form className="wl-search" onSubmit={tryAdd}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search & add coin (e.g. BTC, ETH)" />
+          <div className="wl-search-underline" />
+        </form>
+
+        {filtered.length === 0 && <div className="panel-empty">Star or add a token to pin it here.</div>}
+
+        <div className="wl-list">
+          {filtered.map((it) => {
+            const pct = deltaPct(it.baseline, it.current);
+            return (
+              <div key={it.symbol} className="wl-row">
+                <div className="wl-symbol">{it.symbol.replace(/-(USD|USDT|PERP)$/i, "")}</div>
+                <div className="wl-price">{formatPrice(it.current)}</div>
+                <div className="wl-delta">{pct == null ? "--" : formatPct(pct / 100)}</div>
+                <div className="wl-actions">
+                  <button type="button" className="bh-btn-icon" onClick={() => onInfo?.(it.symbol)}>i</button>
+                  <button type="button" className="bh-btn-icon bh-btn-icon--danger" onClick={() => remove(it.symbol)}>×</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
 }

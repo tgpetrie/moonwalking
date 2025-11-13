@@ -1,6 +1,15 @@
 import React, { useEffect, useRef } from "react";
 import { map1hPriceBannerItem, formatPrice, formatPct, colorForDelta } from "../utils/format";
 
+function buildCoinbaseUrl(symbol) {
+  if (!symbol) return "#";
+  let pair = symbol;
+  if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
+    pair = `${pair}-USD`;
+  }
+  return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+}
+
 export default function TopBannerScroll({ rows = [], onRefresh }) {
   const items = Array.isArray(rows) ? rows : [];
   const ref = useRef(null);
@@ -13,29 +22,37 @@ export default function TopBannerScroll({ rows = [], onRefresh }) {
       { duration: 30000, iterations: Infinity, easing: "linear" }
     );
     return () => anim.cancel();
-  }, [items?.length]);
+  }, [items.length]);
 
-  if (!items || items.length === 0) return null;
-
-  const normalize = (t) => map1hPriceBannerItem(t);
+  if (!items.length) return null;
 
   return (
-    <div className="ticker">
-      <div className="track" ref={ref}>
+    <div className="ticker bh-banner">
+      <div className="track bh-banner-track" ref={ref}>
         {[...items, ...items].map((t, i) => {
-          const it = normalize(t);
-          const cls = colorForDelta(it.pct) === "gain" ? "is-gain" : colorForDelta(it.pct) === "loss" ? "is-loss" : "is-neutral";
+          const it = map1hPriceBannerItem(t);
+          const side = colorForDelta(it.pct);
+          const cls = side === "gain" ? "is-gain" : side === "loss" ? "is-loss" : "is-neutral";
+
+          const displaySymbol = it.symbol ? it.symbol.replace(/-(USD|USDT|PERP)$/i, "") : "--";
+
           return (
-            <span key={`${it.symbol}-${i}`} className={cls} style={{ marginRight: 24 }}>
-              <b>{it.symbol}</b>&nbsp;
-              <span className="price">{formatPrice(it.price)}</span>&nbsp;
-              <span>{formatPct(it.pct)}</span>
-            </span>
+            <a
+              key={`${it.symbol || "item"}-${i}`}
+              href={buildCoinbaseUrl(it.symbol)}
+              target="_blank"
+              rel="noreferrer"
+              className={`bh-banner-item ${cls}`}
+            >
+              <b className="bh-banner-symbol">{displaySymbol}</b>
+              <span className="bh-banner-price">{formatPrice(it.price)}</span>
+              <span className="bh-banner-pct">{formatPct(it.pct)}</span>
+            </a>
           );
         })}
       </div>
       {onRefresh && (
-        <button className="bh-banner-refresh" onClick={onRefresh} style={{ marginLeft: 12 }}>
+        <button type="button" className="bh-banner-refresh" onClick={onRefresh}>
           Refresh
         </button>
       )}

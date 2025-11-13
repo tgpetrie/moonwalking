@@ -1,3 +1,17 @@
+// src/lib/api.js
+export const endpoints = {
+  metrics: "/data",
+  sentiment: (symbol) => `/api/sentiment?symbol=${encodeURIComponent(symbol)}`,
+};
+
+export async function fetchJson(url, opts) {
+  const r = await fetch(url, { credentials: "same-origin", ...opts });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+export const fetchMetrics = () => fetchJson(endpoints.metrics);
+export const fetchSentiment = (symbol) => fetchJson(endpoints.sentiment(symbol));
 const rawBase = import.meta.env?.VITE_API_URL ?? "";
 const trimmedBase = typeof rawBase === "string" ? rawBase.trim() : "";
 // Normalize API base: empty or 'relative' means no injected base.
