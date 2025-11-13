@@ -81,15 +81,34 @@ export default function AppRoot() {
         <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={handleRefresh} />
 
         <main className="bh-main">
-          <div className="bh-left-col">
-            <GainersTable1Min packet={gainers1m} onInfo={handleInfo} onRowHover={handleRowHover} />
-            <GainersTable3Min packet={gainers3m} onInfo={handleInfo} onRowHover={handleRowHover} />
-          </div>
+          {/* ROW 1 – 1-MIN GAINERS HERO (full-width) */}
+          <section className="bh-row bh-row-1m">
+            <GainersTable1Min
+              packet={gainers1m}
+              onInfo={handleInfo}
+              onRowHover={handleRowHover}
+            />
+          </section>
 
-          <div className="bh-right-col">
-            <LosersTable3Min packet={losers3m} onInfo={handleInfo} onRowHover={handleRowHover} />
-            <WatchlistPanel onInfo={handleInfo} />
-          </div>
+          {/* ROW 2 – 3-MIN GAINERS / LOSERS + WATCHLIST */}
+          <section className="bh-row bh-row-3m">
+            <div className="bh-left-col">
+              <GainersTable3Min
+                packet={gainers3m}
+                onInfo={handleInfo}
+                onRowHover={handleRowHover}
+              />
+            </div>
+
+            <div className="bh-right-col">
+              <LosersTable3Min
+                packet={losers3m}
+                onInfo={handleInfo}
+                onRowHover={handleRowHover}
+              />
+              <WatchlistPanel onInfo={handleInfo} />
+            </div>
+          </section>
         </main>
 
         <TopBannerVolume1h rows={top1hVolume?.rows || []} />
