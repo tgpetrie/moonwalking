@@ -16,6 +16,13 @@ export default function GainersTable1Min({ packet, rows, loading, onInfo, onRowH
 
   const [left, right] = useMemo(() => {
     if (visible.length <= 4) return [visible, []];
+    // When collapsed show up to 4 on the left and the remainder on the right (4+4)
+    // When expanded show up to 8 on the left and the remainder on the right (8+8)
+    if (expanded) {
+      const first = visible.slice(0, 8);
+      const rest = visible.slice(8);
+      return [first, rest];
+    }
     const first = visible.slice(0, 4);
     const rest = visible.slice(4);
     return [first, rest];
