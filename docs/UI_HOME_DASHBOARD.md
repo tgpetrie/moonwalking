@@ -221,6 +221,9 @@ Visually, the dashboard follows the reference screenshots from **Sept 2–3, 202
     }
     ```
 
+    For AI / copilot behavior and branch rules, see `docs/ai/AI_INDEX.md` – "Branch & Ownership Rules for AI / Copilot".
+
+
     Rabbit background
 
     Minimum rules:
