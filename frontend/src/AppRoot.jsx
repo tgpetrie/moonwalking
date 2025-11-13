@@ -1,94 +1,107 @@
 // src/AppRoot.jsx
-import React from "react";
-import { useData } from "./context/DataContext.jsx";
-import { useWatchlist } from "./context/WatchlistContext.jsx";
+import React, { useEffect, useState } from "react";
+import { useData } from "./context/useData";
+import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
+import TopBannerScroll from "./components/TopBannerScroll.jsx";
+import TopBannerVolume1h from "./components/TopBannerVolume1h.jsx";
+import GainersTable1Min from "./components/GainersTable1Min.jsx";
+import GainersTable3Min from "./components/GainersTable3Min.jsx";
+import LosersTable3Min from "./components/LosersTable3Min.jsx";
+import WatchlistPanel from "./components/WatchlistPanel.jsx";
+import InsightsTabbed from "./components/InsightsTabbed.jsx";
 import AlertsIndicator from "./components/AlertsIndicator.jsx";
 import AskBhabitPanel from "./components/AskBhabitPanel.jsx";
-import Gainers1m from "./components/Gainers1m.jsx";
-import WatchlistPanel from "./components/WatchlistPanel.jsx";
-import ThreeMinuteGainers from "./components/ThreeMinuteGainers.jsx";
-import ThreeMinuteLosers from "./components/ThreeMinuteLosers.jsx";
-import SentimentCard from "./components/SentimentCard.jsx";
-import SentimentCardSymbol from "./components/cards/SentimentCard.jsx";
-import TopBannerVolume1h from "./components/TopBannerVolume1h.jsx";
+
+function WatchlistSync({ bySymbol }) {
+  const { refreshFromData } = useWatchlist();
+  useEffect(() => {
+    if (!bySymbol) return;
+    refreshFromData(bySymbol);
+  }, [bySymbol, refreshFromData]);
+  return null;
+}
 
 export default function AppRoot() {
-  const { data, loading } = useData();
-  const { refreshFromData } = useWatchlist();
-  const [selectedSymbol, setSelectedSymbol] = React.useState(null);
+  const {
+    gainers1m,
+    gainers3m,
+    losers3m,
+    top1hPrice,
+    top1hVolume,
+    meta,
+    bySymbol,
+    refresh,
+    isLoading,
+  } = useData();
 
-  const payload = data?.data || {};
-  const gainers1m = payload.gainers_1m || [];
-  const gainers3m = payload.gainers_3m || [];
-  const losers3m = payload.losers_3m || [];
-  const banner1h = payload.banner_1h || [];
+  const [activeRow, setActiveRow] = useState(null);
+  const [rabbitLit, setRabbitLit] = useState(false);
 
-  // keep watchlist prices in sync
-  React.useEffect(() => {
-    const idx = {};
-    [banner1h, gainers1m, gainers3m, losers3m].forEach((list) => {
-      if (Array.isArray(list)) {
-        list.forEach((t) => {
-          if (t && t.symbol) idx[t.symbol] = t;
-        });
-      }
-    });
-    refreshFromData(idx);
-  }, [banner1h, gainers1m, gainers3m, losers3m, refreshFromData]);
+  const handleRefresh = async () => {
+    await refresh();
+    setRabbitLit(true);
+    setTimeout(() => setRabbitLit(false), 280);
+  };
+
+  const handleInfo = (rowOrSymbol) => {
+    if (!rowOrSymbol) return;
+    setActiveRow(typeof rowOrSymbol === "string" ? { symbol: rowOrSymbol } : rowOrSymbol);
+  };
+
+  const handleRowHover = (symbol) => setRabbitLit(Boolean(symbol));
 
   return (
-    <div className="bh-app">
-      <header className="bh-topbar">
-        <div className="bh-logo-mark">B</div>
-        <div className="bh-top-title">
-          <h1>BHABIT Crypto Dashboard</h1>
-          <p>Live momentum · sentiment · signals</p>
-        </div>
-      </header>
+    <WatchlistProvider>
+      <WatchlistSync bySymbol={bySymbol} />
 
-  <AlertsIndicator />
+      <div className="bh-app">
+        <header className="bh-topbar">
+          <div className="bh-topbar-left">
+            <span className="bh-latest-pill">
+              {meta?.last_updated
+                ? `Latest: ${new Date(meta.last_updated).toLocaleTimeString()} on ${new Date(meta.last_updated).toLocaleDateString()}`
+                : "Latest: --"}
+            </span>
+          </div>
+          <div className="bh-topbar-right">
+            <span className="bh-live-dot" />
+            <button className="bh-refresh-btn" onClick={handleRefresh}>
+              Refresh
+            </button>
+          </div>
+        </header>
 
-      {/* NEW: 1h volume banner */}
-      <TopBannerVolume1h items={banner1h} />
+        <section className="bh-hero">
+          <img src="/bhabit-logo.png" alt="BHABIT" className="bh-hero-logo" />
+          <img src="/pbi.png" alt="Profits Buy Impulse" className="bh-hero-subtitle" />
+        </section>
 
-      <main className="bh-main">
-        <div className="bh-row">
-          <div className="bh-panel bh-panel-nopad" style={{ flex: 1.3 }}>
-            <SentimentCard />
-          </div>
-          <div className="bh-panel bh-panel-nopad" style={{ flex: 0.7 }}>
-            <AskBhabitPanel />
-          </div>
-        </div>
+        <AlertsIndicator />
 
-        <div className="bh-row bh-row-1m">
-          <div className="bh-panel bh-panel-nopad">
-            <Gainers1m rows={gainers1m} loading={loading} onInfo={setSelectedSymbol} />
-          </div>
-          <div className="bh-panel bh-panel-nopad">
-            <WatchlistPanel />
-          </div>
-        </div>
+        <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={handleRefresh} />
 
-        <div className="bh-row bh-row-3m">
-          <div className="bh-panel bh-panel-nopad">
-            <ThreeMinuteGainers rows={gainers3m} loading={loading} onInfo={setSelectedSymbol} />
+        <main className="bh-main">
+          <div className="bh-left-col">
+            <GainersTable1Min packet={gainers1m} onInfo={handleInfo} onRowHover={handleRowHover} />
+            <GainersTable3Min packet={gainers3m} onInfo={handleInfo} onRowHover={handleRowHover} />
           </div>
-          <div className="bh-panel bh-panel-nopad">
-            <ThreeMinuteLosers rows={losers3m} loading={loading} onInfo={setSelectedSymbol} />
-          </div>
-        </div>
-      </main>
 
-      {selectedSymbol && (
-        <div className="bh-info-overlay" onClick={() => setSelectedSymbol(null)}>
-          <div className="bh-info-panel" onClick={(e) => e.stopPropagation()}>
-            <button className="bh-info-close" onClick={() => setSelectedSymbol(null)}>×</button>
-            <h2>{selectedSymbol}</h2>
-            <SentimentCardSymbol symbol={selectedSymbol} ttlSec={30} />
+          <div className="bh-right-col">
+            <LosersTable3Min packet={losers3m} onInfo={handleInfo} onRowHover={handleRowHover} />
+            <WatchlistPanel onInfo={handleInfo} />
           </div>
-        </div>
-      )}
-    </div>
+        </main>
+
+        <TopBannerVolume1h rows={top1hVolume?.rows || []} />
+
+        <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
+
+        {activeRow && (
+          <div className="bh-insight-float">
+            <InsightsTabbed row={activeRow} onClose={() => setActiveRow(null)} />
+          </div>
+        )}
+      </div>
+    </WatchlistProvider>
   );
 }
