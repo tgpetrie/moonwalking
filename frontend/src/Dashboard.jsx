@@ -3,7 +3,7 @@ import TopBannerScroll from "./components/TopBannerScroll";
 import VolumeBannerScroll from "./components/VolumeBannerScroll";
 import GainersTable1Min from "./components/GainersTable1Min.jsx";
 import GainersTable3Min from "./components/GainersTable3Min";
-import LosersTable from "./components/LosersTable";
+import LosersTable3Min from "./components/LosersTable3Min";
 import AssetDetailPanel from "./components/AssetDetailPanel.jsx";
 
 function formatTimestamp(d = new Date()) {
@@ -126,7 +126,7 @@ export default function Dashboard() {
             error={errs.gainers_3m}
             onInfo={handleInfo}
           />
-          <LosersTable
+          <LosersTable3Min
             rows={data.losers_3m || []}
             loading={loading}
             error={errs.losers_3m}
