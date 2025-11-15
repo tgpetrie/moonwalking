@@ -20,4 +20,3 @@ export default function ThreeMinRow({ gainers = [], losers = [], loading, onInfo
     </section>
   );
 }
-

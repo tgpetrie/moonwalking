@@ -61,7 +61,7 @@ export default function GainersTable1Min({ packet, rows, loading, onInfo, onRowH
         <div className="panel-line" />
       </div>
 
-      <div className="panel-body">
+          <div className="panel-body">
         <div className="one-min-grid">
           <div className="one-min-col">
             {left.map((r, i) => (
@@ -103,4 +103,3 @@ export default function GainersTable1Min({ packet, rows, loading, onInfo, onRowH
     </section>
   );
 }
-

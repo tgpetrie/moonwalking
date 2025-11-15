@@ -11,6 +11,8 @@ export default function MoversPanel({ title, variant = "3m-list", packet, onInfo
 
   const capped = rows.slice(0, Math.min(limit, 16));
 
+  const baseInterval = variant === "1m-split" ? "1m" : "3m";
+
   const [left, right] = useMemo(() => {
     if (variant !== "1m-split") return [capped, []];
     if (capped.length <= 4) return [capped, []];
@@ -31,25 +33,53 @@ export default function MoversPanel({ title, variant = "3m-list", packet, onInfo
 
         {!loading && !rows.length && <div className="panel-empty">{message || "No data available for this window."}</div>}
 
-        {rows.length > 0 && variant === "1m-split" && (
+        {rows.length > 0 && (variant === "1m-split" || variant === "1m-left" || variant === "1m-right") && (
           <div className="one-min-grid">
-            <div className="one-min-col">
-              {left.map((r, i) => (
-                <TokenRow key={r.symbol || `${i}-l`} index={i + 1} symbol={r.symbol} price={r.current_price} prevPrice={r.initial_price_1min} changePct={r.price_change_percentage_1min} onInfo={onInfo} side="up" />
-              ))}
-            </div>
-            <div className="one-min-col">
-              {right.map((r, i) => (
-                <TokenRow key={r.symbol || `${i}-r`} index={i + 1 + left.length} symbol={r.symbol} price={r.current_price} prevPrice={r.initial_price_1min} changePct={r.price_change_percentage_1min} onInfo={onInfo} side="up" />
-              ))}
-            </div>
+            { (variant === '1m-split' || variant === '1m-left') && (
+              <div className="one-min-col">
+                {left.map((r, i) => (
+                  <TokenRow
+                    key={r.symbol || `${i}-l`}
+                    index={i + 1}
+                    row={r}
+                    changeKey="price_change_percentage_1min"
+                    interval={baseInterval}
+                    onInfo={onInfo}
+                  />
+                ))}
+              </div>
+            )}
+
+            { (variant === '1m-split' || variant === '1m-right') && (
+              <div className="one-min-col">
+                {right.map((r, i) => (
+                  <TokenRow
+                    key={r.symbol || `${i}-r`}
+                    index={i + 1 + left.length}
+                    row={r}
+                    changeKey="price_change_percentage_1min"
+                    interval={baseInterval}
+                    onInfo={onInfo}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {rows.length > 0 && variant === "3m-list" && (
-          <div className="three-min-grid">
+          <div className="three-min-list">
             {capped.map((r, i) => (
-              <TokenRow key={r.symbol || i} index={i + 1} symbol={r.symbol} price={r.current_price} prevPrice={r.initial_price_3min ?? r.initial_price_1min ?? null} changePct={r.price_change_percentage_3min ?? r.price_change_percentage_1min} onInfo={onInfo} side={forceDown ? "down" : "up"} />
+              <TokenRow
+                key={r.symbol || i}
+                index={i + 1}
+                rank={i + 1}
+                row={r}
+                changeKey={r.price_change_percentage_3min != null ? "price_change_percentage_3min" : "price_change_percentage_1min"}
+                 interval={baseInterval}
+                onInfo={onInfo}
+                isLoss={!!forceDown}
+              />
             ))}
           </div>
         )}

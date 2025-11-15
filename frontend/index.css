@@ -255,7 +255,11 @@ body, html {
 .section-head-line-loss { background: linear-gradient(90deg, #c084fc 0%, rgba(192,132,252,0) 100%); }
 
 .one-min-grid { display: grid; grid-template-columns: repeat(2, minmax(520px, 1fr)); gap: 2rem; }
-.three-min-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 2rem; align-items: flex-start; }
+.three-min-grid { display: grid; grid-template-columns: 1fr 0.78fr; gap: 1rem; align-items: flex-start; }
+/* panel sizing: keep left (gainers) roomy and right (losers) a bit tighter */
+.three-min-grid > section { width: 100%; }
+.three-min-grid > section.gainers-3m { max-width: 720px; }
+.three-min-grid > section.losers-3m { max-width: 460px; }
 .panel-3m { display: flex; flex-direction: column; gap: 0.5rem; }
 
 /* Table typography/spacing */

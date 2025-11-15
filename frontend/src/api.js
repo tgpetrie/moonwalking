@@ -31,3 +31,40 @@ export async function fetchData(path = "/data") {
   return res.json();
 }
 
+// ---- Watchlist helpers (localStorage-backed) ---------------------------
+const WATCHLIST_KEY = 'watchlist';
+
+export function getWatchlist() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+export function setWatchlist(nextList) {
+  try {
+    const arr = Array.isArray(nextList) ? nextList : [];
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(arr));
+    return arr;
+  } catch (err) {
+    return [];
+  }
+}
+
+export function addToWatchlist(symbol) {
+  const s = (symbol || '').toUpperCase().trim();
+  if (!s) return getWatchlist();
+  const list = getWatchlist();
+  if (!list.includes(s)) list.push(s);
+  return setWatchlist(list);
+}
+
+export function removeFromWatchlist(symbol) {
+  const s = (symbol || '').toUpperCase().trim();
+  const list = getWatchlist().filter((x) => x !== s);
+  return setWatchlist(list);
+}
+

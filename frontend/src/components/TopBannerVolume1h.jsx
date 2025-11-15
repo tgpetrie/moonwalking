@@ -1,9 +1,9 @@
-// src/components/TopBannerVolume1h.jsx
+// frontend/src/components/TopBannerVolume1h.jsx — cleaned single export
 import React, { useEffect, useRef } from "react";
-import { formatPct, formatPrice } from "../utils/format";
+import { formatCompact, formatPct, tickerFromSymbol } from "../utils/format";
 
-export default function TopBannerVolume1h({ rows = [] }) {
-  const items = Array.isArray(rows) ? rows : [];
+export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) {
+  const items = Array.isArray(propItems) && propItems.length ? propItems : (Array.isArray(rows) ? rows : []);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -11,77 +11,37 @@ export default function TopBannerVolume1h({ rows = [] }) {
     if (!el || items.length === 0) return;
     const anim = el.animate(
       [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
-      { duration: 35000, iterations: Infinity, easing: "linear" }
+      { duration: 32000, iterations: Infinity, easing: "linear" }
     );
     return () => anim.cancel();
   }, [items.length]);
 
-  if (!items.length) return null;
-
-  return (
-    <div className="ticker bh-banner bh-banner--volume">
-      <div className="track bh-banner-track" ref={ref}>
-        {[...items, ...items].map((t, i) => {
-          const symbol = t.symbol || "--";
-          const display = symbol.replace(/-(USD|USDT|PERP)$/i, "");
-          const vol = t.volume_1h ?? t.volume ?? null;
-          const deltaPct = t.volume_change_percentage_1h ?? null;
-
-          return (
-            <span key={`${symbol}-${i}`} className="bh-banner-item bh-banner-item--volume">
-              <b className="bh-banner-symbol">{display}</b>
-              <span className="bh-banner-price">{vol == null ? "--" : formatPrice(vol)}</span>
-              <span className="bh-banner-pct bh-banner-pct--volume">{deltaPct == null ? "--" : formatPct(deltaPct)}</span>
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-import React, { useEffect, useRef } from "react";
-import { useData } from "../context/useData";
-import { fmt } from "../utils/formatters";
-
-export default function TopBannerVolume1h({ items: propItems = [] }) {
-  const { data } = useData();
-  const items = propItems.length ? propItems : data?.volume_banner_1h ?? [];
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || items.length === 0) return;
-    const anim = el.animate(
-      [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
-      { duration: 30000, iterations: Infinity, easing: "linear" }
-    );
-    return () => anim.cancel();
-  }, [items?.length]);
-
-  if (!Array.isArray(items) || items.length === 0) {
+  if (!items.length) {
     return (
-      <div className="bh-top-banner">
-        <span className="banner-empty">No 1h activity yet.</span>
+      <div className="bh-top-banner bh-banner--volume">
+        <div className="bh-banner-wrap"><span className="banner-empty">No 1h volume activity yet.</span></div>
       </div>
     );
   }
 
   const normalize = (t) => ({
-    symbol: t.symbol || t.ticker || "--",
-    volume_now: t.volume_1h ?? t.volume_60m ?? t.volume_last_1h ?? t.volume_1h_usd ?? null,
-    volume_pct: t.volume_change_pct_1h ?? t.volume_pct ?? t.volume_change_1h ?? 0,
+    symbol: tickerFromSymbol(t?.symbol ?? t?.ticker ?? ""),
+    volume_now: Number(t?.volume_1h ?? t?.volume ?? 0),
+    volume_prev: Number(t?.volume_1h_prev ?? t?.volume_prev ?? 0),
+    pct: Number(t?.volume_change_percentage_1h ?? t?.volume_change_pct_1h ?? 0),
   });
 
   return (
-    <div className="ticker">
-      <div className="track" ref={ref}>
+    <div className="ticker bh-banner bh-banner--volume">
+      <div className="bh-banner-track" ref={ref}>
         {[...items, ...items].map((t, i) => {
           const it = normalize(t);
+          const cls = it.pct >= 0 ? "is-gain" : "is-loss";
           return (
-            <span key={`${it.symbol}-${i}`} className={it.volume_pct >= 0 ? "is-gain" : "is-loss"} style={{ marginRight: 24 }}>
-              <b>{it.symbol}</b>&nbsp;
-              <span>Vol {fmt.vol(it.volume_now)}</span>&nbsp;
-              <span>{fmt.pct(it.volume_pct)}</span>
+            <span key={`${it.symbol}-${i}`} className={`bh-banner-item ${cls}`}>
+              <b className="bh-banner-symbol">{it.symbol || "--"}</b>
+              <span className="bh-banner-price">{it.volume_now ? formatCompact(it.volume_now) : "--"}</span>
+              <span className="bh-banner-pct">{Number.isFinite(it.pct) ? formatPct(it.pct / 100) : "--"}</span>
             </span>
           );
         })}

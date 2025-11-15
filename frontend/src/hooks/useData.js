@@ -1,34 +1,25 @@
-// src/hooks/useData.js
+// frontend/src/hooks/useData.js — cleaned single hook and normalization
 import useSWR from "swr";
-import { fetchMetrics, endpoints } from "../lib/api";
+import { endpoints, fetchJson } from "../lib/api";
 
-function kit(rows, isLoading, message) {
-  const list = Array.isArray(rows) ? rows : [];
-  return {
-    rows: list,
-    loading: isLoading && list.length === 0,
-    message: list.length === 0 ? message || null : null,
-  };
+const KEY = endpoints.metrics || "/data";
+
+function kit(rows = [], loading = false, msg = null) {
+  return { rows: Array.isArray(rows) ? rows : [], loading: !!loading && (!rows || rows.length === 0), message: Array.isArray(rows) && rows.length === 0 ? msg : null };
 }
 
 export function useData() {
-  const { data, error, isLoading, mutate } = useSWR(
-    endpoints.metrics,
-    fetchMetrics,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 8_000,
-    }
-  );
+  const { data, error, isLoading, mutate } = useSWR(KEY, () => fetchJson(KEY), {
+    revalidateOnFocus: false,
+    dedupingInterval: 8000,
+    refreshInterval: 2000, // poll /data every 2s for fresher updates
+  });
 
-  const payload = data?.data || {};
-  const meta = data?.meta || {};
+  const payload = data?.data ?? data ?? {};
+  const meta = data?.meta ?? {};
 
   const bySymbol = {};
-  const push = (row) => {
-    if (!row?.symbol) return;
-    bySymbol[row.symbol] = row;
-  };
+  const push = (r) => { if (r && r.symbol) bySymbol[String(r.symbol).toUpperCase()] = r; };
 
   (payload.gainers_1m || []).forEach(push);
   (payload.gainers_3m || []).forEach(push);
@@ -41,75 +32,12 @@ export function useData() {
       gainers1m: kit(payload.gainers_1m, isLoading, "Waiting for 1-minute snapshot…"),
       gainers3m: kit(payload.gainers_3m, isLoading, null),
       losers3m: kit(payload.losers_3m, isLoading, null),
-      top1hPrice: kit(payload.top_1h_price, isLoading, null),
-      top1hVolume: kit(payload.top_1h_volume, isLoading, null),
+      banner1h: Array.isArray(payload.top_1h_price) ? payload.top_1h_price : [],
+      bannerVolume1h: Array.isArray(payload.top_1h_volume) ? payload.top_1h_volume : [],
       meta,
     },
     bySymbol,
     isLoading,
-    mutate,
-    error,
-  };
-}
-// src/hooks/useData.js
-import useSWR from "swr";
-import { fetchData } from "../api.js";
-
-const KEY = "/data";
-
-function cleanSymbol(s) {
-  if (!s) return "";
-  return s.replace(/-USD$/i, "");
-}
-
-function normalize1m(arr = []) {
-  return arr.map((item, idx) => ({
-    __raw: item,
-    symbol: cleanSymbol(item.symbol),
-    price: item.current_price ?? null,
-    prevPrice: item.initial_price_1min ?? null,
-    pct: item.price_change_percentage_1min ?? null,
-    rank: item.rank ?? idx + 1,
-  }));
-}
-
-function normalize3m(arr = []) {
-  return arr.map((item, idx) => ({
-    __raw: item,
-    symbol: cleanSymbol(item.symbol),
-    price: item.current_price ?? null,
-    prevPrice: item.initial_price_3min ?? null,
-    pct: item.price_change_percentage_3min ?? null,
-    rank: item.rank ?? idx + 1,
-  }));
-}
-
-export function useData() {
-  const { data, error, mutate } = useSWR(KEY, () => fetchData(KEY), {
-    revalidateOnFocus: true,
-  });
-
-  const inner = data && typeof data === "object" ? data.data : null;
-
-  const gainers1m = inner?.gainers_1m ? normalize1m(inner.gainers_1m) : [];
-  const gainers3m = inner?.gainers_3m ? normalize3m(inner.gainers_3m) : [];
-  const losers3m = inner?.losers_3m ? normalize3m(inner.losers_3m) : [];
-  const banner1h = Array.isArray(inner?.banner_1h) ? inner.banner_1h : [];
-
-  const bySymbol = {};
-  [...gainers1m, ...gainers3m, ...losers3m].forEach((row) => {
-    if (row.symbol) bySymbol[row.symbol] = row;
-  });
-
-  return {
-    data: {
-      gainers1m: { rows: gainers1m, loading: false },
-      gainers3m: { rows: gainers3m, loading: false },
-      losers3m: { rows: losers3m, loading: false },
-      banner1h,
-    },
-    bySymbol,
-    isLoading: !data && !error,
     isError: !!error,
     mutate,
   };

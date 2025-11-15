@@ -26,7 +26,6 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
           <RefreshTicker onRefresh={onRefresh} />
         </div>
       </header>
-
       <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
 
       <section className="bh-banner-wrap">
@@ -34,23 +33,41 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
       </section>
 
       <main className="bh-main">
-        <section className="panel bh-hero-1m">
-          <MoversPanel title="1-MIN GAINERS" variant="1m-split" packet={gainers1m} onInfo={onInfo} />
-        </section>
+        {/* Outer unified shell: both 1m and 3m rows live on the same horizontal rails */}
+        <div className="mw-page-shell">
+          {/* 1-minute pair row (left / right) — split into two separate panel cards so columns align with 3m below */}
+          <section className="mw-pair-row mw-row-1m">
+            <div className="mw-panel-card">
+              <MoversPanel title="1-MIN GAINERS" variant="1m-left" packet={gainers1m} onInfo={onInfo} />
+            </div>
+            <div className="mw-panel-card">
+              <MoversPanel title="1-MIN GAINERS" variant="1m-right" packet={gainers1m} onInfo={onInfo} />
+            </div>
+          </section>
 
-        <div className="bh-left-col">
-          <MoversPanel title="3-MIN GAINERS" variant="3m-list" packet={gainers3m} onInfo={onInfo} />
-        </div>
+          {/* 3-minute pair row (gainers / losers) */}
+          <section className="mw-pair-row mw-row-3m">
+            <div className="mw-panel-card">
+              <MoversPanel title="3-MIN GAINERS" variant="3m-list" packet={gainers3m} onInfo={onInfo} />
+            </div>
+            <div className="mw-panel-card">
+              <MoversPanel title="3-MIN LOSERS" variant="3m-list" packet={losers3m} onInfo={onInfo} forceDown />
+            </div>
+          </section>
 
-        <div className="bh-right-col">
-          <MoversPanel title="3-MIN LOSERS" variant="3m-list" packet={losers3m} onInfo={onInfo} forceDown />
-          <WatchlistPanel title="WATCHLIST" onInfo={onInfo} />
+          {/* Watchlist spans both columns */}
+          <section className="mw-watchlist-row" aria-label="Watchlist Row">
+            <div className="panel bh-watchlist-panel mw-panel-card">
+              <WatchlistPanel title="WATCHLIST" onInfo={onInfo} />
+            </div>
+          </section>
         </div>
       </main>
 
       <section className="bh-banner-wrap bh-banner-wrap--bottom">
         <TopBannerVolume1h rows={top1hVolume?.rows || []} />
       </section>
+      
     </div>
   );
 }

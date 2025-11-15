@@ -35,7 +35,7 @@ export default function LosersTable3Min() {
   const hasData = visible.length > 0;
 
   return (
-    <section className="text-left text-white text-[12px] font-mono max-w-[480px]">
+    <section className="text-left text-white text-[12px] font-mono max-w-[480px] losers-3m">
       {/* purple header pill */}
       <div className="inline-block rounded-[3px] border border-[#a24bff80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#a24bff] shadow-glowPurple">
         3-MIN LOSERS
@@ -48,7 +48,12 @@ export default function LosersTable3Min() {
         <>
           <div className="mt-4 w-full overflow-x-hidden panel-3m flex flex-col gap-1">
             {visible.map((rowProps, idx) => (
-              <TokenRow key={`${rowProps.symbol}-${idx}`} {...rowProps} changeKey="price_change_percentage_3min" />
+              <TokenRow
+                key={`${rowProps.symbol}-${idx}`}
+                row={rowProps}
+                index={idx + 1}
+                changeKey="price_change_percentage_3min"
+              />
             ))}
           </div>
 

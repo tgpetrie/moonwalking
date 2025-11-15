@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import SentimentCard from "./cards/SentimentCard.jsx";
+import { tickerFromSymbol } from "../utils/format.js";
 
 export default function InsightsTabbed({ row }) {
   const [active, setActive] = useState("charts");
-  const symbol = row?.symbol || row?.ticker || "";
+  const raw = row?.symbol || row?.ticker || "";
+  const symbol = tickerFromSymbol(raw || "");
 
   return (
     <div className="insights-card">

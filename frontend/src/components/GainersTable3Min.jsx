@@ -40,12 +40,11 @@ export default function GainersTable3Min({ items: incoming, rows, loading, error
     () => (expanded ? mapped : mapped.slice(0, 8)),
     [mapped, expanded]
   );
-
   const hasData = visible.length > 0;
   const showError = !external && !loading && error && !hasData;
 
   return (
-    <section className="text-left text-white text-[12px]">
+    <section className="text-left text-white text-[12px] gainers-3m">
       {/* orange header pill */}
       <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
         3-MIN GAINERS
@@ -62,7 +61,8 @@ export default function GainersTable3Min({ items: incoming, rows, loading, error
             {visible.map((rowProps, idx) => (
               <TokenRow
                 key={`${rowProps.symbol}-${idx}`}
-                {...rowProps}
+                row={rowProps}
+                index={idx + 1}
                 changeKey="price_change_percentage_3min"
                 onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
               />

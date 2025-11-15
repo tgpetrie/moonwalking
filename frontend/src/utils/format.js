@@ -1,178 +1,139 @@
-// src/utils/format.js
-export function formatPrice(n) {
-  if (n == null || Number.isNaN(n)) return "--";
-  const v = Number(n);
-  const abs = Math.abs(v);
-  const decimals =
-    abs >= 1000 ? 0 : abs >= 100 ? 1 : abs >= 1 ? 2 : 3;
-  return `$${v.toFixed(decimals)}`;
-}
+// frontend/src/utils/format.js
 
-export function formatPct(n) {
-  if (n == null || Number.isNaN(n)) return "--";
-  const v = Number(n) * 100;
-  const abs = Math.abs(v);
-  const decimals = abs < 1 ? 3 : 2;
-  const sign = v > 0 ? "+" : v < 0 ? "−" : "";
-  return `${sign}${Math.abs(v).toFixed(decimals)}%`;
-}
-
-export const pctClass = (n) => (n < 0 ? "token-pct-loss" : "token-pct-gain");
-
-export function map1hPriceBannerItem(row) {
-  if (!row) return { symbol: "--", price: null, pct: null };
-  return {
-    symbol: row.symbol,
-    price: row.current_price ?? row.price ?? null,
-    pct: row.price_change_percentage_1h ?? row.pct ?? null,
-  };
-}
-
-export function colorForDelta(n) {
-  if (n == null) return "neutral";
-  const v = Number(n);
-  if (v > 0) return "gain";
-  if (v < 0) return "loss";
-  return "neutral";
-}
-// Formatting + adapters shared by tables & banners.
-
-// --- symbol helpers ---
-export function tickerFromSymbol(sym) {
-  if (typeof sym !== "string") return "";
-  return sym.trim().replace(/-USD$/i, "");
-}
-
-// --- number guards ---
-export function toNum(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-// --- price formatting ---
+// Smart price formatting with flexible decimals
 export function formatPrice(n, opts = {}) {
-  const val = toNum(n, 0);
-  const { min = 2, max = 2 } = opts;
-  if (val >= 1000) return val.toFixed(0);
-  if (val >= 100) return val.toFixed(Math.max(0, Math.min(max, 1)));
-  if (val >= 1) return val.toFixed(Math.max(min, 2));
-  return val.toFixed(Math.max(max, 6));
-}
+  const { fallback = "—" } = opts;
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  const abs = Math.abs(x);
+  const sign = x < 0 ? "-" : "";
 
-// --- percentage formatting ---
-export function formatPct(n, { sign = true } = {}) {
-  const val = toNum(n, 0) * 100; // backend sends decimal fraction (0.0158 -> 1.58%)
-  const abs = Math.abs(val);
-  let digits = 2;
-  if (abs >= 100) digits = 0;
-  else if (abs >= 10) digits = 1;
-  const core = abs.toFixed(digits);
-  return (sign ? (val >= 0 ? "+" : "−") : "") + core + "%";
-}
-
-// --- compact formatting ---
-export function formatCompact(n) {
-  const val = toNum(n, 0);
-  const abs = Math.abs(val);
-  if (abs >= 1e9) return (val / 1e9).toFixed(1) + "B";
-  if (abs >= 1e6) return (val / 1e6).toFixed(1) + "M";
-  if (abs >= 1e3) return (val / 1e3).toFixed(1) + "K";
-  return val.toFixed(0);
-}
-
-// --- previous price (1m/3m) ---
-export function resolvePrevPrice(row, window = "1m") {
-  if (!row || typeof row !== "object") return null;
-  const w = String(window).toLowerCase();
-  const cands = w.startsWith("1")
-    ? [row.initial_price_1min, row.prev_1m, row.previous_1m, row.initial_1min]
-    : [row.initial_price_3min, row.prev_3m, row.previous_3m, row.initial_3min];
-  for (const c of cands) {
-    const n = Number(c);
-    if (Number.isFinite(n)) return n;
+  // Big numbers: keep it tight
+  if (abs >= 100) {
+    return `${sign}$${abs.toFixed(2).replace(/\.00$/, "")}`;
   }
-  return null;
-}
 
-// --- 1h volume change ---
-export function calcVolumeChange1h(a, b) {
-  if (arguments.length === 1 && a && typeof a === "object") {
-    const row = a;
-    const curr = toNum(row.volume_1h ?? row.volume_abs ?? row.volume, 0);
-    const prev = toNum(row.volume_1h_prev ?? row.prev_volume_1h ?? row.volume_prev, 0);
-    return calcVolumeChange1h(curr, prev);
+  // Mid-range: 2–4 decimals, trimmed
+  if (abs >= 1) {
+    return `${sign}$${abs
+      .toFixed(3)
+      .replace(/0+$/, "")
+      .replace(/\.$/, "")}`;
   }
-  const curr = toNum(a, 0);
-  const prev = toNum(b, 0);
-  const diff = curr - prev;
-  const pct = prev === 0 ? 0 : (diff / prev) * 100;
-  return { curr, prev, diff, pct };
+
+  if (abs >= 0.01) {
+    return `${sign}$${abs
+      .toFixed(4)
+      .replace(/0+$/, "")
+      .replace(/\.$/, "")}`;
+  }
+
+  // Tiny coins: just give enough precision
+  return `${sign}$${Number(abs).toPrecision(6)}`;
 }
 
-// --- color tags (UI maps to classes) ---
+// Percent formatter, optional sign
+export function formatPct(n, { sign = true, fallback = "—" } = {}) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+
+  // Accept either a fractional input (0.0123 -> 1.23%) or a percent value (1.23 -> 1.23%).
+  // Decide based on magnitude: if abs(x) <= 1 treat as fraction and multiply by 100,
+  // otherwise assume it's already a percent value.
+  const value = Math.abs(x) <= 1 ? x * 100 : x;
+  const abs = Math.abs(value);
+
+  const decimals = abs >= 1 ? 2 : 4;
+
+  const base = value
+    .toFixed(decimals)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
+
+  const prefix = sign && value > 0 ? "+" : "";
+  return `${prefix}${base}%`;
+}
+
+// Map delta to BHABIT palette tokens
 export function colorForDelta(n) {
-  const val = toNum(n, 0);
-  if (val > 0) return "gain";   // gold/orange
-  if (val < 0) return "loss";   // purple
-  return "neutral";
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "var(--bh-neutral, #9ca3af)";
+
+  if (x > 0) return "var(--bh-gain, #f59e0b)";   // gold/orange for gainers
+  if (x < 0) return "var(--bh-loss, #a855f7)";   // purple for losers
+  return "var(--bh-neutral, #9ca3af)";
 }
 
-// --- row adapters ---
-export function map1mRow(row, idx = 0) {
-  const symbol = tickerFromSymbol(row?.symbol);
-  return {
-    rank: row?.rank ?? idx + 1,
-    symbol,
-    current_price: toNum(row?.current_price ?? row?.price, 0),
-    previous_price: resolvePrevPrice(row, "1m"),
-    price_change_percentage_1min: toNum(row?.price_change_percentage_1min ?? row?.change1m ?? row?.change, 0),
-    price_change_percentage_3min: undefined,
-    isGainer: true,
-  };
-}
-
-export function map3mRow(row, idx = 0, { isGainer = true } = {}) {
-  const symbol = tickerFromSymbol(row?.symbol);
-  return {
-    rank: row?.rank ?? idx + 1,
-    symbol,
-    current_price: toNum(row?.current_price ?? row?.price, 0),
-    previous_price: resolvePrevPrice(row, "3m"),
-    price_change_percentage_1min: undefined,
-    price_change_percentage_3min: toNum(row?.price_change_percentage_3min ?? row?.change3m ?? row?.change, 0),
-    isGainer: !!isGainer,
-  };
-}
-
-// --- banners ---
+// Shape a backend row into a 1h banner item
 export function map1hPriceBannerItem(row) {
-  return {
-    symbol: tickerFromSymbol(row?.symbol),
-    pct: toNum(row?.pct ?? row?.change1h ?? row?.change, 0),
-    price: toNum(row?.price ?? row?.current_price, 0),
-  };
-}
+  if (!row) return null;
 
-export function map1hVolumeBannerItem(row) {
-  const { curr, prev, pct } = calcVolumeChange1h(row);
+  const {
+    symbol,
+    label,
+    price_now,
+    price_then,
+    pct_change_1h,
+    delta_1h,
+    pct_change,
+    price,
+    side,
+  } = row;
+
+  // Try the most specific fields first, then fall back
+  const pct =
+    pct_change_1h ??
+    delta_1h ??
+    pct_change ??
+    null;
+
+  const currentPrice = price_now ?? price ?? null;
+
+  const direction =
+    side ??
+    (pct > 0 ? "up" : pct < 0 ? "down" : "flat");
+
   return {
-    symbol: tickerFromSymbol(row?.symbol),
-    volume_abs: curr,
-    prev_volume_abs: prev,
+    symbol,
+    label: label || symbol,
+    price: currentPrice,
     pct,
+    formattedPrice: currentPrice != null
+      ? formatPrice(currentPrice)
+      : "—",
+    formattedPct:
+      pct == null ? "—" : formatPct(pct, { sign: true }),
+    side: direction,
+    color: colorForDelta(pct),
   };
 }
 
-// --- tiny helpers ---
-export function safeArray(v) { return Array.isArray(v) ? v : []; }
-export function nonEmptyString(v, fb = "") { return (typeof v === "string" && v.trim()) ? v.trim() : fb; }
+// (legacy compatibility will be provided at the end of the file)
 
+// Utility: derive a short ticker from symbol (keep existing callers happy)
+export function tickerFromSymbol(sym = "") {
+  if (!sym) return "";
+  // Remove common suffixes and exchange markers, uppercase
+  return String(sym).replace(/:.*$/, "").replace(/-(USD|USDT|PERP)$/i, "").toUpperCase();
+}
+
+// Compact number formatter used by some banners
+export function formatCompact(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  if (abs >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return `${Math.round(v)}`;
+}
+
+// Augment default export for compatibility
 export default {
-  tickerFromSymbol, toNum,
-  formatPrice, formatPct, formatCompact,
-  resolvePrevPrice, calcVolumeChange1h,
+  formatPrice,
+  formatPct,
   colorForDelta,
-  map1mRow, map3mRow,
-  map1hPriceBannerItem, map1hVolumeBannerItem,
-  safeArray, nonEmptyString,
+  map1hPriceBannerItem,
+  tickerFromSymbol,
+  formatCompact,
 };

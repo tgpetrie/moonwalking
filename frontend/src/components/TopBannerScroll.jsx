@@ -24,7 +24,16 @@ export default function TopBannerScroll({ rows = [], onRefresh }) {
     return () => anim.cancel();
   }, [items.length]);
 
-  if (!items.length) return null;
+  if (!items.length) {
+    // Render an empty-but-visible banner container so layout stays intact
+    return (
+      <div className="ticker bh-banner">
+        <div className="bh-banner-track">
+          <div className="bh-banner-wrap"><span className="banner-empty">No 1h price-change data available.</span></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ticker bh-banner">

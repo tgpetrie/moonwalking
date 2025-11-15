@@ -32260,3 +32260,136 @@
 2025-11-11 05:40:41,391 - INFO - Successfully processed data: 7 gainers, 15 losers, 2 banner items
 2025-11-11 05:40:41,391 - INFO - 3-min cache updated: 7 gainers, 15 losers, 2 banner items
 2025-11-11 05:40:42,724 - INFO - Successfully fetched 23 prices from Coinbase
+2025-11-14 13:05:21,711 - INFO - === CBMo4ers Configuration ===
+2025-11-14 13:05:21,711 - INFO - CACHE_TTL: 60
+2025-11-14 13:05:21,711 - INFO - INTERVAL_MINUTES: 3
+2025-11-14 13:05:21,711 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-14 13:05:21,711 - INFO - PORT: 5001
+2025-11-14 13:05:21,711 - INFO - HOST: 0.0.0.0
+2025-11-14 13:05:21,711 - INFO - DEBUG: False
+2025-11-14 13:05:21,711 - INFO - UPDATE_INTERVAL: 60
+2025-11-14 13:05:21,711 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-14 13:05:21,711 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-14 13:05:21,711 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-14 13:05:21,711 - INFO - API_TIMEOUT: 10
+2025-11-14 13:05:21,711 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-14 13:05:21,711 - INFO - ENABLE_1MIN: True
+2025-11-14 13:05:21,711 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-14 13:05:21,711 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-14 13:05:21,711 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-14 13:05:21,711 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-14 13:05:21,711 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-14 13:05:21,711 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-14 13:05:21,711 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-14 13:05:21,711 - INFO - ===============================
+2025-11-14 13:05:21,716 - INFO - === CBMo4ers Configuration ===
+2025-11-14 13:05:21,716 - INFO - CACHE_TTL: 60
+2025-11-14 13:05:21,716 - INFO - INTERVAL_MINUTES: 3
+2025-11-14 13:05:21,716 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-14 13:05:21,716 - INFO - PORT: 5001
+2025-11-14 13:05:21,716 - INFO - HOST: 0.0.0.0
+2025-11-14 13:05:21,716 - INFO - DEBUG: False
+2025-11-14 13:05:21,716 - INFO - UPDATE_INTERVAL: 60
+2025-11-14 13:05:21,716 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-14 13:05:21,716 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-14 13:05:21,716 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-14 13:05:21,716 - INFO - API_TIMEOUT: 10
+2025-11-14 13:05:21,716 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-14 13:05:21,716 - INFO - ENABLE_1MIN: True
+2025-11-14 13:05:21,716 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-14 13:05:21,716 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-14 13:05:21,716 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-14 13:05:21,716 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-14 13:05:21,716 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-14 13:05:21,716 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-14 13:05:21,716 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-14 13:05:21,716 - INFO - ===============================
+2025-11-14 13:05:21,716 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-11-14 13:05:21,716 - INFO - Background update thread started
+2025-11-14 13:05:21,716 - INFO - Server starting on http://0.0.0.0:5001
+2025-11-14 13:05:21,770 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.68.139:5001
+2025-11-14 13:05:21,770 - INFO - [33mPress CTRL+C to quit[0m
+2025-11-14 13:05:23,247 - INFO - Successfully fetched 38 prices from Coinbase
+2025-11-14 13:05:23,249 - WARNING - No crypto data available - 38 current prices, 38 symbols with history
+2025-11-14 13:05:24,480 - INFO - Successfully fetched 31 prices from Coinbase
+2025-11-14 13:05:25,180 - WARNING - No 1-min crypto data available after calculation - 31 current prices, 31 symbols with history
+2025-11-14 13:05:26,669 - INFO - Successfully fetched 30 prices from Coinbase
+2025-11-14 13:05:27,895 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 1 losers
+2025-11-14 13:05:27,896 - INFO - Successfully processed data: 7 gainers, 1 losers, 1 banner items
+2025-11-14 13:05:28,947 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-14 13:05:28,950 - INFO - 127.0.0.1 - - [14/Nov/2025 13:05:28] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:05:40,294 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 2 losers
+2025-11-14 13:05:40,297 - INFO - 127.0.0.1 - - [14/Nov/2025 13:05:40] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:05:41,176 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 5 losers
+2025-11-14 13:05:41,177 - INFO - 127.0.0.1 - - [14/Nov/2025 13:05:41] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:05:41,959 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 4 losers
+2025-11-14 13:05:41,959 - INFO - 127.0.0.1 - - [14/Nov/2025 13:05:41] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:07:48,181 - INFO - === CBMo4ers Configuration ===
+2025-11-14 13:07:48,181 - INFO - CACHE_TTL: 60
+2025-11-14 13:07:48,181 - INFO - INTERVAL_MINUTES: 3
+2025-11-14 13:07:48,181 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-14 13:07:48,181 - INFO - PORT: 5001
+2025-11-14 13:07:48,181 - INFO - HOST: 0.0.0.0
+2025-11-14 13:07:48,181 - INFO - DEBUG: False
+2025-11-14 13:07:48,181 - INFO - UPDATE_INTERVAL: 60
+2025-11-14 13:07:48,181 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-14 13:07:48,181 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-14 13:07:48,181 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-14 13:07:48,181 - INFO - API_TIMEOUT: 10
+2025-11-14 13:07:48,181 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-14 13:07:48,181 - INFO - ENABLE_1MIN: True
+2025-11-14 13:07:48,181 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-14 13:07:48,181 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-14 13:07:48,181 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-14 13:07:48,181 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-14 13:07:48,181 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-14 13:07:48,181 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-14 13:07:48,181 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-14 13:07:48,181 - INFO - ===============================
+2025-11-14 13:07:48,185 - INFO - === CBMo4ers Configuration ===
+2025-11-14 13:07:48,185 - INFO - CACHE_TTL: 60
+2025-11-14 13:07:48,185 - INFO - INTERVAL_MINUTES: 3
+2025-11-14 13:07:48,185 - INFO - MAX_PRICE_HISTORY: 20
+2025-11-14 13:07:48,185 - INFO - PORT: 5001
+2025-11-14 13:07:48,185 - INFO - HOST: 0.0.0.0
+2025-11-14 13:07:48,185 - INFO - DEBUG: False
+2025-11-14 13:07:48,185 - INFO - UPDATE_INTERVAL: 60
+2025-11-14 13:07:48,185 - INFO - MAX_COINS_PER_CATEGORY: 15
+2025-11-14 13:07:48,185 - INFO - MIN_VOLUME_THRESHOLD: 1000000
+2025-11-14 13:07:48,185 - INFO - MIN_CHANGE_THRESHOLD: 1.0
+2025-11-14 13:07:48,185 - INFO - API_TIMEOUT: 10
+2025-11-14 13:07:48,185 - INFO - CHART_DAYS_LIMIT: 30
+2025-11-14 13:07:48,185 - INFO - ENABLE_1MIN: True
+2025-11-14 13:07:48,185 - INFO - ONE_MIN_REFRESH_SECONDS: 45
+2025-11-14 13:07:48,185 - INFO - ONE_MIN_ENTER_PCT: 0.15
+2025-11-14 13:07:48,185 - INFO - ONE_MIN_STAY_PCT: 0.05
+2025-11-14 13:07:48,185 - INFO - ONE_MIN_MAX_COINS: 25
+2025-11-14 13:07:48,185 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2025-11-14 13:07:48,185 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2025-11-14 13:07:48,186 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2025-11-14 13:07:48,186 - INFO - ===============================
+2025-11-14 13:07:48,186 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2025-11-14 13:07:48,186 - INFO - Background update thread started
+2025-11-14 13:07:48,186 - INFO - Server starting on http://0.0.0.0:5001
+2025-11-14 13:07:48,203 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.68.139:5001
+2025-11-14 13:07:48,203 - INFO - [33mPress CTRL+C to quit[0m
+2025-11-14 13:07:49,808 - INFO - Successfully fetched 34 prices from Coinbase
+2025-11-14 13:07:49,811 - WARNING - No crypto data available - 34 current prices, 34 symbols with history
+2025-11-14 13:07:50,007 - INFO - Successfully fetched 38 prices from Coinbase
+2025-11-14 13:07:50,007 - WARNING - No 1-min crypto data available after calculation - 38 current prices, 38 symbols with history
+2025-11-14 13:07:50,967 - INFO - Successfully fetched 21 prices from Coinbase
+2025-11-14 13:07:51,298 - INFO - Successfully fetched 26 prices from Coinbase
+2025-11-14 13:07:52,412 - INFO - Successfully fetched Coinbase 24h top movers: 2 gainers, 4 losers
+2025-11-14 13:07:52,413 - INFO - Successfully processed data: 1 gainers, 1 losers, 6 banner items
+2025-11-14 13:07:53,297 - INFO - Successfully fetched Coinbase 24h top movers: 3 gainers, 6 losers
+2025-11-14 13:07:53,300 - INFO - 127.0.0.1 - - [14/Nov/2025 13:07:53] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:07:58,339 - INFO - Successfully fetched Coinbase 24h top movers: 0 gainers, 3 losers
+2025-11-14 13:07:58,343 - INFO - 127.0.0.1 - - [14/Nov/2025 13:07:58] "[35m[1mGET /data HTTP/1.1[0m" 206 -
+2025-11-14 13:07:59,308 - INFO - Successfully fetched Coinbase 24h top movers: 1 gainers, 7 losers
+2025-11-14 13:07:59,308 - INFO - 127.0.0.1 - - [14/Nov/2025 13:07:59] "[35m[1mGET /data HTTP/1.1[0m" 206 -

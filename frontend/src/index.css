@@ -1,5 +1,8 @@
 /* src/index.css */
 
+/* Import Raleway from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+
 /* basic reset */
 * {
   box-sizing: border-box;
@@ -18,7 +21,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   background: radial-gradient(circle at top, #111827 0%, #020617 45%, #020617 100%);
   color: var(--bh-text);
   min-height: 100vh;
@@ -44,9 +47,10 @@ body {
   pointer-events: none;
   background-image: url("/nbg.png");
   background-repeat: no-repeat;
-  background-position: right -60px bottom -40px;
-  background-size: 520px auto;
-  opacity: 0.055;
+  /* center the rabbit artwork in the viewport so it stays visually anchored */
+  background-position: center center;
+  background-size: 60vw auto;
+  opacity: 0.06;
   filter: drop-shadow(0 0 36px rgba(249, 115, 22, 0.35));
   mix-blend-mode: screen;
   z-index: 0;
@@ -111,11 +115,46 @@ body {
   width: min(1240px, 100%);
 }
 
+/* Page shell and shared panel rows so 1m and 3m align to the same horizontal rails */
+.page-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px;
+  width: 100%;
+}
+
+.panel-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 32px;
+  align-items: start;
+}
+
+.panel-row--1m { margin-bottom: 40px; }
+.panel-row--3m { margin-top: 40px; }
+.panel-card { width: 100%; }
+.panel-row__watchlist { grid-column: 1 / -1; margin-top: 32px; width: 100%; justify-self: center; }
+.panel-row--1m .panel-card--1m { grid-column: 1 / -1; }
+
+/* ensure panel internals don't add asymmetric padding that would break alignment */
+.panel-card > .panel { padding: 0; }
+.panel-card > .panel .panel-body { padding: 12px 16px; }
+
 .bh-section-heading {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--bh-text-muted);
+  position: relative;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.bh-section-heading::after {
+  content: "";
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, var(--bh-gain,#f59e0b), var(--bh-neutral,#9ca3af));
+  margin-top: 0.25rem;
+  width: 100%;
+  border-radius: 2px;
 }
 
 /* generic row */
@@ -156,8 +195,11 @@ body {
 /* 1-minute hero grid: 4+4 column layout */
 .one-min-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
+  /* Use same fixed column sizing as the main rails so the 1-min right column
+     lines up perfectly with the 3-min right column below. Falls back to
+     equal fractions on narrow screens via media queries. */
+  grid-template-columns: 390px 390px;
+  column-gap: 190px;
   width: 100%;
 }
 
@@ -176,6 +218,33 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
 }
+
+/* Watchlist row: full-width centered panel below 3-min tables */
+.bh-row-watchlist {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  width: 100%;
+}
+.bh-watchlist-panel {
+  width: 100%;
+  max-width: 1180px; /* match main content width so watchlist aligns with tables */
+}
+
+/* Rabbit background: fixed, centered, non-interactive */
+.app-shell { position: relative; min-height: 100vh; overflow-x: hidden; }
+.rabbit-bg {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: 70vw;
+  max-height: 90vh;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+.main-content { position: relative; z-index: 1; }
 
 .bh-row-watchlist,
 .bh-row-1h {
@@ -344,7 +413,7 @@ tr.table-row.is-flat::after {
 .bh-star.active { opacity: 1; }
 .bh-token-change-up { color: #D88900; }   /* gold/orange */
 .bh-token-change-down { color: #7B3EF3; } /* purple */
-.sentiment-dot { display:inline-block; width:6px; height:6px; border-radius:999px; margin-left:8px; background:#888; }
+.sentiment-dot { display:inline-block; width:6px; height:6px; border-radius:999px; margin-left:8px; background:var(--bh-gain, #f59e0b); }
 
 /* ===== BHABIT DASHBOARD (authoritative) ===== */
 :root {
@@ -353,13 +422,56 @@ tr.table-row.is-flat::after {
   --bh-loss: #a889ff;
   --bh-price: #80d3ff;
   --bh-muted: rgba(255, 255, 255, 0.35);
+  /* layout tokens for pixel-perfect alignment */
+  --panel-column-gap: 120px;
+  --token-rank-w: 56px;
+  --token-symbol-w: 240px;
+  --token-price-w: 160px;
+  --token-pct-w: 86px;
+  --token-actions-w: 56px;
+}
+
+/* Page shell and pair-row layout to force identical horizontal rails */
+.mw-page-shell {
+  max-width: 1240px; /* aligns with .bh-main max-width */
+  margin: 0 auto;
+  padding: 0 1.6rem; /* same left/right padding as .bh-main */
+}
+
+.mw-pair-row {
+  display: flex;
+  gap: var(--panel-column-gap, 120px);
+  align-items: flex-start;
+}
+
+.mw-pair-row > .mw-panel-card {
+  flex: 1 1 0;
+  min-width: 0; /* allow children to shrink gracefully */
+}
+
+.mw-watchlist-row { grid-column: 1 / -1; display: flex; justify-content: center; margin-top: 18px; }
+
+/* Ensure existing left/right columns do not introduce fixed widths or auto-centering */
+.bh-left-col, .bh-right-col, .panel-3m-gainers, .panel-3m-losers {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Panel card defaults inside the page shell */
+.mw-panel-card { width: 100%; }
+
+/* derived total width of a token-row (used to align outer grids) */
+:root {
+  --token-total: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-pct-w) + var(--token-actions-w));
 }
 
 html,
 body {
-  background: var(--bh-bg);
-  color: #fff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+  background: #0d0a0d;
+  color: #f5f5f5;
+  font-family: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
 
@@ -511,18 +623,22 @@ body {
 }
 .panel-header {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px 6px;
+  flex-direction: column; /* put the line under the title */
+  align-items: center; /* center titles above tables */
+  gap: 6px;
+  padding: 10px 14px 6px;
 }
 .panel-title {
-  font-size: 0.65rem;
-  letter-spacing: 0.16rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12rem;
   color: #fdd19b;
   text-transform: uppercase;
 }
 .panel-line {
-  flex: 1;
+  display: inline-block;
+  align-self: center;
+  width: max-content; /* only underline the title text */
+  min-width: 3.5rem;
   height: 2px;
   background: linear-gradient(90deg, rgba(232, 165, 77, 0.45), rgba(9, 9, 11, 0));
 }
@@ -538,9 +654,11 @@ body {
   padding: 6px;
 }
 .panel-show-more {
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center; /* center the button horizontally */
+  align-items: center;
   padding: 8px 0 2px;
+  width: 100%;
 }
 .btn-pill {
   padding: 6px 12px;
@@ -554,7 +672,9 @@ body {
 /* 1m split grid */
 .one-min-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* each column width = sum of token-row fixed columns so lists line up exactly */
+  grid-template-columns: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-pct-w) + var(--token-actions-w)) calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-pct-w) + var(--token-actions-w));
+  column-gap: var(--panel-column-gap);
   gap: 10px 24px;
 }
 .one-min-col {
@@ -563,62 +683,231 @@ body {
   gap: 4px;
 }
 
-/* 3m list grid */
+/* 3m list shell matches 1m left/right rail */
+.three-min-shell {
+  margin-top: 6px;
+}
 .three-min-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  /* match the 1m rail widths so 3m left and right align under 1m columns */
+  grid-template-columns: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-pct-w) + var(--token-actions-w)) calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-pct-w) + var(--token-actions-w));
+  column-gap: var(--panel-column-gap);
 }
 
-/* Token rows */
+/* Single-column 3-minute list (used by MoversPanel for '3m-list' variant) */
+.three-min-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.three-min-list {
+  width: 100%; /* ensure it occupies full column width to align with 1m columns */
+}
+.three-min-more {
+  margin-top: 10px;
+/* Removed manual nudge for .three-min-list - use consistent row/grid sizing instead */
+  display: flex;
+  justify-content: center;
+}
+
 .token-row {
   display: grid;
-  grid-template-columns: 40px minmax(68px, 1fr) 120px 90px 70px;
+  grid-template-columns: var(--token-rank-w) var(--token-symbol-w) var(--token-price-w) var(--token-pct-w) var(--token-actions-w);
   align-items: center;
   gap: 10px;
-  height: 42px;
+  height: 64px;
   border-bottom: 1px solid rgba(255, 151, 51, 0.03);
+  position: relative;
+  overflow: visible;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  min-width: 0;
 }
-.token-row:last-child {
-  border-bottom: none;
+.token-row:last-child { border-bottom: none; }
+
+/* full-row hover card (on hover only) */
+.row-hover-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleY(0.98);
+  transition:
+    opacity 0.22s ease-out,
+    transform 0.22s ease-out,
+    box-shadow 0.22s ease-out;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
-.tr-col-rank {
-  display: flex;
-  justify-content: center;
+
+.token-row.is-gain .row-hover-bg {
+  background: radial-gradient(
+    circle at center,
+    rgba(244, 169, 64, 0.06) 0%,
+    rgba(244, 169, 64, 0.20) 40%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
 }
-.tr-rank-circle {
-  width: 26px;
-  height: 26px;
+
+.token-row.is-loss .row-hover-bg {
+  background: radial-gradient(
+    circle at center,
+    rgba(178, 92, 255, 0.06) 0%,
+    rgba(178, 92, 255, 0.20) 40%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+}
+
+.token-row:hover .row-hover-bg {
+  opacity: 1;
+  transform: scaleY(1);
+  box-shadow:
+    0 0 18px rgba(0, 0, 0, 0.8),
+    0 0 26px rgba(0, 0, 0, 0.85);
+}
+
+/* thin permanent center line */
+.row-base-line {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -6px;
+  width: 46%;
+  height: 2px;
   border-radius: 999px;
-  border: 1px solid rgba(245, 196, 134, 0.45);
+  pointer-events: none;
+  opacity: 0.5;
+  transition:
+    opacity 0.18s ease-out,
+    box-shadow 0.18s ease-out;
+}
+
+.token-row.is-gain .row-base-line {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bh-gain) 20%,
+    var(--bh-gain) 80%,
+    transparent 100%
+  );
+}
+
+.token-row.is-loss .row-base-line {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bh-loss) 20%,
+    var(--bh-loss) 80%,
+    transparent 100%
+  );
+}
+
+.token-row:hover .row-base-line {
+  opacity: 0.9;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+.tr-col-rank { display: flex; justify-content: center; }
+.tr-rank-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 196, 134, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: 0.9rem;
   color: #fefefe;
 }
+/* hide the old rank circle if present — we use .rank-badge instead */
+.tr-rank-circle { display: none; }
+
+/* rank badge (new) */
+.rank-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+.rank-badge-gain {
+  border-color: var(--bh-gain, #f4a940);
+  color: var(--bh-gain, #f4a940);
+  background: rgba(244, 169, 64, 0.06);
+}
+.rank-badge-loss {
+  border-color: var(--bh-loss, #c68cff);
+  color: var(--bh-loss, #c68cff);
+  background: rgba(198, 140, 255, 0.06);
+}
+
+/* row-hover-glow legacy helper no longer used; kept for safety */
 .tr-symbol {
-  font-weight: 500;
-  font-size: 0.75rem;
-  letter-spacing: 0.03rem;
+  font-weight: 700; /* stronger emphasis for coin name */
+  font-size: 0.78rem; /* slightly larger */
+  letter-spacing: 0.02rem;
+  color: #ffffff; /* very white for improved contrast */
 }
 .tr-col-price {
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* stack current price above previous price */
+  align-items: flex-end; /* align both prices to the right */
+  gap: 4px;
   line-height: 1.03;
+  justify-content: center;
+  text-align: right;
 }
 .tr-price-current {
   color: var(--bh-price);
-  font-size: 0.7rem;
+  font-size: 0.78rem; /* match token name size */
+  font-weight: 600;
+  line-height: 1;
+  font-family: 'Raleway', inherit;
 }
 .tr-price-prev {
-  color: rgba(254, 205, 142, 0.82);
-  font-size: 0.6rem;
+  color: var(--bh-muted); /* use muted gray for old price */
+  font-size: 0.62rem;
+  margin-left: 0;
+  margin-top: 2px; /* small gap below current price */
+  display: block;
+  white-space: nowrap; /* prevent wrapping */
+  font-weight: 400; /* thinner stroke/weight than current price */
+  opacity: 0.9;
 }
 .tr-col-pct {
   text-align: right;
-  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 0.85rem; /* slightly smaller for better balance */
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01rem;
   cursor: pointer;
+}
+
+/* Ensure token names, headers and show-more use Raleway explicitly */
+.tr-symbol,
+.panel-title,
+.panel-header,
+.panel-show-more,
+.btn-pill,
+.wl-symbol,
+.bh-banner-symbol,
+.bh-banner-price,
+.panel .btn-pill {
+  font-family: 'Raleway', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Banner empty state */
+.banner-empty {
+  color: var(--bh-muted);
+  font-size: 0.75rem;
+  padding: 8px 12px;
+  display: inline-block;
 }
 .token-pct-gain {
   color: var(--bh-gain);
@@ -626,34 +915,149 @@ body {
 .token-pct-loss {
   color: var(--bh-loss);
 }
+
+/* Streak indicator: small gold dots shown beside a symbol when streak >= 1 */
+.tr-streak { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; }
+.tr-streak-dot { display:none; }
+.tr-streak-dot.dim { opacity:0.35; }
 .tr-col-actions {
   display: flex;
+  flex-direction: column; /* stack icons vertically */
   gap: 6px;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center; /* center vertically */
+  /* set base font-size so child icon buttons scale relative to price */
+  font-size: 0.78rem; /* matches .tr-price-current */
+  width: 56px; /* fixed action column width to keep rank alignment */
+}
+.row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
 }
 .wl-btn,
 .info-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: rgba(14, 12, 15, 0.6);
-  border: 1px solid rgba(250, 191, 114, 0.12);
-  display: flex;
+  background: transparent;
+  border: none; /* remove outlined square */
+  color: rgba(255,255,255,0.9);
+  width: 1.4em; /* scale relative to parent font-size */
+  height: 1.4em;
+  border-radius: 9999px; /* circular */
+  padding: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
-  color: #f9eee0;
+  font-size: 0.9em; /* scale relative to parent (actions column) */
+  line-height: 1;
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: transform 0.12s ease, color 0.12s ease, background-color 0.12s ease;
 }
-.wl-btn:hover,
-.info-btn:hover {
-  background: rgba(250, 191, 114, 0.08);
-  transform: scale(1.04);
-}
+.wl-btn:hover, .info-btn:hover { transform: translateY(-2px) scale(1.02); }
 .wl-btn--active {
-  background: rgba(250, 191, 114, 0.16);
-  border-color: rgba(250, 191, 114, 0.45);
+  background: rgba(255,183,71,0.12);
+  color: rgba(255,183,71,0.98);
+}
+
+/* remove focus outline/box-shadow for these tiny icon buttons */
+.wl-btn:focus, .info-btn:focus, .wl-btn:focus-visible, .info-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Per-panel rank colorings: gainers = gold, losers = purple */
+.gainers-3m .tr-rank-circle { border-color: var(--bh-gain, #f59e0b); color: var(--bh-gain, #f59e0b); }
+.gainers-3m .panel-title { color: var(--bh-gain, #f59e0b); }
+.losers-3m .tr-rank-circle { border-color: var(--bh-loss, #a16dff); color: var(--bh-loss, #a16dff); }
+.losers-3m .panel-title { color: var(--bh-loss, #a16dff); }
+
+/* Make the whole row feel alive on hover */
+.token-row--clickable:hover {
+  transform: translateY(-3px) scale(1.006);
+  box-shadow: 0 6px 18px rgba(2,2,5,0.12);
+}
+
+/* Glassy radial hover glow per-row + bottom "line dive" effect */
+.token-row::before {
+  /* subtle ambient glow at row bottom (the "line dive") */
+  content: "";
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: -6px;
+  height: 8px;
+  border-radius: 6px;
+  opacity: 0.0;
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+  filter: blur(8px);
+}
+.token-row::after {
+  /* faint radial glassy overlay used on hover */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+}
+
+/* Gain hover - warm gold glass */
+.token-row.is-gain:hover::after {
+  background: radial-gradient(600px 120px at 10% 50%, rgba(249,115,22,0.06), rgba(2,2,5,0));
+  opacity: 1;
+}
+.token-row.is-gain:hover::before {
+  background: linear-gradient(90deg, rgba(249,115,22,0.12), rgba(249,115,22,0.06), rgba(249,115,22,0.12));
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Loss hover - purple glass */
+.token-row.is-loss:hover::after {
+  background: radial-gradient(600px 120px at 10% 50%, rgba(123,62,243,0.06), rgba(2,2,5,0));
+  opacity: 1;
+}
+.token-row.is-loss:hover::before {
+  background: linear-gradient(90deg, rgba(168,137,255,0.12), rgba(168,137,255,0.06), rgba(168,137,255,0.12));
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* subtle breathing animation to keep interface alive; respects reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes bh-breath {
+    0%, 100% { transform: scale(1); opacity: 0; }
+    50% { transform: scale(1.002); opacity: 0.03; }
+  }
+
+  .token-row--clickable::after {
+    animation: bh-breath 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+/* Responsive: collapse 1m/3m split to single column below a threshold to avoid overlap */
+@media (max-width: 1400px) {
+  .one-min-grid,
+  .three-min-grid {
+    grid-template-columns: 1fr;
+    column-gap: 24px;
+  }
+  .one-min-grid { gap: 12px; }
+}
+
+@media (max-width: 900px) {
+  .token-row { grid-template-columns: var(--token-rank-w) minmax(0, 1fr) var(--token-price-w) var(--token-pct-w) var(--token-actions-w); }
+}
+
+/* ensure hover glow doesn't interfere with clickable transform */
+.token-row--clickable:hover {
+  transform: translateY(-3px) scale(1.006);
 }
 
 /* Watchlist */
@@ -690,12 +1094,13 @@ body {
   background: radial-gradient(600px 10px at 10% 50%, rgba(105, 61, 150, 0.35), rgba(2, 2, 5, 0));
 }
 .wl-symbol {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02rem;
+  color: #ffffff;
 }
 .wl-price {
   color: var(--bh-price);
-  font-size: 0.75rem;
+  font-size: 0.78rem; /* match token name size */
 }
 .wl-delta {
   font-size: 0.7rem;
@@ -733,23 +1138,62 @@ body {
   z-index: 50;
 }
 
-/* Responsive */
-@media (max-width: 1180px) {
-  .bh-main {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 18px;
-  }
-  .one-min-grid {
-    grid-template-columns: 1fr;
-  }
-  .bh-watchlist {
-    order: 100;
-  }
-  .bh-rabbit-bg {
-    opacity: 0.04;
-    background-size: 420px auto;
-  }
+/* InsightPanel overlay / card (drop-in hooks) */
+.insight-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.95));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
 }
 
+.insight-card {
+  width: min(960px, 100%);
+  max-height: 80vh;
+  background: rgba(5, 5, 10, 0.98);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.9);
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.insight-symbol-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.insight-symbol { font-family: var(--bh-heading, 'Prosto One', system-ui); font-size: 20px; letter-spacing: 0.12em; }
+.insight-name { font-size: 13px; opacity: 0.7; }
+.insight-price-row { display:flex; align-items:center; gap:12px; margin-top:6px; }
+.insight-price { font-size:18px; font-weight:600; color:var(--bh-price); }
+.insight-change-pills { display:flex; gap:6px; }
+.insight-pill { font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); text-transform:uppercase; letter-spacing:0.08em; }
+.insight-pill.is-gain { color: var(--bh-gain); border-color: rgba(255,179,71,0.6); }
+.insight-pill.is-loss { color: var(--bh-loss); border-color: rgba(196,124,255,0.6); }
+.insight-close { border:none; background:transparent; color:#ffffffaa; font-size:18px; cursor:pointer; }
+.insight-tabs { display:inline-flex; border-radius:999px; padding:3px; background: radial-gradient(circle at top, rgba(255,255,255,0.05), transparent); border: 1px solid rgba(255,255,255,0.08); margin-bottom:12px; }
+.insight-tab { border:none; background:transparent; padding:4px 12px; border-radius:999px; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color: rgba(255,255,255,0.65); cursor:pointer; }
+.insight-tab.is-active { background: radial-gradient(circle at top, rgba(255,179,71,0.16), rgba(196,124,255,0.12)); color:#fff; }
+.insight-body { flex:1; overflow-y:auto; padding-top:8px; }
+.insight-section { font-size:13px; line-height:1.5; }
+.insight-sentiment-badge { display:inline-flex; align-items:center; justify-content:center; padding:3px 10px; border-radius:999px; font-size:11px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.12em; }
+.insight-sentiment-badge.neutral { background: rgba(255,255,255,0.06); }
+.insight-sentiment-badge.moderate-bull { background: radial-gradient(circle, rgba(127,225,106,0.16), transparent); color:#a3ff80; }
+.insight-sentiment-badge.strong-bull { background: radial-gradient(circle, rgba(255,179,71,0.22), transparent); color: var(--bh-gain); }
+.insight-sentiment-badge.moderate-bear { background: radial-gradient(circle, rgba(196,124,255,0.16), transparent); color: var(--bh-loss); }
+.insight-sentiment-badge.strong-bear { background: radial-gradient(circle, rgba(255,99,132,0.22), transparent); color:#ff7b9e; }
+
+
+/* (Moved Raleway import to top; global font set on body earlier) */

@@ -18,7 +18,6 @@ function formatPct(value) {
 }
 
 export default function TokenRowSimple({ index, row }) {
-  // defensive picks
   const symbol =
     (row?.symbol && String(row.symbol).replace(/-USD$/i, "")) ||
     (row?.ticker && String(row.ticker).replace(/-USD$/i, "")) ||
@@ -26,31 +25,43 @@ export default function TokenRowSimple({ index, row }) {
 
   const price = row?.price ?? row?.current_price ?? null;
 
-  const pct =
+  const pctRaw =
     row?.pct ??
     row?.price_change_percentage_1min ??
     row?.price_change_percentage_3min ??
     null;
 
+  const pct =
+    pctRaw != null && !Number.isNaN(Number(pctRaw))
+      ? Number(pctRaw)
+      : null;
+
+  const isLoss = pct != null && pct < 0;
+
   return (
-    <div className="token-row">
+    <div className={`token-row ${isLoss ? "is-loss" : "is-gain"}`}>
+      <div className="row-hover-bg" aria-hidden="true" />
+      <div className="row-base-line" aria-hidden="true" />
+
       <div className="token-rank">{index + 1}</div>
       <div className="token-symbol">{symbol}</div>
       <div className="token-price">
         <div>{formatPrice(price)}</div>
         {price != null && (
-          <div className="token-price-sub">${Number(price).toFixed(3)}</div>
+          <div className="token-price-sub">
+            ${Number(price).toFixed(3)}
+          </div>
         )}
       </div>
       <div
         className={`token-pct ${
-          pct != null && pct < 0 ? "token-pct-loss" : "token-pct-gain"
+          isLoss ? "token-pct-loss" : "token-pct-gain"
         }`}
       >
         {formatPct(pct)}
       </div>
       <div className="token-actions">
-        <RowActions symbol={symbol} price={price} onInfo={() => {}} />
+        <RowActions symbol={symbol} price={price} />
       </div>
     </div>
   );
