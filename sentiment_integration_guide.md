@@ -179,10 +179,11 @@ The API currently uses **mock data generators**. To connect real sources:
 ```python
 import praw
 
-# Add to your API
+# Add to your API (read credentials from environment variables)
+import os
 reddit = praw.Reddit(
-    client_id="YOUR_CLIENT_ID",
-    client_secret="YOUR_CLIENT_SECRET",
+    client_id=os.getenv("REDDIT_CLIENT_ID", ""),
+    client_secret=os.getenv("REDDIT_CLIENT_SECRET", ""),
     user_agent="moonwalking-sentiment/1.0"
 )
 
@@ -215,7 +216,9 @@ def get_fear_greed_index():
 ```python
 import requests
 
-LUNARCRUSH_API_KEY = "your_api_key"
+# Read LunarCrush API key from environment (do NOT hardcode keys in source)
+import os
+LUNARCRUSH_API_KEY = os.getenv("LUNARCRUSH_API_KEY", "")
 
 def get_lunarcrush_sentiment(symbol: str):
     url = f"https://api.lunarcrush.com/v2"
@@ -308,8 +311,9 @@ class SentimentRecord(Base):
     reddit_sentiment = Column(Float)
     twitter_sentiment = Column(Float)
 
-# Create engine
-engine = create_engine('postgresql://user:pass@localhost/moonwalking')
+# Create engine (read DB URL from environment or use local placeholder)
+import os
+engine = create_engine(os.getenv('DATABASE_URL', 'postgresql://<user>:<password>@localhost/moonwalking'))
 Base.metadata.create_all(engine)
 
 # Use in your API
@@ -341,23 +345,24 @@ API_HOST=0.0.0.0
 API_PORT=8001
 
 # Reddit
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
+REDDIT_CLIENT_ID=
+REDDIT_CLIENT_SECRET=
 
 # Twitter/X
-TWITTER_API_KEY=your_api_key
-TWITTER_API_SECRET=your_api_secret
-TWITTER_ACCESS_TOKEN=your_access_token
-TWITTER_ACCESS_SECRET=your_access_secret
+TWITTER_API_KEY=
+TWITTER_API_SECRET=
+TWITTER_ACCESS_TOKEN=
+TWITTER_ACCESS_SECRET=
 
 # LunarCrush
-LUNARCRUSH_API_KEY=your_api_key
+LUNARCRUSH_API_KEY=
 
 # CoinGecko
-COINGECKO_API_KEY=your_api_key
+COINGECKO_API_KEY=
 
 # Database
-DATABASE_URL=postgresql://user:pass@localhost/moonwalking
+# Use a connection string without embedding credentials in example files. Fill with real values in your local, untracked `.env`.
+DATABASE_URL=postgresql://<user>:<password>@localhost/moonwalking
 REDIS_URL=redis://localhost:6379/0
 ```
 

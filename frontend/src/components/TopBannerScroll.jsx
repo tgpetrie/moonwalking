@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { map1hPriceBannerItem, formatPrice, formatPct, colorForDelta } from "../utils/format";
+import { map1hPriceBannerItem, formatPrice, formatPct } from "../utils/format";
 
 function buildCoinbaseUrl(symbol) {
   if (!symbol) return "#";
@@ -27,45 +27,65 @@ export default function TopBannerScroll({ rows = [], onRefresh }) {
   if (!items.length) {
     // Render an empty-but-visible banner container so layout stays intact
     return (
-      <div className="ticker bh-banner">
-        <div className="bh-banner-track">
-          <div className="bh-banner-wrap"><span className="banner-empty">No 1h price-change data available.</span></div>
+      <div className="bh-banner-wrap">
+        <div className="ticker bh-banner">
+          <div className="bh-banner-track">
+            <span className="banner-empty">No 1h price-change data available.</span>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="ticker bh-banner">
-      <div className="track bh-banner-track" ref={ref}>
-        {[...items, ...items].map((t, i) => {
-          const it = map1hPriceBannerItem(t);
-          const side = colorForDelta(it.pct);
-          const cls = side === "gain" ? "is-gain" : side === "loss" ? "is-loss" : "is-neutral";
+    <div className="bh-banner-wrap">
+      <div className="ticker bh-banner">
+        <div className="bh-banner-track" ref={ref}>
+          {[...items, ...items].map((t, i) => {
+            const it = map1hPriceBannerItem(t);
+            const pct = Number(it?.pct ?? 0);
+            const pctClass =
+              pct > 0
+                ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
+                : pct < 0
+                ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
+                : "bh-banner-chip__pct";
 
-          const displaySymbol = it.symbol ? it.symbol.replace(/-(USD|USDT|PERP)$/i, "") : "--";
+            const displaySymbol = it.symbol
+              ? it.symbol.replace(/-(USD|USDT|PERP)$/i, "")
+              : "--";
 
-          return (
-            <a
-              key={`${it.symbol || "item"}-${i}`}
-              href={buildCoinbaseUrl(it.symbol)}
-              target="_blank"
-              rel="noreferrer"
-              className={`bh-banner-item ${cls}`}
-            >
-              <b className="bh-banner-symbol">{displaySymbol}</b>
-              <span className="bh-banner-price">{formatPrice(it.price)}</span>
-              <span className="bh-banner-pct">{formatPct(it.pct)}</span>
-            </a>
-          );
-        })}
+            return (
+              <a
+                key={`${it.symbol || "item"}-${i}`}
+                href={buildCoinbaseUrl(it.symbol)}
+                target="_blank"
+                rel="noreferrer"
+                className="bh-banner-chip"
+              >
+                <span className="bh-banner-chip__symbol">{displaySymbol}</span>
+                <span className="bh-banner-chip__price">
+                  {formatPrice(it.price)}
+                </span>
+                <span className={pctClass}>
+                  {pct === 0
+                    ? "0.0%"
+                    : it.formattedPct ?? formatPct(pct, { sign: true })}
+                </span>
+              </a>
+            );
+          })}
+        </div>
+        {onRefresh && (
+          <button
+            type="button"
+            className="bh-banner-refresh"
+            onClick={onRefresh}
+          >
+            Refresh
+          </button>
+        )}
       </div>
-      {onRefresh && (
-        <button type="button" className="bh-banner-refresh" onClick={onRefresh}>
-          Refresh
-        </button>
-      )}
     </div>
   );
 }
-

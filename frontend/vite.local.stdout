@@ -3,14 +3,7 @@
 > vite
 
 
-  VITE v5.4.21  ready in 167 ms
+  VITE v5.4.21  ready in 139 ms
 
   ➜  Local:   http://127.0.0.1:5173/
   ➜  press h + enter to show help
-4:09:03 AM [vite] hmr update /src/context/WatchlistContext.jsx, /src/components/TopBannerScroll.jsx, /src/components/TopBannerVolume1h.jsx, /src/components/WatchlistPanel.jsx, /src/components/TokenRow.jsx
-4:09:03 AM [vite] hmr invalidate /src/context/WatchlistContext.jsx Could not Fast Refresh ("useWatchlist" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-4:09:03 AM [vite] hmr update /src/App.jsx, /src/components/WatchlistPanel.jsx, /src/components/tables/RowActions.jsx
-4:09:13 AM [vite] hmr update /src/index.css
-4:09:22 AM [vite] hmr update /src/components/TokenRow.jsx
-4:14:51 AM [vite] hmr update /src/index.css
-4:16:52 AM [vite] hmr update /src/index.css

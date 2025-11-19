@@ -1,105 +1,143 @@
 import React, { useMemo, useState } from "react";
 import TokenRow from "./TokenRow.jsx";
 
-const INITIAL_LIMIT = 8;
-const EXPANDED_LIMIT = 16;
+export default function GainersTable1Min({
+  rows = [],
+  loading,
+  error,
+  onInfo,
+}) {
+  const [showMore, setShowMore] = useState(false);
+  const allRows = Array.isArray(rows) ? rows : [];
+  const maxVisible = showMore ? 16 : 8;
+  const visibleRows = useMemo(
+    () => allRows.slice(0, maxVisible),
+    [allRows, maxVisible]
+  );
 
-export default function GainersTable1Min({ packet, rows, loading, onInfo, onRowHover }) {
-  // support either packet={ rows, loading } or rows prop for backward compatibility
-  const packetRows = packet?.rows ?? rows ?? [];
-  const isLoading = packet?.loading ?? loading ?? false;
+  const total = allRows.length;
+  const hasFew = visibleRows.length <= 4;
 
-  const [expanded, setExpanded] = useState(false);
+  const isTwoColumn = visibleRows.length > 4;
 
-  const limit = expanded ? EXPANDED_LIMIT : INITIAL_LIMIT;
-  const visible = packetRows.slice(0, Math.min(packetRows.length, limit));
+  let leftRows = [];
+  let rightRows = [];
 
-  const [left, right] = useMemo(() => {
-    if (visible.length <= 4) return [visible, []];
-    // When collapsed show up to 4 on the left and the remainder on the right (4+4)
-    // When expanded show up to 8 on the left and the remainder on the right (8+8)
-    if (expanded) {
-      const first = visible.slice(0, 8);
-      const rest = visible.slice(8);
-      return [first, rest];
-    }
-    const first = visible.slice(0, 4);
-    const rest = visible.slice(4);
-    return [first, rest];
-  }, [visible]);
+  if (isTwoColumn) {
+    visibleRows.forEach((row, idx) => {
+      const withRank = { ...row, displayRank: row.rank ?? idx + 1 };
+      if (idx % 2 === 0) {
+        leftRows.push(withRank);
+      } else {
+        rightRows.push(withRank);
+      }
+    });
+  } else {
+    leftRows = visibleRows.map((row, idx) => ({
+      ...row,
+      displayRank: row.rank ?? idx + 1,
+    }));
+  }
 
-  if (!packetRows.length && isLoading) {
+  if (error) {
     return (
-      <section className="panel">
+      <section className="panel panel-1m panel-1m-gainers">
         <div className="panel-header">
           <h2 className="panel-title">1-MIN GAINERS</h2>
+          <div className="panel-line" />
         </div>
         <div className="panel-body">
-          <div className="panel-empty">Waiting for 1-minute snapshot…</div>
+          <div className="panel-empty">Failed to load 1m gainers.</div>
         </div>
       </section>
     );
   }
 
-  if (!packetRows.length && !isLoading) {
+  if (loading) {
     return (
-      <section className="panel">
+      <section className="panel panel-1m panel-1m-gainers">
         <div className="panel-header">
           <h2 className="panel-title">1-MIN GAINERS</h2>
+          <div className="panel-line" />
         </div>
         <div className="panel-body">
-          <div className="panel-empty">Waiting for 1-minute snapshot…</div>
+          <div className="panel-empty">Loading…</div>
         </div>
       </section>
     );
   }
+
 
   return (
-    <section className="panel">
+    <section className="panel panel-1m panel-1m-gainers">
       <div className="panel-header">
         <h2 className="panel-title">1-MIN GAINERS</h2>
         <div className="panel-line" />
       </div>
 
-          <div className="panel-body">
-        <div className="one-min-grid">
-          <div className="one-min-col">
-            {left.map((r, i) => (
+      <div className="panel-body panel-1m-body">
+        {total === 0 && (
+          <div className="panel-empty">No 1m gainers yet.</div>
+        )}
+
+        {total > 0 && hasFew && (
+          <div className="panel-1m-col panel-1m-col-single">
+            {leftRows.map((row, idx) => (
               <TokenRow
-                key={r.symbol || `l-${i}`}
-                index={i + 1}
-                row={r}
+                key={row.symbol || idx}
+                rank={row.displayRank}
+                row={row}
                 changeKey="price_change_percentage_1min"
+                rowType="gainer"
                 onInfo={onInfo}
-                onHover={onRowHover}
               />
             ))}
           </div>
+        )}
 
-          {right.length > 0 && (
-            <div className="one-min-col">
-              {right.map((r, i) => (
+        {total > 0 && !hasFew && (
+          <div className="panel-1m-grid">
+            <div className="panel-1m-col panel-1m-col-left">
+              {leftRows.map((row, idx) => (
                 <TokenRow
-                  key={r.symbol || `r-${i}`}
-                  index={i + 1 + left.length}
-                  row={r}
+                  key={row.symbol || idx}
+                  rank={row.displayRank}
+                  row={row}
                   changeKey="price_change_percentage_1min"
+                  rowType="gainer"
                   onInfo={onInfo}
-                  onHover={onRowHover}
                 />
               ))}
             </div>
-          )}
-        </div>
-
-        {packetRows.length > INITIAL_LIMIT && (
-          <div className="panel-show-more">
-            <button className="btn-pill" onClick={() => setExpanded((v) => !v)}>
-              {expanded ? "Show less" : "Show more"}
-            </button>
+            <div className="panel-1m-col panel-1m-col-right">
+              {rightRows.map((row, idx) => (
+                <TokenRow
+                  key={row.symbol || idx}
+                  rank={row.displayRank}
+                  row={row}
+                  changeKey="price_change_percentage_1min"
+                  rowType="gainer"
+                  onInfo={onInfo}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
+
+      {total > 8 && (
+        <div className="panel-footer panel-1m-footer">
+          <button
+            type="button"
+            className="btn-show-more"
+            aria-expanded={showMore}
+            aria-controls="one-min-list"
+            onClick={() => setShowMore((prev) => !prev)}
+          >
+            {showMore ? "Show Less" : "Show More"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

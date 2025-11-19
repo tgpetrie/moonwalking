@@ -27,17 +27,31 @@ export function WatchlistProvider({ children }) {
   const has = useCallback((symbol) => items.some((i) => i.symbol === tickerFromSymbol(symbol)), [items]);
 
   const add = useCallback(({ symbol, baseline = null }) => {
+    // Accept either { symbol, baseline } or { symbol, price } for backward compatibility
     const s = tickerFromSymbol(symbol);
     setItems((prev) => {
       if (!s) return prev;
       if (prev.some((i) => i.symbol === s)) return prev;
-      return [...prev, { symbol: s, baseline: baseline == null ? null : Number(baseline), current: baseline == null ? null : Number(baseline) }];
+      const entryPrice = (baseline == null ? null : Number(baseline));
+      return [...prev, { symbol: s, baseline: entryPrice, current: entryPrice, addedAt: Date.now() }];
     });
   }, []);
 
   const remove = useCallback((symbol) => {
     const s = tickerFromSymbol(symbol);
     setItems((prev) => prev.filter((i) => i.symbol !== s));
+  }, []);
+
+  const toggle = useCallback(({ symbol, price = null }) => {
+    const s = tickerFromSymbol(symbol);
+    setItems((prev) => {
+      if (!s) return prev;
+      if (prev.some((i) => i.symbol === s)) {
+        return prev.filter((i) => i.symbol !== s);
+      }
+      const entry = price == null ? null : Number(price);
+      return [...prev, { symbol: s, baseline: entry, current: entry, addedAt: Date.now() }];
+    });
   }, []);
 
   const refreshFromData = useCallback((bySymbol = {}) => {
@@ -49,7 +63,7 @@ export function WatchlistProvider({ children }) {
     }));
   }, []);
 
-  const value = useMemo(() => ({ items, has, add, remove, refreshFromData }), [items, has, add, remove, refreshFromData]);
+  const value = useMemo(() => ({ items, has, add, remove, toggle, refreshFromData }), [items, has, add, remove, toggle, refreshFromData]);
 
   return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

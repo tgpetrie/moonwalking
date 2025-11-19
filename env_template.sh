@@ -7,46 +7,46 @@
 # Get credentials from: https://www.reddit.com/prefs/apps
 # Create a "script" app and copy the credentials below
 
-REDDIT_CLIENT_ID=your_reddit_client_id_here
-REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
+REDDIT_CLIENT_ID=YOUR_REDDIT_CLIENT_ID_HERE  # pragma: allowlist secret
+REDDIT_CLIENT_SECRET=YOUR_REDDIT_CLIENT_SECRET_HERE  # pragma: allowlist secret
 
 # ============================================================================
 # TWITTER/X API (Optional - for Twitter sentiment)
 # ============================================================================
 # Get credentials from: https://developer.twitter.com/en/portal/dashboard
 
-# TWITTER_API_KEY=your_twitter_api_key
-# TWITTER_API_SECRET=your_twitter_api_secret
-# TWITTER_ACCESS_TOKEN=your_twitter_access_token
-# TWITTER_ACCESS_SECRET=your_twitter_access_secret
+# TWITTER_API_KEY=EXAMPLE_TWITTER_API_KEY  # pragma: allowlist secret
+# TWITTER_API_SECRET=EXAMPLE_TWITTER_API_SECRET  # pragma: allowlist secret
+# TWITTER_ACCESS_TOKEN=EXAMPLE_TWITTER_ACCESS_TOKEN  # pragma: allowlist secret
+# TWITTER_ACCESS_SECRET=EXAMPLE_TWITTER_ACCESS_SECRET  # pragma: allowlist secret
 
 # ============================================================================
 # TELEGRAM BOT (Optional - for Telegram monitoring)
 # ============================================================================
 # Create bot with @BotFather on Telegram
 
-# TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+# TELEGRAM_BOT_TOKEN=EXAMPLE_TELEGRAM_BOT_TOKEN  # pragma: allowlist secret
 
 # ============================================================================
 # LUNARCRUSH API (Optional - Premium social data)
 # ============================================================================
 # Get API key from: https://lunarcrush.com/developers/api
 
-# LUNARCRUSH_API_KEY=your_lunarcrush_api_key
+# LUNARCRUSH_API_KEY=EXAMPLE_LUNARCRUSH_API_KEY  # pragma: allowlist secret
 
 # ============================================================================
 # CRYPTOPANIC API (Optional - News aggregator)
 # ============================================================================
 # Get API key from: https://cryptopanic.com/developers/api/
 
-# CRYPTOPANIC_API_KEY=your_cryptopanic_api_key
+# CRYPTOPANIC_API_KEY=EXAMPLE_CRYPTOPANIC_API_KEY  # pragma: allowlist secret
 
 # ============================================================================
 # COINGECKO API (Optional - Pro tier for higher limits)
 # ============================================================================
 # Free tier works without key, Pro tier needs API key
 
-# COINGECKO_API_KEY=your_coingecko_api_key
+# COINGECKO_API_KEY=EXAMPLE_COINGECKO_API_KEY  # pragma: allowlist secret
 
 # ============================================================================
 # DATABASE (Optional - for persistent storage)
@@ -57,7 +57,7 @@ REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
 # POSTGRES_PORT=5432
 # POSTGRES_DB=moonwalking
 # POSTGRES_USER=moonwalking
-# POSTGRES_PASSWORD=your_secure_password
+# POSTGRES_PASSWORD=EXAMPLE_POSTGRES_PASSWORD  # pragma: allowlist secret
 
 # ============================================================================
 # REDIS CACHE (Optional - for distributed caching)
@@ -65,7 +65,7 @@ REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
 
 # REDIS_HOST=localhost
 # REDIS_PORT=6379
-# REDIS_PASSWORD=
+# REDIS_PASSWORD=EXAMPLE_REDIS_PASSWORD  # pragma: allowlist secret
 # REDIS_DB=0
 
 # ============================================================================
@@ -87,5 +87,5 @@ REDDIT_CLIENT_SECRET=your_reddit_client_secret_here
 # SECURITY (Optional)
 # ============================================================================
 
-# API_KEY=your_api_key_for_authenticated_endpoints
-# WEBHOOK_SECRET=your_webhook_secret
+# API_KEY=EXAMPLE_API_KEY_FOR_AUTHENTICATED_ENDPOINTS  # pragma: allowlist secret
+# WEBHOOK_SECRET=EXAMPLE_WEBHOOK_SECRET  # pragma: allowlist secret

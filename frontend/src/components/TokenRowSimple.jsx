@@ -39,9 +39,7 @@ export default function TokenRowSimple({ index, row }) {
   const isLoss = pct != null && pct < 0;
 
   return (
-    <div className={`token-row ${isLoss ? "is-loss" : "is-gain"}`}>
-      <div className="row-hover-bg" aria-hidden="true" />
-      <div className="row-base-line" aria-hidden="true" />
+    <div className={`token-row simple-row ${isLoss ? "is-loss" : "is-gain"}`}>
 
       <div className="token-rank">{index + 1}</div>
       <div className="token-symbol">{symbol}</div>

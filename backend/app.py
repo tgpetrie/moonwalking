@@ -71,6 +71,15 @@ except Exception:
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from social_sentiment import get_social_sentiment
+# New insights helpers
+try:
+    from insights import build_asset_insights
+    from sentiment_data_sources import COINGECKO_ID_MAP
+except Exception:
+    # In some test or trimmed environments these modules may not exist; provide
+    # fallbacks so import-time doesn't fail.
+    build_asset_insights = None
+    COINGECKO_ID_MAP = {}
 # local low-overhead TTL cache for dev/test to avoid hammering Coinbase
 try:
     # prefer package-style import when running as installed package
@@ -92,7 +101,6 @@ try:
 except ImportError:
     COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
 
-# Define missing constants
 ERROR_NO_DATA = "No data available"
 
 # Check if psutil is available
@@ -142,6 +150,35 @@ try:
     from utils import get_1h_volume_weighted_data  # type: ignore
 except Exception:
     get_1h_volume_weighted_data = None
+
+# Fallback: if the optional `get_1h_volume_weighted_data` isn't present
+# (trimmed dev checkout), provide a lightweight adapter that reuses the
+# existing `get_banner_1h_volume()` computation so the `/api/snapshots/one-hour-volume`
+# endpoint returns rows for the frontend during development.
+if not callable(get_1h_volume_weighted_data):
+    def get_1h_volume_weighted_data():
+        try:
+            rows, _ts = get_banner_1h_volume()
+            out = []
+            for r in (rows or []):
+                vol_now = r.get("volume_24h") or r.get("volume_now") or r.get("volume") or 0
+                vol_ago = r.get("volume_1h") or r.get("previous_volume") or None
+                pct = r.get("volume_change_1h_pct") or r.get("volume_change_1h") or r.get("volume_change_pct")
+                if pct is None and isinstance(vol_now, (int, float)) and isinstance(vol_ago, (int, float)) and vol_ago:
+                    try:
+                        pct = ((float(vol_now) - float(vol_ago)) / float(vol_ago)) * 100.0
+                    except Exception:
+                        pct = None
+                out.append({
+                    **r,
+                    "volume_now": vol_now,
+                    "volume_1h_ago": vol_ago,
+                    "volume_change_pct": pct,
+                    "percent_change": pct,
+                })
+            return out
+        except Exception:
+            return []
 # Ensure minimal lifecycle and routing helpers exist even when tests replace
 # Flask with a very small MockFlask. This prevents import-time endpoint
 # decorators from failing during test collection.
@@ -357,6 +394,21 @@ def _load_thresholds_file():
                 continue
 
 _load_thresholds_file()
+
+
+def pct_change(current: float | int | None, past: float | int | None) -> float:
+    """Centralized percent-change helper.
+
+    Returns 0.0 when the past value is missing or zero to avoid division errors.
+    """
+    try:
+        c = float(current)
+        p = float(past)
+    except (TypeError, ValueError):
+        return 0.0
+    if p == 0.0:
+        return 0.0
+    return (c - p) / p * 100.0
 
 def update_thresholds(patch: dict):
     """Runtime safe partial update with validation: returns (applied, errors)."""
@@ -1617,7 +1669,7 @@ def calculate_interval_changes(current_prices):
         if interval_price is None or interval_price <= 0:
             continue
 
-        price_change = ((price - interval_price) / interval_price) * 100
+        price_change = pct_change(price, interval_price)
         actual_interval_minutes = (
             CONFIG['INTERVAL_MINUTES'] if interval_time == target_ts else (current_time - interval_time) / 60
         )
@@ -1670,9 +1722,9 @@ def calculate_1min_changes(current_prices):
         
         if interval_price is None or interval_price <= 0:
             continue
-            
+
         # Calculate percentage change
-        price_change = ((price - interval_price) / interval_price) * 100
+        price_change = pct_change(price, interval_price)
         actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
         
         # Only include significant changes (configurable threshold)
@@ -1729,13 +1781,13 @@ def get_coinbase_24h_top_movers():
                 current_price = float(ticker_data.get('price', 0))
                 volume_24h = float(stats_data.get('volume', 0))
                 open_24h = float(stats_data.get('open', 0))
-                
+
                 if current_price > 0 and open_24h > 0:
-                    price_change_24h = ((current_price - open_24h) / open_24h) * 100
-                    
-                    # Estimate 1h change
+                    price_change_24h = pct_change(current_price, open_24h)
+
+                    # Estimate 1h change using a simple fraction of the 24h move
                     price_1h_estimate = current_price - ((current_price - open_24h) * 0.04)
-                    price_change_1h = ((current_price - price_1h_estimate) / price_1h_estimate) * 100 if price_1h_estimate > 0 else 0
+                    price_change_1h = pct_change(current_price, price_1h_estimate) if price_1h_estimate > 0 else 0.0
                     
                     # Only include significant moves
                     if abs(price_change_24h) >= CONFIG['MIN_CHANGE_THRESHOLD'] and volume_24h > CONFIG['MIN_VOLUME_THRESHOLD']:
@@ -2215,15 +2267,18 @@ def get_gainers_1m():
     data = _get_gainers_table_1min_swr()
     return _wrap_rows_and_ts(data)
 
+
 def get_gainers_3m():
     """Return (rows, ts) for 3m gainers from SWR snapshot."""
     data = _get_gainers_table_3min_swr()
     return _wrap_rows_and_ts(data)
 
+
 def get_losers_3m():
     """Return (rows, ts) for 3m losers from SWR snapshot."""
     data = _get_losers_table_3min_swr()
     return _wrap_rows_and_ts(data)
+
 
 def get_banner_1h():
     """Return (rows, ts) for 1h price-change banner. Mark as computed."""
@@ -2231,73 +2286,325 @@ def get_banner_1h():
     ts = datetime.now().isoformat()
     return rows, ts
 
+
+def get_banner_1h_volume():
+    """Return (rows, ts) for 1h volume banner, reusing bottom-banner computation."""
+    try:
+        # Reuse the same core logic as the bottom scrolling banner, but return raw rows.
+        banner_data = get_24h_top_movers()
+        if not banner_data:
+            return [], None
+
+        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0) or 0, reverse=True)
+        rows = []
+        now_ts = time.time()
+        for coin in volume_sorted[:20]:
+            sym = coin.get("symbol")
+            if not sym:
+                continue
+            vol_now = float(coin.get("volume_24h", 0) or 0)
+
+            # Compute 1h volume change if we have at least ~1h history; fall back to None.
+            vol_change_1h = None
+            vol_change_1h_pct = None
+            try:
+                hist = volume_history_24h.get(sym, deque())
+                if hist:
+                    vol_then = None
+                    for ts, vol in hist:
+                        if now_ts - ts >= 3600:
+                            vol_then = vol
+                            break
+                    if vol_then is not None:
+                        vol_change_1h = vol_now - vol_then
+                        vol_change_1h_pct = pct_change(vol_now, vol_then)
+            except Exception:
+                pass
+
+            rows.append(
+                {
+                    "symbol": sym,
+                    "current_price": float(coin.get("current_price", 0) or 0),
+                    "volume_24h": vol_now,
+                    "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                    "volume_change_1h": vol_change_1h,
+                    "volume_change_1h_pct": vol_change_1h_pct,
+                }
+            )
+        return rows, datetime.now().isoformat()
+    except Exception:
+        return [], None
+
 @app.route('/data')
 def data_aggregate():
-    """Aggregate data endpoint that never fabricates data.
+    """Unified aggregate data endpoint used by the dashboard SPA.
 
-    Returns a JSON payload of shape { data, meta, errors } with HTTP 200
-    when all slices present, or 206 (Partial Content) when some are missing.
-    Hard-guards the whole handler so it never emits a 5xx in dev.
+    Builds a canonical per-symbol row map and derives the various sorted
+    views (1m/3m tables, 1h price banner, 1h volume banner) from it.
+    Always returns HTTP 200/206 JSON and never raises in local dev.
     """
     try:
-        data = {}
-        meta = {}
-        errors = {}
+        meta: dict[str, dict] = {}
+        errors: dict[str, str] = {}
+        rows_by_symbol: dict[str, dict] = {}
 
-        # 1m gainers
-        try:
-            rows, ts = get_gainers_1m()
-            if rows:
-                data['gainers_1m'] = rows
-                meta['gainers_1m'] = {'source': 'snapshot', 'ts': ts}
-            else:
-                raise RuntimeError('empty')
-        except Exception:
-            errors['gainers_1m'] = 'missing_snapshot'
+        def _sym_from(row: dict) -> str | None:
+            raw = row.get("symbol") or row.get("pair") or row.get("product_id")
+            if not raw:
+                return None
+            return str(raw).upper().replace("-USD", "")
 
-        # 3m gainers
-        try:
-            rows, ts = get_gainers_3m()
-            if rows:
-                data['gainers_3m'] = rows
-                meta['gainers_3m'] = {'source': 'snapshot', 'ts': ts}
-            else:
-                raise RuntimeError('empty')
-        except Exception:
-            errors['gainers_3m'] = 'missing_snapshot'
+        def _ensure_row(sym: str) -> dict:
+            row = rows_by_symbol.get(sym)
+            if row is None:
+                row = {"symbol": sym}
+                rows_by_symbol[sym] = row
+            return row
 
-        # 3m losers
+        # 1m gainers snapshot
         try:
-            rows, ts = get_losers_3m()
-            if rows:
-                data['losers_3m'] = rows
-                meta['losers_3m'] = {'source': 'snapshot', 'ts': ts}
+            g1_rows, g1_ts = get_gainers_1m()
+            if g1_rows:
+                for r in g1_rows:
+                    sym = _sym_from(r)
+                    if not sym:
+                        continue
+                    base = _ensure_row(sym)
+                    price = r.get("current_price") or r.get("price") or 0
+                    try:
+                        price_f = float(price)
+                    except (TypeError, ValueError):
+                        price_f = 0.0
+                    if price_f > 0:
+                        base["price"] = price_f
+                        base["current_price"] = price_f
+                    gain_1m = r.get("price_change_percentage_1min")
+                    if gain_1m is not None:
+                        try:
+                            gval = float(gain_1m)
+                        except (TypeError, ValueError):
+                            gval = 0.0
+                        base["change_1m"] = gval
+                        # keep legacy key for existing UI bits
+                        base["price_change_percentage_1min"] = gval
+                meta["gainers_1m"] = {"source": "snapshot", "ts": g1_ts}
             else:
-                raise RuntimeError('empty')
+                raise RuntimeError("empty")
         except Exception:
-            errors['losers_3m'] = 'missing_snapshot'
+            errors["gainers_1m"] = "missing_snapshot"
 
-        # 1h banner (computed)
+        # 3m gainers snapshot
         try:
-            rows, ts = get_banner_1h()
-            if rows:
-                data['banner_1h'] = rows
-                meta['banner_1h'] = {'source': 'computed', 'ts': ts}
+            g3_rows, g3_ts = get_gainers_3m()
+            if g3_rows:
+                for r in g3_rows:
+                    sym = _sym_from(r)
+                    if not sym:
+                        continue
+                    base = _ensure_row(sym)
+                    price = r.get("current_price") or r.get("price") or 0
+                    try:
+                        price_f = float(price)
+                    except (TypeError, ValueError):
+                        price_f = 0.0
+                    if price_f > 0:
+                        base["price"] = price_f
+                        base["current_price"] = price_f
+                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                    if gain_3m is not None:
+                        try:
+                            gval = float(gain_3m)
+                        except (TypeError, ValueError):
+                            gval = 0.0
+                        base["change_3m"] = gval
+                        base["price_change_percentage_3min"] = gval
+                meta["gainers_3m"] = {"source": "snapshot", "ts": g3_ts}
             else:
-                # banner is optional – mark as missing but do not fail hard
-                errors['banner_1h'] = 'unavailable'
+                raise RuntimeError("empty")
         except Exception:
-            errors['banner_1h'] = 'unavailable'
+            errors["gainers_3m"] = "missing_snapshot"
+
+        # 3m losers snapshot
+        try:
+            l3_rows, l3_ts = get_losers_3m()
+            if l3_rows:
+                for r in l3_rows:
+                    sym = _sym_from(r)
+                    if not sym:
+                        continue
+                    base = _ensure_row(sym)
+                    price = r.get("current_price") or r.get("price") or 0
+                    try:
+                        price_f = float(price)
+                    except (TypeError, ValueError):
+                        price_f = 0.0
+                    if price_f > 0:
+                        base["price"] = price_f
+                        base["current_price"] = price_f
+                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                    if gain_3m is not None:
+                        try:
+                            gval = float(gain_3m)
+                        except (TypeError, ValueError):
+                            gval = 0.0
+                        base["change_3m"] = gval
+                        base["price_change_percentage_3min"] = gval
+                meta["losers_3m"] = {"source": "snapshot", "ts": l3_ts}
+            else:
+                raise RuntimeError("empty")
+        except Exception:
+            errors["losers_3m"] = "missing_snapshot"
+
+        # 1h price banner snapshot
+        try:
+            b_rows, b_ts = get_banner_1h()
+            if b_rows:
+                for r in b_rows:
+                    sym = _sym_from(r)
+                    if not sym:
+                        continue
+                    base = _ensure_row(sym)
+                    price = r.get("current_price") or r.get("price") or 0
+                    try:
+                        price_f = float(price)
+                    except (TypeError, ValueError):
+                        price_f = 0.0
+                    if price_f > 0:
+                        # canonical price fields for banners and tables
+                        base["price"] = price_f
+                        base["current_price"] = price_f
+                    change_1h = r.get("price_change_1h")
+                    if change_1h is not None:
+                        try:
+                            cval = float(change_1h)
+                        except (TypeError, ValueError):
+                            cval = 0.0
+                        # canonical 1h price-change keys used by banners
+                        base["change_1h_price"] = cval
+                        base["price_change_1h"] = cval
+                        base["pct_change_1h"] = cval
+                meta["banner_1h_price"] = {"source": "computed", "ts": b_ts}
+            else:
+                errors["banner_1h_price"] = "unavailable"
+        except Exception:
+            errors["banner_1h_price"] = "unavailable"
+
+        # 1h volume banner snapshot
+        try:
+            vb_rows, vb_ts = get_banner_1h_volume()
+            if vb_rows:
+                for r in vb_rows:
+                    sym = _sym_from(r)
+                    if not sym:
+                        continue
+                    base = _ensure_row(sym)
+                    vol_now = r.get("volume_24h")
+                    try:
+                        vol_now_f = float(vol_now)
+                    except (TypeError, ValueError):
+                        vol_now_f = 0.0
+                    if vol_now_f > 0:
+                        # treat as latest 1h (or 24h snapshot) volume for display
+                        base["volume_24h"] = vol_now_f
+                        base["volume_1h"] = vol_now_f
+                    vol_pct = r.get("volume_change_1h_pct")
+                    if vol_pct is not None:
+                        try:
+                            vval = float(vol_pct)
+                        except (TypeError, ValueError):
+                            vval = 0.0
+                        # canonical 1h volume-change keys used by volume banners
+                        base["change_1h_volume"] = vval
+                        base["volume_change_1h_pct"] = vval
+                        base["volume_change_percentage_1h"] = vval
+                meta["banner_1h_volume"] = {"source": "computed", "ts": vb_ts}
+            else:
+                errors["banner_1h_volume"] = "unavailable"
+        except Exception:
+            errors["banner_1h_volume"] = "unavailable"
+
+        # Build canonical list of rows
+        all_rows = list(rows_by_symbol.values())
+
+        def _sorted_rows(key: str, reverse: bool = False, limit: int = 16):
+            subset = [r for r in all_rows if isinstance(r.get(key), (int, float)) and r.get(key) not in (None, 0)]
+            subset.sort(key=lambda r: r.get(key, 0.0), reverse=reverse)
+            out = []
+            for idx, base in enumerate(subset[:limit], start=1):
+                row = dict(base)
+                row["rank"] = idx
+                # attach a trade URL for the row; frontend can fall back to slug if missing
+                sym = row.get("symbol") or ""
+                slug = str(sym).lower()
+                row.setdefault("trade_url", f"https://www.coinbase.com/price/{slug}")
+                out.append(row)
+            return out
+
+        gainers_1m = _sorted_rows("change_1m", reverse=True)
+        gainers_3m = _sorted_rows("change_3m", reverse=True)
+        losers_3m = _sorted_rows("change_3m", reverse=False)
+
+        banner_1h_price = _sorted_rows("change_1h_price", reverse=True, limit=20)
+        banner_1h_volume = _sorted_rows("change_1h_volume", reverse=True, limit=20)
+
+        latest_by_symbol = {}
+        for sym, row in rows_by_symbol.items():
+            price = row.get("price") or row.get("current_price")
+            try:
+                price_f = float(price)
+            except (TypeError, ValueError):
+                price_f = None
+            latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
+
+        payload = {
+            "gainers_1m": gainers_1m,
+            "gainers_3m": gainers_3m,
+            "losers_3m": losers_3m,
+            "banner_1h_price": banner_1h_price,
+            "banner_1h_volume": banner_1h_volume,
+            "latest_by_symbol": latest_by_symbol,
+            "updated_at": datetime.now().isoformat(),
+            "meta": meta,
+            "errors": errors,
+        }
+
+        # Backwards-compatible shape for older Dashboard.jsx which expects a
+        # top-level { data, meta, errors } object.
+        try:
+            payload["data"] = {
+                "gainers_1m": gainers_1m,
+                "gainers_3m": gainers_3m,
+                "losers_3m": losers_3m,
+                "banner_1h_price": banner_1h_price,
+                "banner_1h_volume": banner_1h_volume,
+                "latest_by_symbol": latest_by_symbol,
+                "updated_at": payload["updated_at"],
+            }
+        except Exception:
+            # best-effort; if this alias fails, main payload is still valid
+            pass
 
         status = 200 if not errors else 206
-        return jsonify({'data': data, 'meta': meta, 'errors': errors}), status
+        return jsonify(payload), status
     except Exception as e:
         # Absolute guardrail: never 5xx in local dev for /data
         try:
             app.logger.exception("/data aggregate fatal: %s", e)
         except Exception:
             pass
-        return jsonify({'data': {}, 'meta': {}, 'errors': {'fatal': str(e)}}), 206
+        return jsonify(
+            {
+                "gainers_1m": [],
+                "gainers_3m": [],
+                "losers_3m": [],
+                "banner_1h_price": [],
+                "banner_1h_volume": [],
+                "latest_by_symbol": {},
+                "updated_at": datetime.now().isoformat(),
+                "meta": {},
+                "errors": {"fatal": str(e)},
+            }
+        ), 206
 
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():
@@ -2365,8 +2672,7 @@ def get_bottom_banner_scroll():
                     # If we don't yet have >=1h history, leave vol_change_1h_pct as None
                     if vol_then is not None:
                         vol_change_1h = vol_now - vol_then
-                        if vol_then > 0:
-                            vol_change_1h_pct = (vol_change_1h / vol_then) * 100.0
+                        vol_change_1h_pct = pct_change(vol_now, vol_then)
             except Exception:
                 pass
             # Fallback metric for trend if we lack 1h volume delta
@@ -3659,6 +3965,119 @@ def _dev_server_info():
         "pid": os.getpid(),
         "version": 1,
     })
+
+
+@app.get('/api/insights/<path:symbol>')
+def api_insights(symbol):
+    """Return an insights payload for a given symbol using on-disk caches and
+    short-term price/volume history. Falls back gracefully if data is missing.
+    """
+    # Normalise symbol (frontend may send BTC-USD or BTC)
+    sym = symbol.upper()
+
+    # Determine current prices from cached last_current_prices or fetch fresh
+    current_prices = last_current_prices.get('data') if isinstance(last_current_prices, dict) else None
+    if not current_prices:
+        try:
+            current_prices = get_current_prices()
+        except Exception:
+            current_prices = {}
+
+    # Try several variants to find a matching price key
+    current_price = None
+    for key in (sym, sym.replace('-', ''), sym.split('-')[0]):
+        if key in current_prices:
+            current_price = current_prices.get(key)
+            break
+
+    if current_price is None:
+        return jsonify({"error": ERROR_NO_DATA}), 404
+
+    now = time.time()
+
+    # Build snapshots from in-memory price history structures
+    # price_history_1min and price_history are deques of (ts, price)
+    price_1m_ago = None
+    try:
+        hist1 = price_history_1min.get(sym) or price_history_1min.get(sym.replace('-', '')) or deque()
+        # Find point at least ~60s old
+        for ts, p in reversed(hist1):
+            if now - ts >= 55:
+                price_1m_ago = p
+                break
+        if price_1m_ago is None and len(hist1) > 0:
+            price_1m_ago = hist1[0][1]
+    except Exception:
+        price_1m_ago = None
+
+    price_3m_ago = None
+    try:
+        hist_all = price_history.get(sym) or price_history.get(sym.replace('-', '')) or deque()
+        for ts, p in reversed(hist_all):
+            if now - ts >= 175:  # prefer a bit more than 3 minutes to cover gaps
+                price_3m_ago = p
+                break
+        if price_3m_ago is None and len(hist_all) > 0:
+            price_3m_ago = hist_all[0][1]
+    except Exception:
+        price_3m_ago = None
+
+    # Volume: use volume_history_24h to estimate 1h current and previous volumes
+    vol_1h_now = None
+    vol_1h_prev = None
+    try:
+        vol_hist = volume_history_24h.get(sym) or volume_history_24h.get(sym.replace('-', '')) or deque()
+        if len(vol_hist) >= 1:
+            vol_1h_now = vol_hist[-1][1]
+        if len(vol_hist) >= 2:
+            # find an entry roughly 1 hour ago; fall back to second-last
+            for ts, v in reversed(vol_hist):
+                if now - ts >= 3500:  # roughly 1 hour (3600s) tolerance
+                    vol_1h_prev = v
+                    break
+            if vol_1h_prev is None and len(vol_hist) >= 2:
+                vol_1h_prev = vol_hist[-2][1]
+    except Exception:
+        vol_1h_now = vol_1h_prev = None
+
+    snapshots = {
+        "price_1m_ago": price_1m_ago,
+        "price_3m_ago": price_3m_ago,
+        "volume_1h_now": vol_1h_now,
+        "volume_1h_prev": vol_1h_prev,
+    }
+
+    # Build insights via the helper if available, else return a minimal derived blob
+    try:
+        if callable(build_asset_insights):
+            payload = build_asset_insights(sym, current_price, snapshots, COINGECKO_ID_MAP)
+        else:
+            # Minimal fallback: compute a few derived fields
+            def _pct(a, b):
+                try:
+                    if b in (None, 0):
+                        return None
+                    return (float(a) - float(b)) / float(b) * 100.0
+                except Exception:
+                    return None
+
+            payload = {
+                "symbol": sym,
+                "price": current_price,
+                "change_1m": _pct(current_price, price_1m_ago),
+                "change_3m": _pct(current_price, price_3m_ago),
+                "volume_change_1h": _pct(vol_1h_now, vol_1h_prev),
+                "heat_score": 50.0,
+                "trend": "FLAT",
+                "social": None,
+                "market_sentiment": None,
+                "sources": {"price_volume": "coinbase_snapshots", "social": "none", "macro": "none"},
+            }
+    except Exception as e:
+        logging.exception("Failed to build insights for %s: %s", sym, e)
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify(payload), 200
 
 @app.get("/metrics")
 def _dev_metrics():

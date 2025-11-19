@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatCompact, formatPct } from "../utils/format";
 
 function cleanSymbol(sym = "") {
   return sym.replace(/-(USD|USDT)$/i, "");
@@ -19,28 +20,55 @@ export default function VolumeBannerScroll({ items }) {
   }, [items]);
 
   const list = items && items.length ? items : data;
-  if (!list.length) return null;
+  if (!list.length) {
+    return (
+      <div className="bh-banner-wrap">
+        <div className="ticker bh-banner bh-banner--volume">
+          <div className="bh-banner-track">
+            <span className="banner-empty">No 1h volume activity yet.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="overflow-hidden w-full py-2">
-      <div className="banner-scroll flex gap-4">
-        {list.map((it, idx) => {
-          const volPct =
-            it.volume_change_pct ?? it.volume_pct ?? it.change_pct ?? 0;
-          const up = volPct >= 0;
-          return (
-            <span
-              key={idx}
-              className={`banner-chip ${up ? "banner-chip-gain" : "banner-chip-loss"}`}
-            >
-              <span>{cleanSymbol(it.symbol)}</span>
-              {typeof it.volume_1h === "number" && (
-                <span>Vol {Number(it.volume_1h).toLocaleString()}</span>
-              )}
-              <span>{volPct.toFixed(2)}%</span>
-            </span>
-          );
-        })}
+    <div className="bh-banner-wrap">
+      <div className="ticker bh-banner bh-banner--volume">
+        <div className="bh-banner-track">
+          {list.map((it, idx) => {
+            const symbol = cleanSymbol(it.symbol);
+            const volumeNow =
+              typeof it.volume_1h === "number" ? it.volume_1h : it.volume;
+            const rawPct =
+              it.volume_change_pct ??
+              it.volume_pct ??
+              it.change_pct ??
+              it.volume_change_percentage_1h ??
+              0;
+            const pct = Number(rawPct) || 0;
+            const pctClass =
+              pct > 0
+                ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
+                : pct < 0
+                ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
+                : "bh-banner-chip__pct";
+
+            return (
+              <span key={idx} className="bh-banner-chip">
+                <span className="bh-banner-chip__symbol">{symbol}</span>
+                <span className="bh-banner-chip__price">
+                  {volumeNow != null ? `Vol ${formatCompact(volumeNow)}` : "Vol —"}
+                </span>
+                <span className={pctClass}>
+                  {pct === 0
+                    ? "0.0%"
+                    : formatPct(pct, { sign: true })}
+                </span>
+              </span>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

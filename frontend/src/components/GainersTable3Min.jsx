@@ -1,93 +1,84 @@
-import React, { useState, useMemo } from "react";
-import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
-import TokenRow from "./TokenRow";
-import { formatSymbol } from "../lib/format";
-import { normalizeTableRow } from "../lib/adapters";
-import SymbolInfoPanel from "./SymbolInfoPanel";
+import React, { useState } from "react";
+import TokenRow from "./TokenRow.jsx";
 
-export default function GainersTable3Min({ items: incoming, rows, loading, error, onInfo }) {
-  const { data: payload = {} } = useHybridLiveNamed({
-    endpoint: "/api/component/gainers-table",
-    eventName: "gainers3m",
-    pollMs: 8000,
-    initial: [],
-  });
+const MAX_BASE = 8;
+const MAX_EXPANDED = 16;
 
-  const external = Array.isArray(rows) ? rows : null;
-  const source = external ?? (Array.isArray(incoming) && incoming.length ? incoming : payload?.data);
-
-  // unwrap { data: [...] }
-  const raw = Array.isArray(source) ? source : [];
-
-  // map backend row -> TokenRow props
-  const mapped = raw.map((row, idx) => {
-    const nr = normalizeTableRow(row);
-    const ticker = formatSymbol(nr.symbol || row.symbol) || nr.symbol || row.symbol;
-    return {
-      rank: nr.rank ?? row.rank ?? idx + 1,
-      symbol: ticker,
-      current_price: nr.currentPrice ?? row.current_price,
-      previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
-      price_change_percentage_1min: undefined,
-      price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
-      isGainer: true,
-    };
-  });
-
-  const [expanded, setExpanded] = useState(false);
-  const [selectedSymbol, setSelectedSymbol] = useState(null);
-  const visible = useMemo(
-    () => (expanded ? mapped : mapped.slice(0, 8)),
-    [mapped, expanded]
+const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) => {
+  const renderHeader = () => (
+    <div className="panel-header panel-header-3m panel-header-3m-gainers">
+      <div className="panel-header-main">
+        <span className="panel-kicker">Top Gainers</span>
+        <span className="panel-timeframe">(3m)</span>
+      </div>
+    </div>
   );
-  const hasData = visible.length > 0;
-  const showError = !external && !loading && error && !hasData;
+
+  if (error) {
+    return (
+      <div className="panel panel-3m">
+        {renderHeader()}
+        <div className="panel-body">
+          <div className="panel-error">Failed to load 3m gainers.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="panel panel-3m">
+        {renderHeader()}
+        <div className="panel-body">
+          <div className="panel-loading">Loading…</div>
+        </div>
+      </div>
+    );
+  }
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const allRows = Array.isArray(rows) ? rows : [];
+  const visibleRows = isExpanded ? allRows.slice(0, MAX_EXPANDED) : allRows.slice(0, MAX_BASE);
+  const count = allRows.length;
 
   return (
-    <section className="text-left text-white text-[12px] gainers-3m">
-      {/* orange header pill */}
-      <div className="inline-block rounded-[3px] border border-[#f9c86b80] bg-black/70 px-2 py-[4px] text-[12px] font-semibold text-[#f9c86b] shadow-glowGold">
-        3-MIN GAINERS
-      </div>
+    <div className="panel panel-3m">
+      {renderHeader()}
+      <div className="panel-body">
+        {count > 0 ? (
+          visibleRows.map((row, index) => (
+            <TokenRow
+              key={row.symbol || index}
+              rank={row.rank ?? index + 1}
+              symbol={row.symbol}
+              currentPrice={row.current_price}
+              previousPrice={row.initial_price_3min}
+              changePct={row.price_change_percentage_3min ?? row.gain}
+              rowType="gainer"
+              onInfo={onInfo}
+            />
+          ))
+        ) : (
+          <div className="panel-empty">No 3m gainers yet.</div>
+        )}
 
-      {/* underline */}
-      <div className="mt-2 h-px w-full max-w-[240px] border-b border-[#f9c86b80] shadow-glowGold" />
-
-      {showError ? (
-        <div className="mt-4 text-white/50">Backend unavailable (no data)</div>
-      ) : hasData ? (
-        <>
-          <div className="mt-4 w-full overflow-x-hidden panel-3m flex flex-col gap-1">
-            {visible.map((rowProps, idx) => (
-              <TokenRow
-                key={`${rowProps.symbol}-${idx}`}
-                row={rowProps}
-                index={idx + 1}
-                changeKey="price_change_percentage_3min"
-                onInfo={onInfo || ((sym) => setSelectedSymbol(sym))}
-              />
-            ))}
+        {count > MAX_BASE && (
+          <div className="panel-footer">
+            <div className="panel-show-more">
+              <button
+                className="btn-show-more"
+                aria-expanded={isExpanded}
+                aria-controls="gainers-3m-list"
+                onClick={() => setIsExpanded((s) => !s)}
+              >
+                {isExpanded ? "Show Less" : "Show More"}
+              </button>
+            </div>
           </div>
-
-          {!expanded && mapped.length > 8 && (
-            <button
-              className="mt-4 inline-block rounded-[4px] border border-[#f9c86b80] bg-black/70 px-3 py-1 text-[11px] text-white shadow-glowGold"
-              onClick={() => setExpanded(true)}
-            >
-              Show more
-            </button>
-          )}
-        </>
-      ) : (
-        <div className="mt-4 text-white/50">Loading (3min)..</div>
-      )}
-
-      {selectedSymbol && (
-        <SymbolInfoPanel
-          symbol={selectedSymbol}
-          onClose={() => setSelectedSymbol(null)}
-        />
-      )}
-    </section>
+        )}
+      </div>
+    </div>
   );
-}
+};
+
+export default GainersTable3Min;

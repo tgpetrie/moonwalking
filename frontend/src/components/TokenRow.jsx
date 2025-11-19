@@ -10,6 +10,7 @@ function TokenRow({
   item,
   index = 0,
   rank,
+  rowType,
   changeKey,
   interval = "3m",
   onInfo,
@@ -37,6 +38,14 @@ function TokenRow({
 
   const { sentiment } = useSentiment() || {};
 
+  // Determine visual gain/loss styling: prefer explicit rowType, then explicitIsLoss, then sign.
+  let rowKindClass = "";
+  if (rowType === "gainer") rowKindClass = "is-gain";
+  else if (rowType === "loser") rowKindClass = "is-loss";
+  else if (typeof explicitIsLoss === "boolean")
+    rowKindClass = explicitIsLoss ? "is-loss" : "is-gain";
+  else rowKindClass = pct >= 0 ? "is-gain" : "is-loss";
+
   const pctClass = pct < 0 ? "token-pct-loss" : "token-pct-gain";
   const streakRaw = data.trendStreak ?? data.trend_streak ?? data.peak_count ?? 0;
   const streak = Number.isFinite(Number(streakRaw)) ? Number(streakRaw) : 0;
@@ -62,11 +71,9 @@ function TokenRow({
     if (e.key === 'Enter') handleClick(e);
   };
 
-  const isLoss = typeof explicitIsLoss === 'boolean' ? explicitIsLoss : pct < 0;
-
   return (
     <div
-      className={`token-row token-row--clickable ${isLoss ? 'is-loss' : pct > 0 ? 'is-gain' : ''}`}
+      className={`token-row table-row token-row--clickable ${rowKindClass}`}
       data-row="token"
       role="link"
       tabIndex={0}
@@ -74,13 +81,14 @@ function TokenRow({
       onClick={handleClick}
       onMouseEnter={onHover ? () => onHover(display, data) : undefined}
     >
-      <div className="row-hover-bg" aria-hidden />
-      <div className="row-base-line" aria-hidden />
-      <div className="tr-col-rank">
-        <div className={`rank-badge ${isLoss ? 'rank-badge-loss' : 'rank-badge-gain'}`}>{displayRank ?? 1}</div>
+      <div className="row-hover-glow" aria-hidden />
+      <div className="tr-col tr-col-rank">
+        <div className={`rank-badge tr-rank-badge ${rowKindClass === "is-loss" ? "rank-badge-loss" : "rank-badge-gain"}`}>
+          {displayRank ?? 1}
+        </div>
       </div>
-      <div className="tr-symbol">
-        {display}
+      <div className="tr-col tr-col-symbol tr-symbol">
+        <span>{display}</span>
         {sentiment ? (
           <span
             className="sentiment-dot"
@@ -90,15 +98,26 @@ function TokenRow({
         ) : null}
         {/* streak indicator removed to reduce visual clutter; keep logic if we want to re-enable later */}
       </div>
-      <div className="tr-col-price">
+      <div className="tr-col tr-col-price">
         <div className="tr-price-current">{formatPrice(price)}</div>
-        {prevPrice != null && (
-          <div className="tr-price-prev">{formatPrice(prevPrice)}</div>
-        )}
       </div>
-      <div className={`tr-col-pct ${pctClass}`}>{formatPct(pct)}</div>
-      <div className="tr-col-actions">
-        <RowActions symbol={display} price={price} onInfo={(t) => onInfo && onInfo(t)} />
+      <div className="tr-col tr-col-prev">
+        <div
+          className={`tr-price-prev ${prevPrice == null ? "tr-price-prev--empty" : ""}`}
+          aria-hidden={prevPrice == null}
+        >
+          {prevPrice != null ? formatPrice(prevPrice) : "—"}
+        </div>
+      </div>
+      <div className="tr-col tr-col-pct">
+        <span className={`tr-pct ${pctClass}`}>{formatPct(pct)}</span>
+      </div>
+      <div className="tr-col tr-col-actions">
+        <RowActions
+          symbol={display}
+          price={price}
+          onInfo={(t) => onInfo && onInfo(t)}
+        />
       </div>
     </div>
   );
