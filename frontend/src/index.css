@@ -373,54 +373,119 @@ body {
   white-space: nowrap;
 }
 
-/* Row base */
-tr.table-row { position: relative; }
+/* === BHABIT row rails + hover glow ==================================
 
-/* Ambient per-row aura (subtle, always on, very low opacity) */
-tr.table-row::before {
+Outer glow / rail = constant thin line under every row
+Hover inner glow = stretched beam, orange for gainers, purple for losers
+Row background = fully transparent (rabbit art always visible)
+
+The selectors below target both table rows and the token-row divs used
+by React components so they can co-exist. If you have older ::before/::after
+rules earlier in this file, comment them out to avoid fighting styles.
+*/
+
+/* Base row: transparent background, positioned for pseudo elements */
+tr.table-row,
+.token-row.table-row {
+  position: relative;
+  background-color: transparent; /* keep rabbit visible, no panel fill */
+}
+
+/* Constant thin rail under every row */
+tr.table-row::before,
+.token-row.table-row::before {
   content: "";
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   bottom: -3px;
-  width: 58%;
-  height: 6px;
-  opacity: 0.10; /* faint */
+  width: 58%;                /* rail length */
+  height: 2px;               /* thin line */
+  opacity: 0.18;             /* faint but always visible */
   pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent 0%, black 48%, black 64%, transparent 100%);
+  filter: blur(4px);
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    black 48%,
+    black 64%,
+    transparent 100%
+  );
 }
 
-/* Tight hover glow (centered line) */
-tr.table-row::after {
+/* Hover beam — wider, blurred strip that lights up on hover */
+tr.table-row::after,
+.token-row.table-row::after {
   content: "";
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(0) scaleX(1);
   bottom: -5px;
-  width: 46%;
-  height: 6px;
+  width: 64%;                /* a bit longer than the rail */
+  height: 6px;               /* taller, for glow */
   opacity: 0;
-  transition: opacity 120ms ease;
   pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent 0%, black 48%, black 64%, transparent 100%);
+  border-radius: 999px;
+  filter: blur(10px);
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    black 48%,
+    black 64%,
+    transparent 100%
+  );
+  transition:
+    opacity 140ms ease-out,
+    transform 160ms ease-out;
 }
-tr.table-row:hover::after { opacity: 1; }
 
-/* Brand tints: gainers (gold/orange), losers (purple) */
+/* On hover, beam brightens and nudges slightly up/longer */
+tr.table-row:hover::after,
+.token-row.table-row:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-1px) scaleX(1.08);
+}
+
+/* Brand tints for both the constant rail and the hover beam */
+
+/* Gainers: transparent orange glow */
 tr.table-row.is-gain::before,
-tr.table-row.is-gain::after {
-  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #D88900 50%, rgba(0,0,0,0) 100%);
-}
-tr.table-row.is-loss::before,
-tr.table-row.is-loss::after {
-  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #7B3EF3 50%, rgba(0,0,0,0) 100%);
+tr.table-row.is-gain::after,
+.token-row.table-row.is-gain::before,
+.token-row.table-row.is-gain::after {
+  background: linear-gradient(
+    90deg,
+    rgba(216, 137, 0, 0.0) 0%,
+    rgba(216, 137, 0, 0.55) 50%,
+    rgba(216, 137, 0, 0.0) 100%
+  );
 }
 
-/* Optional: neutral row */
+/* Losers: transparent purple glow */
+tr.table-row.is-loss::before,
+tr.table-row.is-loss::after,
+.token-row.table-row.is-loss::before,
+.token-row.table-row.is-loss::after {
+  background: linear-gradient(
+    90deg,
+    rgba(123, 62, 243, 0.0) 0%,
+    rgba(123, 62, 243, 0.55) 50%,
+    rgba(123, 62, 243, 0.0) 100%
+  );
+}
+
+/* Flat / neutral: soft grey lane */
 tr.table-row.is-flat::before,
-tr.table-row.is-flat::after {
-  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, #444 50%, rgba(0,0,0,0) 100%);
-  opacity: 0.05;
+tr.table-row.is-flat::after,
+.token-row.table-row.is-flat::before,
+.token-row.table-row.is-flat::after {
+  background: linear-gradient(
+    90deg,
+    rgba(68, 68, 68, 0.0) 0%,
+    rgba(68, 68, 68, 0.35) 50%,
+    rgba(68, 68, 68, 0.0) 100%
+  );
+  opacity: 0.12; /* slightly softer than gain/loss */
 }
 
 
@@ -1181,6 +1246,12 @@ body {
 }
 
 /* Constant rail + hover beam */
+/* Legacy token-row hover helpers commented out in favor of the
+   consolidated ::before / ::after approach above. Keeping these
+   blocks in the file for reference, but commented so they do not
+   conflict with the new rail/beam rules. */
+
+/*
 .token-row.table-row::before {
   content: "";
   position: absolute;
@@ -1232,6 +1303,7 @@ body {
   opacity: 1;
   transform: translateY(-0.5px) scaleX(1.08);
 }
+*/
 
 /* subtle breathing animation to keep interface alive; respects reduced motion */
 @media (prefers-reduced-motion: no-preference) {
