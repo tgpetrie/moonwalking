@@ -41,7 +41,9 @@ export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) 
             <span key={`${it.symbol}-${i}`} className={`bh-banner-item ${cls}`}>
               <b className="bh-banner-symbol">{it.symbol || "--"}</b>
               <span className="bh-banner-price">{it.volume_now ? formatCompact(it.volume_now) : "--"}</span>
-              <span className="bh-banner-pct">{Number.isFinite(it.pct) ? formatPct(it.pct / 100) : "--"}</span>
+              <span className="bh-banner-pct">
+                {Number.isFinite(it.pct) ? formatPct(it.pct) : "--"}
+              </span>
             </span>
           );
         })}

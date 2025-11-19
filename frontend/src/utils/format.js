@@ -37,13 +37,16 @@ export function formatPct(n, { sign = true, fallback = "—" } = {}) {
   const x = Number(n);
   if (!Number.isFinite(x)) return fallback;
 
-  // Accept either a fractional input (0.0123 -> 1.23%) or a percent value (1.23 -> 1.23%).
-  // Decide based on magnitude: if abs(x) <= 1 treat as fraction and multiply by 100,
-  // otherwise assume it's already a percent value.
-  const value = Math.abs(x) <= 1 ? x * 100 : x;
+  // Backend already returns **percent values** (e.g., 2.53 === 2.53%).
+  // We no longer try to guess between fraction vs. percent; treat the
+  // input as a percent unit and only control decimals + sign.
+  const value = x;
   const abs = Math.abs(value);
 
-  const decimals = abs >= 1 ? 2 : 4;
+  // Canonical rules (see UI_HOME_DASHBOARD.md):
+  // - abs(change) < 1  → 3 decimals
+  // - abs(change) >= 1 → 2 decimals
+  const decimals = abs < 1 ? 3 : 2;
 
   const base = value
     .toFixed(decimals)
@@ -64,47 +67,37 @@ export function colorForDelta(n) {
   return "var(--bh-neutral, #9ca3af)";
 }
 
-// Shape a backend row into a 1h banner item
-export function map1hPriceBannerItem(row) {
-  if (!row) return null;
+// Simple 1h price banner mapper: symbol, current price, pct change, gain/loss
+export function map1hPriceBannerItemBase(raw) {
+  if (!raw) return null;
 
-  const {
-    symbol,
-    label,
-    price_now,
-    price_then,
-    pct_change_1h,
-    delta_1h,
-    pct_change,
-    price,
-    side,
-  } = row;
+  const symbol = raw.symbol || raw.ticker || "";
 
-  // Try the most specific fields first, then fall back
-  const pct =
-    pct_change_1h ??
-    delta_1h ??
-    pct_change ??
+  const current =
+    raw.current_price ??
+    raw.price_now ??
+    raw.price ??
+    raw.last_price ??
     null;
 
-  const currentPrice = price_now ?? price ?? null;
+  const pctRaw =
+    raw.pct_change_1h ??
+    raw.price_change_percentage_1h ??
+    raw.change_1h_price ??
+    raw.delta_1h ??
+    raw.change_1h ??
+    raw.pct_change ??
+    0;
 
-  const direction =
-    side ??
-    (pct > 0 ? "up" : pct < 0 ? "down" : "flat");
+  const pct = Number(pctRaw);
+  const pctChange = Number.isFinite(pct) ? pct : 0;
 
   return {
     symbol,
-    label: label || symbol,
-    price: currentPrice,
-    pct,
-    formattedPrice: currentPrice != null
-      ? formatPrice(currentPrice)
-      : "—",
-    formattedPct:
-      pct == null ? "—" : formatPct(pct, { sign: true }),
-    side: direction,
-    color: colorForDelta(pct),
+    currentPrice: current,
+    pctChange,
+    isGain: pctChange > 0,
+    isLoss: pctChange < 0,
   };
 }
 
@@ -128,12 +121,45 @@ export function formatCompact(n) {
   return `${Math.round(v)}`;
 }
 
+// Simple 1h volume banner mapper: symbol, current volume, pct change
+export function map1hVolumeBannerItemBase(raw) {
+  if (!raw) return null;
+
+  const symbol = raw.symbol || raw.ticker || "";
+
+  const current =
+    raw.volume_1h ??
+    raw.volume ??
+    raw.current_volume ??
+    null;
+
+  const pctRaw =
+    raw.volume_change_1h ??
+    raw.volume_change_pct_1h ??
+    raw.volume_change_pct ??
+    raw.change_1h_volume ??
+    raw.change_vol_1h ??
+    0;
+
+  const pct = Number(pctRaw);
+  const pctChange = Number.isFinite(pct) ? pct : 0;
+
+  return {
+    symbol,
+    currentVolume: current,
+    pctChange,
+    isGain: pctChange > 0,
+    isLoss: pctChange < 0,
+  };
+}
+
 // Augment default export for compatibility
 export default {
   formatPrice,
   formatPct,
   colorForDelta,
-  map1hPriceBannerItem,
+  map1hPriceBannerItemBase,
+  map1hVolumeBannerItemBase,
   tickerFromSymbol,
   formatCompact,
 };

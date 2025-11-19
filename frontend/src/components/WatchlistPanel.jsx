@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { formatPrice, formatPct } from "../utils/format";
+import TokenRow from "./TokenRow.jsx";
 
 function deltaPct(baseline, current) {
   if (baseline == null || current == null) return null;
@@ -37,24 +38,35 @@ export default function WatchlistPanel({ title = "WATCHLIST", onInfo }) {
           <div className="wl-search-underline" />
         </form>
 
-        {filtered.length === 0 && <div className="panel-empty">Star or add a token to pin it here.</div>}
+        {filtered.length === 0 && (
+          <div className="panel-empty">
+            Star or add a token to pin it here.
+          </div>
+        )}
 
-        <div className="wl-list">
-          {filtered.map((it) => {
-            const pct = deltaPct(it.baseline, it.current);
-            return (
-              <div key={it.symbol} className="wl-row">
-                <div className="wl-symbol">{it.symbol.replace(/-(USD|USDT|PERP)$/i, "")}</div>
-                <div className="wl-price">{formatPrice(it.current)}</div>
-                <div className="wl-delta">{pct == null ? "--" : formatPct(pct / 100)}</div>
-                <div className="wl-actions">
-                  <button type="button" className="bh-btn-icon" onClick={() => onInfo?.(it.symbol)}>i</button>
-                  <button type="button" className="bh-btn-icon bh-btn-icon--danger" onClick={() => remove(it.symbol)}>×</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {filtered.length > 0 && (
+          <div className="wl-list">
+            {filtered.map((it, index) => {
+              const pct = deltaPct(it.baseline, it.current);
+              const displaySymbol = it.symbol.replace(/-(USD|USDT|PERP)$/i, "");
+              const rowType =
+                pct == null ? undefined : pct >= 0 ? "gainer" : "loser";
+
+              return (
+                <TokenRow
+                  key={it.symbol}
+                  rank={index + 1}
+                  symbol={displaySymbol}
+                  currentPrice={it.current}
+                  previousPrice={it.baseline}
+                  changePct={pct}
+                  rowType={rowType}
+                  onInfo={onInfo}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

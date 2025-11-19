@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import TokenRow from "./TokenRow.jsx";
 
 const MAX_BASE = 8;
@@ -38,8 +38,32 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
 
   const [isExpanded, setIsExpanded] = useState(false);
   const allRows = Array.isArray(rows) ? rows : [];
-  const visibleRows = isExpanded ? allRows.slice(0, MAX_EXPANDED) : allRows.slice(0, MAX_BASE);
-  const count = allRows.length;
+
+  const gainers = useMemo(() => {
+    return allRows
+      .map((row) => {
+        const pctRaw =
+          row.price_change_percentage_3min ??
+          row.change_3m ??
+          row.gain ??
+          row.pct_change ??
+          row.pct ??
+          0;
+        const pct = Number(pctRaw);
+        return {
+          ...row,
+          pct,
+          _pct: Number.isFinite(pct) ? pct : 0,
+        };
+      })
+      .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
+      .sort((a, b) => b._pct - a._pct);
+  }, [allRows]);
+
+  const visibleRows = isExpanded
+    ? gainers.slice(0, MAX_EXPANDED)
+    : gainers.slice(0, MAX_BASE);
+  const count = gainers.length;
 
   return (
     <div className="panel panel-3m">
@@ -53,7 +77,7 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
               symbol={row.symbol}
               currentPrice={row.current_price}
               previousPrice={row.initial_price_3min}
-              changePct={row.price_change_percentage_3min ?? row.gain}
+              changePct={row.pct}
               rowType="gainer"
               onInfo={onInfo}
             />

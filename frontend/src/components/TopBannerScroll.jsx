@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { map1hPriceBannerItem, formatPrice, formatPct } from "../utils/format";
+import React, { useMemo } from "react";
+import { map1hPriceBannerItemBase, formatPrice, formatPct, tickerFromSymbol } from "../utils/format";
 
 function buildCoinbaseUrl(symbol) {
   if (!symbol) return "#";
@@ -11,18 +11,17 @@ function buildCoinbaseUrl(symbol) {
 }
 
 export default function TopBannerScroll({ rows = [], onRefresh }) {
-  const items = Array.isArray(rows) ? rows : [];
-  const ref = useRef(null);
+  const rawItems = Array.isArray(rows) ? rows : [];
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || items.length === 0) return;
-    const anim = el.animate(
-      [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
-      { duration: 30000, iterations: Infinity, easing: "linear" }
-    );
-    return () => anim.cancel();
-  }, [items.length]);
+  const items = useMemo(() => {
+    const mapped = rawItems
+      .map((row) => map1hPriceBannerItemBase(row))
+      .filter((it) => it && it.currentPrice != null && it.pctChange !== 0)
+      .sort((a, b) => b.pctChange - a.pctChange)
+      .slice(0, 20)
+      .map((it, index) => ({ ...it, rank: index + 1 }));
+    return mapped;
+  }, [rawItems]);
 
   if (!items.length) {
     // Render an empty-but-visible banner container so layout stays intact
@@ -40,41 +39,36 @@ export default function TopBannerScroll({ rows = [], onRefresh }) {
   return (
     <div className="bh-banner-wrap">
       <div className="ticker bh-banner">
-        <div className="bh-banner-track" ref={ref}>
-          {[...items, ...items].map((t, i) => {
-            const it = map1hPriceBannerItem(t);
-            const pct = Number(it?.pct ?? 0);
-            const pctClass =
-              pct > 0
-                ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
-                : pct < 0
-                ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
-                : "bh-banner-chip__pct";
+        <div className="bh-banner-strip bh-banner-strip--price">
+          <div className="bh-banner-strip__inner bh-banner-strip__inner--scroll">
+            {[...items, ...items].map((it, i) => {
+              const pct = Number(it?.pctChange ?? 0);
+              const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
+              const displaySymbol = it.symbol
+                ? tickerFromSymbol(it.symbol)
+                : "--";
+              const rank = (i % items.length) + 1;
 
-            const displaySymbol = it.symbol
-              ? it.symbol.replace(/-(USD|USDT|PERP)$/i, "")
-              : "--";
-
-            return (
-              <a
-                key={`${it.symbol || "item"}-${i}`}
-                href={buildCoinbaseUrl(it.symbol)}
-                target="_blank"
-                rel="noreferrer"
-                className="bh-banner-chip"
-              >
-                <span className="bh-banner-chip__symbol">{displaySymbol}</span>
-                <span className="bh-banner-chip__price">
-                  {formatPrice(it.price)}
-                </span>
-                <span className={pctClass}>
-                  {pct === 0
-                    ? "0.0%"
-                    : it.formattedPct ?? formatPct(pct, { sign: true })}
-                </span>
-              </a>
-            );
-          })}
+              return (
+                <a
+                  key={`${it.symbol || "item"}-${i}`}
+                  href={buildCoinbaseUrl(it.symbol)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`bh-banner-chip bh-banner-chip--price ${chipState}`}
+                >
+                  <span className="bh-banner-chip__rank">{rank}</span>
+                  <span className="bh-banner-chip__symbol">{displaySymbol}</span>
+                  <span className="bh-banner-chip__price">
+                    {formatPrice(it.currentPrice)}
+                  </span>
+                  <span className="bh-banner-chip__pct">
+                    {formatPct(pct, { sign: true })}
+                  </span>
+                </a>
+              );
+            })}
+          </div>
         </div>
         {onRefresh && (
           <button

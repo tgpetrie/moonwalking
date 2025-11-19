@@ -2526,6 +2526,46 @@ def data_aggregate():
         # Build canonical list of rows
         all_rows = list(rows_by_symbol.values())
 
+        def _select_top_movers(rows, pct_key: str, limit: int = 16):
+            """Deterministic splitter for gainers/losers by sign.
+
+            - Normalizes the percent field to a float.
+            - Splits into strictly >0 gainers and <0 losers.
+            - Sorts gainers desc, losers asc (most negative first).
+            - Never backfills one side with the other if there aren't enough.
+            """
+            cleaned = []
+            for row in rows:
+                raw = row.get(pct_key)
+                if raw is None:
+                    continue
+                try:
+                    pct = float(raw)
+                except (TypeError, ValueError):
+                    continue
+                r = dict(row)
+                r[pct_key] = pct
+                cleaned.append(r)
+
+            gainers = [r for r in cleaned if r[pct_key] > 0.0]
+            losers = [r for r in cleaned if r[pct_key] < 0.0]
+
+            gainers_sorted = sorted(gainers, key=lambda r: r[pct_key], reverse=True)
+            losers_sorted = sorted(losers, key=lambda r: r[pct_key])  # most negative first
+
+            def _tag_rank(subset):
+                out_rows = []
+                for idx, base in enumerate(subset[:limit], start=1):
+                    row = dict(base)
+                    row["rank"] = idx
+                    sym = row.get("symbol") or ""
+                    slug = str(sym).lower()
+                    row.setdefault("trade_url", f"https://www.coinbase.com/price/{slug}")
+                    out_rows.append(row)
+                return out_rows
+
+            return _tag_rank(gainers_sorted), _tag_rank(losers_sorted)
+
         def _sorted_rows(key: str, reverse: bool = False, limit: int = 16):
             subset = [r for r in all_rows if isinstance(r.get(key), (int, float)) and r.get(key) not in (None, 0)]
             subset.sort(key=lambda r: r.get(key, 0.0), reverse=reverse)
@@ -2533,16 +2573,14 @@ def data_aggregate():
             for idx, base in enumerate(subset[:limit], start=1):
                 row = dict(base)
                 row["rank"] = idx
-                # attach a trade URL for the row; frontend can fall back to slug if missing
                 sym = row.get("symbol") or ""
                 slug = str(sym).lower()
                 row.setdefault("trade_url", f"https://www.coinbase.com/price/{slug}")
                 out.append(row)
             return out
 
-        gainers_1m = _sorted_rows("change_1m", reverse=True)
-        gainers_3m = _sorted_rows("change_3m", reverse=True)
-        losers_3m = _sorted_rows("change_3m", reverse=False)
+        gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m")
+        gainers_3m, losers_3m = _select_top_movers(all_rows, "change_3m")
 
         banner_1h_price = _sorted_rows("change_1h_price", reverse=True, limit=20)
         banner_1h_volume = _sorted_rows("change_1h_volume", reverse=True, limit=20)

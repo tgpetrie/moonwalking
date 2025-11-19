@@ -25,7 +25,6 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
 
   const gainers1mRows = useMemo(() => gainers1m?.rows || [], [gainers1m]);
   const { items: watchlistItems = [] } = useWatchlist();
-  const hasWatchlist = Array.isArray(watchlistItems) && watchlistItems.length > 0;
 
   return (
     <div className="bh-app">
@@ -62,14 +61,9 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
       </section>
 
       <main className="bh-main">
-        <div className="board-shell">
-          {/* ROW 1 – 1m gainers hero + optional watchlist slot (shares rails with 3m pair) */}
-          <section
-            className={
-              "panel-row panel-row-1m" +
-              (hasWatchlist ? " has-watchlist-open" : "")
-            }
-          >
+        <div className="dashboard-shell">
+          {/* ROW 1 – 1m gainers hero (full width) */}
+          <section className="panel-row panel-row-1m">
             <div className="panel-1m-slot">
               <GainersTable1Min
                 rows={gainers1mRows}
@@ -77,11 +71,6 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
                 error={gainers1m?.message}
                 onInfo={onInfoProp}
               />
-            </div>
-            <div className="panel-watchlist-slot">
-              <section className="panel panel-watchlist">
-                <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
-              </section>
             </div>
           </section>
 
@@ -102,6 +91,15 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
                 error={losers3m?.message}
                 onInfo={onInfoProp}
               />
+            </div>
+          </section>
+
+          {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
+          <section className="panel-row panel-row-watchlist">
+            <div className="panel-watchlist-slot">
+              <section className="panel panel-watchlist">
+                <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
+              </section>
             </div>
           </section>
         </div>

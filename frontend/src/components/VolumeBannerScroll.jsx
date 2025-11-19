@@ -1,9 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { formatCompact, formatPct } from "../utils/format";
-
-function cleanSymbol(sym = "") {
-  return sym.replace(/-(USD|USDT)$/i, "");
-}
+import React, { useEffect, useState, useMemo } from "react";
+import { formatCompact, formatPct, map1hVolumeBannerItemBase } from "../utils/format";
 
 export default function VolumeBannerScroll({ items }) {
   const [data, setData] = useState(items || []);
@@ -20,7 +16,16 @@ export default function VolumeBannerScroll({ items }) {
   }, [items]);
 
   const list = items && items.length ? items : data;
-  if (!list.length) {
+
+  const mapped = useMemo(() => {
+    return list
+      .map((row) => map1hVolumeBannerItemBase(row))
+      .filter((it) => it && it.currentVolume != null && it.pctChange !== 0)
+      .sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange))
+      .map((it, index) => ({ ...it, rank: index + 1 }));
+  }, [list]);
+
+  if (!mapped.length) {
     return (
       <div className="bh-banner-wrap">
         <div className="ticker bh-banner bh-banner--volume">
@@ -35,39 +40,26 @@ export default function VolumeBannerScroll({ items }) {
   return (
     <div className="bh-banner-wrap">
       <div className="ticker bh-banner bh-banner--volume">
-        <div className="bh-banner-track">
-          {list.map((it, idx) => {
-            const symbol = cleanSymbol(it.symbol);
-            const volumeNow =
-              typeof it.volume_1h === "number" ? it.volume_1h : it.volume;
-            const rawPct =
-              it.volume_change_pct ??
-              it.volume_pct ??
-              it.change_pct ??
-              it.volume_change_percentage_1h ??
-              0;
-            const pct = Number(rawPct) || 0;
-            const pctClass =
-              pct > 0
-                ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
-                : pct < 0
-                ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
-                : "bh-banner-chip__pct";
-
-            return (
-              <span key={idx} className="bh-banner-chip">
-                <span className="bh-banner-chip__symbol">{symbol}</span>
-                <span className="bh-banner-chip__price">
-                  {volumeNow != null ? `Vol ${formatCompact(volumeNow)}` : "Vol —"}
-                </span>
-                <span className={pctClass}>
-                  {pct === 0
-                    ? "0.0%"
-                    : formatPct(pct, { sign: true })}
-                </span>
+        <div className="bh-banner-track bh-banner-strip__inner">
+          {mapped.map((it) => (
+            <span
+              key={it.symbol}
+              className={`bh-banner-chip bh-banner-chip--volume ${
+                it.isGain ? "is-gain" : it.isLoss ? "is-loss" : ""
+              }`}
+            >
+              <span className="bh-banner-chip__rank">{it.rank}</span>
+              <span className="bh-banner-chip__symbol">{it.symbol}</span>
+              <span className="bh-banner-chip__price">
+                {it.currentVolume != null
+                  ? `Vol ${formatCompact(it.currentVolume)}`
+                  : "Vol —"}
               </span>
-            );
-          })}
+              <span className="bh-banner-chip__pct">
+                {formatPct(it.pctChange, { sign: true })}
+              </span>
+            </span>
+          ))}
         </div>
       </div>
     </div>

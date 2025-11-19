@@ -46,14 +46,14 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: url("/nbg.png");
+  /* disabled: use single rabbit element `.bh-rabbit-bg` for the background art */
+  background-image: none;
   background-repeat: no-repeat;
-  /* center the rabbit artwork in the viewport so it stays visually anchored */
   background-position: center center;
-  background-size: 60vw auto;
-  opacity: 0.06;
-  filter: drop-shadow(0 0 36px rgba(249, 115, 22, 0.35));
-  mix-blend-mode: screen;
+  background-size: 0;
+  opacity: 0;
+  filter: none;
+  mix-blend-mode: normal;
   z-index: 0;
 }
 
@@ -253,7 +253,8 @@ body {
 }
 
 /* Unified board shell so 1m + watchlist and 3m share the same rails */
-.board-shell {
+.board-shell,
+.dashboard-shell {
   max-width: var(--bh-board-width, 1160px);
   margin: 0 auto;
   padding: 0 16px 48px;
@@ -261,6 +262,32 @@ body {
 
 .panel-1m-section,
 .panel-3m-section {
+  width: 100%;
+}
+
+/* Panel rows & slots (layout shell for 1m/3m + watchlist) */
+.panel-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bh-panel-gap, 40px);
+  align-items: flex-start;
+}
+
+.panel-row-1m {
+  margin-top: 1.5rem;
+}
+
+.panel-row-1m.panel-row-1m--full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.panel-row-3m {
+  margin-top: 1.75rem;
+}
+
+.panel-1m-slot,
+.panel-watchlist-slot,
+.panel-3m-slot {
   width: 100%;
 }
 
@@ -373,120 +400,83 @@ body {
   white-space: nowrap;
 }
 
-/* === BHABIT row rails + hover glow ==================================
+/* === BHABIT row rails + hover fill =================================
+   A visible gradient rail under each row plus a soft glow on hover. */
 
-Outer glow / rail = constant thin line under every row
-Hover inner glow = stretched beam, orange for gainers, purple for losers
-Row background = fully transparent (rabbit art always visible)
-
-The selectors below target both table rows and the token-row divs used
-by React components so they can co-exist. If you have older ::before/::after
-rules earlier in this file, comment them out to avoid fighting styles.
-*/
-
-/* Base row: transparent background, positioned for pseudo elements */
-tr.table-row,
 .token-row.table-row {
   position: relative;
-  background-color: transparent; /* keep rabbit visible, no panel fill */
+  background-color: transparent;
+  overflow: hidden;
 }
 
-/* Constant thin rail under every row */
-tr.table-row::before,
+/* permanent rail */
 .token-row.table-row::before {
   content: "";
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: -3px;
-  width: 58%;                /* rail length */
-  height: 2px;               /* thin line */
-  opacity: 0.18;             /* faint but always visible */
-  pointer-events: none;
-  filter: blur(4px);
-  mask-image: linear-gradient(
+  left: var(--bh-row-rail-left, 0.75rem);
+  right: var(--bh-row-rail-right, 0.75rem);
+  bottom: 0;
+  height: 1px;
+  opacity: 1;
+  background: linear-gradient(
     90deg,
-    transparent 0%,
-    black 48%,
-    black 64%,
-    transparent 100%
+    rgba(255, 184, 77, 0.9),
+    rgba(132, 94, 247, 0.85),
+    rgba(255, 138, 210, 0.85)
   );
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Hover beam — wider, blurred strip that lights up on hover */
-tr.table-row::after,
+/* hover inner fill */
 .token-row.table-row::after {
   content: "";
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%) translateY(0) scaleX(1);
-  bottom: -5px;
-  width: 64%;                /* a bit longer than the rail */
-  height: 6px;               /* taller, for glow */
-  opacity: 0;
-  pointer-events: none;
+  inset: 0.05rem 0.4rem;
   border-radius: 999px;
-  filter: blur(10px);
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    black 48%,
-    black 64%,
-    transparent 100%
-  );
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 184, 77, 0.28), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(132, 94, 247, 0.32), transparent 65%);
+  opacity: 0;
+  transform: scale(0.985);
   transition:
     opacity 140ms ease-out,
-    transform 160ms ease-out;
+    transform 140ms ease-out;
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* On hover, beam brightens and nudges slightly up/longer */
-tr.table-row:hover::after,
-.token-row.table-row:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-1px) scaleX(1.08);
-}
-
-/* Brand tints for both the constant rail and the hover beam */
-
-/* Gainers: transparent orange glow */
-tr.table-row.is-gain::before,
-tr.table-row.is-gain::after,
-.token-row.table-row.is-gain::before,
 .token-row.table-row.is-gain::after {
-  background: linear-gradient(
-    90deg,
-    rgba(216, 137, 0, 0.0) 0%,
-    rgba(216, 137, 0, 0.55) 50%,
-    rgba(216, 137, 0, 0.0) 100%
-  );
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 184, 77, 0.32), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(255, 220, 160, 0.26), transparent 65%);
 }
 
-/* Losers: transparent purple glow */
-tr.table-row.is-loss::before,
-tr.table-row.is-loss::after,
-.token-row.table-row.is-loss::before,
 .token-row.table-row.is-loss::after {
-  background: linear-gradient(
-    90deg,
-    rgba(123, 62, 243, 0.0) 0%,
-    rgba(123, 62, 243, 0.55) 50%,
-    rgba(123, 62, 243, 0.0) 100%
-  );
+  background:
+    radial-gradient(circle at 0% 0%, rgba(164, 116, 255, 0.36), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(255, 160, 240, 0.24), transparent 65%);
 }
 
-/* Flat / neutral: soft grey lane */
-tr.table-row.is-flat::before,
-tr.table-row.is-flat::after,
-.token-row.table-row.is-flat::before,
-.token-row.table-row.is-flat::after {
-  background: linear-gradient(
-    90deg,
-    rgba(68, 68, 68, 0.0) 0%,
-    rgba(68, 68, 68, 0.35) 50%,
-    rgba(68, 68, 68, 0.0) 100%
-  );
-  opacity: 0.12; /* slightly softer than gain/loss */
+.token-row.table-row:hover::after,
+.token-row.table-row:focus-visible::after {
+  opacity: 1;
+  transform: scale(1);
 }
+
+.token-row.table-row:hover,
+.token-row.table-row:focus-visible {
+  transform: translateY(-1px);
+}
+
+/* keep content above the glow */
+.token-row.table-row > .tr-col {
+  position: relative;
+  z-index: 1;
+}
+
+/* hide legacy .row-hover-glow if any markup remains */
+.row-hover-glow { display: none !important; }
 
 
 /* Badge and rule styles */
@@ -532,14 +522,22 @@ tr.table-row.is-flat::after,
   --bh-loss: #a889ff;
   --bh-price: #80d3ff;
   --bh-muted: rgba(255, 255, 255, 0.35);
-  /* layout tokens for pixel-perfect alignment */
-  --panel-column-gap: 120px;
-  --token-rank-w: 56px;
-  --token-symbol-w: 240px;
-  --token-price-w: 160px;
-  --token-price-prev-w: 86px;
-  --token-pct-w: 86px;
-  --token-actions-w: 56px;
+  /* Global token color tokens - use these across the UI */
+  --token-text: #ffffff;         /* primary token text */
+  --token-price: #4fe6ff;       /* cyan for price */
+  --token-pct-gain: #ffb347;    /* positive percent (orange/gold) */
+  --token-pct-loss: #a889ff;    /* negative percent (purple) */
+  --token-muted: rgba(255,255,255,0.45);
+  /* board + layout tokens for pixel-perfect alignment */
+  --bh-board-width: 1160px;
+  /* horizontal gap between left/right lists (1m + 3m rails) */
+  --panel-column-gap: 64px;
+  /* fractional token row columns – tuned so two boards sit comfortably inside the rail */
+  --token-col-rank: 3rem;
+  --token-col-symbol: minmax(0, 1.35fr);
+  --token-col-price: minmax(0, 0.95fr);
+  --token-col-pct: minmax(0, 0.7fr);
+  --token-col-actions: 2.75rem;
 }
 
 /* Page shell and pair-row layout to force identical horizontal rails */
@@ -576,6 +574,14 @@ tr.table-row.is-flat::after,
 /* derived total width of a token-row (used to align outer grids) */
 :root {
   --token-total: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-price-prev-w) + var(--token-pct-w) + var(--token-actions-w));
+}
+
+/* Floating insights panel aligned to board rails */
+.bh-insight-float {
+  position: fixed;
+  right: calc((100vw - var(--bh-board-width, 1160px)) / 2 + 16px);
+  bottom: 24px;
+  z-index: 40;
 }
 
 html,
@@ -622,19 +628,20 @@ body {
   position: fixed;
   top: 58px;
   left: 50%;
-  width: 540px;
-  height: 540px;
+  width: 640px;
+  height: 640px;
   transform: translateX(-50%);
   background: url("/rabbit.png") center / contain no-repeat;
-  opacity: 0.12; /* slightly more visible by default */
-  filter: drop-shadow(0 0 18px rgba(164, 92, 255, 0.15));
-  transition: opacity 0.18s ease-out;
+  opacity: 0.06; /* subtle rabbit per spec (4-10%) */
+  filter: drop-shadow(0 0 20px rgba(164, 92, 255, 0.18));
+  transition: opacity 0.18s ease-out, transform 160ms ease-out;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0; /* keep behind panels */
 }
 .bh-rabbit-bg.is-lit {
-  opacity: 0.45; /* make lit state a bit brighter */
-  filter: drop-shadow(0 0 32px rgba(209, 143, 255, 0.55));
+  opacity: 0.55; /* lit state brighter */
+  transform: translateX(-50%) scale(1.02);
+  filter: drop-shadow(0 0 44px rgba(209, 143, 255, 0.6));
 }
 
 /* Banners */
@@ -658,44 +665,112 @@ body {
   );
 }
 
-.bh-banner-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(8, 4, 14, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-  font-family: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
+/* === BANNER STRIPS ================================================= */
+
+.bh-banner-strip {
+  width: 100%;
+  overflow: hidden;
 }
 
+.bh-banner-strip__inner {
+  display: flex;
+  gap: 1rem;
+  padding-inline: 1.5rem;
+  padding-block: 0.35rem;
+  white-space: nowrap;
+}
+
+@keyframes bh-banner-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.bh-banner-strip__inner--scroll {
+  display: inline-flex;
+  gap: 1rem;
+  padding-inline: 1.5rem;
+  padding-block: 0.35rem;
+  white-space: nowrap;
+  animation: bh-banner-scroll 40s linear infinite;
+}
+
+/* chips are just text clusters; bg is transparent like the tables */
+
+.bh-banner-chip,
+.bh-banner-chip:link,
+.bh-banner-chip:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.1rem 0;
+  background: transparent;
+  border: none;
+  text-decoration: none;
+  color: inherit;
+}
+
+.bh-banner-chip a,
+.bh-banner-chip button {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* rank circle */
+
+.bh-banner-chip__rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 184, 77, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(255, 184, 77, 0.95);
+}
+
+.bh-banner-chip--volume.is-loss .bh-banner-chip__rank,
+.bh-banner-chip--price.is-loss .bh-banner-chip__rank {
+  border-color: rgba(179, 140, 255, 0.9);
+  color: rgba(179, 140, 255, 0.95);
+}
+
+/* symbol/price/pct */
+
 .bh-banner-chip__symbol {
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: #f5f2ff;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .bh-banner-chip__price {
-  font-weight: 500;
-  font-size: 12px;
-  opacity: 0.85;
-  color: var(--bh-price, #3ee0c4);
+  color: var(--bh-price, #43c4ff);
+  font-size: 0.8rem;
 }
 
 .bh-banner-chip__pct {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
-.bh-banner-chip__pct--gain {
-  color: var(--bh-gain, #ffc45a);
+/* gainers vs losers color for % only */
+
+.bh-banner-chip--price.is-gain .bh-banner-chip__pct,
+.bh-banner-chip--volume.is-gain .bh-banner-chip__pct {
+  color: var(--bh-gain, #ffb84d);
 }
 
-.bh-banner-chip__pct--loss {
-  color: var(--bh-loss, #c483ff);
+.bh-banner-chip--price.is-loss .bh-banner-chip__pct,
+.bh-banner-chip--volume.is-loss .bh-banner-chip__pct {
+  color: var(--bh-loss, #b38cff);
 }
+
+.sentiment-dot { display:none !important; }
 .bh-banner-refresh {
   margin-left: 12px;
   padding: 4px 10px;
@@ -710,6 +785,14 @@ body {
 /* Volume banner tweaks */
 .bh-banner--volume .bh-banner-pct--volume {
   color: #d7c0ff;
+}
+
+/* Volume banner percent coloring – match gain/loss palette */
+.bh-banner-item.is-gain .bh-banner-pct {
+  color: var(--bh-gain, #f9a826);
+}
+.bh-banner-item.is-loss .bh-banner-pct {
+  color: var(--bh-loss, #a875ff);
 }
 
 /* Main rails */
@@ -749,9 +832,9 @@ body {
   text-align: center; /* center header contents */
 }
 .panel-title {
-  font-size: 0.68rem;
-  letter-spacing: 0.12rem;
-  color: #fdd19b;
+  font-size: 0.8rem;
+  letter-spacing: 0.14rem;
+  color: var(--bh-gain, #f9a826);
   text-transform: uppercase;
 }
 .panel-line {
@@ -951,12 +1034,16 @@ body {
   display: block;
 }
 
+/* Dedicated watchlist row under 3m pair – spans full board width */
+.panel-row-watchlist .panel-watchlist-slot {
+  grid-column: 1 / span 2;
+}
+
 /* 1m split grid */
 .one-min-grid {
   display: grid;
-  /* each column width = sum of token-row fixed columns so lists line up exactly */
-  grid-template-columns: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-price-prev-w) + var(--token-pct-w) + var(--token-actions-w)) calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-price-prev-w) + var(--token-pct-w) + var(--token-actions-w));
-  column-gap: var(--panel-column-gap);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--panel-column-gap, 4rem);
   gap: 10px 24px;
 }
 .one-min-col {
@@ -971,9 +1058,8 @@ body {
 }
 .three-min-grid {
   display: grid;
-  /* match the 1m rail widths so 3m left and right align under 1m columns */
-  grid-template-columns: calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-price-prev-w) + var(--token-pct-w) + var(--token-actions-w)) calc(var(--token-rank-w) + var(--token-symbol-w) + var(--token-price-w) + var(--token-price-prev-w) + var(--token-pct-w) + var(--token-actions-w));
-  column-gap: var(--panel-column-gap);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--panel-column-gap, 4rem);
 }
 
 /* Single-column 3-minute list (used by MoversPanel for '3m-list' variant) */
@@ -996,19 +1082,19 @@ body {
 .token-row.table-row {
   position: relative;
   display: grid;
+  /* Use fractional rails so boards breathe inside 1160px without overlap */
   grid-template-columns:
-    auto              /* rank */
-    minmax(0, 1.5fr)  /* symbol */
-    minmax(0, 1.4fr)  /* current price */
-    minmax(0, 1.4fr)  /* previous price */
-    auto              /* pct */
-    auto              /* star */
-    auto;             /* info */
+    var(--token-col-rank, 3rem)
+    var(--token-col-symbol, minmax(0, 1.35fr))
+    var(--token-col-price, minmax(0, 0.95fr))
+    var(--token-col-pct, minmax(0, 0.7fr))
+    var(--token-col-actions, 2.75rem);
   align-items: center;
   width: 100%;
-  padding: 10px 18px;
+  padding-inline: var(--bh-row-padding-x, 1rem);
+  padding-block: var(--bh-row-padding-y, 0.35rem);
   background: transparent;
-  font-family: var(--bh-font-body, "Raleway", system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-family: var(--bh-font-body, "Raleway", system-ui, -apple-system, "Segoe UI", sans-serif);
   font-size: 14px;
   line-height: 1.2;
   gap: 10px;
@@ -1021,7 +1107,12 @@ body {
 /* legacy/simple rows can opt-in via a different class if needed */
 .token-row.simple-row {
   display: grid;
-  grid-template-columns: var(--token-rank-w) var(--token-symbol-w) var(--token-price-w) var(--token-price-prev-w) var(--token-pct-w) var(--token-actions-w);
+  grid-template-columns:
+    var(--token-col-rank, 3rem)
+    var(--token-col-symbol, minmax(0, 1.35fr))
+    var(--token-col-price, minmax(0, 0.95fr))
+    var(--token-col-pct, minmax(0, 0.7fr))
+    var(--token-col-actions, 2.75rem);
   align-items: center;
   gap: 10px;
   height: 64px;
@@ -1120,10 +1211,6 @@ body {
   font-weight: 500;
   line-height: 1;
   font-family: 'Raleway', inherit;
-}
-.tr-col-prev {
-  display: flex;
-  align-items: flex-end;
 }
 .tr-price-prev {
   color: var(--bh-muted, #b7b5c5);
@@ -1245,65 +1332,33 @@ body {
   box-shadow: 0 6px 18px rgba(2,2,5,0.12);
 }
 
-/* Constant rail + hover beam */
-/* Legacy token-row hover helpers commented out in favor of the
-   consolidated ::before / ::after approach above. Keeping these
-   blocks in the file for reference, but commented so they do not
-   conflict with the new rail/beam rules. */
-
-/*
-.token-row.table-row::before {
-  content: "";
-  position: absolute;
-  left: 3%;
-  right: 3%;
-  bottom: -2px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 192, 72, 0.45) 0%,
-    rgba(255, 192, 72, 0.15) 35%,
-    rgba(164, 111, 255, 0.15) 65%,
-    rgba(164, 111, 255, 0.45) 100%
-  );
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.token-row.table-row.is-loss::before {
-  background: linear-gradient(
-    90deg,
-    rgba(164, 111, 255, 0.5) 0%,
-    rgba(164, 111, 255, 0.2) 40%,
-    rgba(255, 192, 72, 0.2) 70%,
-    rgba(255, 192, 72, 0.5) 100%
-  );
-}
-
+/* Hover glow beam: warm inner radial glow under the row.
+   This uses an actual child div (`.row-hover-glow`) so we can
+   keep the main row background fully transparent and only light
+   up the bottom edge on hover. */
 .row-hover-glow {
   position: absolute;
   left: 3%;
   right: 3%;
   bottom: -3px;
-  height: 3px;
+  height: 5px;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 0% 50%, rgba(255, 192, 72, 0.7), transparent 60%),
-    radial-gradient(circle at 100% 50%, rgba(164, 111, 255, 0.7), transparent 60%);
-  filter: blur(5px);
+    radial-gradient(circle at 0% 50%, rgba(255, 192, 72, 0.55), transparent 65%),
+    radial-gradient(circle at 100% 50%, rgba(164, 111, 255, 0.55), transparent 65%);
+  filter: blur(6px);
   opacity: 0;
   transform: translateY(0) scaleX(1);
   transition:
-    opacity 140ms ease-out,
-    transform 160ms ease-out;
+    opacity 160ms ease-out,
+    transform 180ms ease-out;
   pointer-events: none;
 }
 
 .token-row.table-row:hover .row-hover-glow {
   opacity: 1;
-  transform: translateY(-0.5px) scaleX(1.08);
+  transform: translateY(-1px) scaleX(1.08);
 }
-*/
 
 /* subtle breathing animation to keep interface alive; respects reduced motion */
 @media (prefers-reduced-motion: no-preference) {
@@ -1329,7 +1384,14 @@ body {
 }
 
 @media (max-width: 900px) {
-  .token-row { grid-template-columns: var(--token-rank-w) minmax(0, 1fr) var(--token-price-w) var(--token-price-prev-w) var(--token-pct-w) var(--token-actions-w); }
+  .token-row.table-row,
+  .token-row.simple-row {
+    grid-template-columns:
+      var(--token-col-rank, 3rem)
+      minmax(0, 1.4fr)
+      minmax(0, 1fr)
+      var(--token-col-actions, 2.75rem);
+  }
 }
 
 /* ensure hover glow doesn't interfere with clickable transform */
@@ -1466,6 +1528,57 @@ body {
 .insight-tab { border:none; background:transparent; padding:4px 12px; border-radius:999px; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color: rgba(255,255,255,0.65); cursor:pointer; }
 .insight-tab.is-active { background: radial-gradient(circle at top, rgba(255,179,71,0.16), rgba(196,124,255,0.12)); color:#fff; }
 .insight-body { flex:1; overflow-y:auto; padding-top:8px; }
+
+/* ===== USER TUNING: transparency, softer rabbit, banner tweaks ===== */
+/* Make panels mostly transparent (no visible card borders)
+   so the only structure is the bottom glow rail. */
+.panel,
+.panel-card .panel,
+.bh-panel {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Ensure watchlist panel matches the same transparent style and is centered */
+.panel-watchlist,
+.panel-watchlist .panel {
+  background: transparent;
+  border-color: transparent;
+  max-width: calc(var(--token-total) * 2 + var(--panel-column-gap));
+  margin: 0 auto;
+}
+
+/* Banner token/color fixes: make price chips warm/gold and symbol readable */
+/* Softer rabbit (background art) so it supports the UI
+   without overpowering the rows. */
+.bh-rabbit-bg,
+.bh-app::before {
+  opacity: 0.1 !important;
+  filter: drop-shadow(0 0 26px rgba(249,115,22,0.18)) !important;
+}
+
+/* Ensure token rows are transparent and don't add visible borders.
+   The only horizontal structure should come from the glow rail. */
+.token-row.table-row,
+.token-row.simple-row,
+.bh-token-row {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Keep row action buttons above overlays */
+.row-actions { z-index: 60 !important; }
+
+/* Minor: ensure panels don't clip pseudo-elements */
+.panel, .bh-panel, .panel-card { overflow: visible !important; }
+
+/* Debug helper (temporary): show an outline around token rows when SHIFT+D pressed */
+@media (prefers-reduced-motion: no-preference) {
+  .token-row.debug-outline { box-shadow: 0 0 0 2px rgba(255,255,255,0.03) inset; }
+}
+
+/* End overrides */
 .insight-section { font-size:13px; line-height:1.5; }
 .insight-sentiment-badge { display:inline-flex; align-items:center; justify-content:center; padding:3px 10px; border-radius:999px; font-size:11px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.12em; }
 .insight-sentiment-badge.neutral { background: rgba(255,255,255,0.06); }

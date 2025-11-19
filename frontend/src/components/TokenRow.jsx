@@ -42,11 +42,21 @@ function TokenRow({
     data.previous_price ??
     data.initial_price_1min ??
     data.initial_price_3min ??
+    data.price_1m_ago ??
+    data.price_3m_ago ??
+    data.open_price ??
     null;
 
   const pctRaw = changeKey
     ? data?.[changeKey]
-    : (data.price_change_percentage_1min ?? data.price_change_1m ?? data.price_change_percentage_3min ?? data.price_change_1h ?? data.changePercent ?? 0);
+    : (data.pct ??
+      data._pct ??
+      data.price_change_percentage_1min ??
+      data.price_change_1m ??
+      data.price_change_percentage_3min ??
+      data.price_change_1h ??
+      data.changePercent ??
+      0);
 
   const pctNum = Number(pctRaw);
   const pct = Number.isFinite(pctNum) ? pctNum : 0;
@@ -102,7 +112,8 @@ function TokenRow({
       onClick={handleClick}
       onMouseEnter={onHover ? () => onHover(display, data) : undefined}
     >
-      <div className="row-hover-glow" aria-hidden />
+      {/* hover glow handled via CSS ::after to create an inner-fill under the row;
+        keep DOM minimal so pseudo-elements can be positioned reliably */}
       <div className="tr-col tr-col-rank">
         <div className={`rank-badge tr-rank-badge ${rowKindClass === "is-loss" ? "rank-badge-loss" : "rank-badge-gain"}`}>
           {displayRank ?? 1}
@@ -121,8 +132,6 @@ function TokenRow({
       </div>
       <div className="tr-col tr-col-price">
         <div className="tr-price-current">{formatPrice(price)}</div>
-      </div>
-      <div className="tr-col tr-col-prev">
         <div
           className={`tr-price-prev ${prevPrice == null ? "tr-price-prev--empty" : ""}`}
           aria-hidden={prevPrice == null}

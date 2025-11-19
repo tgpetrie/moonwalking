@@ -9,35 +9,61 @@ export default function GainersTable1Min({
 }) {
   const [showMore, setShowMore] = useState(false);
   const allRows = Array.isArray(rows) ? rows : [];
-  const maxVisible = showMore ? 16 : 8;
-  const visibleRows = useMemo(
-    () => allRows.slice(0, maxVisible),
-    [allRows, maxVisible]
-  );
 
-  const total = allRows.length;
-  const hasFew = visibleRows.length <= 4;
+  const normalizedRows = useMemo(() => {
+    return allRows
+      .map((row) => {
+        const pctRaw =
+          row.price_change_percentage_1min ??
+          row.change_1m ??
+          row.pct_change ??
+          row.pct ??
+          0;
+        const pct = Number(pctRaw);
+        return {
+          ...row,
+          pct,
+          _pct: Number.isFinite(pct) ? pct : 0,
+        };
+      })
+      .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
+      .sort((a, b) => b._pct - a._pct);
+  }, [allRows]);
 
-  const isTwoColumn = visibleRows.length > 4;
+  const total = normalizedRows.length;
+  const visibleCount = showMore
+    ? Math.min(total, 16)
+    : Math.min(total, 8);
 
-  let leftRows = [];
-  let rightRows = [];
+  // Visible slice in canonical rank order (1..N)
+  const { visibleRows, leftRows, rightRows, hasFew } = useMemo(() => {
+    const slice = normalizedRows.slice(0, visibleCount);
 
-  if (isTwoColumn) {
-    visibleRows.forEach((row, idx) => {
-      const withRank = { ...row, displayRank: row.rank ?? idx + 1 };
-      if (idx % 2 === 0) {
-        leftRows.push(withRank);
-      } else {
-        rightRows.push(withRank);
-      }
+    const withRank = slice.map((row, index) => {
+      const displayRank =
+        row.rank && row.rank >= 1 ? row.rank : index + 1;
+      return { ...row, displayRank };
     });
-  } else {
-    leftRows = visibleRows.map((row, idx) => ({
-      ...row,
-      displayRank: row.rank ?? idx + 1,
-    }));
-  }
+
+    const few = withRank.length <= 4;
+
+    // Canonical split:
+    // - Collapsed: up to 4 rows in left, 4 in right (5–8).
+    // - Expanded: up to 8 rows in left, remaining (9–16) in right.
+    const leftLimit = showMore
+      ? Math.min(8, withRank.length)
+      : Math.min(4, withRank.length);
+
+    const left = withRank.slice(0, leftLimit);
+    const right = withRank.slice(leftLimit);
+
+    return {
+      visibleRows: withRank,
+      leftRows: left,
+      rightRows: right,
+      hasFew: few,
+    };
+  }, [normalizedRows, visibleCount, showMore]);
 
   if (error) {
     return (
@@ -75,29 +101,14 @@ export default function GainersTable1Min({
         <div className="panel-line" />
       </div>
 
-      <div className="panel-body panel-1m-body">
+      <div className={`panel-body panel-1m-body${hasFew ? " panel-1m-body--single" : ""}`}>
         {total === 0 && (
           <div className="panel-empty">No 1m gainers yet.</div>
         )}
 
-        {total > 0 && hasFew && (
-          <div className="panel-1m-col panel-1m-col-single">
-            {leftRows.map((row, idx) => (
-              <TokenRow
-                key={row.symbol || idx}
-                rank={row.displayRank}
-                row={row}
-                changeKey="price_change_percentage_1min"
-                rowType="gainer"
-                onInfo={onInfo}
-              />
-            ))}
-          </div>
-        )}
-
-        {total > 0 && !hasFew && (
-          <div className="panel-1m-grid">
-            <div className="panel-1m-col panel-1m-col-left">
+        {total > 0 && (
+          <div className="one-min-grid">
+            <div className="one-min-col panel-1m-col panel-1m-col-left">
               {leftRows.map((row, idx) => (
                 <TokenRow
                   key={row.symbol || idx}
@@ -109,18 +120,21 @@ export default function GainersTable1Min({
                 />
               ))}
             </div>
-            <div className="panel-1m-col panel-1m-col-right">
-              {rightRows.map((row, idx) => (
-                <TokenRow
-                  key={row.symbol || idx}
-                  rank={row.displayRank}
-                  row={row}
-                  changeKey="price_change_percentage_1min"
-                  rowType="gainer"
-                  onInfo={onInfo}
-                />
-              ))}
-            </div>
+
+            {!hasFew && (
+              <div className="one-min-col panel-1m-col panel-1m-col-right">
+                {rightRows.map((row, idx) => (
+                  <TokenRow
+                    key={row.symbol || idx}
+                    rank={row.displayRank}
+                    row={row}
+                    changeKey="price_change_percentage_1min"
+                    rowType="gainer"
+                    onInfo={onInfo}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
