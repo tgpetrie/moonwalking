@@ -8,6 +8,13 @@ function TokenRow({
   row,
   token,
   item,
+  // explicit prop fallbacks for older callsites
+  symbol,
+  currentPrice,
+  previousPrice,
+  changePct,
+  priceChange1min,
+  priceChange3min,
   index = 0,
   rank,
   rowType,
@@ -17,8 +24,16 @@ function TokenRow({
   onHover,
   isLoss: explicitIsLoss,
 } = {}) {
-  // Support multiple calling conventions: row / token / item
-  const data = row || token || item || {};
+  // Support multiple calling conventions: row / token / item OR explicit primitive props
+  const raw = row || token || item || {};
+  const explicit = {};
+  if (symbol) explicit.symbol = symbol;
+  if (currentPrice !== undefined) explicit.current_price = currentPrice;
+  if (previousPrice !== undefined) explicit.previous_price = previousPrice;
+  if (changePct !== undefined) explicit.price_change_percentage_3min = changePct;
+  if (priceChange1min !== undefined) explicit.price_change_percentage_1min = priceChange1min;
+  if (priceChange3min !== undefined) explicit.price_change_percentage_3min = priceChange3min;
+  const data = Object.keys(raw).length ? raw : explicit;
   const rawSymbol = data.symbol || data.ticker || "";
   const display = rawSymbol?.replace(/-(USD|USDT|PERP)$/i, "") || rawSymbol || "--";
 
@@ -52,11 +67,17 @@ function TokenRow({
   // Cap visible streak dots to avoid inflated counts; tooltip contains raw value.
   const streakDots = streak >= 1 ? Math.min(Math.floor(streak), 3) : 0;
 
-  // Determine displayed rank robustly: support either 0-based or 1-based `index` props.
+  // Determine displayed rank robustly: prefer 1‑based ranks; treat 0/NaN as "unset".
   const providedIndex = Number(index);
-  const displayRank = Number.isFinite(Number(rank))
-    ? rank
-    : (Number.isFinite(providedIndex) ? (providedIndex >= 1 ? providedIndex : providedIndex + 1) : undefined);
+  const numericRank = Number(rank);
+  let displayRank;
+  if (Number.isFinite(numericRank) && numericRank >= 1) {
+    displayRank = numericRank;
+  } else if (Number.isFinite(providedIndex)) {
+    displayRank = providedIndex >= 1 ? providedIndex : providedIndex + 1;
+  } else {
+    displayRank = undefined;
+  }
 
   const slug = tickerFromSymbol(display).toLowerCase();
   const coinbaseUrl = `https://www.coinbase.com/price/${slug}`;
