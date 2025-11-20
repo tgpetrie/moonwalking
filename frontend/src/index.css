@@ -730,7 +730,8 @@ body {
 .bh-rabbit-bg {
   position: absolute;
   inset: -8% -5% 0 -5%; /* bleed slightly past edges */
-  background: url("/images/bhabit-rabbit.svg") center 12% no-repeat;
+  /* Use the bundled rabbit asset from `public/` so the image actually loads */
+  background: url("/purple-rabbit-bg.png") center 12% no-repeat;
   background-size: 105%;
   opacity: 0.18; /* strong enough to be seen */
   mix-blend-mode: screen;
