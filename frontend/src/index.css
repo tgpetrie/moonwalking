@@ -1874,11 +1874,17 @@ body {
 }
 
 .skeleton-row {
-  height: 12px;
-  margin: 0.35rem 0;
+  height: 18px;
+  margin: 0.45rem 0;
   border-radius: 999px;
-  background: rgba(60, 48, 96, 0.45);
-  animation: none; /* TEMP: no shimmer, no blobs */
+  background: linear-gradient(
+    90deg,
+    rgba(40, 32, 64, 0.18),
+    rgba(80, 64, 120, 0.36),
+    rgba(40, 32, 64, 0.18)
+  );
+  background-size: 220% 100%;
+  animation: bh-skeleton-shimmer 1.2s ease-in-out infinite;
 }
 
 @keyframes bh-skeleton-shimmer {

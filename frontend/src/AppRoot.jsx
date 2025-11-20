@@ -113,7 +113,7 @@ export default function AppRoot() {
 
         <TopBannerVolume1h rows={top1hVolume?.rows || []} />
 
-        <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
+        {/* rabbit is now rendered inside DashboardShell so it scrolls with the panel rows */}
 
         {activeRow && (
           <div className="bh-insight-float">
