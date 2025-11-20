@@ -5,7 +5,7 @@
   max-width: 1160px;
   margin: 0 auto 3rem auto;
   padding: 0 0 2rem 0;
-  background: radial-gradient(circle at top, #151024 0%, #050309 55%, #020107 100%);
+  background: transparent; /* make board shell see-through so rabbit underlay is visible */
   overflow: hidden;
 }
 
@@ -30,8 +30,301 @@
   --bh-accent: #f97316;
   --bh-radius-lg: 16px;
   --bh-font-sans: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Price/color tokens */
+  --bh-price-teal: #41e0c4;
+  --bh-prev-price: #d0d4e4;
+  --bh-gain: #ffb84d;
+  --bh-loss: #b88cff;
+  /* shared rail gradient for rows + headings */
+  --bh-rail-gradient: linear-gradient(
+    90deg,
+    rgba(255, 184, 77, 0.0) 0%,
+    rgba(255, 184, 77, 0.16) 18%,
+    rgba(143, 104, 255, 0.55) 50%,
+    rgba(255, 138, 210, 0.16) 82%,
+    rgba(255, 138, 210, 0.0) 100%
+  );
 }
 
+/* Board layout tokens */
+:root {
+  --bh-board-width: 1160px;
+  --bh-panel-gap: 3.5rem;
+}
+
+/* Outer shell that holds 1m + 3m sections */
+.bh-board-shell {
+  position: relative;
+  max-width: var(--bh-board-width);
+  margin: 0 auto;
+  padding-inline: 1.5rem;
+}
+
+/* Generic two-panels side-by-side row */
+.panel-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--bh-panel-gap);
+}
+
+.panel-row-1m { margin-top: 1.25rem; }
+.panel-row-3m { margin-top: 1.75rem; }
+.panel-row-1m.panel-row-1m--single { grid-template-columns: 1fr; }
+
+/* Shared heading + rail */
+.section-heading {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.section-heading__label {
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.section-heading--gainers .section-heading__label { color: #ffb85c; }
+.section-heading--losers .section-heading__label { color: #b68cff; }
+.section-heading--neutral .section-heading__label { color: #f5f0ff; }
+
+.section-heading__rail {
+  width: 52px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 198, 118, 0.0),
+    rgba(255, 198, 118, 0.9),
+    rgba(255, 198, 118, 0.0)
+  );
+  opacity: 0.85;
+}
+
+.section-heading--losers .section-heading__rail {
+  background: linear-gradient(
+    90deg,
+    rgba(182, 140, 255, 0.0),
+    rgba(182, 140, 255, 0.9),
+    rgba(182, 140, 255, 0.0)
+  );
+}
+
+/* 1-minute grid: two equal columns when >4 rows, single full-width when <=4 rows */
+.one-min-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* default to two columns */
+  gap: 0.75rem 1.5rem;
+}
+
+.panel-1m-body--single .one-min-grid {
+  grid-template-columns: 1fr; /* single full-width column */
+}
+
+.one-min-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* When single column, let the left col span the full grid for alignment */
+.panel-1m-body--single .one-min-col.panel-1m-col-left {
+  grid-column: 1 / -1;
+}
+
+/* Ensure token rows inside the one-min columns take full width */
+.one-min-col .token-row.table-row {
+  width: 100%;
+}
+
+
+/* Table price tokens */
+.tr-price-current,
+.tr-col-price .tr-price-current {
+  color: var(--bh-price-teal);
+}
+
+.tr-price-prev,
+.tr-col-price .tr-price-prev {
+  color: var(--bh-prev-price);
+}
+
+/* Banner price */
+.bh-banner-chip__price,
+.bh-banner-chip__volume {
+  color: var(--bh-price-teal);
+}
+
+/* Percentage colors */
+.bh-banner-chip.is-gain .bh-banner-chip__pct,
+.tr-col-pct .tr-change.is-gain {
+  color: var(--bh-gain);
+}
+
+.bh-banner-chip.is-loss .bh-banner-chip__pct,
+.tr-col-pct .tr-change.is-loss {
+  color: var(--bh-loss);
+}
+
+/* Rank pill */
+.tr-col-rank {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.rank-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 184, 77, 0.85);
+  color: rgba(255, 184, 77, 0.95);
+  font-size: 0.68rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+.bh-banner-chip__rank {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 184, 77, 0.75);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  margin-right: 0.4rem;
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+/* Row icons (no circular backdrop) */
+.row-icon {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0 0 0 0.35rem;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: transform 120ms ease-out, filter 120ms ease-out;
+}
+
+.row-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: rgba(189, 153, 255, 0.9);
+  fill: none;
+}
+
+.row-icon--star.is-active svg {
+  stroke: var(--bh-gain);
+  fill: rgba(255, 184, 77, 0.9);
+}
+
+.row-icon:hover {
+  transform: translateY(-0.5px) scale(1.05);
+  filter: drop-shadow(0 0 6px rgba(189, 153, 255, 0.5));
+}
+
+/* Section heading utility */
+.section-heading {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.section-heading__label {
+  font-size: 0.74rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.section-heading__line {
+  width: 3.2rem;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,184,77,0.0), rgba(255,184,77,0.85), rgba(255,184,77,0.0));
+}
+
+/* Rank pill: unified motion component */
+.rank-pill {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 184, 77, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.rank-pill__text {
+  font-size: 0.78rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 215, 160, 0.98);
+}
+
+/* Shared compact heading that sits on the same rail as token rows */
+.section-heading {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+}
+
+.section-heading--gainers { color: #f9b75a; }
+.section-heading--losers,
+.section-heading--volume { color: #b99bff; }
+.section-heading--watchlist,
+.section-heading--neutral { color: #f6e9ff; }
+
+.section-heading::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.16rem;
+  height: 1px;
+  border-radius: 999px;
+  background: var(--bh-rail-gradient);
+  opacity: 0.85;
+}
+
+/* Keep old `.panel-title` markup visually compatible with the new compact headings */
+.panel-title {
+  display: inline-block;
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: inherit;
+  position: relative;
+}
+
+.panel-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.18rem;
+  height: 1px;
+  background: var(--bh-rail-gradient);
+  opacity: 0.85;
+}
 body {
   margin: 0;
   font-family: var(--bh-font-sans);
@@ -56,7 +349,7 @@ body {
 .bh-app,
 .dashboard-shell {
   position: relative;
-  background: radial-gradient(circle at top, #140c24 0%, #050308 60%, #020109 100%);
+  background: transparent; /* avoid opaque dashboard slab so rabbit can show through */
 }
 
 /* background watermark (rabbit) */
@@ -326,7 +619,49 @@ body {
   align-items: stretch;
 }
 
+/* 1-min gainers board: 2 columns when >4 rows, otherwise single column */
+.gainers-1m-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 3.5rem;
+}
+
+.gainers-1m-grid.is-single-column {
+  grid-template-columns: 1fr;
+}
+
+/* column wrapper – keeps rows stacked in each column */
+.gainers-1m-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 /* When ≤ 4 1m gainers → full-width 1m panel */
+
+/* Rank pill fix: center the number in the circle and ensure layout stability */
+.tr-col.tr-col-rank {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--bh-rank-ring, var(--bh-gain));
+  box-sizing: border-box;
+}
+
+.rank-pill__inner {
+  font-size: 0.78rem;
+  line-height: 1;
+  transform: translateY(0);
+}
 .panel-1m-grid--full {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -434,36 +769,35 @@ body {
   --bh-font-row-sub: 0.74rem;
 }
 
-/* base row */
+/* === CORE TOKEN ROW LAYOUT + HOVER === */
+
 .token-row.table-row {
   position: relative;
   display: grid;
   grid-template-columns:
-    var(--token-col-rank)
-    var(--token-col-symbol)
-    var(--token-col-price)
-    var(--token-col-pct)
-    var(--token-col-actions);
+    var(--token-col-rank, 3rem)
+    var(--token-col-symbol, minmax(0, 1.35fr))
+    var(--token-col-price, minmax(0, 0.95fr))
+    var(--token-col-pct, minmax(0, 0.7fr))
+    var(--token-col-actions, 2.75rem);
   align-items: center;
-  padding: 0.45rem 1rem;
-  background: transparent;
+
+  padding-inline: 1rem;
+  padding-block: 0.38rem;
+
   cursor: pointer;
+  background: transparent;
   overflow: hidden;
 
-  font-size: var(--bh-font-row-main);
+  /* hover zoom / bounce */
   transform: translateY(0) scale(1);
   transition:
     transform 160ms ease-out,
-    box-shadow 160ms ease-out;
+    box-shadow 160ms ease-out,
+    filter 160ms ease-out;
 }
 
-/* 1-min hero rows are slightly bigger */
-.token-row.table-row.token-row--hero {
-  font-size: var(--bh-font-row-hero);
-  padding-block: 0.55rem;
-}
-
-/* diamond rail at bottom */
+/* diamond rail under each row */
 .token-row.table-row::before {
   content: "";
   position: absolute;
@@ -471,35 +805,44 @@ body {
   right: 0.75rem;
   bottom: 0;
   height: 1px;
+  border-radius: 999px;
   background: linear-gradient(
     90deg,
     rgba(255, 184, 77, 0.0) 0%,
     rgba(255, 184, 77, 0.16) 18%,
-    rgba(143, 104, 255, 0.5) 50%,
+    rgba(143, 104, 255, 0.55) 50%,
     rgba(255, 138, 210, 0.16) 82%,
     rgba(255, 138, 210, 0.0) 100%
   );
-  opacity: 0.7;
+  opacity: 0.8;
   pointer-events: none;
   z-index: 0;
 }
 
-/* base hover fill – extremely light */
+/* inner fill slab – base */
 .token-row.table-row::after {
   content: "";
   position: absolute;
   inset: 0.18rem 0.7rem;
   border-radius: 999px;
+
+  /* neutral / fallback */
   background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 196, 112, 0.16),
+      rgba(255, 196, 112, 0.0) 55%
+    ),
     linear-gradient(
       90deg,
-      rgba(18, 8, 2, 0.00),
-      rgba(40, 18, 4, 0.25),
-      rgba(22, 6, 36, 0.25),
-      rgba(18, 8, 2, 0.00)
+      rgba(10, 4, 0, 0.0),
+      rgba(30, 14, 4, 0.35),
+      rgba(20, 8, 32, 0.35),
+      rgba(6, 2, 0, 0.0)
     );
+
   opacity: 0;
-  transform: scale(0.99);
+  transform: scale(0.985);
   mix-blend-mode: screen;
   transition:
     opacity 160ms ease-out,
@@ -508,43 +851,53 @@ body {
   z-index: 0;
 }
 
-/* warm tint, but still thin */
+/* gain rows – warm gold/orange fill */
 .token-row.table-row.is-gain::after {
   background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(255, 196, 112, 0.22),
+      rgba(255, 196, 112, 0.0) 55%
+    ),
     linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.00),
-      rgba(60, 30, 6, 0.30),
-      rgba(40, 16, 0, 0.30),
-      rgba(0, 0, 0, 0.00)
+      rgba(0, 0, 0, 0.0),
+      rgba(60, 32, 6, 0.46),
+      rgba(34, 14, 4, 0.46),
+      rgba(0, 0, 0, 0.0)
     );
 }
 
-/* cool tint for losers */
+/* loss rows – cool purple fill */
 .token-row.table-row.is-loss::after {
   background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(196, 156, 255, 0.22),
+      rgba(196, 156, 255, 0.0) 55%
+    ),
     linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.00),
-      rgba(32, 16, 48, 0.30),
-      rgba(16, 6, 32, 0.30),
-      rgba(0, 0, 0, 0.00)
+      rgba(0, 0, 0, 0.0),
+      rgba(40, 18, 68, 0.50),
+      rgba(22, 8, 44, 0.50),
+      rgba(0, 0, 0, 0.0)
     );
 }
 
-/* ZOOM + subtle glow on hover */
-.token-row.table-row:hover,
-.token-row.table-row:focus-visible {
-  transform: translateY(-1px) scale(1.015);
-}
-
+/* actual hover activation */
 .token-row.table-row:hover::after,
 .token-row.table-row:focus-visible::after {
-  opacity: 0.6; /* allow rabbit to leak through */
-  transform: scale(1);
+  opacity: 1;
+  transform: scale(1.01);
 }
 
-/* content sits above the glow/rail */
+.token-row.table-row:hover,
+.token-row.table-row:focus-visible {
+  transform: translateY(-1px) scale(1.012);
+}
+
+/* ensure the text is above the fill/rail */
 .token-row.table-row > .tr-col {
   position: relative;
   z-index: 1;
@@ -727,23 +1080,15 @@ body {
 }
 
 /* Ghost rabbit */
-.bh-rabbit-bg {
-  position: absolute;
-  inset: -8% -5% 0 -5%; /* bleed slightly past edges */
-  /* Use the bundled rabbit asset from `public/` so the image actually loads */
-  background: url("/purple-rabbit-bg.png") center 12% no-repeat;
-  background-size: 105%;
-  opacity: 0.18; /* strong enough to be seen */
-  mix-blend-mode: screen;
-  filter: saturate(1.05) contrast(1.05);
-  pointer-events: none;
-  z-index: 0;
+.bh-board-shell {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto;
 }
-.bh-rabbit-bg.is-lit {
-  opacity: 0.55; /* lit state brighter */
-  transform: translateX(-50%) scale(1.02);
-  filter: drop-shadow(0 0 44px rgba(209, 143, 255, 0.6));
-}
+
+/* (Rabbit rules replaced by authoritative block later in file) */
+/* The definitive `.bh-rabbit-bg` rule lives near the end of the file to
+   ensure it can be toggled or disabled during layout stabilization. */
 
 /* Banners */
 .bh-banner-wrap {
@@ -884,7 +1229,7 @@ body {
 }
 
 .bh-banner-chip__price {
-  color: var(--bh-price, #43c4ff);
+  color: var(--bh-price-teal);
   font-size: 0.8rem;
 }
 
@@ -1179,6 +1524,15 @@ body {
   display: none;
 }
 
+/* TEMP override: enforce 3-minute panels side-by-side while we stabilize layout */
+.panel-row-3m {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  column-gap: 3.5rem !important;
+  align-items: flex-start !important;
+}
+
+
 .panel-row-1m.has-watchlist-open .panel-watchlist-slot {
   display: block;
 }
@@ -1227,31 +1581,8 @@ body {
   justify-content: center;
 }
 
-/* Primary BHABIT token rows (board rails) */
-.token-row.table-row {
-  position: relative;
-  display: grid;
-  /* Use fractional rails so boards breathe inside 1160px without overlap */
-  grid-template-columns:
-    var(--token-col-rank, 3rem)
-    var(--token-col-symbol, minmax(0, 1.35fr))
-    var(--token-col-price, minmax(0, 0.95fr))
-    var(--token-col-pct, minmax(0, 0.7fr))
-    var(--token-col-actions, 2.75rem);
-  align-items: center;
-  width: 100%;
-  padding-inline: var(--bh-row-padding-x, 1rem);
-  padding-block: var(--bh-row-padding-y, 0.35rem);
-  background: transparent;
-  font-family: var(--bh-font-body, "Raleway", system-ui, -apple-system, "Segoe UI", sans-serif);
-  font-size: 14px;
-  line-height: 1.2;
-  gap: 10px;
-  height: 64px;
-  overflow: visible;
-  transition: transform 0.14s ease, box-shadow 0.14s ease;
-  min-width: 0;
-}
+/* Primary BHABIT token rows are defined in a single, authoritative block
+   earlier in this file (the CORE TOKEN ROW LAYOUT + HOVER). */
 
 /* legacy/simple rows can opt-in via a different class if needed */
 .token-row.simple-row {
@@ -1358,13 +1689,13 @@ body {
   font-size: 0.92rem;
   font-weight: 600;
   line-height: 1.1;
-  color: var(--bh-price, #43c4ff);
+  color: var(--bh-price-teal);
 }
 .tr-price-prev {
   margin-top: 0.04rem;
   font-size: 0.72rem;
   line-height: 1.1;
-  color: var(--bh-muted-price, #7b7f99);
+  color: var(--bh-prev-price);
   opacity: 0.7;
 }
 /* placeholder state when previous price is not available */
@@ -1380,8 +1711,8 @@ body {
   text-align: right;
 }
 .tr-pct {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 1.02rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   letter-spacing: -0.01rem;
@@ -1441,34 +1772,36 @@ body {
   z-index: 30; /* ensure action buttons are above hover overlays */
 }
 /* star + info icons */
-.row-icon {
-  min-width: 18px;
-  height: 18px;
+.row-icon,
+.row-action-icon {
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  border: 1px solid rgba(110, 78, 190, 0.35);
-  background: rgba(20, 10, 40, 0.35);
+  border: none; /* no outline */
+  background: rgba(26, 10, 50, 0.85);  /* flat dark purple pill */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.55rem;
-  color: rgba(200, 178, 255, 0.85);
+  font-size: 0.6rem;
+  color: rgba(195, 172, 255, 0.9);
   cursor: pointer;
   transition:
     background 140ms ease-out,
-    border-color 140ms ease-out,
-    color 140ms ease-out,
-    box-shadow 140ms ease-out,
-    transform 140ms ease-out;
+    transform 140ms ease-out,
+    box-shadow 140ms ease-out;
 }
 
-.row-icon + .row-icon {
-  margin-top: 0.25rem;
+.row-icon + .row-icon,
+.row-action-icon + .row-action-icon {
+  margin-left: 0.32rem;
 }
 
-.row-icon.is-active {
-  background: rgba(179, 140, 255, 0.95);
-  color: #0a050f;
-  box-shadow: 0 0 12px rgba(179, 140, 255, 0.5);
+/* active = lit, but still no border */
+.row-icon.is-active,
+.row-action-icon.is-active {
+  background: rgba(180, 140, 255, 0.98);
+  color: #08040f;
+  box-shadow: 0 0 14px rgba(180, 140, 255, 0.6);
 }
 
 .row-icon:hover {
@@ -1532,6 +1865,32 @@ body {
     animation: bh-breath 6s ease-in-out infinite;
     pointer-events: none;
   }
+}
+
+/* Panel skeleton / loading — simplified bars for stabilization */
+.panel-skeleton {
+  padding-inline: 1.5rem;
+  padding-bottom: 0.8rem;
+}
+
+.skeleton-row {
+  height: 12px;
+  margin: 0.35rem 0;
+  border-radius: 999px;
+  background: rgba(60, 48, 96, 0.45);
+  animation: none; /* TEMP: no shimmer, no blobs */
+}
+
+@keyframes bh-skeleton-shimmer {
+  0% { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+
+.panel-error-text {
+  font-size: 0.78rem;
+  color: rgba(200, 164, 255, 0.7);
+  padding-inline: 1.5rem;
+  padding-bottom: 0.8rem;
 }
 
 /* Responsive: collapse 1m/3m split to single column below a threshold to avoid overlap */
@@ -1750,3 +2109,116 @@ body {
 
 
 /* (Moved Raleway import to top; global font set on body earlier) */
+
+/* Neutralize stray overlay/artifacts so only `.bh-rabbit-bg` shows the artwork */
+.bh-orbit,
+.bh-orbit::before,
+.bh-orbit::after,
+.bh-pill,
+.bh-overlay,
+.rabbit-mask,
+.rabbit-mask::before,
+.rabbit-mask::after,
+.bh-mask,
+.bg-blob,
+.bg-shape,
+.panel-row::before,
+.panel-row::after {
+  background: none !important;
+  box-shadow: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure the rabbit sits behind rows and rows remain interactive above it */
+.bh-rabbit-bg { z-index: 0 !important; }
+.token-row.table-row {
+  position: relative !important;
+}
+.token-row.table-row::after {
+  position: absolute !important;
+  z-index: 0 !important;
+}
+
+/* Watchlist specific prev-price styling */
+.bh-watchlist .tr-price-prev {
+  color: var(--bh-prev-price);
+  opacity: 0.8;
+}
+
+/* ===================== Rabbit + Row Hover (authoritative) ===================== */
+/* 1) Board shell + rabbit placement */
+.bh-board-shell {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+/* panels stay above the rabbit */
+.bh-board-shell .panel-row,
+.bh-board-shell .panel {
+  position: relative;
+  z-index: 1;
+}
+
+/* Single ghost rabbit, centered, scrolls with board */
+.bh-rabbit-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 560px;
+  height: 560px;
+  transform: translate(-50%, -45%);
+  background: url("/images/bhabit-rabbit.svg") center center no-repeat;
+  background-size: contain;
+  opacity: 0.03; /* almost invisible by default */
+  mix-blend-mode: screen;
+  filter: blur(0.3px) saturate(1.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Slightly wake up the rabbit only when the board is “live” */
+.bh-board-shell:hover .bh-rabbit-bg {
+  opacity: 0.06;
+  filter: blur(0.2px) saturate(1.08);
+}
+
+/* 2) Reinstate hover lift + inner-fill glow for token rows */
+.token-row.table-row {
+  position: relative;
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.token-row.table-row::after {
+  content: "";
+  position: absolute;
+  inset: 0.18rem 0.7rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 196, 112, 0.16), rgba(255, 196, 112, 0.0) 55%), linear-gradient(90deg, rgba(0,0,0,0.0), rgba(60,32,6,0.40), rgba(34,14,4,0.40), rgba(0,0,0,0.0));
+  opacity: 0;
+  transform: scale(0.985);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transition: opacity 140ms ease-out, transform 140ms ease-out;
+  z-index: 0;
+}
+
+.token-row.table-row.is-loss::after {
+  background: radial-gradient(circle at 50% 0%, rgba(196,156,255,0.20), rgba(196,156,255,0.0) 55%), linear-gradient(90deg, rgba(0,0,0,0.0), rgba(40,18,68,0.45), rgba(22,8,44,0.45), rgba(0,0,0,0.0));
+}
+
+.token-row.table-row:hover::after,
+.token-row.table-row:focus-visible::after {
+  opacity: 1;
+  transform: scale(1.01);
+}
+
+.token-row.table-row:hover,
+.token-row.table-row:focus-visible {
+  transform: translateY(-1px) scale(1.012);
+}
+
+/* End authoritative rabbit + hover block */
+

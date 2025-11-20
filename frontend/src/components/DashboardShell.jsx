@@ -41,88 +41,63 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
         <div className="bh-topbar-right">
           {lastUpdated && (
             <span className="bh-topbar-meta">
-              Latest:{" "}
-              {new Date(lastUpdated).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              on{" "}
-              {new Date(lastUpdated).toLocaleDateString([], {
-                month: "short",
-                day: "2-digit",
-              })}
+              Latest: {new Date(lastUpdated).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
-          <button
-            type="button"
-            className="bh-refresh-icon-btn"
-            onClick={handleRefreshClick}
-            aria-label="Refresh data"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 5V2L8 6l4 4V7c2.757 0 5 2.243 5 5a5 5 0 0 1-4.5 4.95v2.01A7.002 7.002 0 0 0 19 12c0-3.866-3.134-7-7-7zm-5 5a5 5 0 0 1 4.5-4.95V3.04A7.002 7.002 0 0 0 5 12c0 3.866 3.134 7 7 7v3l4-4-4-4v3a5 5 0 0 1-5-5z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
         </div>
       </header>
-      <div className="board-shell">
-        <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
 
+      <div className="board-shell bh-board-shell">
         <div className="board-shell-inner">
-          <section className="bh-banner-wrap">
+          <section className="bh-banner-wrap bh-banner-wrap--top">
             <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={onRefresh} />
           </section>
 
           <main className="bh-main">
             <div className="dashboard-shell">
-              {/* ROW 1 – 1m gainers hero (full width) */}
-              <section className="panel-row panel-row-1m">
-                <div className="panel-1m-slot">
-                  <GainersTable1Min
-                    rows={gainers1mRows}
-                    loading={gainers1m?.loading}
-                    error={gainers1m?.message}
-                    onInfo={onInfoProp}
-                  />
-                </div>
-              </section>
+              <div className="bh-board-inner">
 
-              {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
-              <section className="panel-row panel-row-3m">
-                <div className="panel-3m-slot">
+                {/* ROW 1 – 1m gainers hero (full width) */}
+                <section className="panel-row panel-row-1m">
+                  <div className="panel-1m-slot">
+                    <GainersTable1Min
+                      rows={gainers1mRows}
+                      loading={gainers1m?.loading}
+                      error={gainers1m?.message}
+                      onInfo={onInfoProp}
+                    />
+                  </div>
+                </section>
+
+                {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
+                <section className="panel-row-3m">
                   <GainersTable3Min
                     rows={gainers3m?.rows || []}
                     loading={gainers3m?.loading}
                     error={gainers3m?.message}
                     onInfo={onInfoProp}
                   />
-                </div>
-                <div className="panel-3m-slot">
                   <Losers3m
                     rows={losers3m?.rows || []}
                     loading={losers3m?.loading}
                     error={losers3m?.message}
                     onInfo={onInfoProp}
                   />
-                </div>
-              </section>
+                </section>
 
-              {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
-              <section className="panel-row panel-row-watchlist">
-                <div className="panel-watchlist-slot">
-                  <section className="panel panel-watchlist">
-                    <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
-                  </section>
-                </div>
-              </section>
+                {/* Ghost rabbit background placed after rows so it scrolls with the board */}
+                <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
+
+                {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
+                <section className="panel-row panel-row-watchlist">
+                  <div className="panel-watchlist-slot">
+                    <section className="panel panel-watchlist">
+                      <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
+                    </section>
+                  </div>
+                </section>
+
+              </div>
             </div>
           </main>
 
@@ -135,10 +110,7 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
       {/* Insights floating card aligned to board-shell rails */}
       {insightsSymbol && (
         <div className="bh-insight-float">
-          <InsightsPanel
-            symbol={insightsSymbol}
-            onClose={() => setInsightsSymbol(null)}
-          />
+          <InsightsPanel symbol={insightsSymbol} onClose={() => setInsightsSymbol(null)} />
         </div>
       )}
     </div>
