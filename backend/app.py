@@ -2387,6 +2387,14 @@ def data_aggregate():
                         base["change_1m"] = gval
                         # keep legacy key for existing UI bits
                         base["price_change_percentage_1min"] = gval
+                    # carry forward the 1m opening/initial price so the UI can
+                    # render "previous price" under the current snapshot
+                    initial_1m = r.get("initial_price_1min") or r.get("initial_1min")
+                    if initial_1m is not None:
+                        try:
+                            base["initial_price_1min"] = float(initial_1m)
+                        except (TypeError, ValueError):
+                            pass
                 meta["gainers_1m"] = {"source": "snapshot", "ts": g1_ts}
             else:
                 raise RuntimeError("empty")
@@ -2418,6 +2426,13 @@ def data_aggregate():
                             gval = 0.0
                         base["change_3m"] = gval
                         base["price_change_percentage_3min"] = gval
+                    # propagate 3m initial/open price for previous-price display
+                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min")
+                    if initial_3m is not None:
+                        try:
+                            base["initial_price_3min"] = float(initial_3m)
+                        except (TypeError, ValueError):
+                            pass
                 meta["gainers_3m"] = {"source": "snapshot", "ts": g3_ts}
             else:
                 raise RuntimeError("empty")
@@ -2449,6 +2464,14 @@ def data_aggregate():
                             gval = 0.0
                         base["change_3m"] = gval
                         base["price_change_percentage_3min"] = gval
+                    # losers also carry the same 3m initial reference so the UI
+                    # can show the baseline under the current price
+                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min")
+                    if initial_3m is not None:
+                        try:
+                            base["initial_price_3min"] = float(initial_3m)
+                        except (TypeError, ValueError):
+                            pass
                 meta["losers_3m"] = {"source": "snapshot", "ts": l3_ts}
             else:
                 raise RuntimeError("empty")

@@ -19,7 +19,7 @@ export default function RowActions({ symbol, price, onInfo }) {
     <div className="row-actions">
       <button
         type="button"
-        className={`wl-btn ${watching ? "wl-btn--active" : ""}`}
+        className={`row-icon row-icon--star ${watching ? "is-active" : ""}`}
         onClick={handleStar}
         aria-label={watching ? "Remove from watchlist" : "Add to watchlist"}
       >
@@ -27,7 +27,7 @@ export default function RowActions({ symbol, price, onInfo }) {
       </button>
       <button
         type="button"
-        className="info-btn"
+        className="row-icon row-icon--info"
         onClick={handleInfo}
         aria-label={`Info ${symbol}`}
       >

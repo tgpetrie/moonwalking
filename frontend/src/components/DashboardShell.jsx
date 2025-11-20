@@ -1,6 +1,5 @@
 // src/components/DashboardShell.jsx
 import React, { useMemo, useState } from "react";
-import RefreshTicker from "./RefreshTicker.jsx";
 import TopBannerScroll from "./TopBannerScroll.jsx";
 import TopBannerVolume1h from "./TopBannerVolume1h.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -26,6 +25,12 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
   const gainers1mRows = useMemo(() => gainers1m?.rows || [], [gainers1m]);
   const { items: watchlistItems = [] } = useWatchlist();
 
+  const handleRefreshClick = () => {
+    if (typeof onRefresh === "function") {
+      onRefresh();
+    }
+  };
+
   return (
     <div className="bh-app">
       <header className="bh-topbar">
@@ -48,7 +53,24 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
               })}
             </span>
           )}
-          <RefreshTicker onRefresh={onRefresh} />
+          <button
+            type="button"
+            className="bh-refresh-icon-btn"
+            onClick={handleRefreshClick}
+            aria-label="Refresh data"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 5V2L8 6l4 4V7c2.757 0 5 2.243 5 5a5 5 0 0 1-4.5 4.95v2.01A7.002 7.002 0 0 0 19 12c0-3.866-3.134-7-7-7zm-5 5a5 5 0 0 1 4.5-4.95V3.04A7.002 7.002 0 0 0 5 12c0 3.866 3.134 7 7 7v3l4-4-4-4v3a5 5 0 0 1-5-5z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
         </div>
       </header>
       <div

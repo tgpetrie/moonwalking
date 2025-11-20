@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import { useSentiment } from "../context/SentimentContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
 import RowActions from "./tables/RowActions.jsx";
@@ -37,14 +37,24 @@ function TokenRow({
   const rawSymbol = data.symbol || data.ticker || "";
   const display = rawSymbol?.replace(/-(USD|USDT|PERP)$/i, "") || rawSymbol || "--";
 
-  const price = data.current_price ?? data.price ?? data.last_price ?? null;
+  const price =
+    data.current_price ??
+    data.price ??
+    data.last_price ??
+    data.latest_price ??
+    null;
+
   const prevPrice =
     data.previous_price ??
     data.initial_price_1min ??
     data.initial_price_3min ??
     data.price_1m_ago ??
     data.price_3m_ago ??
+    data.start_price ??
     data.open_price ??
+    data.open_price_1m ??
+    data.open_price_3m ??
+    data.snapshot_price ??
     null;
 
   const pctRaw = changeKey
@@ -60,6 +70,43 @@ function TokenRow({
 
   const pctNum = Number(pctRaw);
   const pct = Number.isFinite(pctNum) ? pctNum : 0;
+
+  // Animate a soft pulse when price or pct changes so updates feel live.
+  const [justChanged, setJustChanged] = useState(false);
+  const prevPriceRef = useRef(price);
+  const prevPctRef = useRef(pct);
+
+  useEffect(() => {
+    const prevPrice = prevPriceRef.current;
+    const prevPct = prevPctRef.current;
+
+    const initialized = prevPrice !== undefined || prevPct !== undefined;
+    const priceChanged =
+      initialized && price != null && prevPrice != null && price !== prevPrice;
+    const pctChanged = initialized && pct !== prevPct;
+
+    if (priceChanged || pctChanged) {
+      setJustChanged(true);
+      const id = setTimeout(() => setJustChanged(false), 420);
+      prevPriceRef.current = price;
+      prevPctRef.current = pct;
+      return () => clearTimeout(id);
+    }
+
+    prevPriceRef.current = price;
+    prevPctRef.current = pct;
+  }, [price, pct]);
+
+  // If backend didn't provide an explicit previous price but we have a
+  // current price and a percent change, derive the implied starting price:
+  //   pct = (current - prev) / prev * 100  =>  prev = current / (1 + pct/100)
+  let effectivePrevPrice = prevPrice;
+  if (effectivePrevPrice == null && price != null && Number.isFinite(pct) && pct !== 0) {
+    const denom = 1 + pct / 100;
+    if (denom !== 0) {
+      effectivePrevPrice = price / denom;
+    }
+  }
 
   const { sentiment } = useSentiment() || {};
 
@@ -90,7 +137,8 @@ function TokenRow({
   }
 
   const slug = tickerFromSymbol(display).toLowerCase();
-  const coinbaseUrl = `https://www.coinbase.com/price/${slug}`;
+  const pair = slug.endsWith("-usd") ? slug : `${slug}-usd`;
+  const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${pair}`;
 
   const handleClick = (e) => {
     // if the user clicked on actions (star / info), don't navigate
@@ -104,7 +152,9 @@ function TokenRow({
 
   return (
     <div
-      className={`token-row table-row token-row--clickable ${rowKindClass}`}
+      className={`token-row table-row token-row--clickable ${rowKindClass} ${
+        justChanged ? "token-row--changed" : ""
+      }`}
       data-row="token"
       role="link"
       tabIndex={0}
@@ -131,12 +181,14 @@ function TokenRow({
         {/* streak indicator removed to reduce visual clutter; keep logic if we want to re-enable later */}
       </div>
       <div className="tr-col tr-col-price">
-        <div className="tr-price-current">{formatPrice(price)}</div>
+        <div className="tr-price-current">
+          {price != null ? formatPrice(price) : "—"}
+        </div>
         <div
-          className={`tr-price-prev ${prevPrice == null ? "tr-price-prev--empty" : ""}`}
-          aria-hidden={prevPrice == null}
+          className={`tr-price-prev ${effectivePrevPrice == null ? "tr-price-prev--empty" : ""}`}
+          aria-hidden={effectivePrevPrice == null}
         >
-          {prevPrice != null ? formatPrice(prevPrice) : "—"}
+          {effectivePrevPrice != null ? formatPrice(effectivePrevPrice) : "—"}
         </div>
       </div>
       <div className="tr-col tr-col-pct">
