@@ -40,6 +40,13 @@ body {
   position: relative;
 }
 
+/* Ensure the app shell and dashboard allow the rabbit to be visible behind panels */
+.bh-app,
+.dashboard-shell {
+  position: relative;
+  background: radial-gradient(circle at top, #140c24 0%, #050308 60%, #020109 100%);
+}
+
 /* background watermark (rabbit) */
 .bh-app::before {
   content: "";
@@ -465,7 +472,7 @@ body {
   z-index: 0;
 }
 
-/* inner hover fill slab */
+/* base hover fill – extremely light */
 .token-row.table-row::after {
   content: "";
   position: absolute;
@@ -475,12 +482,12 @@ body {
     linear-gradient(
       90deg,
       rgba(18, 8, 2, 0.00),
-      rgba(40, 18, 4, 0.65),
-      rgba(22, 6, 36, 0.70),
+      rgba(40, 18, 4, 0.25),
+      rgba(22, 6, 36, 0.25),
       rgba(18, 8, 2, 0.00)
     );
   opacity: 0;
-  transform: scale(0.985);
+  transform: scale(0.99);
   mix-blend-mode: screen;
   transition:
     opacity 160ms ease-out,
@@ -489,30 +496,31 @@ body {
   z-index: 0;
 }
 
-/* warm vs cool tint */
+/* warm tint, but still thin */
 .token-row.table-row.is-gain::after {
   background:
     linear-gradient(
       90deg,
       rgba(0, 0, 0, 0.00),
-      rgba(60, 30, 6, 0.70),
-      rgba(40, 16, 0, 0.70),
+      rgba(60, 30, 6, 0.30),
+      rgba(40, 16, 0, 0.30),
       rgba(0, 0, 0, 0.00)
     );
 }
 
+/* cool tint for losers */
 .token-row.table-row.is-loss::after {
   background:
     linear-gradient(
       90deg,
       rgba(0, 0, 0, 0.00),
-      rgba(32, 16, 48, 0.70),
-      rgba(16, 6, 32, 0.70),
+      rgba(32, 16, 48, 0.30),
+      rgba(16, 6, 32, 0.30),
       rgba(0, 0, 0, 0.00)
     );
 }
 
-/* ZOOM + glow on hover */
+/* ZOOM + subtle glow on hover */
 .token-row.table-row:hover,
 .token-row.table-row:focus-visible {
   transform: translateY(-1px) scale(1.015);
@@ -520,7 +528,7 @@ body {
 
 .token-row.table-row:hover::after,
 .token-row.table-row:focus-visible::after {
-  opacity: 0.95;
+  opacity: 0.6; /* allow rabbit to leak through */
   transform: scale(1);
 }
 
@@ -708,20 +716,15 @@ body {
 
 /* Ghost rabbit */
 .bh-rabbit-bg {
-  position: fixed;
-  top: 58px;
-  left: 50%;
-  width: 640px;
-  height: 640px;
-  transform: translateX(-50%);
+  position: absolute;
+  inset: 0;
   background: url("/images/bhabit-rabbit.svg") center center no-repeat;
-  background-size: 90%;
-  opacity: 0.13; /* was ~0.06; nudged stronger so it reads through the fill */
+  background-size: 88%;
+  opacity: 0.20; /* bumped so the rabbit reads through */
   mix-blend-mode: screen;
   filter: saturate(1.05) contrast(1.05);
-  transition: opacity 0.18s ease-out, transform 160ms ease-out;
   pointer-events: none;
-  z-index: 0; /* keep behind panels */
+  z-index: 0;
 }
 .bh-rabbit-bg.is-lit {
   opacity: 0.55; /* lit state brighter */
@@ -934,13 +937,10 @@ body {
 }
 
 /* Panel shell */
-.panel {
-  background: rgba(6, 4, 8, 0.78);
-  border: 1px solid rgba(255, 151, 51, 0.05);
-  border-radius: 6px;
-  backdrop-filter: blur(6px);
-  position: relative;
-  z-index: 20;
+.panel,
+.board-1m,
+.board-3m {
+  background: transparent !important;
 }
 .panel-header {
   display: flex;
