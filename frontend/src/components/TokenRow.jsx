@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo } from "react";
 import { useSentiment } from "../context/SentimentContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
 import RowActions from "./tables/RowActions.jsx";
@@ -71,31 +71,6 @@ function TokenRow({
   const pctNum = Number(pctRaw);
   const pct = Number.isFinite(pctNum) ? pctNum : 0;
 
-  // Animate a soft pulse when price or pct changes so updates feel live.
-  const [justChanged, setJustChanged] = useState(false);
-  const prevPriceRef = useRef(price);
-  const prevPctRef = useRef(pct);
-
-  useEffect(() => {
-    const prevPrice = prevPriceRef.current;
-    const prevPct = prevPctRef.current;
-
-    const initialized = prevPrice !== undefined || prevPct !== undefined;
-    const priceChanged =
-      initialized && price != null && prevPrice != null && price !== prevPrice;
-    const pctChanged = initialized && pct !== prevPct;
-
-    if (priceChanged || pctChanged) {
-      setJustChanged(true);
-      const id = setTimeout(() => setJustChanged(false), 420);
-      prevPriceRef.current = price;
-      prevPctRef.current = pct;
-      return () => clearTimeout(id);
-    }
-
-    prevPriceRef.current = price;
-    prevPctRef.current = pct;
-  }, [price, pct]);
 
   // If backend didn't provide an explicit previous price but we have a
   // current price and a percent change, derive the implied starting price:
@@ -117,6 +92,8 @@ function TokenRow({
   else if (typeof explicitIsLoss === "boolean")
     rowKindClass = explicitIsLoss ? "is-loss" : "is-gain";
   else rowKindClass = pct >= 0 ? "is-gain" : "is-loss";
+
+  const signClass = rowKindClass; // "is-gain" / "is-loss"
 
   const pctClass = pct < 0 ? "token-pct-loss" : "token-pct-gain";
   const streakRaw = data.trendStreak ?? data.trend_streak ?? data.peak_count ?? 0;
@@ -142,19 +119,17 @@ function TokenRow({
 
   const handleClick = (e) => {
     // if the user clicked on actions (star / info), don't navigate
-    if (e.target.closest && e.target.closest('.tr-col-actions')) return;
-    window.open(coinbaseUrl, '_blank', 'noopener');
+    if (e.target.closest && e.target.closest(".tr-col-actions")) return;
+    window.open(coinbaseUrl, "_blank", "noopener");
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleClick(e);
+    if (e.key === "Enter") handleClick(e);
   };
 
   return (
     <div
-      className={`token-row table-row token-row--clickable ${rowKindClass} ${
-        justChanged ? "token-row--changed" : ""
-      }`}
+      className={`token-row table-row ${signClass}`}
       data-row="token"
       role="link"
       tabIndex={0}
