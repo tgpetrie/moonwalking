@@ -73,63 +73,64 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
           </button>
         </div>
       </header>
-      <div
-        className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`}
-        aria-hidden="true"
-      />
+      <div className="board-shell">
+        <div className={`bh-rabbit-bg ${rabbitLit ? "is-lit" : ""}`} aria-hidden="true" />
 
-      <section className="bh-banner-wrap">
-        <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={onRefresh} />
-      </section>
-
-      <main className="bh-main">
-        <div className="dashboard-shell">
-          {/* ROW 1 – 1m gainers hero (full width) */}
-          <section className="panel-row panel-row-1m">
-            <div className="panel-1m-slot">
-              <GainersTable1Min
-                rows={gainers1mRows}
-                loading={gainers1m?.loading}
-                error={gainers1m?.message}
-                onInfo={onInfoProp}
-              />
-            </div>
+        <div className="board-shell-inner">
+          <section className="bh-banner-wrap">
+            <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={onRefresh} />
           </section>
 
-          {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
-          <section className="panel-row panel-row-3m">
-            <div className="panel-3m-slot">
-              <GainersTable3Min
-                rows={gainers3m?.rows || []}
-                loading={gainers3m?.loading}
-                error={gainers3m?.message}
-                onInfo={onInfoProp}
-              />
-            </div>
-            <div className="panel-3m-slot">
-              <Losers3m
-                rows={losers3m?.rows || []}
-                loading={losers3m?.loading}
-                error={losers3m?.message}
-                onInfo={onInfoProp}
-              />
-            </div>
-          </section>
+          <main className="bh-main">
+            <div className="dashboard-shell">
+              {/* ROW 1 – 1m gainers hero (full width) */}
+              <section className="panel-row panel-row-1m">
+                <div className="panel-1m-slot">
+                  <GainersTable1Min
+                    rows={gainers1mRows}
+                    loading={gainers1m?.loading}
+                    error={gainers1m?.message}
+                    onInfo={onInfoProp}
+                  />
+                </div>
+              </section>
 
-          {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
-          <section className="panel-row panel-row-watchlist">
-            <div className="panel-watchlist-slot">
-              <section className="panel panel-watchlist">
-                <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
+              {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
+              <section className="panel-row panel-row-3m">
+                <div className="panel-3m-slot">
+                  <GainersTable3Min
+                    rows={gainers3m?.rows || []}
+                    loading={gainers3m?.loading}
+                    error={gainers3m?.message}
+                    onInfo={onInfoProp}
+                  />
+                </div>
+                <div className="panel-3m-slot">
+                  <Losers3m
+                    rows={losers3m?.rows || []}
+                    loading={losers3m?.loading}
+                    error={losers3m?.message}
+                    onInfo={onInfoProp}
+                  />
+                </div>
+              </section>
+
+              {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
+              <section className="panel-row panel-row-watchlist">
+                <div className="panel-watchlist-slot">
+                  <section className="panel panel-watchlist">
+                    <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} />
+                  </section>
+                </div>
               </section>
             </div>
+          </main>
+
+          <section className="bh-banner-wrap bh-banner-wrap--bottom">
+            <TopBannerVolume1h rows={top1hVolume?.rows || []} />
           </section>
         </div>
-      </main>
-
-      <section className="bh-banner-wrap bh-banner-wrap--bottom">
-        <TopBannerVolume1h rows={top1hVolume?.rows || []} />
-      </section>
+      </div>
 
       {/* Insights floating card aligned to board-shell rails */}
       {insightsSymbol && (

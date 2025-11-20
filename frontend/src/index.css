@@ -1,3 +1,17 @@
+.board-shell {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto 3rem auto;
+  padding: 0 0 2rem 0;
+  background: radial-gradient(circle at top, #151024 0%, #050309 55%, #020107 100%);
+  overflow: hidden;
+}
+
+.board-shell-inner {
+  position: relative;
+  z-index: 1;
+}
+
 /* src/index.css */
 
 /* Import Raleway from Google Fonts */
@@ -717,10 +731,10 @@ body {
 /* Ghost rabbit */
 .bh-rabbit-bg {
   position: absolute;
-  inset: 0;
-  background: url("/images/bhabit-rabbit.svg") center center no-repeat;
-  background-size: 88%;
-  opacity: 0.20; /* bumped so the rabbit reads through */
+  inset: -8% -5% 0 -5%; /* bleed slightly past edges */
+  background: url("/images/bhabit-rabbit.svg") center 12% no-repeat;
+  background-size: 105%;
+  opacity: 0.18; /* strong enough to be seen */
   mix-blend-mode: screen;
   filter: saturate(1.05) contrast(1.05);
   pointer-events: none;
