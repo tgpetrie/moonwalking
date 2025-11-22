@@ -46,7 +46,13 @@ export default defineConfig({
                 target: `http://127.0.0.1:${backendPort}`,
                 changeOrigin: true,
             },
-            // '/sentiment': `http://127.0.0.1:${backendPort}`,
+            // Sentiment API runs on a separate port (typically 8001).
+            // Proxy /sentiment through the dev server to avoid CORS and mixed-content.
+            '/sentiment': {
+                target: 'http://127.0.0.1:8001',
+                changeOrigin: true,
+                secure: false,
+            },
         }
     },
     preview: { port: vitePort }

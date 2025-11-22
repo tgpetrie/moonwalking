@@ -327,6 +327,18 @@ crypto_terms = {
 }
 ```
 
+### Frontend `.env`
+
+Vite reads the sentiment base URL from `VITE_SENTIMENT_API_BASE`. Copy `frontend/.env.example`
+to `frontend/.env` and tweak if your backend is not on the default port:
+
+```bash
+cp frontend/.env.example frontend/.env
+echo "VITE_SENTIMENT_API_BASE=http://127.0.0.1:8001" >> frontend/.env
+```
+
+That is the only frontend sentiment setting—no other knobs are required.
+
 ### Time Decay
 
 Adjust how quickly old data loses relevance:

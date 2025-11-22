@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "tier": "tier1",
+  "sources": [
+    {
+      "name": "Fear & Greed Index",
+      "description": "Macro crypto sentiment gauge from alternative.me",
+      "tier": "tier1",
+      "weight": 0.9,
+      "update_frequency": 3600,
+      "type": "api",
+      "endpoint": "https://api.alternative.me/fng/"
+    },
+    {
+      "name": "CoinGecko Market Pulse",
+      "description": "CoinGecko social/market composite inputs",
+      "tier": "tier1",
+      "weight": 0.85,
+      "update_frequency": 300,
+      "type": "api",
+      "endpoint": "https://api.coingecko.com/api/v3/coins/markets"
+    },
+    {
+      "name": "Binance News RSS",
+      "description": "Official Binance feed for exchange-level announcements",
+      "tier": "tier1",
+      "weight": 0.85,
+      "update_frequency": 600,
+      "type": "rss",
+      "endpoint": "https://www.binance.com/en/feed/profile/Binance"
+    }
+  ]
+}

@@ -38,13 +38,9 @@ export default function WatchlistPanel({ title = "WATCHLIST", onInfo }) {
           <div className="wl-search-underline" />
         </form>
 
-        {filtered.length === 0 && (
-          <div className="panel-empty">
-            Star or add a token to pin it here.
-          </div>
-        )}
-
-        {filtered.length > 0 && (
+        {filtered.length === 0 ? (
+          <div className="panel-empty">Star or add a token to pin it here.</div>
+        ) : (
           <div className="wl-list">
             {filtered.map((it, index) => {
               const pct = deltaPct(it.baseline, it.current);

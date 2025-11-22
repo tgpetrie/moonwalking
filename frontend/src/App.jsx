@@ -1,9 +1,10 @@
 // frontend/src/App.jsx — cleaned single-definition App
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, lazy } from "react";
 import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
 import { useData } from "./hooks/useData";
 import DashboardShell from "./components/DashboardShell.jsx";
-import SentimentPanel from "./components/cards/SentimentPanel.jsx";
+
+const SentimentPanel = lazy(() => import("./components/cards/SentimentPanel.jsx"));
 
 function WatchlistReconciler({ bySymbol }) {
   const { refreshFromData } = useWatchlist();
@@ -14,7 +15,7 @@ function WatchlistReconciler({ bySymbol }) {
 }
 
 export default function App() {
-  const { data, bySymbol, mutate } = useData();
+  const { bySymbol, mutate, ...data } = useData();
   const [rabbitLit, setRabbitLit] = useState(false);
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentRow, setSentimentRow] = useState(null);
@@ -40,12 +41,16 @@ export default function App() {
     <WatchlistProvider>
       <WatchlistReconciler bySymbol={bySymbol} />
       <DashboardShell data={data} onInfo={handleInfo} onRefresh={handleRefresh} rabbitLit={rabbitLit} />
-      <SentimentPanel
-        open={sentimentOpen}
-        onClose={() => setSentimentOpen(false)}
-        row={sentimentRow}
-        interval={sentimentInterval}
-      />
+      {sentimentOpen && (
+        <Suspense fallback={null}>
+          <SentimentPanel
+            open={sentimentOpen}
+            onClose={() => setSentimentOpen(false)}
+            row={sentimentRow}
+            interval={sentimentInterval}
+          />
+        </Suspense>
+      )}
     </WatchlistProvider>
   );
 }

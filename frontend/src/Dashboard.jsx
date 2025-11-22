@@ -136,7 +136,7 @@ export default function Dashboard() {
 
         {/* Bottom volume banner */}
         <section>
-          <VolumeBannerScroll items={vol1h} />
+          <VolumeBannerScroll items={vol1h} historyMinutes={data?.meta?.historyMinutes ?? 0} />
         </section>
       </div>
       {selectedSymbol && (

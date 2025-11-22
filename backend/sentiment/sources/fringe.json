@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "tier": "fringe",
+  "sources": [
+    {
+      "name": "4chan /biz/",
+      "description": "Unfiltered fringe sentiment feed",
+      "tier": "fringe",
+      "weight": 0.3,
+      "update_frequency": 300,
+      "type": "scrape",
+      "endpoint": "https://boards.4channel.org/biz/catalog"
+    },
+    {
+      "name": "Twitter Meme Stream",
+      "description": "List of meme coin promoters and influencers",
+      "tier": "fringe",
+      "weight": 0.25,
+      "update_frequency": 180,
+      "type": "twitter",
+      "accounts": ["@0x_erectus", "@elonmusk", "@coinmeme_daily"]
+    }
+  ]
+}

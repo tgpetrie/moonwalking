@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "tier": "tier2",
+  "sources": [
+    {
+      "name": "Reddit r/CryptoCurrency",
+      "description": "Mainstream retail crowd discussion",
+      "tier": "tier2",
+      "weight": 0.75,
+      "update_frequency": 600,
+      "type": "reddit",
+      "subreddit": "CryptoCurrency"
+    },
+    {
+      "name": "CoinDesk RSS",
+      "description": "High-volume crypto newswire",
+      "tier": "tier2",
+      "weight": 0.8,
+      "update_frequency": 600,
+      "type": "rss",
+      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    },
+    {
+      "name": "CryptoSlate RSS",
+      "description": "Broader crypto industry coverage",
+      "tier": "tier2",
+      "weight": 0.7,
+      "update_frequency": 900,
+      "type": "rss",
+      "endpoint": "https://cryptoslate.com/feed/"
+    }
+  ]
+}

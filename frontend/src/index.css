@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+@import './sentiment-v2.css';
 
 .board-shell {
   position: relative;
@@ -45,6 +46,14 @@
     rgba(255, 138, 210, 0.16) 82%,
     rgba(255, 138, 210, 0.0) 100%
   );
+
+  /* Animation cadence so panels + rows breathe together */
+  --bh-panel-breathe-duration: 14s;
+  --bh-panel-breathe-delay: 0.8s;
+  --bh-row-breathe-duration: var(--bh-panel-breathe-duration);
+  --bh-row-breathe-delay: calc(var(--bh-panel-breathe-delay) / 2);
+  --bh-hover-transition-duration: 180ms;
+  --bh-hover-transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Board layout tokens */
@@ -52,6 +61,115 @@
   --bh-board-width: 1160px;
   --bh-panel-gap: 3.5rem;
 }
+
+/* Panel shell */
+.panel-shell {
+  width: 100%;
+  background: transparent;
+  margin: 0 auto;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.panel-title h2 {
+  font-family: var(--bh-font-head, Raleway, system-ui);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 16px;
+  color: var(--bh-text-head, #EDE8FF);
+  text-transform: uppercase;
+}
+
+.panel-sub {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--bh-text-dim, rgba(255,255,255,0.55));
+  letter-spacing: 0.18em;
+}
+
+.panel-body {
+  min-height: 56px;
+}
+
+/* Status copies */
+.state-copy {
+  font-size: 14px;
+  color: var(--bh-text-dim, rgba(255,255,255,0.6));
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* Skeletons */
+.skel-wrap {
+  display: grid;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.skel-line {
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(160, 130, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer */
+.skel-line::after,
+.skel-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.08),
+    transparent
+  );
+  animation: skel-sweep 1.2s infinite;
+}
+
+@keyframes skel-sweep {
+  to { transform: translateX(100%); }
+}
+
+/* Table skeleton */
+.skel-table {
+  display: grid;
+  gap: 8px;
+}
+
+.skel-row {
+  display: grid;
+  grid-template-columns: 40px 1.2fr 1fr 0.8fr 28px;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  background: transparent;
+}
+
+.skel-cell {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(160, 130, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.skel-rank { width: 20px; }
+.skel-symbol { width: 70%; }
+.skel-price { width: 85%; }
+.skel-change { width: 60%; }
+.skel-mini { width: 16px; height: 16px; border-radius: 4px; }
 
 /* Outer shell that holds 1m + 3m sections */
 .bh-board-shell {
@@ -1477,8 +1595,15 @@ body {
 
 .panel-1m,
 .panel-3m {
-  animation: bh-panel-breathe 14s ease-in-out infinite;
-  animation-delay: 0.8s;
+  animation: bh-panel-breathe var(--bh-panel-breathe-duration) ease-in-out infinite;
+  animation-delay: var(--bh-panel-breathe-delay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-1m,
+  .panel-3m {
+    animation: none;
+  }
 }
 
 /* Board shell + shared panel rows so 1m + 3m + watchlist align on same rails */
@@ -1844,8 +1969,8 @@ body {
   opacity: 0;
   transform: translateY(0) scaleX(1);
   transition:
-    opacity 160ms ease-out,
-    transform 180ms ease-out;
+    opacity var(--bh-hover-transition-duration) var(--bh-hover-transition-ease),
+    transform calc(var(--bh-hover-transition-duration) + 20ms) var(--bh-hover-transition-ease);
   pointer-events: none;
 }
 
@@ -1862,7 +1987,8 @@ body {
   }
 
   .token-row--clickable::after {
-    animation: bh-breath 6s ease-in-out infinite;
+    animation: bh-breath var(--bh-row-breathe-duration) ease-in-out infinite;
+    animation-delay: var(--bh-row-breathe-delay);
     pointer-events: none;
   }
 }
@@ -2176,7 +2302,7 @@ body {
   width: 560px;
   height: 560px;
   transform: translate(-50%, -45%);
-  background: url("/images/bhabit-rabbit.svg") center center no-repeat;
+  background: url("/purple-rabbit-bg.png") center center no-repeat;
   background-size: contain;
   opacity: 0.03; /* almost invisible by default */
   mix-blend-mode: screen;

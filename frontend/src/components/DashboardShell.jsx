@@ -11,7 +11,16 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 
 export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
   const [insightsSymbol, setInsightsSymbol] = useState(null);
-  const { gainers1m, gainers3m, losers3m, top1hPrice, top1hVolume, meta } = data;
+  const {
+    gainers1m = [],
+    gainers3m = [],
+    losers3m = [],
+    banner1hPrice = [],
+    banner1hVolume = [],
+    meta = {},
+    loading = false,
+    error = null,
+  } = data;
   const lastUpdated = meta?.last_updated;
 
   const handleInfo = (row) => {
@@ -22,7 +31,7 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
 
   const onInfoProp = onInfo || handleInfo;
 
-  const gainers1mRows = useMemo(() => gainers1m?.rows || [], [gainers1m]);
+  const gainers1mRows = useMemo(() => gainers1m || [], [gainers1m]);
   const { items: watchlistItems = [] } = useWatchlist();
 
   const handleRefreshClick = () => {
@@ -50,7 +59,8 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
       <div className="board-shell bh-board-shell">
         <div className="board-shell-inner">
           <section className="bh-banner-wrap bh-banner-wrap--top">
-            <TopBannerScroll rows={top1hPrice?.rows || []} onRefresh={onRefresh} />
+            <TopBannerScroll rows={banner1hPrice || []} loading={loading} error={error} onRefresh={onRefresh} />
+            {/* keep legacy volume banner for shell symmetry; status gating inside component */}
           </section>
 
           <main className="bh-main">
@@ -62,8 +72,8 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
                   <div className="panel-1m-slot">
                     <GainersTable1Min
                       rows={gainers1mRows}
-                      loading={gainers1m?.loading}
-                      error={gainers1m?.message}
+                      loading={loading}
+                      error={error}
                       onInfo={onInfoProp}
                     />
                   </div>
@@ -71,16 +81,16 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
 
                 {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
                 <section className="panel-row-3m">
-                  <GainersTable3Min
-                    rows={gainers3m?.rows || []}
-                    loading={gainers3m?.loading}
-                    error={gainers3m?.message}
+                    <GainersTable3Min
+                    rows={gainers3m || []}
+                    loading={loading}
+                    error={error}
                     onInfo={onInfoProp}
                   />
                   <Losers3m
-                    rows={losers3m?.rows || []}
-                    loading={losers3m?.loading}
-                    error={losers3m?.message}
+                    rows={losers3m || []}
+                    loading={loading}
+                    error={error}
                     onInfo={onInfoProp}
                   />
                 </section>
@@ -102,7 +112,7 @@ export default function DashboardShell({ data, onInfo, onRefresh, rabbitLit }) {
           </main>
 
           <section className="bh-banner-wrap bh-banner-wrap--bottom">
-            <TopBannerVolume1h rows={top1hVolume?.rows || []} />
+            <TopBannerVolume1h rows={banner1hVolume || []} />
           </section>
         </div>
       </div>

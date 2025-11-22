@@ -15,7 +15,7 @@ from collections import defaultdict, deque
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from watchlist import watchlist_bp, watchlist_db
 try:
@@ -1220,16 +1220,16 @@ CONFIG = {
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Background update interval in seconds
     'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 15)),  # Max coins to return
-    'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 1000000)),  # Minimum volume for banner
-    'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 1.0)),  # Minimum % change for banner
+    'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
+    'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.6)),  # Minimum % change for banner (loosened so more movers qualify)
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
     # 1-minute feature load controls
     'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
     'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 45)),  # Throttle 1-min recompute (default 45s)
     # 1-minute retention / hysteresis controls
-    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.15)),   # % change to ENTER list
-    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.05)),     # lower % to remain after entering
+    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.09)),   # % change to ENTER list (loosened)
+    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.035)),    # lower % to remain after entering (loosened)
     'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 25)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
     # Alert hygiene (streak-triggered alerts with cooldown)
@@ -1277,6 +1277,38 @@ one_hour_price_trends = {}
 one_hour_volume_trends = {}
 # Track 24h volume snapshots to estimate 1h volume deltas: symbol -> deque[(ts, vol_24h)]
 volume_history_24h = defaultdict(lambda: deque(maxlen=180))
+
+# DEV seed for 1h volume history so banners have data immediately.
+def seed_volume_history_if_dev():
+    """Gateable dev seeder. Delegates to `backend.fixtures.seed_volumes.load_dev_volume_fixture`.
+
+    Safety:
+      - Only runs when `DEV_SEED_VOLUME_HISTORY=1` is set.
+      - Refuses to run when `FLASK_ENV=production`.
+    """
+    if os.getenv("DEV_SEED_VOLUME_HISTORY") != "1":
+        return
+
+    # Do not run in production by mistake
+    if os.environ.get('FLASK_ENV', '').lower() == 'production':
+        logging.warning("DEV_SEED_VOLUME_HISTORY=1 ignored in production environment")
+        return
+
+    # Import the fixture loader from a dedicated module so logic is testable
+    try:
+        from backend.fixtures.seed_volumes import load_dev_volume_fixture
+    except Exception:
+        try:
+            from fixtures.seed_volumes import load_dev_volume_fixture
+        except Exception as e:
+            logging.debug(f"Dev seeder loader not available: {e}")
+            return
+
+    try:
+        result = load_dev_volume_fixture(volume_history_24h, symbols=None, minutes=60, logger=logging)
+        logging.info(f"Seeded dev volume history: {result}")
+    except Exception as e:
+        logging.debug(f"Dev seeder failed: {e}")
 
 # -----------------------------------------------------------------------------
 # Trend Alert Hygiene: fire on streak thresholds with cooldown per scope/symbol
@@ -1788,14 +1820,16 @@ def get_coinbase_24h_top_movers():
                     # Estimate 1h change using a simple fraction of the 24h move
                     price_1h_estimate = current_price - ((current_price - open_24h) * 0.04)
                     price_change_1h = pct_change(current_price, price_1h_estimate) if price_1h_estimate > 0 else 0.0
-                    
-                    # Only include significant moves
+
+                    # Always record volume snapshot for later 1h delta computation
+                    try:
+                        volume_history_24h[product["id"]].append((time.time(), volume_24h))
+                    except Exception:
+                        pass
+
+                    # Only include significant moves in the returned list, but
+                    # volume snapshots are collected regardless so bV can be computed
                     if abs(price_change_24h) >= CONFIG['MIN_CHANGE_THRESHOLD'] and volume_24h > CONFIG['MIN_VOLUME_THRESHOLD']:
-                        # Record volume snapshot for later 1h delta computation
-                        try:
-                            volume_history_24h[product["id"]].append((time.time(), volume_24h))
-                        except Exception:
-                            pass
                         return {
                             "symbol": product["id"],
                             "current_price": current_price,
@@ -1911,7 +1945,11 @@ def format_banner_data(banner_data):
 # =============================================================================
 
 def get_crypto_data():
-    """Main function to fetch and process crypto data"""
+    """Main function to fetch and process 1-minute crypto data.
+
+    Accepts optional pre-fetched `current_prices` to reuse a caller's snapshot
+    (e.g., background refresher) and avoid a second Coinbase fetch.
+    """
     current_time = time.time()
     
     # Check cache first
@@ -2290,23 +2328,18 @@ def get_banner_1h():
 def get_banner_1h_volume():
     """Return (rows, ts) for 1h volume banner, reusing bottom-banner computation."""
     try:
-        # Reuse the same core logic as the bottom scrolling banner, but return raw rows.
-        banner_data = get_24h_top_movers()
-        if not banner_data:
-            return [], None
-
-        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0) or 0, reverse=True)
-        rows = []
+        # Prefer detailed banner data when available, but fall back to the
+        # collected `volume_history_24h` snapshots to produce a top-by-volume
+        # view so the volume banner (`bV`) can populate even if price filters
+        # exclude some coins from the standard movers list.
+        banner_data = get_24h_top_movers() or []
         now_ts = time.time()
-        for coin in volume_sorted[:20]:
-            sym = coin.get("symbol")
-            if not sym:
-                continue
-            vol_now = float(coin.get("volume_24h", 0) or 0)
+        rows = []
 
-            # Compute 1h volume change if we have at least ~1h history; fall back to None.
-            vol_change_1h = None
-            vol_change_1h_pct = None
+        # Helper to compute vol change from history
+        def _vol_change_for(sym, vol_now):
+            vol_change = None
+            vol_change_pct = None
             try:
                 hist = volume_history_24h.get(sym, deque())
                 if hist:
@@ -2316,21 +2349,60 @@ def get_banner_1h_volume():
                             vol_then = vol
                             break
                     if vol_then is not None:
-                        vol_change_1h = vol_now - vol_then
-                        vol_change_1h_pct = pct_change(vol_now, vol_then)
+                        vol_change = vol_now - vol_then
+                        vol_change_pct = pct_change(vol_now, vol_then)
             except Exception:
                 pass
+            return vol_change, vol_change_pct
 
-            rows.append(
-                {
-                    "symbol": sym,
-                    "current_price": float(coin.get("current_price", 0) or 0),
-                    "volume_24h": vol_now,
-                    "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
-                    "volume_change_1h": vol_change_1h,
-                    "volume_change_1h_pct": vol_change_1h_pct,
-                }
-            )
+        # If banner_data provides volume_24h, use it; otherwise derive from
+        # `volume_history_24h` latest snapshot per symbol.
+        candidates = []
+        for coin in banner_data:
+            sym = coin.get("symbol")
+            if not sym:
+                continue
+            vol = float(coin.get("volume_24h", 0) or 0)
+            candidates.append((sym, vol, coin))
+
+        # Add any symbols present in volume_history_24h but missing from banner_data
+        for sym, hist in volume_history_24h.items():
+            if not hist:
+                continue
+            # skip if already present
+            if any(sym == c[0] for c in candidates):
+                continue
+            last_vol = hist[-1][1] if hist else 0
+            candidates.append((sym, float(last_vol or 0), None))
+
+        # Sort by volume desc and take top 20
+        candidates.sort(key=lambda t: t[1], reverse=True)
+
+        for sym, vol_now, coin in candidates[:20]:
+            current_price = None
+            price_change_1h = 0.0
+            if coin:
+                current_price = float(coin.get("current_price", 0) or 0)
+                price_change_1h = float(coin.get("price_change_1h", 0) or 0)
+            else:
+                # Try to find a current price from last_current_prices
+                try:
+                    cp = last_current_prices.get('data') or {}
+                    current_price = float(cp.get(sym, cp.get(sym.replace('-', ''), 0)) or 0)
+                except Exception:
+                    current_price = 0.0
+
+            vol_change_1h, vol_change_1h_pct = _vol_change_for(sym, vol_now)
+
+            rows.append({
+                "symbol": sym,
+                "current_price": float(current_price or 0),
+                "volume_24h": float(vol_now or 0),
+                "price_change_1h": float(price_change_1h or 0),
+                "volume_change_1h": vol_change_1h,
+                "volume_change_1h_pct": vol_change_1h_pct,
+            })
+
         return rows, datetime.now().isoformat()
     except Exception:
         return [], None
@@ -2629,6 +2701,15 @@ def data_aggregate():
             "errors": errors,
         }
 
+        # Provide a simple top-level timestamp for compatibility with older jq tooling
+        try:
+            meta["ts"] = payload["updated_at"]
+        except Exception:
+            try:
+                meta["ts"] = datetime.now().isoformat()
+            except Exception:
+                pass
+
         # Backwards-compatible shape for older Dashboard.jsx which expects a
         # top-level { data, meta, errors } object.
         try:
@@ -2916,8 +2997,12 @@ def get_recent_alerts():
 # =============================================================================
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
 
-def get_crypto_data_1min():
-    """Main function to fetch and process 1-minute crypto data"""
+def get_crypto_data_1min(current_prices=None):
+    """Main function to fetch and process 1-minute crypto data.
+
+    Accepts optional `current_prices` snapshot to avoid refetching when the
+    background updater supplies a fresh price set.
+    """
     # Allow an explicit seeded fixture to be returned when running tests or
     # when the env flag USE_1MIN_SEED=1 is present. This helps tests avoid
     # needing live price history during CI.
@@ -3325,6 +3410,16 @@ def get_crypto_data_1min():
             "dwell_seconds": dwell_seconds,
             "retained": len(retained_symbols)
         }
+        logging.info(
+            "1m retention candidates=%s retained_symbols=%s gainers=%s losers=%s enter=%.3f stay=%.3f dwell=%ss",
+            len(crypto_data),
+            len(retained_symbols),
+            len(result["gainers"]),
+            len(result["losers"]),
+            enter_pct,
+            stay_pct,
+            dwell_seconds,
+        )
         one_minute_cache['data'] = result
         one_minute_cache['timestamp'] = current_time
         logging.info(f"1-min data processed (throttle {refresh_window}s) retained={len(retained_symbols)} gainers={len(result['gainers'])} losers={len(result['losers'])}")
@@ -3904,8 +3999,19 @@ def background_crypto_updates():
                     # Store for reuse by on-demand endpoint
                     last_current_prices['data'] = current_prices
                     last_current_prices['timestamp'] = time.time()
+
+                    # Update in-memory 1-minute histories (stale-while-revalidate)
                     calculate_1min_changes(current_prices)
                     logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
+
+                    # Build and cache the 1-minute snapshot from these same prices
+                    try:
+                        _ = get_crypto_data_1min(current_prices=current_prices)
+                        logging.info("1-min snapshot refreshed by background updater")
+                    except Exception as e:
+                        logging.error(f"Background 1-min snapshot build failed: {e}")
+
+                    # Keep existing watchlist auto-logging behavior using the latest banner data
                     _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
 
         except Exception as e:
@@ -3974,6 +4080,40 @@ if __name__ == '__main__':
     
     logging.info("Starting CBMo4ers Crypto Dashboard Backend...")
     
+    # DEV: seed volume history if requested (helps banner 1h display during dev)
+    try:
+        seed_volume_history_if_dev()
+    except Exception:
+        logging.debug("DEV seeder skipped or failed")
+
+    # Warm the /data cache once so meta.ts and banner are available immediately after seeding
+    try:
+        try:
+            # Prefer the full snapshot builder which also populates banners
+            result = get_crypto_data()
+            if result:
+                try:
+                    cache['data'] = result
+                    cache['timestamp'] = time.time()
+                except Exception:
+                    pass
+            logging.info("Warmed /data cache after DEV seeding")
+        except Exception:
+            # Best-effort fallback: build 1min snapshot if full builder is unavailable
+            try:
+                result = get_crypto_data_1min()
+                if result:
+                    try:
+                        one_minute_cache['data'] = result
+                        one_minute_cache['timestamp'] = time.time()
+                    except Exception:
+                        pass
+                logging.info("Warmed 1min cache after DEV seeding")
+            except Exception:
+                logging.debug("Cache warmup skipped: snapshot builders not available at startup")
+    except Exception:
+        logging.debug("Unexpected error during cache warmup after DEV seeding")
+
     # Start background thread for periodic updates
     background_thread = threading.Thread(target=background_crypto_updates)
     background_thread.daemon = True

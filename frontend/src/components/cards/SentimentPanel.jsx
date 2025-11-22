@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/sentiment-panel.css";
-
-// You can override this via Vite env if needed
-const SENTIMENT_API_BASE =
-  import.meta.env.VITE_SENTIMENT_API_BASE || "http://localhost:8001";
+import { useSentimentLatest } from "../../hooks/useSentimentLatest";
 
 function normalizeSymbol(symbol) {
   return (symbol || "")
@@ -22,9 +19,14 @@ function getFearGreedLabel(index) {
 
 export default function SentimentPanel({ open, onClose, row, interval = "3m" }) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    data,
+    raw,
+    loading: hookLoading,
+    error,
+    refresh,
+  } = useSentimentLatest();
+  const sentiment = data || {};
 
   const symbol = normalizeSymbol(row?.symbol);
   const price = row?.current_price ?? null;
@@ -48,50 +50,43 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
         : "Flat"
       : null);
 
+  // Defensive reads with fallbacks so partial/slow payloads don't crash the UI
   const overallScore =
-    data?.overall_sentiment != null
-      ? Math.round(data.overall_sentiment * 100)
+    sentiment.overallSentiment != null
+      ? Math.round(Number(sentiment.overallSentiment) * 100)
       : null;
-  const fearGreedIndex = data?.fear_greed_index ?? null;
-  const socialVolumeChange = data?.social_metrics?.volume_change ?? null;
+  const fearGreedIndex =
+    sentiment.fearGreedIndex == null ? null : Number(sentiment.fearGreedIndex);
+  const socialVolumeChange =
+    typeof sentiment.socialMetrics?.volumeChange === "number"
+      ? sentiment.socialMetrics.volumeChange
+      : null;
+  const reddit = sentiment.socialBreakdown?.reddit ?? 0;
+  const twitter = sentiment.socialBreakdown?.twitter ?? 0;
+  const telegram = sentiment.socialBreakdown?.telegram ?? 0;
+  const chan = sentiment.socialBreakdown?.chan ?? 0;
+  const trendingTopics = Array.isArray(sentiment.trendingTopics)
+    ? sentiment.trendingTopics
+    : [];
+  const divergenceAlerts = Array.isArray(sentiment.divergenceAlerts)
+    ? sentiment.divergenceAlerts
+    : [];
+  const sentimentHistory = Array.isArray(sentiment.sentimentHistory)
+    ? sentiment.sentimentHistory
+    : [];
+  const socialHistory = Array.isArray(sentiment.socialHistory)
+    ? sentiment.socialHistory
+    : [];
 
+  const loading = hookLoading && !raw;
+  const fetchError = error;
+
+  // On open we rely on SWR's background revalidation; hook preserves last-good snapshot.
   useEffect(() => {
-    if (!open) return;
-
-    let cancelled = false;
-
-    async function loadSentiment() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const resp = await fetch(`${SENTIMENT_API_BASE}/sentiment/latest`);
-        if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}`);
-        }
-        const json = await resp.json();
-        if (!cancelled) {
-          setData(json);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (open && typeof refresh === "function") {
+      refresh();
     }
-
-    loadSentiment();
-    const id = setInterval(loadSentiment, 30000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [open]);
+  }, [open, refresh]);
 
   useEffect(() => {
     if (!open) return;
@@ -157,7 +152,7 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
         </div>
 
         <div className="sentiment-tab-nav">
-          {["overview", "social", "sources"].map((tab) => (
+          {["overview", "social", "charts", "sources"].map((tab) => (
             <button
               key={tab}
               type="button"
@@ -169,6 +164,7 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
             >
               {tab === "overview" && "Overview"}
               {tab === "social" && "Social Sentiment"}
+              {tab === "charts" && "Charts"}
               {tab === "sources" && "Data Sources"}
             </button>
           ))}
@@ -219,9 +215,9 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                     </div>
                     <div className="sentiment-metric-value neutral">
                       {socialVolumeChange != null
-                        ? `${socialVolumeChange > 0 ? "+" : ""}${socialVolumeChange.toFixed(
-                            1
-                          )}%`
+                        ? `${socialVolumeChange > 0 ? "+" : ""}${Number(
+                            socialVolumeChange
+                          ).toFixed(1)}%`
                         : "--"}
                     </div>
                   </div>
@@ -291,40 +287,32 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                   <div className="sentiment-metric-card">
                     <div className="sentiment-metric-label">Reddit</div>
                     <div className="sentiment-metric-value positive">
-                      {data?.social_breakdown?.reddit != null
-                        ? `${Math.round(
-                            data.social_breakdown.reddit * 100
-                          )}%`
+                      {sentiment.socialBreakdown?.reddit != null
+                        ? `${Math.round(sentiment.socialBreakdown.reddit * 100)}%`
                         : "--"}
                     </div>
                   </div>
                   <div className="sentiment-metric-card">
                     <div className="sentiment-metric-label">Twitter / X</div>
                     <div className="sentiment-metric-value neutral">
-                      {data?.social_breakdown?.twitter != null
-                        ? `${Math.round(
-                            data.social_breakdown.twitter * 100
-                          )}%`
+                      {sentiment.socialBreakdown?.twitter != null
+                        ? `${Math.round(sentiment.socialBreakdown.twitter * 100)}%`
                         : "--"}
                     </div>
                   </div>
                   <div className="sentiment-metric-card">
                     <div className="sentiment-metric-label">Telegram</div>
                     <div className="sentiment-metric-value positive">
-                      {data?.social_breakdown?.telegram != null
-                        ? `${Math.round(
-                            data.social_breakdown.telegram * 100
-                          )}%`
+                      {sentiment.socialBreakdown?.telegram != null
+                        ? `${Math.round(sentiment.socialBreakdown.telegram * 100)}%`
                         : "--"}
                     </div>
                   </div>
                   <div className="sentiment-metric-card">
                     <div className="sentiment-metric-label">Fringe / chan</div>
                     <div className="sentiment-metric-value negative">
-                      {data?.social_breakdown?.chan != null
-                        ? `${Math.round(
-                            data.social_breakdown.chan * 100
-                          )}%`
+                      {sentiment.socialBreakdown?.chan != null
+                        ? `${Math.round(sentiment.socialBreakdown.chan * 100)}%`
                         : "--"}
                     </div>
                   </div>
@@ -334,15 +322,15 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               <div className="sentiment-info-section">
                 <h3>Trending Topics</h3>
                 <div className="sentiment-tag-container">
-                  {(data?.trending_topics || []).slice(0, 10).map((topic) => (
+                  {trendingTopics.slice(0, 10).map((topic, idx) => (
                     <span
-                      key={topic}
+                      key={topic?.tag || topic?.sentiment || `topic-${idx}`}
                       className="sentiment-tag sentiment-tag-neutral"
                     >
-                      {topic}
+                      {topic?.tag || topic?.sentiment || topic || "topic"}
                     </span>
                   ))}
-                  {!data?.trending_topics?.length && (
+                  {!trendingTopics.length && (
                     <span className="sentiment-tag sentiment-tag-neutral">
                       No hot topics detected in the last window.
                     </span>
@@ -350,15 +338,15 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                 </div>
               </div>
 
-              {data?.divergence_alerts?.length ? (
+              {divergenceAlerts.length ? (
                 <div className="sentiment-info-section">
                   <h3>Divergence Alerts</h3>
-                  {data.divergence_alerts.map((alert, idx) => (
+                  {divergenceAlerts.map((alert, idx) => (
                     <div
                       key={idx}
                       className={
                         "sentiment-alert-box " +
-                        (alert.level === "critical"
+                        (alert.type === "critical"
                           ? "sentiment-alert-critical"
                           : "sentiment-alert-warning")
                       }
@@ -467,10 +455,66 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
             </div>
           )}
 
+          {activeTab === "charts" && (
+            <div className="sentiment-tab-panel">
+              <div className="sentiment-info-section">
+                <h3>Sentiment History</h3>
+                {!sentimentHistory.length && !socialHistory.length ? (
+                  <div className="sentiment-empty">Sentiment history warming up.</div>
+                ) : (
+                  <div className="sentiment-history-list">
+                    {sentimentHistory.slice(-10).map((entry, idx) => (
+                      <div key={`sent-h-${idx}`} className="sentiment-history-row">
+                        <span>{entry.label || entry.tag || "Composite"}</span>
+                        <span className="tabular-nums">
+                          {entry.sentiment != null
+                            ? Math.round(Number(entry.sentiment) * 100) / 100
+                            : entry.score != null
+                            ? Math.round(Number(entry.score) * 100) / 100
+                            : entry.value ?? "—"}
+                        </span>
+                        <span className="sentiment-history-ts">
+                          {entry.timestamp
+                            ? new Date(entry.timestamp).toLocaleTimeString()
+                            : entry.ts
+                            ? new Date(entry.ts).toLocaleTimeString()
+                            : "recent"}
+                        </span>
+                      </div>
+                    ))}
+                    {socialHistory.length ? (
+                      <div className="sentiment-history-row muted">
+                        Social sample: {socialHistory.length} points
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              <div className="sentiment-info-section">
+                <h3>Trending Topics Snapshot</h3>
+                {trendingTopics.length ? (
+                  <div className="sentiment-tag-container">
+                    {trendingTopics.slice(0, 10).map((topic, idx) => (
+                      <span
+                        key={`chart-topic-${topic?.tag || topic?.sentiment || idx}`}
+                        className="sentiment-tag sentiment-tag-neutral"
+                      >
+                        {topic?.tag || topic?.sentiment || topic || "topic"}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="sentiment-empty">Waiting for trending topics.</div>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading && (
             <div className="sentiment-loading">Loading sentiment…</div>
           )}
-          {error && (
+          {fetchError && !data && (
             <div className="sentiment-error">
               Sentiment API is not responding right now. Panel will fall back
               gracefully once it’s back online.
@@ -481,4 +525,3 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
     </div>
   );
 }
-

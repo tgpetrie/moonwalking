@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌙 Moonwalking - cbmovers by bhabit</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-card: rgba(255,255,255,0.05);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #666666;
+            --accent-moonshot: #00ff88;
+            --accent-crater: #ff4757;
+            --accent-warning: #ffa502;
+            --accent-info: #3742fa;
+            --accent-purple: #a55eea;
+            --border-color: rgba(255,255,255,0.1);
+            --glow-green: 0 0 20px rgba(0,255,136,0.3);
+            --glow-red: 0 0 20px rgba(255,71,87,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0,255,136,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,71,87,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(58,66,250,0.05) 0%, transparent 50%);
+            z-index: -1;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 0;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-moonshot), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0,255,136,0.5);
+        }
+
+        .logo .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-crater);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background: var(--accent-moonshot);
+            box-shadow: var(--glow-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.loading {
+            background: var(--accent-warning);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .market-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .alerts-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .overview-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-moonshot);
+            box-shadow: var(--glow-green);
+        }
+
+        .overview-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 8px;
+        }
+
+        .overview-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .critical { color: var(--accent-crater); }
+        .high { color: var(--accent-warning); }
+        .medium { color: var(--accent-info); }
+        .low { color: var(--accent-moonshot); }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .alerts-feed {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .feed-header {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feed-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .feed-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn.active {
+            background: var(--accent-moonshot);
+            color: var(--bg-primary);
+            border-color: var(--accent-moonshot);
+        }
+
+        .alerts-list {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .alert-item {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .alert-item:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .alert-item.critical {
+            border-left: 4px solid var(--accent-crater);
+            background: rgba(255,71,87,0.05);
+        }
+
+        .alert-item.high {
+            border-left: 4px solid var(--accent-warning);
+            background: rgba(255,165,2,0.05);
+        }
+
+        .alert-item.medium {
+            border-left: 4px solid var(--accent-info);
+            background: rgba(58,66,250,0.05);
+        }
+
+        .alert-item.low {
+            border-left: 4px solid var(--accent-moonshot);
+            background: rgba(0,255,136,0.05);
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            line-height: 1.3;
+        }
+
+        .alert-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .alert-message {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .alert-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        .action-btn.buy {
+            background: rgba(0,255,136,0.1);
+            border-color: var(--accent-moonshot);
+            color: var(--accent-moonshot);
+        }
+
+        .action-btn.sell {
+            background: rgba(255,71,87,0.1);
+            border-color: var(--accent-crater);
+            color: var(--accent-crater);
+        }
+
+        .action-btn.watch {
+            background: rgba(58,66,250,0.1);
+            border-color: var(--accent-info);
+            color: var(--accent-info);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .market-overview {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .market-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .market-indicators {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .indicator-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .indicator-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        .sentiment-meter {
+            width: 100%;
+            height: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .sentiment-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-crater), var(--accent-warning), var(--accent-moonshot));
+            transition: width 0.5s ease;
+            width: 50%;
+        }
+
+        .watchlist {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .watchlist-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .symbol-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .symbol-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .symbol-item:hover {
+            border-color: var(--accent-moonshot);
+            background: rgba(0,255,136,0.05);
+        }
+
+        .symbol-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .symbol-name {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .symbol-price {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .symbol-change {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .positive { color: var(--accent-moonshot); }
+        .negative { color: var(--accent-crater); }
+
+        .floating-controls {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent-moonshot);
+            border: none;
+            color: var(--bg-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0,255,136,0.6);
+        }
+
+        .settings-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--accent-crater);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--accent-moonshot);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .error-message {
+            background: rgba(255,71,87,0.1);
+            border: 1px solid var(--accent-crater);
+            color: var(--accent-crater);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header-content {
+                padding: 0 10px;
+            }
+            
+            .alerts-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .floating-controls {
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .feed-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-btn {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing Moonwalking...</div>
+    </div>
+
+    <div class="background-pattern"></div>
+    
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div>
+                    <h1>🌙 Moonwalking</h1>
+                    <div class="subtitle">cbmovers by bhabit</div>
+                </div>
+            </div>
+            <div class="status-indicators">
+                <div class="status-dot" id="statusDot" title="Connection Status"></div>
+                <div class="market-time" id="marketTime">--:--:-- UTC</div>
+                <div class="market-time" id="dataPoints">0 sources</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="alerts-overview">
+            <div class="overview-card">
+                <div class="overview-value critical" id="criticalCount">0</div>
+                <div class="overview-label">Critical</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-value high" id="highCount">0</div>
+                <div class="overview-label">High</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-value medium" id="mediumCount">0</div>
+                <div class="overview-label">Medium</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-value low" id="lowCount">0</div>
+                <div class="overview-label">Low</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-value" id="totalAlerts">0</div>
+                <div class="overview-label">Total Active</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="alerts-feed">
+                <div class="feed-header">
+                    <div class="feed-title">🚨 Live Alert Feed</div>
+                    <div class="feed-controls">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="moonshot">🚀</button>
+                        <button class="filter-btn" data-filter="crater">📉</button>
+                        <button class="filter-btn" data-filter="sentiment">🌊</button>
+                        <button class="filter-btn" data-filter="whale">🐋</button>
+                    </div>
+                </div>
+                <div class="alerts-list" id="alertsList">
+                    <div class="loading-spinner" style="margin: 40px auto;"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="market-overview">
+                    <div class="market-title">📊 Market Overview</div>
+                    <div class="market-indicators">
+                        <div class="indicator">
+                            <span class="indicator-label">Fear & Greed</span>
+                            <span class="indicator-value" id="fearGreed">--</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">BTC Dominance</span>
+                            <span class="indicator-value" id="btcDominance">--%</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Overall Sentiment</span>
+                            <span class="indicator-value" id="overallSentiment">--</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Active Session</span>
+                            <span class="indicator-value" id="activeSession">--</span>
+                        </div>
+                    </div>
+                    <div class="sentiment-meter">
+                        <div class="sentiment-fill" id="sentimentFill"></div>
+                    </div>
+                </div>
+
+                <div class="watchlist">
+                    <div class="watchlist-title">👀 Watchlist</div>
+                    <div class="symbol-list" id="symbolList">
+                        <div class="loading-spinner" style="margin: 20px auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-controls">
+        <button class="control-btn" id="refreshBtn" title="Refresh Data">
+            🔄
+            <span class="notification-badge" id="refreshBadge" style="display: none;">!</span>
+        </button>
+        <button class="control-btn settings-btn" id="settingsBtn" title="Settings">
+            ⚙️
+        </button>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            API_BASE: 'http://localhost:8001',
+            REFRESH_INTERVAL: 30000, // 30 seconds
+            MAX_RETRIES: 3,
+            RETRY_DELAY: 2000
+        };
+
+        // Global state
+        let appState = {
+            alerts: [],
+            watchlistSymbols: ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ADA', 'DOT', 'LINK'],
+            currentFilter: 'all',
+            isLoading: false,
+            retryCount: 0,
+            lastUpdate: null,
+            connectionStatus: 'disconnected'
+        };
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🌙 Initializing Moonwalking Dashboard...');
+            initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            try {
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Start time updates
+                updateMarketTime();
+                setInterval(updateMarketTime, 1000);
+                
+                // Load initial data
+                await loadInitialData();
+                
+                // Hide loading screen
+                hideLoadingScreen();
+                
+                // Start auto-refresh
+                setInterval(refreshData, CONFIG.REFRESH_INTERVAL);
+                
+                console.log('✅ Dashboard initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+                showError('Failed to initialize dashboard. Please refresh the page.');
+                hideLoadingScreen();
+            }
+        }
+
+        function setupEventListeners() {
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Update active state
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update filter and render
+                    appState.currentFilter = this.dataset.filter;
+                    renderAlerts();
+                });
+            });
+
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                refreshData();
+            });
+            
+            // Settings button
+            document.getElementById('settingsBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                openSettings();
+            });
+
+            // Handle errors globally
+            window.addEventListener('error', function(e) {
+                console.error('Global error:', e.error);
+                updateConnectionStatus('error');
+            });
+
+            window.addEventListener('unhandledrejection', function(e) {
+                console.error('Unhandled promise rejection:', e.reason);
+                updateConnectionStatus('error');
+            });
+        }
+
+        async function loadInitialData() {
+            updateConnectionStatus('loading');
+            
+            try {
+                // Load all data in parallel
+                const results = await Promise.allSettled([
+                    loadActiveAlerts(),
+                    loadMarketOverview(),
+                    loadWatchlistData()
+                ]);
+
+                // Check if any critical operations failed
+                const failures = results.filter(r => r.status === 'rejected');
+                if (failures.length > 0) {
+                    console.warn('Some data loading failed:', failures);
+                }
+
+                updateConnectionStatus('connected');
+                appState.lastUpdate = new Date();
+                
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                updateConnectionStatus('error');
+                throw error;
+            }
+        }
+
+        async function refreshData() {
+            if (appState.isLoading) {
+                console.log('Refresh already in progress, skipping...');
+                return;
+            }
+
+            appState.isLoading = true;
+            updateConnectionStatus('loading');
+            
+            try {
+                await loadInitialData();
+                appState.retryCount = 0; // Reset retry count on success
+                
+            } catch (error) {
+                console.error('Refresh failed:', error);
+                handleRefreshError(error);
+            } finally {
+                appState.isLoading = false;
+            }
+        }
+
+        function handleRefreshError(error) {
+            appState.retryCount++;
+            
+            if (appState.retryCount < CONFIG.MAX_RETRIES) {
+                console.log(`Retrying in ${CONFIG.RETRY_DELAY/1000} seconds... (${appState.retryCount}/${CONFIG.MAX_RETRIES})`);
+                setTimeout(refreshData, CONFIG.RETRY_DELAY);
+            } else {
+                console.error('Max retries reached, giving up');
+                updateConnectionStatus('error');
+                showError('Connection lost. Please check your internet connection and refresh the page.');
+            }
+        }
+
+        async function loadActiveAlerts() {
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_BASE}/alerts?limit=50`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const alerts = await response.json();
+                
+                // Validate alert data
+                appState.alerts = Array.isArray(alerts) ? alerts.filter(validateAlert) : [];
+                
+                updateAlertCounts();
+                renderAlerts();
+                
+                console.log(`✅ Loaded ${appState.alerts.length} alerts`);
+                
+            } catch (error) {
+                console.error('Failed to load alerts:', error);
+                
+                // Show mock data if in development
+                if (window.location.hostname === 'localhost') {
+                    appState.alerts = generateMockAlerts();
+                    updateAlertCounts();
+                    renderAlerts();
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        function validateAlert(alert) {
+            const required = ['id', 'symbol', 'alert_type', 'severity', 'title', 'message', 'timestamp'];
+            return required.every(field => alert && alert[field] !== undefined);
+        }
+
+        async function loadMarketOverview() {
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_BASE}/market`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                updateMarketDisplay(data);
+                
+            } catch (error) {
+                console.error('Failed to load market data:', error);
+                
+                // Show mock data
+                updateMarketDisplay({
+                    fear_greed_index: 67,
+                    btc_dominance: 52.3,
+                    overall_sentiment: 0.68,
+                    active_session: 'US'
+                });
+            }
+        }
+
+        async function loadWatchlistData() {
+            try {
+                const symbols = appState.watchlistSymbols.join(',');
+                const response = await fetchWithTimeout(`${CONFIG.API_BASE}/symbols?symbols=${symbols}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                updateWatchlistDisplay(data);
+                
+            } catch (error) {
+                console.error('Failed to load watchlist data:', error);
+                updateWatchlistDisplay(generateMockPrices());
+            }
+        }
+
+        function updateAlertCounts() {
+            const counts = {
+                critical: 0,
+                high: 0,
+                medium: 0,
+                low: 0,
+                total: appState.alerts.length
+            };
+
+            appState.alerts.forEach(alert => {
+                const severity = alert.severity.toLowerCase();
+                if (severity.includes('critical')) counts.critical++;
+                else if (severity.includes('high')) counts.high++;
+                else if (severity.includes('medium')) counts.medium++;
+                else if (severity.includes('low')) counts.low++;
+            });
+
+            // Update DOM safely
+            safeUpdateElement('criticalCount', counts.critical);
+            safeUpdateElement('highCount', counts.high);
+            safeUpdateElement('mediumCount', counts.medium);
+            safeUpdateElement('lowCount', counts.low);
+            safeUpdateElement('totalAlerts', counts.total);
+            safeUpdateElement('dataPoints', `${counts.total} alerts`);
+        }
+
+        function renderAlerts() {
+            const alertsList = document.getElementById('alertsList');
+            
+            if (!alertsList) {
+                console.error('Alerts list element not found');
+                return;
+            }
+            
+            if (appState.alerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>🌙 No active alerts</h3>
+                        <p>Markets are quiet... for now</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const filteredAlerts = appState.alerts.filter(alert => {
+                if (appState.currentFilter === 'all') return true;
+                return alert.alert_type.toLowerCase().includes(appState.currentFilter);
+            });
+
+            if (filteredAlerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No ${appState.currentFilter} alerts</h3>
+                        <p>Try a different filter</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const alertsHtml = filteredAlerts.map(alert => {
+                const severityClass = getSeverityClass(alert.severity);
+                const actionClass = getActionClass(alert.action);
+                
+                return `
+                    <div class="alert-item ${severityClass}" onclick="viewAlertDetails('${alert.id}')">
+                        <div class="alert-header">
+                            <div class="alert-title">${escapeHtml(alert.title)}</div>
+                            <div class="alert-time">${formatTime(alert.timestamp)}</div>
+                        </div>
+                        <div class="alert-message">${escapeHtml(alert.message)}</div>
+                        
+                        <div class="alert-metrics">
+                            <div class="metric">
+                                <div class="metric-value ${alert.price_change_1h >= 0 ? 'positive' : 'negative'}">
+                                    ${formatPercentage(alert.price_change_1h)}
+                                </div>
+                                <div class="metric-label">1H Change</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">
+                                    ${formatNumber(alert.volume_spike, 1)}x
+                                </div>
+                                <div class="metric-label">Volume</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">
+                                    ${formatPercentage(alert.sentiment_score, 0)}
+                                </div>
+                                <div class="metric-label">Sentiment</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value">
+                                    ${formatPercentage(alert.confidence, 0)}
+                                </div>
+                                <div class="metric-label">Confidence</div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert-actions">
+                            <button class="action-btn ${actionClass}" onclick="event.stopPropagation(); executeAction('${alert.action}', '${alert.symbol}')">
+                                ${alert.action}
+                            </button>
+                            <button class="action-btn" onclick="event.stopPropagation(); acknowledgeAlert('${alert.id}')">
+                                ACK
+                            </button>
+                            <button class="action-btn" onclick="event.stopPropagation(); viewChart('${alert.symbol}')">
+                                CHART
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            alertsList.innerHTML = alertsHtml;
+        }
+
+        function updateMarketDisplay(data) {
+            try {
+                safeUpdateElement('fearGreed', data.fear_greed_index || '--');
+                safeUpdateElement('btcDominance', data.btc_dominance ? `${data.btc_dominance.toFixed(1)}%` : '--%');
+                safeUpdateElement('overallSentiment', data.overall_sentiment ? `${(data.overall_sentiment * 100).toFixed(0)}%` : '--');
+                safeUpdateElement('activeSession', data.active_session || '--');
+                
+                // Update sentiment meter
+                const sentimentFill = document.getElementById('sentimentFill');
+                if (sentimentFill && data.overall_sentiment) {
+                    sentimentFill.style.width = `${data.overall_sentiment * 100}%`;
+                }
+                
+            } catch (error) {
+                console.error('Error updating market display:', error);
+            }
+        }
+
+        function updateWatchlistDisplay(data) {
+            const symbolList = document.getElementById('symbolList');
+            
+            if (!symbolList) {
+                console.error('Symbol list element not found');
+                return;
+            }
+            
+            if (!Array.isArray(data) || data.length === 0) {
+                symbolList.innerHTML = `
+                    <div class="empty-state">
+                        <p>No price data available</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const symbolsHtml = data.map(item => {
+                const change24h = item.change_24h || 0;
+                const changeClass = change24h >= 0 ? 'positive' : 'negative';
+                
+                return `
+                    <div class="symbol-item" onclick="viewSymbolDetails('${item.symbol}')">
+                        <div class="symbol-info">
+                            <div class="symbol-name">${item.symbol}/USDT</div>
+                            <div class="symbol-price">$${formatNumber(item.price, 2)}</div>
+                        </div>
+                        <div class="symbol-change ${changeClass}">
+                            ${formatPercentage(change24h)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            symbolList.innerHTML = symbolsHtml;
+        }
+
+        function updateMarketTime() {
+            const now = new Date();
+            const timeString = now.toUTCString().slice(17, 25) + ' UTC';
+            safeUpdateElement('marketTime', timeString);
+        }
+
+        function updateConnectionStatus(status) {
+            const statusDot = document.getElementById('statusDot');
+            if (!statusDot) return;
+            
+            // Remove all status classes
+            statusDot.classList.remove('connected', 'loading', 'error');
+            
+            // Add appropriate class
+            switch (status) {
+                case 'connected':
+                    statusDot.classList.add('connected');
+                    statusDot.title = 'Connected';
+                    break;
+                case 'loading':
+                    statusDot.classList.add('loading');
+                    statusDot.title = 'Loading...';
+                    break;
+                case 'error':
+                    statusDot.style.background = 'var(--accent-crater)';
+                    statusDot.title = 'Connection Error';
+                    break;
+                default:
+                    statusDot.style.background = 'var(--text-muted)';
+                    statusDot.title = 'Disconnected';
+            }
+            
+            appState.connectionStatus = status;
+        }
+
+        // Utility functions
+        function safeUpdateElement(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatNumber(num, decimals = 2) {
+            if (typeof num !== 'number' || isNaN(num)) return '--';
+            return num.toFixed(decimals);
+        }
+
+        function formatPercentage(num, decimals = 1) {
+            if (typeof num !== 'number' || isNaN(num)) return '--';
+            const percentage = num * 100;
+            const sign = percentage >= 0 ? '+' : '';
+            return `${sign}${percentage.toFixed(decimals)}%`;
+        }
+
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString();
+            } catch {
+                return '--:--:--';
+            }
+        }
+
+        function getSeverityClass(severity) {
+            const s = severity.toLowerCase();
+            if (s.includes('critical')) return 'critical';
+            if (s.includes('high')) return 'high';
+            if (s.includes('medium')) return 'medium';
+            if (s.includes('low')) return 'low';
+            return 'low';
+        }
+
+        function getActionClass(action) {
+            return action ? action.toLowerCase() : 'watch';
+        }
+
+        function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('hidden');
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `
+                <strong>Error:</strong> ${escapeHtml(message)}
+                <button onclick="this.parentElement.remove()" style="float: right; background: none; border: none; color: inherit; cursor: pointer;">×</button>
+            `;
+            
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 10000);
+        }
+
+        async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timeout');
+                }
+                throw error;
+            }
+        }
+
+        // Mock data generators for development
+        function generateMockAlerts() {
+            return [
+                {
+                    id: 'mock_moonshot_sol_1',
+                    timestamp: new Date(Date.now() - 300000).toISOString(),
+                    symbol: 'SOL',
+                    alert_type: 'MOONSHOT',
+                    severity: '🔴 CRITICAL',
+                    title: '🚀 SOL MOONSHOT DETECTED',
+                    message: 'SOL pumping 18.5% in 1h with 4.2x volume!',
+                    price_change_1h: 0.185,
+                    volume_spike: 4.2,
+                    sentiment_score: 0.85,
+                    confidence: 0.92,
+                    action: 'BUY',
+                    current_price: 98.50
+                },
+                {
+                    id: 'mock_sentiment_eth_1',
+                    timestamp: new Date(Date.now() - 600000).toISOString(),
+                    symbol: 'ETH',
+                    alert_type: 'SENTIMENT_SPIKE',
+                    severity: '🟡 MEDIUM',
+                    title: '🌊 ETH SENTIMENT SPIKE',
+                    message: 'ETH bullish sentiment spike: 35% change, 3.1x social volume!',
+                    price_change_1h: 0.075,
+                    volume_spike: 2.1,
+                    sentiment_score: 0.75,
+                    confidence: 0.68,
+                    action: 'WATCH',
+                    current_price: 2680.0
+                }
+            ];
+        }
+
+        function generateMockPrices() {
+            return [
+                { symbol: 'BTC', price: 43250, change_24h: 0.025 },
+                { symbol: 'ETH', price: 2680, change_24h: 0.048 },
+                { symbol: 'SOL', price: 98.50, change_24h: 0.185 },
+                { symbol: 'AVAX', price: 26.40, change_24h: -0.032 },
+                { symbol: 'MATIC', price: 0.85, change_24h: 0.012 },
+                { symbol: 'ADA', price: 0.52, change_24h: -0.015 },
+                { symbol: 'DOT', price: 7.25, change_24h: 0.038 },
+                { symbol: 'LINK', price: 14.80, change_24h: 0.055 }
+            ];
+        }
+
+        // Event handlers
+        function viewAlertDetails(alertId) {
+            console.log('Viewing alert details:', alertId);
+            // Implement alert details modal
+        }
+
+        function executeAction(action, symbol) {
+            console.log(`Executing ${action} for ${symbol}`);
+            // Implement action execution
+        }
+
+        function acknowledgeAlert(alertId) {
+            console.log('Acknowledging alert:', alertId);
+            // Implement alert acknowledgment
+        }
+
+        function viewChart(symbol) {
+            console.log('Opening chart for:', symbol);
+            // Implement chart view
+        }
+
+        function viewSymbolDetails(symbol) {
+            console.log('Viewing symbol details:', symbol);
+            // Implement symbol details view
+        }
+
+        function openSettings() {
+            console.log('Opening settings');
+            // Implement settings modal
+        }
+
+        // WebSocket connection for real-time updates (optional)
+        function connectWebSocket() {
+            try {
+                const ws = new WebSocket(`ws://${window.location.hostname}:8001/ws/alerts`);
+                
+                ws.onopen = function() {
+                    console.log('🔗 WebSocket connected');
+                    updateConnectionStatus('connected');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('WebSocket message parse error:', error);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('🔗 WebSocket disconnected');
+                    updateConnectionStatus('disconnected');
+                    
+                    // Reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('error');
+                };
+                
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'new_alert':
+                    console.log('📢 New alert received:', data.alert);
+                    // Add to alerts array and re-render
+                    if (data.alert && validateAlert(data.alert)) {
+                        appState.alerts.unshift(data.alert);
+                        updateAlertCounts();
+                        renderAlerts();
+                        
+                        // Show notification
+                        showNotification(data.alert);
+                    }
+                    break;
+                    
+                case 'alert_update':
+                    console.log('📝 Alert updated:', data.alert_id);
+                    // Update existing alert
+                    break;
+                    
+                case 'ping':
+                    // Respond to ping
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({type: 'pong'}));
+                    }
+                    break;
+            }
+        }
+
+        function showNotification(alert) {
+            // Desktop notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(alert.title, {
+                    body: alert.message,
+                    icon: '🌙'
+                });
+            }
+            
+            // Update refresh badge
+            const badge = document.getElementById('refreshBadge');
+            if (badge) {
+                badge.style.display = 'flex';
+                badge.textContent = '!';
+            }
+        }
+
+        // Request notification permission on load
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Try to connect WebSocket after initial load
+        setTimeout(() => {
+            if (appState.connectionStatus === 'connected') {
+                connectWebSocket();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

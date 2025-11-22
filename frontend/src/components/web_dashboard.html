@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Sentiment Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sentiment-positive { color: #10b981; }
+        .sentiment-negative { color: #ef4444; }
+        .sentiment-neutral { color: #6b7280; }
+
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .alert-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .alert-high { 
+            background: #fef2f2; 
+            border-color: #ef4444; 
+            color: #991b1b;
+        }
+
+        .alert-medium { 
+            background: #fffbeb; 
+            border-color: #f59e0b; 
+            color: #92400e;
+        }
+
+        .alert-low { 
+            background: #f0f9ff; 
+            border-color: #3b82f6; 
+            color: #1e40af;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .source-breakdown {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .source-tag {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Crypto Sentiment Dashboard</h1>
+            <p>Real-time cryptocurrency sentiment analysis from multiple sources</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-value" id="status-sentiment">--</div>
+                <div class="status-label">Overall Sentiment</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="status-classification">--</div>
+                <div class="status-label">Market Mood</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="status-sources">--</div>
+                <div class="status-label">Data Sources</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="status-updated">--</div>
+                <div class="status-label">Last Updated</div>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value sentiment-positive" id="metric-confidence">--</div>
+                <div class="metric-label">Confidence</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="metric-momentum">--</div>
+                <div class="metric-label">Momentum</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="metric-data-quality">--</div>
+                <div class="metric-label">Data Quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="metric-divergences">--</div>
+                <div class="metric-label">Divergences</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <div class="chart-title">Sentiment Timeline</div>
+                <canvas id="sentimentChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Source Distribution</div>
+                <canvas id="sourceChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Symbol Sentiment</div>
+                <canvas id="symbolChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Trust Tier Breakdown</div>
+                <canvas id="tierChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="alerts-section">
+            <h3>📢 Recent Alerts & Divergences</h3>
+            <div id="alerts-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading alerts...
+                </div>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="loadDashboardData()">
+            🔄 Refresh
+        </button>
+    </div>
+
+    <script>
+        // Global variables for charts
+        let sentimentChart, sourceChart, symbolChart, tierChart;
+        const API_BASE = 'http://localhost:8000'; // Adjust for your API endpoint
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            loadDashboardData();
+            
+            // Auto-refresh every 5 minutes
+            setInterval(loadDashboardData, 5 * 60 * 1000);
+        });
+
+        async function loadDashboardData() {
+            try {
+                // Show loading state
+                updateStatusBar('loading');
+                
+                // Fetch latest sentiment data
+                const [latestResponse, historyResponse, statsResponse] = await Promise.all([
+                    axios.get(`${API_BASE}/sentiment/latest`),
+                    axios.get(`${API_BASE}/sentiment/history?limit=20`),
+                    axios.get(`${API_BASE}/stats`)
+                ]);
+
+                const latest = latestResponse.data;
+                const history = historyResponse.data;
+                const stats = statsResponse.data;
+
+                // Update status bar
+                updateStatusBar('loaded', latest);
+                
+                // Update metrics
+                updateMetrics(latest);
+                
+                // Update charts
+                updateSentimentChart(history.history);
+                updateSourceChart(latest);
+                updateSymbolChart(latest);
+                updateTierChart(latest);
+                
+                // Update alerts
+                updateAlerts(latest.divergences || []);
+
+                console.log('Dashboard updated successfully');
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                updateStatusBar('error');
+            }
+        }
+
+        function updateStatusBar(state, data = null) {
+            const elements = {
+                sentiment: document.getElementById('status-sentiment'),
+                classification: document.getElementById('status-classification'),
+                sources: document.getElementById('status-sources'),
+                updated: document.getElementById('status-updated')
+            };
+
+            if (state === 'loading') {
+                Object.values(elements).forEach(el => el.textContent = '...');
+                return;
+            }
+
+            if (state === 'error') {
+                Object.values(elements).forEach(el => el.textContent = 'Error');
+                return;
+            }
+
+            if (data && data.overall_metrics) {
+                const metrics = data.overall_metrics;
+                
+                elements.sentiment.textContent = (metrics.weighted_sentiment * 100).toFixed(1) + '%';
+                elements.sentiment.className = 'status-value ' + getSentimentClass(metrics.weighted_sentiment);
+                
+                elements.classification.textContent = metrics.fear_greed_classification || 'Unknown';
+                elements.sources.textContent = metrics.total_data_points || 0;
+                elements.updated.textContent = new Date().toLocaleTimeString();
+            }
+        }
+
+        function updateMetrics(data) {
+            const metrics = data.overall_metrics;
+            
+            document.getElementById('metric-confidence').textContent = 
+                (metrics.confidence * 100).toFixed(1) + '%';
+            
+            document.getElementById('metric-momentum').textContent = 
+                (metrics.momentum > 0 ? '+' : '') + (metrics.momentum * 100).toFixed(1) + '%';
+            document.getElementById('metric-momentum').className = 
+                'metric-value ' + (metrics.momentum > 0 ? 'sentiment-positive' : 'sentiment-negative');
+            
+            document.getElementById('metric-data-quality').textContent = 
+                (metrics.data_quality_score * 100).toFixed(1) + '%';
+            
+            document.getElementById('metric-divergences').textContent = 
+                (data.divergences || []).length;
+        }
+
+        function updateAlerts(divergences) {
+            const container = document.getElementById('alerts-container');
+            
+            if (!divergences || divergences.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #10b981; padding: 20px;">✅ No significant divergences detected</p>';
+                return;
+            }
+
+            const alertsHtml = divergences.map(div => `
+                <div class="alert-item alert-${div.severity || 'low'}">
+                    <strong>${div.type.replace(/_/g, ' ').toUpperCase()}</strong><br>
+                    ${div.description}<br>
+                    <small>Magnitude: ${(div.magnitude * 100).toFixed(1)}% | ${new Date(div.detected_at).toLocaleString()}</small>
+                </div>
+            `).join('');
+
+            container.innerHTML = alertsHtml;
+        }
+
+        function initializeCharts() {
+            // Sentiment Timeline Chart
+            const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
+            sentimentChart = new Chart(sentimentCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sentiment Score',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Source Distribution Chart
+            const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+            sourceChart = new Chart(sourceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Symbol Sentiment Chart
+            const symbolCtx = document.getElementById('symbolChart').getContext('2d');
+            symbolChart = new Chart(symbolCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sentiment',
+                        data: [],
+                        backgroundColor: function(context) {
+                            const value = context.parsed.y;
+                            return value > 0.6 ? '#10b981' : value < 0.4 ? '#ef4444' : '#6b7280';
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Tier Distribution Chart
+            const tierCtx = document.getElementById('tierChart').getContext('2d');
+            tierChart = new Chart(tierCtx, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSentimentChart(history) {
+            const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
+            const data = history.map(h => h.overall_sentiment);
+
+            sentimentChart.data.labels = labels;
+            sentimentChart.data.datasets[0].data = data;
+            sentimentChart.update();
+        }
+
+        function updateSourceChart(data) {
+            const breakdown = data.source_breakdown || {};
+            const labels = Object.keys(breakdown);
+            const counts = labels.map(label => breakdown[label].count);
+
+            sourceChart.data.labels = labels;
+            sourceChart.data.datasets[0].data = counts;
+            sourceChart.update();
+        }
+
+        function updateSymbolChart(data) {
+            const symbols = data.aggregated_sentiment?.by_symbol || {};
+            const labels = Object.keys(symbols).slice(0, 8); // Top 8 symbols
+            const sentiments = labels.map(symbol => symbols[symbol].weighted_score || 0.5);
+
+            symbolChart.data.labels = labels;
+            symbolChart.data.datasets[0].data = sentiments;
+            symbolChart.update();
+        }
+
+        function updateTierChart(data) {
+            const tiers = data.overall_metrics?.tier_distribution || {};
+            const labels = Object.keys(tiers).map(t => t.replace('tier', 'Tier ').toUpperCase());
+            const values = Object.values(tiers);
+
+            tierChart.data.labels = labels;
+            tierChart.data.datasets[0].data = values;
+            tierChart.update();
+        }
+
+        function getSentimentClass(sentiment) {
+            if (sentiment > 0.6) return 'sentiment-positive';
+            if (sentiment < 0.4) return 'sentiment-negative';
+            return 'sentiment-neutral';
+        }
+
+        // Utility function to format numbers
+        function formatNumber(num, decimals = 2) {
+            return parseFloat(num).toFixed(decimals);
+        }
+
+        // Handle connection errors gracefully
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+            updateStatusBar('error');
+        });
+    </script>
+</body>
+</html>

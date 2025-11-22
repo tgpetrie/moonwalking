@@ -14,28 +14,6 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
     </div>
   );
 
-  if (error) {
-    return (
-      <div className="panel panel-3m">
-        {renderHeader()}
-        <div className="panel-body">
-          <div className="panel-error">Failed to load 3m gainers.</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="panel panel-3m">
-        {renderHeader()}
-        <div className="panel-body">
-          <div className="panel-loading">Loading…</div>
-        </div>
-      </div>
-    );
-  }
-
   const [isExpanded, setIsExpanded] = useState(false);
   const allRows = Array.isArray(rows) ? rows : [];
 
@@ -64,12 +42,19 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
     ? gainers.slice(0, MAX_EXPANDED)
     : gainers.slice(0, MAX_BASE);
   const count = gainers.length;
+  const status =
+    error ? "error" :
+    count > 0 ? "ready" :
+    loading ? "loading" :
+    "empty";
 
   return (
     <div className="panel panel-3m">
       {renderHeader()}
       <div className="panel-body">
-        {count > 0 ? (
+        {status === "error" && <div className="panel-error">Failed to load 3m gainers.</div>}
+        {status === "loading" && <div className="panel-loading">Loading…</div>}
+        {status === "ready" ? (
           visibleRows.map((row, index) => (
             <TokenRow
               key={row.symbol || index}
@@ -83,7 +68,7 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
             />
           ))
         ) : (
-          <div className="panel-empty">No 3m gainers yet.</div>
+          status === "empty" && <div className="panel-empty">No 3m gainers yet.</div>
         )}
 
         {count > MAX_BASE && (

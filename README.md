@@ -115,6 +115,9 @@ BHABIT CBMOONERS/
 
    # Frontend
    [ -f frontend/.env.example ] && cp frontend/.env.example frontend/.env || true
+
+   # Sentiment API base (defaults to the FastAPI dev server)
+   echo "VITE_SENTIMENT_API_BASE=http://127.0.0.1:8001" >> frontend/.env
    ```
 
 ---

@@ -5,6 +5,7 @@ import TokenRow from "./TokenRow.jsx";
 export default function Losers3m({
   rows = [],
   loading = false,
+  error = null,
   onInfo = () => {},
   showTitle = true,
 }) {
@@ -31,6 +32,11 @@ export default function Losers3m({
 
   const count = losers.length;
   const visible = isExpanded ? losers.slice(0, MAX_EXPANDED) : losers.slice(0, MAX_BASE);
+  const status =
+    error ? "error" :
+    count > 0 ? "ready" :
+    loading ? "loading" :
+    "empty";
   const renderHeader = () => {
     if (!showTitle) return null;
     return (
@@ -47,11 +53,9 @@ export default function Losers3m({
     <div className="panel panel-3m">
       {renderHeader()}
       <div className="panel-body">
-        {loading ? (
-          <div className="panel-empty">Loading…</div>
-        ) : count === 0 ? (
-          <div className="panel-empty">No data.</div>
-        ) : (
+        {status === "error" && <div className="panel-error">Failed to load 3m losers.</div>}
+        {status === "loading" && <div className="panel-empty">Loading…</div>}
+        {status === "ready" ? (
           visible.map((row, idx) => {
             const key = "price_change_percentage_3min";
             const forced = -Math.abs(row.pct ?? row._pct ?? 0);
@@ -70,6 +74,8 @@ export default function Losers3m({
               />
             );
           })
+        ) : (
+          status === "empty" && <div className="panel-empty">No data.</div>
         )}
 
         {count > MAX_BASE && (

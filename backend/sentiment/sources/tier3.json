@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "tier": "tier3",
+  "sources": [
+    {
+      "name": "r/SatoshiStreetBets",
+      "description": "High-volatility retail sentiment spikes",
+      "tier": "tier3",
+      "weight": 0.55,
+      "update_frequency": 900,
+      "type": "reddit",
+      "subreddit": "SatoshiStreetBets"
+    },
+    {
+      "name": "Telegram Alpha Feeds",
+      "description": "Curated list of Telegram rooms for alpha",
+      "tier": "tier3",
+      "weight": 0.45,
+      "update_frequency": 600,
+      "type": "telegram",
+      "channels": ["whale_alert", "alpha_calls"]
+    },
+    {
+      "name": "Twitter High-Signal Traders",
+      "description": "Short list of credible traders and analysts",
+      "tier": "tier3",
+      "weight": 0.5,
+      "update_frequency": 300,
+      "type": "twitter",
+      "accounts": ["@cryptocred", "@impulsive_eth", "@lightcrypto"]
+    }
+  ]
+}

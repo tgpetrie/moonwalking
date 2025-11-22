@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import TokenRow from "./TokenRow.jsx";
+import PanelShell from "./ui/PanelShell";
+import StatusGate from "./ui/StatusGate";
+import SkeletonTable from "./ui/SkeletonTable";
 
 // Framer Motion row variants and transition for soft enter/exit and reordering
 const rowVariants = {
@@ -116,88 +119,28 @@ export default function GainersTable1Min({
     if (!sameRight) setAnimatedRightRows(rightRows);
   }, [leftRows, rightRows, animatedLeftRows, animatedRightRows]);
 
-  if (error) {
-    return (
-      <section className="panel panel-1m panel-1m-gainers">
-        <div className="panel-header">
-          <div className="section-heading section-heading--gainers">
-            <span className="section-heading__label">1-MIN GAINERS</span>
-            <div className="section-heading__rail" />
-          </div>
-        </div>
-        <div className="panel-skeleton">
-          <div className="skeleton-row" />
-          <div className="skeleton-row" />
-          <div className="skeleton-row" />
-        </div>
-        <div className="panel-error-text">Temporarily unavailable. Try refresh.</div>
-      </section>
-    );
-  }
-
-  if (loading) {
-    return (
-      <section className="panel panel-1m panel-1m-gainers panel--loading">
-        <div className="panel-header">
-          <div className="section-heading section-heading--gainers">
-            <span className="section-heading__label">1-MIN GAINERS</span>
-            <div className="section-heading__rail" />
-          </div>
-        </div>
-        <div className="panel-skeleton">
-          <div className="skeleton-row" />
-          <div className="skeleton-row" />
-          <div className="skeleton-row" />
-        </div>
-      </section>
-    );
-  }
-
+  const panelStatus = error
+    ? "error"
+    : total > 0
+    ? "ready"
+    : isLoading
+    ? "loading"
+    : "empty";
 
   return (
-    <section className="panel panel-1m panel-1m-gainers">
-      <div className="panel-header">
-        <div className="section-heading section-heading--gainers">
-          <span className="section-heading__label">1-MIN GAINERS</span>
-          <div className="section-heading__rail" />
-        </div>
-      </div>
-
-      <div className={`panel-body panel-1m-body${hasFew ? " panel-1m-body--single" : ""}`}>
-        {total === 0 && (
-          <div className="panel-empty">No 1m gainers yet.</div>
-        )}
-
-        {total > 0 && (
-          <div className={`gainers-1m-grid ${hasFew ? "is-single-column" : ""}`}>
-            <div className="gainers-1m-col">
-              <AnimatePresence initial={false}>
-                {animatedLeftRows.map((row, idx) => (
-                  <motion.div
-                    key={row.symbol || idx}
-                    layout
-                    variants={rowVariants}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    transition={{ ...rowTransition, delay: idx * 0.015 }}
-                  >
-                    <MotionTokenRow
-                      rank={row.displayRank}
-                      row={row}
-                      changeKey="price_change_percentage_1min"
-                      rowType="gainer"
-                      onInfo={onInfo}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {!hasFew && (
+    <PanelShell title="1-MIN GAINERS">
+      <StatusGate
+        status={panelStatus}
+        skeleton={<SkeletonTable rows={6} />}
+        empty={<div className="state-copy">No 1-min gainers right now.</div>}
+        error={<div className="state-copy">Gainers stream down. Auto-recovering.</div>}
+      >
+        <div className={`panel-body panel-1m-body${hasFew ? " panel-1m-body--single" : ""}`}>
+          {total > 0 && (
+            <div className={`gainers-1m-grid ${hasFew ? "is-single-column" : ""}`}>
               <div className="gainers-1m-col">
                 <AnimatePresence initial={false}>
-                  {animatedRightRows.map((row, idx) => (
+                  {animatedLeftRows.map((row, idx) => (
                     <motion.div
                       key={row.symbol || idx}
                       layout
@@ -218,24 +161,50 @@ export default function GainersTable1Min({
                   ))}
                 </AnimatePresence>
               </div>
-            )}
+
+              {!hasFew && (
+                <div className="gainers-1m-col">
+                  <AnimatePresence initial={false}>
+                    {animatedRightRows.map((row, idx) => (
+                      <motion.div
+                        key={row.symbol || idx}
+                        layout
+                        variants={rowVariants}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        transition={{ ...rowTransition, delay: idx * 0.015 }}
+                      >
+                        <MotionTokenRow
+                          rank={row.displayRank}
+                          row={row}
+                          changeKey="price_change_percentage_1min"
+                          rowType="gainer"
+                          onInfo={onInfo}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {total > 8 && (
+          <div className="panel-footer panel-1m-footer">
+            <button
+              type="button"
+              className="btn-show-more show-more-btn"
+              aria-expanded={showMore}
+              aria-controls="one-min-list"
+              onClick={() => setShowMore((prev) => !prev)}
+            >
+              {showMore ? "Show Less" : "Show More"}
+            </button>
           </div>
         )}
-      </div>
-
-      {total > 8 && (
-        <div className="panel-footer panel-1m-footer">
-          <button
-            type="button"
-            className="btn-show-more show-more-btn"
-            aria-expanded={showMore}
-            aria-controls="one-min-list"
-            onClick={() => setShowMore((prev) => !prev)}
-          >
-            {showMore ? "Show Less" : "Show More"}
-          </button>
-        </div>
-      )}
-    </section>
+      </StatusGate>
+    </PanelShell>
   );
 }

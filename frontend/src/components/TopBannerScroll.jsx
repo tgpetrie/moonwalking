@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { map1hPriceBannerItemBase, formatPrice, formatPct, tickerFromSymbol } from "../utils/format";
+import PanelShell from "./ui/PanelShell";
+import StatusGate from "./ui/StatusGate";
+import SkeletonBlock from "./ui/SkeletonBlock";
 
 function buildCoinbaseUrl(symbol) {
   if (!symbol) return "#";
@@ -10,10 +13,17 @@ function buildCoinbaseUrl(symbol) {
   return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
 }
 
-export default function TopBannerScroll({ rows = [], onRefresh }) {
-  const rawItems = Array.isArray(rows) ? rows : [];
+export default function TopBannerScroll({
+  rows = [],
+  items = [],
+  onRefresh,
+  historyMinutes = 0,
+  loading = false,
+  error = null,
+}) {
+  const rawItems = Array.isArray(rows) && rows.length ? rows : Array.isArray(items) ? items : [];
 
-  const items = useMemo(() => {
+  const mappedItems = useMemo(() => {
     const mapped = rawItems
       .map((row) => map1hPriceBannerItemBase(row))
       .filter((it) => it && it.currentPrice != null && it.pctChange !== 0)
@@ -24,100 +34,103 @@ export default function TopBannerScroll({ rows = [], onRefresh }) {
 
   // Throttle visible updates so the banner can loop for a while
   // without jarringly swapping tokens every `/data` poll.
-  const [displayItems, setDisplayItems] = useState(items);
+  const [displayItems, setDisplayItems] = useState(mappedItems);
 
   useEffect(() => {
-    if (!items.length) return;
+    if (!mappedItems.length) return;
 
     // On first non-empty payload, seed immediately
-    setDisplayItems((prev) => (prev?.length ? prev : items));
+    setDisplayItems((prev) => (prev?.length ? prev : mappedItems));
 
     const id = setInterval(() => {
-      setDisplayItems(items);
+      setDisplayItems(mappedItems);
     }, 60000); // refresh visible banner items at most once per minute
 
     return () => clearInterval(id);
-  }, [items]);
+  }, [mappedItems]);
 
-  const source = displayItems && displayItems.length ? displayItems : items;
+  const source = displayItems && displayItems.length ? displayItems : mappedItems;
   const shouldScroll = (source?.length || 0) >= 15;
   const looped = shouldScroll ? [...source, ...source] : source;
-
-  if (!items.length) {
-    return (
-      <section className="banner-section banner-section--price">
-        <div className="banner-heading">
-          <span className="banner-heading__label">1H PRICE</span>
-          <span className="banner-heading__rail" />
-        </div>
-        <div className="bh-banner-wrap">
-          <div className="ticker bh-banner">
-            <div className="bh-banner-track">
-              <span className="banner-empty">No 1h price-change data available.</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const required = 60;
+  const panelStatus =
+    error ? "error" :
+    mappedItems.length > 0 ? "ready" :
+    loading ? "loading" :
+    historyMinutes < required ? "loading" : "empty";
 
   return (
-    <section className="banner-section banner-section--price">
-      <div className="banner-heading">
-        <span className="banner-heading__label">1H PRICE</span>
-        <span className="banner-heading__rail" />
-      </div>
-      <div className="bh-banner-wrap">
-        <div className="ticker bh-banner">
-          <div className="bh-banner-strip bh-banner-strip--price">
-            <div
-              className={
-                "bh-banner-strip__inner" +
-                (shouldScroll ? " bh-banner-strip__inner--scroll" : "")
-              }
-            >
-            {looped.map((it, i) => {
-              if (!it) return null;
-              const baseLen = source.length || 1;
-              const pct = Number(it?.pctChange ?? 0);
-              const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
-              const displaySymbol = it.symbol
-                ? tickerFromSymbol(it.symbol)
-                : "--";
-              const rank = (i % baseLen) + 1;
-
-              return (
-                <a
-                  key={`${it.symbol || "item"}-${i}`}
-                  href={buildCoinbaseUrl(it.symbol)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`bh-banner-chip bh-banner-chip--price ${chipState}`}
-                >
-                  <span className="bh-banner-chip__rank">{rank}</span>
-                  <span className="bh-banner-chip__symbol">{displaySymbol}</span>
-                  <span className="bh-banner-chip__price">
-                    {formatPrice(it.currentPrice)}
-                  </span>
-                  <span className="bh-banner-chip__pct">
-                    {formatPct(pct, { sign: true })}
-                  </span>
-                </a>
-              );
-            })}
+    <PanelShell title="1H PRICE">
+      <StatusGate
+        status={panelStatus}
+        skeleton={
+          <div className="bh-banner-wrap">
+            <SkeletonBlock lines={2} />
+          </div>
+        }
+        empty={
+          <div className="bh-banner-wrap">
+            <div className="ticker bh-banner">
+              <div className="bh-banner-track">
+                <span className="state-copy">No movers yet.</span>
+              </div>
             </div>
           </div>
+        }
+        error={<div className="state-copy">Feed hiccup. Retrying.</div>}
+      >
+        <div className="bh-banner-wrap">
+          <div className="ticker bh-banner">
+            <div className="bh-banner-strip bh-banner-strip--price">
+              <div
+                className={
+                  "bh-banner-strip__inner" +
+                  (shouldScroll ? " bh-banner-strip__inner--scroll" : "")
+                }
+              >
+                {looped.map((it, i) => {
+                  if (!it) return null;
+                  const baseLen = source.length || 1;
+                  const pct = Number(it?.pctChange ?? 0);
+                  const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
+                  const displaySymbol = it.symbol
+                    ? tickerFromSymbol(it.symbol)
+                    : "--";
+                  const rank = (i % baseLen) + 1;
+
+                  return (
+                    <a
+                      key={`${it.symbol || "item"}-${i}`}
+                      href={buildCoinbaseUrl(it.symbol)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`bh-banner-chip bh-banner-chip--price ${chipState}`}
+                    >
+                      <span className="bh-banner-chip__rank">{rank}</span>
+                      <span className="bh-banner-chip__symbol">{displaySymbol}</span>
+                      <span className="bh-banner-chip__price">
+                        {formatPrice(it.currentPrice)}
+                      </span>
+                      <span className="bh-banner-chip__pct">
+                        {formatPct(pct, { sign: true })}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              className="bh-banner-refresh"
+              onClick={onRefresh}
+            >
+              Refresh
+            </button>
+          )}
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            className="bh-banner-refresh"
-            onClick={onRefresh}
-          >
-            Refresh
-          </button>
-        )}
-      </div>
-    </section>
+      </StatusGate>
+    </PanelShell>
   );
 }

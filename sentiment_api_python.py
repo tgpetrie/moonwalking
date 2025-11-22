@@ -4,22 +4,28 @@ Sentiment API Backend for Moonwalking Dashboard
 Provides endpoints for the sentiment info popup
 """
 
-from fastapi import FastAPI, HTTPException
+import asyncio
+import logging
+import os
+import random
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Set
+
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-import asyncio
-from enum import Enum
-import random
+
+from backend.sentiment.source_loader import load_sources, SentimentSourceLoaderError
 
 app = FastAPI(title="Moonwalking Sentiment API")
+logger = logging.getLogger("sentiment_api")
 
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -124,12 +130,9 @@ def generate_social_breakdown() -> SocialBreakdown:
 
 def generate_source_breakdown() -> SourceBreakdown:
     """Generate source distribution"""
-    return SourceBreakdown(
-        tier1=30,
-        tier2=35,
-        tier3=25,
-        fringe=10
-    )
+    if not any(SOURCE_COUNTS.values()):
+        _refresh_data_sources()
+    return SourceBreakdown(**SOURCE_COUNTS)
 
 
 def generate_sentiment_history(days: int = 7) -> List[HistoricalPoint]:
@@ -206,7 +209,7 @@ def generate_divergence_alerts() -> List[Dict[str, str]]:
 # DATA SOURCES
 # ============================================================================
 
-DATA_SOURCES = [
+_STATIC_DATA_SOURCES = [
     DataSource(
         name="Bloomberg Crypto",
         description="Institutional news & analysis",
@@ -272,6 +275,73 @@ DATA_SOURCES = [
     )
 ]
 
+DEV_RELOAD_SOURCES = os.getenv("DEV_RELOAD_SOURCES") == "1"
+DATA_SOURCES: List[DataSource] = []
+SOURCE_COUNTS = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+
+
+def _hydrate_data_sources(entries: List[Dict]) -> List[DataSource]:
+    hydrated: List[DataSource] = []
+    for entry in entries:
+        name = (entry.get("name") or "").strip()
+        if not name:
+            continue
+
+        tier_value = entry.get("tier", "tier2")
+        try:
+            tier = SentimentTier(tier_value)
+        except ValueError:
+            tier = SentimentTier.TIER_2
+
+        last_updated = entry.get("last_updated")
+        if isinstance(last_updated, str):
+            try:
+                last_dt = datetime.fromisoformat(last_updated)
+            except ValueError:
+                last_dt = datetime.utcnow()
+        else:
+            last_dt = datetime.utcnow()
+
+        hydrated.append(
+            DataSource(
+                name=name,
+                description=entry.get("description", ""),
+                tier=tier,
+                trust_weight=float(entry.get("weight", entry.get("trust_weight", 0.7))),
+                last_updated=last_dt,
+            )
+        )
+
+    return hydrated or list(_STATIC_DATA_SOURCES)
+
+
+def _refresh_data_sources(force: bool = False) -> List[DataSource]:
+    """Load and cache the source catalog once per process."""
+    global DATA_SOURCES, SOURCE_COUNTS
+
+    if DATA_SOURCES and not force and not DEV_RELOAD_SOURCES:
+        return DATA_SOURCES
+
+    try:
+        catalog = load_sources(force_reload=force or DEV_RELOAD_SOURCES)
+        hydrated = _hydrate_data_sources(catalog.serialized())
+        DATA_SOURCES = hydrated or list(_STATIC_DATA_SOURCES)
+    except SentimentSourceLoaderError as exc:
+        logger.warning("Falling back to baked-in sentiment sources: %s", exc)
+        if not DATA_SOURCES:
+            DATA_SOURCES = list(_STATIC_DATA_SOURCES)
+
+    counts = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+    for src in DATA_SOURCES:
+        counts[src.tier.value] = counts.get(src.tier.value, 0) + 1
+    SOURCE_COUNTS = counts
+    return DATA_SOURCES
+
+
+@app.on_event("startup")
+async def _hydrate_on_startup():
+    _refresh_data_sources(force=True)
+
 
 # ============================================================================
 # API ENDPOINTS
@@ -284,7 +354,7 @@ async def root():
         "status": "online",
         "service": "Moonwalking Sentiment API",
         "version": "1.0.0",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -294,11 +364,12 @@ async def health_check():
     return {
         "status": "healthy",
         "uptime": "running",
-        "active_sources": len(DATA_SOURCES),
-        "last_update": datetime.now().isoformat()
+        "active_sources": len(_refresh_data_sources()),
+        "last_update": datetime.utcnow().isoformat()
     }
 
 
+@app.get("/api/sentiment-basic", response_model=SentimentResponse)
 @app.get("/sentiment/latest", response_model=SentimentResponse)
 async def get_latest_sentiment():
     """
@@ -339,13 +410,14 @@ async def get_data_sources():
     """
     Get list of all data sources with their tier and trust weights
     """
-    return DATA_SOURCES
+    return _refresh_data_sources()
 
 
 @app.get("/sentiment/sources/{tier}")
 async def get_sources_by_tier(tier: SentimentTier):
     """Get data sources filtered by tier"""
-    filtered = [s for s in DATA_SOURCES if s.tier == tier]
+    sources = _refresh_data_sources()
+    filtered = [s for s in sources if s.tier == tier]
     return filtered
 
 
@@ -384,7 +456,7 @@ async def get_platform_sentiment(platform: SocialPlatform):
         "sentiment_score": platform_scores[platform],
         "volume_change": round(random.uniform(-30, 50), 1),
         "trending_topics": generate_trending_topics()[:3],
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -399,32 +471,35 @@ async def get_divergence_alerts():
             "tier3_sentiment": round(random.uniform(0.6, 0.9), 2),
             "divergence_score": round(random.uniform(0, 0.5), 2)
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
 @app.get("/sentiment/stats")
 async def get_statistics():
     """Get API statistics and metadata"""
+    sources = _refresh_data_sources()
+    total_sources = len(sources)
+    avg_weight = 0.0
+    if total_sources:
+        avg_weight = sum(s.trust_weight for s in sources) / total_sources
+
     return {
-        "total_sources": len(DATA_SOURCES),
+        "total_sources": len(sources),
         "sources_by_tier": {
-            "tier1": len([s for s in DATA_SOURCES if s.tier == SentimentTier.TIER_1]),
-            "tier2": len([s for s in DATA_SOURCES if s.tier == SentimentTier.TIER_2]),
-            "tier3": len([s for s in DATA_SOURCES if s.tier == SentimentTier.TIER_3]),
-            "fringe": len([s for s in DATA_SOURCES if s.tier == SentimentTier.FRINGE])
+            "tier1": len([s for s in sources if s.tier == SentimentTier.TIER_1]),
+            "tier2": len([s for s in sources if s.tier == SentimentTier.TIER_2]),
+            "tier3": len([s for s in sources if s.tier == SentimentTier.TIER_3]),
+            "fringe": len([s for s in sources if s.tier == SentimentTier.FRINGE])
         },
-        "average_trust_weight": round(sum(s.trust_weight for s in DATA_SOURCES) / len(DATA_SOURCES), 2),
-        "last_update": datetime.now().isoformat()
+        "average_trust_weight": round(avg_weight, 2),
+        "last_update": datetime.utcnow().isoformat()
     }
 
 
 # ============================================================================
 # WEBSOCKET SUPPORT (Optional - for real-time updates)
 # ============================================================================
-
-from fastapi import WebSocket
-from typing import Set
 
 active_connections: Set[WebSocket] = set()
 
@@ -450,16 +525,14 @@ async def websocket_sentiment(websocket: WebSocket):
                     "overall_sentiment": generate_sentiment_score(),
                     "fear_greed_index": generate_fear_greed_index(),
                     "social_breakdown": generate_social_breakdown().dict(),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.utcnow().isoformat()
                 }
             }
             
             await websocket.send_json(sentiment_data)
             
-    except Exception as e:
-        print(f"WebSocket error: {e}")
     finally:
-        active_connections.remove(websocket)
+        active_connections.discard(websocket)
 
 
 # ============================================================================
@@ -469,6 +542,8 @@ async def websocket_sentiment(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     
+    _refresh_data_sources(force=True)
+
     print("🌙 Starting Moonwalking Sentiment API...")
     print("📊 Endpoints:")
     print("   - GET  /sentiment/latest")
