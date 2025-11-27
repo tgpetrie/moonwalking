@@ -24,10 +24,9 @@ export default function StarIcon({ filled, onClick, className = '' }) {
       onClick={handleClick}
       className={`w-4 h-4 cursor-pointer transition-all duration-200 hover:scale-125 active:scale-90 ${filled ? 'drop-shadow-[0_0_6px_#FEA400]' : ''} ${className}`}
       fill={filled ? 'url(#gold-gradient)' : 'none'}
-      stroke="#a259ff" // purple border
+      stroke="#a259ff"
       strokeWidth="2"
       viewBox="0 0 24 24"
-      style={{ filter: filled ? 'drop-shadow(0 0 4px #FEA400)' : undefined, transition: 'filter 0.2s' }}
     >
       <defs>
         <linearGradient id="gold-gradient" x1="0" y1="0" x2="0" y2="1">

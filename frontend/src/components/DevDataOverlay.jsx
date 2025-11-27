@@ -37,13 +37,13 @@ export default function DevDataOverlay() {
   if (!import.meta.env.DEV) return null;
 
   return (
-    <div style={{ position: 'fixed', right: 8, bottom: 8, zIndex: 60, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: 8, borderRadius: 8, fontSize: 12 }}>
-      <div style={{ fontWeight: 700, marginBottom: 6 }}>DEV: API Samples</div>
+    <div className="dev-overlay">
+      <div className="dev-overlay-title">DEV: API Samples</div>
       {Object.keys(samples).length === 0 && (<div>loading…</div>)}
       {Object.entries(samples).map(([k,v]) => (
-        <div key={k} style={{ marginBottom: 6 }}>
-          <div style={{ fontWeight: 600 }}>{k} — {v?.ok ? `${v.count} rows` : 'ERR'}</div>
-          <pre style={{ maxWidth: 360, overflowX: 'auto', whiteSpace: 'pre-wrap', margin: 0 }}>{v?.ok ? JSON.stringify(v.sample, null, 2) : v?.error}</pre>
+        <div key={k} className="dev-overlay-row">
+          <div className="dev-overlay-row-title">{k} — {v?.ok ? `${v.count} rows` : 'ERR'}</div>
+          <pre className="dev-overlay-pre">{v?.ok ? JSON.stringify(v.sample, null, 2) : v?.error}</pre>
         </div>
       ))}
     </div>

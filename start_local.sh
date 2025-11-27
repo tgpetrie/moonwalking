@@ -14,7 +14,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BACKEND_START=${BACKEND_START:-5001}
 FRONTEND_START=${FRONTEND_START:-5173}
-SCAN_STEPS=${SCAN_STEPS:-10}
 
 BACKEND_PID_FILE=${BACKEND_PID_FILE:-/tmp/mw_backend.pid}
 FRONTEND_PID_FILE=${FRONTEND_PID_FILE:-/tmp/mw_frontend.pid}
@@ -62,19 +61,7 @@ if [ "${1:-}" = "status" ]; then
   exit 0
 fi
 
-find_free_port() {
-  local start=$1; local max=$2; local i=0
-  while [ $i -lt $max ]; do
-    local p=$((start + i))
-    if ! lsof -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
-      echo "$p"; return 0
-    fi
-    i=$((i+1))
-  done
-  return 1
-}
-
-kill_pidfile() {
+ki_pidfile() {
   local file=$1
   if [ -f "$file" ]; then
     local pid
@@ -91,16 +78,32 @@ kill_pidfile() {
 kill_pidfile "$BACKEND_PID_FILE"
 kill_pidfile "$FRONTEND_PID_FILE"
 
-BACKEND_PORT=$(find_free_port "$BACKEND_START" "$SCAN_STEPS" || true)
-FRONTEND_PORT=$(find_free_port "$FRONTEND_START" "$SCAN_STEPS" || true)
+kill_process_on_port() {
+  local port=$1
+  local pids
+  pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "[start.local] freeing port $port"
+    for pid in $pids; do
+      echo "[start.local]  - killing pid $pid"
+      kill "$pid" >/dev/null 2>&1 || true
+    done
+    sleep 1
+    if lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      echo "[start.local] ERROR: port $port still in use after attempting to kill processes"
+      exit 1
+    fi
+  fi
+}
 
-if [ -z "$BACKEND_PORT" ] || [ -z "$FRONTEND_PORT" ]; then
-  echo "[start.local] ERROR: couldn't find free ports near $BACKEND_START/$FRONTEND_START"
-  exit 1
-fi
+kill_process_on_port "$BACKEND_START"
+kill_process_on_port "$FRONTEND_START"
 
-echo "[start.local] backend -> http://$HOST:$BACKEND_PORT"
-echo "[start.local] frontend -> http://$HOST:$FRONTEND_PORT"
+BACKEND_PORT="$BACKEND_START"
+FRONTEND_PORT="$FRONTEND_START"
+
+echo "[start.local] backend -> http://$HOST:$BACKEND_PORT (strict)"
+echo "[start.local] frontend -> http://$HOST:$FRONTEND_PORT (strict)"
 
 # Backend (non-fatal if environment blocks bind)
 (
@@ -122,7 +125,7 @@ echo "$BACKEND_PORT" > "$BACKEND_PORT_FILE"
     echo "[start.local] installing frontend dependencies..."
     npm install
   fi
-  BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT"
+  BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
 ) > /tmp/mw_frontend.log 2>&1 &
 echo $! > "$FRONTEND_PID_FILE"
 echo "$FRONTEND_PORT" > "$FRONTEND_PORT_FILE"

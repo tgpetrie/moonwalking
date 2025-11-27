@@ -27,13 +27,20 @@ else
   echo "OK: Dashboard component present."
 fi
 
-# 3) Gainers 2-column behavior: check OneMinGainersColumns.jsx has lg:grid-cols-2
-echo "Checking 1m gainers two-column layout class..."
-if ! grep -Eq "lg:grid-cols-2" frontend/src/components/OneMinGainersColumns.jsx 2>/dev/null; then
-  echo "ERROR: OneMinGainersColumns.jsx does not contain 'lg:grid-cols-2' class to support 2-column layout."
+# 3) Banner structure: ensure .bh-banner-track exists in CSS and banners use .bh-banner-wrap
+echo "Checking banner CSS and usage..."
+if ! grep -q "bh-banner-track" frontend/index.css 2>/dev/null; then
+  echo "ERROR: .bh-banner-track not found in frontend/index.css; required for banner rails."
   errors=$((errors+1))
 else
-  echo "OK: Two-column layout class present."
+  echo "OK: .bh-banner-track present in index.css."
+fi
+
+if ! grep -RIn "bh-banner-wrap" frontend/src/components/TopBannerScroll.jsx frontend/src/components/VolumeBannerScroll.jsx 2>/dev/null | sed -n '1p' >/dev/null; then
+  echo "ERROR: .bh-banner-wrap not used in TopBannerScroll.jsx and VolumeBannerScroll.jsx."
+  errors=$((errors+1))
+else
+  echo "OK: .bh-banner-wrap used in both banner components."
 fi
 
 # 4) Color tokens: fail if inline hex color strings appear inside JSX style attributes
@@ -47,13 +54,34 @@ else
   echo "OK: No inline hex colors found in JSX style attributes."
 fi
 
-# 5) Hover line: ensure .row-hover-line exists somewhere in frontend
-echo "Checking for .row-hover-line usage..."
-if ! grep -RIn --exclude='*backup*' "row-hover-line" frontend 2>/dev/null | sed -n '1,5p' >/dev/null; then
-  echo "ERROR: .row-hover-line not found in frontend; required for hover underline behavior."
+# 5) Token row + headers: ensure canonical row and section-head variants are used
+echo "Checking for canonical token row and section headers..."
+if ! grep -q "token-row.table-row" frontend/index.css 2>/dev/null; then
+  echo "ERROR: .token-row.table-row not defined in frontend/index.css."
   errors=$((errors+1))
 else
-  echo "OK: .row-hover-line usage found."
+  echo "OK: .token-row.table-row defined in index.css."
+fi
+
+if ! grep -RIn "token-row table-row" frontend/src/components 2>/dev/null | sed -n '1p' >/dev/null; then
+  echo "ERROR: token-row table-row class not used in React components (1m/3m/watchlist)."
+  errors=$((errors+1))
+else
+  echo "OK: token-row table-row used in components."
+fi
+
+if ! grep -RIn "section-head-gain" frontend/src 2>/dev/null | sed -n '1p' >/dev/null; then
+  echo "ERROR: .section-head-gain not referenced in any header render."
+  errors=$((errors+1))
+else
+  echo "OK: .section-head-gain used in a header."
+fi
+
+if ! grep -RIn "section-head-loss" frontend/src 2>/dev/null | sed -n '1p' >/dev/null; then
+  echo "ERROR: .section-head-loss not referenced in any header render."
+  errors=$((errors+1))
+else
+  echo "OK: .section-head-loss used in a header."
 fi
 
 if [[ "$errors" -gt 0 ]]; then

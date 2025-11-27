@@ -98,12 +98,14 @@ export default function Dashboard() {
         </header>
 
         {/* Section label + 1h banner */}
-        <section className="mb-2">
-          <div className="px-1 text-[11px] tracking-[0.15em] text-amber-400/90 uppercase">
-            1H PRICE CHANGE • LIVE MARKET FEED
-          </div>
-        </section>
         <section className="mb-8">
+          <header className="section-head section-head-gain">
+            <div className="section-head-label">
+              <span className="section-head-kicker">1H PRICE</span>
+              <span className="section-head-timeframe">CHANGE</span>
+            </div>
+            <div className="section-head-line section-head-line-gain" />
+          </header>
           <TopBannerScroll items={banner1h} />
         </section>
 
@@ -136,6 +138,13 @@ export default function Dashboard() {
 
         {/* Bottom volume banner */}
         <section>
+          <header className="section-head section-head-loss">
+            <div className="section-head-label">
+              <span className="section-head-kicker">1H VOLUME</span>
+              <span className="section-head-timeframe">ACTIVITY</span>
+            </div>
+            <div className="section-head-line section-head-line-loss" />
+          </header>
           <VolumeBannerScroll items={vol1h} historyMinutes={data?.meta?.historyMinutes ?? 0} />
         </section>
       </div>

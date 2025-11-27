@@ -6,12 +6,13 @@ const MAX_EXPANDED = 16;
 
 const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) => {
   const renderHeader = () => (
-    <div className="panel-header panel-header-3m panel-header-3m-gainers">
-      <div className="panel-header-main">
-        <span className="panel-kicker">Top Gainers</span>
-        <span className="panel-timeframe">(3m)</span>
+    <header className="section-head section-head-gain">
+      <div className="section-head-label">
+        <span className="section-head-kicker">TOP GAINERS</span>
+        <span className="section-head-timeframe">(3m)</span>
       </div>
-    </div>
+      <div className="section-head-line section-head-line-gain" />
+    </header>
   );
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -49,7 +50,7 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
     "empty";
 
   return (
-    <div className="panel panel-3m">
+    <section className="panel panel-3m">
       {renderHeader()}
       <div className="panel-body">
         {status === "error" && <div className="panel-error">Failed to load 3m gainers.</div>}
@@ -86,7 +87,7 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

@@ -4,7 +4,7 @@ import React from "react";
 
 export default function LegacyApp() {
   return (
-    <div style={{ padding: 12, color: "#cbd5e1" }}>
+    <div className="legacy-placeholder">
       Legacy app (archived)
     </div>
   );

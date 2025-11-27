@@ -46,6 +46,11 @@ export default defineConfig({
                 target: `http://127.0.0.1:${backendPort}`,
                 changeOrigin: true,
             },
+            '/api/sentiment': {
+                target: 'http://127.0.0.1:8001',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/sentiment/, '/sentiment'),
+            },
             // Sentiment API runs on a separate port (typically 8001).
             // Proxy /sentiment through the dev server to avoid CORS and mixed-content.
             '/sentiment': {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import { formatPrice, formatPercentage } from '../utils/formatters.js';
+import { tickerFromSymbol } from '../utils/format';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 import TokenRow from './TokenRow.jsx';
@@ -147,7 +148,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
         .slice(0, 10)
         .map((item, index) => ({
           rank: item.rank || (index + 1),
-          symbol: item.symbol?.replace('-USD', '') || 'N/A',
+          symbol: tickerFromSymbol(item.symbol) || 'N/A',
           price: item.current_price ?? item.price ?? 0,
           change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
           isPeak: typeof item.peak_gain === 'number',
@@ -178,9 +179,9 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
           // Respect backend ordering; take top 10
       const mapped = response.data
             .slice(0, 10)
-      .map((item, index) => ({
+            .map((item, index) => ({
               rank: item.rank || (index + 1),
-              symbol: item.symbol?.replace('-USD', '') || 'N/A',
+              symbol: tickerFromSymbol(item.symbol) || 'N/A',
               price: item.current_price ?? item.price ?? 0,
         change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
         isPeak: typeof item.peak_gain === 'number',

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from backend.sentiment.loaders.source_loader import (
+from backend.sentiment.source_loader import (
     SentimentSourceLoaderError,
     load_sources,
 )

@@ -31,7 +31,7 @@ export default function VolumeBannerScroll({
       .map((row) => map1hVolumeBannerItemBase(row))
       .filter((it) => it && it.currentVolume != null && it.pctChange !== 0)
       .sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange))
-      .map((it, index) => ({ ...it, rank: index + 1 }));
+      .slice(0, 20);
   }, [list]);
 
   const required = 60;
@@ -40,6 +40,9 @@ export default function VolumeBannerScroll({
     mapped.length > 0 ? "ready" :
     loading ? "loading" :
     historyMinutes < required ? "loading" : "empty";
+
+  const shouldScroll = (mapped?.length || 0) >= 15;
+  const looped = shouldScroll ? [...mapped, ...mapped] : mapped;
 
   return (
     <PanelShell title="1H VOLUME">
@@ -63,26 +66,39 @@ export default function VolumeBannerScroll({
       >
         <div className="bh-banner-wrap">
           <div className="ticker bh-banner bh-banner--volume">
-            <div className="bh-banner-track bh-banner-strip__inner">
-              {mapped.map((it) => (
-                <span
-                  key={it.symbol}
-                  className={`bh-banner-chip bh-banner-chip--volume ${
-                    it.isGain ? "is-gain" : it.isLoss ? "is-loss" : ""
-                  }`}
-                >
-                  <span className="bh-banner-chip__rank">{it.rank}</span>
-                  <span className="bh-banner-chip__symbol">{it.symbol}</span>
-                  <span className="bh-banner-chip__price">
-                    {it.currentVolume != null
-                      ? `Vol ${formatCompact(it.currentVolume)}`
-                      : "Vol —"}
-                  </span>
-                  <span className="bh-banner-chip__pct">
-                    {formatPct(it.pctChange, { sign: true })}
-                  </span>
-                </span>
-              ))}
+            <div className="bh-banner-strip bh-banner-strip--volume">
+              <div
+                className={
+                  "bh-banner-strip__inner" +
+                  (shouldScroll ? " bh-banner-strip__inner--scroll" : "")
+                }
+              >
+                {looped.map((it, i) => {
+                  if (!it) return null;
+                  const baseLen = mapped.length || 1;
+                  const pct = Number(it?.pctChange ?? 0);
+                  const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
+                  const rank = (i % baseLen) + 1;
+
+                  return (
+                    <span
+                      key={`${it.symbol || "item"}-${i}`}
+                      className={`bh-banner-chip bh-banner-chip--volume ${chipState}`}
+                    >
+                      <span className="bh-banner-chip__rank">{rank}</span>
+                      <span className="bh-banner-chip__symbol">{it.symbol}</span>
+                      <span className="bh-banner-chip__price">
+                        {it.currentVolume != null
+                          ? `Vol ${formatCompact(it.currentVolume)}`
+                          : "Vol —"}
+                      </span>
+                      <span className="bh-banner-chip__pct">
+                        {formatPct(pct, { sign: true })}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
