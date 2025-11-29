@@ -36,11 +36,11 @@ else
   echo "OK: .bh-banner-track present in index.css."
 fi
 
-if ! grep -RIn "bh-banner-wrap" frontend/src/components/TopBannerScroll.jsx frontend/src/components/VolumeBannerScroll.jsx 2>/dev/null | sed -n '1p' >/dev/null; then
-  echo "ERROR: .bh-banner-wrap not used in TopBannerScroll.jsx and VolumeBannerScroll.jsx."
+if ! grep -RIn --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" "bh-banner-wrap" frontend/src/components/TopBannerScroll.* frontend/src/components/VolumeBannerScroll.* 2>/dev/null | sed -n '1p' >/dev/null; then
+  echo "ERROR: .bh-banner-wrap not used in TopBannerScroll.(js|jsx|ts|tsx) and VolumeBannerScroll.(js|jsx|ts|tsx)."
   errors=$((errors+1))
 else
-  echo "OK: .bh-banner-wrap used in both banner components."
+  echo "OK: .bh-banner-wrap used in banner components."
 fi
 
 # 4) Color tokens: fail if inline hex color strings appear inside JSX style attributes
