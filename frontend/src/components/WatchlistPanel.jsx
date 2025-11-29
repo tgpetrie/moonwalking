@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
-import { formatPrice, formatPct } from "../utils/format";
+import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format";
 import TokenRow from "./TokenRow.jsx";
 
 function deltaPct(baseline, current) {
@@ -46,7 +46,7 @@ export default function WatchlistPanel({ title = "WATCHLIST", onInfo }) {
           <div className="wl-list">
             {filtered.map((it, index) => {
               const pct = deltaPct(it.baseline, it.current);
-              const displaySymbol = it.symbol.replace(/-(USD|USDT|PERP)$/i, "");
+              const displaySymbol = tickerFromSymbol(it.symbol) || it.symbol;
               const rowType =
                 pct == null ? undefined : pct >= 0 ? "gainer" : "loser";
 

@@ -4,6 +4,8 @@ import VolumeBannerScroll from "./components/VolumeBannerScroll";
 import GainersTable1Min from "./components/GainersTable1Min.jsx";
 import GainersTable3Min from "./components/GainersTable3Min";
 import LosersTable3Min from "./components/LosersTable3Min";
+import WatchlistPanel from "./components/WatchlistPanel.jsx";
+import { useWatchlist } from "./context/WatchlistContext.jsx";
 import AssetDetailPanel from "./components/AssetDetailPanel.jsx";
 
 function formatTimestamp(d = new Date()) {
@@ -49,6 +51,9 @@ export default function Dashboard() {
   const errs = payload?.errors || {};
 
   const handleInfo = (symbol) => setSelectedSymbol(symbol);
+
+  const { items: watchlistItems } = useWatchlist();
+  const hasWatchlist = (watchlistItems?.length ?? 0) > 0;
 
   // simple banner bindings if present in /data
   const banner1h = useMemo(() => data.banner_1h || [], [data.banner_1h]);
@@ -135,6 +140,13 @@ export default function Dashboard() {
             onInfo={handleInfo}
           />
         </section>
+
+        {/* Optional Watchlist row (full-width under 3m) */}
+        {hasWatchlist && (
+          <section className="panel-row-watchlist mb-10">
+            <WatchlistPanel onInfo={handleInfo} />
+          </section>
+        )}
 
         {/* Bottom volume banner */}
         <section>
