@@ -23633,3 +23633,5 @@
 2025-11-27 08:15:32,024 - INFO - Successfully fetched Coinbase 24h top movers: 4 gainers, 0 losers
 2025-11-27 08:15:32,445 - INFO - Successfully fetched 25 prices from Coinbase
 2025-11-27 08:15:32,446 - INFO - 1-min snapshot refreshed by background updater
+2025-11-27 08:15:33,146 - INFO - Successfully fetched Coinbase 24h top movers: 8 gainers, 0 losers
+2025-11-27 08:15:33,150 - INFO - 127.0.0.1 - - [27/Nov/2025 08:15:33] "GET /data HTTP/1.1" 200 -

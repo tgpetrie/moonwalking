@@ -1,5 +1,5 @@
-Authoritative frontend layout, styling, and behavior spec for the CBMo4ers / BHABIT
-dashboard. This is the single source of truth for how the board should look and act.
+Authori```````tative frontendÍ layout, styling, and behavior spec for the CBMo4ers / BHABIT
+dashboard. This is the single s``````````````````````````````12™™€¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸¸ource of truth for how the board should look and act.
 
 The goal: one dark canvas, one set of rails, one system of type and color. No
 Frankenstein, no surprises.

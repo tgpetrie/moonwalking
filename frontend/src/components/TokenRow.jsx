@@ -35,7 +35,7 @@ function TokenRow({
   if (priceChange3min !== undefined) explicit.price_change_percentage_3min = priceChange3min;
   const data = Object.keys(raw).length ? raw : explicit;
   const rawSymbol = data.symbol || data.ticker || "";
-  const display = rawSymbol?.replace(/-(USD|USDT|PERP)$/i, "") || rawSymbol || "--";
+  const display = tickerFromSymbol(rawSymbol) || rawSymbol || "--";
 
   const price =
     data.current_price ??
