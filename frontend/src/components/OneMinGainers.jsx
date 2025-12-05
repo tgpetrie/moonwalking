@@ -1,6 +1,5 @@
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
-import PanelShell from "./ui/PanelShell";
 
 export default function OneMinGainers({ rows = [], loading = false, error = null, onInfo }) {
   const top = Array.isArray(rows) ? rows.slice(0, 8) : [];
@@ -9,7 +8,10 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
   const hasData = top.length > 0;
 
   return (
-    <PanelShell title={"1-MIN GAINERS"}>
+    <section className="w-full mb-8">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-[18px] font-bold tracking-wide text-[#f9c86b] uppercase">1-min gainers</h2>
+      </div>
 
       {loading && <div className="py-6 text-sm text-white/40">Loading…</div>}
       {!loading && error && !hasData && (
@@ -59,6 +61,6 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
           </button>
         </div>
       )}
-    </PanelShell>
+    </section>
   );
 }
