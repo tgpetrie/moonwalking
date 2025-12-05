@@ -560,11 +560,45 @@ body {
   align-items: start;
 }
 
-.panel-row--1m { margin-bottom: 40px; }
-.panel-row--3m { margin-top: 40px; }
-.panel-card { width: 100%; }
-.panel-row__watchlist { grid-column: 1 / -1; margin-top: 32px; width: 100%; justify-self: center; }
+  bottom: -0.4rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,184,77,0.9), rgba(143,104,255,0.6));
+  opacity: 0.85;
 .panel-row--1m .panel-card--1m { grid-column: 1 / -1; }
+
+/* Backward-compatible section-head styles (many components use `.section-head`) */
+.section-head {
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.section-head-kicker,
+.section-head-timeframe {
+  line-height: 1.2;
+}
+
+.section-head-gain { color: var(--bh-gain); }
+.section-head-loss { color: var(--bh-loss); }
+
+/* explicit underline element (legacy) */
+.section-head-line {
+  height: 2px;
+  width: 90px;
+  border-radius: 9999px;
+  margin: 6px auto 16px;
+  opacity: 0.8;
+}
+.section-head-line-gain { background: linear-gradient(90deg, #ffb347 0%, rgba(255,179,71,0) 100%); }
+.section-head-line-loss { background: linear-gradient(90deg, #c084fc 0%, rgba(192,132,252,0) 100%); }
+
 
 /* ensure panel internals don't add asymmetric padding that would break alignment */
 .panel-card > .panel { padding: 0; }
