@@ -1,22 +1,32 @@
 import React, { useMemo, useState } from "react";
 import TokenRow from "./TokenRow.jsx";
+import { useDataFeed } from "../hooks/useDataFeed";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
 
 const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) => {
+  const { data, isLoading: feedLoading, isError: feedError } = useDataFeed();
   const renderHeader = () => (
-    <header className="section-head section-head-gain">
-      <div className="section-head-label">
-        <span className="section-head-kicker">TOP GAINERS</span>
-        <span className="section-head-timeframe">(3m)</span>
+    <header className="panel-header">
+      <div className="section-head section-head--center section-head-gain">
+        <span className="section-head__label">
+          TOP GAINERS <span className="section-head__timeframe">3M</span>
+        </span>
+        <span className="section-head-line section-head-line-gain" />
       </div>
-      <div className="section-head-line section-head-line-gain" />
     </header>
   );
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const allRows = Array.isArray(rows) ? rows : [];
+  const feedRows = React.useMemo(() => {
+    const list = data?.gainers_3m;
+    if (Array.isArray(list)) return list;
+    if (list && Array.isArray(list.data)) return list.data;
+    return [];
+  }, [data]);
+
+  const allRows = Array.isArray(rows) && rows.length ? rows : feedRows;
 
   const gainers = useMemo(() => {
     return allRows
@@ -44,9 +54,9 @@ const GainersTable3Min = ({ rows = [], loading = false, error = null, onInfo }) 
     : gainers.slice(0, MAX_BASE);
   const count = gainers.length;
   const status =
-    error ? "error" :
+    error || feedError ? "error" :
     count > 0 ? "ready" :
-    loading ? "loading" :
+    (loading || feedLoading) ? "loading" :
     "empty";
 
   return (

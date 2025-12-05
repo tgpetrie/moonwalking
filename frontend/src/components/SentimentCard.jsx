@@ -6,6 +6,7 @@ const TABS = ["Overview", "Funding", "Sources"];
 export default function SentimentCard() {
   const { sentiment, loading, error } = useSentiment();
   const [active, setActive] = React.useState("Overview");
+  const noData = !loading && !error && !sentiment;
 
   return (
     <div className="bh-panel sentiment-card">
@@ -29,6 +30,7 @@ export default function SentimentCard() {
 
       {loading && <p className="sentiment-hint">Loading sentiment…</p>}
       {error && <p className="sentiment-error">Sentiment unavailable.</p>}
+      {noData && <p className="sentiment-hint">Sentiment warming up – no live data yet.</p>}
 
       {!loading && !error && sentiment && (
         <div className="sentiment-body">

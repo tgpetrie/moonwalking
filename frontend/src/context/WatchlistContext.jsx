@@ -26,13 +26,14 @@ export function WatchlistProvider({ children }) {
 
   const has = useCallback((symbol) => items.some((i) => i.symbol === tickerFromSymbol(symbol)), [items]);
 
-  const add = useCallback(({ symbol, baseline = null }) => {
+  const add = useCallback(({ symbol, baseline = null, price = null }) => {
     // Accept either { symbol, baseline } or { symbol, price } for backward compatibility
     const s = tickerFromSymbol(symbol);
     setItems((prev) => {
       if (!s) return prev;
       if (prev.some((i) => i.symbol === s)) return prev;
-      const entryPrice = (baseline == null ? null : Number(baseline));
+      const seed = baseline ?? price;
+      const entryPrice = seed == null ? null : Number(seed);
       return [...prev, { symbol: s, baseline: entryPrice, current: entryPrice, addedAt: Date.now() }];
     });
   }, []);

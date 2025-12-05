@@ -15,17 +15,10 @@ function WatchlistReconciler({ bySymbol }) {
 }
 
 export default function App() {
-  const { bySymbol, mutate, ...data } = useData();
-  const [rabbitLit, setRabbitLit] = useState(false);
+  const { bySymbol, ...data } = useData();
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentRow, setSentimentRow] = useState(null);
   const [sentimentInterval, setSentimentInterval] = useState("3m");
-
-  const handleRefresh = async () => {
-    await mutate();
-    setRabbitLit(true);
-    setTimeout(() => setRabbitLit(false), 280);
-  };
 
   const handleInfo = (rowOrSymbol, interval = "3m") => {
     const nextRow =
@@ -40,7 +33,11 @@ export default function App() {
   return (
     <WatchlistProvider>
       <WatchlistReconciler bySymbol={bySymbol} />
-      <DashboardShell data={data} onInfo={handleInfo} onRefresh={handleRefresh} rabbitLit={rabbitLit} />
+      <DashboardShell
+        data={data}
+        bySymbol={bySymbol}
+        onInfo={handleInfo}
+      />
       {sentimentOpen && (
         <Suspense fallback={null}>
           <SentimentPanel

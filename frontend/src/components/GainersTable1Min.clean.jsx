@@ -11,7 +11,7 @@ import SentimentCard from './cards/SentimentCard.jsx';
  * Finalized 1‑minute Gainers table (top‑8 collapsed → parent controls total).
  * - Single floating SentimentCard anchored to the clicked info icon (ⓘ)
  * - BHABIT color semantics: positive = gold (#f1b43a), negative = purple (#ae4bf5)
- * - Raleway-only typography (global), no Fragment Mono
+ * - Raleway-only typography (global), no extra mono faces
  * - Click row → opens Coinbase advanced spot in a new tab
  */
 export default function GainersTable1Min({

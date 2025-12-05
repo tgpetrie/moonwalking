@@ -1,38 +1,48 @@
 // frontend/src/components/tables/RowActions.jsx
-import { useWatchlist } from "../../context/WatchlistContext.jsx";
-
-export default function RowActions({ symbol, price, onInfo }) {
-  const { has, add, remove } = useWatchlist();
-  const watching = has(symbol);
-
-  const handleStar = (e) => {
-    e.stopPropagation();
-    watching ? remove(symbol) : add({ symbol, price });
-  };
-
-  const handleInfo = (e) => {
-    e.stopPropagation();
-    onInfo?.({ symbol, price });
-  };
-
+function StarIcon({ filled }) {
   return (
-    <div className="row-actions">
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    >
+      <polygon points="12,2 15,9 22,9.5 17,14.5 18.5,22 12,18 5.5,22 7,14.5 2,9.5 9,9" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="8" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+    </svg>
+  );
+}
+
+export default function RowActions({ starred, onToggleStar, onInfoClick }) {
+  return (
+    <>
       <button
         type="button"
-        className={`row-icon row-icon--star ${watching ? "is-active" : ""}`}
-        onClick={handleStar}
-        aria-label={watching ? "Remove from watchlist" : "Add to watchlist"}
+        className={"row-icon row-icon--star" + (starred ? " is-active" : "")}
+        onClick={onToggleStar}
+        aria-label="Toggle watchlist"
       >
-        {watching ? "★" : "☆"}
+        <StarIcon filled={starred} />
       </button>
+
       <button
         type="button"
         className="row-icon row-icon--info"
-        onClick={handleInfo}
-        aria-label={`Info ${symbol}`}
+        onClick={onInfoClick}
+        aria-label="Show sentiment"
       >
-        i
+        <InfoIcon />
       </button>
-    </div>
+    </>
   );
 }

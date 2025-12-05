@@ -61,16 +61,20 @@ if [ "${1:-}" = "status" ]; then
   exit 0
 fi
 
-ki_pidfile() {
-  local file=$1
-  if [ -f "$file" ]; then
+# Kill process stored in a pidfile, if it exists
+kill_pidfile() {
+  local pidfile="$1"
+
+  if [ -f "$pidfile" ]; then
     local pid
-    pid=$(cat "$file" 2>/dev/null || true)
-    if [ -n "$pid" ] && kill -0 "$pid" >/dev/null 2>&1; then
-      echo "[start.local] stopping pid $pid from $file"
-      kill "$pid" || true
+    pid="$(cat "$pidfile" 2>/dev/null || true)"
+
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      echo "[start.local] Killing process $pid from $pidfile..."
+      kill "$pid" 2>/dev/null || true
     fi
-    rm -f "$file" || true
+
+    rm -f "$pidfile" || true
   fi
 }
 

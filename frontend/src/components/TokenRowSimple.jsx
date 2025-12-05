@@ -1,34 +1,36 @@
 // src/components/TokenRowSimple.jsx
 import React from "react";
-import RowActions from "./tables/RowActions.jsx";
+import TokenRow from "./TokenRow.jsx";
+import { tickerFromSymbol } from "../utils/format";
 
-function formatPrice(value) {
-  if (value == null) return "--";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "--";
-  if (n >= 1000) return `$${n.toLocaleString()}`;
-  return `$${n.toFixed(3)}`;
-}
-
-function formatPct(value) {
-  if (value == null) return "--";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "--";
-  return `${n.toFixed(2)}%`;
-}
-
-export default function TokenRowSimple({ index, row }) {
-  const symbol =
-    (row?.symbol && String(row.symbol).replace(/-USD$/i, "")) ||
-    (row?.ticker && String(row.ticker).replace(/-USD$/i, "")) ||
+// Simple wrapper that reuses the canonical TokenRow grid so legacy callers stay aligned.
+export default function TokenRowSimple({ index = 0, row = {}, onInfo }) {
+  const symbolRaw =
+    row?.symbol ||
+    row?.ticker ||
+    row?.slug ||
     "--";
+  const symbol = tickerFromSymbol(symbolRaw) || symbolRaw;
 
-  const price = row?.price ?? row?.current_price ?? null;
+  const price =
+    row?.price ??
+    row?.current_price ??
+    row?.last_price ??
+    null;
+
+  const previousPrice =
+    row?.previous_price ??
+    row?.initial_price_3min ??
+    row?.initial_price_1min ??
+    row?.baseline ??
+    null;
 
   const pctRaw =
     row?.pct ??
     row?.price_change_percentage_1min ??
     row?.price_change_percentage_3min ??
+    row?.change_1m ??
+    row?.change_3m ??
     null;
 
   const pct =
@@ -36,31 +38,21 @@ export default function TokenRowSimple({ index, row }) {
       ? Number(pctRaw)
       : null;
 
-  const isLoss = pct != null && pct < 0;
+  const rowType = pct == null ? undefined : pct >= 0 ? "gainer" : "loser";
 
   return (
-    <div className={`token-row simple-row ${isLoss ? "is-loss" : "is-gain"}`}>
-
-      <div className="token-rank">{index + 1}</div>
-      <div className="token-symbol">{symbol}</div>
-      <div className="token-price">
-        <div>{formatPrice(price)}</div>
-        {price != null && (
-          <div className="token-price-sub">
-            ${Number(price).toFixed(3)}
-          </div>
-        )}
-      </div>
-      <div
-        className={`token-pct ${
-          isLoss ? "token-pct-loss" : "token-pct-gain"
-        }`}
-      >
-        {formatPct(pct)}
-      </div>
-      <div className="token-actions">
-        <RowActions symbol={symbol} price={price} />
-      </div>
-    </div>
+    <TokenRow
+      rank={index + 1}
+      row={{
+        ...row,
+        symbol,
+        current_price: price,
+        previous_price: previousPrice,
+        price_change_percentage_1min: pct,
+        price_change_percentage_3min: pct,
+      }}
+      rowType={rowType}
+      onInfo={onInfo}
+    />
   );
 }

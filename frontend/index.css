@@ -18,7 +18,7 @@
 
 body {
   margin: 0;
-  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Raleway', sans-serif;
   background: var(--bh-bg) url("/purple-rabbit-bg.png") center 120px no-repeat;
   background-size: 980px;
   color: var(--text-white);
@@ -46,19 +46,19 @@ body {
 
 /* Typography Classes */
 .font-headline {
-  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Raleway', sans-serif;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
 
 .font-body,
 .font-mono {
-  font-family: 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Raleway', sans-serif;
 }
 
 /* Legend / Raleway font */
 .font-raleway {
-  font-family: 'Raleway', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: 'Raleway', sans-serif;
 }
 
 

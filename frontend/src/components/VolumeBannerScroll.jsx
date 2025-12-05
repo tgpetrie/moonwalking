@@ -1,106 +1,76 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { formatCompact, formatPct, map1hVolumeBannerItemBase } from "../utils/format";
-import PanelShell from "./ui/PanelShell";
-import StatusGate from "./ui/StatusGate";
-import SkeletonBlock from "./ui/SkeletonBlock";
+import React, { useMemo } from "react";
+import { useDataFeed } from "../hooks/useDataFeed";
 
-// historyMinutes is passed from Dashboard/useData for warm-up logic
-export default function VolumeBannerScroll({
-  items,
-  historyMinutes = 0,
-  loading = false,
-  error = null,
-}) {
-  const [data, setData] = useState(items || []);
+export default function VolumeBannerScroll() {
+  const { data } = useDataFeed();
 
-  useEffect(() => {
-    if (items && items.length) return;
-    fetch("/api/component/bottom-banner-scroll")
-      .then((r) => r.json())
-      .then((json) => {
-        const arr = json?.items || json || [];
-        setData(arr);
-      })
-      .catch(() => {});
-  }, [items]);
+  const rows = useMemo(() => {
+    if (!data) return [];
+    const payload = data?.data ?? data ?? {};
 
-  const list = items && items.length ? items : data;
+    const raw = Array.isArray(payload.banner_volume_1h)
+      ? payload.banner_volume_1h
+      : Array.isArray(payload.volume_1h?.data)
+      ? payload.volume_1h.data
+      : Array.isArray(payload.volume_1h_top)
+      ? payload.volume_1h_top
+      : Array.isArray(payload.volume_1h_tokens)
+      ? payload.volume_1h_tokens
+      : [];
 
-  const mapped = useMemo(() => {
-    return list
-      .map((row) => map1hVolumeBannerItemBase(row))
-      .filter((it) => it && it.currentVolume != null && it.pctChange !== 0)
-      .sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange))
-      .slice(0, 20);
-  }, [list]);
+    return raw;
+  }, [data]);
 
-  const required = 60;
-  const panelStatus =
-    error ? "error" :
-    mapped.length > 0 ? "ready" :
-    loading ? "loading" :
-    historyMinutes < required ? "loading" : "empty";
+  const items = useMemo(() => {
+    const base = Array.isArray(rows) ? rows : [];
+    if (!base.length) return [];
 
-  const looped = mapped && mapped.length ? [...mapped, ...mapped] : [];
+    const sorted = [...base].sort((a, b) => {
+      const av = a?.volume_change_abs ?? a?.volume_change ?? 0;
+      const bv = b?.volume_change_abs ?? b?.volume_change ?? 0;
+      return bv - av;
+    });
+    const sliced = sorted.slice(0, 30);
+    return [...sliced, ...sliced];
+  }, [rows]);
+
+  if (!items.length) {
+    return (
+      <div className="bh-banner-wrap bh-banner-wrap--volume">
+        <p className="bh-banner-empty">No 1h volume activity yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <PanelShell title="1H VOLUME" timeframe="ACTIVITY" tone="loss">
-      <StatusGate
-        status={panelStatus}
-        skeleton={
-          <div className="bh-banner-wrap">
-            <SkeletonBlock lines={2} />
-          </div>
-        }
-        empty={
-          <div className="bh-banner-wrap">
-            <div className="ticker bh-banner bh-banner--volume">
-              <div className="bh-banner-track">
-                <span className="state-copy">No 1h volume activity yet.</span>
-              </div>
-            </div>
-          </div>
-        }
-        error={<div className="state-copy">Feed hiccup. Retrying.</div>}
-      >
-        <div className="bh-banner-wrap">
-          <div className="bh-banner-track">
-            {(looped.length ? looped : [{ symbol: "--", currentVolume: null, pctChange: 0 }]).map((it, i) => {
-              if (!it) return null;
-              const baseLen = mapped.length || 1;
-              const pct = Number(it?.pctChange ?? 0);
-              const pctClass =
-                pct > 0
-                  ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
-                  : pct < 0
-                  ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
-                  : "bh-banner-chip__pct bh-banner-chip__pct--flat";
-              const rank = baseLen > 0 ? (i % baseLen) + 1 : i + 1;
-
-              return (
-                <a
-                  key={`${it.symbol || "item"}-${i}`}
-                  className="bh-banner-chip bh-banner-chip--volume"
-                  href={it.symbol ? `https://www.coinbase.com/advanced-trade/spot/${it.symbol}-USD` : "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span className="bh-banner-chip__rank">{rank}</span>
-                  <span className="bh-banner-chip__symbol">{it.symbol}</span>
-                  <span className="bh-banner-chip__price">
-                    {it.currentVolume != null
-                      ? `Vol ${formatCompact(it.currentVolume)}`
-                      : "Vol —"}
-                  </span>
-                  <span className={pctClass}>
-                    {formatPct(pct, { sign: true })}
-                  </span>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      </StatusGate>
-    </PanelShell>
+    <div className="bh-banner-wrap bh-banner-wrap--volume">
+      <div className="bh-banner-track">
+        {items.map((row, idx) => (
+          <a
+            key={`${row.symbol || "item"}-${idx}`}
+            className="bh-banner-chip"
+            href={`https://www.coinbase.com/price/${(row.symbol || "").toLowerCase()}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="bh-banner-symbol">{row.symbol}</span>
+            <span className="bh-banner-price">
+              {row.current_price != null ? `$${row.current_price}` : "-"}
+            </span>
+            <span
+              className={
+                (row.change_1h_volume ?? row.volume_change ?? 0) >= 0
+                  ? "bh-banner-pct bh-banner-pct--gain"
+                  : "bh-banner-pct bh-banner-pct--loss"
+              }
+            >
+              {row.change_1h_volume != null
+                ? `${row.change_1h_volume.toFixed?.(2) ?? row.change_1h_volume}%`
+                : `${row.volume_change?.toFixed?.(2) ?? row.volume_change ?? 0}%`}
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }

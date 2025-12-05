@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { useSentiment } from "../context/SentimentContext.jsx";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
 import RowActions from "./tables/RowActions.jsx";
 
@@ -119,6 +120,8 @@ function TokenRow({
   const slug = tickerFromSymbol(display).toLowerCase();
   const pair = slug.endsWith("-usd") ? slug : `${slug}-usd`;
   const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+  const { has, add, remove } = useWatchlist();
+  const starred = has ? has(display) : false;
 
   const handleClick = (e) => {
     // if the user clicked on actions (star / info), don't navigate
@@ -130,9 +133,27 @@ function TokenRow({
     if (e.key === "Enter") handleClick(e);
   };
 
+  const rowClassName = (base, type) => {
+    const classes = [base];
+    if (type === "gainer") classes.push("is-gain");
+    else if (type === "loser") classes.push("is-loss");
+    else classes.push(signClass);
+    if (signClass && !classes.includes(signClass)) classes.push(signClass);
+    return classes.join(" ").trim();
+  };
+
+  const handleToggleStar = () => {
+    if (!add || !remove) return;
+    starred ? remove(display) : add({ symbol: display, price });
+  };
+
+  const handleInfoClick = () => {
+    if (onInfo) onInfo(display);
+  };
+
   return (
     <div
-      className={["token-row", "table-row", signClass].join(" ")}
+      className={rowClassName("token-row table-row", rowType)}
       data-row="token"
       role="link"
       tabIndex={0}
@@ -169,15 +190,14 @@ function TokenRow({
           {effectivePrevPrice != null ? formatPrice(effectivePrevPrice) : "—"}
         </div>
       </div>
-      <div className="tr-col tr-col-prev" />
       <div className="tr-col tr-col-pct">
         <span className={`tr-pct-value ${pctClass}`}>{formatPct(pct)}</span>
       </div>
       <div className="tr-col tr-col-actions">
         <RowActions
-          symbol={display}
-          price={price}
-          onInfo={(t) => onInfo && onInfo(t)}
+          starred={starred}
+          onToggleStar={handleToggleStar}
+          onInfoClick={handleInfoClick}
         />
       </div>
     </div>

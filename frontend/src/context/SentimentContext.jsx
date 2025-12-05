@@ -1,35 +1,23 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo } from "react";
+import { useDataFeed } from "../hooks/useDataFeed";
 
 const SentimentContext = createContext(null);
 
-export function SentimentProvider({ children, pollMs = 60000 }) {
-  const [sentiment, setSentiment] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export function SentimentProvider({ children }) {
+  const { data, error, isLoading } = useDataFeed();
 
-  const fetchSentiment = useCallback(async () => {
-    try {
-      const res = await fetch("/api/sentiment-basic");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setSentiment(json);
-      setError(null);
-      setLoading(false);
-    } catch (err) {
-      console.warn("[sentiment] failed:", err);
-      setError(err);
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSentiment();
-    const id = setInterval(fetchSentiment, pollMs);
-    return () => clearInterval(id);
-  }, [fetchSentiment, pollMs]);
+  const sentiment = useMemo(() => {
+    const payload = data?.data ?? data ?? {};
+    return (
+      payload.sentiment ||
+      payload.sentiment_overview ||
+      payload.sentiment_panel ||
+      null
+    );
+  }, [data]);
 
   return (
-    <SentimentContext.Provider value={{ sentiment, loading, error, refetch: fetchSentiment }}>
+    <SentimentContext.Provider value={{ sentiment, loading: isLoading, error }}>
       {children}
     </SentimentContext.Provider>
   );

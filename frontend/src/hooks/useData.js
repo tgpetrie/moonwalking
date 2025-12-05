@@ -1,19 +1,8 @@
 // frontend/src/hooks/useData.js — explicit lanes, no legacy payload leakage
-import useSWR from "swr";
-import { endpoints, fetchJson } from "../lib/api";
-
-const KEY = endpoints.metrics || "/data";
+import { useDataFeed } from "./useDataFeed";
 
 export function useData() {
-  const { data, error, isLoading, mutate } = useSWR(
-    KEY,
-    () => fetchJson(KEY),
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 8000,
-      refreshInterval: 2000, // poll /data every 2s for fresher updates
-    }
-  );
+  const { data, error, isLoading, mutate } = useDataFeed();
 
   const payload = data?.data ?? data ?? {};
   const meta = payload?.meta ?? data?.meta ?? {};
@@ -39,6 +28,7 @@ export function useData() {
     banner1hPrice,
     banner1hVolume,
     latestBySymbol,
+    data: payload,
     meta: {
       ...meta,
       last_updated: payload.updated_at || meta.last_updated,

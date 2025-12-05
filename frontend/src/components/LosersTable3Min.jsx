@@ -36,12 +36,13 @@ export default function LosersTable3Min() {
 
   return (
     <section className="text-left text-white text-[12px] font-mono max-w-[480px] losers-3m">
-      <header className="section-head section-head-loss">
-        <div className="section-head-label">
-          <span className="section-head-kicker">TOP LOSERS</span>
-          <span className="section-head-timeframe">(3m)</span>
+      <header className="panel-header">
+        <div className="section-head section-head--center section-head-loss">
+          <span className="section-head__label">
+            TOP LOSERS <span className="section-head__timeframe">3M</span>
+          </span>
+          <span className="section-head-line section-head-line-loss" />
         </div>
-        <div className="section-head-line section-head-line-loss" />
       </header>
 
       {hasData ? (

@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import TokenRow from "./TokenRow.jsx";
-import PanelShell from "./ui/PanelShell";
 import StatusGate from "./ui/StatusGate";
 import SkeletonTable from "./ui/SkeletonTable";
+import { useDataFeed } from "../hooks/useDataFeed";
 
 // Framer Motion row variants and transition for soft enter/exit and reordering
 const rowVariants = {
@@ -27,6 +27,7 @@ export default function GainersTable1Min({
   error,
   onInfo,
 }) {
+  const { data, isLoading: feedLoading, isError: feedError } = useDataFeed();
   // Debug: allow forcing the loading state via URL query `?forceLoading1m=1`
   let forceLoading = false;
   if (typeof window !== "undefined") {
@@ -37,9 +38,24 @@ export default function GainersTable1Min({
       forceLoading = false;
     }
   }
-  const isLoading = Boolean(loading) || forceLoading;
+  const isLoading = Boolean(loading) || feedLoading || forceLoading;
   const [showMore, setShowMore] = useState(false);
-  const allRows = Array.isArray(rows) ? rows : [];
+
+  const feedRows = useMemo(() => {
+    const list = data?.gainers_1m;
+    if (Array.isArray(list)) return list;
+    if (list && Array.isArray(list.data)) return list.data;
+    return [];
+  }, [data]);
+
+  const allRows = useMemo(() => {
+    const source = Array.isArray(rows) && rows.length ? rows : feedRows;
+    console.log("[1m gainers raw]", source);
+    if (Array.isArray(source)) return source;
+    if (source && Array.isArray(source.data)) return source.data;
+    if (source && Array.isArray(source.items)) return source.items;
+    return [];
+  }, [rows, feedRows]);
 
   const normalizedRows = useMemo(() => {
     return allRows
@@ -49,15 +65,18 @@ export default function GainersTable1Min({
           row.change_1m ??
           row.pct_change ??
           row.pct ??
+          row.percentChange ??
           0;
-        const pct = Number(pctRaw);
+        const pct = typeof pctRaw === "string"
+          ? Number(pctRaw.replace(/%/g, ""))
+          : Number(pctRaw);
         return {
           ...row,
           pct,
           _pct: Number.isFinite(pct) ? pct : 0,
         };
       })
-      .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
+        .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
       .sort((a, b) => b._pct - a._pct);
   }, [allRows]);
 
@@ -119,7 +138,7 @@ export default function GainersTable1Min({
     if (!sameRight) setAnimatedRightRows(rightRows);
   }, [leftRows, rightRows, animatedLeftRows, animatedRightRows]);
 
-  const panelStatus = error
+  const panelStatus = error || feedError
     ? "error"
     : total > 0
     ? "ready"
@@ -128,7 +147,13 @@ export default function GainersTable1Min({
     : "empty";
 
   return (
-    <PanelShell title="1-MIN GAINERS">
+    <section className="panel panel-1m">
+      <header className="panel-header">
+        <div className="section-head section-head--center section-head-gain">
+          <span className="section-head__label">1-MIN GAINERS</span>
+          <span className="section-head-line section-head-line-gain" />
+        </div>
+      </header>
       <StatusGate
         status={panelStatus}
         skeleton={<SkeletonTable rows={6} />}
@@ -205,6 +230,6 @@ export default function GainersTable1Min({
           </div>
         )}
       </StatusGate>
-    </PanelShell>
+    </section>
   );
 }
