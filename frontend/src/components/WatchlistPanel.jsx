@@ -29,11 +29,9 @@ export default function WatchlistPanel({ title = "WATCHLIST", onInfo }) {
   return (
     <section className="panel bh-watchlist">
       <header className="section-head section-head-gain">
-        <div className="section-head-label">
-          <span className="section-head-kicker">{title}</span>
-        </div>
-        <div className="section-head-line section-head-line-gain" />
+        <span className="section-head-kicker">{title}</span>
       </header>
+      {/* underline via .section-head::after */}
       <div className="panel-body">
         <form className="wl-search" onSubmit={tryAdd}>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search & add coin (e.g. BTC, ETH)" />

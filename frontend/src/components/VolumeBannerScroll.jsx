@@ -41,11 +41,10 @@ export default function VolumeBannerScroll({
     loading ? "loading" :
     historyMinutes < required ? "loading" : "empty";
 
-  const shouldScroll = (mapped?.length || 0) >= 15;
-  const looped = shouldScroll ? [...mapped, ...mapped] : mapped;
+  const looped = mapped && mapped.length ? [...mapped, ...mapped] : [];
 
   return (
-    <PanelShell title="1H VOLUME">
+    <PanelShell title="1H VOLUME" timeframe="ACTIVITY" tone="loss">
       <StatusGate
         status={panelStatus}
         skeleton={
@@ -65,41 +64,40 @@ export default function VolumeBannerScroll({
         error={<div className="state-copy">Feed hiccup. Retrying.</div>}
       >
         <div className="bh-banner-wrap">
-          <div className="ticker bh-banner bh-banner--volume">
-            <div className="bh-banner-strip bh-banner-strip--volume">
-              <div
-                className={
-                  "bh-banner-strip__inner" +
-                  (shouldScroll ? " bh-banner-strip__inner--scroll" : "")
-                }
-              >
-                {looped.map((it, i) => {
-                  if (!it) return null;
-                  const baseLen = mapped.length || 1;
-                  const pct = Number(it?.pctChange ?? 0);
-                  const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
-                  const rank = (i % baseLen) + 1;
+          <div className="bh-banner-track">
+            {(looped.length ? looped : [{ symbol: "--", currentVolume: null, pctChange: 0 }]).map((it, i) => {
+              if (!it) return null;
+              const baseLen = mapped.length || 1;
+              const pct = Number(it?.pctChange ?? 0);
+              const pctClass =
+                pct > 0
+                  ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
+                  : pct < 0
+                  ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
+                  : "bh-banner-chip__pct bh-banner-chip__pct--flat";
+              const rank = baseLen > 0 ? (i % baseLen) + 1 : i + 1;
 
-                  return (
-                    <span
-                      key={`${it.symbol || "item"}-${i}`}
-                      className={`bh-banner-chip bh-banner-chip--volume ${chipState}`}
-                    >
-                      <span className="bh-banner-chip__rank">{rank}</span>
-                      <span className="bh-banner-chip__symbol">{it.symbol}</span>
-                      <span className="bh-banner-chip__price">
-                        {it.currentVolume != null
-                          ? `Vol ${formatCompact(it.currentVolume)}`
-                          : "Vol —"}
-                      </span>
-                      <span className="bh-banner-chip__pct">
-                        {formatPct(pct, { sign: true })}
-                      </span>
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
+              return (
+                <a
+                  key={`${it.symbol || "item"}-${i}`}
+                  className="bh-banner-chip bh-banner-chip--volume"
+                  href={it.symbol ? `https://www.coinbase.com/advanced-trade/spot/${it.symbol}-USD` : "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="bh-banner-chip__rank">{rank}</span>
+                  <span className="bh-banner-chip__symbol">{it.symbol}</span>
+                  <span className="bh-banner-chip__price">
+                    {it.currentVolume != null
+                      ? `Vol ${formatCompact(it.currentVolume)}`
+                      : "Vol —"}
+                  </span>
+                  <span className={pctClass}>
+                    {formatPct(pct, { sign: true })}
+                  </span>
+                </a>
+              );
+            })}
           </div>
         </div>
       </StatusGate>

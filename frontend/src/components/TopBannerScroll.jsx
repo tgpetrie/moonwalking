@@ -50,8 +50,7 @@ export default function TopBannerScroll({
   }, [mappedItems]);
 
   const source = displayItems && displayItems.length ? displayItems : mappedItems;
-  const shouldScroll = (source?.length || 0) >= 15;
-  const looped = shouldScroll ? [...source, ...source] : source;
+  const looped = source && source.length ? [...source, ...source] : [];
   const required = 60;
   const panelStatus =
     error ? "error" :
@@ -60,7 +59,7 @@ export default function TopBannerScroll({
     historyMinutes < required ? "loading" : "empty";
 
   return (
-    <PanelShell title="1H PRICE">
+    <PanelShell title="1H PRICE" timeframe="CHANGE" tone="gain" align="left">
       <StatusGate
         status={panelStatus}
         skeleton={
@@ -80,45 +79,41 @@ export default function TopBannerScroll({
         error={<div className="state-copy">Feed hiccup. Retrying.</div>}
       >
         <div className="bh-banner-wrap">
-          <div className="ticker bh-banner">
-            <div className="bh-banner-strip bh-banner-strip--price">
-              <div
-                className={
-                  "bh-banner-strip__inner" +
-                  (shouldScroll ? " bh-banner-strip__inner--scroll" : "")
-                }
-              >
-                {looped.map((it, i) => {
-                  if (!it) return null;
-                  const baseLen = source.length || 1;
-                  const pct = Number(it?.pctChange ?? 0);
-                  const chipState = pct > 0 ? "is-gain" : pct < 0 ? "is-loss" : "";
-                  const displaySymbol = it.symbol
-                    ? tickerFromSymbol(it.symbol)
-                    : "--";
-                  const rank = (i % baseLen) + 1;
+          <div className="bh-banner-track">
+            {(looped.length ? looped : [{ symbol: "--", currentPrice: 0, pctChange: 0 }]).map((it, i) => {
+              if (!it) return null;
+              const baseLen = source.length || 1;
+              const pct = Number(it?.pctChange ?? 0);
+              const pctClass =
+                pct > 0
+                  ? "bh-banner-chip__pct bh-banner-chip__pct--gain"
+                  : pct < 0
+                  ? "bh-banner-chip__pct bh-banner-chip__pct--loss"
+                  : "bh-banner-chip__pct bh-banner-chip__pct--flat";
+              const displaySymbol = it.symbol
+                ? tickerFromSymbol(it.symbol)
+                : "--";
+              const rank = baseLen > 0 ? (i % baseLen) + 1 : i + 1;
 
-                  return (
-                    <a
-                      key={`${it.symbol || "item"}-${i}`}
-                      href={buildCoinbaseUrl(it.symbol)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`bh-banner-chip bh-banner-chip--price ${chipState}`}
-                    >
-                      <span className="bh-banner-chip__rank">{rank}</span>
-                      <span className="bh-banner-chip__symbol">{displaySymbol}</span>
-                      <span className="bh-banner-chip__price">
-                        {formatPrice(it.currentPrice)}
-                      </span>
-                      <span className="bh-banner-chip__pct">
-                        {formatPct(pct, { sign: true })}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
+              return (
+                <a
+                  key={`${it.symbol || "item"}-${i}`}
+                  href={buildCoinbaseUrl(it.symbol)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bh-banner-chip bh-banner-chip--price"
+                >
+                  <span className="bh-banner-chip__rank">{rank}</span>
+                  <span className="bh-banner-chip__symbol">{displaySymbol}</span>
+                  <span className="bh-banner-chip__price">
+                    {formatPrice(it.currentPrice)}
+                  </span>
+                  <span className={pctClass}>
+                    {formatPct(pct, { sign: true })}
+                  </span>
+                </a>
+              );
+            })}
           </div>
           {onRefresh && (
             <button

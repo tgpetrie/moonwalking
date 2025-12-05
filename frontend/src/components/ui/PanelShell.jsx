@@ -1,19 +1,28 @@
 export default function PanelShell({
   title,
-  subtitle,
+  timeframe,
+  tone = "gain",
+  align = "center",
   rightSlot,
   children,
   className = "",
 }) {
+  const toneClass = tone === "loss" ? "section-head-loss" : "section-head-gain";
+  const lineClass =
+    tone === "loss" ? "section-head-line-loss" : "section-head-line-gain";
+  const alignClass = align === "left" ? "section-head--left" : "";
+  const lineAlignClass = align === "left" ? "section-head-line--left" : "";
+  const headAlignClass = align === "left" ? "panel-head--left" : "";
+
   return (
     <section className={`panel-shell ${className}`}>
-      <header className="panel-head">
-        <div className="panel-title">
-          <h2>{title}</h2>
-          {subtitle && <span className="panel-sub">{subtitle}</span>}
-        </div>
-        {rightSlot && <div className="panel-right">{rightSlot}</div>}
-      </header>
+      <div className={`panel-head ${headAlignClass}`}>
+        <header className={`section-head ${toneClass} ${alignClass}`}>
+          <span className="section-head-kicker">{title}</span>
+          {timeframe ? <span className="section-head-timeframe">{timeframe}</span> : null}
+          {rightSlot ? <span className="section-head-meta">{rightSlot}</span> : null}
+        </header>
+      </div>
       <div className="panel-body">{children}</div>
     </section>
   );

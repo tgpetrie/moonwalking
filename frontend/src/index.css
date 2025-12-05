@@ -71,11 +71,16 @@
 
 .panel-head {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 6px;
   margin-bottom: 10px;
   position: relative;
+}
+
+.panel-head--left {
+  align-items: flex-start;
 }
 
 .panel-title h2 {
@@ -96,6 +101,64 @@
 
 .panel-body {
   min-height: 56px;
+}
+
+/* Shared section headers */
+.section-head {
+  text-transform: uppercase;
+  font-family: "Raleway", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  /* keep kicker/timeframe on a single row */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  /* underline is rendered via pseudo-element so its width matches the text */
+  position: relative;
+}
+
+.section-head-kicker,
+.section-head-timeframe {
+  line-height: 1.4;
+}
+
+.section-head-gain .section-head-kicker,
+.section-head-gain .section-head-timeframe {
+  color: var(--bh-gain);
+}
+
+.section-head-loss .section-head-kicker,
+.section-head-loss .section-head-timeframe {
+  color: var(--bh-loss);
+}
+
+.section-head::after {
+  content: "";
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  margin-top: 0.4rem;
+  opacity: 0.8;
+  width: 100%; /* matches the width of the header text */
+}
+
+.section-head.section-head-gain::after {
+  background: var(--bh-gain);
+}
+
+.section-head.section-head-loss::after {
+  background: var(--bh-loss);
+}
+
+.section-head--left {
+  justify-content: flex-start;
+}
+
+.section-head-line--left {
+  /* kept for compatibility with old classes; no-op when using pseudo-element */
+  margin-left: 0;
 }
 
 /* Status copies */
@@ -150,10 +213,10 @@
 
 .skel-row {
   display: grid;
-  grid-template-columns: 40px 1.2fr 1fr 0.8fr 28px;
+  grid-template-columns: 32px minmax(0, 1.6fr) minmax(0, 1.3fr) minmax(0, 0.8fr) 64px 52px;
   align-items: center;
-  gap: 10px;
-  height: 34px;
+  gap: 18px;
+  height: 52px;
   background: transparent;
 }
 
@@ -290,22 +353,31 @@
 .tr-col-rank {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
-.rank-pill {
-  width: 22px;
-  height: 22px;
+.rank-badge {
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 184, 77, 0.85);
-  color: rgba(255, 184, 77, 0.95);
-  font-size: 0.68rem;
-  font-weight: 600;
-  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
+  font-size: 0.7rem;
+  font-weight: 500;
   line-height: 1;
+  color: #f5f2ff;
+}
+
+.rank-badge-gain {
+  border-color: rgba(255, 184, 77, 0.85);
+  color: var(--bh-gain);
+}
+
+.rank-badge-loss {
+  border-color: rgba(184, 140, 255, 0.85);
+  color: var(--bh-loss);
 }
 
 .bh-banner-chip__rank {
@@ -862,14 +934,38 @@ body {
 }
 
 .bh-banner-chip {
-  background: rgba(15, 23, 42, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.025);
-  border-radius: 999px;
-  padding: 0.25rem 0.55rem;
   display: inline-flex;
-  gap: 0.5rem;
-  font-size: 0.63rem;
-  white-space: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(5, 5, 9, 0.45);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 160ms ease-out;
+}
+.bh-banner-chip__symbol {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.bh-banner-chip__price {
+  font-size: 0.7rem;
+  color: var(--bh-price, #80d3ff);
+}
+.bh-banner-chip__pct {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.bh-banner-chip__pct--gain { color: var(--bh-gain); }
+.bh-banner-chip__pct--loss { color: var(--bh-loss); }
+.bh-banner-chip__pct--flat { color: var(--bh-muted); }
+.bh-banner-chip:hover {
+  background: linear-gradient(45deg, #7b3ef3, #ff00a8);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.bh-banner-chip:hover span {
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
 }
 
 /* === TOKEN ROW GRID, HIERARCHY & HOVER === */
@@ -893,15 +989,18 @@ body {
   position: relative;
   display: grid;
   grid-template-columns:
-    var(--token-col-rank, 3rem)
-    var(--token-col-symbol, minmax(0, 1.35fr))
-    var(--token-col-price, minmax(0, 0.95fr))
-    var(--token-col-pct, minmax(0, 0.7fr))
-    var(--token-col-actions, 2.75rem);
+    32px
+    minmax(0, 1.6fr)
+    minmax(0, 1.3fr)
+    minmax(0, 0.8fr)
+    auto
+    auto;
   align-items: center;
 
-  padding-inline: 1rem;
-  padding-block: 0.38rem;
+  column-gap: 18px;
+  padding: 12px 18px;
+  min-height: 56px;
+  background-color: transparent;
 
   cursor: pointer;
   background: transparent;
@@ -913,6 +1012,12 @@ body {
     transform 160ms ease-out,
     box-shadow 160ms ease-out,
     filter 160ms ease-out;
+}
+
+/* Shared column styling */
+.tr-col {
+  display: flex;
+  align-items: center;
 }
 
 /* diamond rail under each row */
@@ -1213,20 +1318,20 @@ body {
   max-width: var(--bh-board-width, 1160px);
   margin: 0 auto;
   padding: 0 16px;
+  overflow: hidden;
 }
 
 .bh-banner-track {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   align-items: center;
-  overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 10%,
-    #000 90%,
-    transparent
-  );
+  white-space: nowrap;
+  animation: continuous-scroll 180s linear infinite;
+}
+
+@keyframes continuous-scroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
 }
 
 /* === BANNER STRIPS ================================================= */
@@ -1794,10 +1899,6 @@ body {
 }
 
 /* row-hover-glow legacy helper no longer used; kept for safety */
-.tr-col-symbol {
-  font-size: 14px;
-  font-weight: 600;
-}
 .tr-symbol {
   font-weight: 700;
   font-size: 14px;
@@ -1805,49 +1906,70 @@ body {
   color: #ffffff;
   text-transform: uppercase;
 }
+.tr-col-symbol {
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.tr-symbol-text {
+  white-space: nowrap;
+}
 .tr-col-price {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: flex-end;
 }
 .tr-price-current {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 500;
   line-height: 1.1;
-  color: var(--bh-price-teal);
+  color: var(--bh-price, var(--bh-price-teal));
 }
 .tr-price-prev {
   margin-top: 0.04rem;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.1;
-  color: var(--bh-prev-price);
+  color: var(--bh-muted, var(--bh-prev-price));
   opacity: 0.7;
 }
 /* placeholder state when previous price is not available */
 .tr-price-prev--empty {
   opacity: 0.2;
 }
+.tr-col-prev {
+  justify-content: flex-end;
+  font-size: 0.7rem;
+  color: var(--bh-muted);
+}
 .tr-col-pct {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 }
 .tr-change,
 .tr-col-pct {
   text-align: right;
 }
-.tr-pct {
-  font-size: 1.02rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  letter-spacing: -0.01rem;
-  cursor: pointer;
+.tr-pct-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 64px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
-.tr-pct.token-pct-gain {
-  color: var(--bh-gain, #fcb045);
+.tr-pct-value.token-pct-gain {
+  color: var(--bh-gain);
 }
-.tr-pct.token-pct-loss {
-  color: var(--bh-loss, #a46fff);
+.tr-pct-value.token-pct-loss {
+  color: var(--bh-loss);
+}
+.tr-pct-value.token-pct-flat {
+  color: var(--bh-muted);
+}
+.tr-col-extra {
+  min-height: 1px;
 }
 
 /* Ensure token names, headers and show-more use Raleway explicitly */
@@ -1884,7 +2006,7 @@ body {
 .tr-col-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
   font-size: 14px;
   width: 56px;
 }
@@ -2039,10 +2161,12 @@ body {
   .token-row.table-row,
   .token-row.simple-row {
     grid-template-columns:
-      var(--token-col-rank, 3rem)
+      28px
       minmax(0, 1.4fr)
-      minmax(0, 1fr)
-      var(--token-col-actions, 2.75rem);
+      minmax(0, 1.1fr)
+      minmax(0, 0.6fr)
+      auto
+      auto;
   }
 }
 
@@ -2353,4 +2477,3 @@ body {
 }
 
 /* End authoritative rabbit + hover block */
-

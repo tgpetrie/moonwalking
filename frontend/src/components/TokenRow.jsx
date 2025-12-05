@@ -91,11 +91,14 @@ function TokenRow({
   else if (rowType === "loser") rowKindClass = "is-loss";
   else if (typeof explicitIsLoss === "boolean")
     rowKindClass = explicitIsLoss ? "is-loss" : "is-gain";
-  else rowKindClass = pct >= 0 ? "is-gain" : "is-loss";
+  else if (pct > 0) rowKindClass = "is-gain";
+  else if (pct < 0) rowKindClass = "is-loss";
+  else rowKindClass = "is-flat";
 
-  const signClass = rowKindClass; // "is-gain" / "is-loss"
+  const signClass = rowKindClass; // "is-gain" / "is-loss" / "is-flat"
 
-  const pctClass = pct < 0 ? "token-pct-loss" : "token-pct-gain";
+  const pctClass =
+    pct > 0 ? "token-pct-gain" : pct < 0 ? "token-pct-loss" : "token-pct-flat";
   const streakRaw = data.trendStreak ?? data.trend_streak ?? data.peak_count ?? 0;
   const streak = Number.isFinite(Number(streakRaw)) ? Number(streakRaw) : 0;
   // Cap visible streak dots to avoid inflated counts; tooltip contains raw value.
@@ -129,7 +132,7 @@ function TokenRow({
 
   return (
     <div
-      className={`token-row table-row ${signClass}`}
+      className={["token-row", "table-row", signClass].join(" ")}
       data-row="token"
       role="link"
       tabIndex={0}
@@ -140,12 +143,12 @@ function TokenRow({
       {/* hover glow handled via CSS ::after to create an inner-fill under the row;
         keep DOM minimal so pseudo-elements can be positioned reliably */}
       <div className="tr-col tr-col-rank">
-        <div className={`rank-badge tr-rank-badge ${rowKindClass === "is-loss" ? "rank-badge-loss" : "rank-badge-gain"}`}>
+        <span className={`rank-badge ${rowKindClass === "is-loss" ? "rank-badge-loss" : "rank-badge-gain"}`}>
           {displayRank ?? 1}
-        </div>
+        </span>
       </div>
-      <div className="tr-col tr-col-symbol tr-symbol">
-        <span>{display}</span>
+      <div className="tr-col tr-col-symbol">
+        <span className="tr-symbol-text">{display}</span>
         {sentiment ? (
           <span
             className="sentiment-dot"
@@ -166,8 +169,9 @@ function TokenRow({
           {effectivePrevPrice != null ? formatPrice(effectivePrevPrice) : "—"}
         </div>
       </div>
+      <div className="tr-col tr-col-prev" />
       <div className="tr-col tr-col-pct">
-        <span className={`tr-pct ${pctClass}`}>{formatPct(pct)}</span>
+        <span className={`tr-pct-value ${pctClass}`}>{formatPct(pct)}</span>
       </div>
       <div className="tr-col tr-col-actions">
         <RowActions
