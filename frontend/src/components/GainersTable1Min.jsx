@@ -1,235 +1,141 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import TokenRow from "./TokenRow.jsx";
+import AnimatedTokenRow from "./AnimatedTokenRow.jsx";
+import { rowVariants, listVariants } from "./motionVariants";
 import StatusGate from "./ui/StatusGate";
 import SkeletonTable from "./ui/SkeletonTable";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
 
-// Framer Motion row variants and transition for soft enter/exit and reordering
-const rowVariants = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
-};
+export default function GainersTable1Min({ onInfo }) {
+  const { data, isLoading, isError } = useDataFeed();
+  const { has, add, remove } = useWatchlist();
 
-const rowTransition = {
-  type: "spring",
-  stiffness: 240,
-  damping: 30,
-  mass: 0.65,
-};
-
-const MotionTokenRow = motion(TokenRow);
-
-export default function GainersTable1Min({
-  rows = [],
-  loading,
-  error,
-  onInfo,
-}) {
-  const { data, isLoading: feedLoading, isError: feedError } = useDataFeed();
-  // Debug: allow forcing the loading state via URL query `?forceLoading1m=1`
-  let forceLoading = false;
-  if (typeof window !== "undefined") {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      forceLoading = params.has("forceLoading1m") || params.get("forceLoading1m") === "1";
-    } catch (e) {
-      forceLoading = false;
-    }
-  }
-  const isLoading = Boolean(loading) || feedLoading || forceLoading;
-  const [showMore, setShowMore] = useState(false);
-
-  const feedRows = useMemo(() => {
+  const items = useMemo(() => {
     const list = data?.gainers_1m;
-    if (Array.isArray(list)) return list;
-    if (list && Array.isArray(list.data)) return list.data;
-    return [];
-  }, [data]);
-
-  const allRows = useMemo(() => {
-    const source = Array.isArray(rows) && rows.length ? rows : feedRows;
-    console.log("[1m gainers raw]", source);
-    if (Array.isArray(source)) return source;
-    if (source && Array.isArray(source.data)) return source.data;
-    if (source && Array.isArray(source.items)) return source.items;
-    return [];
-  }, [rows, feedRows]);
-
-  const normalizedRows = useMemo(() => {
-    return allRows
-      .map((row) => {
-        const pctRaw =
+    const source = Array.isArray(list)
+      ? list
+      : list && Array.isArray(list.data)
+      ? list.data
+      : [];
+    return source
+      .map((row) => ({
+        ...row,
+        pct:
           row.price_change_percentage_1min ??
           row.change_1m ??
           row.pct_change ??
           row.pct ??
-          row.percentChange ??
-          0;
-        const pct = typeof pctRaw === "string"
-          ? Number(pctRaw.replace(/%/g, ""))
-          : Number(pctRaw);
-        return {
-          ...row,
-          pct,
-          _pct: Number.isFinite(pct) ? pct : 0,
-        };
-      })
-        .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
-      .sort((a, b) => b._pct - a._pct);
-  }, [allRows]);
+          0,
+      }))
+      .filter((r) => r.pct > 0)
+      .sort((a, b) => b.pct - a.pct);
+  }, [data]);
 
-  const total = normalizedRows.length;
-  const visibleCount = showMore
-    ? Math.min(total, 16)
-    : Math.min(total, 8);
+  const [expanded, setExpanded] = useState(false);
+  const visibleItems = expanded ? items : items.slice(0, 8);
 
-  // Visible slice in canonical rank order (1..N)
-  const { visibleRows, leftRows, rightRows, hasFew } = useMemo(() => {
-    const slice = normalizedRows.slice(0, visibleCount);
+  const handleToggleWatchlist = (item) => {
+    if (!add || !remove) return;
+    has(item.symbol)
+      ? remove(item.symbol)
+      : add({ symbol: item.symbol, price: item.current_price });
+  };
 
-    const withRank = slice.map((row, index) => {
-      const displayRank = row.rank && row.rank >= 1 ? row.rank : index + 1;
-      return { ...row, displayRank };
-    });
+  const panelStatus = isError ? "error" : items.length > 0 ? "ready" : isLoading ? "loading" : "empty";
 
-    const few = withRank.length <= 4;
+  const renderRows = (rows, rankOffset = 0) => (
+    <motion.div initial="hidden" animate="visible" exit="exit" variants={listVariants}>
+      <AnimatePresence>
+        {rows.map((t, i) => {
+          const buildCoinbaseUrl = (symbol) => {
+            if (!symbol) return "#";
+            let pair = symbol;
+            if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
+              pair = `${pair}-USD`;
+            }
+            return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+          };
 
-    // New split strategy: interleave rows into two columns when >4 visible rows.
-    if (few) {
-      return {
-        visibleRows: withRank,
-        leftRows: withRank,
-        rightRows: [],
-        hasFew: true,
-      };
-    }
+          const href = t.trade_url || buildCoinbaseUrl(t.symbol);
 
-    const left = [];
-    const right = [];
-    // Interleave: even indices -> left, odd indices -> right
-    withRank.forEach((r, i) => {
-      if (i % 2 === 0) left.push(r);
-      else right.push(r);
-    });
+          return (
+            <a
+              key={t.symbol}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="bh-row-link"
+            >
+              <AnimatedTokenRow
+                layout
+                variants={rowVariants}
+                rank={rankOffset + i + 1}
+                symbol={t.symbol}
+                name={t.name}
+                currentPrice={t.current_price}
+                previousPrice={t.price_1m_ago}
+                percentChange={t.pct}
+                onToggleWatchlist={() => handleToggleWatchlist(t)}
+                onInfo={() => onInfo(t.symbol)}
+                isWatchlisted={has(t.symbol)}
+              />
+            </a>
+          );
+        })}
+      </AnimatePresence>
+    </motion.div>
+  );
 
-    return {
-      visibleRows: withRank,
-      leftRows: left,
-      rightRows: right,
-      hasFew: false,
-    };
-  }, [normalizedRows, visibleCount, showMore]);
+  const isSingleColumn = visibleItems.length <= 4;
 
-  // Animated guard: maintain animated left/right slices and only update when symbol order changes
-  const [animatedLeftRows, setAnimatedLeftRows] = useState([]);
-  const [animatedRightRows, setAnimatedRightRows] = useState([]);
-
-  useEffect(() => {
-    const sameLeft =
-      animatedLeftRows.length === leftRows.length &&
-      animatedLeftRows.every((r, i) => r?.symbol === leftRows[i]?.symbol);
-    if (!sameLeft) setAnimatedLeftRows(leftRows);
-
-    const sameRight =
-      animatedRightRows.length === rightRows.length &&
-      animatedRightRows.every((r, i) => r?.symbol === rightRows[i]?.symbol);
-    if (!sameRight) setAnimatedRightRows(rightRows);
-  }, [leftRows, rightRows, animatedLeftRows, animatedRightRows]);
-
-  const panelStatus = error || feedError
-    ? "error"
-    : total > 0
-    ? "ready"
-    : isLoading
-    ? "loading"
-    : "empty";
-
-  return (
-    <section className="panel panel-1m">
-      <header className="panel-header">
-        <div className="section-head section-head--center section-head-gain">
-          <span className="section-head__label">1-MIN GAINERS</span>
-          <span className="section-head-line section-head-line-gain" />
-        </div>
-      </header>
-      <StatusGate
-        status={panelStatus}
-        skeleton={<SkeletonTable rows={6} />}
-        empty={<div className="state-copy">No 1-min gainers right now.</div>}
-        error={<div className="state-copy">Gainers stream down. Auto-recovering.</div>}
-      >
-        <div className={`panel-body panel-1m-body${hasFew ? " panel-1m-body--single" : ""}`}>
-          {total > 0 && (
-            <div className={`gainers-1m-grid ${hasFew ? "is-single-column" : ""}`}>
-              <div className="gainers-1m-col">
-                <AnimatePresence initial={false}>
-                  {animatedLeftRows.map((row, idx) => (
-                    <motion.div
-                      key={row.symbol || idx}
-                      layout
-                      variants={rowVariants}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      transition={{ ...rowTransition, delay: idx * 0.015 }}
-                    >
-                      <MotionTokenRow
-                        rank={row.displayRank}
-                        row={row}
-                        changeKey="price_change_percentage_1min"
-                        rowType="gainer"
-                        onInfo={onInfo}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-
-              {!hasFew && (
-                <div className="gainers-1m-col">
-                  <AnimatePresence initial={false}>
-                    {animatedRightRows.map((row, idx) => (
-                      <motion.div
-                        key={row.symbol || idx}
-                        layout
-                        variants={rowVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ ...rowTransition, delay: idx * 0.015 }}
-                      >
-                        <MotionTokenRow
-                          rank={row.displayRank}
-                          row={row}
-                          changeKey="price_change_percentage_1min"
-                          rowType="gainer"
-                          onInfo={onInfo}
-                        />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
+  if (isSingleColumn) {
+    return (
+      <section className="bh-board-row-full">
+        <div className="bh-board-panel">
+          <h2 className="bh-section-header">1-min Gainers</h2>
+          <StatusGate status={panelStatus} skeleton={<SkeletonTable rows={4} />} empty={<p className="bh-empty-copy">No 1-min gainers right now.</p>} error={<p className="state-copy">Gainers stream down.</p>}>
+            <div className="bh-table">{renderRows(visibleItems)}</div>
+          </StatusGate>
+          {items.length > 8 && (
+            <div className="panel-footer">
+              <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
+                {expanded ? "Show less" : `Show more (${items.length - 8} more)`}
+              </button>
             </div>
           )}
         </div>
+      </section>
+    );
+  }
 
-        {total > 8 && (
-          <div className="panel-footer panel-1m-footer">
-            <button
-              type="button"
-              className="btn-show-more show-more-btn"
-              aria-expanded={showMore}
-              aria-controls="one-min-list"
-              onClick={() => setShowMore((prev) => !prev)}
-            >
-              {showMore ? "Show Less" : "Show More"}
-            </button>
-          </div>
-        )}
-      </StatusGate>
-    </section>
+  const mid = Math.ceil(visibleItems.length / 2);
+  const left = visibleItems.slice(0, mid);
+  const right = visibleItems.slice(mid);
+
+  return (
+    <>
+      <section className="bh-board-row-halves">
+      <div className="bh-board-panel">
+        <h2 className="bh-section-header">1-min Gainers</h2>
+        <StatusGate status={panelStatus} skeleton={<SkeletonTable rows={left.length || 5} />} empty={<p className="bh-empty-copy">No 1-min gainers right now.</p>} error={<p className="state-copy">Gainers stream down.</p>}>
+          <div className="bh-table">{renderRows(left)}</div>
+        </StatusGate>
+      </div>
+      <div className="bh-board-panel">
+        <h2 className="bh-section-header bh-section-header--ghost">1-min Gainers</h2>
+        <StatusGate status={panelStatus} skeleton={<SkeletonTable rows={right.length || 5} />} empty={null} error={null}>
+          <div className="bh-table">{renderRows(right, mid)}</div>
+        </StatusGate>
+      </div>
+      </section>
+      {items.length > 8 && (
+        <div className="panel-footer">
+          <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
+            {expanded ? "Show less" : `Show more (${items.length - 8} more)`}
+          </button>
+        </div>
+      )}
+    </>
   );
 }
