@@ -78,6 +78,15 @@ kill_pidfile() {
   fi
 }
 
+# AI-branch enforcement: if script exists, run it and abort on failure
+if [ -f "$ROOT_DIR/scripts/check_ai_rules.sh" ]; then
+  echo "[start.local] running AI-branch enforcement check..."
+  bash "$ROOT_DIR/scripts/check_ai_rules.sh" || {
+    echo "[start.local] AI-branch enforcement failed — aborting start." >&2
+    exit 2
+  }
+fi
+
 # stop previously started processes (only ours)
 kill_pidfile "$BACKEND_PID_FILE"
 kill_pidfile "$FRONTEND_PID_FILE"
@@ -94,7 +103,7 @@ kill_process_on_port() {
     done
     sleep 1
     if lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-      echo "[start.local] ERROR: port $port still in use after attempting to kill processes"
+.............................................................................      echo "[start.local] ERROR: port $port still in use after attempting to kill processes"
       exit 1
     fi
   fi
@@ -112,9 +121,15 @@ echo "[start.local] frontend -> http://$HOST:$FRONTEND_PORT (strict)"
 # Backend (non-fatal if environment blocks bind)
 (
   cd "$ROOT_DIR"
+  # Activate venv if it exists
+  if [ -d "backend/.venv" ]; then
+    source backend/.venv/bin/activate
+  fi
   export PYTHONPATH="$ROOT_DIR/backend"
   export FLASK_APP=backend.app
   export FLASK_ENV=development
+  # Export CORS origins for Vite dev ports
+  export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
   flask run --host "$HOST" --port "$BACKEND_PORT"
 ) > /tmp/mw_backend.log 2>&1 &
 echo $! > "$BACKEND_PID_FILE"
