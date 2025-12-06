@@ -175,8 +175,8 @@ body {
 /* ===== BUNNY LAYER (background art) ===== */
 
 :root {
-  /* make the background rabbit art very subtle */
-  --bh-bunny-opacity: 0.06;
+  /* make the background rabbit art subtle but visible enough for glow */
+  --bh-bunny-opacity: 0.12;
 }
 
 .bh-bunny-layer {
@@ -195,9 +195,23 @@ body {
 .bh-bunny-layer img {
   width: 520px;
   max-width: 60%;
-  opacity: 0.06; /* extra assurance the image is barely visible */
+  opacity: 0.08; /* subtle visibility */
   transform: scale(0.9);
   will-change: transform, opacity;
+}
+
+/* Row updated pulse for liveliness when data changes */
+.bh-row--updated .bh-row-hover-glow {
+  opacity: 1 !important;
+  transform: scale(1.06);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 200, 120, 0.36) 0%,
+    rgba(255, 200, 120, 0.08) 40%,
+    transparent 70%
+  );
+  filter: drop-shadow(0 0 18px rgba(255, 160, 64, 0.12));
 }
 
 @keyframes bh-bunny-breathe {
@@ -226,9 +240,9 @@ body {
 
 .bh-section-header::after {
   content: "";
-  display: block;
+  display: inline-block;
   margin-top: 6px;
-  width: 3.2rem; /* underline only under text */
+  width: 100%; /* underline exactly under the header text */
   height: 2px;
   background: linear-gradient(
     90deg,
@@ -491,8 +505,7 @@ body {
 .bh-price-previous {
   font-size: 10px;
   line-height: 1.1;
-  color: var(--bh-muted);
-  opacity: 0.55;
+  color: rgba(255,255,255,0.68);
 }
 
 .bh-change {

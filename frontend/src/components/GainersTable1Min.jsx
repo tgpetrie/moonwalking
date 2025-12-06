@@ -58,6 +58,7 @@ export default function GainersTable1Min({ onInfo }) {
           };
 
           const href = t.trade_url || buildCoinbaseUrl(t.symbol);
+          const previous = t.price_1m_ago ?? t.previous_price ?? t.prev_price ?? t.initial_price_1m ?? t.initial_price_3min ?? null;
 
           return (
             <a
@@ -74,7 +75,7 @@ export default function GainersTable1Min({ onInfo }) {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_1m_ago}
+                previousPrice={previous}
                 percentChange={t.pct}
                 onToggleWatchlist={() => handleToggleWatchlist(t)}
                 onInfo={() => onInfo(t.symbol)}
