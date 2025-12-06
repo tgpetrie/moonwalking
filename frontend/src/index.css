@@ -180,28 +180,27 @@ body {
 }
 
 .bh-bunny-layer {
-  position: absolute;
-  /* place rabbit more towards top and centered horizontally; it will scroll with the page (absolute inside flow) */
-  top: 40px;
+  position: fixed; /* stay in the same spot while scrolling */
+  top: 260px; /* visually sit behind the 1m/3m tables — tweak as needed */
   left: 50%;
-  right: auto;
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
   pointer-events: none;
   opacity: var(--bh-bunny-opacity);
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
+  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8)) saturate(1.08) brightness(1.02);
   animation: bh-bunny-breathe 6s ease-in-out infinite;
   z-index: 0;
 }
 
 .bh-bunny-layer img {
-  width: 720px; /* make rabbit larger */
-  max-width: 75%;
-  opacity: 0.22; /* more visible rabbit art */
-  transform: scale(1);
+  width: 840px; /* larger rabbit */
+  max-width: 80%;
+  opacity: 0.26; /* more visible rabbit art */
+  transform: scale(1.02);
   will-change: transform, opacity;
+  transition: filter 240ms ease, opacity 240ms ease;
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -388,6 +387,11 @@ body {
   /* gentle breathe animation to add life without being distracting */
   animation: bh-row-breathe 9s ease-in-out infinite;
 }
+
+/* Stagger breathe animation for liveliness */
+.bh-table .bh-row:nth-child(3n) { animation-delay: 0.25s; }
+.bh-table .bh-row:nth-child(3n+1) { animation-delay: 0.45s; }
+.bh-table .bh-row:nth-child(3n+2) { animation-delay: 0.65s; }
 
 /* Row rail (bottom gradient line) */
 .bh-row::after {
@@ -685,7 +689,8 @@ body {
   gap: 20px;
   align-items: center;
   white-space: nowrap;
-  animation: continuous-scroll 180s linear infinite;
+  /* faster loop and seamless restart (items are doubled in component) */
+  animation: continuous-scroll 60s linear infinite;
 }
 
 @keyframes continuous-scroll {
