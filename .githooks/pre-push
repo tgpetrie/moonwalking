@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Local pre-push hook template (tracked)
+# This hook runs the AI-branch enforcement check before allowing pushes.
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "[pre-push] running AI-branch enforcement check..."
+
+if [ -f "$REPO_ROOT/scripts/check_ai_rules.sh" ]; then
+  bash "$REPO_ROOT/scripts/check_ai_rules.sh" || {
+    echo "[pre-push] AI-branch enforcement failed — push aborted." >&2
+    exit 1
+  }
+else
+  echo "[pre-push] no scripts/check_ai_rules.sh found — skipping enforcement."
+fi
+
+echo "[pre-push] OK"
+exit 0
