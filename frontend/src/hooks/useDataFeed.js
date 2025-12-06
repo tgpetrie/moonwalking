@@ -1,12 +1,10 @@
 import useSWR from "swr";
-import { fetchJson } from "../lib/api";
-
-const DATA_URL = "/data";
+import { fetchAllData } from "../api";
 
 export function useDataFeed() {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    DATA_URL,
-    () => fetchJson(DATA_URL),
+    "/data",
+    fetchAllData,
     {
       refreshInterval: 15000,
       revalidateOnFocus: true,

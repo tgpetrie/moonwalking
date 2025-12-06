@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { endpoints, fetchJson } from '../lib/api'
+import { API_ENDPOINTS as endpoints, fetchJson } from '../api'
 import { formatPercent } from '../utils/formatters'
 
 type SWRBlock = {

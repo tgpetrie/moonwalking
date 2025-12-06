@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { endpoints, fetchJson } from "../lib/api";
+import { fetchAllData } from "../api";
 
 export default function useUnifiedData() {
   const [data, setData] = useState({});
@@ -11,7 +11,7 @@ export default function useUnifiedData() {
 
     const fetchData = async () => {
       try {
-        const json = await fetchJson(endpoints.metrics);
+        const json = await fetchAllData();
         if (!alive) return;
         setData(json.data || {});
         setErrs(json.errors || {});

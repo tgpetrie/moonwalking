@@ -6,10 +6,10 @@
 :root {
   /* Core colors */
   --bh-bg: #050308;
-  --bh-gain: #ffb347;
-  --bh-loss: #c084fc;
+  --bh-gain: #ffb347; /* gold for gainers */
+  --bh-loss: #c084fc; /* purple for losers */
   --bh-price: #7ff0ff;
-  --bh-price-teal: #7ff0ff;
+  --bh-price-teal: #7ff0ff; /* teal used for current price */
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
@@ -176,12 +176,16 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.12;
+  --bh-bunny-opacity: 0.18;
 }
 
 .bh-bunny-layer {
   position: absolute;
-  inset: 120px 0 140px 0;
+  /* place rabbit more towards top and centered horizontally; it will scroll with the page (absolute inside flow) */
+  top: 40px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -193,10 +197,10 @@ body {
 }
 
 .bh-bunny-layer img {
-  width: 520px;
-  max-width: 60%;
-  opacity: 0.08; /* subtle visibility */
-  transform: scale(0.9);
+  width: 720px; /* make rabbit larger */
+  max-width: 75%;
+  opacity: 0.22; /* more visible rabbit art */
+  transform: scale(1);
   will-change: transform, opacity;
 }
 
@@ -261,6 +265,19 @@ body {
     90deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(181, 108, 255, 0.9) 40%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Gainers header should be gold */
+.bh-section-header--gainers {
+  color: var(--bh-gain);
+}
+.bh-section-header--gainers::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 179, 71, 0.95) 40%,
     rgba(255, 255, 255, 0) 100%
   );
 }
@@ -346,24 +363,30 @@ body {
   flex-direction: column;
   /* remove gaps so the row rail appears continuous between stacked rows */
   row-gap: 0;
+  /* ensure rows visually stack without accidental gaps */
+  gap: 0;
 }
 
 .bh-row {
   position: relative;
   display: grid;
   grid-template-columns:
-    32px              /* rank */
-    minmax(0, 1.6fr)  /* symbol/name */
+    36px              /* rank (larger for clarity) */
+    minmax(0, 2fr)    /* symbol/name */
     minmax(0, 1.2fr)  /* price block */
-    minmax(0, 1.1fr)  /* % change */
-    40px;             /* actions */
+    minmax(0, 1.2fr)  /* % change */
+    48px;             /* actions */
   align-items: center;
-  padding: 10px 0;
-  min-height: 34px;
+  padding: 12px 0;   /* increased vertical padding for more spacing */
+  min-height: 56px;  /* larger rows to improve visual hierarchy */
+  margin: 0; /* prevent accidental gaps between rows */
   cursor: pointer;
   background: transparent;
   overflow: hidden;
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+  will-change: transform;
+  /* gentle breathe animation to add life without being distracting */
+  animation: bh-row-breathe 9s ease-in-out infinite;
 }
 
 /* Row rail (bottom gradient line) */
@@ -377,11 +400,11 @@ body {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.22) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  /* stronger rail so gaps are less visible */
-  opacity: 0.65;
+  /* keep the rail visible but subtle so rows read as a continuous list */
+  opacity: 0.7;
   pointer-events: none;
   transition: opacity 140ms ease-out;
   z-index: 0;
@@ -403,21 +426,38 @@ body {
   min-width: 0;
 }
 
+/* Ensure each cell has consistent horizontal padding so rows look uniform */
+.bh-row > .bh-cell {
+  padding: 0 12px;
+}
+
 /* Hover glow layer for transparent rows */
 .bh-row-hover-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
+  opacity: 0; /* default hidden */
+  transition: opacity 180ms cubic-bezier(.2,.9,.2,1), transform 180ms cubic-bezier(.2,.9,.2,1);
+  /* more translucent colour but with broader spread for perceived strength */
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 165, 0, 0.32) 0%,
-    rgba(255, 165, 0, 0.08) 38%,
+    rgba(255, 179, 71, 0.22) 0%,
+    rgba(255, 179, 71, 0.06) 40%,
+    rgba(255, 179, 71, 0.02) 60%,
+    transparent 85%
+  );
+  transform: scale(0.99);
+  z-index: 0;
+}
+
+/* Gainer / Loser specific hover glows */
+.bh-row--gain .bh-row-hover-glow {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 179, 71, 0.26) 0%,
+    rgba(255, 179, 71, 0.06) 40%,
     transparent 70%
   );
-  transform: scale(0.98);
-  z-index: 0;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
@@ -431,16 +471,22 @@ body {
 .bh-row.is-loss .bh-row-hover-glow {
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 108, 255, 0.32) 0%,
-    rgba(181, 108, 255, 0.08) 38%,
-    transparent 70%
+    rgba(181, 108, 255, 0.26) 0%,
+    rgba(181, 108, 255, 0.06) 40%,
+    rgba(181, 108, 255, 0.02) 60%,
+    transparent 85%
   );
 }
 
+  @keyframes bh-row-breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-1px) scale(1.002); }
+  }
+
 .bh-row:hover .bh-row-hover-glow,
 .bh-row:focus-visible .bh-row-hover-glow {
-  opacity: 1;
-  transform: scale(1.0);
+  opacity: 0.85; /* stronger when hovered but still translucent */
+  transform: scale(1.02);
 }
 
 /* Row cell alignment */
@@ -490,29 +536,42 @@ body {
   line-height: 1;
 }
 
+/* Rank color overrides for gain/loss rows */
+.bh-row--gain .bh-rank,
+.bh-row.is-gain .bh-rank {
+  border-color: var(--bh-gain);
+  color: var(--bh-gain);
+}
+.bh-row--loss .bh-rank,
+.bh-row.is-loss .bh-rank {
+  border-color: var(--bh-loss);
+  color: var(--bh-loss);
+}
+
 .bh-symbol {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   letter-spacing: 0.02rem;
   color: #ffffff;
   text-transform: uppercase;
 }
 
 .bh-name {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   color: var(--bh-muted);
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .bh-price-current {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   align-items: center;
-  /* more vertical space for clearer visual hierarchy */
+  /* emphasize current price with teal color */
+  color: var(--bh-price-teal);
   padding: 12px 0;
   min-height: 44px;
-.bh-price-current {
 }
+
 .bh-price-previous {
   font-size: 10px;
   line-height: 1.1;
@@ -611,13 +670,13 @@ body {
 .bh-banner-wrap {
   width: 100%;
   overflow: hidden;
+  /* fade edges so scrolling chips mask smoothly */
   mask-image: linear-gradient(
     to right,
-    transparent,
-      /* make the background rabbit art subtle but reliably visible in screenshots */
-      --bh-bunny-opacity: 0.18;
-    #000 90%,
-    transparent
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 6%,
+    rgba(0,0,0,1) 94%,
+    rgba(0,0,0,0) 100%
   );
 }
 
@@ -633,7 +692,6 @@ body {
   0% { transform: translateX(0%); }
   100% { transform: translateX(-100%); }
 }
-      opacity: 0.14;
 .bh-banner-chip {
   display: inline-flex;
   align-items: center;

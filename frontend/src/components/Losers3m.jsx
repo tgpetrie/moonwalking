@@ -1,110 +1,109 @@
 // src/components/Losers3m.jsx
-import React, { useState } from "react";
-import TokenRow from "./TokenRow.jsx";
+import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import AnimatedTokenRow from "./AnimatedTokenRow.jsx";
+import { rowVariants, listVariants } from "./motionVariants";
+import StatusGate from "./ui/StatusGate";
+import SkeletonTable from "./ui/SkeletonTable";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
 
-export default function Losers3m({
-  rows = [],
-  loading = false,
-  error = null,
-  onInfo = () => {},
-  showTitle = true,
-}) {
-  const { data, isLoading: feedLoading, isError: feedError } = useDataFeed();
+const MAX_BASE = 8;
+const MAX_EXPANDED = 16;
+
+export default function Losers3m({ onInfo }) {
+  const { data, isLoading, isError } = useDataFeed();
+  const { has, add, remove } = useWatchlist();
   const [isExpanded, setIsExpanded] = useState(false);
-  const MAX_BASE = 8;
-  const MAX_EXPANDED = 16;
-  const feedRows = React.useMemo(() => {
+
+  const losers = useMemo(() => {
     const list = data?.losers_3m;
-    if (Array.isArray(list)) return list;
-    if (list && Array.isArray(list.data)) return list.data;
-    return [];
-  }, [data]);
+    const source = Array.isArray(list) ? list : list && Array.isArray(list.data) ? list.data : [];
 
-  const allRows = Array.isArray(rows) && rows.length ? rows : feedRows;
-
-  const losers = React.useMemo(() => {
-    return allRows
+    return source
       .map((row) => {
         const key = "price_change_percentage_3min";
-        const raw =
-          row?.[key] ??
-          row?.gain ??
-          0;
+        const raw = row?.[key] ?? row?.gain ?? 0;
         const num = Number(raw);
         const pct = Number.isFinite(num) ? num : 0;
         return { ...row, pct, _pct: pct };
       })
       .filter((r) => Number.isFinite(r._pct) && r._pct < 0)
       .sort((a, b) => a._pct - b._pct);
-  }, [allRows]);
+  }, [data]);
+
+  const handleToggleWatchlist = (item) => {
+    if (!add || !remove) return;
+    has(item.symbol)
+      ? remove(item.symbol)
+      : add({ symbol: item.symbol, price: item.current_price });
+  };
 
   const count = losers.length;
   const visible = isExpanded ? losers.slice(0, MAX_EXPANDED) : losers.slice(0, MAX_BASE);
-  const status =
-    error || feedError ? "error" :
-    count > 0 ? "ready" :
-    (loading || feedLoading) ? "loading" :
-    "empty";
-  const renderHeader = () => {
-    if (!showTitle) return null;
-    return (
-      <header className="panel-header">
-        <div className="section-head section-head--center section-head-loss">
-          <span className="section-head__label">
-            TOP LOSERS <span className="section-head__timeframe">3M</span>
-          </span>
-          <span className="section-head-line section-head-line-loss" />
-        </div>
-      </header>
-    );
-  };
+  const panelStatus = isError ? "error" : count > 0 ? "ready" : isLoading ? "loading" : "empty";
 
   return (
-    <div className="panel panel-3m panel-3m-loss">
-      {renderHeader()}
-      <div className="panel-body">
-        {status === "error" && <div className="panel-error">Failed to load 3m losers.</div>}
-        {status === "loading" && <div className="panel-empty">Loading…</div>}
-        {status === "ready" ? (
-          visible.map((row, idx) => {
-            const key = "price_change_percentage_3min";
-            const forced = -Math.abs(row.pct ?? row._pct ?? 0);
-            const cloned = { ...row, [key]: forced };
-            const rank = cloned.rank ?? idx + 1;
+    <div className="bh-board-panel">
+      <h2 className="bh-section-header bh-section-header--losers">Top Losers (3m)</h2>
+      <StatusGate
+        status={panelStatus}
+        skeleton={<SkeletonTable rows={MAX_BASE} />}
+        empty={<p className="bh-empty-copy">No 3m losers yet.</p>}
+        error={<p className="state-copy">Failed to load 3m losers.</p>}
+      >
+        <div className="bh-table">
+          <motion.div initial="hidden" animate="visible" exit="exit" variants={listVariants}>
+            <AnimatePresence>
+              {visible.map((row, idx) => {
+                const forced = -Math.abs(row.pct ?? row._pct ?? 0);
+                const rank = row.rank ?? idx + 1;
 
-            return (
-              <TokenRow
-                key={row.symbol || idx}
-                rank={rank}
-                symbol={cloned.symbol}
-                currentPrice={cloned.current_price}
-                previousPrice={cloned.initial_price_3min}
-                changePct={cloned[key]}
-                rowType="loser"
-                onInfo={onInfo}
-              />
-            );
-          })
-        ) : (
-          status === "empty" && <div className="panel-empty">No 3-min loser data available.</div>
-        )}
+                const buildCoinbaseUrl = (symbol) => {
+                  if (!symbol) return "#";
+                  let pair = symbol;
+                  if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
+                    pair = `${pair}-USD`;
+                  }
+                  return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+                };
+
+                const href = row.trade_url || buildCoinbaseUrl(row.symbol);
+
+                return (
+                  <a key={row.symbol || idx} href={href} target="_blank" rel="noreferrer" className="bh-row-link">
+                    <AnimatedTokenRow
+                      layout
+                      variants={rowVariants}
+                      rank={rank}
+                      symbol={row.symbol}
+                      name={row.name}
+                      currentPrice={row.current_price}
+                      previousPrice={row.initial_price_3min}
+                      percentChange={forced}
+                      onToggleWatchlist={() => handleToggleWatchlist(row)}
+                      onInfo={() => onInfo && onInfo(row.symbol)}
+                      isWatchlisted={has(row.symbol)}
+                    />
+                  </a>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
+        </div>
 
         {count > MAX_BASE && (
           <div className="panel-footer">
-            <div className="panel-show-more">
-              <button
-                className="btn-show-more"
-                aria-expanded={isExpanded}
-                aria-controls="losers-3m-list"
-                onClick={() => setIsExpanded((s) => !s)}
-              >
-                {isExpanded ? "Show Less" : "Show More"}
-              </button>
-            </div>
+            <button
+              className="btn-show-more"
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((s) => !s)}
+            >
+              {isExpanded ? "Show Less" : "Show More"}
+            </button>
           </div>
         )}
-      </div>
+      </StatusGate>
     </div>
   );
 }

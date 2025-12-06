@@ -1,38 +1,62 @@
-// src/api.js
-// always fetch relative to the Vite dev server, let Vite proxy to 5001
-
-export const API_BASE = '/api';
+// frontend/src/api.js — single, boring HTTP helper that stays on /data
+const BASE = (import.meta.env?.VITE_API_BASE || "").replace(/\/+$/, "");
+const API_BASE = "/api";
+const normalizePath = (path) => {
+  if (!path) return "";
+  return path.startsWith("/") ? path : `/${path}`;
+};
+const withBase = (path) => `${BASE}${normalizePath(path)}`;
 
 export const API_ENDPOINTS = {
-  data: '/data',
+  data: "/data",
+  apiData: "/api/data",
+  metrics: "/data", // alias used by some hooks
   sentimentBasic: `${API_BASE}/sentiment-basic`,
-  component: {
-    gainers1m: `${API_BASE}/component/gainers-1m`,
-    gainers3m: `${API_BASE}/component/gainers-table`,
-    losers3m:  `${API_BASE}/component/losers-table`,
-  },
+  sentiment: (symbol) => `${API_BASE}/sentiment?symbol=${encodeURIComponent(symbol || "")}`,
+  gainersTable1Min: `${API_BASE}/component/gainers-table-1min`,
+  gainersTable3Min: `${API_BASE}/component/gainers-table-3min`,
+  losersTable3Min: `${API_BASE}/component/losers-table-3min`,
+  gainers: `${API_BASE}/component/gainers-table`,
+  bottomBanner: `${API_BASE}/component/bottom-banner-scroll`,
+  topBanner: `${API_BASE}/component/top-banner-scroll`,
+  banner1h: `${API_BASE}/component/top-banner-scroll`,
+  topMoversBar: `${API_BASE}/component/top-movers-bar`,
+  alertsRecent: `${API_BASE}/alerts/recent`,
+  watchlistInsights: `${API_BASE}/component/watchlist-insights`,
+  serverInfo: `${API_BASE}/server-info`,
+  technicalAnalysis: (symbol) => `${API_BASE}/technical-analysis/${encodeURIComponent(symbol || "")}`,
+  cryptoNews: (symbol) => `${API_BASE}/news/${encodeURIComponent(symbol || "")}`,
+  socialSentiment: (symbol) => `${API_BASE}/social-sentiment/${encodeURIComponent(symbol || "")}`,
 };
 
-// simple GET helper used by components
-export async function getJson(path, opts = {}) {
-  const res = await fetch(path, { headers: { Accept: 'application/json' }, ...opts });
+// Single fetch helper used everywhere
+export async function fetchJson(path, init = {}) {
+  const url = withBase(path);
+  const headers = { Accept: "application/json", ...(init.headers || {}) };
+  const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${body}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(`Fetch failed for ${path}: ${res.status} ${res.statusText}${body ? ` :: ${body.slice(0, 200)}` : ""}`);
   }
   return res.json();
 }
 
-export async function fetchData(path = "/data") {
-  const res = await fetch(path);
-  if (!res.ok) {
-    throw new Error(`fetch ${path} failed: ${res.status}`);
-  }
-  return res.json();
+export async function fetchAllData() {
+  return fetchJson("/data");
+}
+
+// Legacy alias; keep for compatibility if referenced
+export async function fetchAllDataApi() {
+  return fetchJson("/api/data");
+}
+
+// Generic helper kept for components that still call fetchData(path)
+export async function fetchData(path = "/data", opts = {}) {
+  return fetchJson(path, opts);
 }
 
 // ---- Watchlist helpers (localStorage-backed) ---------------------------
-const WATCHLIST_KEY = 'watchlist';
+const WATCHLIST_KEY = "watchlist";
 
 export function getWatchlist() {
   try {
@@ -55,7 +79,7 @@ export function setWatchlist(nextList) {
 }
 
 export function addToWatchlist(symbol) {
-  const s = (symbol || '').toUpperCase().trim();
+  const s = (symbol || "").toUpperCase().trim();
   if (!s) return getWatchlist();
   const list = getWatchlist();
   if (!list.includes(s)) list.push(s);
@@ -63,8 +87,7 @@ export function addToWatchlist(symbol) {
 }
 
 export function removeFromWatchlist(symbol) {
-  const s = (symbol || '').toUpperCase().trim();
+  const s = (symbol || "").toUpperCase().trim();
   const list = getWatchlist().filter((x) => x !== s);
   return setWatchlist(list);
 }
-

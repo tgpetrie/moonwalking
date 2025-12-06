@@ -1,7 +1,11 @@
-import React, { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import AnimatedTokenRow from "./AnimatedTokenRow.jsx";
+import { rowVariants, listVariants } from "./motionVariants";
+import StatusGate from "./ui/StatusGate";
+import SkeletonTable from "./ui/SkeletonTable";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { tickerFromSymbol } from "../utils/format";
-import TokenRow from "./TokenRow.jsx";
 import { useDataFeed } from "../hooks/useDataFeed";
 
 function deltaPct(baseline, current) {
@@ -23,48 +27,34 @@ const pickPrice = (source = {}) => {
   );
 };
 
-export default function WatchlistPanel({ title = "WATCHLIST", onInfo, bySymbol = {} }) {
-  const { items, add } = useWatchlist();
-  const [q, setQ] = useState("");
-  const { data } = useDataFeed();
+export default function WatchlistPanel({ onInfo }) {
+  const { items, remove } = useWatchlist();
+  const { data, isLoading } = useDataFeed();
   const payload = data?.data ?? data ?? {};
 
   const liveBySymbol = useMemo(() => {
-    const merged = { ...(bySymbol || {}) };
     const latest = payload.latest_by_symbol || {};
+    const merged = {};
     Object.entries(latest).forEach(([k, v]) => {
       merged[String(k).toUpperCase()] = v;
     });
     return merged;
-  }, [bySymbol, payload]);
+  }, [payload]);
 
-  const filtered = useMemo(() => {
-    const term = q.trim().toUpperCase();
-    if (!term) return items;
-    return items.filter((i) => i.symbol.toUpperCase().includes(term));
-  }, [items, q]);
-
-  const tryAdd = (e) => {
-    e.preventDefault();
-    const sym = q.trim().toUpperCase();
-    if (!sym) return;
-    const liveKey = tickerFromSymbol(sym);
-    const live = liveBySymbol[liveKey] || liveBySymbol[sym];
-    const livePrice = pickPrice(live);
-    add({ symbol: sym, price: livePrice });
-    setQ("");
+  const handleToggleWatchlist = (symbol) => {
+    if (!remove) return;
+    remove(symbol);
   };
 
   const rows = useMemo(() => {
-    if (!filtered.length) return [];
+    if (!items.length) return [];
 
-    return filtered.map((entry, index) => {
+    return items.map((entry, index) => {
       const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
       const live = liveBySymbol[canonSymbol] || {};
       const livePrice = pickPrice(live) ?? entry.current ?? entry.baseline ?? null;
       const baseline = entry.baseline ?? entry.current ?? pickPrice(live);
       const pct = deltaPct(baseline, livePrice);
-      const rowType = pct == null ? undefined : pct >= 0 ? "gainer" : "loser";
 
       return {
         key: `${canonSymbol}-${index}`,
@@ -72,45 +62,55 @@ export default function WatchlistPanel({ title = "WATCHLIST", onInfo, bySymbol =
         symbol: canonSymbol,
         currentPrice: livePrice,
         previousPrice: baseline,
-        pctChange: pct,
-        rowType,
+        percentChange: pct ?? 0,
       };
     });
-  }, [filtered, liveBySymbol]);
+  }, [items, liveBySymbol]);
+
+  const panelStatus = rows.length > 0 ? "ready" : isLoading ? "loading" : "empty";
 
   return (
-    <section className="panel bh-watchlist">
-      <header className="panel-header panel-header--watchlist">
-        <div className="section-head section-head--center section-head-gain">
-          <span className="section-head__label">{title}</span>
-          <span className="section-head-line section-head-line-gain" />
-        </div>
-      </header>
-      <div className="panel-body">
-        <form className="wl-search" onSubmit={tryAdd}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search & add coin (e.g. BTC, ETH)" />
-          <div className="wl-search-underline" />
-        </form>
+    <StatusGate
+      status={panelStatus}
+      skeleton={<SkeletonTable rows={3} />}
+      empty={<p className="bh-watchlist-empty">Star a token in the tables above to pin it here.</p>}
+    >
+      <div className="bh-table">
+        <motion.div initial="hidden" animate="visible" exit="exit" variants={listVariants}>
+          <AnimatePresence>
+            {rows.map((row) => {
+              const buildCoinbaseUrl = (symbol) => {
+                if (!symbol) return "#";
+                let pair = symbol;
+                if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
+                  pair = `${pair}-USD`;
+                }
+                return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+              };
 
-        {rows.length === 0 ? (
-          <div className="panel-empty">Star a token to pin it here.</div>
-        ) : (
-          <div className="wl-list">
-            {rows.map((row) => (
-              <TokenRow
-                key={row.key}
-                rank={row.rank}
-                symbol={row.symbol}
-                currentPrice={row.currentPrice}
-                previousPrice={row.previousPrice}
-                changePct={row.pctChange}
-                rowType={row.rowType}
-                onInfo={onInfo}
-              />
-            ))}
-          </div>
-        )}
+              const href = row.trade_url || buildCoinbaseUrl(row.symbol);
+
+              return (
+                <a key={row.key} href={href} target="_blank" rel="noreferrer" className="bh-row-link">
+                  <AnimatedTokenRow
+                    layout
+                    variants={rowVariants}
+                    rank={row.rank}
+                    symbol={row.symbol}
+                    name={null}
+                    currentPrice={row.currentPrice}
+                    previousPrice={row.previousPrice}
+                    percentChange={row.percentChange}
+                    onToggleWatchlist={() => handleToggleWatchlist(row.symbol)}
+                    onInfo={() => onInfo && onInfo(row.symbol)}
+                    isWatchlisted={true}
+                  />
+                </a>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
       </div>
-    </section>
+    </StatusGate>
   );
 }

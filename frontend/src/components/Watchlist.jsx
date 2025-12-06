@@ -151,10 +151,22 @@ export default function Watchlist({ onWatchlistChange, topWatchlist, quickview, 
         <div className="flex flex-col space-y-4 w-full max-w-4xl mx-auto h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch">
           {(showAll ? watchlist : watchlist.slice(0, 4)).map((symbol, idx) => {
             const data = watchlistData[symbol] || {};
-            const rowObj = { symbol, current_price: data.price ?? null, previous_price: null, price: data.price ?? null, trendStreak: 0 };
+            const current = data.price ?? null;
+            // Watchlist doesn't have a previous price source here; leave null
+            const previous = null;
             return (
               <div key={symbol}>
-                <TokenRow row={rowObj} index={idx} rank={idx + 1} onInfo={onInfo} />
+                <TokenRow
+                  rank={idx + 1}
+                  symbol={symbol}
+                  name={null}
+                  currentPrice={current}
+                  previousPrice={previous}
+                  percentChange={0}
+                  onToggleWatchlist={() => handleRemove(symbol)}
+                  onInfo={() => onInfo && onInfo(symbol)}
+                  isWatchlisted={true}
+                />
                 {idx < (showAll ? watchlist.length : Math.min(4, watchlist.length)) - 1 && (
                   <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(254,164,0,0.18) 0%,rgba(254,164,0,0.38) 50%,rgba(254,164,0,0.18) 100%)',borderRadius:'2px'}} />
                 )}

@@ -234,11 +234,20 @@ if cors_env == '*':
     # Default development restriction: only allow local dev origins so we don't ship a
     # permissive CORS policy accidentally. This is intended for local tooling only.
     dev_origins = [
+        # Vite dev server (current + alternate ports)
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        "http://127.0.0.1:5176",
+        "http://localhost:5176",
         # Also accept the static-serve port (5174) commonly used for built SPA
         "http://127.0.0.1:5174",
         "http://localhost:5174",
+        # Cloudflare / other dev tools
+        "http://127.0.0.1:3100",
+        "http://localhost:3100",
+        # Common alternate dev ports (Next.js, other tools)
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
         # Allow local LAN addresses on the 192.168.*.* range so devices on the
         # same network (or the host using the network IP) can access the API
         # when the SPA is served from that address during development. This is
@@ -248,10 +257,12 @@ if cors_env == '*':
     ]
     try:
         CORS(app, resources={r"/*": {"origins": dev_origins}})
-    except Exception:
+        logging.info(f"CORS configured with dev_origins: {len(dev_origins)} origins")
+    except Exception as e:
         # If tests replace Flask with a very small MockFlask lacking expected
         # lifecycle helper methods, provide no-op shims so import-time setup
         # doesn't crash test collection.
+        logging.warning(f"CORS initialization failed (will retry): {e}")
         def _no_op_decorator(fn):
             return fn
         def _no_op_function(*args, **kwargs):
@@ -290,12 +301,14 @@ if cors_env == '*':
         # Retry CORS now that shims are present; if it still fails, continue silently.
         try:
             CORS(app, resources={r"/*": {"origins": dev_origins}})
+            logging.info(f"CORS configured with dev_origins (retry): {len(dev_origins)} origins")
         except Exception:
             logging.exception('CORS initialization skipped due to MockFlask limitations')
 else:
     cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
     try:
         CORS(app, origins=cors_origins)
+        logging.info(f"CORS configured with production origins: {cors_origins}")
     except Exception:
         logging.exception('CORS initialization skipped due to environment limitations')
 
@@ -2510,7 +2523,6 @@ def data_aggregate():
                 raise RuntimeError("empty")
         except Exception:
             errors["gainers_3m"] = "missing_snapshot"
-
         # 3m losers snapshot
         try:
             l3_rows, l3_ts = get_losers_3m()
@@ -2674,8 +2686,8 @@ def data_aggregate():
                 out.append(row)
             return out
 
-        gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m")
-        gainers_3m, losers_3m = _select_top_movers(all_rows, "change_3m")
+        gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m", limit=50)
+        gainers_3m, losers_3m = _select_top_movers(all_rows, "change_3m", limit=50)
 
         banner_1h_price = _sorted_rows("change_1h_price", reverse=True, limit=20)
         banner_1h_volume = _sorted_rows("change_1h_volume", reverse=True, limit=20)
@@ -4322,3 +4334,10 @@ __all__ = [
     "format_crypto_data",
     "format_banner_data"
 ]
+
+
+# Backwards-compatible alias: some clients call /api/data. Proxy to the canonical
+# `/data` handler so older frontends or misconfigured envs still work during dev.
+@app.route('/api/data')
+def api_data():
+    return data_aggregate()

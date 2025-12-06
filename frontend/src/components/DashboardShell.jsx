@@ -1,5 +1,5 @@
 // src/components/DashboardShell.jsx
-import React, { useMemo, useState } from "react";
+import { useState } from "react";
 import TopBannerScroll from "./TopBannerScroll.jsx";
 import VolumeBannerScroll from "./VolumeBannerScroll.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -7,29 +7,19 @@ import GainersTable3Min from "./GainersTable3Min.jsx";
 import Losers3m from "./Losers3m.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import InsightsPanel from "./InsightsPanel.jsx";
+import { useDataFeed } from "../hooks/useDataFeed";
 
-export default function DashboardShell({ data, onInfo, bySymbol = {} }) {
+export default function DashboardShell({ onInfo }) {
+  const { data } = useDataFeed();
   const [insightsSymbol, setInsightsSymbol] = useState(null);
-  const {
-    gainers1m = [],
-    gainers3m = [],
-    losers3m = [],
-    banner1hPrice = [],
-    meta = {},
-    loading = false,
-    error = null,
-  } = data;
-  const lastUpdated = meta?.last_updated;
+  const lastUpdated = data?.meta?.last_updated;
 
-  const handleInfo = (row) => {
-    if (!row) return;
-    const sym = (row.symbol || row.symbol?.toUpperCase() || row.ticker || row?.symbol)?.toString();
-    setInsightsSymbol(sym);
+  const handleInfo = (symbol) => {
+    const sym = symbol?.toString()?.toUpperCase();
+    if (sym) setInsightsSymbol(sym);
   };
 
   const onInfoProp = onInfo || handleInfo;
-
-  const gainers1mRows = useMemo(() => gainers1m || [], [gainers1m]);
 
   return (
     <div className="bh-app">
@@ -47,68 +37,49 @@ export default function DashboardShell({ data, onInfo, bySymbol = {} }) {
         </div>
       </header>
 
-      <main className="dashboard-main">
-        <div className="dashboard-shell board-shell bh-board-shell">
-          <div className="bh-rabbit-bg" aria-hidden="true" />
+      <main className="bh-main">
+        <div className="bh-board">
+          {/* Bunny layer behind 1m + 3m cluster */}
+          <div className="bh-bunny-layer" aria-hidden="true">
+            <img src="/nbg.png" alt="" aria-hidden="true" />
+          </div>
 
-          <section className="panel panel--banner panel--banner-top bh-banner-block bh-banner-block-top">
-            <div className="section-head section-head--left section-head-gain">
-              <span className="section-head__label">1H PRICE</span>
-              <span className="section-head-line section-head-line-gain" />
+          {/* 1h Price Banner (top) */}
+          <section className="bh-board-row-full">
+            <div className="bh-board-panel">
+              <h2 className="bh-section-header">1h Price</h2>
+              <TopBannerScroll />
             </div>
-            <TopBannerScroll rows={banner1hPrice || []} loading={loading} error={error} />
           </section>
 
-          <main className="bh-main">
-            {/* ROW 1 – 1m gainers hero (full width) */}
-            <section className="panel-row panel-row-1m">
-              <div className="panel-1m-slot">
-                <GainersTable1Min
-                  rows={gainers1mRows}
-                  loading={loading}
-                  error={error}
-                  onInfo={onInfoProp}
-                />
-              </div>
-            </section>
+          {/* 1-min Gainers (full-width or two-column, decided by component) */}
+          <GainersTable1Min onInfo={onInfoProp} />
 
-            {/* ROW 2 – 3m gainers / losers pair aligned under same rails */}
-            <section className="panel-row panel-row-3m">
-              <GainersTable3Min
-                rows={gainers3m || []}
-                loading={loading}
-                error={error}
-                onInfo={onInfoProp}
-              />
-              <Losers3m
-                rows={losers3m || []}
-                loading={loading}
-                error={error}
-                onInfo={onInfoProp}
-              />
-            </section>
+          {/* 3m Gainers / Losers (two-column) */}
+          <section className="bh-board-row-halves">
+            <GainersTable3Min onInfo={onInfoProp} />
+            <Losers3m onInfo={onInfoProp} />
+          </section>
 
-            {/* ROW 3 – Watchlist (full width, centered under 3m pair) */}
-            <section className="panel-row panel-row-watchlist">
-              <div className="panel-watchlist-slot">
-                <section className="panel panel-watchlist">
-                  <WatchlistPanel title="WATCHLIST" onInfo={onInfoProp} bySymbol={bySymbol} />
-                </section>
-              </div>
-            </section>
-          </main>
-
-          <section className="panel panel--banner panel--banner-bottom bh-banner-block bh-banner-block-bottom">
-            <div className="section-head section-head--center section-head-loss">
-              <span className="section-head__label">1H VOLUME</span>
-              <span className="section-head-line section-head-line-loss" />
+          {/* Watchlist (full-width) */}
+          <section className="bh-board-row-full bh-row-watchlist">
+            <div className="bh-board-panel">
+              <h2 className="bh-section-header">Watchlist</h2>
+              <WatchlistPanel onInfo={onInfoProp} />
             </div>
-            <VolumeBannerScroll />
+          </section>
+
+          {/* 1h Volume Banner (bottom) */}
+          <section className="bh-board-row-full bh-row-volume">
+            <div className="bh-board-panel">
+              <h2 className="bh-section-header">1h Volume</h2>
+              <VolumeBannerScroll />
+            </div>
           </section>
         </div>
       </main>
 
-      {/* Insights floating card aligned to board-shell rails */}
+      {/* Insights floating card aligned to board rails */}
       {insightsSymbol && (
         <div className="bh-insight-float">
           <InsightsPanel symbol={insightsSymbol} onClose={() => setInsightsSymbol(null)} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchJson } from "../lib/api";
+import { fetchJson } from "../api";
 
 /**
  * Hook for fetching 1-hour volume data via HTTP polling

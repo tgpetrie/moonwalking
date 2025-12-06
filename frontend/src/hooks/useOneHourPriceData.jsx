@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { endpoints, fetchJson } from "../lib/api";
+import { API_ENDPOINTS as endpoints, fetchJson } from "../api";
 
 /**
  * Hook for fetching 1-hour price data via HTTP polling

@@ -1,5 +1,5 @@
 import React from 'react';
-import { endpoints, fetchJson } from '../lib/api';
+import { API_ENDPOINTS as endpoints, fetchJson } from '../api';
 const pollMs = Number(import.meta.env.VITE_POLL_MS || 10000);
 
 // Use centralized fetchJson which normalizes API paths and handles timeouts

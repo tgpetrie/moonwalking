@@ -1,8 +1,6 @@
 // frontend/src/hooks/useDashboardData.js
 import useSWR from "swr";
-import { fetchJson } from "../lib/api";
-
-const DATA_URL = "/data"; // unified dashboard payload
+import { fetchAllData } from "../api";
 
 // map raw backend row to UI row while preserving initial prices for panels
 function mapRowWithInitial(x = {}) {
@@ -32,7 +30,7 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, isLoading, mutate } = useSWR(DATA_URL, fetchJson, {
+  const { data, error, isLoading, mutate } = useSWR("/data", fetchAllData, {
     revalidateOnFocus: true,
     keepPreviousData: true,
     dedupingInterval: 10000,

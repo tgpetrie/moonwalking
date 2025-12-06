@@ -2,6 +2,166 @@
 Project: BHABIT / CBMo4ers
 Services: Flask :5001 • Bridge :5100 • Vite :5173
 
+## CBMOOVERS_DASHBOARD_GUARDRAILS
+
+Scope: CBMoovers / BHABIT home dashboard (1m gainers, 3m gainers/losers, top/bottom banners, watchlist, bunny layer, sentiment/info panel).
+
+**Source-of-truth docs (MUST follow):**
+- `docs/FRONTEND_UI_RULES.md`
+- `docs/DATA_PIPELINES.md`
+
+If existing code disagrees with these docs, assume the **docs are correct** and update the code to match them — not the other way around.
+
+---
+
+### 1. Layout & Grid – Board Home
+
+When changing ANYTHING in the home board layout:
+
+- Do **NOT** introduce new layout systems for the board.
+- Allowed board wrappers (and only these):
+	- `.bh-board`
+	- `.bh-board-row-full`
+	- `.bh-board-row-halves`
+	- `.bh-board-panel`
+- All token rows (1m, 3m, watchlist) must use the **canonical** row grid:
+	- Implemented in `TokenRow.jsx` / `AnimatedTokenRow.jsx`
+	- CSS owner is `.bh-row` in `frontend/src/index.css`
+- You may adjust numeric grid values (column widths, padding) **inside** `.bh-row`, but:
+	- Do **NOT** create per-table `grid-template-columns`.
+	- Do **NOT** add random width overrides on individual tables.
+
+**If columns are misaligned:**
+- Fix `.bh-row` and the board wrappers.
+- Do not create one-off hacks inside individual table components.
+
+---
+
+### 2. Data & Endpoints – Board Fetching
+
+All board data must flow through the existing API helpers and hooks:
+
+- Frontend API helper:
+	- `frontend/src/api.js`
+- Frontend hooks:
+	- `frontend/src/hooks` (e.g. `useBoardData`, `useDataFeed`, or equivalent)
+
+**HTTP endpoints:**
+
+- Primary board endpoint:
+	- `GET /data` (same-origin, via Vite dev proxy)
+- `/api/data` is a **backend alias / fallback** only.
+	- Do **NOT** hard-code `http://127.0.0.1:5001/...` in React code.
+	- Use relative URLs passed through the existing API helper.
+
+**SWR / REST / CORS rules:**
+
+- Use the **existing** SWR hook layer. Do not reinvent the fetch loop.
+- Board components should consume data via the hook, not call `fetch` directly.
+- CORS is a fallback concern; the normal dev/production path is:
+	- Browser → SPA → relative path `/data` → Vite proxy → Flask backend.
+
+If you need a new board-level data field:
+- Add it to the backend `/data` payload.
+- Document it in `docs/DATA_PIPELINES.md`.
+- Then surface it via `api.js` + the existing hook.
+
+---
+
+### 3. Feature-Specific UI Rules
+
+#### 3.1 1-Minute Gainers
+
+- Exactly **one** component: `GainersTable1Min.jsx`.
+- It chooses layout mode based on `items.length`:
+	- `items.length <= 4` → full-width, single column (`.bh-board-row-full`).
+	- `items.length > 4` → two columns (`.bh-board-row-halves`), left + right split.
+- Both modes:
+	- Use the canonical `.bh-row` grid via `TokenRow` / `AnimatedTokenRow`.
+	- Must show both:
+		- `current_price`
+		- `price_1m_ago` (previous price), with correct BHABIT colors.
+- Do **NOT** create a second 1m component. Layout mode is a **branch inside** `GainersTable1Min`.
+
+#### 3.2 3-Minute Gainers / Losers
+
+- Live together in a single `.bh-board-row-halves` block:
+	- Left `.bh-board-panel`:
+		- Header: `Top Gainers (3m)`
+		- Body: 3m gainers table
+	- Right `.bh-board-panel`:
+		- Header: `Top Losers (3m)` with losers color (`.bh-section-header--losers`)
+		- Body: 3m losers table
+- Both sides:
+	- Use `.bh-row` via `TokenRow` / `AnimatedTokenRow`.
+	- No per-table grid definitions.
+
+#### 3.3 Watchlist
+
+- Always full width **under** the 3m grid:
+	- Wrapper: `.bh-board-row-full` + `.bh-board-panel`.
+- Data:
+	- Watchlist symbols from `WatchlistContext`.
+	- Price/details from `latest_by_symbol` in the board payload.
+- Do **NOT** introduce duplicate watchlist state.
+
+#### 3.4 Banners (1h Price, 1h Volume)
+
+- Use a shared banner component (e.g. `BannerTicker`) for:
+	- 1h Price Change
+	- 1h Volume
+- Both banners:
+	- Live in `.bh-board-row-full` + `.bh-board-panel`.
+	- Do **NOT** use `.bh-row`; they are chip-based tickers.
+- No visible pill outline; styling matches the BHABIT spec.
+- Chip click uses the `trade_url` field in the data payload.
+
+---
+
+### 4. Sentiment & Info Button
+
+- The info icon in each row is wired into the sentiment system:
+	- Must use the existing context/hook layer (e.g. `SentimentContext`).
+	- Fetches from the sentiment endpoint(s) specified in `docs/DATA_PIPELINES.md`.
+- Do **NOT**:
+	- Invent new sentiment endpoints from the board.
+	- Bypass the context layer with direct `fetch` calls.
+- All sentiment logic (data shape, scoring) must match `docs/DATA_PIPELINES.md`.
+
+---
+
+### 5. Motion, Stagger, Bunny
+
+- Motion:
+	- Use `AnimatedTokenRow = motion(TokenRow)` with `forwardRef`.
+	- Use the shared variants file (`motionVariants.js` or equivalent).
+	- Apply stagger at the table wrapper level, not per-row layout.
+- Bunny layer:
+	- Implemented as `.bh-bunny-layer` behind the 1m + 3m block.
+	- Visual only; must not influence layout or row spacing.
+
+---
+
+### 6. Absolute “Do Not” List
+
+When editing the board:
+
+- Do **NOT**:
+	- Add new layout wrappers outside the `.bh-board*` + `.bh-row` system.
+	- Define new grid systems per table.
+	- Hard-code backend hosts/ports in React (`http://127.0.0.1:5001/...`).
+	- Create duplicate 1m/3m/watchlist components.
+	- Add new sentiment endpoints from the frontend.
+
+If you cannot make a change while respecting:
+- `docs/FRONTEND_UI_RULES.md` and
+- `docs/DATA_PIPELINES.md`
+
+…then **do not modify the board**.
+
+Drop those in, save, and any agent that ignores them is just telling on itself. (See <attachments> above for file contents. You may not need to search or read the file again.)
+
+
 ## 🔒 UI Canonical Spec
 **READ THIS FIRST** before touching UI: `docs/UI_HOME_DASHBOARD.md`
 - Defines BHABIT dashboard layout (1m hero, 3m side-by-side, watchlist)
