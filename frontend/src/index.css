@@ -211,7 +211,7 @@ body {
   mix-blend-mode: screen;
   filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
   animation: bh-bunny-breathe 6s ease-in-out infinite;
-  background-image: url("/rabbit-bg.png");
+  background-image: url("/purple-rabbit-bg.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
