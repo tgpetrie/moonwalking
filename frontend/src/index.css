@@ -557,7 +557,7 @@ body {
     transparent 70%
   );
   transform: scale(0.98);
-  z-index: -1;
+  z-index: 0;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
