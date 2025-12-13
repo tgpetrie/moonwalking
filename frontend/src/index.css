@@ -266,7 +266,7 @@ body {
 }
 
 .bh-bunny-layer {
-  position: absolute;
+  position: fixed;
   inset: 120px 0 140px 0;
   display: flex;
   justify-content: center;
