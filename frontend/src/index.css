@@ -458,7 +458,7 @@ body {
   min-width: 0;
 }
 
-/* Hover glow layer for transparent rows */
+/* Hover glow layer for transparent rows — stays behind cells/content */
 .bh-row-hover-glow {
   position: absolute;
   inset: 0;
@@ -467,12 +467,12 @@ body {
   transition: opacity 140ms ease-out, transform 140ms ease-out;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 165, 0, 0.32) 0%,
-    rgba(255, 165, 0, 0.08) 38%,
+    rgba(255, 181, 67, 0.32) 0%,
+    rgba(255, 181, 67, 0.08) 38%,
     transparent 70%
   );
   transform: scale(0.98);
-  z-index: 0;
+  z-index: -1;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
