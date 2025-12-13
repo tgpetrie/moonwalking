@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { fetchAllData } from "./api.js";
 import TopBannerScroll from "./components/TopBannerScroll";
 import VolumeBannerScroll from "./components/VolumeBannerScroll";
 import GainersTable1Min from "./components/GainersTable1Min.jsx";
@@ -29,20 +30,22 @@ export default function Dashboard() {
   const [selectedSymbol, setSelectedSymbol] = useState(null);
 
   useEffect(() => {
-    console.log("[ui] fetching /data ...");
-    fetch("/data")
-      .then((r) => {
-        console.log("[ui] /data status", r.status);
-        return r.json();
-      })
+    // Use centralized API helper so calls respect VITE_API_BASE or the
+    // DEFAULT_API_BASE fallback defined in `src/api.js`.
+    let mounted = true;
+    fetchAllData()
       .then((json) => {
-        console.log("[ui] /data payload", json);
+        if (!mounted) return;
         setPayload(json);
       })
       .catch((err) => {
-        console.error("[ui] /data error", err);
-        setError(err.message);
+        if (!mounted) return;
+        console.error("[ui] fetchAllData error", err);
+        setError(err?.message || String(err));
       });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const loading = !payload && !error;
@@ -57,7 +60,32 @@ export default function Dashboard() {
 
   // simple banner bindings if present in /data
   const banner1h = useMemo(() => data.banner_1h || [], [data.banner_1h]);
-  const vol1h = useMemo(() => data.volume_1h || [], [data.volume_1h]);
+
+  const vol1hTokens = useMemo(() => {
+    const candidates =
+      data.banner_1h_volume ||
+      data.volume_1h ||
+      data.volume_1h_top ||
+      data.volume_1h_tokens ||
+      [];
+    const list = Array.isArray(candidates?.data) ? candidates.data : Array.isArray(candidates) ? candidates : [];
+    return list.map((t) => ({
+      symbol: t.symbol,
+      volume_1h_delta: t.volume_1h_delta ?? t.volume_change_abs ?? t.volume_change ?? 0,
+      volume_1h_pct: t.volume_1h_pct ?? t.volume_change_pct ?? t.change_1h_volume ?? 0,
+    }));
+  }, [data.banner_1h_volume, data.volume_1h, data.volume_1h_top, data.volume_1h_tokens]);
+
+  const boardRef = useRef(null);
+  const showMoreRef = useRef(null);
+
+  useEffect(() => {
+    if (!boardRef.current || !showMoreRef.current) return;
+    const boardRect = boardRef.current.getBoundingClientRect();
+    const seamRect = showMoreRef.current.getBoundingClientRect();
+    const centerY = seamRect.top + seamRect.height / 2 - boardRect.top;
+    boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
+  }, [banner1h?.length, vol1hTokens?.length, payload]);
 
   return (
     <main className="min-h-screen text-white relative overflow-x-hidden">
@@ -102,49 +130,56 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* Section label + 1h banner */}
-        <section className="mb-8">
-          <TopBannerScroll items={banner1h} />
-        </section>
+        <div className="board-core" ref={boardRef}>
+          <div className="rabbit-bg" aria-hidden />
 
-        {/* 1-min gainers */}
-        <section className="mb-10">
-          <GainersTable1Min
-            rows={data.gainers_1m || []}
-            loading={loading}
-            error={errs.gainers_1m}
-            snapshotInfo={meta.gainers_1m}
-            onInfo={handleInfo}
-          />
-        </section>
-
-        {/* 3m gainers / losers side-by-side */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-          <GainersTable3Min
-            rows={data.gainers_3m || []}
-            loading={loading}
-            error={errs.gainers_3m}
-            onInfo={handleInfo}
-          />
-          <LosersTable3Min
-            rows={data.losers_3m || []}
-            loading={loading}
-            error={errs.losers_3m}
-            onInfo={handleInfo}
-          />
-        </section>
-
-        {/* Optional Watchlist row (full-width under 3m) */}
-        {hasWatchlist && (
-          <section className="panel-row-watchlist mb-10">
-            <WatchlistPanel onInfo={handleInfo} />
+          {/* Section label + 1h banner */}
+          <section className="mb-8">
+            <TopBannerScroll items={banner1h} />
           </section>
-        )}
 
-        {/* Bottom volume banner */}
-        <section>
-          <VolumeBannerScroll items={vol1h} historyMinutes={data?.meta?.historyMinutes ?? 0} />
-        </section>
+          {/* 1-min gainers */}
+          <section className="mb-10">
+            <GainersTable1Min
+              rows={data.gainers_1m || []}
+              loading={loading}
+              error={errs.gainers_1m}
+              snapshotInfo={meta.gainers_1m}
+              onInfo={handleInfo}
+            />
+          </section>
+
+          {/* Anchor seam for rabbit centering */}
+          <div ref={showMoreRef} className="show-more-anchor" aria-hidden />
+
+          {/* 3m gainers / losers side-by-side */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            <GainersTable3Min
+              rows={data.gainers_3m || []}
+              loading={loading}
+              error={errs.gainers_3m}
+              onInfo={handleInfo}
+            />
+            <LosersTable3Min
+              rows={data.losers_3m || []}
+              loading={loading}
+              error={errs.losers_3m}
+              onInfo={handleInfo}
+            />
+          </section>
+
+          {/* Optional Watchlist row (full-width under 3m) */}
+          {hasWatchlist && (
+            <section className="panel-row-watchlist mb-10">
+              <WatchlistPanel onInfo={handleInfo} />
+            </section>
+          )}
+
+          {/* Bottom volume banner */}
+          <section>
+            <VolumeBannerScroll tokens={vol1hTokens} />
+          </section>
+        </div>
       </div>
       {selectedSymbol && (
         <AssetDetailPanel

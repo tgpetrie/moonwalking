@@ -410,16 +410,19 @@ _load_thresholds_file()
 
 
 def pct_change(current: float | int | None, past: float | int | None) -> float:
-    """Centralized percent-change helper.
+    """Centralized percent-change helper with guardrails.
 
-    Returns 0.0 when the past value is missing or zero to avoid division errors.
+    Returns 0.0 when the past value is missing or non-positive to avoid noisy or
+    undefined percentages.
     """
+    if current is None or past is None:
+        return 0.0
     try:
         c = float(current)
         p = float(past)
     except (TypeError, ValueError):
         return 0.0
-    if p == 0.0:
+    if p <= 0.0:
         return 0.0
     return (c - p) / p * 100.0
 
@@ -2429,6 +2432,7 @@ def data_aggregate():
     Always returns HTTP 200/206 JSON and never raises in local dev.
     """
     try:
+        logger = getattr(app, "logger", logging.getLogger(__name__))
         meta: dict[str, dict] = {}
         errors: dict[str, str] = {}
         rows_by_symbol: dict[str, dict] = {}
@@ -2463,23 +2467,34 @@ def data_aggregate():
                     if price_f > 0:
                         base["price"] = price_f
                         base["current_price"] = price_f
-                    gain_1m = r.get("price_change_percentage_1min")
-                    if gain_1m is not None:
-                        try:
-                            gval = float(gain_1m)
-                        except (TypeError, ValueError):
-                            gval = 0.0
-                        base["change_1m"] = gval
-                        # keep legacy key for existing UI bits
-                        base["price_change_percentage_1min"] = gval
-                    # carry forward the 1m opening/initial price so the UI can
-                    # render "previous price" under the current snapshot
-                    initial_1m = r.get("initial_price_1min") or r.get("initial_1min")
+                        base["price_now"] = price_f
+
+                    initial_1m = r.get("initial_price_1min") or r.get("initial_1min") or r.get("previous_price_1m")
+                    initial_1m_val = None
                     if initial_1m is not None:
                         try:
-                            base["initial_price_1min"] = float(initial_1m)
+                            initial_1m_val = float(initial_1m)
                         except (TypeError, ValueError):
-                            pass
+                            initial_1m_val = None
+                    if initial_1m_val is not None:
+                        base["initial_price_1min"] = initial_1m_val
+                        base["previous_price_1m"] = initial_1m_val
+
+                    gain_1m_raw = r.get("price_change_percentage_1min")
+                    gain_1m_val = None
+                    if gain_1m_raw is not None:
+                        try:
+                            gain_1m_val = float(gain_1m_raw)
+                        except (TypeError, ValueError):
+                            gain_1m_val = None
+
+                    change_1m_val = pct_change(price_f, initial_1m_val)
+                    if change_1m_val == 0.0 and gain_1m_val is not None:
+                        change_1m_val = gain_1m_val
+
+                    base["change_1m"] = change_1m_val
+                    # keep legacy key for existing UI bits
+                    base["price_change_percentage_1min"] = change_1m_val
                 meta["gainers_1m"] = {"source": "snapshot", "ts": g1_ts}
             else:
                 raise RuntimeError("empty")
@@ -2503,21 +2518,32 @@ def data_aggregate():
                     if price_f > 0:
                         base["price"] = price_f
                         base["current_price"] = price_f
-                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
-                    if gain_3m is not None:
-                        try:
-                            gval = float(gain_3m)
-                        except (TypeError, ValueError):
-                            gval = 0.0
-                        base["change_3m"] = gval
-                        base["price_change_percentage_3min"] = gval
-                    # propagate 3m initial/open price for previous-price display
-                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min")
+                        base["price_now"] = price_f
+                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                    initial_3m_val = None
                     if initial_3m is not None:
                         try:
-                            base["initial_price_3min"] = float(initial_3m)
+                            initial_3m_val = float(initial_3m)
                         except (TypeError, ValueError):
-                            pass
+                            initial_3m_val = None
+                    if initial_3m_val is not None:
+                        base["initial_price_3min"] = initial_3m_val
+                        base["previous_price_3m"] = initial_3m_val
+
+                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                    gain_3m_val = None
+                    if gain_3m is not None:
+                        try:
+                            gain_3m_val = float(gain_3m)
+                        except (TypeError, ValueError):
+                            gain_3m_val = None
+
+                    change_3m_val = pct_change(price_f, initial_3m_val)
+                    if change_3m_val == 0.0 and gain_3m_val is not None:
+                        change_3m_val = gain_3m_val
+
+                    base["change_3m"] = change_3m_val
+                    base["price_change_percentage_3min"] = change_3m_val
                 meta["gainers_3m"] = {"source": "snapshot", "ts": g3_ts}
             else:
                 raise RuntimeError("empty")
@@ -2540,22 +2566,33 @@ def data_aggregate():
                     if price_f > 0:
                         base["price"] = price_f
                         base["current_price"] = price_f
+                        base["price_now"] = price_f
                     gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                    gain_3m_val = None
                     if gain_3m is not None:
                         try:
-                            gval = float(gain_3m)
+                            gain_3m_val = float(gain_3m)
                         except (TypeError, ValueError):
-                            gval = 0.0
-                        base["change_3m"] = gval
-                        base["price_change_percentage_3min"] = gval
+                            gain_3m_val = None
                     # losers also carry the same 3m initial reference so the UI
                     # can show the baseline under the current price
-                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min")
+                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                    initial_3m_val = None
                     if initial_3m is not None:
                         try:
-                            base["initial_price_3min"] = float(initial_3m)
+                            initial_3m_val = float(initial_3m)
                         except (TypeError, ValueError):
-                            pass
+                            initial_3m_val = None
+                    if initial_3m_val is not None:
+                        base["initial_price_3min"] = initial_3m_val
+                        base["previous_price_3m"] = initial_3m_val
+
+                    change_3m_val = pct_change(price_f, initial_3m_val)
+                    if change_3m_val == 0.0 and gain_3m_val is not None:
+                        change_3m_val = gain_3m_val
+
+                    base["change_3m"] = change_3m_val
+                    base["price_change_percentage_3min"] = change_3m_val
                 meta["losers_3m"] = {"source": "snapshot", "ts": l3_ts}
             else:
                 raise RuntimeError("empty")
@@ -2572,6 +2609,7 @@ def data_aggregate():
                         continue
                     base = _ensure_row(sym)
                     price = r.get("current_price") or r.get("price") or 0
+                    price_now = None
                     try:
                         price_f = float(price)
                     except (TypeError, ValueError):
@@ -2580,16 +2618,32 @@ def data_aggregate():
                         # canonical price fields for banners and tables
                         base["price"] = price_f
                         base["current_price"] = price_f
-                    change_1h = r.get("price_change_1h")
-                    if change_1h is not None:
+                        base["price_now"] = price_f
+                        price_now = price_f
+
+                    price_1h_ago = r.get("price_1h_ago") or r.get("initial_price_1h")
+                    price_1h_val = None
+                    if price_1h_ago is not None:
                         try:
-                            cval = float(change_1h)
+                            price_1h_val = float(price_1h_ago)
                         except (TypeError, ValueError):
-                            cval = 0.0
-                        # canonical 1h price-change keys used by banners
-                        base["change_1h_price"] = cval
-                        base["price_change_1h"] = cval
-                        base["pct_change_1h"] = cval
+                            price_1h_val = None
+                    if price_1h_val is not None:
+                        base["price_1h_ago"] = price_1h_val
+
+                    change_1h_fallback = r.get("price_change_1h")
+                    change_1h_val = pct_change(price_now, price_1h_val)
+                    if change_1h_val == 0.0 and change_1h_fallback is not None:
+                        try:
+                            change_1h_val = float(change_1h_fallback)
+                        except (TypeError, ValueError):
+                            change_1h_val = 0.0
+
+                    # canonical 1h price-change keys used by banners
+                    base["change_1h_price"] = change_1h_val
+                    base["price_change_1h"] = change_1h_val
+                    base["pct_change_1h"] = change_1h_val
+                    base["price_change_1h_pct"] = change_1h_val
                 meta["banner_1h_price"] = {"source": "computed", "ts": b_ts}
             else:
                 errors["banner_1h_price"] = "unavailable"
@@ -2614,16 +2668,55 @@ def data_aggregate():
                         # treat as latest 1h (or 24h snapshot) volume for display
                         base["volume_24h"] = vol_now_f
                         base["volume_1h"] = vol_now_f
-                    vol_pct = r.get("volume_change_1h_pct")
-                    if vol_pct is not None:
+                        base["volume_1h_now"] = vol_now_f
+
+                    vol_prev_val = None
+                    vol_prev_raw = r.get("volume_1h_prev")
+                    if vol_prev_raw is not None:
                         try:
-                            vval = float(vol_pct)
+                            vol_prev_val = float(vol_prev_raw)
                         except (TypeError, ValueError):
-                            vval = 0.0
-                        # canonical 1h volume-change keys used by volume banners
-                        base["change_1h_volume"] = vval
-                        base["volume_change_1h_pct"] = vval
-                        base["volume_change_percentage_1h"] = vval
+                            vol_prev_val = None
+
+                    vol_change_abs = r.get("volume_change_1h")
+                    vol_change_abs_val = None
+                    if vol_change_abs is not None:
+                        try:
+                            vol_change_abs_val = float(vol_change_abs)
+                        except (TypeError, ValueError):
+                            vol_change_abs_val = None
+
+                    if vol_prev_val is None and vol_change_abs_val is not None:
+                        vol_prev_val = vol_now_f - vol_change_abs_val
+
+                    vol_pct_raw = r.get("volume_change_1h_pct")
+                    vol_pct_val = None
+                    if vol_pct_raw is not None:
+                        try:
+                            vol_pct_val = float(vol_pct_raw)
+                        except (TypeError, ValueError):
+                            vol_pct_val = None
+                    if vol_prev_val is None and vol_pct_val not in (None, 0.0):
+                        try:
+                            denom = 1 + (vol_pct_val / 100.0)
+                            if denom != 0:
+                                vol_prev_val = vol_now_f / denom
+                        except Exception:
+                            vol_prev_val = None
+
+                    if vol_prev_val is not None:
+                        base["volume_1h_prev"] = vol_prev_val
+                        vol_change_abs_val = vol_now_f - vol_prev_val
+
+                    change_1h_volume_pct = pct_change(vol_now_f, vol_prev_val)
+                    if change_1h_volume_pct == 0.0 and vol_pct_val is not None:
+                        change_1h_volume_pct = vol_pct_val
+
+                    base["volume_change_1h"] = vol_change_abs_val
+                    # canonical 1h volume-change keys used by volume banners
+                    base["change_1h_volume"] = change_1h_volume_pct
+                    base["volume_change_1h_pct"] = change_1h_volume_pct
+                    base["volume_change_percentage_1h"] = change_1h_volume_pct
                 meta["banner_1h_volume"] = {"source": "computed", "ts": vb_ts}
             else:
                 errors["banner_1h_volume"] = "unavailable"
@@ -2632,6 +2725,20 @@ def data_aggregate():
 
         # Build canonical list of rows
         all_rows = list(rows_by_symbol.values())
+
+        def _rank_and_trade(subset, limit: int):
+            out_rows = []
+            for idx, base in enumerate(subset[:limit], start=1):
+                row = dict(base)
+                row["rank"] = idx
+                sym = row.get("symbol") or ""
+                # normalize symbol into a Coinbase advanced-trade spot pair
+                slug = str(sym).lower().replace('_', '-').replace('/', '-')
+                if not (slug.endswith('-usd') or slug.endswith('-usdt') or slug.endswith('-perp')):
+                    slug = f"{slug}-usd"
+                row.setdefault("trade_url", f"https://www.coinbase.com/advanced-trade/spot/{slug}")
+                out_rows.append(row)
+            return out_rows
 
         def _select_top_movers(rows, pct_key: str, limit: int = 16):
             """Deterministic splitter for gainers/losers by sign.
@@ -2660,37 +2767,132 @@ def data_aggregate():
             gainers_sorted = sorted(gainers, key=lambda r: r[pct_key], reverse=True)
             losers_sorted = sorted(losers, key=lambda r: r[pct_key])  # most negative first
 
-            def _tag_rank(subset):
-                out_rows = []
-                for idx, base in enumerate(subset[:limit], start=1):
-                    row = dict(base)
-                    row["rank"] = idx
-                    sym = row.get("symbol") or ""
-                    slug = str(sym).lower()
-                    row.setdefault("trade_url", f"https://www.coinbase.com/price/{slug}")
-                    out_rows.append(row)
-                return out_rows
+            return _rank_and_trade(gainers_sorted, limit), _rank_and_trade(losers_sorted, limit)
 
-            return _tag_rank(gainers_sorted), _tag_rank(losers_sorted)
+        def build_3m_slices(tokens: list[dict], top_n: int = 8):
+            gainers = [t for t in tokens if t.get("change_3m") is not None and t.get("change_3m") > 0]
+            losers = [t for t in tokens if t.get("change_3m") is not None and t.get("change_3m") < 0]
 
-        def _sorted_rows(key: str, reverse: bool = False, limit: int = 16):
-            subset = [r for r in all_rows if isinstance(r.get(key), (int, float)) and r.get(key) not in (None, 0)]
-            subset.sort(key=lambda r: r.get(key, 0.0), reverse=reverse)
-            out = []
-            for idx, base in enumerate(subset[:limit], start=1):
-                row = dict(base)
-                row["rank"] = idx
-                sym = row.get("symbol") or ""
-                slug = str(sym).lower()
-                row.setdefault("trade_url", f"https://www.coinbase.com/price/{slug}")
-                out.append(row)
-            return out
+            gainers_sorted = sorted(gainers, key=lambda t: t["change_3m"], reverse=True)
+            losers_sorted = sorted(losers, key=lambda t: t["change_3m"], reverse=False)
+
+            gainers_top = _rank_and_trade(gainers_sorted, top_n)
+            losers_top = _rank_and_trade(losers_sorted, top_n)
+
+            for t in gainers_top:
+                try:
+                    if t.get("change_3m") is not None and t["change_3m"] <= 0:
+                        logger.error("Invalid entry in gainers_3m: %s", t)
+                except Exception:
+                    pass
+
+            for t in losers_top:
+                try:
+                    if t.get("change_3m") is not None and t["change_3m"] >= 0:
+                        logger.error("Invalid entry in losers_3m: %s", t)
+                except Exception:
+                    pass
+
+            return gainers_top, losers_top
+
+        def build_1h_price_banner(tokens: list[dict], top_n: int = 20):
+            enriched = []
+            for t in tokens:
+                price_now = t.get("current_price") if isinstance(t.get("current_price"), (int, float)) else t.get("price")
+                if price_now is None:
+                    price_now = t.get("price_now")
+                price_ago = t.get("price_1h_ago") or t.get("initial_price_1h")
+                try:
+                    price_now_f = float(price_now)
+                except (TypeError, ValueError):
+                    price_now_f = None
+                try:
+                    price_ago_f = float(price_ago)
+                except (TypeError, ValueError):
+                    price_ago_f = None
+
+                row = dict(t)
+                if price_now_f is not None:
+                    row["price_now"] = price_now_f
+                if price_ago_f is not None:
+                    row["price_1h_ago"] = price_ago_f
+
+                change_pct = pct_change(price_now_f, price_ago_f)
+                if change_pct == 0.0:
+                    fallback = t.get("price_change_1h") or t.get("change_1h_price")
+                    if fallback is not None:
+                        try:
+                            change_pct = float(fallback)
+                        except (TypeError, ValueError):
+                            pass
+
+                row["price_change_1h_pct"] = change_pct
+                row["change_1h_price"] = change_pct
+                row["price_change_1h"] = change_pct
+                enriched.append(row)
+
+            enriched = [t for t in enriched if t.get("price_change_1h_pct", 0.0) != 0.0]
+            enriched.sort(key=lambda t: t.get("price_change_1h_pct", 0.0), reverse=True)
+            return _rank_and_trade(enriched, top_n)
+
+        def build_1h_volume_banner(tokens: list[dict], top_n: int = 20):
+            enriched = []
+            for t in tokens:
+                vol_now = t.get("volume_1h_now") or t.get("volume_24h") or t.get("volume_1h")
+                vol_prev = t.get("volume_1h_prev")
+                try:
+                    vol_now_f = float(vol_now)
+                except (TypeError, ValueError):
+                    vol_now_f = None
+                try:
+                    vol_prev_f = float(vol_prev)
+                except (TypeError, ValueError):
+                    vol_prev_f = None
+
+                row = dict(t)
+                if vol_now_f is not None:
+                    row["volume_1h_now"] = vol_now_f
+                if vol_prev_f is not None:
+                    row["volume_1h_prev"] = vol_prev_f
+
+                change_pct = pct_change(vol_now_f, vol_prev_f)
+                if change_pct == 0.0:
+                    fallback = t.get("volume_change_1h_pct") or t.get("change_1h_volume")
+                    if fallback is not None:
+                        try:
+                            change_pct = float(fallback)
+                        except (TypeError, ValueError):
+                            pass
+
+                # If we still don't have a previous volume but do have change_pct, derive it
+                if vol_prev_f is None and vol_now_f is not None and change_pct not in (None, 0.0):
+                    try:
+                        denom = 1 + (change_pct / 100.0)
+                        if denom != 0:
+                            derived_prev = vol_now_f / denom
+                            row["volume_1h_prev"] = derived_prev
+                            vol_prev_f = derived_prev
+                    except Exception:
+                        pass
+
+                vol_change_abs = None
+                if vol_now_f is not None and vol_prev_f is not None:
+                    vol_change_abs = vol_now_f - vol_prev_f
+                row["volume_change_1h"] = vol_change_abs
+                row["volume_change_1h_pct"] = change_pct
+                row["change_1h_volume"] = change_pct
+                row["volume_change_percentage_1h"] = change_pct
+                enriched.append(row)
+
+            enriched = [t for t in enriched if t.get("volume_change_1h_pct", 0.0) != 0.0]
+            enriched.sort(key=lambda t: t.get("volume_change_1h_pct", 0.0), reverse=True)
+            return _rank_and_trade(enriched, top_n)
 
         gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m", limit=50)
-        gainers_3m, losers_3m = _select_top_movers(all_rows, "change_3m", limit=50)
+        gainers_3m, losers_3m = build_3m_slices(all_rows, top_n=50)
 
-        banner_1h_price = _sorted_rows("change_1h_price", reverse=True, limit=20)
-        banner_1h_volume = _sorted_rows("change_1h_volume", reverse=True, limit=20)
+        banner_1h_price = build_1h_price_banner(all_rows, top_n=20)
+        banner_1h_volume = build_1h_volume_banner(all_rows, top_n=20)
 
         latest_by_symbol = {}
         for sym, row in rows_by_symbol.items():

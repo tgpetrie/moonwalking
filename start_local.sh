@@ -12,7 +12,7 @@ set -euo pipefail
 HOST="${HOST:-127.0.0.1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BACKEND_START=${BACKEND_START:-5001}
+BACKEND_START=${BACKEND_START:-5002}
 FRONTEND_START=${FRONTEND_START:-5173}
 
 BACKEND_PID_FILE=${BACKEND_PID_FILE:-/tmp/mw_backend.pid}
@@ -44,10 +44,10 @@ if [ "${1:-}" = "status" ]; then
   # health checks
   if [ -f "$BACKEND_PORT_FILE" ]; then
     bp=$(cat "$BACKEND_PORT_FILE")
-    if curl -sS "http://$HOST:$bp/data" >/dev/null 2>&1; then
-      echo "backend /data: OK"
+    if curl -sS "http://$HOST:$bp/api/health" >/dev/null 2>&1; then
+      echo "backend /api/health: OK"
     else
-      echo "backend /data: UNAVAILABLE"
+      echo "backend /api/health: UNAVAILABLE"
     fi
   fi
   if [ -f "$FRONTEND_PORT_FILE" ]; then
@@ -103,7 +103,7 @@ kill_process_on_port() {
     done
     sleep 1
     if lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-.............................................................................      echo "[start.local] ERROR: port $port still in use after attempting to kill processes"
+      echo "[start.local] ERROR: port $port still in use after attempting to kill processes"
       exit 1
     fi
   fi
@@ -115,44 +115,92 @@ kill_process_on_port "$FRONTEND_START"
 BACKEND_PORT="$BACKEND_START"
 FRONTEND_PORT="$FRONTEND_START"
 
+# In VS Code tasks, child processes can be terminated when the task ends.
+# Detach backend/frontend into a separate session by default in that environment.
+DETACH=${DETACH:-0}
+if [ "${TERM_PROGRAM:-}" = "vscode" ]; then
+  DETACH=1
+fi
+
+start_detached() {
+  local logfile="$1"
+  shift
+
+  if command -v setsid >/dev/null 2>&1; then
+    nohup setsid "$@" >"$logfile" 2>&1 < /dev/null &
+  else
+    nohup "$@" >"$logfile" 2>&1 < /dev/null &
+  fi
+  echo $!
+}
+
 echo "[start.local] backend -> http://$HOST:$BACKEND_PORT (strict)"
 echo "[start.local] frontend -> http://$HOST:$FRONTEND_PORT (strict)"
 
 # Backend (non-fatal if environment blocks bind)
-(
-  cd "$ROOT_DIR"
-  # Activate venv if it exists
-  if [ -d "backend/.venv" ]; then
-    source backend/.venv/bin/activate
-  fi
-  export PYTHONPATH="$ROOT_DIR/backend"
-  export FLASK_APP=backend.app
-  export FLASK_ENV=development
-  # Export CORS origins for Vite dev ports
-  export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
-  flask run --host "$HOST" --port "$BACKEND_PORT"
-) > /tmp/mw_backend.log 2>&1 &
-echo $! > "$BACKEND_PID_FILE"
+if [ "$DETACH" = "1" ]; then
+  backend_cmd=$(cat <<EOF
+cd "$ROOT_DIR"
+if [ -d "backend/.venv" ]; then
+  source backend/.venv/bin/activate
+fi
+export PYTHONPATH="$ROOT_DIR/backend"
+export FLASK_APP=backend.app
+export FLASK_ENV=development
+export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
+exec flask run --host "$HOST" --port "$BACKEND_PORT"
+EOF
+)
+  start_detached /tmp/mw_backend.log bash -c "$backend_cmd" > "$BACKEND_PID_FILE"
+else
+  (
+    cd "$ROOT_DIR"
+    # Activate venv if it exists
+    if [ -d "backend/.venv" ]; then
+      source backend/.venv/bin/activate
+    fi
+    export PYTHONPATH="$ROOT_DIR/backend"
+    export FLASK_APP=backend.app
+    export FLASK_ENV=development
+    # Export CORS origins for Vite dev ports
+    export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
+    flask run --host "$HOST" --port "$BACKEND_PORT"
+  ) > /tmp/mw_backend.log 2>&1 &
+  echo $! > "$BACKEND_PID_FILE"
+fi
 
 # persist chosen ports so helper commands can inspect them
 echo "$BACKEND_PORT" > "$BACKEND_PORT_FILE"
 
 # Frontend — ensure deps then start Vite with env BACKEND_PORT and VITE_PORT
-(
-  cd "$ROOT_DIR/frontend"
-  if [ ! -d node_modules ]; then
-    echo "[start.local] installing frontend dependencies..."
-    npm install
-  fi
-  BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
-) > /tmp/mw_frontend.log 2>&1 &
-echo $! > "$FRONTEND_PID_FILE"
+if [ "$DETACH" = "1" ]; then
+  frontend_cmd=$(cat <<EOF
+cd "$ROOT_DIR/frontend"
+if [ ! -d node_modules ]; then
+  echo "[start.local] installing frontend dependencies..."
+  npm install
+fi
+BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" exec npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
+EOF
+)
+  start_detached /tmp/mw_frontend.log bash -c "$frontend_cmd" > "$FRONTEND_PID_FILE"
+else
+  (
+    cd "$ROOT_DIR/frontend"
+    if [ ! -d node_modules ]; then
+      echo "[start.local] installing frontend dependencies..."
+      npm install
+    fi
+    BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
+  ) > /tmp/mw_frontend.log 2>&1 &
+  echo $! > "$FRONTEND_PID_FILE"
+fi
 echo "$FRONTEND_PORT" > "$FRONTEND_PORT_FILE"
 
 echo "[start.local] backend pid: $(cat "$BACKEND_PID_FILE") (written to $BACKEND_PID_FILE)"
 echo "[start.local] frontend pid: $(cat "$FRONTEND_PID_FILE") (written to $FRONTEND_PID_FILE)"
 
-# Block until both backend /data and frontend root respond (short timeout)
+# Block until both backend /api/data and frontend root respond (short timeout)
 WAIT_RETRIES=${WAIT_RETRIES:-20}
 WAIT_INTERVAL=${WAIT_INTERVAL:-0.5}
 echo "[start.local] waiting up to $(awk "BEGIN{print $WAIT_RETRIES*$WAIT_INTERVAL}")s for services to be healthy..."
@@ -161,9 +209,9 @@ backend_ok=0
 frontend_ok=0
 while [ $i -lt $WAIT_RETRIES ]; do
   if [ $backend_ok -eq 0 ]; then
-    if curl -sS "http://$HOST:$BACKEND_PORT/data" >/dev/null 2>&1; then
+    if curl -sS "http://$HOST:$BACKEND_PORT/api/data" >/dev/null 2>&1; then
       backend_ok=1
-      echo "[start.local] backend /data is responding"
+      echo "[start.local] backend /api/data is responding"
     fi
   fi
   if [ $frontend_ok -eq 0 ]; then
@@ -180,7 +228,7 @@ while [ $i -lt $WAIT_RETRIES ]; do
 done
 
 if [ $backend_ok -ne 1 ]; then
-  echo "[start.local] WARNING: backend did not respond to /data after ${WAIT_RETRIES} attempts"
+  echo "[start.local] WARNING: backend did not respond to /api/data after ${WAIT_RETRIES} attempts"
   echo "[start.local] see /tmp/mw_backend.log for details"
 fi
 if [ $frontend_ok -ne 1 ]; then

@@ -63,7 +63,12 @@ const ContinuousScrollingBanner = ({ items }) => {
             {list.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
-                  href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
+                  href={(function buildCoinbaseUrl(sym){
+                    if(!sym) return '#';
+                    let pair = sym;
+                    if(!/-USD$|-USDT$|-PERP$/i.test(pair)) pair = `${pair}-USD`;
+                    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+                  })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
@@ -90,7 +95,12 @@ const ContinuousScrollingBanner = ({ items }) => {
             {list.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
-                  href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
+                  href={(function buildCoinbaseUrl(sym){
+                    if(!sym) return '#';
+                    let pair = sym;
+                    if(!/-USD$|-USDT$|-PERP$/i.test(pair)) pair = `${pair}-USD`;
+                    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+                  })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"

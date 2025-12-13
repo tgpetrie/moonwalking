@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
 import TokenRow from './TokenRow.jsx';
+import AnimatedTokenRow from './AnimatedTokenRow.jsx';
+import { AnimatePresence, motion } from 'framer-motion';
+import { rowVariants, listVariants } from './motionVariants';
 import PanelShell from './ui/PanelShell';
 import StatusGate from './ui/StatusGate';
 import SkeletonTable from './ui/SkeletonTable';
@@ -149,30 +152,35 @@ export default function Watchlist({ onWatchlistChange, topWatchlist, quickview, 
         error={<div className="state-copy">Watchlist unavailable.</div>}
       >
         <div className="flex flex-col space-y-4 w-full max-w-4xl mx-auto h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch">
-          {(showAll ? watchlist : watchlist.slice(0, 4)).map((symbol, idx) => {
+          <motion.div initial="hidden" animate="visible" variants={listVariants}>
+            <AnimatePresence>
+              {(showAll ? watchlist : watchlist.slice(0, 4)).map((symbol, idx) => {
             const data = watchlistData[symbol] || {};
             const current = data.price ?? null;
             // Watchlist doesn't have a previous price source here; leave null
             const previous = null;
-            return (
-              <div key={symbol}>
-                <TokenRow
-                  rank={idx + 1}
-                  symbol={symbol}
-                  name={null}
-                  currentPrice={current}
-                  previousPrice={previous}
-                  percentChange={0}
-                  onToggleWatchlist={() => handleRemove(symbol)}
-                  onInfo={() => onInfo && onInfo(symbol)}
-                  isWatchlisted={true}
-                />
-                {idx < (showAll ? watchlist.length : Math.min(4, watchlist.length)) - 1 && (
-                  <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(254,164,0,0.18) 0%,rgba(254,164,0,0.38) 50%,rgba(254,164,0,0.18) 100%)',borderRadius:'2px'}} />
-                )}
-              </div>
-            );
+                return (
+                  <motion.div key={symbol} layout variants={rowVariants} exit="exit">
+                    <AnimatedTokenRow
+                      layout
+                      rank={idx + 1}
+                      symbol={symbol}
+                      name={null}
+                      currentPrice={current}
+                      previousPrice={previous}
+                      percentChange={0}
+                      onToggleWatchlist={() => handleRemove(symbol)}
+                      onInfo={() => onInfo && onInfo(symbol)}
+                      isWatchlisted={true}
+                    />
+                    {idx < (showAll ? watchlist.length : Math.min(4, watchlist.length)) - 1 && (
+                      <div className="mx-auto my-0.5" style={{height:'2px',width:'60%',background:'linear-gradient(90deg,rgba(254,164,0,0.18) 0%,rgba(254,164,0,0.38) 50%,rgba(254,164,0,0.18) 100%)',borderRadius:'2px'}} />
+                    )}
+                  </motion.div>
+                );
           })}
+            </AnimatePresence>
+          </motion.div>
 
           {watchlist.length > 4 && (
             <div className="flex justify-center mt-2">

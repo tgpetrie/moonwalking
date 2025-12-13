@@ -1,9 +1,210 @@
 
-> frontend@1.1.0 dev
-> vite
+> frontend@1.1.0 dev /Users/cdmxx/Documents/moonwalkings/frontend
+> vite --host 127.0.0.1 --port 5176
 
-
-  VITE v5.4.21  ready in 139 ms
-
-  ➜  Local:   http://127.0.0.1:5173/
-  ➜  press h + enter to show help
+2025-12-13T09:55:38.375Z vite:config bundled config file loaded in 35.85ms
+2025-12-13T09:55:38.381Z vite:config using resolved config: {
+  plugins: [
+    'vite:optimized-deps',
+    'vite:watch-package-data',
+    'vite:pre-alias',
+    'alias',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'visualizer',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'vite:client-inject',
+    'vite:css-analysis',
+    'vite:import-analysis'
+  ],
+  build: {
+    target: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    cssTarget: [ 'es2020', 'edge88', 'firefox78', 'chrome87', 'safari14' ],
+    outDir: 'dist',
+    assetsDir: 'assets',
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
+    sourcemap: true,
+    rollupOptions: { output: [Object], onwarn: [Function: onwarn] },
+    minify: 'esbuild',
+    terserOptions: {},
+    write: true,
+    emptyOutDir: null,
+    copyPublicDir: true,
+    manifest: false,
+    lib: false,
+    ssr: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+    watch: null,
+    commonjsOptions: { include: [Array], extensions: [Array] },
+    dynamicImportVarsOptions: { warnOnError: true, exclude: [Array] },
+    modulePreload: { polyfill: true },
+    cssMinify: true
+  },
+  server: {
+    preTransformRequests: true,
+    host: '127.0.0.1',
+    port: 5176,
+    strictPort: true,
+    hmr: { host: '127.0.0.1', port: 5173, protocol: 'ws' },
+    proxy: {
+      '/data': [Object],
+      '/api': [Object],
+      '/api/sentiment': [Object],
+      '/sentiment': [Object]
+    },
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      allow: [Array],
+      deny: [Array],
+      cachedChecks: undefined
+    }
+  },
+  preview: {
+    port: 5173,
+    strictPort: true,
+    host: '127.0.0.1',
+    allowedHosts: undefined,
+    https: undefined,
+    open: undefined,
+    proxy: {
+      '/data': [Object],
+      '/api': [Object],
+      '/api/sentiment': [Object],
+      '/sentiment': [Object]
+    },
+    cors: undefined,
+    headers: undefined
+  },
+  optimizeDeps: {
+    holdUntilCrawlEnd: true,
+    force: undefined,
+    esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' },
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ]
+  },
+  esbuild: { jsxDev: true, jsx: 'automatic', jsxImportSource: undefined },
+  resolve: {
+    mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+    conditions: [],
+    extensions: [
+      '.mjs',  '.js',
+      '.mts',  '.ts',
+      '.jsx',  '.tsx',
+      '.json'
+    ],
+    dedupe: [ 'react', 'react-dom' ],
+    preserveSymlinks: false,
+    alias: [ [Object], [Object] ]
+  },
+  configFile: '/Users/cdmxx/Documents/moonwalkings/frontend/vite.config.js',
+  configFileDependencies: [ '/Users/cdmxx/Documents/moonwalkings/frontend/vite.config.js' ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    optimizeDeps: { force: undefined },
+    server: { host: '127.0.0.1', port: 5176 }
+  },
+  root: '/Users/cdmxx/Documents/moonwalkings/frontend',
+  base: '/',
+  decodedBase: '/',
+  rawBase: '/',
+  publicDir: '/Users/cdmxx/Documents/moonwalkings/frontend/public',
+  cacheDir: '/Users/cdmxx/Documents/moonwalkings/frontend/node_modules/.vite',
+  command: 'serve',
+  mode: 'development',
+  ssr: {
+    target: 'node',
+    optimizeDeps: { noDiscovery: true, esbuildOptions: [Object] }
+  },
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: false,
+  css: { lightningcss: undefined },
+  envDir: '/Users/cdmxx/Documents/moonwalkings/frontend',
+  env: {
+    VITE_SENTIMENT_API_BASE: 'http://127.0.0.1:8001',
+    VITE_PORT: '5173',
+    VITE_API_URL: 'relative',
+    VITE_WS_URL: 'http://127.0.0.1:5001',
+    VITE_DISABLE_WS: '0',
+    VITE_ENABLE_WS: '1',
+    VITE_DISABLE_LOCAL_PROBE: '1',
+    VITE_USE_SNAPSHOTS: '1',
+    VITE_API_BASE: 'http://127.0.0.1:5001',
+    VITE_POLL_MS: '10000',
+    VITE_ALERTS_ENABLED: 'false',
+    BASE_URL: '/',
+    MODE: 'development',
+    DEV: true,
+    PROD: false
+  },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(1) {
+    'fnpd_/Users/cdmxx/Documents/moonwalkings/frontend' => {
+      dir: '/Users/cdmxx/Documents/moonwalkings/frontend',
+      data: [Object],
+      hasSideEffects: [Function: hasSideEffects],
+      webResolvedImports: {},
+      nodeResolvedImports: {},
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  createResolver: [Function: createResolver],
+  worker: { format: 'iife', plugins: '() => plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: { importGlobRestoreExtension: false, hmrPartialAccept: false },
+  webSocketToken: 'v562sxBzhLsC',
+  additionalAllowedHosts: [ '127.0.0.1', '127.0.0.1', '127.0.0.1' ],
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: getSortedPluginHooks]
+}
+WebSocket server error: Port is already in use
+2025-12-13T09:55:38.395Z vite:deps Hash is consistent. Skipping. Use --force to override.
+error when starting dev server:
+Error: Port 5176 is already in use
+    at Server.onError (file:///Users/cdmxx/Documents/moonwalkings/frontend/node_modules/.pnpm/vite@5.4.21_@types+node@24.10.1/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:45596:18)
+    at Server.emit (node:events:518:28)
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+ ELIFECYCLE  Command failed with exit code 1.

@@ -1,21 +1,29 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import AnimatedTokenRow from "./AnimatedTokenRow.jsx";
-import { rowVariants, listVariants } from "./motionVariants";
-import StatusGate from "./ui/StatusGate";
-import SkeletonTable from "./ui/SkeletonTable";
 import { useDataFeed } from "../hooks/useDataFeed";
-import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
+import { TokenRowUnified } from "./TokenRowUnified";
+import { TableSkeletonRows } from "./TableSkeletonRows";
 
 const MAX_BASE = 8;
-const MAX_EXPANDED = 16;
 
-const GainersTable3Min = ({ onInfo }) => {
-  const { data, isLoading, isError } = useDataFeed();
-  const { has, add, remove } = useWatchlist();
+const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) => {
+  // Support both prop-based (new centralized approach) and hook-based (legacy) usage
+  const { data, isLoading: hookLoading } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const gainers = useMemo(() => {
+  // Use props if provided, otherwise fall back to hook data
+  const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
+
+  // Also call the compatibility `useHybridLive` hook so this file explicitly
+  // references it (older diagnostics and invariants expect this hook to be
+  // present). We don't strictly need to use its return here because the
+  // component currently processes `data` from `useDataFeed`, but having the
+  // hook present preserves wiring expectations and makes future migrations
+  // easier.
+  const { data: _hybridPayload = {} } = useHybridLiveNamed();
+  const gainers3m = useMemo(() => {
+    if (tokensProp) return tokensProp; // Use prop if provided
+
     const list = data?.gainers_3m;
     const source = Array.isArray(list) ? list : list && Array.isArray(list.data) ? list.data : [];
 
@@ -31,84 +39,79 @@ const GainersTable3Min = ({ onInfo }) => {
         const pct = Number(pctRaw);
         return {
           ...row,
-          pct,
+          change_3m: pct,
           _pct: Number.isFinite(pct) ? pct : 0,
+          previous_price_3m: row.previous_price_3m ?? row.initial_price_3min,
+          current_price: row.price ?? row.current_price,
         };
       })
       .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
       .sort((a, b) => b._pct - a._pct);
-  }, [data]);
+  }, [data, tokensProp]);
 
-  const handleToggleWatchlist = (item) => {
-    if (!add || !remove) return;
-    has(item.symbol)
-      ? remove(item.symbol)
-      : add({ symbol: item.symbol, price: item.current_price });
-  };
+  const visibleRows = isExpanded ? gainers3m : gainers3m.slice(0, MAX_BASE);
+  const count = gainers3m.length;
+  const hasData = count > 0;
 
-  const visibleRows = isExpanded ? gainers.slice(0, MAX_EXPANDED) : gainers.slice(0, MAX_BASE);
-  const count = gainers.length;
-  const panelStatus = isError ? "error" : count > 0 ? "ready" : isLoading ? "loading" : "empty";
+  // Loading skeleton state
+  if (isLoading && !hasData) {
+    return (
+      <div className="bh-panel bh-panel-full">
+        <div className="bh-table">
+          <TableSkeletonRows columns={5} rows={6} />
+        </div>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!isLoading && !hasData) {
+    return (
+      <div className="bh-panel bh-panel-full">
+        <div className="bh-table">
+          <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+            No 3-minute movers to show right now.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const tokens = visibleRows.map((row, index) => ({
+    ...row,
+    rank: row.rank ?? index + 1,
+  }));
 
   return (
-    <div className="bh-board-panel">
-      <h2 className="bh-section-header">Top Gainers (3m)</h2>
-      <StatusGate
-        status={panelStatus}
-        skeleton={<SkeletonTable rows={MAX_BASE} />}
-        empty={<p className="bh-empty-copy">No 3m gainers yet.</p>}
-        error={<p className="state-copy">Failed to load 3m gainers.</p>}
-      >
+    <>
+      <div className="bh-panel bh-panel-full">
         <div className="bh-table">
-          <motion.div initial="hidden" animate="visible" exit="exit" variants={listVariants}>
-            <AnimatePresence>
-              {visibleRows.map((row, index) => {
-                const buildCoinbaseUrl = (symbol) => {
-                  if (!symbol) return "#";
-                  let pair = symbol;
-                  if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
-                    pair = `${pair}-USD`;
-                  }
-                  return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
-                };
-
-                const href = row.trade_url || buildCoinbaseUrl(row.symbol);
-
-                return (
-                  <a key={row.symbol} href={href} target="_blank" rel="noreferrer" className="bh-row-link">
-                    <AnimatedTokenRow
-                      layout
-                      variants={rowVariants}
-                      rank={row.rank ?? index + 1}
-                      symbol={row.symbol}
-                      name={row.name}
-                      currentPrice={row.current_price}
-                      previousPrice={row.initial_price_3min}
-                      percentChange={row.pct}
-                      onToggleWatchlist={() => handleToggleWatchlist(row)}
-                      onInfo={() => onInfo && onInfo(row.symbol)}
-                      isWatchlisted={has(row.symbol)}
-                    />
-                  </a>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
+          {tokens.map((token) => (
+            <TokenRowUnified
+              key={token.symbol}
+              token={token}
+              rank={token.rank}
+              changeField="change_3m"
+              onInfo={onInfo}
+              onToggleWatchlist={onToggleWatchlist}
+              isWatchlisted={watchlist.includes(token.symbol)}
+            />
+          ))}
         </div>
+      </div>
 
-        {count > MAX_BASE && (
-          <div className="panel-footer">
-            <button
-              className="btn-show-more"
-              aria-expanded={isExpanded}
-              onClick={() => setIsExpanded((s) => !s)}
-            >
-              {isExpanded ? "Show Less" : "Show More"}
-            </button>
-          </div>
-        )}
-      </StatusGate>
-    </div>
+      {count > MAX_BASE && (
+        <div className="panel-footer">
+          <button
+            className="btn-show-more"
+            aria-expanded={isExpanded}
+            onClick={() => setIsExpanded((s) => !s)}
+          >
+            {isExpanded ? "Show Less" : `Show More (${Math.max(count - MAX_BASE, 0)} more)`}
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 

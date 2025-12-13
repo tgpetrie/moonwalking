@@ -6,10 +6,10 @@
 :root {
   /* Core colors */
   --bh-bg: #050308;
-  --bh-gain: #ffb347; /* gold for gainers */
-  --bh-loss: #c084fc; /* purple for losers */
+  --bh-gain: #ffb347;
+  --bh-loss: #c084fc;
   --bh-price: #7ff0ff;
-  --bh-price-teal: #7ff0ff; /* teal used for current price */
+  --bh-price-teal: #7ff0ff;
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
@@ -158,6 +158,21 @@ body {
   margin-top: 8px;
 }
 
+.panel-row {
+  width: 100%;
+  margin-top: var(--bh-panel-gap);
+}
+
+.panel-row--3m {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--bh-panel-gap);
+}
+
+.bh-panel-half {
+  width: 100%;
+}
+
 /* Two equal panels side by side */
 .bh-board-row-halves {
   display: grid;
@@ -176,31 +191,28 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.18;
+  --bh-bunny-opacity: 0.12;
 }
 
 .bh-bunny-layer {
-  position: fixed; /* stay in the same spot while scrolling */
-  top: 260px; /* visually sit behind the 1m/3m tables — tweak as needed */
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute;
+  inset: 120px 0 140px 0;
   display: flex;
   justify-content: center;
   pointer-events: none;
   opacity: var(--bh-bunny-opacity);
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8)) saturate(1.08) brightness(1.02);
+  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
   animation: bh-bunny-breathe 6s ease-in-out infinite;
   z-index: 0;
 }
 
 .bh-bunny-layer img {
-  width: 840px; /* larger rabbit */
-  max-width: 80%;
-  opacity: 0.26; /* more visible rabbit art */
-  transform: scale(1.02);
+  width: 520px;
+  max-width: 60%;
+  opacity: 0.08; /* subtle visibility */
+  transform: scale(0.9);
   will-change: transform, opacity;
-  transition: filter 240ms ease, opacity 240ms ease;
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -264,19 +276,6 @@ body {
     90deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(181, 108, 255, 0.9) 40%,
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
-/* Gainers header should be gold */
-.bh-section-header--gainers {
-  color: var(--bh-gain);
-}
-.bh-section-header--gainers::after {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 179, 71, 0.95) 40%,
     rgba(255, 255, 255, 0) 100%
   );
 }
@@ -362,7 +361,27 @@ body {
   flex-direction: column;
   /* remove gaps so the row rail appears continuous between stacked rows */
   row-gap: 0;
-  /* ensure rows visually stack without accidental gaps */
+}
+
+/* 1m movers grid: two columns of stacked rows (default) */
+.bh-1m-grid {
+  display: grid;
+  gap: 2.5rem;
+  width: 100%;
+}
+
+.bh-1m-grid--two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bh-1m-grid--single-col {
+  grid-template-columns: 1fr;
+}
+
+.bh-1m-col {
+  display: flex;
+  flex-direction: column;
+  /* ensure rows inside a column stack without gaps */
   gap: 0;
 }
 
@@ -370,28 +389,25 @@ body {
   position: relative;
   display: grid;
   grid-template-columns:
-    36px              /* rank (larger for clarity) */
-    minmax(0, 2fr)    /* symbol/name */
+    32px              /* rank */
+    minmax(0, 1.6fr)  /* symbol/name */
     minmax(0, 1.2fr)  /* price block */
-    minmax(0, 1.2fr)  /* % change */
-    48px;             /* actions */
+    minmax(0, 1.1fr)  /* % change */
+    40px;             /* actions */
   align-items: center;
-  padding: 12px 0;   /* increased vertical padding for more spacing */
-  min-height: 56px;  /* larger rows to improve visual hierarchy */
-  margin: 0; /* prevent accidental gaps between rows */
+  padding: 6px 0;
+  min-height: 28px;
   cursor: pointer;
   background: transparent;
   overflow: hidden;
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
-  will-change: transform;
-  /* gentle breathe animation to add life without being distracting */
-  animation: bh-row-breathe 9s ease-in-out infinite;
 }
 
-/* Stagger breathe animation for liveliness */
-.bh-table .bh-row:nth-child(3n) { animation-delay: 0.25s; }
-.bh-table .bh-row:nth-child(3n+1) { animation-delay: 0.45s; }
-.bh-table .bh-row:nth-child(3n+2) { animation-delay: 0.65s; }
+/* "tight" density used for 1m single-column (1–4 items) */
+.bh-row--tight {
+  padding: 4px 0;
+  min-height: 24px;
+}
 
 /* Row rail (bottom gradient line) */
 .bh-row::after {
@@ -404,11 +420,11 @@ body {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.25) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  /* keep the rail visible but subtle so rows read as a continuous list */
-  opacity: 0.7;
+  /* stronger rail so gaps are less visible */
+  opacity: 0.65;
   pointer-events: none;
   transition: opacity 140ms ease-out;
   z-index: 0;
@@ -430,38 +446,21 @@ body {
   min-width: 0;
 }
 
-/* Ensure each cell has consistent horizontal padding so rows look uniform */
-.bh-row > .bh-cell {
-  padding: 0 12px;
-}
-
 /* Hover glow layer for transparent rows */
 .bh-row-hover-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0; /* default hidden */
-  transition: opacity 180ms cubic-bezier(.2,.9,.2,1), transform 180ms cubic-bezier(.2,.9,.2,1);
-  /* more translucent colour but with broader spread for perceived strength */
+  opacity: 0;
+  transition: opacity 140ms ease-out, transform 140ms ease-out;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 179, 71, 0.22) 0%,
-    rgba(255, 179, 71, 0.06) 40%,
-    rgba(255, 179, 71, 0.02) 60%,
-    transparent 85%
-  );
-  transform: scale(0.99);
-  z-index: 0;
-}
-
-/* Gainer / Loser specific hover glows */
-.bh-row--gain .bh-row-hover-glow {
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 179, 71, 0.26) 0%,
-    rgba(255, 179, 71, 0.06) 40%,
+    rgba(255, 165, 0, 0.32) 0%,
+    rgba(255, 165, 0, 0.08) 38%,
     transparent 70%
   );
+  transform: scale(0.98);
+  z-index: 0;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
@@ -475,22 +474,16 @@ body {
 .bh-row.is-loss .bh-row-hover-glow {
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 108, 255, 0.26) 0%,
-    rgba(181, 108, 255, 0.06) 40%,
-    rgba(181, 108, 255, 0.02) 60%,
-    transparent 85%
+    rgba(181, 108, 255, 0.32) 0%,
+    rgba(181, 108, 255, 0.08) 38%,
+    transparent 70%
   );
 }
 
-  @keyframes bh-row-breathe {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-1px) scale(1.002); }
-  }
-
 .bh-row:hover .bh-row-hover-glow,
 .bh-row:focus-visible .bh-row-hover-glow {
-  opacity: 0.85; /* stronger when hovered but still translucent */
-  transform: scale(1.02);
+  opacity: 1;
+  transform: scale(1.0);
 }
 
 /* Row cell alignment */
@@ -540,42 +533,28 @@ body {
   line-height: 1;
 }
 
-/* Rank color overrides for gain/loss rows */
-.bh-row--gain .bh-rank,
-.bh-row.is-gain .bh-rank {
-  border-color: var(--bh-gain);
-  color: var(--bh-gain);
-}
-.bh-row--loss .bh-rank,
-.bh-row.is-loss .bh-rank {
-  border-color: var(--bh-loss);
-  color: var(--bh-loss);
-}
-
 .bh-symbol {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
   letter-spacing: 0.02rem;
   color: #ffffff;
   text-transform: uppercase;
 }
 
 .bh-name {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--bh-muted);
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .bh-price-current {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   align-items: center;
-  /* emphasize current price with teal color */
-  color: var(--bh-price-teal);
-  padding: 12px 0;
-  min-height: 44px;
+  /* tighten vertical spacing to match table-like density */
+  padding: 6px 0;
+  min-height: 28px;
 }
-
 .bh-price-previous {
   font-size: 10px;
   line-height: 1.1;
@@ -599,11 +578,13 @@ body {
 }
 
 /* Actions column: stacked icons */
-.bh-row-actions {
+.bh-row-actions,
+.row-actions--stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
 }
 
 .bh-row-action {
@@ -674,29 +655,51 @@ body {
 .bh-banner-wrap {
   width: 100%;
   overflow: hidden;
-  /* fade edges so scrolling chips mask smoothly */
-  mask-image: linear-gradient(
-    to right,
-    rgba(0,0,0,0) 0%,
-    rgba(0,0,0,1) 6%,
-    rgba(0,0,0,1) 94%,
-    rgba(0,0,0,0) 100%
-  );
+  /* subtle left/right fade for the banner track */
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,1) 8%, rgba(0,0,0,1) 92%, transparent 100%);
 }
 
 .bh-banner-track {
   display: flex;
-  gap: 20px;
+  gap: 1.75rem;
   align-items: center;
   white-space: nowrap;
-  /* faster loop and seamless restart (items are doubled in component) */
-  animation: continuous-scroll 60s linear infinite;
+  will-change: transform;
+  animation: bh-scroll 28s linear infinite;
 }
 
-@keyframes continuous-scroll {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-100%); }
+.bh-banner-item {
+  display: inline-flex;
+  gap: 0.65rem;
+  align-items: baseline;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
 }
+
+.bh-banner-symbol {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #f5f2ff;
+}
+
+.bh-banner-change {
+  font-weight: 600;
+}
+
+.bh-banner-change--pos {
+  color: var(--bh-gain);
+}
+
+.bh-banner-change--neg {
+  color: var(--bh-loss);
+}
+
+@keyframes bh-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 .bh-banner-chip {
   display: inline-flex;
   align-items: center;
@@ -991,6 +994,10 @@ body {
       minmax(0, 0.8fr)
       36px;
     font-size: 0.85rem;
+  }
+
+  .bh-1m-grid--two-col {
+    grid-template-columns: 1fr;
   }
 }
 

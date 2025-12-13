@@ -1,16 +1,23 @@
-// frontend/src/api.js — single, boring HTTP helper that stays on /data
-const BASE = (import.meta.env?.VITE_API_BASE || "").replace(/\/+$/, "");
+// frontend/src/api.js — single source of truth for backend base + fetch helpers
+// Non-negotiable: no port scanning, no multi-port fallback, no /data.
+// Read ONLY from VITE_API_BASE_URL with a safe default.
+export const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || "http://127.0.0.1:5002").replace(/\/+$/, "");
 const API_BASE = "/api";
 const normalizePath = (path) => {
   if (!path) return "";
   return path.startsWith("/") ? path : `/${path}`;
 };
-const withBase = (path) => `${BASE}${normalizePath(path)}`;
+const withBase = (pathOrUrl) => {
+  if (!pathOrUrl) return API_BASE_URL;
+  // If caller passes a full URL, leave it intact.
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  return `${API_BASE_URL}${normalizePath(pathOrUrl)}`;
+};
 
 export const API_ENDPOINTS = {
-  data: "/data",
+  data: "/api/data",
   apiData: "/api/data",
-  metrics: "/data", // alias used by some hooks
+  metrics: "/api/data", // alias used by some hooks
   sentimentBasic: `${API_BASE}/sentiment-basic`,
   sentiment: (symbol) => `${API_BASE}/sentiment?symbol=${encodeURIComponent(symbol || "")}`,
   gainersTable1Min: `${API_BASE}/component/gainers-table-1min`,
@@ -42,17 +49,20 @@ export async function fetchJson(path, init = {}) {
 }
 
 export async function fetchAllData() {
-  return fetchJson("/data");
+  // Always fetch the canonical endpoint.
+  return fetchJson(`${API_BASE_URL}/api/data`);
 }
 
 // Legacy alias; keep for compatibility if referenced
 export async function fetchAllDataApi() {
-  return fetchJson("/api/data");
+  return fetchJson(`${API_BASE_URL}/api/data`);
 }
 
 // Generic helper kept for components that still call fetchData(path)
-export async function fetchData(path = "/data", opts = {}) {
-  return fetchJson(path, opts);
+export async function fetchData(path = API_ENDPOINTS.data, opts = {}) {
+  // Default to canonical data endpoint; still supports calling other /api/* endpoints.
+  const p = path || API_ENDPOINTS.data;
+  return fetchJson(p, opts);
 }
 
 // ---- Watchlist helpers (localStorage-backed) ---------------------------

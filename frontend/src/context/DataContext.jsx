@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
+import { API_BASE_URL } from "../api";
 
 const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
@@ -31,7 +32,7 @@ export function DataProvider({ children, pollMs = 5000 }) {
     try {
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
-      const res = await fetch("/data", { signal: abortRef.current.signal });
+      const res = await fetch(`${API_BASE_URL}/api/data`, { signal: abortRef.current.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
 

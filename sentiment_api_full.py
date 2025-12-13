@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Moonwalking Sentiment API - Complete Working Version
 Real data collection from multiple sources with tier-based analysis

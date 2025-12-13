@@ -1,12 +1,8 @@
 import { useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import AnimatedTokenRow from "./AnimatedTokenRow.jsx";
-import { rowVariants, listVariants } from "./motionVariants";
-import StatusGate from "./ui/StatusGate";
-import SkeletonTable from "./ui/SkeletonTable";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { tickerFromSymbol } from "../utils/format";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { TokenRowUnified } from "./TokenRowUnified";
 
 function deltaPct(baseline, current) {
   const base = Number(baseline);
@@ -27,9 +23,10 @@ const pickPrice = (source = {}) => {
   );
 };
 
-export default function WatchlistPanel({ onInfo }) {
-  const { items, remove } = useWatchlist();
-  const { data, isLoading } = useDataFeed();
+export default function WatchlistPanel() {
+  // useWatchlist wraps useContext(WatchlistContext) to keep panel in sync with starred items.
+  const { items, toggle: toggleWatchlist } = useWatchlist();
+  const { data } = useDataFeed();
   const payload = data?.data ?? data ?? {};
 
   const liveBySymbol = useMemo(() => {
@@ -41,12 +38,7 @@ export default function WatchlistPanel({ onInfo }) {
     return merged;
   }, [payload]);
 
-  const handleToggleWatchlist = (symbol) => {
-    if (!remove) return;
-    remove(symbol);
-  };
-
-  const rows = useMemo(() => {
+  const watchlistTokens = useMemo(() => {
     if (!items.length) return [];
 
     return items.map((entry, index) => {
@@ -60,57 +52,36 @@ export default function WatchlistPanel({ onInfo }) {
         key: `${canonSymbol}-${index}`,
         rank: index + 1,
         symbol: canonSymbol,
-        currentPrice: livePrice,
-        previousPrice: baseline,
-        percentChange: pct ?? 0,
+        current_price: livePrice,
+        previous_price: baseline,
+        change_1m: pct ?? 0,
       };
     });
   }, [items, liveBySymbol]);
 
-  const panelStatus = rows.length > 0 ? "ready" : isLoading ? "loading" : "empty";
+  if (!items.length) {
+    return null;
+  }
+
+  const handleToggleWatchlist = (symbol) => {
+    if (!symbol) return;
+    toggleWatchlist({ symbol });
+  };
 
   return (
-    <StatusGate
-      status={panelStatus}
-      skeleton={<SkeletonTable rows={3} />}
-      empty={<p className="bh-watchlist-empty">Star a token in the tables above to pin it here.</p>}
-    >
+    <div className="bh-panel bh-panel-full">
       <div className="bh-table">
-        <motion.div initial="hidden" animate="visible" exit="exit" variants={listVariants}>
-          <AnimatePresence>
-            {rows.map((row) => {
-              const buildCoinbaseUrl = (symbol) => {
-                if (!symbol) return "#";
-                let pair = symbol;
-                if (!/-USD$|-USDT$|-PERP$/i.test(pair)) {
-                  pair = `${pair}-USD`;
-                }
-                return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
-              };
-
-              const href = row.trade_url || buildCoinbaseUrl(row.symbol);
-
-              return (
-                <a key={row.key} href={href} target="_blank" rel="noreferrer" className="bh-row-link">
-                  <AnimatedTokenRow
-                    layout
-                    variants={rowVariants}
-                    rank={row.rank}
-                    symbol={row.symbol}
-                    name={null}
-                    currentPrice={row.currentPrice}
-                    previousPrice={row.previousPrice}
-                    percentChange={row.percentChange}
-                    onToggleWatchlist={() => handleToggleWatchlist(row.symbol)}
-                    onInfo={() => onInfo && onInfo(row.symbol)}
-                    isWatchlisted={true}
-                  />
-                </a>
-              );
-            })}
-          </AnimatePresence>
-        </motion.div>
+        {watchlistTokens.map((token, index) => (
+          <TokenRowUnified
+            key={token.key ?? `${token.symbol}-${index}`}
+            token={token}
+            rank={token.rank ?? index + 1}
+            changeField="change_1m"
+            onToggleWatchlist={handleToggleWatchlist}
+            isWatchlisted
+          />
+        ))}
       </div>
-    </StatusGate>
+    </div>
   );
 }

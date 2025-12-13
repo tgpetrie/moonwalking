@@ -1,76 +1,104 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useDataFeed } from "../hooks/useDataFeed";
 
-export default function VolumeBannerScroll() {
+const formatVolume = (val) => {
+  const n = Number(val ?? 0);
+  if (!Number.isFinite(n)) return "0";
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toFixed(0);
+};
+
+const formatPct = (val) => {
+  const n = Number(val ?? 0);
+  if (!Number.isFinite(n)) return "0.00%";
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+};
+
+const normalizeSymbol = (value) => {
+  if (!value) return "";
+  return value.replace(/-USD$|-USDT$|-PERP$/i, "").toUpperCase();
+};
+
+export function VolumeBannerScroll({ tokens: tokensProp }) {
   const { data } = useDataFeed();
 
-  const rows = useMemo(() => {
-    if (!data) return [];
-    const payload = data?.data ?? data ?? {};
+  const rawItems = useMemo(() => {
+    const list = tokensProp?.length ? tokensProp : data?.banner_1h_volume || data?.banner_volume_1h || [];
+    if (Array.isArray(list)) return list;
+    if (list && Array.isArray(list.data)) return list.data;
+    return [];
+  }, [tokensProp, data]);
 
-    const raw = Array.isArray(payload.banner_volume_1h)
-      ? payload.banner_volume_1h
-      : Array.isArray(payload.volume_1h?.data)
-      ? payload.volume_1h.data
-      : Array.isArray(payload.volume_1h_top)
-      ? payload.volume_1h_top
-      : Array.isArray(payload.volume_1h_tokens)
-      ? payload.volume_1h_tokens
-      : [];
+  const normalized = useMemo(() => {
+    return rawItems
+      .map((t) => {
+        const symbol = normalizeSymbol(t?.symbol || t?.ticker);
+        const volNow = t?.volume_1h_now ?? t?.volume_24h ?? t?.volume_1h ?? 0;
+        const changePct =
+          t?.volume_change_1h_pct ??
+          t?.change_1h_volume ??
+          t?.volume_1h_pct ??
+          t?.volume_change_pct ??
+          0;
+        const pctNum = Number(changePct ?? 0);
 
-    return raw;
-  }, [data]);
+        return {
+          ...t,
+          symbol,
+          volume_1h_now: Number.isFinite(Number(volNow)) ? volNow : 0,
+          volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
+        };
+      })
+      .filter((t) => t.symbol && t.volume_change_1h_pct !== 0)
+      .sort((a, b) => b.volume_change_1h_pct - a.volume_change_1h_pct)
+      .slice(0, 24);
+  }, [rawItems]);
 
-  const items = useMemo(() => {
-    const base = Array.isArray(rows) ? rows : [];
-    if (!base.length) return [];
+  const display = normalized.length ? normalized : [];
+  const looped = display.length ? [...display, ...display] : [];
 
-    const sorted = [...base].sort((a, b) => {
-      const av = a?.volume_change_abs ?? a?.volume_change ?? 0;
-      const bv = b?.volume_change_abs ?? b?.volume_change ?? 0;
-      return bv - av;
-    });
-    const sliced = sorted.slice(0, 30);
-    return [...sliced, ...sliced];
-  }, [rows]);
-
-  if (!items.length) {
+  if (!looped.length) {
     return (
-      <div className="bh-banner-wrap bh-banner-wrap--volume">
-        <p className="bh-banner-empty">No 1h volume activity yet.</p>
+      <div className="bh-banner bh-banner--bottom">
+        <div className="bh-banner-wrap">
+          <div className="bh-banner-track">
+            <span className="bh-banner-empty">No 1h volume activity yet.</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bh-banner-wrap bh-banner-wrap--volume">
-      <div className="bh-banner-track">
-        {items.map((row, idx) => (
-          <a
-            key={`${row.symbol || "item"}-${idx}`}
-            className="bh-banner-chip"
-            href={`https://www.coinbase.com/price/${(row.symbol || "").toLowerCase()}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className="bh-banner-symbol">{row.symbol}</span>
-            <span className="bh-banner-price">
-              {row.current_price != null ? `$${row.current_price}` : "-"}
-            </span>
-            <span
-              className={
-                (row.change_1h_volume ?? row.volume_change ?? 0) >= 0
-                  ? "bh-banner-pct bh-banner-pct--gain"
-                  : "bh-banner-pct bh-banner-pct--loss"
-              }
-            >
-              {row.change_1h_volume != null
-                ? `${row.change_1h_volume.toFixed?.(2) ?? row.change_1h_volume}%`
-                : `${row.volume_change?.toFixed?.(2) ?? row.volume_change ?? 0}%`}
-            </span>
-          </a>
-        ))}
+    <div className="bh-banner bh-banner--bottom">
+      <div className="bh-banner-wrap">
+        <div className="bh-banner-track">
+          {looped.map((t, idx) => {
+            const isPos = (t.volume_change_1h_pct ?? 0) >= 0;
+            const pair = t.symbol ? `${t.symbol}-USD` : "";
+            return (
+              <a
+                key={`${t.symbol}-${idx}`}
+                className="bh-banner-item"
+                href={t.symbol ? `https://www.coinbase.com/advanced-trade/spot/${pair}` : "#"}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="bh-banner-symbol">{t.symbol || "--"}</span>
+                <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
+                <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>
+                  {formatPct(t.volume_change_1h_pct)}
+                </span>
+              </a>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
+
+export default VolumeBannerScroll;

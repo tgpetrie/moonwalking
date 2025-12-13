@@ -1,19 +1,20 @@
 import React from "react";
-import TokenRow from "./TokenRow.jsx";
+import TokenRow from "../components/TokenRow.jsx";
 
 function SkeletonRow({ index }) {
   return (
-    <tr className="table-row">
-      <td className="bh-token-rank">{index + 1}</td>
-      <td className="bh-token-symbol">---</td>
-      <td className="bh-token-price">--.--</td>
-      <td className="bh-token-change">---%</td>
-      <td>
+    <div className="bh-row skeleton" aria-hidden="true">
+      <div className="bh-row-hover-glow" />
+      <div className="bh-cell bh-cell-rank">{index + 1}</div>
+      <div className="bh-cell bh-cell-symbol">---</div>
+      <div className="bh-cell bh-cell-price">--.--</div>
+      <div className="bh-cell bh-cell-change">---%</div>
+      <div className="bh-cell bh-cell-actions">
         <button type="button" className="bh-star" disabled>
           ★
         </button>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
@@ -25,13 +26,15 @@ export default function ThreeMinuteGainers({ title = "3 MIN GAINERS", rows = [],
   return (
     <div>
       <p className="bh-section-heading">{title}</p>
-      <table className="w-full border-collapse text-[12px] font-mono leading-5">
-        <tbody>
-          {dataToRender.map((item, idx) =>
-            item._sk ? <SkeletonRow key={idx} index={idx} /> : <TokenRow key={item.symbol || idx} index={idx} item={item} changeKey="price_change_percentage_3min" onInfo={onInfo} />
-          )}
-        </tbody>
-      </table>
+      <div className="bh-table">
+        {dataToRender.map((item, idx) =>
+          item._sk ? (
+            <SkeletonRow key={idx} index={idx} />
+          ) : (
+            <TokenRow key={item.symbol || idx} index={idx} item={item} changeKey="price_change_percentage_3min" onInfo={onInfo} />
+          )
+        )}
+      </div>
     </div>
   );
 }

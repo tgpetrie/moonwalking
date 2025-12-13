@@ -1,9 +1,9 @@
 import useSWR from "swr";
-import { fetchAllData } from "../api";
+import { API_BASE_URL, fetchAllData } from "../api";
 
 export function useDataFeed() {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    "/data",
+    `${API_BASE_URL}/api/data`,
     fetchAllData,
     {
       refreshInterval: 15000,

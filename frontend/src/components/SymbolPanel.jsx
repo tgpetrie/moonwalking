@@ -54,7 +54,8 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
 
   const cbUrl = useMemo(() => {
     // Coinbase Advanced Trade spot page (common pattern)
-    return `https://www.coinbase.com/advanced-trade/${sym.toLowerCase()}-usd`;
+    const pair = `${sym.toLowerCase()}-usd`;
+    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
   }, [sym]);
 
   return (

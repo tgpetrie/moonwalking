@@ -3,21 +3,31 @@
 # Script to start the backend server for BHABIT CB4 frontend
 
 echo "🚀 Starting BHABIT CB4 Backend Server..."
-echo "📍 Looking for backend server..."
+# Resolve script directory so this script can be run from any cwd
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "📍 Looking for backend server (script dir: $SCRIPT_DIR)"
 
-# Check if backend exists in parent directory
-if [ -f "../backend/app.py" ]; then
-    echo "✅ Found backend in ../backend/"
-    cd ../backend
-    if [ -x "../.venv/bin/python" ]; then
+# Check common candidate locations relative to the script directory
+if [ -f "$SCRIPT_DIR/../backend/app.py" ]; then
+    echo "✅ Found backend in $SCRIPT_DIR/../backend/"
+    cd "$SCRIPT_DIR/../backend"
+    # Prefer a venv located inside the backend folder, then try the repo-root venv,
+    # otherwise fall back to the system python.
+    if [ -x "./.venv/bin/python" ]; then
+        ./.venv/bin/python app.py
+    elif [ -x "../.venv/bin/python" ]; then
         ../.venv/bin/python app.py
     else
         python app.py
     fi
-elif [ -f "../../backend/app.py" ]; then
-    echo "✅ Found backend in ../../backend/"
-    cd ../../backend
-    if [ -x "../../.venv/bin/python" ]; then
+elif [ -f "$SCRIPT_DIR/../../backend/app.py" ]; then
+    echo "✅ Found backend in $SCRIPT_DIR/../../backend/"
+    cd "$SCRIPT_DIR/../../backend"
+    # Prefer a venv located inside the backend folder, then try the repo-root venv,
+    # otherwise fall back to the system python.
+    if [ -x "./.venv/bin/python" ]; then
+        ./.venv/bin/python app.py
+    elif [ -x "../../.venv/bin/python" ]; then
         ../../.venv/bin/python app.py
     else
         python app.py
