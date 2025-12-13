@@ -8,11 +8,27 @@ const formatPrice = (val) => {
   return `$${n.toFixed(4)}`;
 };
 
-const formatPct = (val) => {
+/**
+ * Classify percentage into tri-state: positive, negative, or flat.
+ * Returns both display string and class name for styling.
+ */
+const classifyPct = (val) => {
   const n = Number(val ?? 0);
-  if (!Number.isFinite(n)) return "0.00%";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  if (!Number.isFinite(n)) {
+    return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
+  }
+
+  const rounded = parseFloat(n.toFixed(2));
+
+  if (rounded === 0) {
+    return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
+  }
+
+  if (rounded > 0) {
+    return { display: `+${rounded.toFixed(2)}%`, state: "positive", className: "bh-banner-change--pos" };
+  }
+
+  return { display: `${rounded.toFixed(2)}%`, state: "negative", className: "bh-banner-change--neg" };
 };
 
 const normalizeSymbol = (value) => {
@@ -61,7 +77,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
           price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
         };
       })
-      .filter((t) => t.symbol && t.price_change_1h_pct !== 0)
+      .filter((t) => t.symbol)
       .sort((a, b) => b.price_change_1h_pct - a.price_change_1h_pct)
       .slice(0, 24);
   }, [rawItems]);
@@ -86,7 +102,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
       <div className="bh-banner-wrap">
         <div className="bh-banner-track">
           {looped.map((t, idx) => {
-            const isPos = (t.price_change_1h_pct ?? 0) >= 0;
+            const pctInfo = classifyPct(t.price_change_1h_pct ?? 0);
             const pair = t.symbol ? `${t.symbol}-USD` : "";
             return (
               <a
@@ -98,8 +114,8 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
               >
                 <span className="bh-banner-symbol">{t.symbol || "--"}</span>
                 <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
-                <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>
-                  {formatPct(t.price_change_1h_pct)}
+                <span className={`bh-banner-change ${pctInfo.className}`}>
+                  {pctInfo.display}
                 </span>
               </a>
             );
