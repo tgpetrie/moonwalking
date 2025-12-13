@@ -46,19 +46,7 @@ body {
 
 /* Typography Classes */
 .font-headline {
-  font-family: 'Raleway', sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.font-body,
-.font-mono {
-  font-family: 'Raleway', sans-serif;
-}
-
-/* Legend / Raleway font */
-.font-raleway {
-  font-family: 'Raleway', sans-serif;
+  font-family: 'Raleway', sans-serif;  
 }
 
 
@@ -69,14 +57,14 @@ body {
     transform: translateY(20px); 
   }
   100% { 
-    opacity: 1; 
-    transform: translateY(0); 
+    opacity: 1;                                                          
+    transform: t   ranslate    Y(0); rrfg                                                                                                    evcd
   }
 }
-
+                               y
 @keyframes breathing {
   0%, 100% { 
-    transform: scale(1); 
+    transform: scale(1);                                                         eee                                     bt
     opacity: 1; 
   }
   50% { 
@@ -412,7 +400,7 @@ body, html {
 .token-row.table-row {
   display: grid;
   grid-template-columns:
-    auto              /* rank */
+    32px              /* rank */
     minmax(0, 1.6fr)  /* symbol */
     minmax(0, 1.3fr)  /* current price */
     minmax(0, 1.2fr)  /* previous price or extra detail */
@@ -434,6 +422,9 @@ body, html {
   font-size: 0.7rem;
   font-weight: 500;
   opacity: 0.95;
+  min-width: 32px;
+  max-width: 32px;
+  width: 32px;
 }
 
 .tr-col-symbol {
