@@ -276,6 +276,8 @@ body {
   filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
   animation: bh-bunny-breathe 6s ease-in-out infinite;
   z-index: 0;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 70%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 70%);
 }
 
 .bh-bunny-layer img {
