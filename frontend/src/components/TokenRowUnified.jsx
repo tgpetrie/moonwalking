@@ -23,6 +23,29 @@ function formatPrice(value) {
  * - 3m losers
  * - Watchlist
  */
+/**
+ * Classify percentage change into tri-state: positive, negative, or flat.
+ * Flat if rounded to 0.00%.
+ */
+function classifyPct(rawValue) {
+  if (!Number.isFinite(rawValue)) {
+    return { state: "flat", display: "0.00%", sign: "" };
+  }
+
+  const num = Number(rawValue);
+  const rounded = parseFloat(num.toFixed(2));
+
+  if (rounded === 0) {
+    return { state: "flat", display: "0.00%", sign: "" };
+  }
+
+  if (rounded > 0) {
+    return { state: "positive", display: `+${rounded.toFixed(2)}%`, sign: "+" };
+  }
+
+  return { state: "negative", display: `${rounded.toFixed(2)}%`, sign: "" };
+}
+
 export function TokenRowUnified({
   token,
   rank,
@@ -35,8 +58,7 @@ export function TokenRowUnified({
 }) {
   const rawChange = token?.[changeField];
   const change = Number.isFinite(rawChange) ? rawChange : 0;
-  const isPositive = change >= 0;
-  const strongMove = Math.abs(change) >= 0.5;
+  const pctInfo = classifyPct(change);
 
   const currentPrice = token?.current_price;
   const prevPrice =
@@ -44,8 +66,9 @@ export function TokenRowUnified({
 
   const changeClass = [
     "bh-change",
-    isPositive ? "bh-change-pos" : "bh-change-neg",
-    strongMove ? "bh-change-strong" : "",
+    pctInfo.state === "positive" ? "bh-change-pos" : "",
+    pctInfo.state === "negative" ? "bh-change-neg" : "",
+    pctInfo.state === "flat" ? "bh-change-flat" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -55,7 +78,7 @@ export function TokenRowUnified({
   const rowClass = [
     "bh-row",
     density === "tight" ? "bh-row--tight" : "",
-    !isPositive ? "bh-row--loss" : "",
+    pctInfo.state === "negative" ? "bh-row--loss" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -81,7 +104,7 @@ export function TokenRowUnified({
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change">
-        <span className={changeClass}>{change.toFixed(3)}%</span>
+        <span className={changeClass}>{pctInfo.display}</span>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}
