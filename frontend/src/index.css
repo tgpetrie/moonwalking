@@ -495,8 +495,9 @@ body {
     rgba(255, 255, 255, 0) 100%
   );
   /* whisper opacity — minimal but visible on hover */
-  opacity: 0.10;
+  opacity: 0.08;
   pointer-events: none;
+  filter: blur(0px);
   transition: opacity 140ms ease-out, filter 140ms ease-out;
   z-index: 0;
 }
