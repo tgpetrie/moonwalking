@@ -216,6 +216,23 @@ body {
   background-repeat: no-repeat;
   background-position: center;
   will-change: transform, opacity;
+  /* Vignette mask: strongest at center, fades to transparent at edges */
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0.8) 65%,
+    rgba(0, 0, 0, 0.2) 85%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0.8) 65%,
+    rgba(0, 0, 0, 0.2) 85%,
+    transparent 100%
+  );
 }
 
 .rabbit-highlight {
