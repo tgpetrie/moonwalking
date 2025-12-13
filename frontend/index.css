@@ -498,7 +498,7 @@ tr.table-row::before,
   bottom: -3px;
   width: 58%;
   height: 2px;
-  opacity: 0.18;
+  opacity: 0.10;
   pointer-events: none;
   filter: blur(4px);
   mask-image: linear-gradient(
