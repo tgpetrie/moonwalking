@@ -187,6 +187,60 @@ body {
   gap: 8px;
 }
 
+/* ===== BOARD WRAPPER & RABBIT LAYER (fixed background) ===== */
+
+.board-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.rabbit-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rabbit-base {
+  width: 520px;
+  max-width: 60vw;
+  opacity: var(--bh-bunny-opacity, 0.12);
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
+  animation: bh-bunny-breathe 6s ease-in-out infinite;
+  background-image: url("/rabbit-bg.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  will-change: transform, opacity;
+}
+
+.rabbit-highlight {
+  position: fixed;
+  left: 50%;
+  width: 800px;
+  height: 300px;
+  top: calc(var(--rabbit-highlight-y, 50%) - 150px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(255, 200, 120, 0.15) 0%,
+    rgba(255, 200, 120, 0.05) 35%,
+    transparent 70%
+  );
+  z-index: 1;
+}
+
+.rabbit-highlight--active {
+  opacity: 0.8;
+}
+
 /* ===== BUNNY LAYER (background art) ===== */
 
 :root {
