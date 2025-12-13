@@ -636,6 +636,13 @@ body {
   color: rgba(192, 132, 252, 0.95);
 }
 
+/* Context-aware rank colors: flat rows muted */
+.bh-row--flat .bh-rank,
+.bh-row.is-flat .bh-rank {
+  border-color: rgba(255, 255, 255, 0.32);
+  color: var(--bh-muted);
+}
+
 .bh-symbol {
   font-size: 0.9rem;
   font-weight: 600;
