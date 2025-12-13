@@ -643,6 +643,25 @@ body {
   color: var(--bh-muted);
 }
 
+/* Context-aware rank colors for table rows */
+tr.table-row.is-gain .tr-col-rank,
+.token-row.table-row.is-gain .tr-col-rank,
+tr.table-row.is-gain .bh-token-rank {
+  color: var(--bh-gain);
+}
+
+tr.table-row.is-loss .tr-col-rank,
+.token-row.table-row.is-loss .tr-col-rank,
+tr.table-row.is-loss .bh-token-rank {
+  color: var(--bh-loss);
+}
+
+tr.table-row.is-flat .tr-col-rank,
+.token-row.table-row.is-flat .tr-col-rank,
+tr.table-row.is-flat .bh-token-rank {
+  color: var(--bh-muted);
+}
+
 .bh-symbol {
   font-size: 0.9rem;
   font-weight: 600;
