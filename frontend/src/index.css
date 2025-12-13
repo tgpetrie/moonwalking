@@ -262,7 +262,8 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.12;
+  --bh-bunny-opacity: 0.08;
+  --bh-bunny-opacity-hover: 0.16;
 }
 
 .bh-bunny-layer {
@@ -273,11 +274,10 @@ body {
   pointer-events: none;
   opacity: var(--bh-bunny-opacity);
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
+  filter: saturate(1.05) contrast(1.05);
   animation: bh-bunny-breathe 6s ease-in-out infinite;
   z-index: 0;
-  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 70%);
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 30%, transparent 70%);
+  transition: opacity 220ms ease-out, filter 220ms ease-out, transform 220ms ease-out;
 }
 
 .bh-bunny-layer img {
@@ -286,6 +286,16 @@ body {
   opacity: 0.08; /* subtle visibility */
   transform: scale(0.9);
   will-change: transform, opacity;
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.bh-app:has(.bh-row:hover) .bh-bunny-layer {
+  opacity: var(--bh-bunny-opacity-hover);
+  filter: saturate(1.12) contrast(1.12);
+}
+
+.bh-app:has(.bh-row:hover) .bh-bunny-layer img {
+  opacity: 0.11;
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -538,6 +548,7 @@ body {
   inset: 0;
   pointer-events: none;
   opacity: 0;
+  mix-blend-mode: screen;
   transition: opacity 140ms ease-out, transform 140ms ease-out;
   background: radial-gradient(
     circle at 50% 50%,
