@@ -114,7 +114,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     <TokenRowUnified
                       key={token.symbol ?? `${token.base}-${offset + index}`}
                       token={token}
-                      rank={token.rank ?? offset + index + 1}
+                      rank={offset + index + 1}
                       changeField="change_1m"
                       onInfo={onInfo}
                       onToggleWatchlist={onToggleWatchlist}
@@ -130,7 +130,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       <TokenRowUnified
                         key={token.symbol ?? `${token.base}-r${offset + index}`}
                         token={token}
-                        rank={token.rank ?? offset + MAX_ROWS_PER_COLUMN + index + 1}
+                        rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
                         changeField="change_1m"
                         onInfo={onInfo}
                         onToggleWatchlist={onToggleWatchlist}

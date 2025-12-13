@@ -77,20 +77,15 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
     );
   }
 
-  const tokens = visibleRows.map((row, index) => ({
-    ...row,
-    rank: row.rank ?? index + 1,
-  }));
-
   return (
     <>
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
-          {tokens.map((token) => (
+          {visibleRows.map((token, index) => (
             <TokenRowUnified
               key={token.symbol}
               token={token}
-              rank={token.rank}
+              rank={index + 1}
               changeField="change_3m"
               onInfo={onInfo}
               onToggleWatchlist={onToggleWatchlist}

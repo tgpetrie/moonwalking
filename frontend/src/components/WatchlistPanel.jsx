@@ -75,7 +75,7 @@ export default function WatchlistPanel() {
           <TokenRowUnified
             key={token.key ?? `${token.symbol}-${index}`}
             token={token}
-            rank={token.rank ?? index + 1}
+            rank={index + 1}
             changeField="change_1m"
             onToggleWatchlist={handleToggleWatchlist}
             isWatchlisted

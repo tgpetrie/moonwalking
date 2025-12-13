@@ -134,9 +134,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         <div className="bh-table">
           {visible.map((tokenProps, idx) => (
             <TokenRowUnified
-              key={tokenProps.symbol ?? `${tokenProps.rank ?? idx}`}
+              key={tokenProps.symbol ?? `${idx}`}
               token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
-              rank={tokenProps.rank ?? idx + 1}
+              rank={idx + 1}
               changeField="change_3m"
               onInfo={() => handleInfo(tokenProps.symbol)}
               onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}

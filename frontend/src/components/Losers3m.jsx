@@ -134,7 +134,7 @@ export default function Losers3m({
             <TokenRowUnified
               key={row.symbol ?? idx}
               token={row}
-              rank={row.rank ?? idx + 1}
+              rank={idx + 1}
               changeField="change_3m"
               onInfo={handleInfo}
               onToggleWatchlist={() => handleToggleStar(row.symbol, row.current_price ?? row.price)}

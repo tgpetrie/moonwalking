@@ -24,7 +24,7 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
             {left.map((row, idx) => (
               <TokenRow
                 key={row.symbol || idx}
-                rank={row.rank ?? idx + 1}
+                rank={idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.currentPrice ?? row.current_price}
                 previousPrice={row.previousPrice ?? row.previous_price}
@@ -40,7 +40,7 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
             {right.map((row, idx) => (
               <TokenRow
                 key={row.symbol || `r-${idx}`}
-                rank={row.rank ?? left.length + idx + 1}
+                rank={left.length + idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.currentPrice ?? row.current_price}
                 previousPrice={row.previousPrice ?? row.previous_price}
