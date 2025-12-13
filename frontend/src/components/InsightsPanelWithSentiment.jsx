@@ -157,7 +157,7 @@ export default function InsightsPanelWithSentiment({ symbol, onClose }) {
             ) : (
               <>
                 {/* ENHANCED: Add header with sentiment trigger button */}
-                <div className="insights-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+                <div className="insights-row" style={{ paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
                   <div className="insights-label" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
                     Market Sentiment
                   </div>
