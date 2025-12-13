@@ -262,8 +262,8 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.08;
-  --bh-bunny-opacity-hover: 0.16;
+  --bh-bunny-opacity: 0.12;
+  --bh-bunny-opacity-hover: 0.18;
 }
 
 .bh-bunny-layer {
@@ -296,6 +296,18 @@ body {
 
 .bh-app:has(.bh-row:hover) .bh-bunny-layer img {
   opacity: 0.11;
+}
+
+.bh-main:hover .bh-bunny-layer {
+  opacity: var(--bh-bunny-opacity-hover);
+  filter: saturate(1.15) contrast(1.05);
+}
+
+@supports(selector(:has(*))) {
+  .bh-main:has(.bh-row:hover) .bh-bunny-layer {
+    opacity: var(--bh-bunny-opacity-hover);
+    filter: saturate(1.15) contrast(1.05);
+  }
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -552,8 +564,8 @@ body {
   transition: opacity 140ms ease-out, transform 140ms ease-out;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 181, 67, 0.32) 0%,
-    rgba(255, 181, 67, 0.08) 38%,
+    rgba(255, 181, 67, 0.38) 0%,
+    rgba(255, 181, 67, 0.10) 38%,
     transparent 70%
   );
   transform: scale(0.98);
