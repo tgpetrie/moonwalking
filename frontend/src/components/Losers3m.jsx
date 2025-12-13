@@ -51,7 +51,6 @@ export default function Losers3m({
 
         return {
           ...row,
-          rank: row.rank ?? nr.rank ?? idx + 1,
           symbol: row.symbol ?? nr.symbol,
           current_price: row.price ?? row.current_price ?? nr.currentPrice,
           previous_price_3m:

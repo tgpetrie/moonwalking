@@ -22,8 +22,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   const mapped = useMemo(() => {
     if (tokensProp) {
       // Use prop tokens - they should already be normalized
-      return tokensProp.map((row, idx) => ({
-        rank: row.rank ?? idx + 1,
+      return tokensProp.map((row) => ({
         symbol: row.symbol,
         current_price: row.price ?? row.current_price,
         previous_price: row.initial_price_3min ?? row.previous_price ?? null,
@@ -35,10 +34,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
 
     // Fall back to hook data
     const raw = Array.isArray(payload?.data) ? payload.data : [];
-    return raw.map((row, idx) => {
+    return raw.map((row) => {
       const nr = normalizeTableRow(row);
       return {
-        rank: nr.rank ?? row.rank ?? idx + 1,
         symbol: nr.symbol ?? row.symbol,
         current_price: nr.currentPrice ?? row.current_price,
         previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
