@@ -545,6 +545,13 @@ body {
   line-height: 1;
 }
 
+/* Context-aware rank colors: losers show violet/purple */
+.bh-row--loss .bh-rank,
+.bh-row.is-loss .bh-rank {
+  border-color: rgba(192, 132, 252, 0.85);
+  color: rgba(192, 132, 252, 0.95);
+}
+
 .bh-symbol {
   font-size: 0.9rem;
   font-weight: 600;
