@@ -498,11 +498,17 @@ body {
   transform: scale(1.0);
 }
 
-/* Row cell alignment */
+/* Row cell alignment — rank column locked width (no padding/margin shifts) */
 .bh-cell-rank {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .bh-cell-symbol {
@@ -529,10 +535,14 @@ body {
   justify-content: center;
 }
 
-/* Row cell typography */
+/* Row cell typography — rank badge locked size (no resize) */
 .bh-rank {
   width: 22px;
   height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  max-width: 22px;
+  max-height: 22px;
   border-radius: 999px;
   border: 1px solid rgba(255, 184, 77, 0.85);
   color: rgba(255, 184, 77, 0.95);
@@ -543,6 +553,8 @@ body {
   justify-content: center;
   box-sizing: border-box;
   line-height: 1;
+  flex-shrink: 0;
+  padding: 0;
 }
 
 /* Context-aware rank colors: losers show violet/purple */
