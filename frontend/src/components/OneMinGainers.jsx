@@ -1,5 +1,6 @@
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
+import { baselineOrNull } from "../utils/num.js";
 
 export default function OneMinGainers({ rows = [], loading = false, error = null, onInfo }) {
   const top = Array.isArray(rows) ? rows.slice(0, 8) : [];
@@ -27,7 +28,7 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
                 rank={idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.currentPrice ?? row.current_price}
-                previousPrice={row.previousPrice ?? row.previous_price}
+                previousPrice={baselineOrNull(row.previousPrice ?? row.previous_price ?? null)}
                 priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
                 priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
                 isGainer={true}
@@ -43,7 +44,7 @@ export default function OneMinGainers({ rows = [], loading = false, error = null
                 rank={left.length + idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.currentPrice ?? row.current_price}
-                previousPrice={row.previousPrice ?? row.previous_price}
+                previousPrice={baselineOrNull(row.previousPrice ?? row.previous_price ?? null)}
                 priceChange1min={row.priceChange1min ?? row.price_change_percentage_1min}
                 priceChange3min={row.priceChange3min ?? row.price_change_percentage_3min}
                 isGainer={true}

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
+import { baselineOrNull } from "../utils/num.js";
 
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -21,24 +22,22 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
       : [];
 
     return source
-      .map((row) => ({
-        ...row,
-        change_1m:
-          row.change_1m ??
-          row.price_change_percentage_1min ??
-          row.pct_change ??
-          row.pct ??
-          row.changePct ??
-          0,
-        previous_price_1m:
-          row.previous_price_1m ??
-          row.price_1m_ago ??
-          row.previous_price ??
-          row.prev_price ??
-          row.initial_price_1min ??
-          null,
-        current_price: row.price ?? row.current_price ?? row.current,
-      }))
+      .map((row) => {
+        const baselineOrNullPrev = baselineOrNull(row.previous_price_1m ?? row.price_1m_ago ?? row.previous_price ?? row.prev_price ?? row.initial_price_1min ?? null);
+
+        return {
+          ...row,
+          change_1m:
+            row.change_1m ??
+            row.price_change_percentage_1min ??
+            row.pct_change ??
+            row.pct ??
+            row.changePct ??
+            0,
+          previous_price_1m: baselineOrNullPrev,
+          current_price: row.price ?? row.current_price ?? row.current,
+        };
+      })
       .filter((r) => Number(r.change_1m) > 0)
       .sort((a, b) => Number(b.change_1m) - Number(a.change_1m));
   }, [data, tokensProp]);

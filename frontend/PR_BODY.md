@@ -16,35 +16,45 @@ Why
 - Keep the legacy rules in the repo for quick reference without loading them in the app.
 - Unify styles so hover behavior (glow) is consistent across panels.
 
-How to test locally
-1. Start backend (if not running):
+# PR: Stability tranche (baselines + banner sorting + endpoint-drift gates)
+
+Stability
+- Backend rows now run through `_null_if_nonpositive` before slicing so any `previous_price`, `initial_price_*`, or `price_*_ago` that isn’t `> 0` becomes `null`, and the core slices (`banner_1h_price`, `banner_1h_volume`, `gainers_1m`, `gainers_3m`, `losers_3m`) are emitted via the aggregate endpoint **`/data`**.
+- The 1h price/volume banner builders compute percent deltas via `_safe_float`, drop anything that isn’t a finite non-zero float, and sort using `_sort_rows_by_numeric` so “top mover” strips are deterministic and `None`-safe.
+- Frontend rendering now shares a single sanitizer (`frontend/src/utils/num.js`) and applies it in row/cell renderers so baselines consistently map `null → "—"` and never feed percent math with zeros.
+- Gates hardened against endpoint drift:
+  - Gate A: `scripts/verify_no_zero_baselines.sh` auto-detects the correct aggregate endpoint.
+  - Gate B: `backend/test_baselines_unittest.py` supports `BASELINE_PATH` and auto-selects a JSON endpoint with rows when unset.
+
+Data contract
+ - Baseline fields (`previous_price`, `initial_price_*`, `price_*_ago`) must be either a positive float or `null`.
+ - `0` is treated as “missing” and must not be emitted by the backend nor used in percent math on the frontend.
+ - Banner percent fields must be a finite non-zero float, otherwise the row is omitted from the banner slice.
+
+Tests
+- `python3 -m py_compile backend/app.py`
+- `PYTHONPATH=. backend/.venv/bin/python -m unittest -q backend.test_baselines_unittest` (or `BASELINE_PATH=/data ...` when needed)
+- `npm --prefix frontend run build`
+
+One-liner Debug
+```bash
+curl -sS -m 15 http://127.0.0.1:5001/data \
+  | jq '{fatal:(.errors.fatal // null), coverage:(.coverage // {}), b1p:((.banner_1h_price // [])|length), b1v:((.banner_1h_volume // [])|length)}'
+```
+
+Next Steps (real host, Coinbase reachable)
+1. Start backend and confirm the actual port in logs (this workspace commonly uses **`:5001`**).
+2. Verify aggregate returns and no fatal errors:
    ```bash
-   # backend
-   cd backend
-   # run your python server as you normally do (e.g., `python app.py`)
+   curl -sS -m 15 http://127.0.0.1:5001/data | jq -r '.errors.fatal'
+   curl -sS -m 15 http://127.0.0.1:5001/data | jq '{banner_1h_price: (.banner_1h_price|length), banner_1h_volume: (.banner_1h_volume|length), gainers_1m: (.gainers_1m|length), gainers_3m: (.gainers_3m|length), losers_3m: (.losers_3m|length)}'
    ```
-2. Start frontend dev server (keep terminal open):
+3. Run gates (use **`/data`** as canonical; `/api/data` is legacy/optional and may be absent in this workspace):
    ```bash
-   VITE_PORT=5173 BACKEND_PORT=5001 npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
-   # if Vite auto-selects another port, open the exact Local URL it prints (e.g., http://127.0.0.1:5174/)
+   bash scripts/verify_no_zero_baselines.sh http://127.0.0.1:5001/data
+   BASELINE_PATH=/data PYTHONPATH=. backend/.venv/bin/python -m unittest -q backend.test_baselines_unittest
    ```
-3. Verify visually:
-   - Hover rows in 1-min and 3-min panels (gain & loss): you should see the long, soft glow (.row-hover-glow) under the row.
-   - No diamond/foot-shaped glow should appear.
-   - Watchlist should load without `useWebSocket` provider errors.
 
-Automated checks to run
-- Frontend build:
-  ```bash
-  npm --prefix frontend run build
-  ```
-- Lint for legacy selectors:
-  ```bash
-  npm --prefix frontend run lint:css:legacy
-  ```
-
-Rollback / recovery
-- Legacy rules are preserved in `frontend/src/legacy-hover.css` and this branch — you can re-introduce them quickly if needed. Git history also preserves previous states.
-
+Suggested commit title
+- `fix(stability): guard baselines and banner sorting`
 Notes
-- The `lint:css:legacy` script currently greps the `src` folder. We can add this step to CI to fail PRs that reintroduce the legacy class.

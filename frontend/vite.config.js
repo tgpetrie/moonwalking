@@ -2,59 +2,48 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 
-const backendPort = process.env.BACKEND_PORT || '5002'
+const target = process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5001'
 const vitePort = Number(process.env.VITE_PORT || 5173)
 
 export default defineConfig({
-    plugins: [
-        react(),
-        visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, template: 'treemap', emitFile: true })
-    ],
-    build: {
-        outDir: 'dist',
-        sourcemap: true,
-        rollupOptions: {
-            output: {
-                // Commented out manualChunks entries that pointed to legacy or moved files
-                // so Rollup/Vite doesn't fail trying to resolve them. If you prefer
-                // to keep manualChunks, re-add the entries but ensure the paths exist
-                // under ./src or adjust to the new locations.
-                manualChunks: {
-                    react: ['react','react-dom'],
-                    // tables: ['./src/components/GainersTable.jsx','./src/components/LosersTable.jsx','./src/components/GainersTable1Min.jsx'],
-                    // banners: ['./src/components/TopBannerScroll.jsx','./src/components/BottomBannerScroll.jsx'],
-                    // watchlist: ['./src/components/Watchlist.jsx','./src/components/WatchlistInsightsPanel.jsx']
-                }
-            }
+  plugins: [
+    react(),
+    visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, template: 'treemap', emitFile: true })
+  ],
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react','react-dom'],
         }
+      }
+    }
+  },
+  server: {
+    host: '127.0.0.1',
+    port: vitePort,
+    strictPort: true,
+    hmr: {
+      host: '127.0.0.1',
+      port: vitePort,
+      protocol: 'ws'
     },
-    server: {
-        host: '127.0.0.1',
-        port: vitePort,
-        strictPort: true,
-        hmr: {
-            host: '127.0.0.1',
-            port: vitePort,
-            protocol: 'ws'
-        },
-        proxy: {
-            '/api': {
-                target: `http://127.0.0.1:${backendPort}`,
-                changeOrigin: true,
-            },
-            '/api/sentiment': {
-                target: 'http://127.0.0.1:8001',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/sentiment/, '/sentiment'),
-            },
-            // Sentiment API runs on a separate port (typically 8001).
-            // Proxy /sentiment through the dev server to avoid CORS and mixed-content.
-            '/sentiment': {
-                target: 'http://127.0.0.1:8001',
-                changeOrigin: true,
-                secure: false,
-            },
-        }
-    },
-    preview: { port: vitePort }
+    proxy: {
+      '/data': { target, changeOrigin: true },
+      '/api': { target, changeOrigin: true },
+      '/api/sentiment': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/sentiment/, '/sentiment'),
+      },
+      '/sentiment': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        secure: false,
+      },
+    }
+  },
+  preview: { port: vitePort }
 })

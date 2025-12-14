@@ -13,6 +13,7 @@ import time
 import threading
 from collections import defaultdict, deque
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime, timedelta, timezone
@@ -102,6 +103,181 @@ except ImportError:
     COINBASE_PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
 
 ERROR_NO_DATA = "No data available"
+
+# Cached Coinbase product ids (to verify a product exists before linking)
+PRODUCT_IDS = None
+PRODUCT_IDS_BY_BASE = None
+PRODUCT_IDS_TS = 0
+PRODUCT_IDS_TTL = 60 * 60  # 1 hour
+
+# Debugging helper for product id resolution
+DEBUG_PID = os.getenv("DEBUG_PRODUCT_ID", "").lower() in ("1", "true", "yes")
+
+def _pid_debug(msg: str):
+    if DEBUG_PID:
+        try:
+            print(msg, flush=True)
+        except Exception:
+            # best-effort debug printing; never raise
+            pass
+# Emit an immediate banner so we can confirm whether DEBUG_PID was picked up.
+try:
+    if DEBUG_PID:
+        print("DEBUG_PID=1", flush=True)
+    else:
+        print("DEBUG_PID=0", flush=True)
+except Exception:
+    pass
+
+
+def _load_product_ids(timeout=10):
+    """Load and cache Coinbase products and build a by-base index.
+
+    Returns a tuple `(pids_set, by_base_dict)` where `pids_set` is a set of
+    normalized product ids (e.g. 'BTC-USD') and `by_base_dict` maps a base
+    ticker (e.g. 'BTC') to a list of product ids for that base.
+    """
+    global PRODUCT_IDS, PRODUCT_IDS_BY_BASE, PRODUCT_IDS_TS
+    try:
+        now = time.time()
+        if PRODUCT_IDS and (now - PRODUCT_IDS_TS) < PRODUCT_IDS_TTL and PRODUCT_IDS_BY_BASE:
+            return PRODUCT_IDS, PRODUCT_IDS_BY_BASE
+
+        resp = requests.get(COINBASE_PRODUCTS_URL, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+
+        pids = set()
+        by_base = {}
+        for p in (data or []):
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("id")
+            if not pid or "-" not in pid:
+                continue
+            parts = pid.split("-", 1)
+            base = parts[0].strip().upper()
+            quote = parts[1].strip().upper()
+            pid_norm = f"{base}-{quote}"
+            pids.add(pid_norm)
+            by_base.setdefault(base, []).append(pid_norm)
+
+        PRODUCT_IDS = pids
+        PRODUCT_IDS_BY_BASE = by_base
+        PRODUCT_IDS_TS = now
+        return PRODUCT_IDS, PRODUCT_IDS_BY_BASE
+    except Exception:
+        return PRODUCT_IDS or set(), PRODUCT_IDS_BY_BASE or {}
+
+
+def _norm_base(x: str) -> str | None:
+    if not x:
+        return None
+    s = str(x).strip().upper()
+    # keep only safe ticker characters
+    s = s.replace(" ", "").replace("/", "").replace("_", "")
+    return s or None
+
+
+QUOTE_PREF = ("USD", "USDC", "USDT", "EUR", "GBP")
+
+
+def resolve_product_id_from_row(row) -> str | None:
+    """Resolve a product id for a given row or symbol using Coinbase products.
+
+    Accepts either a dict `row` or a string symbol. Returns a normalized
+    product id (e.g. 'BTC-USD') or None if no verified product exists.
+    """
+    pids, by_base = _load_product_ids()
+
+    # If caller passed a plain string, treat it as either product id or base
+    if isinstance(row, str):
+        s = str(row).strip().upper()
+        if "-" in s and s in pids:
+            return s
+        # try base fallback
+        base = _norm_base(s)
+        if not base:
+            _pid_debug(f"PID_MISS base={base!r} symbol={s!r} baseField={None!r} ticker={None!r} coinbase_symbol={None!r} options={[]}")
+            return None
+        options = by_base.get(base, [])
+        for q in QUOTE_PREF:
+            cand = f"{base}-{q}"
+            if cand in pids:
+                return cand
+        return sorted(options)[0] if options else None
+
+    # Otherwise expect a dict-like row
+    if not isinstance(row, dict):
+        _pid_debug(f"PID_MISS non-dict-row row={row!r}")
+        return None
+
+    # 1) preserve upstream explicit ids if valid
+    for k in ("product_id", "productId", "product", "id"):
+        pid = row.get(k)
+        if isinstance(pid, str) and pid.strip():
+            pidn = pid.strip().upper()
+            if pidn in pids:
+                return pidn
+
+    # 2) pick base from likely fields (prefer coinbase_symbol then ticker,
+    # and only accept `symbol` when it looks like a ticker)
+    _SYM_RE = re.compile(r'^[A-Z0-9]{2,10}$')
+    base = None
+    for k in ("base", "coinbase_symbol", "ticker", "asset", "symbol"):
+        val = row.get(k)
+        if val is None:
+            continue
+        cand = _norm_base(val)
+        if not cand:
+            continue
+        if k == "symbol" and not _SYM_RE.match(cand):
+            continue
+        base = cand
+        break
+    if not base:
+        _pid_debug(f"PID_MISS base=None symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={[]}")
+        return None
+
+    options = by_base.get(base, [])
+    if not options:
+        _pid_debug(f"PID_MISS base={base!r} symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={options[:5]}")
+        return None
+
+    for q in QUOTE_PREF:
+        cand = f"{base}-{q}"
+        if cand in pids:
+            return cand
+
+    return sorted(options)[0]
+
+
+def resolve_product_id(x) -> str | None:
+    """Compatibility wrapper: accept either string or row and resolve product id."""
+    return resolve_product_id_from_row(x)
+
+
+# --- Compatibility wrapper matching older naming used in ops scripts ---
+# Provide the exact symbols requested by the integration notes so callers
+# or tests expecting these names will continue to work. These simply wrap
+# the richer implementations above.
+PIDS = None
+PIDS_BY_BASE = None
+PIDS_TS = 0
+PRODUCT_IDS_TTL = PRODUCT_IDS_TTL if 'PRODUCT_IDS_TTL' in globals() else 3600
+
+def _load_products(timeout=10):
+    """Backward-compatible loader that returns (PIDS, PIDS_BY_BASE).
+
+    Internally delegates to the newer `_load_product_ids` implementation
+    to avoid duplicating fetch logic.
+    """
+    global PIDS, PIDS_BY_BASE, PIDS_TS
+    pids, by_base = _load_product_ids(timeout=timeout)
+    PIDS = pids
+    PIDS_BY_BASE = by_base
+    PIDS_TS = PRODUCT_IDS_TS if 'PRODUCT_IDS_TS' in globals() else time.time()
+    return PIDS, PIDS_BY_BASE
 
 
 def _null_if_nonpositive(x):
@@ -2951,6 +3127,29 @@ def data_aggregate():
                 price_f = float(price)
             except (TypeError, ValueError):
                 price_f = None
+            # Resolve product_id only if it is a verified Coinbase product.
+            # Prefer an explicit product_id from upstream payloads; otherwise
+            # attempt to resolve via `resolve_product_id` which checks the cached
+            # Coinbase product list. If no verified product exists, set to None
+            # to avoid guessing and producing broken links.
+            # Resolve a verified Coinbase product id just before emitting the
+            # payload. Use the canonical resolver which preserves upstream
+            # explicit ids and prefers quotes in QUOTE_PREF order.
+            try:
+                resolved = resolve_product_id_from_row(row)
+                row["product_id"] = resolved if resolved else None
+                if DEBUG_PID and not resolved:
+                    # Emit a concise trace showing which fields were present
+                    _pid_debug(
+                        f"PID_MISS_EMIT symbol={sym!r} base={row.get('base')!r} "
+                        f"coinbase_symbol={row.get('coinbase_symbol')!r} ticker={row.get('ticker')!r} "
+                        f"product_id_upstream={row.get('product_id')!r} options_sample={(PRODUCT_IDS_BY_BASE.get(_norm_base(row.get('base')) if row.get('base') else _norm_base(row.get('symbol')) ) or [])[:6]}"
+                    )
+            except Exception:
+                row["product_id"] = None
+                if DEBUG_PID:
+                    _pid_debug(f"PID_EXCEPTION_EMIT symbol={sym!r} row_keys={list(row.keys())}")
+
             latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
 
         payload = {
@@ -2973,6 +3172,47 @@ def data_aggregate():
             "losers_3m": len(losers_3m),
         }
         payload["coverage"] = coverage
+
+        # Emit per-item debug traces for any rows that will be returned without
+        # a verified `product_id`. This helps determine whether the missing id
+        # is due to a bad base/ticker field or because the asset truly isn't on
+        # Coinbase.
+        if DEBUG_PID:
+            try:
+                lists = [
+                    ("gainers_1m", gainers_1m),
+                    ("gainers_3m", gainers_3m),
+                    ("losers_3m", losers_3m),
+                    ("banner_1h_price", banner_1h_price),
+                    ("banner_1h_volume", banner_1h_volume),
+                ]
+                for name, lst in lists:
+                    for item in (lst or [])[:50]:
+                        try:
+                            if item.get("product_id") is None:
+                                _pid_debug(
+                                    f"PID_MISS payload={name} symbol={item.get('symbol')!r} base={item.get('base')!r} "
+                                    f"coinbase_symbol={item.get('coinbase_symbol')!r} ticker={item.get('ticker')!r} asset={item.get('asset')!r}"
+                                )
+                                # Also emit a full JSON snippet for deeper inspection (first 10 only)
+                                try:
+                                    seen = getattr(app, '_pid_miss_seen', 0)
+                                except Exception:
+                                    seen = 0
+                                if seen < 10:
+                                    try:
+                                        import json as _json
+                                        _pid_debug("PID_MISS_FULL " + _json.dumps(item, default=str)[:2000])
+                                    except Exception:
+                                        _pid_debug(f"PID_MISS_FULL_FAILED symbol={item.get('symbol')!r}")
+                                    try:
+                                        app._pid_miss_seen = seen + 1
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            continue
+            except Exception:
+                pass
 
         # Provide a simple top-level timestamp for compatibility with older jq tooling
         try:

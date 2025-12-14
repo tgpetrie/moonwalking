@@ -26,7 +26,7 @@ function InfoIcon({ className = "" }) {
 
 export default function RowActions({ starred, onToggleStar, onInfoClick }) {
   return (
-    <div className="bh-row-actions row-actions row-actions--stack">
+    <div className="bh-row-actions row-actions">
       <button
         type="button"
         className={`bh-row-action ${starred ? "is-active" : ""}`}

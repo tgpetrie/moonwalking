@@ -4,6 +4,7 @@ import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { baselineOrNull } from "../utils/num.js";
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
@@ -25,7 +26,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
       return tokensProp.map((row) => ({
         symbol: row.symbol,
         current_price: row.price ?? row.current_price,
-        previous_price: row.initial_price_3min ?? row.previous_price ?? null,
+        previous_price: baselineOrNull(row.initial_price_3min ?? row.previous_price ?? null),
         price_change_percentage_3min: row.changePct ?? row.price_change_percentage_3min ?? row.change_3m ?? null,
         isGainer: false, // PURPLE accent
         price: row.price ?? row.current_price,
@@ -39,7 +40,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
       return {
         symbol: nr.symbol ?? row.symbol,
         current_price: nr.currentPrice ?? row.current_price,
-        previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
+        previous_price: baselineOrNull(row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null),
         price_change_percentage_1min: undefined,
         price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
         isGainer: false, // PURPLE accent

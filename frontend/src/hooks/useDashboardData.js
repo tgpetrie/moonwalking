@@ -16,7 +16,7 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, isLoading, mutate, isValidating } = useSWR(`${API_BASE_URL}/api/data`, fetchAllData, {
+  const { data, error, isLoading, mutate, isValidating } = useSWR(`${API_BASE_URL}/data`, fetchAllData, {
     revalidateOnFocus: true,
     keepPreviousData: true,
     dedupingInterval: 10000,
@@ -25,6 +25,8 @@ export function useDashboardData() {
 
   const payload = data?.data || data || {};
   const errors = data?.errors || payload?.errors || {};
+  const coverage = data?.coverage || payload?.coverage || {};
+  const fatal = (errors && errors.fatal) ? errors.fatal : null;
 
   const g1 = Array.isArray(payload.gainers_1m) ? payload.gainers_1m : [];
   const g3 = Array.isArray(payload.gainers_3m) ? payload.gainers_3m : [];
@@ -56,6 +58,8 @@ export function useDashboardData() {
     bannerPrice1h,
     priceMap,
     errors,
+    coverage,
+    fatal,
     loading: isLoading,
     isLoading,
     isValidating,

@@ -3,7 +3,7 @@
 // Smart price formatting with flexible decimals
 export function formatPrice(n, opts = {}) {
   const { fallback = "—" } = opts;
-  const x = Number(n);
+  const x = typeof n === "string" ? Number(String(n).replace(/[$,]/g, "")) : Number(n);
   if (!Number.isFinite(x)) return fallback;
   const abs = Math.abs(x);
   const sign = x < 0 ? "-" : "";
@@ -28,13 +28,22 @@ export function formatPrice(n, opts = {}) {
       .replace(/\.$/, "")}`;
   }
 
-  // Tiny coins: just give enough precision
-  return `${sign}$${Number(abs).toPrecision(6)}`;
+  // Tiny coins: avoid scientific notation and keep meaningful digits
+  const decimals =
+    abs >= 0.001 ? 6 :
+    abs >= 0.0001 ? 7 :
+    abs >= 0.00001 ? 8 :
+    9;
+
+  return `${sign}$${abs
+    .toFixed(decimals)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "")}`;
 }
 
 // Percent formatter, optional sign
 export function formatPct(n, { sign = true, fallback = "—" } = {}) {
-  const x = Number(n);
+  const x = typeof n === "string" ? parseFloat(String(n).replace(/[%+]/g, "")) : Number(n);
   if (!Number.isFinite(x)) return fallback;
 
   // Backend already returns **percent values** (e.g., 2.53 === 2.53%).
@@ -43,10 +52,13 @@ export function formatPct(n, { sign = true, fallback = "—" } = {}) {
   const value = x;
   const abs = Math.abs(value);
 
-  // Canonical rules (see UI_HOME_DASHBOARD.md):
-  // - abs(change) < 1  → 3 decimals
-  // - abs(change) >= 1 → 2 decimals
-  const decimals = abs < 1 ? 3 : 2;
+  // More precision for micro-moves so we avoid +0.0% / -0.1% lies.
+  const decimals =
+    abs >= 10 ? 2 :
+    abs >= 1 ? 2 :
+    abs >= 0.1 ? 3 :
+    abs >= 0.01 ? 4 :
+    5;
 
   const base = value
     .toFixed(decimals)

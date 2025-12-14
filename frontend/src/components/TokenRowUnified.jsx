@@ -3,6 +3,7 @@ import React from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -82,8 +83,26 @@ export function TokenRowUnified({
     </>
   );
 
+  const url = coinbaseSpotUrl(token || {});
+  const open = () => {
+    if (!url) return;
+    if (window.getSelection?.().toString()) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const handleClick = (e) => {
+    if (e?.target?.closest && e.target.closest("a,button")) return;
+    open();
+  };
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      if (e?.target?.closest && e.target.closest("a,button")) return;
+      e.preventDefault();
+      open();
+    }
+  };
+
   return (
-    <RowTag className={rowClass}>
+    <RowTag className={`${rowClass} ${url ? "bh-row-clickable" : ""}`} role={url ? "link" : undefined} tabIndex={url ? 0 : undefined} onClick={handleClick} onKeyDown={onKeyDown} aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}>
       {renderAs !== "tr" && <div className="bh-row-hover-glow" />}
       {renderCells()}
     </RowTag>

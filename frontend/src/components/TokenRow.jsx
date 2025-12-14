@@ -1,99 +1,65 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import React from "react";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { useSentiment } from "../context/SentimentContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
-import { baselineOrNull } from "../utils/num.js";
-import { Star, Info } from "lucide-react";
+import { classForDelta } from "../theme/brandTokens.js";
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
-const TokenRow = forwardRef(function TokenRow(
-  {
-    rank,
-    symbol,
-    name,
-    currentPrice,
-    previousPrice,
-    percentChange,
-    onToggleWatchlist,
-    onInfo,
-    isWatchlisted,
-  },
-  ref
-) {
-  const numericChange =
-    percentChange == null
-      ? null
-      : typeof percentChange === "number"
-      ? percentChange
-      : parseFloat(String(percentChange).replace(/[%+]/g, ""));
-  const hasChange = typeof numericChange === "number" && !Number.isNaN(numericChange);
-  const isLoss = hasChange && numericChange < 0;
-  const isPositive = hasChange && numericChange >= 0;
-  const displaySymbol = tickerFromSymbol(symbol);
+// TokenRow: supports props row|token|item; strict <tr><td>… only
+export default function TokenRow({ row, token, item, index = 0, rank, changeKey } = {}) {
+  const data = row || token || item || {};
+  const idx = Number.isFinite(index) ? index : 0;
+  // Normalize symbol ("BTC-USD" -> "BTC")
+  const rawSymbol = data.symbol || data.ticker || "";
+  const symbol = rawSymbol && rawSymbol.includes("-") ? tickerFromSymbol(rawSymbol) : (rawSymbol || "—");
+  // Price fallback chain
+  const price = data.current_price ?? data.price ?? data.last_price ?? null;
+  // Percent change (explicit key first, then common fallbacks)
+  const pctRaw = changeKey
+    ? data?.[changeKey]
+    : (data.price_change_1m ?? data.price_change_percentage_3min ?? data.price_change_1h ?? data.changePercent ?? 0);
+  const pctNum = Number(pctRaw);
+  const pct = Number.isFinite(pctNum) ? pctNum : 0;
+  // Watchlist / sentiment
+  const { has, add, remove } = useWatchlist();
+  const { sentiment } = useSentiment() || {};
+  const starred = has(symbol);
+  function toggleStar() {
+    if (!symbol || symbol === "—") return;
+    if (starred) remove(symbol);
+    else add({ symbol, price });
+  }
 
-  // liveliness: flash row briefly when percentChange updates
-  const [justUpdated, setJustUpdated] = useState(false);
-  const prevPct = useRef(numericChange);
-  useEffect(() => {
-    if (prevPct.current !== numericChange) {
-      if (!Number.isNaN(numericChange)) {
-        setJustUpdated(true);
-        const t = setTimeout(() => setJustUpdated(false), 700);
-        return () => clearTimeout(t);
-      }
-      prevPct.current = numericChange;
-    }
-    prevPct.current = numericChange;
-  }, [numericChange]);
-
-  const rowClass = `bh-row ${isLoss ? "bh-row--loss is-loss" : ""} ${justUpdated ? "bh-row--updated" : ""}`;
-
-  const safePrevious = baselineOrNull(previousPrice);
+  const url = coinbaseSpotUrl(data || {});
+  // TEMP debug: show which rows have a coinbase URL (remove after verification)
+  // eslint-disable-next-line no-console
+  console.log("ROW_URL", symbol, data?.product_id ?? null, url);
+  const open = () => {
+    if (!url) return;
+    if (window.getSelection?.().toString()) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const handleClick = (e) => {
+    if (e?.target?.closest && e.target.closest("a,button")) return;
+    open();
+  };
 
   return (
-    <div ref={ref} className={rowClass}>
-      {/* hover glow layer */}
-      <div className="bh-row-hover-glow" aria-hidden="true" />
-
-      <div className="bh-cell bh-cell-rank">
-        <span className="bh-rank">{rank}</span>
-      </div>
-
-      <div className="bh-cell bh-cell-symbol">
-        <div className="bh-symbol">{displaySymbol}</div>
-        {name && <div className="bh-name">{name}</div>}
-      </div>
-
-      <div className="bh-cell bh-cell-price">
-        <div className="bh-price-current">{formatPrice(currentPrice)}</div>
-        <div className="bh-price-previous">{formatPrice(safePrevious)}</div>
-      </div>
-
-      <div className="bh-cell bh-cell-change">
-        <span className={"bh-change " + (isPositive ? "bh-change-pos" : "bh-change-neg")}>
-          {formatPct(hasChange ? numericChange : undefined)}
-        </span>
-      </div>
-
-      <div className="bh-cell bh-cell-actions">
-        <div className="bh-row-actions">
-          <button
-            type="button"
-            className={`bh-row-action ${isWatchlisted ? "is-active" : ""}`}
-            onClick={onToggleWatchlist}
-            aria-label={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
-          >
-            <Star className="bh-row-icon" size={14} strokeWidth={1.5} />
-          </button>
-          <button
-            type="button"
-            className="bh-row-action"
-            onClick={onInfo}
-            aria-label="Show token details"
-          >
-            <Info className="bh-row-icon" size={14} strokeWidth={1.5} />
-          </button>
-        </div>
-      </div>
-    </div>
+    <tr className={`table-row ${classForDelta(pct)} ${url ? 'bh-row-clickable' : ''}`} data-row="token" role={url ? 'link' : undefined} tabIndex={url ? 0 : undefined} onClick={handleClick} onKeyDown={(e)=>{ if(e.key==='Enter'||e.key===' ') { e.preventDefault(); handleClick(e); } }}>
+      <td className="bh-token-rank">{rank ?? idx + 1}</td>
+      <td className="bh-token-symbol">
+        {symbol}
+        {sentiment ? (
+          <span className="sentiment-dot" title={`FG ${sentiment?.fear_greed?.value ?? "?"}`} aria-label="Sentiment indicator" />
+        ) : null}
+      </td>
+      <td className="bh-token-price">{formatPrice(price)}</td>
+      <td className={pct >= 0 ? "bh-token-change bh-token-change-up" : "bh-token-change bh-token-change-down"}>{formatPct(pct)}</td>
+      <td className="bh-token-actions">
+        <button type="button" onClick={toggleStar} className={starred ? "bh-star active" : "bh-star"} aria-label={starred ? "Remove from watchlist" : "Add to watchlist"}>
+          ★
+        </button>
+      </td>
+    </tr>
   );
-});
-
-export default TokenRow;
+}

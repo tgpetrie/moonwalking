@@ -15,6 +15,18 @@
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
+  /* Token row geometry */
+  --bh-col-rank: 56px;
+  --bh-col-price: 140px;
+  --bh-col-pct: 96px;
+  --bh-col-actions: 72px;
+  --bh-row-px: 14px;
+  --bh-row-py: 12px;
+  --bh-row-gap: 14px;
+
+  /* Bunny layer */
+  --bh-bunny-opacity: 0.018;
+
   /* Board layout */
   --bh-board-width: 1200px;
   --bh-panel-gap: 24px;
@@ -112,6 +124,37 @@ body {
   color: #f5f3f0;
 }
 
+.bh-status-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.bh-status-pill--live {
+  color: var(--bh-gain);
+}
+
+.bh-status-pill--warming {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bh-status-pill--partial {
+  color: rgba(255, 184, 77, 0.95);
+}
+
+.bh-status-pill--degraded {
+  color: var(--bh-loss);
+}
+
+.bh-row-clickable {
+  cursor: pointer;
+}
+
 .bh-topbar-right {
   display: inline-flex;
   align-items: center;
@@ -143,7 +186,7 @@ body {
   gap: 1.2rem;
   width: 100%;
   position: relative;
-  z-index: 5;
+  z-index: 1;
 }
 
 /* ===== CANONICAL BOARD GRID ===== */
@@ -273,34 +316,27 @@ body {
 }
 
 /* ===== BUNNY LAYER (background art) ===== */
-
-:root {
-  --bh-bunny-opacity: 0.016;         /* very faint */
-  --bh-bunny-size: clamp(420px, 38vw, 680px);
-  --bh-bunny-x: 54%;
-  --bh-bunny-y: 58%;
-}
-
 .bh-bunny-layer{
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
 
-  opacity: var(--bh-bunny-opacity);
+  /* asset */
   background-image: url("/purple-rabbit-bg.png");
   background-repeat: no-repeat;
-  background-position: var(--bh-bunny-x) var(--bh-bunny-y);
-  background-size: var(--bh-bunny-size);
+  background-size: min(700px, 62vw);
+  background-position: 62% 52%;
 
+  /* nearly invisible at rest */
+  opacity: var(--bh-bunny-opacity);
+  filter: saturate(1.05) contrast(1.05);
+  transform: translateZ(0);
   mix-blend-mode: screen;
-  filter: saturate(0.85) contrast(1.05) brightness(0.55);
 
-  /* keep it from competing with text */
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 46%, rgba(0,0,0,0) 72%);
-  mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 46%, rgba(0,0,0,0) 72%);
-
-  transition: opacity 160ms ease-out, filter 160ms ease-out;
+  /* vignette so it never competes */
+  -webkit-mask-image: radial-gradient(ellipse 65% 55% at 55% 52%, black 15%, transparent 72%);
+  mask-image: radial-gradient(ellipse 65% 55% at 55% 52%, black 15%, transparent 72%);
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -476,19 +512,26 @@ body {
 .bh-row {
   position: relative;
   display: grid;
-  grid-template-columns:
-    32px              /* rank */
-    minmax(0, 1.6fr)  /* symbol/name */
-    minmax(0, 1.2fr)  /* price block */
-    minmax(0, 1.1fr)  /* % change */
-    40px;             /* actions */
   align-items: center;
-  padding: 6px 0;
-  min-height: 28px;
+  column-gap: var(--bh-row-gap);
+  padding: var(--bh-row-py) var(--bh-row-px);
+  grid-template-columns:
+    var(--bh-col-rank)
+    minmax(160px, 1fr)
+    var(--bh-col-price)
+    var(--bh-col-pct)
+    var(--bh-col-actions);
+  align-items: center;
+  min-height: 58px;
   cursor: pointer;
   background: transparent;
   overflow: hidden;
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+}
+
+/* If the row is an anchor, avoid default link styling */
+a.bh-row {
+  text-decoration: none;
 }
 
 /* "tight" density used for 1m single-column (1–4 items) */
@@ -501,8 +544,8 @@ body {
 .bh-row::after {
   content: "";
   position: absolute;
-  left: 84px;
-  right: 64px;
+  left: calc(var(--bh-row-px) + var(--bh-col-rank) + var(--bh-row-gap));
+  right: calc(var(--bh-row-px) + var(--bh-col-actions) + var(--bh-row-gap));
   bottom: 0;
   height: 1px;
   background: linear-gradient(
@@ -552,30 +595,38 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  grid-column: 1 / -1;
+  grid-row: 1;
 
   opacity: 0;
   mix-blend-mode: screen;
 
   /* subtle + thin: illuminate, don't fill */
   background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 181, 67, 0.10) 0%,
-    rgba(255, 181, 67, 0.045) 36%,
-    rgba(120, 255, 220, 0.028) 52%,
-    transparent 74%
+    circle at 52% 50%,
+    rgba(255, 181, 67, 0.22) 0%,
+    rgba(255, 181, 67, 0.06) 42%,
+    transparent 72%
   );
 
-  transform: scale(0.992);
-  transition: opacity 160ms ease-out, transform 160ms ease-out;
+  transform: scale(0.99);
+  transition: opacity 140ms ease-out, transform 140ms ease-out;
 
   z-index: 1;
 }
 
-/* Ensure main content sits above the bunny background */
-.bh-main {
+/* Everything except the glow stays above it */
+.bh-row > :not(.bh-row-hover-glow) {
   position: relative;
-  z-index: 5;
+  z-index: 2;
 }
+
+/* Explicit column placement (prevents drift if child order differs) */
+.bh-cell-rank { grid-column: 1; }
+.bh-cell-symbol { grid-column: 2; }
+.bh-cell-price { grid-column: 3; }
+.bh-cell-change { grid-column: 4; }
+.bh-cell-actions { grid-column: 5; }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
 .bh-row-link {
@@ -597,7 +648,7 @@ body {
 
 .bh-row:hover .bh-row-hover-glow,
 .bh-row:focus-visible .bh-row-hover-glow{
-  opacity: 0.22;
+  opacity: 0.20;
   transform: scale(1);
 }
 
@@ -610,9 +661,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  width: 32px;
-  min-width: 32px;
-  max-width: 32px;
+  width: var(--bh-col-rank);
+  min-width: var(--bh-col-rank);
+  max-width: var(--bh-col-rank);
   padding: 0;
   margin: 0;
   flex-shrink: 0;
@@ -642,22 +693,50 @@ body {
   justify-content: center;
 }
 
+/* Actions: FAR RIGHT, never wrap */
+.bh-cell-actions,
+.bh-row-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+/* Hard-force sane alignment: name left, numbers right */
+.bh-row :is(.bh-cell-symbol, .bh-token, .bh-token-name, .bh-symbol, .bh-name, .bh-symbol-name, .token-name, .symbol){
+  justify-self: start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bh-row :is(.bh-cell-price, .bh-price, .bh-token-price, .token-price, .price){
+  justify-self: end;
+  text-align: right;
+}
+
+.bh-row :is(.bh-cell-change, .bh-change, .bh-pct, .pct, .change){
+  justify-self: end;
+  text-align: right;
+}
+
 /* Row cell typography — rank badge locked size (no resize) */
 .bh-rank {
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  min-height: 22px;
-  max-width: 22px;
-  max-height: 22px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 184, 77, 0.85);
-  color: rgba(255, 184, 77, 0.95);
+  background: rgba(255, 181, 67, 0.18);
+  border: 1px solid rgba(255, 181, 67, 0.55);
+  color: rgba(255, 181, 67, 0.95);
   font-size: 0.68rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
   box-sizing: border-box;
   line-height: 1;
   flex-shrink: 0;
@@ -667,7 +746,8 @@ body {
 /* Context-aware rank colors: losers show violet/purple */
 .bh-row--loss .bh-rank,
 .bh-row.is-loss .bh-rank {
-  border-color: rgba(192, 132, 252, 0.85);
+  background: rgba(192, 132, 252, 0.16);
+  border-color: rgba(192, 132, 252, 0.60);
   color: rgba(192, 132, 252, 0.95);
 }
 
