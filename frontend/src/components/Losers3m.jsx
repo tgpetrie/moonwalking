@@ -4,6 +4,7 @@ import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
+import { baselineOrNull } from "../utils/num";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 
 const MAX_BASE = 8;
@@ -54,11 +55,12 @@ export default function Losers3m({
           rank: row.rank ?? nr.rank ?? idx + 1,
           symbol: row.symbol ?? nr.symbol,
           current_price: row.price ?? row.current_price ?? nr.currentPrice,
-          previous_price_3m:
+          previous_price_3m: baselineOrNull(
             row.previous_price_3m ??
-            row.initial_price_3min ??
-            nr._raw?.initial_price_3min ??
-            null,
+              row.initial_price_3min ??
+              nr._raw?.initial_price_3min ??
+              null
+          ),
           change_3m: Number.isFinite(pct) ? pct : 0,
         };
       })

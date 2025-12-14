@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { tickerFromSymbol } from "../utils/format";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { baselineOrNull } from "../utils/num";
 import { TokenRowUnified } from "./TokenRowUnified";
 
 function deltaPct(baseline, current) {
@@ -45,7 +46,8 @@ export default function WatchlistPanel() {
       const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
       const live = liveBySymbol[canonSymbol] || {};
       const livePrice = pickPrice(live) ?? entry.current ?? entry.baseline ?? null;
-      const baseline = entry.baseline ?? entry.current ?? pickPrice(live);
+      const baselineCandidate = entry.baseline ?? entry.current ?? pickPrice(live);
+      const baseline = baselineOrNull(baselineCandidate);
       const pct = deltaPct(baseline, livePrice);
 
       return {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/sentiment-panel.css";
 import { useSentimentLatest } from "../../hooks/useSentimentLatest";
+import { baselineOrNull, displayOrDash } from "../../utils/num";
 
 function normalizeSymbol(symbol) {
   return (symbol || "")
@@ -30,11 +31,9 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
 
   const symbol = normalizeSymbol(row?.symbol);
   const price = row?.current_price ?? null;
-  const prev =
-    row?.initial_price_3min ??
-    row?.initial_price_1min ??
-    row?.initial_price ??
-    null;
+  const prev = baselineOrNull(
+    row?.initial_price_3min ?? row?.initial_price_1min ?? row?.initial_price ?? null
+  );
   const pct =
     row?.price_change_percentage_3min ??
     row?.price_change_percentage_1min ??
@@ -129,11 +128,12 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               <div className="sentiment-header-price">
                 <span className="sentiment-header-symbol">{symbol}</span>
                 <span className="sentiment-header-price-main">
-                  {price != null ? `$${Number(price).toLocaleString()}` : "--"}
+                  {displayOrDash(price, (value) => `$${Number(value).toLocaleString()}`)}
                 </span>
                 {prev != null && (
                   <span className="sentiment-header-prev">
-                    prev {interval}: ${Number(prev).toLocaleString()}
+                    prev {interval}:{" "}
+                    {displayOrDash(prev, (value) => `$${Number(value).toLocaleString()}`)}
                   </span>
                 )}
               </div>

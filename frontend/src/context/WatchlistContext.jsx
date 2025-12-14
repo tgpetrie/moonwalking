@@ -1,6 +1,7 @@
 // frontend/src/context/WatchlistContext.jsx — cleaned Watchlist v2 provider
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { tickerFromSymbol } from "../utils/format";
+import { baselineOrNull } from "../utils/num";
 
 const STORAGE_KEY = "bhabit_watchlist_v2";
 const WatchlistContext = createContext(null);
@@ -33,7 +34,7 @@ export function WatchlistProvider({ children }) {
       if (!s) return prev;
       if (prev.some((i) => i.symbol === s)) return prev;
       const seed = baseline ?? price;
-      const entryPrice = seed == null ? null : Number(seed);
+      const entryPrice = baselineOrNull(seed);
       return [...prev, { symbol: s, baseline: entryPrice, current: entryPrice, addedAt: Date.now() }];
     });
   }, []);
@@ -50,7 +51,7 @@ export function WatchlistProvider({ children }) {
       if (prev.some((i) => i.symbol === s)) {
         return prev.filter((i) => i.symbol !== s);
       }
-      const entry = price == null ? null : Number(price);
+      const entry = baselineOrNull(price);
       return [...prev, { symbol: s, baseline: entry, current: entry, addedAt: Date.now() }];
     });
   }, []);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { baselineOrNull } from "../utils/num";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
@@ -41,7 +42,9 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
           ...row,
           change_3m: pct,
           _pct: Number.isFinite(pct) ? pct : 0,
-          previous_price_3m: row.previous_price_3m ?? row.initial_price_3min,
+        previous_price_3m: baselineOrNull(
+          row.previous_price_3m ?? row.initial_price_3min ?? null
+        ),
           current_price: row.price ?? row.current_price,
         };
       })

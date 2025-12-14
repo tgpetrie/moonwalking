@@ -1,6 +1,7 @@
 // src/components/TokenRowSimple.jsx
 import React from "react";
 import TokenRow from "./TokenRow.jsx";
+import { baselineOrNull } from "../utils/num";
 import { tickerFromSymbol } from "../utils/format";
 
 // Simple wrapper that reuses the canonical TokenRow grid so legacy callers stay aligned.
@@ -18,12 +19,13 @@ export default function TokenRowSimple({ index = 0, row = {}, onInfo }) {
     row?.last_price ??
     null;
 
-  const previousPrice =
+  const previousPrice = baselineOrNull(
     row?.previous_price ??
-    row?.initial_price_3min ??
-    row?.initial_price_1min ??
-    row?.baseline ??
-    null;
+      row?.initial_price_3min ??
+      row?.initial_price_1min ??
+      row?.baseline ??
+      null
+  );
 
   const pctRaw =
     row?.pct ??

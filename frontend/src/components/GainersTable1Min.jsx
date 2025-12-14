@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useDataFeed } from "../hooks/useDataFeed";
+import { baselineOrNull } from "../utils/num";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 
@@ -30,13 +31,14 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           row.pct ??
           row.changePct ??
           0,
-        previous_price_1m:
+        previous_price_1m: baselineOrNull(
           row.previous_price_1m ??
-          row.price_1m_ago ??
-          row.previous_price ??
-          row.prev_price ??
-          row.initial_price_1min ??
-          null,
+            row.price_1m_ago ??
+            row.previous_price ??
+            row.prev_price ??
+            row.initial_price_1min ??
+            null
+        ),
         current_price: row.price ?? row.current_price ?? row.current,
       }))
       .filter((r) => Number(r.change_1m) > 0)
