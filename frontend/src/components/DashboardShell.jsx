@@ -1,5 +1,5 @@
 // src/components/DashboardShell.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import TopBannerScroll from "./TopBannerScroll.jsx";
 import VolumeBannerScroll from "./VolumeBannerScroll.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -20,7 +20,7 @@ export default function DashboardShell({ onInfo }) {
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
-  const [partialStreak, setPartialStreak] = useState(0);
+  const partialStreakRef = useRef(0);
 
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
@@ -43,13 +43,15 @@ export default function DashboardShell({ onInfo }) {
   const total = counts.reduce((a, b) => a + b, 0);
   const hasZeros = counts.some((v) => v === 0);
   const isPartial = !fatal && (total === 0 || hasZeros);
-  useEffect(() => {
+  const partialStreak = useMemo(() => {
     if (!lastUpdated) {
-      setPartialStreak(0);
-      return;
+      return 0;
     }
-    setPartialStreak((prev) => (isPartial ? prev + 1 : 0));
+    return isPartial ? partialStreakRef.current + 1 : 0;
   }, [lastUpdated, isPartial]);
+  useEffect(() => {
+    partialStreakRef.current = partialStreak;
+  }, [partialStreak]);
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const status = useMemo(() => {
