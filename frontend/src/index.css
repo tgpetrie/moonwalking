@@ -262,28 +262,37 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.07;
-  --bh-bunny-opacity-hover: 0.14;
+  --bh-bunny-opacity: 0.022;
+  --bh-bunny-opacity-hover: 0.085;
+
+  /* controls how “tight” the bunny sits behind tables */
+  --bh-bunny-size: clamp(420px, 44vw, 720px);
+  --bh-bunny-x: 52%;
+  --bh-bunny-y: 56%;
 }
 
-.bh-bunny-layer {
+.bh-bunny-layer{
   position: fixed;
-  inset: 120px 0 140px 0;
-  display: flex;
-  justify-content: center;
+  inset: 0;
   pointer-events: none;
+
   opacity: var(--bh-bunny-opacity);
-  mix-blend-mode: screen;
-  filter: saturate(1.05) contrast(1.05);
-  animation: bh-bunny-breathe 6s ease-in-out infinite;
-  z-index: 0;
-  transition: opacity 220ms ease-out, filter 220ms ease-out, transform 220ms ease-out;
+
   background-image: url("/purple-rabbit-bg.png");
   background-repeat: no-repeat;
-  background-position: center 120px;
-  background-size: min(1400px, 120vw) auto;
-  -webkit-mask-image: radial-gradient(circle at 50% 40%, black 0%, black 55%, transparent 80%);
-  mask-image: radial-gradient(circle at 50% 40%, black 0%, black 55%, transparent 80%);
+  background-position: var(--bh-bunny-x) var(--bh-bunny-y);
+  background-size: var(--bh-bunny-size);
+
+  /* “barely there” at rest */
+  mix-blend-mode: screen;
+  filter: saturate(0.90) contrast(1.05) brightness(0.62);
+
+  /* keep it from competing at edges */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 72%);
+
+  transition: opacity 160ms ease-out, filter 160ms ease-out;
+  z-index: 0;
 }
 
 .bh-bunny-layer img {
@@ -295,25 +304,13 @@ body {
   transition: opacity 220ms ease-out, transform 220ms ease-out;
 }
 
-.bh-app:has(.bh-row:hover) .bh-bunny-layer {
+.bh-main:has(.bh-row:hover) .bh-bunny-layer{
   opacity: var(--bh-bunny-opacity-hover);
-  filter: saturate(1.12) contrast(1.12);
-}
-
-.bh-app:has(.bh-row:hover) .bh-bunny-layer img {
-  opacity: 0.11;
-}
-
-.bh-main:hover .bh-bunny-layer {
-  opacity: var(--bh-bunny-opacity-hover);
-  filter: saturate(1.15) contrast(1.05);
-}
-
-@supports(selector(:has(*))) {
-  .bh-main:has(.bh-row:hover) .bh-bunny-layer {
-    opacity: var(--bh-bunny-opacity-hover);
-    filter: saturate(1.15) contrast(1.05);
-  }
+  filter:
+    saturate(1.05)
+    contrast(1.12)
+    brightness(0.82)
+    drop-shadow(0 0 14px rgba(255, 181, 67, 0.10));
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -561,20 +558,25 @@ body {
 }
 
 /* Hover glow layer for transparent rows — stays behind cells/content */
-.bh-row-hover-glow {
+.bh-row-hover-glow{
   position: absolute;
   inset: 0;
   pointer-events: none;
+
   opacity: 0;
   mix-blend-mode: screen;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
+
+  /* lighter touch */
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 181, 67, 0.38) 0%,
-    rgba(255, 181, 67, 0.10) 38%,
-    transparent 70%
+    rgba(255, 181, 67, 0.14) 0%,
+    rgba(255, 181, 67, 0.05) 38%,
+    transparent 74%
   );
-  transform: scale(0.98);
+
+  transform: scale(0.99);
+  transition: opacity 140ms ease-out, transform 140ms ease-out;
+
   z-index: 1;
 }
 
@@ -592,20 +594,24 @@ body {
 }
 
 .bh-row--loss .bh-row-hover-glow,
-.bh-row.is-loss .bh-row-hover-glow {
+.bh-row.is-loss .bh-row-hover-glow{
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 108, 255, 0.32) 0%,
-    rgba(181, 108, 255, 0.08) 38%,
-    transparent 70%
+    rgba(181, 108, 255, 0.12) 0%,
+    rgba(181, 108, 255, 0.04) 38%,
+    transparent 74%
   );
 }
 
 .bh-row:hover .bh-row-hover-glow,
-.bh-row:focus-visible .bh-row-hover-glow {
-  opacity: 1;
-  transform: scale(1.0);
+.bh-row:focus-visible .bh-row-hover-glow{
+  opacity: 0.20;
+  transform: scale(1);
 }
+
+/* ensure row stacking */
+.bh-row{ position: relative; }
+.bh-row > *{ position: relative; z-index: 2; }
 
 /* Row cell alignment — rank column locked width (no padding/margin shifts) */
 .bh-cell-rank {
