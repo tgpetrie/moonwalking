@@ -76,7 +76,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   const handleToggleStar = (symbol, price) => {
     if (!symbol) return;
     if (onToggleWatchlist) {
-      onToggleWatchlist(symbol);
+      onToggleWatchlist(symbol, price);
       return;
     }
     if (has(symbol)) {

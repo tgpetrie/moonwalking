@@ -75,7 +75,7 @@ export default function Losers3m({
   const handleToggleStar = (symbol, price) => {
     if (!symbol) return;
     if (onToggleWatchlist) {
-      onToggleWatchlist(symbol);
+      onToggleWatchlist(symbol, price);
       return;
     }
     if (has(symbol)) {

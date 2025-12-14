@@ -25,8 +25,8 @@ export default function DashboardShell({ onInfo }) {
     if (sym) setInsightsSymbol(sym);
   };
 
-  const handleToggleWatchlist = (symbol) => {
-    toggleWatchlist({ symbol });
+  const handleToggleWatchlist = (symbol, price = null) => {
+    toggleWatchlist({ symbol, price });
   };
 
   const watchlistSymbols = watchlistItems.map((item) => item.symbol);
