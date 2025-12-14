@@ -430,6 +430,16 @@ body {
   z-index: 0;
 }
 
+.bh-row--loss::after,
+.bh-row.loss-row::after {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0%,
+    var(--bh-loss) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
 .bh-row:hover::after {
   opacity: 0.4;
   filter: blur(0.5px);
