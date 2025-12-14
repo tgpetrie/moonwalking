@@ -8,8 +8,10 @@
   --bh-bg: #050308;
   --bh-gain: #ffb347;
   --bh-loss: #c084fc;
-  --bh-price: #7ff0ff;
-  --bh-price-teal: #7ff0ff;
+  /* screenshot-style mint/teal price */
+  --bh-price: rgba(86, 219, 185, 0.95);
+  --bh-price-sub: rgba(86, 219, 185, 0.72);
+  --bh-price-teal: rgba(86, 219, 185, 0.95);
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
@@ -19,6 +21,18 @@
 
   /* Typography */
   --bh-font-sans: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.bh-price,
+.bh-token-price,
+.token-price {
+  color: var(--bh-price);
+}
+
+.bh-price-sub,
+.bh-token-price-sub,
+.token-price-sub {
+  color: var(--bh-price-sub);
 }
 
 /* ===== GLOBAL RESETS ===== */
@@ -261,56 +275,32 @@ body {
 /* ===== BUNNY LAYER (background art) ===== */
 
 :root {
-  /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.022;
-  --bh-bunny-opacity-hover: 0.085;
-
-  /* controls how “tight” the bunny sits behind tables */
-  --bh-bunny-size: clamp(420px, 44vw, 720px);
-  --bh-bunny-x: 52%;
-  --bh-bunny-y: 56%;
+  --bh-bunny-opacity: 0.016;         /* very faint */
+  --bh-bunny-size: clamp(420px, 38vw, 680px);
+  --bh-bunny-x: 54%;
+  --bh-bunny-y: 58%;
 }
 
 .bh-bunny-layer{
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
 
   opacity: var(--bh-bunny-opacity);
-
   background-image: url("/purple-rabbit-bg.png");
   background-repeat: no-repeat;
   background-position: var(--bh-bunny-x) var(--bh-bunny-y);
   background-size: var(--bh-bunny-size);
 
-  /* “barely there” at rest */
   mix-blend-mode: screen;
-  filter: saturate(0.90) contrast(1.05) brightness(0.62);
+  filter: saturate(0.85) contrast(1.05) brightness(0.55);
 
-  /* keep it from competing at edges */
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 72%);
-  mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 72%);
+  /* keep it from competing with text */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 46%, rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 46%, rgba(0,0,0,0) 72%);
 
   transition: opacity 160ms ease-out, filter 160ms ease-out;
-  z-index: 0;
-}
-
-.bh-bunny-layer img {
-  width: 520px;
-  max-width: 60%;
-  opacity: 0.08; /* subtle visibility */
-  transform: scale(0.9);
-  will-change: transform, opacity;
-  transition: opacity 220ms ease-out, transform 220ms ease-out;
-}
-
-.bh-main:has(.bh-row:hover) .bh-bunny-layer{
-  opacity: var(--bh-bunny-opacity-hover);
-  filter:
-    saturate(1.05)
-    contrast(1.12)
-    brightness(0.82)
-    drop-shadow(0 0 14px rgba(255, 181, 67, 0.10));
 }
 
 /* Row updated pulse for liveliness when data changes */
@@ -566,16 +556,17 @@ body {
   opacity: 0;
   mix-blend-mode: screen;
 
-  /* lighter touch */
+  /* subtle + thin: illuminate, don't fill */
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 181, 67, 0.14) 0%,
-    rgba(255, 181, 67, 0.05) 38%,
+    rgba(255, 181, 67, 0.10) 0%,
+    rgba(255, 181, 67, 0.045) 36%,
+    rgba(120, 255, 220, 0.028) 52%,
     transparent 74%
   );
 
-  transform: scale(0.99);
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
+  transform: scale(0.992);
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
 
   z-index: 1;
 }
@@ -597,15 +588,16 @@ body {
 .bh-row.is-loss .bh-row-hover-glow{
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 108, 255, 0.12) 0%,
-    rgba(181, 108, 255, 0.04) 38%,
+    rgba(181, 108, 255, 0.10) 0%,
+    rgba(181, 108, 255, 0.045) 36%,
+    rgba(120, 255, 220, 0.028) 52%,
     transparent 74%
   );
 }
 
 .bh-row:hover .bh-row-hover-glow,
 .bh-row:focus-visible .bh-row-hover-glow{
-  opacity: 0.20;
+  opacity: 0.22;
   transform: scale(1);
 }
 
