@@ -61,7 +61,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
           price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
         };
       })
-      .filter((t) => t.symbol && t.price_change_1h_pct !== 0)
+      .filter((t) => t.symbol)
       .sort((a, b) => b.price_change_1h_pct - a.price_change_1h_pct)
       .slice(0, 24);
   }, [rawItems]);
@@ -86,7 +86,16 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
       <div className="bh-banner-wrap">
         <div className="bh-banner-track">
           {looped.map((t, idx) => {
-            const isPos = (t.price_change_1h_pct ?? 0) >= 0;
+            const changeVal = Number(t.price_change_1h_pct ?? 0);
+            const rounded = Number(changeVal.toFixed(2));
+            let deltaClass = "bh-banner-change--flat";
+            let prefix = "";
+            if (rounded > 0) {
+              deltaClass = "bh-banner-change--pos";
+              prefix = "+";
+            } else if (rounded < 0) {
+              deltaClass = "bh-banner-change--neg";
+            }
             const pair = t.symbol ? `${t.symbol}-USD` : "";
             return (
               <a
@@ -98,8 +107,8 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
               >
                 <span className="bh-banner-symbol">{t.symbol || "--"}</span>
                 <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
-                <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>
-                  {formatPct(t.price_change_1h_pct)}
+                <span className={`bh-banner-change ${deltaClass}`}>
+                  {`${prefix}${rounded.toFixed(2)}%`}
                 </span>
               </a>
             );
