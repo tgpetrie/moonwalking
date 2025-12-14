@@ -1,4 +1,5 @@
 // frontend/src/hooks/useDashboardData.js
+import { useRef } from "react";
 import useSWR from "swr";
 import { API_BASE_URL, fetchAllData } from "../api";
 
@@ -23,6 +24,9 @@ export function useDashboardData() {
     refreshInterval: 4000, // Poll every 4 seconds
   });
 
+  const lastUpdatedRef = useRef(null);
+  const previousDataRef = useRef(null);
+
   const payload = data?.data || data || {};
   const errors = data?.errors || payload?.errors || {};
 
@@ -45,7 +49,13 @@ export function useDashboardData() {
   }
 
   // Track last successful update time
-  const lastUpdated = data ? new Date() : null;
+  if (!data) {
+    lastUpdatedRef.current = null;
+  } else if (!lastUpdatedRef.current || data !== previousDataRef.current) {
+    lastUpdatedRef.current = new Date();
+  }
+  previousDataRef.current = data;
+  const lastUpdated = lastUpdatedRef.current;
 
   return {
     raw: data,
