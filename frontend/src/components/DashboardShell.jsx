@@ -50,6 +50,7 @@ export default function DashboardShell({ onInfo }) {
       </header>
 
       <main className="bh-main">
+        <div className="bh-bunny-layer" aria-hidden="true" />
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
           <div className="bh-board">
             {/* 1h Price Banner (top) */}

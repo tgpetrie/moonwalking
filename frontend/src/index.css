@@ -262,8 +262,8 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.12;
-  --bh-bunny-opacity-hover: 0.18;
+  --bh-bunny-opacity: 0.07;
+  --bh-bunny-opacity-hover: 0.14;
 }
 
 .bh-bunny-layer {
@@ -278,6 +278,12 @@ body {
   animation: bh-bunny-breathe 6s ease-in-out infinite;
   z-index: 0;
   transition: opacity 220ms ease-out, filter 220ms ease-out, transform 220ms ease-out;
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: center 120px;
+  background-size: min(1400px, 120vw) auto;
+  -webkit-mask-image: radial-gradient(circle at 50% 40%, black 0%, black 55%, transparent 80%);
+  mask-image: radial-gradient(circle at 50% 40%, black 0%, black 55%, transparent 80%);
 }
 
 .bh-bunny-layer img {
@@ -550,7 +556,7 @@ body {
 /* Ensure cells sit above pseudo-elements */
 .bh-row > .bh-cell {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   min-width: 0;
 }
 
@@ -569,7 +575,13 @@ body {
     transparent 70%
   );
   transform: scale(0.98);
-  z-index: 0;
+  z-index: 1;
+}
+
+/* Ensure main content sits above the bunny background */
+.bh-main {
+  position: relative;
+  z-index: 5;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
