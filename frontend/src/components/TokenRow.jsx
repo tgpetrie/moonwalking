@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
-import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
+import { formatPrice, tickerFromSymbol } from "../utils/format.js";
 import { Star, Info } from "lucide-react";
 
 const TokenRow = forwardRef(function TokenRow(
@@ -20,8 +20,10 @@ const TokenRow = forwardRef(function TokenRow(
     typeof percentChange === "number"
       ? percentChange
       : parseFloat(String(percentChange || "0").replace(/[%+]/g, ""));
-  const isLoss = !Number.isNaN(numericChange) && numericChange < 0;
-  const isPositive = !Number.isNaN(numericChange) && numericChange >= 0;
+  const safeChange = Number.isFinite(numericChange) ? numericChange : 0;
+  const rounded = Number(safeChange.toFixed(2));
+  const isLoss = rounded < 0;
+  const isPositive = rounded > 0;
   const displaySymbol = tickerFromSymbol(symbol);
 
   // liveliness: flash row briefly when percentChange updates
@@ -40,6 +42,14 @@ const TokenRow = forwardRef(function TokenRow(
   }, [numericChange]);
 
   const rowClass = `bh-row ${isLoss ? "bh-row--loss is-loss" : ""} ${justUpdated ? "bh-row--updated" : ""}`;
+  let deltaClass = "bh-change-flat";
+  let prefix = "";
+  if (rounded > 0) {
+    deltaClass = "bh-change-pos";
+    prefix = "+";
+  } else if (rounded < 0) {
+    deltaClass = "bh-change-neg";
+  }
 
   return (
     <div ref={ref} className={rowClass}>
@@ -61,8 +71,8 @@ const TokenRow = forwardRef(function TokenRow(
       </div>
 
       <div className="bh-cell bh-cell-change">
-        <span className={"bh-change " + (isPositive ? "bh-change-pos" : "bh-change-neg")}>
-          {formatPct(percentChange)}
+        <span className={`bh-change ${deltaClass}`}>
+          {`${prefix}${rounded.toFixed(2)}%`}
         </span>
       </div>
 

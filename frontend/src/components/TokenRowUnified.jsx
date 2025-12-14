@@ -34,9 +34,19 @@ export function TokenRowUnified({
   density = "normal", // "normal" | "tight"
 }) {
   const rawChange = token?.[changeField];
-  const change = Number.isFinite(rawChange) ? rawChange : 0;
-  const isPositive = change >= 0;
+  const resolvedChange = Number.isFinite(rawChange) ? rawChange : 0;
+  const change = Number.isFinite(resolvedChange) ? resolvedChange : 0;
+  const rounded = Number(change.toFixed(2));
   const strongMove = Math.abs(change) >= 0.5;
+  const isLoss = rounded < 0;
+  let deltaClass = "bh-change-flat";
+  let prefix = "";
+  if (rounded > 0) {
+    deltaClass = "bh-change-pos";
+    prefix = "+";
+  } else if (rounded < 0) {
+    deltaClass = "bh-change-neg";
+  }
 
   const currentPrice = token?.current_price;
   const prevPrice =
@@ -48,11 +58,7 @@ export function TokenRowUnified({
     token?.current ??
     null;
 
-  const changeClass = [
-    "bh-change",
-    isPositive ? "bh-change-pos" : "bh-change-neg",
-    strongMove ? "bh-change-strong" : "",
-  ]
+  const changeClass = ["bh-change", deltaClass, strongMove ? "bh-change-strong" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -61,7 +67,7 @@ export function TokenRowUnified({
   const rowClass = [
     "bh-row",
     density === "tight" ? "bh-row--tight" : "",
-    !isPositive ? "bh-row--loss" : "",
+    isLoss ? "bh-row--loss" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -87,7 +93,7 @@ export function TokenRowUnified({
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change">
-        <span className={changeClass}>{change.toFixed(3)}%</span>
+        <span className={changeClass}>{`${prefix}${rounded.toFixed(2)}%`}</span>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}
