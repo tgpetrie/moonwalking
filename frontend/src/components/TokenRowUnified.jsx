@@ -40,7 +40,7 @@ export function TokenRowUnified({
 
   const currentPrice = token?.current_price;
   const prevPrice =
-    token?.previous_price_1m ?? token?.previous_price_3m ?? null;
+    token?.previous_price ?? token?.previous_price_1m ?? token?.previous_price_3m ?? null;
   const priceForBaseline =
     token?.current_price ??
     token?.currentPrice ??

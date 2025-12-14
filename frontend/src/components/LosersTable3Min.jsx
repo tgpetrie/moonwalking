@@ -6,6 +6,20 @@ import { normalizeTableRow } from "../lib/adapters";
 import { baselineOrNull } from "../utils/num";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 
+const getLosersPreviousPrice = (source, fallback = null) => {
+  return baselineOrNull(
+    source?.price_3m_ago ??
+      source?.initial_price_3min ??
+      source?.previous_price_3m ??
+      source?.previous_price ??
+      fallback?.price_3m_ago ??
+      fallback?.initial_price_3min ??
+      fallback?.previous_price_3m ??
+      fallback?.previous_price ??
+      null
+  );
+};
+
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
 
@@ -27,7 +41,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         rank: row.rank ?? idx + 1,
         symbol: row.symbol,
         current_price: row.price ?? row.current_price,
-        previous_price: baselineOrNull(row.initial_price_3min ?? row.previous_price ?? null),
+        previous_price: getLosersPreviousPrice(row),
         price_change_percentage_3min: row.changePct ?? row.price_change_percentage_3min ?? row.change_3m ?? null,
         isGainer: false, // PURPLE accent
         price: row.price ?? row.current_price,
@@ -38,13 +52,12 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     const raw = Array.isArray(payload?.data) ? payload.data : [];
     return raw.map((row, idx) => {
       const nr = normalizeTableRow(row);
+      const previous_price = getLosersPreviousPrice(row, nr._raw);
       return {
         rank: nr.rank ?? row.rank ?? idx + 1,
         symbol: nr.symbol ?? row.symbol,
         current_price: nr.currentPrice ?? row.current_price,
-        previous_price: baselineOrNull(
-          row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null
-        ),
+        previous_price,
         price_change_percentage_1min: undefined,
         price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
         isGainer: false, // PURPLE accent
