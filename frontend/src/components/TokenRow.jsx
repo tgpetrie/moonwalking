@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
+import { baselineOrNull } from "../utils/num.js";
 import { Star, Info } from "lucide-react";
 
 const TokenRow = forwardRef(function TokenRow(
@@ -17,11 +18,14 @@ const TokenRow = forwardRef(function TokenRow(
   ref
 ) {
   const numericChange =
-    typeof percentChange === "number"
+    percentChange == null
+      ? null
+      : typeof percentChange === "number"
       ? percentChange
-      : parseFloat(String(percentChange || "0").replace(/[%+]/g, ""));
-  const isLoss = !Number.isNaN(numericChange) && numericChange < 0;
-  const isPositive = !Number.isNaN(numericChange) && numericChange >= 0;
+      : parseFloat(String(percentChange).replace(/[%+]/g, ""));
+  const hasChange = typeof numericChange === "number" && !Number.isNaN(numericChange);
+  const isLoss = hasChange && numericChange < 0;
+  const isPositive = hasChange && numericChange >= 0;
   const displaySymbol = tickerFromSymbol(symbol);
 
   // liveliness: flash row briefly when percentChange updates
@@ -41,6 +45,8 @@ const TokenRow = forwardRef(function TokenRow(
 
   const rowClass = `bh-row ${isLoss ? "bh-row--loss is-loss" : ""} ${justUpdated ? "bh-row--updated" : ""}`;
 
+  const safePrevious = baselineOrNull(previousPrice);
+
   return (
     <div ref={ref} className={rowClass}>
       {/* hover glow layer */}
@@ -57,12 +63,12 @@ const TokenRow = forwardRef(function TokenRow(
 
       <div className="bh-cell bh-cell-price">
         <div className="bh-price-current">{formatPrice(currentPrice)}</div>
-        <div className="bh-price-previous">{formatPrice(previousPrice)}</div>
+        <div className="bh-price-previous">{formatPrice(safePrevious)}</div>
       </div>
 
       <div className="bh-cell bh-cell-change">
         <span className={"bh-change " + (isPositive ? "bh-change-pos" : "bh-change-neg")}>
-          {formatPct(percentChange)}
+          {formatPct(hasChange ? numericChange : undefined)}
         </span>
       </div>
 

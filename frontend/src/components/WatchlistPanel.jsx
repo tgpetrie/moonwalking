@@ -3,13 +3,7 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { tickerFromSymbol } from "../utils/format";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
-
-function deltaPct(baseline, current) {
-  const base = Number(baseline);
-  const curr = Number(current);
-  if (!Number.isFinite(base) || !Number.isFinite(curr) || base === 0) return null;
-  return ((curr - base) / base) * 100;
-}
+import { baselineOrNull, toFiniteNumber } from "../utils/num.js";
 
 const pickPrice = (source = {}) => {
   if (!source) return null;
@@ -22,6 +16,13 @@ const pickPrice = (source = {}) => {
     null
   );
 };
+
+function deltaPct(baseline, current) {
+  const base = baselineOrNull(baseline);
+  const curr = toFiniteNumber(current);
+  if (base === null || curr === null) return null;
+  return ((curr - base) / base) * 100;
+}
 
 export default function WatchlistPanel() {
   // useWatchlist wraps useContext(WatchlistContext) to keep panel in sync with starred items.
@@ -44,16 +45,16 @@ export default function WatchlistPanel() {
     return items.map((entry, index) => {
       const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
       const live = liveBySymbol[canonSymbol] || {};
-      const livePrice = pickPrice(live) ?? entry.current ?? entry.baseline ?? null;
-      const baseline = entry.baseline ?? entry.current ?? pickPrice(live);
-      const pct = deltaPct(baseline, livePrice);
+      const livePrice = toFiniteNumber(pickPrice(live) ?? entry.current ?? entry.baseline ?? null);
+      const baselineOrNullValue = baselineOrNull(entry.baseline ?? entry.current ?? pickPrice(live));
+      const pct = deltaPct(baselineOrNullValue, livePrice);
 
       return {
         key: `${canonSymbol}-${index}`,
         rank: index + 1,
         symbol: canonSymbol,
         current_price: livePrice,
-        previous_price: baseline,
+        previous_price: baselineOrNullValue,
         change_1m: pct ?? 0,
       };
     });

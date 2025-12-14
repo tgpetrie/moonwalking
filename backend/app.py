@@ -103,6 +103,44 @@ except ImportError:
 
 ERROR_NO_DATA = "No data available"
 
+
+def _null_if_nonpositive(x):
+    """Treat missing or non-positive values as null for baseline fields."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def _safe_float(x):
+    """Return float(x) if possible; otherwise None."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    # guard against NaN/inf
+    if not math.isfinite(v):
+        return None
+    return v
+
+
+def _sort_rows_by_numeric(rows, field, descending=True, tie_field="symbol"):
+    """Sort dict rows by a numeric field; missing/invalid values go last.
+
+    Uses a deterministic tie-breaker (default: symbol) to keep ordering stable.
+    """
+
+    def key(r):
+        v = _safe_float((r or {}).get(field))
+        is_missing = v is None
+        # For descending, invert so default ascending sort yields descending numeric order.
+        score = (-v) if (v is not None and descending) else (v if v is not None else 0.0)
+        tie = ((r or {}).get(tie_field) or "")
+        return (is_missing, score, tie)
+
+    return sorted((rows or []), key=key)
+
 # Check if psutil is available
 try:
     import psutil
@@ -409,21 +447,21 @@ def _load_thresholds_file():
 _load_thresholds_file()
 
 
-def pct_change(current: float | int | None, past: float | int | None) -> float:
+def pct_change(current: float | int | None, past: float | int | None) -> float | None:
     """Centralized percent-change helper with guardrails.
 
-    Returns 0.0 when the past value is missing or non-positive to avoid noisy or
-    undefined percentages.
+    Returns None when the past value is missing/invalid/non-positive.
+    This prevents "missing baseline" from being reported as a real 0.0% move.
     """
     if current is None or past is None:
-        return 0.0
+        return None
     try:
         c = float(current)
         p = float(past)
     except (TypeError, ValueError):
-        return 0.0
+        return None
     if p <= 0.0:
-        return 0.0
+        return None
     return (c - p) / p * 100.0
 
 def update_thresholds(patch: dict):
@@ -2476,7 +2514,7 @@ def data_aggregate():
                             initial_1m_val = float(initial_1m)
                         except (TypeError, ValueError):
                             initial_1m_val = None
-                    if initial_1m_val is not None:
+                    if initial_1m_val is not None and initial_1m_val > 0:
                         base["initial_price_1min"] = initial_1m_val
                         base["previous_price_1m"] = initial_1m_val
 
@@ -2489,7 +2527,7 @@ def data_aggregate():
                             gain_1m_val = None
 
                     change_1m_val = pct_change(price_f, initial_1m_val)
-                    if change_1m_val == 0.0 and gain_1m_val is not None:
+                    if change_1m_val is None and gain_1m_val is not None:
                         change_1m_val = gain_1m_val
 
                     base["change_1m"] = change_1m_val
@@ -2526,7 +2564,7 @@ def data_aggregate():
                             initial_3m_val = float(initial_3m)
                         except (TypeError, ValueError):
                             initial_3m_val = None
-                    if initial_3m_val is not None:
+                    if initial_3m_val is not None and initial_3m_val > 0:
                         base["initial_price_3min"] = initial_3m_val
                         base["previous_price_3m"] = initial_3m_val
 
@@ -2539,7 +2577,7 @@ def data_aggregate():
                             gain_3m_val = None
 
                     change_3m_val = pct_change(price_f, initial_3m_val)
-                    if change_3m_val == 0.0 and gain_3m_val is not None:
+                    if change_3m_val is None and gain_3m_val is not None:
                         change_3m_val = gain_3m_val
 
                     base["change_3m"] = change_3m_val
@@ -2583,12 +2621,12 @@ def data_aggregate():
                             initial_3m_val = float(initial_3m)
                         except (TypeError, ValueError):
                             initial_3m_val = None
-                    if initial_3m_val is not None:
+                    if initial_3m_val is not None and initial_3m_val > 0:
                         base["initial_price_3min"] = initial_3m_val
                         base["previous_price_3m"] = initial_3m_val
 
                     change_3m_val = pct_change(price_f, initial_3m_val)
-                    if change_3m_val == 0.0 and gain_3m_val is not None:
+                    if change_3m_val is None and gain_3m_val is not None:
                         change_3m_val = gain_3m_val
 
                     base["change_3m"] = change_3m_val
@@ -2628,16 +2666,16 @@ def data_aggregate():
                             price_1h_val = float(price_1h_ago)
                         except (TypeError, ValueError):
                             price_1h_val = None
-                    if price_1h_val is not None:
+                    if price_1h_val is not None and price_1h_val > 0:
                         base["price_1h_ago"] = price_1h_val
 
                     change_1h_fallback = r.get("price_change_1h")
                     change_1h_val = pct_change(price_now, price_1h_val)
-                    if change_1h_val == 0.0 and change_1h_fallback is not None:
+                    if change_1h_val is None and change_1h_fallback is not None:
                         try:
                             change_1h_val = float(change_1h_fallback)
                         except (TypeError, ValueError):
-                            change_1h_val = 0.0
+                            change_1h_val = None
 
                     # canonical 1h price-change keys used by banners
                     base["change_1h_price"] = change_1h_val
@@ -2709,7 +2747,7 @@ def data_aggregate():
                         vol_change_abs_val = vol_now_f - vol_prev_val
 
                     change_1h_volume_pct = pct_change(vol_now_f, vol_prev_val)
-                    if change_1h_volume_pct == 0.0 and vol_pct_val is not None:
+                    if change_1h_volume_pct is None and vol_pct_val is not None:
                         change_1h_volume_pct = vol_pct_val
 
                     base["volume_change_1h"] = vol_change_abs_val
@@ -2725,6 +2763,23 @@ def data_aggregate():
 
         # Build canonical list of rows
         all_rows = list(rows_by_symbol.values())
+
+        baseline_keys = (
+            "previous_price",
+            "previous_price_1m",
+            "previous_price_3m",
+            "initial_price_1min",
+            "initial_price_3min",
+            "initial_price",
+            "initial_1min",
+            "initial_3min",
+            "price_1m_ago",
+            "price_3m_ago",
+        )
+        for row in rows_by_symbol.values():
+            for key in baseline_keys:
+                if key in row:
+                    row[key] = _null_if_nonpositive(row.get(key))
 
         def _rank_and_trade(subset, limit: int):
             out_rows = []
@@ -2818,21 +2873,19 @@ def data_aggregate():
                     row["price_1h_ago"] = price_ago_f
 
                 change_pct = pct_change(price_now_f, price_ago_f)
-                if change_pct == 0.0:
+                normalized_pct = _safe_float(change_pct)
+                if normalized_pct in (None, 0.0):
                     fallback = t.get("price_change_1h") or t.get("change_1h_price")
-                    if fallback is not None:
-                        try:
-                            change_pct = float(fallback)
-                        except (TypeError, ValueError):
-                            pass
+                    normalized_pct = _safe_float(fallback)
 
-                row["price_change_1h_pct"] = change_pct
-                row["change_1h_price"] = change_pct
-                row["price_change_1h"] = change_pct
+                row["price_change_1h_pct"] = normalized_pct
+                row["change_1h_price"] = normalized_pct
+                row["price_change_1h"] = normalized_pct
                 enriched.append(row)
 
-            enriched = [t for t in enriched if t.get("price_change_1h_pct", 0.0) != 0.0]
-            enriched.sort(key=lambda t: t.get("price_change_1h_pct", 0.0), reverse=True)
+            # Keep only numeric, non-zero changes; missing/invalid should not become 0.
+            enriched = [t for t in enriched if t.get("price_change_1h_pct") not in (None, 0.0)]
+            enriched = _sort_rows_by_numeric(enriched, "price_change_1h_pct", descending=True)
             return _rank_and_trade(enriched, top_n)
 
         def build_1h_volume_banner(tokens: list[dict], top_n: int = 20):
@@ -2856,13 +2909,10 @@ def data_aggregate():
                     row["volume_1h_prev"] = vol_prev_f
 
                 change_pct = pct_change(vol_now_f, vol_prev_f)
-                if change_pct == 0.0:
+                normalized_pct = _safe_float(change_pct)
+                if normalized_pct in (None, 0.0):
                     fallback = t.get("volume_change_1h_pct") or t.get("change_1h_volume")
-                    if fallback is not None:
-                        try:
-                            change_pct = float(fallback)
-                        except (TypeError, ValueError):
-                            pass
+                    normalized_pct = _safe_float(fallback)
 
                 # If we still don't have a previous volume but do have change_pct, derive it
                 if vol_prev_f is None and vol_now_f is not None and change_pct not in (None, 0.0):
@@ -2879,13 +2929,13 @@ def data_aggregate():
                 if vol_now_f is not None and vol_prev_f is not None:
                     vol_change_abs = vol_now_f - vol_prev_f
                 row["volume_change_1h"] = vol_change_abs
-                row["volume_change_1h_pct"] = change_pct
-                row["change_1h_volume"] = change_pct
-                row["volume_change_percentage_1h"] = change_pct
+                row["volume_change_1h_pct"] = normalized_pct
+                row["change_1h_volume"] = normalized_pct
+                row["volume_change_percentage_1h"] = normalized_pct
                 enriched.append(row)
 
-            enriched = [t for t in enriched if t.get("volume_change_1h_pct", 0.0) != 0.0]
-            enriched.sort(key=lambda t: t.get("volume_change_1h_pct", 0.0), reverse=True)
+            enriched = [t for t in enriched if t.get("volume_change_1h_pct") not in (None, 0.0)]
+            enriched = _sort_rows_by_numeric(enriched, "volume_change_1h_pct", descending=True)
             return _rank_and_trade(enriched, top_n)
 
         gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m", limit=50)
@@ -2914,6 +2964,15 @@ def data_aggregate():
             "meta": meta,
             "errors": errors,
         }
+
+        coverage = {
+            "banner_1h_price": len(banner_1h_price),
+            "banner_1h_volume": len(banner_1h_volume),
+            "gainers_1m": len(gainers_1m),
+            "gainers_3m": len(gainers_3m),
+            "losers_3m": len(losers_3m),
+        }
+        payload["coverage"] = coverage
 
         # Provide a simple top-level timestamp for compatibility with older jq tooling
         try:

@@ -1,19 +1,8 @@
 // src/components/TokenRowUnified.jsx
 import React from "react";
 import RowActions from "./tables/RowActions.jsx";
-
-/**
- * Format prices into readable ranges to avoid noisy decimals.
- */
-function formatPrice(value) {
-  if (value == null || Number.isNaN(value)) return "-";
-  const n = Number(value);
-
-  if (n >= 100) return n.toFixed(0);
-  if (n >= 1) return n.toFixed(2);
-  if (n >= 0.01) return n.toFixed(4);
-  return n.toFixed(6);
-}
+import { formatPct, formatPrice } from "../utils/format.js";
+import { baselineOrNull } from "../utils/num.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -23,24 +12,6 @@ function formatPrice(value) {
  * - 3m losers
  * - Watchlist
  */
-/**
- * Classify percentage change into tri-state: positive, negative, or flat.
- * Flat if rounded to 0.00%.
- */
-function classifyPct(rawValue) {
-  const num = Number.isFinite(rawValue) ? Number(rawValue) : 0;
-  const rounded = Math.round(num * 100) / 100;
-
-  if (rounded === 0) {
-    return { state: "flat", display: "0.00%", className: "bh-change-flat" };
-  }
-
-  if (rounded > 0) {
-    return { state: "positive", display: `+${rounded.toFixed(2)}%`, className: "bh-change-pos" };
-  }
-
-  return { state: "negative", display: `${rounded.toFixed(2)}%`, className: "bh-change-neg" };
-}
 
 export function TokenRowUnified({
   token,
@@ -53,12 +24,17 @@ export function TokenRowUnified({
   density = "normal", // "normal" | "tight"
 }) {
   const rawChange = token?.[changeField];
-  const change = Number.isFinite(rawChange) ? Number(rawChange) : 0;
-  const pctInfo = classifyPct(change);
+  const changeNum = typeof rawChange === "string" ? Number(String(rawChange).replace(/[%+]/g, "")) : Number(rawChange);
+  const hasChange = Number.isFinite(changeNum);
+  const pctState = !hasChange || changeNum === 0 ? "flat" : changeNum > 0 ? "positive" : "negative";
+  const pctInfo = {
+    state: pctState,
+    display: formatPct(hasChange ? changeNum : undefined, { sign: true }),
+    className: pctState === "positive" ? "bh-change-pos" : pctState === "negative" ? "bh-change-neg" : "bh-change-flat",
+  };
 
   const currentPrice = token?.current_price;
-  const prevPrice =
-    token?.previous_price_1m ?? token?.previous_price_3m ?? null;
+  const prevPrice = baselineOrNull(token?.previous_price_1m ?? token?.previous_price_3m ?? token?.previous_price ?? token?.initial_price_1min ?? token?.initial_price_3min ?? token?.price_1m_ago ?? token?.price_3m_ago ?? null);
 
   const RowTag = renderAs === "tr" ? "tr" : "div";
   const CellTag = renderAs === "tr" ? "td" : "div";
@@ -86,8 +62,8 @@ export function TokenRowUnified({
 
       {/* 3. Price stack (current / previous) */}
       <CellTag className="bh-cell bh-cell-price">
-        <div className="bh-price-current">${formatPrice(currentPrice)}</div>
-        <div className="bh-price-previous">${formatPrice(prevPrice)}</div>
+        <div className="bh-price-current">{formatPrice(currentPrice)}</div>
+        <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
       </CellTag>
 
       {/* 4. Percent change – main focal point */}
