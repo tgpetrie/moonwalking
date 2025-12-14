@@ -577,6 +577,10 @@ body {
   color: var(--bh-loss);
 }
 
+.bh-change-flat {
+  color: var(--bh-muted);
+}
+
 /* Actions column: stacked icons */
 .bh-row-actions,
 .row-actions--stack {
@@ -693,6 +697,10 @@ body {
 
 .bh-banner-change--neg {
   color: var(--bh-loss);
+}
+
+.bh-banner-change--flat {
+  color: var(--bh-muted);
 }
 
 @keyframes bh-scroll {
