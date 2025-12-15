@@ -192,6 +192,7 @@ body {
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
   --bh-bunny-opacity: 0.12;
+  --bh-row-bunny-hover: 0.16;
 }
 
 .bh-bunny-layer {
@@ -403,6 +404,27 @@ body {
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
 }
 
+.bh-row-bunny {
+  position: absolute;
+  inset: -8px 0 -8px 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: 62% 52%;
+  background-size: min(520px, 58vw);
+  filter: blur(0.4px);
+  transform: translateZ(0);
+  transition: opacity 220ms ease-out;
+}
+
+.bh-row:hover .bh-row-bunny,
+.bh-row:focus-within .bh-row-bunny {
+  opacity: var(--bh-row-bunny-hover, 0.16);
+}
+
 /* "tight" density used for 1m single-column (1–4 items) */
 .bh-row--tight {
   padding: 4px 0;
@@ -451,7 +473,7 @@ body {
 }
 
 /* Ensure cells sit above pseudo-elements */
-.bh-row > .bh-cell {
+.bh-row > *:not(.bh-row-bunny) {
   position: relative;
   z-index: 1;
   min-width: 0;

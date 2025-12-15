@@ -53,6 +53,7 @@ const TokenRow = forwardRef(function TokenRow(
 
   return (
     <div ref={ref} className={rowClass}>
+      <span className="bh-row-bunny" aria-hidden="true" />
       {/* hover glow layer */}
       <div className="bh-row-hover-glow" aria-hidden="true" />
 

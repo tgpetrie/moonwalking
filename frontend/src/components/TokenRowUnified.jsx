@@ -109,6 +109,7 @@ export function TokenRowUnified({
 
   return (
     <RowTag className={rowClass}>
+      <span className="bh-row-bunny" aria-hidden="true" />
       {renderAs !== "tr" && <div className="bh-row-hover-glow" />}
       {renderCells()}
     </RowTag>
