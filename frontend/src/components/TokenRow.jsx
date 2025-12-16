@@ -41,7 +41,7 @@ const TokenRow = forwardRef(function TokenRow(
     prevPct.current = numericChange;
   }, [numericChange]);
 
-  const rowClass = `bh-row ${isLoss ? "bh-row--loss is-loss" : ""} ${justUpdated ? "bh-row--updated" : ""}`;
+  const rowClass = `bh-row ${isLoss ? "bh-row--loss is-loss" : "bh-row--gain"} ${justUpdated ? "bh-row--updated" : ""}`;
   let deltaClass = "bh-change-flat";
   let prefix = "";
   if (rounded > 0) {

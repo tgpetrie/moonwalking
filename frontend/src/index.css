@@ -8,14 +8,18 @@
   --bh-bg: #050308;
   --bh-gain: #ffb347;
   --bh-loss: #c084fc;
-  --bh-price: #7ff0ff;
-  --bh-price-teal: #7ff0ff;
+  /* Current price (mint/green) */
+  --bh-price: #46f2c7;
+  /* legacy alias (kept for existing selectors) */
+  --bh-price-teal: var(--bh-price);
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
   /* Board layout */
   --bh-board-width: 1200px;
   --bh-panel-gap: 24px;
+  /* Canonical row inset so text columns align across panels */
+  --bh-row-pad-x: 12px;
 
   /* Typography */
   --bh-font-sans: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -191,8 +195,58 @@ body {
 
 :root {
   /* make the background rabbit art subtle but visible enough for glow */
-  --bh-bunny-opacity: 0.015;
+  --bh-bunny-idle: 0.035;
+  --bh-bunny-wake: 0.22;
+  /* keep legacy var name for existing animation/keyframes */
+  --bh-bunny-opacity: var(--bh-bunny-idle);
   --bh-row-bunny-hover: 0.16;
+}
+
+/* Global bunny behind the whole board (no per-row windowing) */
+.board-wrapper {
+  position: relative;
+  /* keep blending + z-index effects scoped to the board */
+  isolation: isolate;
+  z-index: 0;
+}
+
+.rabbit-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* keep the global bunny behind row glows + content */
+  z-index: -1;
+}
+
+.rabbit-base {
+  position: absolute;
+  inset: 80px 0 120px 0;
+  display: block;
+  opacity: var(--bh-bunny-idle);
+  mix-blend-mode: screen;
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: 50% 58%;
+  background-size: clamp(900px, 75vw, 1400px);
+  filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
+}
+
+.rabbit-highlight {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+  background: radial-gradient(
+    620px 380px at 50% var(--rabbit-highlight-y, 50%),
+    rgba(255, 165, 0, 0.18) 0%,
+    rgba(181, 108, 255, 0.12) 42%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+}
+
+.rabbit-highlight--active {
+  opacity: var(--bh-bunny-wake);
 }
 
 .bh-bunny-layer {
@@ -205,14 +259,14 @@ body {
   mix-blend-mode: screen;
   filter: drop-shadow(0 0 40px rgba(0, 0, 0, 0.8));
   animation: bh-bunny-breathe 6s ease-in-out infinite;
-  z-index: 0;
+  z-index: -1;
 }
 
 .bh-bunny-layer img {
   width: 520px;
   max-width: 60%;
   opacity: 0.08; /* subtle visibility */
-  transform: scale(0.9);
+  transform: scale(1.15);
   will-change: transform, opacity;
 }
 
@@ -396,15 +450,41 @@ body {
     minmax(0, 1.1fr)  /* % change */
     40px;             /* actions */
   align-items: center;
-  padding: 6px 0;
+  padding: 6px var(--bh-row-pad-x);
   min-height: 28px;
   cursor: pointer;
-  background: transparent;
-  overflow: hidden;
-  transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+  /* Kill any boxy card/border styling that leaked in */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  /* allow hover glows to breathe */
+  overflow: visible;
+  transition: transform 160ms ease-out;
+
+  /* Defaults (safe fallback) */
+  --bh-rail-core: rgba(255, 255, 255, 0.10);
+  --bh-glow-a: rgba(255, 255, 255, 0.06);
+  --bh-glow-b: rgba(255, 255, 255, 0.02);
+}
+
+/* Variant colors */
+.bh-row--gain {
+  --bh-rail-core: rgba(255, 170, 60, 0.22);
+  --bh-glow-a: rgba(255, 170, 60, 0.18);
+  --bh-glow-b: rgba(255, 170, 60, 0.08);
+}
+
+.bh-row--loss,
+.bh-row.is-loss {
+  --bh-rail-core: rgba(190, 90, 255, 0.22);
+  --bh-glow-a: rgba(190, 90, 255, 0.20);
+  --bh-glow-b: rgba(190, 90, 255, 0.10);
 }
 
 .bh-row-bunny {
+  /* Disable per-row bunny sprite so we don't "window" the same slice each row */
+  display: none !important;
   position: absolute;
   inset: -8px 0 -8px 0;
   pointer-events: none;
@@ -420,46 +500,50 @@ body {
   transition: opacity 220ms ease-out;
 }
 
+.bh-row:hover .bh-row-bunny,
+.bh-row:focus-visible .bh-row-bunny {
+  opacity: var(--bh-row-bunny-hover);
+}
+
 /* "tight" density used for 1m single-column (1–4 items) */
 .bh-row--tight {
-  padding: 4px 0;
+  padding: 4px var(--bh-row-pad-x);
   min-height: 24px;
 }
 
-/* Row rail (bottom gradient line) */
+/* Bottom rail divider: always faint, brightens on hover */
 .bh-row::after {
   content: "";
   position: absolute;
-  left: 1rem;
-  right: 1rem;
+  left: 0;
+  right: 0;
   bottom: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  /* stronger rail so gaps are less visible */
-  opacity: 0.15;
   pointer-events: none;
-  transition: opacity 140ms ease-out;
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), var(--bh-rail-core), rgba(0, 0, 0, 0));
   z-index: 0;
 }
 
-.bh-row--loss::after,
-.bh-row.loss-row::after {
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0) 0%,
-    var(--bh-loss) 50%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
+/* Inner glow only on hover/focus (no blur, no border, no rectangle fill) */
+.bh-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
 
-.bh-row:hover::after {
-  opacity: 0.4;
-  filter: blur(0.5px);
+  border: 0 !important;
+  background: none !important;
+  filter: none !important;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 18px var(--bh-glow-a),
+    inset 0 0 10px var(--bh-glow-b);
+
+  z-index: 0;
 }
 
 .bh-row:hover,
@@ -467,28 +551,38 @@ body {
   transform: translateY(-1px) scale(1.012);
 }
 
+.bh-row:hover::before,
+.bh-row:focus-within::before {
+  opacity: 1;
+}
+
 /* Ensure cells sit above pseudo-elements */
-.bh-row > *:not(.bh-row-bunny) {
+.bh-row > * {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   min-width: 0;
 }
 
 /* Hover glow layer for transparent rows */
 .bh-row-hover-glow {
+  display: none !important;
+  /* The glow layer that reveals/wakes the global bunny behind the row */
   position: absolute;
-  inset: 0;
+  inset: -14px -28px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
+  z-index: 0;
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  transform: translateZ(0);
+  filter: blur(10px);
   background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 165, 0, 0.32) 0%,
-    rgba(255, 165, 0, 0.08) 38%,
-    transparent 70%
+    120% 140% at 55% 50%,
+    rgba(181, 108, 255, 0.22) 0%,
+    rgba(255, 165, 0, 0.14) 38%,
+    rgba(255, 255, 255, 0.08) 55%,
+    rgba(0, 0, 0, 0.00) 78%
   );
-  transform: scale(0.98);
-  z-index: 1;
+  mix-blend-mode: screen;
 }
 
 /* Make anchor-wrapped rows occupy full width and not introduce gaps */
@@ -509,10 +603,9 @@ body {
 }
 
 .bh-row:hover .bh-row-hover-glow,
-.bh-row:focus-visible .bh-row-hover-glow {
+.bh-row:focus-visible .bh-row-hover-glow,
+.bh-row:focus-within .bh-row-hover-glow {
   opacity: 1;
-  transform: scale(1.0);
-  mix-blend-mode: screen;
 }
 
 /* Row cell alignment */
@@ -579,10 +672,8 @@ body {
 .bh-price-current {
   font-size: 12px;
   font-weight: 600;
-  align-items: center;
-  /* tighten vertical spacing to match table-like density */
-  padding: 6px 0;
-  min-height: 28px;
+  line-height: 1.15;
+  color: var(--bh-price);
 }
 .bh-price-previous {
   font-size: 10px;
@@ -795,7 +886,7 @@ body {
 
 .bh-banner-chip__price,
 .bh-banner-price {
-  color: var(--bh-price-teal);
+  color: var(--bh-price);
   font-size: 0.8rem;
 }
 

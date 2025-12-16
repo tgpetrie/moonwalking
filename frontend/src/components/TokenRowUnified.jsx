@@ -67,7 +67,7 @@ export function TokenRowUnified({
   const rowClass = [
     "bh-row",
     density === "tight" ? "bh-row--tight" : "",
-    isLoss ? "bh-row--loss" : "",
+    isLoss ? "bh-row--loss" : "bh-row--gain",
   ]
     .filter(Boolean)
     .join(" ");
