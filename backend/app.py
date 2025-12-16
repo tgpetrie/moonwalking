@@ -4339,7 +4339,8 @@ if __name__ == '__main__':
     try:
         app.run(debug=CONFIG['DEBUG'], 
                 host=CONFIG['HOST'], 
-                port=CONFIG['PORT'])
+                port=CONFIG['PORT'],
+                use_reloader=False)
     except OSError as e:
         if "Address already in use" in str(e):
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")
