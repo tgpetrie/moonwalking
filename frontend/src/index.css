@@ -398,40 +398,82 @@ body {
   padding: 6px 0;
   min-height: 28px;
   cursor: pointer;
-  background: transparent;
+
+  /* Kill any boxy card/border styling that leaked in */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+
+  /* Defaults (safe fallback) */
+  --bh-rail-core: rgba(255,255,255,0.10);
+  --bh-glow-a: rgba(255,255,255,0.06);
+  --bh-glow-b: rgba(255,255,255,0.02);
+
   overflow: hidden;
-  transition: transform 160ms ease-out, box-shadow 160ms ease-out, filter 160ms ease-out;
+  transition: transform 160ms ease-out;
 }
 
-/* "tight" density used for 1m single-column (1–4 items) */
+/* Variant colors */
+.bh-row--gain {
+  --bh-rail-core: rgba(255, 170, 60, 0.22);
+  --bh-glow-a:    rgba(255, 170, 60, 0.18);
+  --bh-glow-b:    rgba(255, 170, 60, 0.08);
+}
+
+.bh-row--loss,
+.bh-row.is-loss {
+  --bh-rail-core: rgba(190, 90, 255, 0.22);
+  --bh-glow-a:    rgba(190, 90, 255, 0.20);
+  --bh-glow-b:    rgba(190, 90, 255, 0.10);
+}
+
+/* \"tight\" density used for 1m single-column (1–4 items) */
 .bh-row--tight {
   padding: 4px 0;
   min-height: 24px;
 }
 
-/* Row rail (bottom gradient line) */
+/* Always-on bottom divider (never hover-only) */
 .bh-row::after {
-  content: "";
+  content: \"\";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 0; right: 0; bottom: 0;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  /* stronger rail so gaps are less visible */
-  opacity: 0.65;
   pointer-events: none;
-  transition: opacity 140ms ease-out;
+  opacity: 1;
+
+  background: linear-gradient(90deg,
+    rgba(0,0,0,0),
+    var(--bh-rail-core),
+    rgba(0,0,0,0)
+  );
+}
+
+/* Inner glow only on hover/focus (no blur, no border, no rectangle fill) */
+.bh-row::before {
+  content: \"\";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+
+  border: 0 !important;
+  background: none !important;
+  filter: none !important;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 0 18px var(--bh-glow-a),
+    inset 0 0 10px var(--bh-glow-b);
+
   z-index: 0;
 }
 
-.bh-row:hover::after {
-  opacity: 0.9;
+.bh-row:hover::before,
+.bh-row:focus-within::before {
+  opacity: 1;
 }
 
 .bh-row:hover,
@@ -439,51 +481,16 @@ body {
   transform: translateY(-1px) scale(1.012);
 }
 
-/* Ensure cells sit above pseudo-elements */
+/* Keep text/icons above the glow */
 .bh-row > .bh-cell {
   position: relative;
   z-index: 1;
   min-width: 0;
 }
 
-/* Hover glow layer for transparent rows */
+/* Disable any legacy glow element if it exists */
 .bh-row-hover-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 140ms ease-out, transform 140ms ease-out;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 165, 0, 0.32) 0%,
-    rgba(255, 165, 0, 0.08) 38%,
-    transparent 70%
-  );
-  transform: scale(0.98);
-  z-index: 0;
-}
-
-/* Make anchor-wrapped rows occupy full width and not introduce gaps */
-.bh-row-link {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-}
-
-.bh-row--loss .bh-row-hover-glow,
-.bh-row.is-loss .bh-row-hover-glow {
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(181, 108, 255, 0.32) 0%,
-    rgba(181, 108, 255, 0.08) 38%,
-    transparent 70%
-  );
-}
-
-.bh-row:hover .bh-row-hover-glow,
-.bh-row:focus-visible .bh-row-hover-glow {
-  opacity: 1;
-  transform: scale(1.0);
+  display: none !important;
 }
 
 /* Row cell alignment */
