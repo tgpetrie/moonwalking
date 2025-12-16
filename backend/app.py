@@ -229,88 +229,85 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret
 startup_time = time.time()
 
 # Configure allowed CORS origins from environment
-cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
-if cors_env == '*':
-    # Default development restriction: only allow local dev origins so we don't ship a
-    # permissive CORS policy accidentally. This is intended for local tooling only.
-    dev_origins = [
-        # Vite dev server (current + alternate ports)
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5176",
-        "http://localhost:5176",
-        # Also accept the static-serve port (5174) commonly used for built SPA
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
-        # Cloudflare / other dev tools
-        "http://127.0.0.1:3100",
-        "http://localhost:3100",
-        # Common alternate dev ports (Next.js, other tools)
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-        # Allow local LAN addresses on the 192.168.*.* range so devices on the
-        # same network (or the host using the network IP) can access the API
-        # when the SPA is served from that address during development. This is
-        # intentionally restricted to the private 192.168.* range and not a
-        # permissive wildcard for production.
-        r"^https?://192\.168\.\d+\.\d+(:\d+)?$",
-    ]
-    try:
-        CORS(app, resources={r"/*": {"origins": dev_origins}})
-        logging.info(f"CORS configured with dev_origins: {len(dev_origins)} origins")
-    except Exception as e:
-        # If tests replace Flask with a very small MockFlask lacking expected
-        # lifecycle helper methods, provide no-op shims so import-time setup
-        # doesn't crash test collection.
-        logging.warning(f"CORS initialization failed (will retry): {e}")
-        def _no_op_decorator(fn):
-            return fn
-        def _no_op_function(*args, **kwargs):
-            return None
+cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', '*').strip()
 
-        for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
-            if not hasattr(app, name):
-                try:
-                    setattr(app, name, _no_op_decorator)
-                except Exception:
-                    pass
+dev_origins = [
+    # Vite dev server (current + alternate ports)
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5176",
+    "http://localhost:5176",
+    # Also accept the static-serve port (5174) commonly used for built SPA
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
+    # Cloudflare / other dev tools
+    "http://127.0.0.1:3100",
+    "http://localhost:3100",
+    # Common alternate dev ports (Next.js, other tools)
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    # Allow local LAN addresses on the 192.168.*.* range so devices on the
+    # same network (or the host using the network IP) can access the API
+    # when the SPA is served from that address during development. This is
+    # intentionally restricted to the private 192.168.* range and not a
+    # permissive wildcard for production.
+    r"^https?://192\.168\.\d+\.\d+(:\d+)?$",
+]
 
-        for name in ('register_blueprint', 'add_url_rule'):
-            if not hasattr(app, name):
-                try:
-                    setattr(app, name, _no_op_function)
-                except Exception:
-                    pass
-        # route and HTTP method shortcuts (get/post/put/delete) are decorators;
-        # provide no-op decorators if missing or not callable so import-time
-        # endpoint definitions don't fail under a minimalist MockFlask.
-        def _ensure_decorator(name):
-            try:
-                existing = getattr(app, name, None)
-            except Exception:
-                existing = None
-            if not existing or not callable(existing):
-                try:
-                    setattr(app, name, lambda *a, **k: (lambda f: f))
-                except Exception:
-                    pass
-
-        for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
-            _ensure_decorator(_d)
-
-        # Retry CORS now that shims are present; if it still fails, continue silently.
-        try:
-            CORS(app, resources={r"/*": {"origins": dev_origins}})
-            logging.info(f"CORS configured with dev_origins (retry): {len(dev_origins)} origins")
-        except Exception:
-            logging.exception('CORS initialization skipped due to MockFlask limitations')
+if not cors_env or cors_env == '*':
+    cors_origins = dev_origins
+    cors_label = 'dev'
 else:
     cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
+    cors_label = 'env'
+
+cors_resources = {r"/api/*": {"origins": cors_origins}}
+
+try:
+    CORS(app, resources=cors_resources)
+    logging.info(f"CORS configured with {len(cors_origins)} origins ({cors_label})")
+except Exception as e:
+    logging.warning(f"CORS initialization failed (will retry): {e}")
+
+    def _no_op_decorator(fn):
+        return fn
+
+    def _no_op_function(*args, **kwargs):
+        return None
+
+    for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
+        if not hasattr(app, name):
+            try:
+                setattr(app, name, _no_op_decorator)
+            except Exception:
+                pass
+
+    for name in ('register_blueprint', 'add_url_rule'):
+        if not hasattr(app, name):
+            try:
+                setattr(app, name, _no_op_function)
+            except Exception:
+                pass
+
+    def _ensure_decorator(name):
+        try:
+            existing = getattr(app, name, None)
+        except Exception:
+            existing = None
+        if not existing or not callable(existing):
+            try:
+                setattr(app, name, lambda *a, **k: (lambda f: f))
+            except Exception:
+                pass
+
+    for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
+        _ensure_decorator(_d)
+
     try:
-        CORS(app, origins=cors_origins)
-        logging.info(f"CORS configured with production origins: {cors_origins}")
+        CORS(app, resources=cors_resources)
+        logging.info(f"CORS configured with {len(cors_origins)} origins ({cors_label} retry)")
     except Exception:
-        logging.exception('CORS initialization skipped due to environment limitations')
+        logging.exception('CORS initialization skipped due to MockFlask limitations')
 
 # Register blueprints after final app creation
 try:
@@ -1231,7 +1228,7 @@ CONFIG = {
     'CACHE_TTL': int(os.environ.get('CACHE_TTL', 60)),  # Cache for 60 seconds
     'INTERVAL_MINUTES': int(os.environ.get('INTERVAL_MINUTES', 3)),  # Calculate changes over 3 minutes
     'MAX_PRICE_HISTORY': int(os.environ.get('MAX_PRICE_HISTORY', 20)),  # Keep last 20 data points
-    'PORT': int(os.environ.get('PORT', 5001)),  # Default port
+    'PORT': int(os.environ.get('PORT', 5002)),  # Default port
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Background update interval in seconds
@@ -1255,6 +1252,15 @@ CONFIG = {
         int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
         if x.strip().isdigit()
     ] or [3, 5],
+    # Fast/slow snapshot controls (two-speed model)
+    'PRICE_SNAPSHOT_SECONDS': int(os.environ.get('PRICE_SNAPSHOT_SECONDS', 6)),
+    'HISTORY_KEEP_SECONDS': int(os.environ.get('HISTORY_KEEP_SECONDS', 70 * 60)),  # keep ~70 minutes
+    'FAST_LANE_SIZE': int(os.environ.get('FAST_LANE_SIZE', 120)),
+    'VALUE_REFRESH_SECONDS': int(os.environ.get('VALUE_REFRESH_SECONDS', os.environ.get('ONE_MIN_REFRESH_SECONDS', 45))),
+    'MEMBERSHIP_REFRESH_SECONDS': int(os.environ.get('MEMBERSHIP_REFRESH_SECONDS', 60)),
+    'HYSTERESIS_PCT': float(os.environ.get('HYSTERESIS_PCT', 0.2)),
+    'SLOW_BATCH_SIZE': int(os.environ.get('SLOW_BATCH_SIZE', 50)),
+    'SLOW_BATCH_SECONDS': int(os.environ.get('SLOW_BATCH_SECONDS', 30)),
 }
 
 # Log configuration once CONFIG is ready
@@ -1271,8 +1277,13 @@ cache = {
 }
 
 # Store price history for interval calculations
-price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
-price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
+# Compute history slots from retention seconds and snapshot frequency
+_history_slots = max(1, int(CONFIG.get('HISTORY_KEEP_SECONDS', 70 * 60) / max(1, CONFIG.get('PRICE_SNAPSHOT_SECONDS', 6))))
+# Ensure we don't shrink below existing MAX_PRICE_HISTORY
+_history_slots = max(_history_slots, CONFIG.get('MAX_PRICE_HISTORY', 20))
+price_history = defaultdict(lambda: deque(maxlen=_history_slots))
+price_history_1min = defaultdict(lambda: deque(maxlen=_history_slots)) # For 1-minute changes (same store schema)
+last_snapshot_ts = 0
 # Cache / state for 1-min data to prevent hammering APIs
 one_minute_cache = {"data": None, "timestamp": 0}
 last_current_prices = {"data": None, "timestamp": 0}
@@ -2423,6 +2434,7 @@ def get_banner_1h_volume():
     except Exception:
         return [], None
 
+@app.route('/api/data')
 @app.route('/data')
 def data_aggregate():
     """Unified aggregate data endpoint used by the dashboard SPA.
@@ -3241,7 +3253,7 @@ def get_crypto_data_1min(current_prices=None):
         return None
     current_time = time.time()
     # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot
-    refresh_window = CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)
+    refresh_window = CONFIG.get('VALUE_REFRESH_SECONDS', CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30))
     if one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
         return one_minute_cache['data']
     try:
@@ -3266,7 +3278,7 @@ def get_crypto_data_1min(current_prices=None):
                 "gainers": [],
                 "losers": [],
                 "throttled": True,
-                "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30),
+                "refresh_seconds": CONFIG.get('VALUE_REFRESH_SECONDS', CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)),
                 "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
                 "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
                 "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
@@ -4199,39 +4211,69 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
 
 def background_crypto_updates():
     """Background thread to update cache periodically"""
+    # Two timers:
+    #  - fast snapshots: CONFIG['PRICE_SNAPSHOT_SECONDS'] (append price ticks into ring buffers)
+    #  - heavy updates: CONFIG['UPDATE_INTERVAL'] (full 3-min computations, banners)
+    last_fast_ts = 0
+    last_heavy_ts = 0
+    fast_interval = max(1, CONFIG.get('PRICE_SNAPSHOT_SECONDS', 6))
+    heavy_interval = max(1, CONFIG.get('UPDATE_INTERVAL', 60))
+
     while True:
         try:
-            # Update 3-min data cache
-            data_3min = get_crypto_data()
-            if data_3min:
-                logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
+            now_ts = time.time()
 
-            # Respect config before doing 1-min related processing
-            if CONFIG.get('ENABLE_1MIN', True):
+            # Heavy work (less frequent)
+            if now_ts - last_heavy_ts >= heavy_interval:
+                data_3min = get_crypto_data()
+                if data_3min:
+                    logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
+                last_heavy_ts = now_ts
+
+            # Fast snapshot work: take lightweight price snapshots and append to ring buffers
+            if CONFIG.get('ENABLE_1MIN', True) and (now_ts - last_fast_ts >= fast_interval):
                 current_prices = get_current_prices()
                 if current_prices:
-                    # Store for reuse by on-demand endpoint
+                    # Append to per-symbol ring buffers
+                    ts = time.time()
+                    for sym, price in current_prices.items():
+                        try:
+                            price_history[sym].append((ts, float(price)))
+                        except Exception:
+                            # best-effort append
+                            continue
+
+                    # Store latest snapshot for endpoints
                     last_current_prices['data'] = current_prices
-                    last_current_prices['timestamp'] = time.time()
+                    last_current_prices['timestamp'] = ts
 
-                    # Update in-memory 1-minute histories (stale-while-revalidate)
-                    calculate_1min_changes(current_prices)
-                    logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
+                    # Update any legacy 1-min helpers that expect a price map
+                    try:
+                        calculate_1min_changes(current_prices)
+                    except Exception as e:
+                        logging.debug(f"calculate_1min_changes skipped: {e}")
 
-                    # Build and cache the 1-minute snapshot from these same prices
+                    # Build and cache the 1-minute snapshot from these same prices (fast path)
                     try:
                         _ = get_crypto_data_1min(current_prices=current_prices)
-                        logging.info("1-min snapshot refreshed by background updater")
+                        logging.info("1-min snapshot refreshed by background updater (fast path)")
                     except Exception as e:
                         logging.error(f"Background 1-min snapshot build failed: {e}")
 
-                    # Keep existing watchlist auto-logging behavior using the latest banner data
-                    _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+                    # Keep existing watchlist auto-logging behavior using the latest banner data if available
+                    try:
+                        if 'data_3min' in locals() and data_3min:
+                            _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+                    except Exception:
+                        pass
+
+                last_fast_ts = now_ts
 
         except Exception as e:
             logging.error(f"Error in background update: {e}")
-        
-        time.sleep(CONFIG['UPDATE_INTERVAL'])  # Dynamic interval
+
+        # Sleep a short time to allow fine-grained fast scheduling
+        time.sleep(1)
 
 # =============================================================================
 # COMMAND LINE ARGUMENTS

@@ -82,6 +82,9 @@ if [ -f ".env" ]; then
     set +a
 fi
 
+: "${BACKEND_PORT:=5002}"
+: "${BACKEND_READY_URL:=http://localhost:${BACKEND_PORT}/api/server-info}"
+
 # 1‑minute movers thresholds (defaults if not provided)
 : "${ONE_MIN_ENTER_PCT:=0.15}"
 : "${ONE_MIN_STAY_PCT:=0.05}"
@@ -97,6 +100,9 @@ if ! command_exists python3; then
     print_error "Python 3 is not installed. Please install Python 3.13+ to continue."
     exit 1
 fi
+
+PYTHON_CMD=python3
+PIP_CMD="${PYTHON_CMD} -m pip"
 
 if ! command_exists npm; then
     print_error "Node.js/npm is not installed. Please install Node.js 22.17+ to continue."
@@ -126,15 +132,18 @@ if [ -d ".venv" ]; then
     source .venv/bin/activate
     print_success "Virtual environment activated."
 else
-    print_warning "No virtual environment found. Consider creating one with: python3 -m venv .venv"
+    print_warning "No virtual environment found. Creating one now so dependencies can be installed locally."
+    python3 -m venv .venv
+    source .venv/bin/activate
+    print_success "Virtual environment created and activated."
 fi
 
 # Install backend dependencies if needed
 if [ -f "backend/requirements.txt" ]; then
     print_status "Checking backend dependencies..."
-    pip install --upgrade pip setuptools
+    ${PIP_CMD} install --upgrade pip setuptools
     cd backend
-    pip install -q -r requirements.txt
+    ${PIP_CMD} install -q -r requirements.txt
     cd ..
     print_success "Backend dependencies verified."
 fi
@@ -150,19 +159,18 @@ cd ..
 print_success "Frontend dependencies verified."
 
 # Start backend server
-print_status "Starting backend server on http://localhost:5001..."
+print_status "Starting backend server on http://localhost:${BACKEND_PORT}..."
 cd backend
 if [ -x "../.venv/bin/python" ]; then
-    ../.venv/bin/python app.py &
+    PORT=${BACKEND_PORT} ../.venv/bin/python app.py &
 else
-    python app.py &
+    PORT=${BACKEND_PORT} ${PYTHON_CMD} app.py &
 fi
 BACKEND_PID=$!
 cd ..
 
 # Readiness: wait until backend reports HTTP 200
 # Allow overrides via env if needed
-: "${BACKEND_READY_URL:=http://localhost:5001/api/server-info}"
 : "${READY_TIMEOUT_SEC:=30}"
 print_status "Waiting for backend readiness at ${BACKEND_READY_URL} (timeout ${READY_TIMEOUT_SEC}s)..."
 if ! wait_for_http_200 "${BACKEND_READY_URL}" "${READY_TIMEOUT_SEC}"; then
@@ -200,7 +208,7 @@ fi
 print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
 
 print_success "🐰 BHABIT CBMOONERS is now running!"
-print_status "Backend API: http://localhost:5001"
+print_status "Backend API: http://localhost:${BACKEND_PORT}"
 print_status "Frontend App: http://localhost:5173"
 print_status "Press Ctrl+C to stop both servers"
 
