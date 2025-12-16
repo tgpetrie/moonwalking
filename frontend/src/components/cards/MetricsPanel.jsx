@@ -1,4 +1,5 @@
 import React from "react";
+import { baselineOrNull, displayOrDash } from "../../utils/num.js";
 
 export default function MetricsPanel({ row, interval = "3m" }) {
   if (!row) return null;
@@ -8,11 +9,7 @@ export default function MetricsPanel({ row, interval = "3m" }) {
     .replace(/-USD$/i, "");
 
   const price = row.current_price;
-  const prev =
-    row.initial_price_3min ??
-    row.initial_price_1min ??
-    row.initial_price ??
-    null;
+  const prev = baselineOrNull(row.initial_price_3min ?? row.initial_price_1min ?? row.initial_price ?? row.previous_price ?? null);
 
   const pct =
     row.price_change_percentage_3min ??
@@ -35,7 +32,7 @@ export default function MetricsPanel({ row, interval = "3m" }) {
           {price != null ? `$${Number(price).toFixed(4)}` : "--"}
         </div>
         <div className="metrics-prev">
-          {prev != null ? `$${Number(prev).toFixed(4)}` : ""}
+          {displayOrDash(prev, (value) => `$${Number(value).toFixed(4)}`)}
         </div>
       </div>
 

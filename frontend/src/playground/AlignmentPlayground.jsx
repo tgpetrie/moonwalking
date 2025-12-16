@@ -7,14 +7,14 @@ const mock1mFew = [
     symbol: "BTC",
     name: "Bitcoin",
     current_price: 98420.12,
-    price_1m_ago: 97900.0,
+    price1mAgo: 97900.0,
     change_1m: 0.53,
   },
   {
     symbol: "ETH",
     name: "Ethereum",
     current_price: 4120.55,
-    price_1m_ago: 4050.0,
+    price1mAgo: 4050.0,
     change_1m: 1.74,
   },
 ];
@@ -24,35 +24,35 @@ const mock1mMany = [
     symbol: "SOL",
     name: "Solana",
     current_price: 186.32,
-    price_1m_ago: 180.0,
+    price1mAgo: 180.0,
     change_1m: 3.51,
   },
   {
     symbol: "LINK",
     name: "Chainlink",
     current_price: 18.03,
-    price_1m_ago: 17.5,
+    price1mAgo: 17.5,
     change_1m: 3.03,
   },
   {
     symbol: "DOGE",
     name: "Dogecoin",
     current_price: 0.189,
-    price_1m_ago: 0.183,
+    price1mAgo: 0.183,
     change_1m: 3.28,
   },
   {
     symbol: "OP",
     name: "Optimism",
     current_price: 3.42,
-    price_1m_ago: 3.3,
+    price1mAgo: 3.3,
     change_1m: 3.64,
   },
   {
     symbol: "ARB",
     name: "Arbitrum",
     current_price: 1.63,
-    price_1m_ago: 1.58,
+    price1mAgo: 1.58,
     change_1m: 3.16,
   },
 ];
@@ -63,28 +63,28 @@ const mockLosers3m = [
     symbol: "BONK",
     name: "Bonk",
     current_price: 0.000026,
-    price_3m_ago: 0.000028,
+    price3mAgo: 0.000028,
     change_3m: -7.14,
   },
   {
     symbol: "PEPE",
     name: "Pepe",
     current_price: 0.000011,
-    price_3m_ago: 0.000012,
+    price3mAgo: 0.000012,
     change_3m: -8.33,
   },
   {
     symbol: "SUI",
     name: "Sui",
     current_price: 1.19,
-    price_3m_ago: 1.28,
+    price3mAgo: 1.28,
     change_3m: -7.03,
   },
   {
     symbol: "APT",
     name: "Aptos",
     current_price: 8.41,
-    price_3m_ago: 9.02,
+    price3mAgo: 9.02,
     change_3m: -6.75,
   },
 ];
@@ -106,7 +106,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_1m_ago}
+                previousPrice={t.price1mAgo}
                 changePct={t.change_1m}
                 onInfo={() => {}}
               />
@@ -127,7 +127,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_1m_ago}
+                previousPrice={t.price1mAgo}
                 changePct={t.change_1m}
                 onInfo={() => {}}
               />
@@ -147,7 +147,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_1m_ago}
+                previousPrice={t.price1mAgo}
                 changePct={t.change_1m}
                 onInfo={() => {}}
               />
@@ -168,7 +168,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_3m_ago ?? t.price_1m_ago ?? null}
+                previousPrice={t.price3mAgo ?? t.price1mAgo ?? null}
                 changePct={3 + i}
                 onInfo={() => {}}
                 rowType="gainer"
@@ -188,7 +188,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_3m_ago}
+                previousPrice={t.price3mAgo}
                 changePct={t.change_3m}
                 onInfo={() => {}}
                 rowType="loser"
@@ -210,7 +210,7 @@ export function AlignmentPlayground() {
                 symbol={t.symbol}
                 name={t.name}
                 currentPrice={t.current_price}
-                previousPrice={t.price_1m_ago ?? t.price_3m_ago ?? null}
+                previousPrice={t.price1mAgo ?? t.price3mAgo ?? null}
                 changePct={i === 0 ? 2.3 : i === 1 ? -1.7 : 0.5}
                 onInfo={() => {}}
                 rowType={i === 1 ? "loser" : "gainer"}

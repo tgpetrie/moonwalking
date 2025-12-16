@@ -3,6 +3,7 @@ import { useWebSocket } from '../context/websocketcontext.jsx';
 import { API_ENDPOINTS, fetchData } from '../api.js';
 import formatSymbol from '../lib/format.js';
 import GainersTable1Min from './GainersTable1Min.jsx';
+import { baselineOrNull } from '../utils/num.js';
 
 export default function OneMinGainersColumns({
   refreshTrigger,
@@ -37,7 +38,7 @@ export default function OneMinGainersColumns({
           symbol: formatSymbol(item.symbol) || 'N/A',
           price: item.current_price ?? item.price ?? 0,
           change: pct,
-          initial_price_1min: item.initial_price_1min ?? item.initial_1min ?? null,
+          initial_price_1min: baselineOrNull(item.initial_price_1min ?? item.initial_1min ?? null),
           peakCount: typeof item.peak_count === 'number' ? item.peak_count : (typeof item.trend_streak === 'number' ? item.trend_streak : 0),
         });
       });

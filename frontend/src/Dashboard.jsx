@@ -49,7 +49,7 @@ export default function Dashboard() {
   }, []);
 
   const loading = !payload && !error;
-  const data = payload?.data || {};
+  const data = payload?.data || payload || {};
   const meta = payload?.meta || {};
   const errs = payload?.errors || {};
 
@@ -58,8 +58,8 @@ export default function Dashboard() {
   const { items: watchlistItems } = useWatchlist();
   const hasWatchlist = (watchlistItems?.length ?? 0) > 0;
 
-  // simple banner bindings if present in /data
-  const banner1h = useMemo(() => data.banner_1h || [], [data.banner_1h]);
+  // simple banner bindings if present in /data (accept either `banner_1h` or `banner_1h_price`)
+  const banner1h = useMemo(() => data.banner_1h || data.banner_1h_price || [], [data.banner_1h, data.banner_1h_price]);
 
   const vol1hTokens = useMemo(() => {
     const candidates =

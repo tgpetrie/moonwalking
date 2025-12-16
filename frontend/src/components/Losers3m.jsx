@@ -5,6 +5,7 @@ import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
 
@@ -49,16 +50,13 @@ export default function Losers3m({
           0;
         const pct = Number(pctRaw);
 
+        const baselineOrNullPrev = baselineOrNull(row.previous_price_3m ?? row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null);
+
         return {
           ...row,
-          rank: row.rank ?? nr.rank ?? idx + 1,
           symbol: row.symbol ?? nr.symbol,
           current_price: row.price ?? row.current_price ?? nr.currentPrice,
-          previous_price_3m:
-            row.previous_price_3m ??
-            row.initial_price_3min ??
-            nr._raw?.initial_price_3min ??
-            null,
+          previous_price_3m: baselineOrNullPrev,
           change_3m: Number.isFinite(pct) ? pct : 0,
         };
       })
@@ -134,7 +132,7 @@ export default function Losers3m({
             <TokenRowUnified
               key={row.symbol ?? idx}
               token={row}
-              rank={row.rank ?? idx + 1}
+              rank={idx + 1}
               changeField="change_3m"
               onInfo={handleInfo}
               onToggleWatchlist={() => handleToggleStar(row.symbol, row.current_price ?? row.price)}

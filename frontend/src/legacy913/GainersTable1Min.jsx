@@ -5,6 +5,7 @@ import { tickerFromSymbol } from '../utils/format';
 import { useWebSocket } from '../context/websocketcontext.jsx';
 import StarIcon from './StarIcon';
 import TokenRow from './TokenRow.jsx';
+import { baselineOrNull } from '../utils/num.js';
 
 // Accept onWatchlistChange and topWatchlist for proper state sync
 import PropTypes from 'prop-types';
@@ -59,7 +60,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                 rank={row.rank ?? idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.current_price ?? row.currentPrice}
-                previousPrice={row.previous_price ?? row.previousPrice}
+                previousPrice={baselineOrNull(row.previous_price ?? row.previousPrice ?? null)}
                 priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
                 priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
                 isGainer={true}
@@ -75,7 +76,7 @@ const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sli
                 rank={row.rank ?? left.length + idx + 1}
                 symbol={row.symbol}
                 currentPrice={row.current_price ?? row.currentPrice}
-                previousPrice={row.previous_price ?? row.previousPrice}
+                previousPrice={baselineOrNull(row.previous_price ?? row.previousPrice ?? null)}
                 priceChange1min={row.price_change_percentage_1min ?? row.priceChange1min}
                 priceChange3min={row.price_change_percentage_3min ?? row.priceChange3min}
                 isGainer={true}

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useDataFeed } from "../hooks/useDataFeed";
-
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 const formatPrice = (val) => {
   const n = Number(val ?? 0);
   if (Number.isNaN(n)) return "$0.00";
@@ -8,11 +8,15 @@ const formatPrice = (val) => {
   return `$${n.toFixed(4)}`;
 };
 
-const formatPct = (val) => {
+const classifyPct = (val) => {
   const n = Number(val ?? 0);
-  if (!Number.isFinite(n)) return "0.00%";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  if (!Number.isFinite(n)) {
+    return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
+  }
+  const rounded = parseFloat(n.toFixed(2));
+  if (rounded === 0) return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
+  if (rounded > 0) return { display: `+${rounded.toFixed(2)}%`, state: "positive", className: "bh-banner-change--pos" };
+  return { display: `${rounded.toFixed(2)}%`, state: "negative", className: "bh-banner-change--neg" };
 };
 
 const normalizeSymbol = (value) => {
@@ -22,7 +26,6 @@ const normalizeSymbol = (value) => {
 
 export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) {
   const { data } = useDataFeed();
-
   const feedRows = useMemo(() => {
     const list = data?.banner_1h_price || data?.banner_1h || data?.banner_price_1h;
     if (Array.isArray(list)) return list;
@@ -45,30 +48,17 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
       .map((t) => {
         const symbol = normalizeSymbol(t?.symbol || t?.ticker);
         const priceNow = t?.price_now ?? t?.current_price ?? t?.price;
-        const changePct =
-          t?.price_change_1h_pct ??
-          t?.change_1h_price ??
-          t?.pct_change_1h ??
-          t?.price_change_1h ??
-          t?.pct_change ??
-          0;
+        const changePct = t?.price_change_1h_pct ?? t?.change_1h_price ?? t?.pct_change_1h ?? t?.price_change_1h ?? t?.pct_change ?? 0;
         const pctNum = Number(changePct ?? 0);
-
-        return {
-          ...t,
-          symbol,
-          price_now: priceNow,
-          price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
-        };
+        return { ...t, symbol, price_now: priceNow, price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
       })
-      .filter((t) => t.symbol && t.price_change_1h_pct !== 0)
-      .sort((a, b) => b.price_change_1h_pct - a.price_change_1h_pct)
+      .filter((t) => t.symbol)
+      .sort((a, b) => (b.price_change_1h_pct || 0) - (a.price_change_1h_pct || 0))
       .slice(0, 24);
   }, [rawItems]);
 
   const display = normalized.length ? normalized : [];
   const looped = display.length ? [...display, ...display] : [];
-
   if (!looped.length) {
     return (
       <div className="bh-banner bh-banner--top">
@@ -86,21 +76,22 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
       <div className="bh-banner-wrap">
         <div className="bh-banner-track">
           {looped.map((t, idx) => {
-            const isPos = (t.price_change_1h_pct ?? 0) >= 0;
-            const pair = t.symbol ? `${t.symbol}-USD` : "";
+            const pctInfo = classifyPct(t.price_change_1h_pct ?? 0);
+            const url = coinbaseSpotUrl(t || {});
+            if (!url) {
+              return (
+                <div key={`${t.symbol}-${idx}`} className="bh-banner-item">
+                  <span className="bh-banner-symbol">{t.symbol || "--"}</span>
+                  <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
+                  <span className={`bh-banner-change ${pctInfo.className}`}>{pctInfo.display}</span>
+                </div>
+              );
+            }
             return (
-              <a
-                key={`${t.symbol}-${idx}`}
-                className="bh-banner-item"
-                href={t.symbol ? `https://www.coinbase.com/advanced-trade/spot/${pair}` : "#"}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a key={`${t.symbol}-${idx}`} className="bh-banner-item" href={url} target="_blank" rel="noreferrer noopener">
                 <span className="bh-banner-symbol">{t.symbol || "--"}</span>
                 <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
-                <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>
-                  {formatPct(t.price_change_1h_pct)}
-                </span>
+                <span className={`bh-banner-change ${pctInfo.className}`}>{pctInfo.display}</span>
               </a>
             );
           })}

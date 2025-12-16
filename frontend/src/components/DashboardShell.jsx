@@ -1,5 +1,5 @@
 // src/components/DashboardShell.jsx
-import { useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import TopBannerScroll from "./TopBannerScroll.jsx";
 import VolumeBannerScroll from "./VolumeBannerScroll.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -14,11 +14,13 @@ import BoardWrapper from "./BoardWrapper.jsx";
 
 export default function DashboardShell({ onInfo }) {
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage } = useDashboardData();
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [insightsSymbol, setInsightsSymbol] = useState(null);
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
+  const [mountedAt] = useState(() => Date.now());
+  const partialStreakRef = useRef(0);
 
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
@@ -37,12 +39,39 @@ export default function DashboardShell({ onInfo }) {
     setHighlightActive(active);
   };
 
+  const counts = Object.values(coverage || {}).filter((v) => typeof v === "number");
+  const total = counts.reduce((a, b) => a + b, 0);
+  const hasZeros = counts.some((v) => v === 0);
+  const isPartial = !fatal && (total === 0 || hasZeros);
+  const partialStreak = useMemo(() => {
+    if (!lastUpdated) {
+      return 0;
+    }
+    return isPartial ? partialStreakRef.current + 1 : 0;
+  }, [lastUpdated, isPartial]);
+  useEffect(() => {
+    partialStreakRef.current = partialStreak;
+  }, [partialStreak]);
+
+  // Derive `status` from live/partial/fatal indicators. Do not store as derived state
+  const status = useMemo(() => {
+    const now = Date.now();
+    const isWarming = now - mountedAt < 25000;
+    const isLive = !isPartial;
+    if (fatal) return "DEGRADED";
+    if (isLive) return "LIVE";
+    if (isWarming) return "WARMING";
+    if (partialStreak >= 2) return "PARTIAL";
+    return "PARTIAL";
+  }, [fatal, isPartial, mountedAt, partialStreak]);
+
   return (
     <div className="bh-app">
       <header className="bh-topbar">
         <div className="bh-logo">
           <span className="bh-logo-icon">🐇</span>
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
+          <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
         </div>
         <div className="bh-topbar-right">
           <LiveStatusBar loading={loading} error={error} lastUpdated={lastUpdated} isValidating={isValidating} />
@@ -50,6 +79,7 @@ export default function DashboardShell({ onInfo }) {
       </header>
 
       <main className="bh-main">
+        <div className="bh-bunny-layer" aria-hidden="true" />
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
           <div className="bh-board">
             {/* 1h Price Banner (top) */}

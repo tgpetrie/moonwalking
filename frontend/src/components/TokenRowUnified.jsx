@@ -1,19 +1,9 @@
 // src/components/TokenRowUnified.jsx
 import React from "react";
 import RowActions from "./tables/RowActions.jsx";
-
-/**
- * Format prices into readable ranges to avoid noisy decimals.
- */
-function formatPrice(value) {
-  if (value == null || Number.isNaN(value)) return "-";
-  const n = Number(value);
-
-  if (n >= 100) return n.toFixed(0);
-  if (n >= 1) return n.toFixed(2);
-  if (n >= 0.01) return n.toFixed(4);
-  return n.toFixed(6);
-}
+import { formatPct, formatPrice } from "../utils/format.js";
+import { baselineOrNull } from "../utils/num.js";
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -23,6 +13,7 @@ function formatPrice(value) {
  * - 3m losers
  * - Watchlist
  */
+
 export function TokenRowUnified({
   token,
   rank,
@@ -34,28 +25,25 @@ export function TokenRowUnified({
   density = "normal", // "normal" | "tight"
 }) {
   const rawChange = token?.[changeField];
-  const change = Number.isFinite(rawChange) ? rawChange : 0;
-  const isPositive = change >= 0;
-  const strongMove = Math.abs(change) >= 0.5;
+  const changeNum = typeof rawChange === "string" ? Number(String(rawChange).replace(/[%+]/g, "")) : Number(rawChange);
+  const hasChange = Number.isFinite(changeNum);
+  const pctState = !hasChange || changeNum === 0 ? "flat" : changeNum > 0 ? "positive" : "negative";
+  const pctInfo = {
+    state: pctState,
+    display: formatPct(hasChange ? changeNum : undefined, { sign: true }),
+    className: pctState === "positive" ? "bh-change-pos" : pctState === "negative" ? "bh-change-neg" : "bh-change-flat",
+  };
 
   const currentPrice = token?.current_price;
-  const prevPrice =
-    token?.previous_price_1m ?? token?.previous_price_3m ?? null;
-
-  const changeClass = [
-    "bh-change",
-    isPositive ? "bh-change-pos" : "bh-change-neg",
-    strongMove ? "bh-change-strong" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const prevPrice = baselineOrNull(token?.previous_price_1m ?? token?.previous_price_3m ?? token?.previous_price ?? token?.initial_price_1min ?? token?.initial_price_3min ?? token?.price_1m_ago ?? token?.price_3m_ago ?? null);
 
   const RowTag = renderAs === "tr" ? "tr" : "div";
   const CellTag = renderAs === "tr" ? "td" : "div";
   const rowClass = [
     "bh-row",
     density === "tight" ? "bh-row--tight" : "",
-    !isPositive ? "bh-row--loss" : "",
+    pctInfo.state === "negative" ? "bh-row--loss" : "",
+    pctInfo.state === "positive" ? "is-gain" : pctInfo.state === "negative" ? "is-loss" : "is-flat",
   ]
     .filter(Boolean)
     .join(" ");
@@ -75,13 +63,13 @@ export function TokenRowUnified({
 
       {/* 3. Price stack (current / previous) */}
       <CellTag className="bh-cell bh-cell-price">
-        <div className="bh-price-current">${formatPrice(currentPrice)}</div>
-        <div className="bh-price-previous">${formatPrice(prevPrice)}</div>
+        <div className="bh-price-current">{formatPrice(currentPrice)}</div>
+        <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
       </CellTag>
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change">
-        <span className={changeClass}>{change.toFixed(3)}%</span>
+        <span className={`bh-change ${pctInfo.className}`}>{pctInfo.display}</span>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}
@@ -95,8 +83,26 @@ export function TokenRowUnified({
     </>
   );
 
+  const url = coinbaseSpotUrl(token || {});
+  const open = () => {
+    if (!url) return;
+    if (window.getSelection?.().toString()) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const handleClick = (e) => {
+    if (e?.target?.closest && e.target.closest("a,button")) return;
+    open();
+  };
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      if (e?.target?.closest && e.target.closest("a,button")) return;
+      e.preventDefault();
+      open();
+    }
+  };
+
   return (
-    <RowTag className={rowClass}>
+    <RowTag className={`${rowClass} ${url ? "bh-row-clickable" : ""}`} role={url ? "link" : undefined} tabIndex={url ? 0 : undefined} onClick={handleClick} onKeyDown={onKeyDown} aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}>
       {renderAs !== "tr" && <div className="bh-row-hover-glow" />}
       {renderCells()}
     </RowTag>

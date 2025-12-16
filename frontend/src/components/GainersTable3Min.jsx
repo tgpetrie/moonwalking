@@ -3,6 +3,7 @@ import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
+import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
 
@@ -37,11 +38,13 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
           row.pct ??
           0;
         const pct = Number(pctRaw);
+
+        const baselineOrNullPrev = baselineOrNull(row.previous_price_3m ?? row.initial_price_3min ?? null);
         return {
           ...row,
           change_3m: pct,
           _pct: Number.isFinite(pct) ? pct : 0,
-          previous_price_3m: row.previous_price_3m ?? row.initial_price_3min,
+          previous_price_3m: baselineOrNullPrev,
           current_price: row.price ?? row.current_price,
         };
       })
@@ -77,20 +80,15 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
     );
   }
 
-  const tokens = visibleRows.map((row, index) => ({
-    ...row,
-    rank: row.rank ?? index + 1,
-  }));
-
   return (
     <>
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
-          {tokens.map((token) => (
+          {visibleRows.map((token, index) => (
             <TokenRowUnified
               key={token.symbol}
               token={token}
-              rank={token.rank}
+              rank={index + 1}
               changeField="change_3m"
               onInfo={onInfo}
               onToggleWatchlist={onToggleWatchlist}

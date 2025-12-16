@@ -4,6 +4,7 @@ import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
+import { baselineOrNull } from "../utils/num.js";
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
@@ -22,11 +23,10 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   const mapped = useMemo(() => {
     if (tokensProp) {
       // Use prop tokens - they should already be normalized
-      return tokensProp.map((row, idx) => ({
-        rank: row.rank ?? idx + 1,
+      return tokensProp.map((row) => ({
         symbol: row.symbol,
         current_price: row.price ?? row.current_price,
-        previous_price: row.initial_price_3min ?? row.previous_price ?? null,
+        previous_price: baselineOrNull(row.initial_price_3min ?? row.previous_price ?? null),
         price_change_percentage_3min: row.changePct ?? row.price_change_percentage_3min ?? row.change_3m ?? null,
         isGainer: false, // PURPLE accent
         price: row.price ?? row.current_price,
@@ -35,13 +35,12 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
 
     // Fall back to hook data
     const raw = Array.isArray(payload?.data) ? payload.data : [];
-    return raw.map((row, idx) => {
+    return raw.map((row) => {
       const nr = normalizeTableRow(row);
       return {
-        rank: nr.rank ?? row.rank ?? idx + 1,
         symbol: nr.symbol ?? row.symbol,
         current_price: nr.currentPrice ?? row.current_price,
-        previous_price: row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null,
+        previous_price: baselineOrNull(row.initial_price_3min ?? nr._raw?.initial_price_3min ?? null),
         price_change_percentage_1min: undefined,
         price_change_percentage_3min: row.price_change_percentage_3min ?? nr._raw?.price_change_percentage_3min ?? null,
         isGainer: false, // PURPLE accent
@@ -134,9 +133,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         <div className="bh-table">
           {visible.map((tokenProps, idx) => (
             <TokenRowUnified
-              key={tokenProps.symbol ?? `${tokenProps.rank ?? idx}`}
+              key={tokenProps.symbol ?? `${idx}`}
               token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
-              rank={tokenProps.rank ?? idx + 1}
+              rank={idx + 1}
               changeField="change_3m"
               onInfo={() => handleInfo(tokenProps.symbol)}
               onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
