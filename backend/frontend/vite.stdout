@@ -1,8 +1,0 @@
-npm error code ENOENT
-npm error syscall open
-npm error path /Users/cdmxx/Documents/moonwalkings/backend/frontend/package.json
-npm error errno -2
-npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/Users/cdmxx/Documents/moonwalkings/backend/frontend/package.json'
-npm error enoent This is related to npm not being able to find a file.
-npm error enoent
-npm error A complete log of this run can be found in: /Users/cdmxx/.npm/_logs/2025-11-09T08_01_35_435Z-debug-0.log

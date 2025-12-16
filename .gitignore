@@ -112,3 +112,18 @@ backend/*.log
 # Runtime artifacts
 *.log
 *.pid
+
+# Local logs
+backend/server.log
+backend/server.log.*
+backend/backend/server.log
+backend/backend/server.log.*
+backend/*.stdout
+backend/*.err
+vite*.stdout
+vite*.err
+frontend/vite*.stdout
+frontend/vite*.err
+
+# Editor junk
+.history/
