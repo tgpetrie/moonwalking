@@ -25,12 +25,28 @@ function InfoIcon({ className = "" }) {
 }
 
 export default function RowActions({ starred, onToggleStar, onInfoClick }) {
+  const handleStarClick = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    onToggleStar?.();
+  };
+
+  const handleInfoClick = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    onInfoClick?.();
+  };
+
   return (
     <div className="bh-row-actions row-actions">
       <button
         type="button"
         className={`bh-row-action ${starred ? "is-active" : ""}`}
-        onClick={onToggleStar}
+        onClick={handleStarClick}
         aria-label="Toggle watchlist"
       >
         <StarIcon filled={starred} className="bh-row-icon" />
@@ -39,7 +55,7 @@ export default function RowActions({ starred, onToggleStar, onInfoClick }) {
       <button
         type="button"
         className="bh-row-action"
-        onClick={onInfoClick}
+        onClick={handleInfoClick}
         aria-label="Show sentiment"
       >
         <InfoIcon className="bh-row-icon" />

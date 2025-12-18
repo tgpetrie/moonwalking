@@ -31,8 +31,8 @@ export default defineConfig({
       protocol: 'ws'
     },
     proxy: {
-      '/data': { target, changeOrigin: true },
-      '/api': { target, changeOrigin: true },
+      '/data': { target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5002', changeOrigin: true },
+      '/api': { target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5002', changeOrigin: true },
       '/api/sentiment': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,

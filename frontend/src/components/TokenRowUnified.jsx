@@ -24,6 +24,7 @@ export function TokenRowUnified({
   renderAs = "div",
   density = "normal", // "normal" | "tight"
 }) {
+  const symbol = token?.symbol;
   const rawChange = token?.[changeField];
   const changeNum = typeof rawChange === "string" ? Number(String(rawChange).replace(/[%+]/g, "")) : Number(rawChange);
   const hasChange = Number.isFinite(changeNum);
@@ -47,6 +48,17 @@ export function TokenRowUnified({
   ]
     .filter(Boolean)
     .join(" ");
+
+  const handleToggleStar = () => {
+    if (!symbol || typeof onToggleWatchlist !== "function") return;
+    const activePrice = currentPrice ?? token?.price ?? null;
+    onToggleWatchlist(symbol, activePrice);
+  };
+
+  const openSentiment = (symbol) => {
+    if (!symbol) return;
+    window.dispatchEvent(new CustomEvent("openInfo", { detail: symbol }));
+  };
 
   const renderCells = () => (
     <>
@@ -76,8 +88,8 @@ export function TokenRowUnified({
       <CellTag className="bh-cell bh-cell-actions">
         <RowActions
           starred={Boolean(isWatchlisted)}
-          onToggleStar={() => onToggleWatchlist?.(token.symbol)}
-          onInfoClick={() => onInfo?.(token.symbol)}
+          onToggleStar={handleToggleStar}
+          onInfoClick={() => openSentiment(token.symbol)}
         />
       </CellTag>
     </>

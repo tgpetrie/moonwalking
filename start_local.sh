@@ -12,7 +12,7 @@ set -euo pipefail
 HOST="${HOST:-127.0.0.1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BACKEND_START=${BACKEND_START:-5002}
+BACKEND_START=${BACKEND_START:-5001}
 FRONTEND_START=${FRONTEND_START:-5173}
 
 BACKEND_PID_FILE=${BACKEND_PID_FILE:-/tmp/mw_backend.pid}
@@ -180,7 +180,10 @@ if [ ! -d node_modules ]; then
   echo "[start.local] installing frontend dependencies..."
   npm install
 fi
-BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" exec npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
+VITE_API_URL="http://$HOST:$BACKEND_PORT" \
+VITE_PROXY_TARGET="http://$HOST:$BACKEND_PORT" \
+BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" \
+exec npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
 EOF
 )
   start_detached /tmp/mw_frontend.log bash -c "$frontend_cmd" > "$FRONTEND_PID_FILE"
@@ -191,7 +194,10 @@ else
       echo "[start.local] installing frontend dependencies..."
       npm install
     fi
-    BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
+    VITE_API_URL="http://$HOST:$BACKEND_PORT" \
+    VITE_PROXY_TARGET="http://$HOST:$BACKEND_PORT" \
+    BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" \
+    npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
   ) > /tmp/mw_frontend.log 2>&1 &
   echo $! > "$FRONTEND_PID_FILE"
 fi
@@ -209,7 +215,10 @@ backend_ok=0
 frontend_ok=0
 while [ $i -lt $WAIT_RETRIES ]; do
   if [ $backend_ok -eq 0 ]; then
-    if curl -sS "http://$HOST:$BACKEND_PORT/api/data" >/dev/null 2>&1; then
+    if curl -sS "http://$HOST:$BACKEND_PORT/data" >/dev/null 2>&1; then
+      backend_ok=1
+      echo "[start.local] backend /data is responding"
+    elif curl -sS "http://$HOST:$BACKEND_PORT/api/data" >/dev/null 2>&1; then
       backend_ok=1
       echo "[start.local] backend /api/data is responding"
     fi

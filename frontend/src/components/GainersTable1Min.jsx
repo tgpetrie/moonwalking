@@ -50,10 +50,15 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   // Loading skeleton state
   if (isLoading && !hasData) {
     return (
-      <div className="bh-panel bh-panel-half">
-        <div className="bh-table">
-          {/* Use div-based skeleton rows to match TokenRowUnified rendering */}
-          <TableSkeletonRows columns={5} rows={6} />
+      <div className="gainers-table">
+        <div className="panel-row--1m">
+          <div className="bh-table">
+            {/* Use div-based skeleton rows to match TokenRowUnified rendering */}
+            <TableSkeletonRows columns={5} rows={6} />
+          </div>
+          <div className="bh-table">
+            <TableSkeletonRows columns={5} rows={6} />
+          </div>
         </div>
       </div>
     );
@@ -62,11 +67,13 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   // No data state
   if (!isLoading && !hasData) {
     return (
-      <div className="bh-panel bh-panel-half">
-        <div className="bh-table">
-          <div className="token-row token-row--empty">
-            <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-              No 1-minute movers to show right now.
+      <div className="gainers-table">
+        <div className="panel-row--1m">
+          <div className="bh-table">
+            <div className="token-row token-row--empty">
+              <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                No 1-minute movers to show right now.
+              </div>
             </div>
           </div>
         </div>
@@ -86,63 +93,51 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   }
 
   return (
-    <>
-      <div className="bh-panel bh-panel-half">
-        <div className="bh-table">
-          {grids.map(({ rows, offset }, gridIndex) => {
-            const total = rows.length;
-            const hasSecondColumn = total > MAX_ROWS_PER_COLUMN;
-            const density = hasSecondColumn ? "normal" : "tight";
-            const visibleTokens = hasSecondColumn
-              ? rows.slice(0, MAX_VISIBLE)
-              : rows.slice(0, MAX_ROWS_PER_COLUMN);
-            const leftColumn = visibleTokens.slice(0, MAX_ROWS_PER_COLUMN);
-            const rightColumn = visibleTokens.slice(MAX_ROWS_PER_COLUMN);
+    <div className="gainers-table">
+      {grids.map(({ rows, offset }, gridIndex) => {
+        const total = rows.length;
+        const hasSecondColumn = total > MAX_ROWS_PER_COLUMN;
+        const density = hasSecondColumn ? "normal" : "tight";
+        const visibleTokens = hasSecondColumn
+          ? rows.slice(0, MAX_VISIBLE)
+          : rows.slice(0, MAX_ROWS_PER_COLUMN);
+        const leftColumn = visibleTokens.slice(0, MAX_ROWS_PER_COLUMN);
+        const rightColumn = visibleTokens.slice(MAX_ROWS_PER_COLUMN);
 
-            return (
-              <div
-                key={`bh-1m-grid-${gridIndex}`}
-                className={
-                  hasSecondColumn
-                    ? "bh-1m-grid bh-1m-grid--two-col"
-                    : "bh-1m-grid bh-1m-grid--single-col"
-                }
-              >
-                <div className="bh-1m-col">
-                  {leftColumn.map((token, index) => (
-                    <TokenRowUnified
-                      key={token.symbol ?? `${token.base}-${offset + index}`}
-                      token={token}
-                      rank={offset + index + 1}
-                      changeField="change_1m"
-                      onInfo={onInfo}
-                      onToggleWatchlist={onToggleWatchlist}
-                      isWatchlisted={watchlist.includes(token.symbol)}
-                      density={density}
-                    />
-                  ))}
-                </div>
+        return (
+          <div key={`bh-1m-grid-${gridIndex}`} className="panel-row--1m">
+            {gridIndex === 0 && <div className="bh-1m-rabbit" aria-hidden="true" />}
+            <div className="bh-table">
+              {leftColumn.map((token, index) => (
+                <TokenRowUnified
+                  key={token.symbol ?? `${token.base}-${offset + index}`}
+                  token={token}
+                  rank={offset + index + 1}
+                  changeField="change_1m"
+                  onInfo={onInfo}
+                  onToggleWatchlist={onToggleWatchlist}
+                  isWatchlisted={watchlist.includes(token.symbol)}
+                  density={density}
+                />
+              ))}
+            </div>
 
-                {hasSecondColumn && (
-                  <div className="bh-1m-col">
-                    {rightColumn.map((token, index) => (
-                      <TokenRowUnified
-                        key={token.symbol ?? `${token.base}-r${offset + index}`}
-                        token={token}
-                        rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
-                        changeField="change_1m"
-                        onInfo={onInfo}
-                        onToggleWatchlist={onToggleWatchlist}
-                        isWatchlisted={watchlist.includes(token.symbol)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+            <div className="bh-table">
+              {rightColumn.map((token, index) => (
+                <TokenRowUnified
+                  key={token.symbol ?? `${token.base}-r${offset + index}`}
+                  token={token}
+                  rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
+                  changeField="change_1m"
+                  onInfo={onInfo}
+                  onToggleWatchlist={onToggleWatchlist}
+                  isWatchlisted={watchlist.includes(token.symbol)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
       {gainers1m.length > 8 && (
         <div className="panel-footer">
           <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
@@ -150,6 +145,6 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

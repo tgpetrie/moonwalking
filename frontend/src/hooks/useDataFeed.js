@@ -3,7 +3,7 @@ import { API_BASE_URL, fetchAllData } from "../api";
 
 export function useDataFeed() {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `${API_BASE_URL}/api/data`,
+    `${API_BASE_URL || ""}/data`,
     fetchAllData,
     {
       refreshInterval: 15000,

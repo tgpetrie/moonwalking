@@ -29,6 +29,15 @@ print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# Find the first available TCP port starting at the given number
+find_free_port() {
+    local port="$1"
+    while lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; do
+        port=$((port + 1))
+    done
+    echo "${port}"
+}
+
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -149,8 +158,20 @@ fi
 cd ..
 print_success "Frontend dependencies verified."
 
+# Choose backend port, respecting existing env override and avoiding collisions
+BACKEND_PORT_DEFAULT=${BACKEND_PORT:-5001}
+BACKEND_PORT=$(find_free_port "${BACKEND_PORT_DEFAULT}")
+if [ "${BACKEND_PORT}" != "${BACKEND_PORT_DEFAULT}" ]; then
+    print_warning "Port ${BACKEND_PORT_DEFAULT} is busy; using ${BACKEND_PORT} instead"
+fi
+export PORT="${BACKEND_PORT}"
+export BACKEND_PORT
+
+# Choose frontend port (fixed unless user overrides VITE_PORT)
+FRONTEND_PORT=${VITE_PORT:-5173}
+
 # Start backend server
-print_status "Starting backend server on http://localhost:5001..."
+print_status "Starting backend server on http://localhost:${BACKEND_PORT}..."
 cd backend
 if [ -x "../.venv/bin/python" ]; then
     ../.venv/bin/python app.py &
@@ -162,7 +183,7 @@ cd ..
 
 # Readiness: wait until backend reports HTTP 200
 # Allow overrides via env if needed
-: "${BACKEND_READY_URL:=http://localhost:5001/api/server-info}"
+: "${BACKEND_READY_URL:=http://localhost:${BACKEND_PORT}/api/server-info}"
 : "${READY_TIMEOUT_SEC:=30}"
 print_status "Waiting for backend readiness at ${BACKEND_READY_URL} (timeout ${READY_TIMEOUT_SEC}s)..."
 if ! wait_for_http_200 "${BACKEND_READY_URL}" "${READY_TIMEOUT_SEC}"; then
@@ -178,14 +199,17 @@ fi
 print_success "Backend server started successfully (PID: $BACKEND_PID)"
 
 # Start frontend server
-print_status "Starting frontend development server..."
+print_status "Starting frontend development server (API -> http://127.0.0.1:${BACKEND_PORT})..."
 cd frontend
-npm run dev &
+VITE_API_URL="http://127.0.0.1:${BACKEND_PORT}" \
+VITE_WS_URL="http://127.0.0.1:${BACKEND_PORT}" \
+VITE_PROXY_TARGET="http://127.0.0.1:${BACKEND_PORT}" \
+npm run dev -- --host 0.0.0.0 --port "${FRONTEND_PORT}" &
 FRONTEND_PID=$!
 cd ..
 
 # Readiness: wait until frontend dev server responds with HTTP 200
-: "${FRONTEND_READY_URL:=http://localhost:5173}"
+: "${FRONTEND_READY_URL:=http://localhost:${FRONTEND_PORT}}"
 print_status "Waiting for frontend readiness at ${FRONTEND_READY_URL} (timeout ${READY_TIMEOUT_SEC}s)..."
 if ! wait_for_http_200 "${FRONTEND_READY_URL}" "${READY_TIMEOUT_SEC}"; then
     print_error "Frontend failed readiness check at ${FRONTEND_READY_URL} within ${READY_TIMEOUT_SEC}s"
@@ -200,8 +224,8 @@ fi
 print_success "Frontend server started successfully (PID: $FRONTEND_PID)"
 
 print_success "🐰 BHABIT CBMOONERS is now running!"
-print_status "Backend API: http://localhost:5001"
-print_status "Frontend App: http://localhost:5173"
+print_status "Backend API: http://localhost:${BACKEND_PORT}"
+print_status "Frontend App: http://localhost:${FRONTEND_PORT}"
 print_status "Press Ctrl+C to stop both servers"
 
 # Wait for user interrupt

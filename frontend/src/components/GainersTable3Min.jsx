@@ -59,9 +59,11 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
   // Loading skeleton state
   if (isLoading && !hasData) {
     return (
-      <div className="bh-panel bh-panel-full">
-        <div className="bh-table">
-          <TableSkeletonRows columns={5} rows={6} />
+      <div className="gainers-table">
+        <div className="bh-panel bh-panel-full">
+          <div className="bh-table">
+            <TableSkeletonRows columns={5} rows={6} />
+          </div>
         </div>
       </div>
     );
@@ -70,10 +72,12 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
   // No data state
   if (!isLoading && !hasData) {
     return (
-      <div className="bh-panel bh-panel-full">
-        <div className="bh-table">
-          <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-            No 3-minute movers to show right now.
+      <div className="gainers-table">
+        <div className="bh-panel bh-panel-full">
+          <div className="bh-table">
+            <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+              No 3-minute movers to show right now.
+            </div>
           </div>
         </div>
       </div>
@@ -81,7 +85,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
   }
 
   return (
-    <>
+    <div className="gainers-table">
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
           {visibleRows.map((token, index) => (
@@ -109,7 +113,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

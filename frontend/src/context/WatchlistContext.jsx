@@ -33,8 +33,19 @@ export function WatchlistProvider({ children }) {
       if (!s) return prev;
       if (prev.some((i) => i.symbol === s)) return prev;
       const seed = baseline ?? price;
-      const entryPrice = seed == null ? null : Number(seed);
-      return [...prev, { symbol: s, baseline: entryPrice, current: entryPrice, addedAt: Date.now() }];
+      const numeric = seed == null ? null : Number(seed);
+      const entryPrice = Number.isFinite(numeric) ? numeric : null;
+      const now = Date.now();
+      return [
+        ...prev,
+        {
+          symbol: s,
+          baseline: entryPrice,
+          current: entryPrice,
+          priceAdded: entryPrice,
+          addedAt: now,
+        },
+      ];
     });
   }, []);
 
@@ -50,8 +61,19 @@ export function WatchlistProvider({ children }) {
       if (prev.some((i) => i.symbol === s)) {
         return prev.filter((i) => i.symbol !== s);
       }
-      const entry = price == null ? null : Number(price);
-      return [...prev, { symbol: s, baseline: entry, current: entry, addedAt: Date.now() }];
+      const numeric = price == null ? null : Number(price);
+      const entry = Number.isFinite(numeric) ? numeric : null;
+      const now = Date.now();
+      return [
+        ...prev,
+        {
+          symbol: s,
+          baseline: entry,
+          current: entry,
+          priceAdded: entry,
+          addedAt: now,
+        },
+      ];
     });
   }, []);
 

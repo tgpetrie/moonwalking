@@ -6,12 +6,12 @@
 :root {
   /* Core colors */
   --bh-bg: #050308;
-  --bh-gain: #ffb347;
-  --bh-loss: #c084fc;
-  /* screenshot-style mint/teal price */
-  --bh-price: rgba(86, 219, 185, 0.95);
-  --bh-price-sub: rgba(86, 219, 185, 0.72);
-  --bh-price-teal: rgba(86, 219, 185, 0.95);
+  --bh-gain: rgb(245, 159, 34);
+  --bh-loss: rgb(168, 111, 255);
+  /* canonical mint price */
+  --bh-price: rgb(16, 174, 155);
+  --bh-price-sub: rgba(16, 174, 155, 0.74);
+  --bh-price-teal: var(--bh-price);
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
@@ -25,26 +25,125 @@
   --bh-row-gap: 14px;
 
   /* Bunny layer */
-  --bh-bunny-opacity: 0.018;
+  --bh-bunny-opacity: 0.22;
 
   /* Board layout */
   --bh-board-width: 1200px;
   --bh-panel-gap: 24px;
 
+  /* Responsive board sizing */
+  --rail: clamp(14px, 2.2vw, 26px);
+  --gap: clamp(18px, 2.4vw, 34px);
+  --maxw: min(1180px, calc(100vw - (var(--rail) * 2)));
+
   /* Typography */
   --bh-font-sans: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Rails + glass accents */
+  --bh-rail: rgba(255, 255, 255, 0.10);
+  --bh-rail-idle: 0.35;
+  --bh-rail-hover: 1;
+  --bh-glass-idle: 0;
+  --bh-glass-hover: 1;
+  --bh-bunny-idle: 0.035;
+  --bh-bunny-hover: 0.14;
+
+  /* Unified Row Specs */
+  --bh-row-cols: 32px minmax(0,1.6fr) minmax(0,1.25fr) minmax(0,0.95fr) 44px;
+  --bh-row-gap: 18px;
 }
 
+.bh-rail {
+  width: min(1040px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+
+.bh-row {
+  display: grid;
+  grid-template-columns: var(--bh-row-cols);
+  column-gap: var(--bh-row-gap);
+  align-items: center;
+  padding: var(--bh-row-py) var(--bh-row-px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background-color 0.2s ease;
+}
+
+.bh-table {
+  width: 100%;
+}
+
+.panel-row--1m,
+.panel-row--3m {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+  width: 100%;
+  position: relative;
+}
+/* One-off rabbit background tied to the 1m rail */
+.bh-1m-rabbit {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 92vw);
+  height: min(720px, 92vw);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  filter: saturate(0.9) contrast(0.9);
+  background: url("/purple-rabbit-bg.png") center/contain no-repeat;
+}
+
+.panel-row--1m .bh-table,
+.panel-row--1m .bh-row {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 720px) {
+  .bh-1m-rabbit {
+    width: min(520px, 96vw);
+    height: min(520px, 96vw);
+    opacity: 0.025;
+  }
+}
+
+@media (max-width: 820px) {
+  .panel-row--1m,
+  .panel-row--3m {
+    grid-template-columns: 1fr;
+    row-gap: 22px;
+  }
+}
+
+
+
 .bh-price,
+.bh-price-current,
 .bh-token-price,
-.token-price {
-  color: var(--bh-price);
+.price-now,
+.price-current,
+.token-price-current {
+  color: var(--bh-price) !important;
 }
 
 .bh-price-sub,
 .bh-token-price-sub,
-.token-price-sub {
-  color: var(--bh-price-sub);
+.bh-price-previous,
+.price-prev,
+.price-previous {
+  color: color-mix(in srgb, var(--bh-fg, rgba(255,255,255,0.9)) 62%, transparent) !important;
+  opacity: 0.85;
+}
+
+/* TokenRowSimple-style price blocks: avoid mint bleeding to the subline */
+.token-price{
+  color: inherit;
+}
+.token-price-sub{
+  color: var(--bh-fg) !important;
+  opacity: 0.6;
 }
 
 /* ===== GLOBAL RESETS ===== */
@@ -251,14 +350,33 @@ body {
   width: 100%;
 }
 
-.rabbit-layer {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* Ensure the scroll container is the positioning context */
+.board-core,
+.dashboard-shell,
+.bh-board {
+  position: relative;
+}
+
+/* Rabbit layer should scroll (absolute), not stick (fixed) */
+.rabbit-bg,
+.bh-bunny-layer {
+  position: absolute;
+  left: 50%;
+  top: 140px;              /* tweak to taste */
+  transform: translateX(-50%);
+  width: min(860px, 92vw); /* responsive */
+  height: auto;
   pointer-events: none;
   z-index: 0;
+  opacity: 0.08;           /* base visibility */
+}
+
+/* Make sure row content stays above */
+.bh-row,
+.bh-table,
+.bh-panel {
+  position: relative;
+  z-index: 2;
 }
 
 .rabbit-base {
@@ -515,13 +633,7 @@ body {
   align-items: center;
   column-gap: var(--bh-row-gap);
   padding: var(--bh-row-py) var(--bh-row-px);
-  grid-template-columns:
-    var(--bh-col-rank)
-    minmax(160px, 1fr)
-    var(--bh-col-price)
-    var(--bh-col-pct)
-    var(--bh-col-actions);
-  align-items: center;
+  grid-template-columns: var(--bh-row-cols);
   min-height: 58px;
   cursor: pointer;
 
@@ -626,11 +738,11 @@ a.bh-row {
   opacity: 0;
   mix-blend-mode: screen;
 
-  /* subtle + thin: illuminate, don't fill */
+  /* subtle + thin: illuminate, don't fill; uses accent not price */
   background: radial-gradient(
     circle at 52% 50%,
-    rgba(255, 181, 67, 0.22) 0%,
-    rgba(255, 181, 67, 0.06) 42%,
+    color-mix(in srgb, var(--row-accent, rgba(245,159,34,0.6)) 26%, transparent) 0%,
+    color-mix(in srgb, var(--row-accent, rgba(245,159,34,0.6)) 12%, transparent) 42%,
     transparent 72%
   );
 
@@ -664,9 +776,9 @@ a.bh-row {
 .bh-row.is-loss .bh-row-hover-glow{
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 108, 255, 0.10) 0%,
-    rgba(181, 108, 255, 0.045) 36%,
-    rgba(120, 255, 220, 0.028) 52%,
+    color-mix(in srgb, var(--row-accent, rgba(168,111,255,0.6)) 26%, transparent) 0%,
+    color-mix(in srgb, var(--row-accent, rgba(168,111,255,0.6)) 12%, transparent) 36%,
+    color-mix(in srgb, var(--row-accent, rgba(168,111,255,0.6)) 6%, transparent) 52%,
     transparent 74%
   );
 }
@@ -675,6 +787,72 @@ a.bh-row {
 .bh-row:focus-visible .bh-row-hover-glow{
   opacity: 0.20;
   transform: scale(1);
+}
+
+/* Visual hierarchy tweaks: price stack, change, rank, actions, hover glow */
+/* 1) Price stack spacing and size */
+.bh-cell-price{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;               /* was too large */
+  line-height: 1.05;
+}
+
+.bh-price-current{
+  font-size: 0.96rem;     /* bump up slightly */
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.bh-price-previous{
+  font-size: 0.78rem;     /* slightly smaller */
+  opacity: 0.62;          /* quieter */
+  transform: translateY(-1px); /* tucks it closer */
+}
+
+/* 2) Percent change: hero but not loud */
+.bh-cell-change .bh-change{
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-shadow: none; /* don’t let it bloom */
+}
+
+/* 3) Rank and symbol hierarchy */
+.bh-rank-circle,
+.bh-rank{
+  opacity: 0.75;
+  transform: scale(0.98);
+}
+
+.bh-symbol{
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+/* 4) Action icons: reduce baseline noise, brighten on hover */
+.bh-row-actions{
+  opacity: 0.55;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.bh-row:hover .bh-row-actions{
+  opacity: 0.95;
+}
+
+/* 5) Hover rail: guide the eye, not flood */
+.bh-row .bh-row-hover-glow{
+  opacity: 0.28 !important;          /* bring it down */
+  filter: blur(10px) !important;     /* softer */
+}
+.bh-row:hover .bh-row-hover-glow{
+  opacity: 0.55 !important;          /* still visible, not screaming */
+  filter: blur(10px) !important;
+}
+
+/* Quick visual checklist helpers (optional tuning) */
+.bh-cell-price, .bh-cell-change, .bh-cell-symbol, .bh-cell-actions, .bh-cell-rank{
+  will-change: transform, opacity;
 }
 
 /* ensure row stacking */
@@ -698,6 +876,15 @@ a.bh-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bh-cell-symbol .bh-symbol,
+.bh-cell-symbol .bh-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bh-cell-price {
@@ -705,17 +892,21 @@ a.bh-row {
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+  justify-self: end;
+  text-align: right;
 }
 
 .bh-cell-change {
   display: flex;
   justify-content: flex-end;
   text-align: right;
+  justify-self: end;
 }
 
 .bh-cell-actions {
   display: flex;
   justify-content: center;
+  justify-self: end;
 }
 
 /* Actions: FAR RIGHT, never wrap */
@@ -748,20 +939,21 @@ a.bh-row {
 
 /* Row cell typography — rank badge locked size (no resize) */
 .bh-rank {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  max-width: 28px;
-  max-height: 28px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  max-width: 22px;
+  max-height: 22px;
   border-radius: 999px;
-  background: rgba(255, 181, 67, 0.18);
-  border: 1px solid rgba(255, 181, 67, 0.55);
-  color: rgba(255, 181, 67, 0.95);
-  font-size: 0.68rem;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
   line-height: 1;
   flex-shrink: 0;
@@ -771,9 +963,16 @@ a.bh-row {
 /* Context-aware rank colors: losers show violet/purple */
 .bh-row--loss .bh-rank,
 .bh-row.is-loss .bh-rank {
-  background: rgba(192, 132, 252, 0.16);
-  border-color: rgba(192, 132, 252, 0.60);
-  color: rgba(192, 132, 252, 0.95);
+  background: transparent !important;
+  border-color: rgba(168, 111, 255, 0.35);
+  color: rgba(168, 111, 255, 0.9);
+}
+
+.bh-row--gain .bh-rank,
+.bh-row.is-gain .bh-rank {
+  background: transparent !important;
+  border-color: rgba(245, 159, 34, 0.35);
+  color: rgba(245, 159, 34, 0.92);
 }
 
 /* Context-aware rank colors: flat rows muted */
@@ -781,6 +980,14 @@ a.bh-row {
 .bh-row.is-flat .bh-rank {
   border-color: rgba(255, 255, 255, 0.32);
   color: var(--bh-muted);
+}
+
+.gainers-table .bh-rank{
+  border-color: rgba(245, 159, 34, 0.35);
+}
+
+.losers-table .bh-rank{
+  border-color: rgba(168, 111, 255, 0.35);
 }
 
 /* Context-aware rank colors for table rows */
@@ -848,6 +1055,55 @@ tr.table-row.is-flat .bh-token-rank {
 
 .bh-change-flat {
   color: var(--bh-muted);
+}
+
+/* Keep pseudo-elements disabled (we use the row background rail instead) */
+.bh-row::before,
+.bh-row::after {
+  content: none !important;
+}
+
+/* INNER-ORIGIN SWEEP: starts strong at the inside seam, fades outward */
+:root { --bh-seam: 50%; } /* default, overridden per column */
+
+.bh-panel-left  { --bh-seam: 100%; } /* inside edge is the right side */
+.bh-panel-right { --bh-seam: 0%;   } /* inside edge is the left side  */
+
+.bh-row:hover {
+  background: linear-gradient(90deg,
+    rgba(255, 170, 40, 0.00) 0%,
+    rgba(255, 170, 40, 0.06) 40%,
+    rgba(255, 190, 90, 0.18) var(--bh-seam),
+    rgba(255, 170, 40, 0.06) calc(var(--bh-seam) + 22%),
+    rgba(255, 170, 40, 0.00) 100%
+  ) !important;
+
+  box-shadow: inset 0 -1px 0 rgba(255, 190, 90, 0.22);
+}
+
+/* Price stack: slightly larger + tighter vertical gap */
+.bh-cell-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;               /* tighter than default */
+  line-height: 1.05;      /* pulls them together */
+}
+
+.bh-price-current {
+  font-size: 0.96rem;     /* up slightly */
+  font-weight: 600;
+}
+
+.bh-price-previous {
+  font-size: 0.78rem;     /* up slightly */
+  opacity: 0.62;
+}
+
+/* Disable overlay glow when using the rail-only approach */
+.bh-row .bh-row-hover-glow {
+  opacity: 0 !important;
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .bh-banner-change--flat {
@@ -1236,6 +1492,73 @@ tr.table-row.is-flat .bh-token-rank {
   padding: 2rem;
 }
 
+.bh-watchlist-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.bh-watchlist-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 5, 10, 0.9);
+  color: var(--bh-fg);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.bh-watchlist-search-input::placeholder {
+  color: var(--bh-muted);
+}
+
+.bh-watchlist-search-input:focus {
+  border-color: rgba(254, 164, 0, 0.45);
+  box-shadow: 0 0 12px rgba(254, 164, 0, 0.18);
+}
+
+.bh-watchlist-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: rgba(5, 3, 8, 0.96);
+  border: 1px solid rgba(254, 164, 0, 0.35);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+.bh-watchlist-search-option {
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--bh-fg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.bh-watchlist-search-option:hover {
+  background: rgba(254, 164, 0, 0.12);
+}
+
+.bh-watchlist-search-price {
+  font-size: 0.78rem;
+  color: var(--bh-muted);
+}
+
+.bh-watchlist-search-empty {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  color: var(--bh-muted);
+}
+
 /* ===== INSIGHTS FLOAT ===== */
 
 .bh-insight-float {
@@ -1288,4 +1611,577 @@ tr.table-row.is-flat .bh-token-rank {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Price lock (mint only) */
+.price-now,
+.price-current,
+.bh-price,
+.bh-token-price,
+[data-role="price-now"],
+.token-price-current,
+.token-price > :first-child{
+  color: var(--bh-price) !important;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.price-prev,
+.price-previous,
+.bh-price-previous,
+.token-price-sub,
+.token-price-previous,
+.bh-price-sub,
+[data-role="price-prev"]{
+  color: rgba(255,255,255,0.78) !important;
+  opacity: 0.72;
+  font-weight: 500;
+  filter: none !important;
+}
+
+/* prevent the whole cell from inheriting mint */
+:where(.bh-cell-price, .cell-price, .price-cell, .token-price){
+  color: inherit !important;
+}
+
+/* Base reset for rows */
+:where(.bh-row, .token-row, .tokenRow, .row, .table-row){
+  position: relative;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  margin: 6px 0;
+  z-index: 2;
+}
+
+/* Bunny/rabbit should whisper (low ink under glass) */
+:root{
+  --bh-hover-top: -9999px;
+  --bh-hover-h: 0px;
+  --bh-hover-on: 0;
+
+  --bh-bunny-rest: 0.018;
+  --bh-bunny-hover: 0.11;
+
+  /* New API: idle vs hover opacity for the bunny */
+  --bh-bunny-idle: 0.035;   /* before anything covers it */
+  --bh-bunny-hover: 0.14;   /* when a row is hovered */
+  --bh-bunny-glow-1: rgba(155, 85, 255, 0.38);
+  --bh-bunny-glow-2: rgba(255, 170, 60, 0.22);
+
+  /* Explicit non-mint rails (avoid green cast) */
+  --bh-mint: var(--bh-price);
+  --bh-gold: var(--bh-gain);
+  --bh-purple: var(--bh-loss);
+
+  /* keep legacy vars consistent if referenced elsewhere */
+  --bh-bunny-opacity: var(--bh-bunny-rest);
+  --bh-bunny-hover-opacity: var(--bh-bunny-hover);
+  --bh-bunny-idle: var(--bh-bunny-idle);
+}
+
+/* Ensure only one rabbit layer exists (keep .bh-bunny-layer) */
+.rabbit-layer,
+.rabbit-base,
+.rabbit-highlight{
+  display: none !important;
+}
+
+/* If both exist, prefer .bh-bunny-layer and suppress .rabbit-bg */
+body:has(.bh-bunny-layer) .rabbit-bg{
+  display: none !important;
+}
+
+.bh-row{
+  padding: 12px 14px !important;
+}
+
+:where(.token-row, .table-row) td{
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Bunny layer: fixed, crisp, unobtrusive (no blur/shimmer) */
+.bh-bunny-layer{
+  position: fixed !important;
+  left: 50% !important;
+  top: 54% !important;
+  transform: translate(-50%, -50%) scale(1.25) !important;
+  width: min(1200px, 92vw) !important;
+  height: min(900px, 80vh) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+
+  opacity: var(--bh-bunny-idle) !important;
+  mix-blend-mode: screen !important;
+  /* idle: subtle, low-saturation */
+  filter: saturate(0.9) brightness(0.95) !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  will-change: opacity, filter !important;
+  backface-visibility: hidden;
+  image-rendering: auto;
+
+  /* fade edges so it never competes with text */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 42%,
+    rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(circle at 50% 50%,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 42%,
+    rgba(0,0,0,0) 72%);
+}
+
+/* Highlight bunny: clipped to hovered row band (reveals the SAME aligned bunny) */
+.bh-bunny-layer::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+
+  /* stronger hover reveal */
+  opacity: calc(var(--bh-hover-on) * 0.38);
+  mix-blend-mode: screen;
+
+  /* only show the hovered row's viewport band */
+  clip-path: inset(
+    var(--bh-hover-top) 0
+    calc(100vh - (var(--bh-hover-top) + var(--bh-hover-h)))
+    0
+  );
+
+  /* make silhouette “pop” without blur-blooming the whole page */
+  filter:
+    contrast(1.75)
+    saturate(1.85)
+    brightness(1.10)
+    drop-shadow(0 0 7px rgba(155,85,255,0.72))
+    drop-shadow(0 0 18px rgba(155,85,255,0.52))
+    drop-shadow(0 0 12px rgba(255,170,60,0.30));
+  image-rendering: -webkit-optimize-contrast;
+  transition: opacity 110ms ease, filter 110ms ease;
+}
+
+/* Keep the bunny stable */
+.bh-bunny-layer{ transition: opacity 180ms ease, filter 180ms ease; }
+
+/* Base rabbit state (supports legacy .rabbit-bg if present) */
+.rabbit-bg{
+  opacity: var(--bh-bunny-rest) !important;
+  filter: saturate(1.05) contrast(1.05) !important;
+  mix-blend-mode: screen !important;
+  will-change: opacity, filter !important;
+}
+
+.rabbit-layer{
+  inset: auto !important;
+}
+
+.rabbit-base,
+.bh-bunny-layer{
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+/* Base bunny (always-on): ghosted; hover does the talking */
+.rabbit-bg,
+.bh-bunny-layer {
+  opacity: var(--bh-bunny-idle) !important;
+  filter: saturate(0.9) brightness(0.95) !important;
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+/* Hover-powered highlight (driven by JS-updated vars) */
+.bh-bunny::after,
+.bh-bunny-layer::after,
+.rabbit-bg::after {
+  opacity: calc(var(--bh-hover-on) * 0.38);
+}
+
+.rabbit-highlight{
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(255, 200, 120, 0.15) 0%,
+    rgba(255, 200, 120, 0.05) 35%,
+    transparent 70%
+  );
+}
+
+.rabbit-highlight--active{
+  opacity: 0.8;
+}
+
+/* Rabbit should NOT brighten globally on hover — reveal it per-row instead */
+.dashboard-shell:has(:where(.bh-row, .token-row, .tokenRow, .row, .table-row):hover)
+  :where(.bh-bunny-layer){
+  opacity: var(--bh-bunny-hover) !important;
+  filter: saturate(1.05) brightness(1.05) !important;
+}
+
+.board-core:has(.bh-row:hover) .bh-bunny-layer{
+  opacity: var(--bh-bunny-hover) !important;
+  filter: saturate(1.05) brightness(1.05) !important;
+}
+
+.board-core:has(.bh-row:hover) .rabbit-bg,
+.dashboard-shell:has(.bh-row:hover) .rabbit-bg{
+  opacity: var(--bh-bunny-hover) !important;
+  filter: saturate(1.05) brightness(1.05) !important;
+}
+
+.board-wrapper,
+.bh-main,
+.bh-board,
+.board-section,
+.table-wrap,
+.board-core{
+  position: relative;
+  z-index: 2;
+}
+
+/* --- HARD RESTORE: row actions (star/info) must always render above rabbit --- */
+:where(.row-actions, .bh-row-actions, .token-actions, .bh-token-actions, .bh-row-actions .bh-row-action){
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  position: relative;
+  z-index: 6 !important;
+}
+
+/* Note: we intentionally do NOT render a per-row bunny image.
+   The highlight is a clipped overlay on the single global bunny layer. */
+
+/* Per-row accent and containers (default neutral; avoid mint bleed) */
+.bh-row{ --row-accent: rgba(255, 255, 255, 0.30); }
+.bh-row--gain,
+.bh-row.is-gain{ --row-accent: rgba(245, 159, 34, 0.55); }
+.bh-row--loss,
+.bh-row.is-loss{ --row-accent: rgba(168, 111, 255, 0.55); }
+.bh-row--flat,
+.bh-row.is-flat{ --row-accent: rgba(255, 255, 255, 0.35); }
+.gainers-table .bh-row{ --row-accent: rgba(245, 159, 34, 0.55); }
+.losers-table .bh-row{ --row-accent: rgba(168, 111, 255, 0.55); }
+
+/* Always-visible faint rail (no mint in the rail; use per-row accent) */
+:where(.bh-row, .row)::after{
+  content:"";
+  position:absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0),
+    var(--row-accent),
+    rgba(255,255,255,0)
+  );
+  opacity: 0.35;
+  pointer-events:none;
+}
+
+/* On hover: rail goes full-strength with explicit gold/purple */
+.bh-row:hover::after{
+  opacity: 1;
+}
+.bh-row.is-gain:hover::after,
+.bh-row--gain:hover::after{
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0),
+    rgba(255,170,60,0.95),
+    rgba(255,255,255,0)
+  );
+}
+.bh-row.is-loss:hover::after,
+.bh-row--loss:hover::after{
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0),
+    rgba(155,85,255,0.95),
+    rgba(255,255,255,0)
+  );
+}
+
+/* Board-level responsive grid and panels (single governing grid) */
+.board-core{
+  width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--rail) 0;
+  display: grid;
+  grid-template-columns: 1fr; /* mobile default */
+  row-gap: var(--gap);
+}
+
+.board-core .bh-banner,
+.board-core .bh-banner--top,
+.board-core .bh-banner--bottom{
+  grid-column: 1 / -1;
+}
+
+.panel-row--3m{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap);
+}
+
+@media (min-width: 980px){
+  .panel-row--3m{
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    align-items: start;
+  }
+}
+
+/* 1m two-up wrapper */
+.panel-row--1m{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap);
+}
+
+@media (min-width: 980px){
+  .panel-row--1m{
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  }
+}
+
+.panel-row--1m .bh-table{
+  min-width: 0;
+}
+
+/* Row columns scale with clamp() instead of fixed widths */
+.bh-row{
+  display: grid;
+  grid-template-columns:
+    clamp(28px, 3.2vw, 34px)
+    minmax(0, 1.6fr)
+    minmax(0, 1.2fr)
+    minmax(0, 1.1fr)
+    clamp(34px, 4.2vw, 44px);
+  align-items: center;
+}
+
+/* Responsive typography for prices */
+.bh-price-current{
+  font-size: clamp(14px, 1.25vw, 16px);
+  line-height: 1.05;
+}
+.bh-price-previous{
+  font-size: clamp(11px, 1.05vw, 13px);
+  line-height: 1.05;
+  margin-top: 2px;
+}
+
+/* Hardened row layout to prevent squeeze/overlap */
+.bh-row{
+  /* stable columns: rank | symbol | price | pct | actions */
+  display: grid !important;
+  grid-template-columns:
+    34px
+    minmax(0, 1.6fr)
+    minmax(0, 1.2fr)
+    minmax(0, 1fr)
+    42px;
+  column-gap: 18px;
+  align-items: center;
+}
+
+/* Allow cells to shrink without forcing overflow */
+.bh-cell{
+  min-width: 0;
+}
+
+.bh-cell-symbol .bh-symbol{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bh-cell-price{
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bh-cell-change{
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bh-cell-actions{
+  justify-self: end;
+}
+
+@media (max-width: 520px){
+  .bh-row{
+    grid-template-columns: 30px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, .9fr) 38px;
+    column-gap: 12px;
+  }
+}
+
+/* Bunny: ghost mode by default, responsive sizing */
+.rabbit-bg,
+.bh-bunny-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+
+  /* almost invisible baseline */
+  opacity: 0.035 !important;                 /* was way too high */
+  filter: saturate(0.9) blur(0.2px);
+  mix-blend-mode: screen !important;
+
+  background-repeat: no-repeat !important;
+  background-size: clamp(420px, 62vw, 980px) !important;
+  background-position: 50% 58% !important;   /* center-ish, slightly lower */
+  transform: translate3d(0,0,0) !important;
+}
+
+/* Ensure rows sit above the bunny */
+.bh-table,
+.bh-row,
+.bh-panel {
+  position: relative;
+  z-index: 2;
+}
+
+/* Only bloom the bunny when a row is hovered (Chrome/Safari) */
+.board-core:has(.bh-row:hover) .rabbit-bg,
+.board-core:has(.bh-row:hover) .bh-bunny-layer {
+  opacity: 0.12 !important;                  /* still subtle */
+  filter: saturate(1.05) blur(0.3px) drop-shadow(0 0 18px rgba(180, 90, 255, 0.22));
+}
+
+@media (max-width: 640px) {
+  .rabbit-bg,
+  .bh-bunny-layer {
+    opacity: 0.025 !important;
+    background-size: clamp(360px, 86vw, 620px) !important;
+    background-position: 50% 60% !important;
+  }
+
+  .board-core:has(.bh-row:hover) .rabbit-bg,
+  .board-core:has(.bh-row:hover) .bh-bunny-layer {
+    opacity: 0.085 !important;
+    filter: saturate(1.03) blur(0.25px) drop-shadow(0 0 14px rgba(180, 90, 255, 0.18));
+  }
+}
+
+/* Hover: inner glass glow only */
+:where(.bh-row, .row):hover{
+  background: linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012)) !important;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    inset 0 -1px 0 rgba(255,255,255,.06),
+    inset 0 0 18px rgba(255,255,255,.03);
+}
+
+/* ===== HOVER GLOW OVERRIDES: prevent mint bleed, force gold/purple rails ===== */
+:root {
+  --bh-hover-gold: #ffb11a;   /* warm gold/orange */
+  --bh-hover-purple: #a96bff; /* violet */
+  --bh-hover-pink: #ff4fd8;   /* hot pink edge */
+}
+
+/* hover glow layer must not inherit mint/green */
+.bh-row-hover-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease, filter 160ms ease;
+  mix-blend-mode: normal; /* critical: prevents green cast */
+}
+
+/* default gainer hover = gold underline + faint wash */
+.bh-row:hover .bh-row-hover-glow {
+  opacity: 1;
+  filter: saturate(1.15);
+  background:
+    radial-gradient(1200px 120px at 40% 60%,
+      rgba(255, 177, 26, 0.10),
+      rgba(0, 0, 0, 0) 60%),
+    linear-gradient(to right,
+      rgba(255, 177, 26, 0),
+      rgba(255, 177, 26, 0.38) 35%,
+      rgba(255, 177, 26, 0.12) 55%,
+      rgba(255, 177, 26, 0) 80%);
+}
+
+/* losers hover = violet/pink glow, not gold */
+.bh-row--loss:hover .bh-row-hover-glow,
+.bh-row.is-loss:hover .bh-row-hover-glow {
+  opacity: 1;
+  mix-blend-mode: normal;
+  background:
+    radial-gradient(1200px 120px at 45% 60%,
+      rgba(169, 107, 255, 0.10),
+      rgba(0, 0, 0, 0) 60%),
+    linear-gradient(to right,
+      rgba(255, 79, 216, 0),
+      rgba(169, 107, 255, 0.34) 38%,
+      rgba(255, 79, 216, 0.14) 58%,
+      rgba(255, 79, 216, 0) 80%);
+}
+
+/* Ensure rows accept overlays (rail/hover glow) */
+.bh-row {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Rail-only alternative (uncomment to use): rails are forced color-specific */
+/*
+.bh-row-hover-glow { background: none; }
+
+.bh-row:hover::after,
+.bh-row--loss:hover::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0px;
+  height: 1px;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.bh-row:hover::after {
+  background: linear-gradient(90deg,
+    rgba(255,177,26,0),
+    rgba(255,177,26,0.75) 45%,
+    rgba(255,177,26,0));
+}
+
+.bh-row--loss:hover::after {
+  background: linear-gradient(90deg,
+    rgba(255,79,216,0),
+    rgba(169,107,255,0.80) 45%,
+    rgba(255,79,216,0));
+}
+*/
+
+.gainers-table :where(.bh-row, .row):hover,
+.losers-table :where(.bh-row, .row):hover{
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.05),
+    inset 0 0 26px var(--row-accent),
+    inset 0 -1px 0 rgba(255,255,255,.06);
 }

@@ -27,8 +27,8 @@ export default function DashboardShell({ onInfo }) {
     if (sym) setInsightsSymbol(sym);
   };
 
-  const handleToggleWatchlist = (symbol) => {
-    toggleWatchlist({ symbol });
+  const handleToggleWatchlist = (symbol, price = null) => {
+    toggleWatchlist({ symbol, price });
   };
 
   const watchlistSymbols = watchlistItems.map((item) => item.symbol);
@@ -52,6 +52,15 @@ export default function DashboardShell({ onInfo }) {
   useEffect(() => {
     partialStreakRef.current = partialStreak;
   }, [partialStreak]);
+
+  // Listen for "openInfo" events from anywhere (e.g. TokenRowUnified)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail) setInsightsSymbol(e.detail);
+    };
+    window.addEventListener("openInfo", handler);
+    return () => window.removeEventListener("openInfo", handler);
+  }, []);
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const status = useMemo(() => {
@@ -79,7 +88,6 @@ export default function DashboardShell({ onInfo }) {
       </header>
 
       <main className="bh-main">
-        <div className="bh-bunny-layer" aria-hidden="true" />
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
           <div className="bh-board">
             {/* 1h Price Banner (top) */}
@@ -93,8 +101,9 @@ export default function DashboardShell({ onInfo }) {
               </div>
             </section>
 
-            {/* 1-min Gainers (full-width or two-column, decided by component) */}
-            <section className="bh-board-row-full">
+            {/* 1m and 3m Rail */}
+            <div className="bh-rail">
+              {/* 1-min Gainers */}
               <div className="board-section">
                 <div className="board-section-header">
                   <div className="board-section-title">1 Minute Momentum – Live</div>
@@ -108,36 +117,36 @@ export default function DashboardShell({ onInfo }) {
                   watchlist={watchlistSymbols}
                 />
               </div>
-            </section>
 
-            {/* 3m Gainers / Losers (two-column) */}
-            <div className="board-section">
-              <div className="board-section-header">
-                <div className="board-section-title">3 Minute Leaderboard</div>
-                <div className="board-section-subtitle">Shorter bursts of momentum</div>
+              {/* 3m Gainers / Losers */}
+              <div className="board-section">
+                <div className="board-section-header">
+                  <div className="board-section-title">3 Minute Leaderboard</div>
+                  <div className="board-section-subtitle">Shorter bursts of momentum</div>
+                </div>
+                <section className="panel-row--3m">
+                  <div className="bh-panel bh-panel-half">
+                    <div className="table-title">TOP GAINERS (3M)</div>
+                    <GainersTable3Min
+                      tokens={gainers3m}
+                      loading={loading}
+                      onInfo={onInfoProp}
+                      onToggleWatchlist={handleToggleWatchlist}
+                      watchlist={watchlistSymbols}
+                    />
+                  </div>
+                  <div className="bh-panel bh-panel-half">
+                    <div className="table-title">TOP LOSERS (3M)</div>
+                    <LosersTable3Min
+                      tokens={losers3m}
+                      loading={loading}
+                      onInfo={onInfoProp}
+                      onToggleWatchlist={handleToggleWatchlist}
+                      watchlist={watchlistSymbols}
+                    />
+                  </div>
+                </section>
               </div>
-              <section className="panel-row panel-row--3m">
-                <div className="bh-panel bh-panel-half">
-                  <div className="table-title">TOP GAINERS (3M)</div>
-                  <GainersTable3Min
-                    tokens={gainers3m}
-                    loading={loading}
-                    onInfo={onInfoProp}
-                    onToggleWatchlist={handleToggleWatchlist}
-                    watchlist={watchlistSymbols}
-                  />
-                </div>
-                <div className="bh-panel bh-panel-half">
-                  <div className="table-title">TOP LOSERS (3M)</div>
-                  <LosersTable3Min
-                    tokens={losers3m}
-                    loading={loading}
-                    onInfo={onInfoProp}
-                    onToggleWatchlist={handleToggleWatchlist}
-                    watchlist={watchlistSymbols}
-                  />
-                </div>
-              </section>
             </div>
 
             {/* Watchlist (full-width) */}

@@ -4549,6 +4549,13 @@ def parse_arguments():
     
     return parser.parse_args()
 
+
+# Backwards-compatible alias: some clients call /api/data. Proxy to the canonical
+# `/data` handler so older frontends or misconfigured envs still work during dev.
+@app.route('/api/data')
+def api_data():
+    return data_aggregate()
+
 # =============================================================================
 # APPLICATION STARTUP
 # =============================================================================
@@ -4836,10 +4843,3 @@ __all__ = [
     "format_crypto_data",
     "format_banner_data"
 ]
-
-
-# Backwards-compatible alias: some clients call /api/data. Proxy to the canonical
-# `/data` handler so older frontends or misconfigured envs still work during dev.
-@app.route('/api/data')
-def api_data():
-    return data_aggregate()
