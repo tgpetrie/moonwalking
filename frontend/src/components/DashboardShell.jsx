@@ -39,19 +39,7 @@ export default function DashboardShell({ onInfo }) {
     setHighlightActive(active);
   };
 
-  const onOver = (e) => {
-    if (e.target.closest?.(".bh-row, .bh-banner-item")) {
-      e.currentTarget.classList.add("rabbit-hot");
-    }
-  };
-
-  const onOut = (e) => {
-    const leaving = e.target.closest?.(".bh-row, .bh-banner-item");
-    const entering = e.relatedTarget?.closest?.(".bh-row, .bh-banner-item");
-    if (leaving && !entering) {
-      e.currentTarget.classList.remove("rabbit-hot");
-    }
-  };
+  // Removed global rabbit-hot wake handlers — reveal is per-row via CSS backdrop-filter
 
   const counts = Object.values(coverage || {}).filter((v) => typeof v === "number");
   const total = counts.reduce((a, b) => a + b, 0);
@@ -104,7 +92,7 @@ export default function DashboardShell({ onInfo }) {
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div className="bh-board board-core" onMouseOver={onOver} onMouseOut={onOut}>
+          <div className="bh-board board-core">
             <div className="rabbit-bg" aria-hidden="true" />
             {/* 1h Price Banner (top) */}
             <section className="bh-board-row-full">
