@@ -87,6 +87,7 @@ export default function Dashboard() {
     boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
   }, [banner1h?.length, vol1hTokens?.length, payload]);
 
+
   return (
     <main className="min-h-screen text-white relative overflow-x-hidden">
       {/* Bunny watermark */}
@@ -131,8 +132,6 @@ export default function Dashboard() {
         </header>
 
         <div className="board-core" ref={boardRef}>
-          <div className="rabbit-bg" aria-hidden />
-
           {/* Section label + 1h banner */}
           <section className="mb-8">
             <TopBannerScroll items={banner1h} />

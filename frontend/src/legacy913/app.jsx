@@ -103,15 +103,6 @@ export default function App() {
     <div className="min-h-screen bg-dark text-white relative">
       {/* MobileDebugger removed per request */}
       <DataFlowTest />
-      {/* Background Purple Rabbit */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-0">
-        <img
-          src="/purple-rabbit-bg.png"
-          alt="BHABIT Background"
-          className="w-96 h-96 sm:w-[32rem] sm:h-[32rem] lg:w-[40rem] lg:h-[40rem]"
-          style={{ opacity: 0.05 }}
-        />
-      </div>
 
       {/* Countdown & Refresh (mini watchlist removed) */}
       <div className="fixed top-6 right-4 z-50 flex flex-col items-end gap-2">

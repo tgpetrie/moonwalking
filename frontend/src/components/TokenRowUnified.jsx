@@ -55,9 +55,14 @@ export function TokenRowUnified({
     onToggleWatchlist(symbol, activePrice);
   };
 
-  const openSentiment = (symbol) => {
-    if (!symbol) return;
-    window.dispatchEvent(new CustomEvent("openInfo", { detail: symbol }));
+  const openSentiment = (sym) => {
+    if (!sym) return;
+    if (typeof onInfo === "function") {
+      onInfo(sym);
+    }
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("openInfo", { detail: sym }));
+    }
   };
 
   const renderCells = () => (
@@ -96,6 +101,7 @@ export function TokenRowUnified({
   );
 
   const url = coinbaseSpotUrl(token || {});
+  const rowClassName = [rowClass, url ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
   const open = () => {
     if (!url) return;
     if (window.getSelection?.().toString()) return;
@@ -114,8 +120,14 @@ export function TokenRowUnified({
   };
 
   return (
-    <RowTag className={`${rowClass} ${url ? "bh-row-clickable" : ""}`} role={url ? "link" : undefined} tabIndex={url ? 0 : undefined} onClick={handleClick} onKeyDown={onKeyDown} aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}>
-      {renderAs !== "tr" && <div className="bh-row-hover-glow" />}
+    <RowTag
+      className={rowClassName}
+      role={url ? "link" : undefined}
+      tabIndex={url ? 0 : undefined}
+      onClick={handleClick}
+      onKeyDown={onKeyDown}
+      aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
+    >
       {renderCells()}
     </RowTag>
   );

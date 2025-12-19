@@ -54,9 +54,13 @@ export default function RowActions({ starred, onToggleStar, onInfoClick }) {
 
       <button
         type="button"
-        className="bh-row-action"
-        onClick={handleInfoClick}
-        aria-label="Show sentiment"
+        className="bh-row-action bh-action bh-action--info"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleInfoClick(e);
+        }}
+        aria-label="Open sentiment"
       >
         <InfoIcon className="bh-row-icon" />
       </button>

@@ -3240,14 +3240,16 @@ def data_aggregate():
             pass
 
         status = 200 if not errors else 206
-        return jsonify(payload), status
+        resp = jsonify(payload)
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
+        return resp, status
     except Exception as e:
         # Absolute guardrail: never 5xx in local dev for /data
         try:
             app.logger.exception("/data aggregate fatal: %s", e)
         except Exception:
             pass
-        return jsonify(
+        resp = jsonify(
             {
                 "gainers_1m": [],
                 "gainers_3m": [],
@@ -3259,7 +3261,9 @@ def data_aggregate():
                 "meta": {},
                 "errors": {"fatal": str(e)},
             }
-        ), 206
+        )
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
+        return resp, 206
 
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():

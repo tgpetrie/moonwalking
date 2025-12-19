@@ -12,16 +12,9 @@
     0 18px 60px rgba(0, 0, 0, 0.75);
 }
 
+/* Background art is owned globally by `.purple-rabbit-bg` */
 .sentiment-modal-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("/purple-rabbit-bg.png");
-  background-size: cover;
-  background-position: center;
-  opacity: 0.10;
-  mix-blend-mode: screen;
-  pointer-events: none;
+  content: none;
 }
 
 .sentiment-modal-content {

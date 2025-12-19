@@ -87,7 +87,9 @@ export default function WatchlistPanel({ onInfo }) {
       const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
       const live = liveBySymbol[canonSymbol] || {};
       const livePrice = toFiniteNumber(pickPrice(live) ?? entry.current ?? entry.baseline ?? null);
-      const baselineOrNullValue = baselineOrNull(entry.baseline ?? entry.current ?? pickPrice(live));
+      // Previous price should be the pinned baseline from when the token was added.
+      // Fall back to historical fields if needed, but never default to live price.
+      const baselineOrNullValue = baselineOrNull(entry.baseline ?? entry.priceAdded ?? entry.current ?? null);
       const pct = deltaPct(baselineOrNullValue, livePrice);
 
       return {
@@ -122,7 +124,7 @@ export default function WatchlistPanel({ onInfo }) {
   };
 
   return (
-    <div className="bh-panel bh-panel-full">
+    <div className="bh-panel bh-panel-full watchlist-panel">
       <form className="bh-watchlist-search" onSubmit={handleSearchSubmit}>
         <input
           type="text"

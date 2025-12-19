@@ -16,11 +16,13 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, isLoading, mutate, isValidating } = useSWR(`${API_BASE_URL}/data`, fetchAllData, {
+  const { data, error, isLoading, mutate, isValidating } = useSWR(`${API_BASE_URL || ""}/api/data`, fetchAllData, {
     revalidateOnFocus: true,
     keepPreviousData: true,
-    dedupingInterval: 10000,
-    refreshInterval: 4000, // Poll every 4 seconds
+    dedupingInterval: 0,
+    refreshInterval: 1500, // Poll frequently; UI is resilient to partial data
+    errorRetryInterval: 1500,
+    shouldRetryOnError: () => true,
   });
 
   const payload = data?.data || data || {};

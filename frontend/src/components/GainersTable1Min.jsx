@@ -106,7 +106,6 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
 
         return (
           <div key={`bh-1m-grid-${gridIndex}`} className="panel-row--1m">
-            {gridIndex === 0 && <div className="bh-1m-rabbit" aria-hidden="true" />}
             <div className="bh-table">
               {leftColumn.map((token, index) => (
                 <TokenRowUnified
@@ -114,6 +113,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                   token={token}
                   rank={offset + index + 1}
                   changeField="change_1m"
+                  renderAs="div"
                   onInfo={onInfo}
                   onToggleWatchlist={onToggleWatchlist}
                   isWatchlisted={watchlist.includes(token.symbol)}
@@ -129,6 +129,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                   token={token}
                   rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
                   changeField="change_1m"
+                  renderAs="div"
                   onInfo={onInfo}
                   onToggleWatchlist={onToggleWatchlist}
                   isWatchlisted={watchlist.includes(token.symbol)}

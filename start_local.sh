@@ -126,12 +126,27 @@ start_detached() {
   local logfile="$1"
   shift
 
-  if command -v setsid >/dev/null 2>&1; then
-    nohup setsid "$@" >"$logfile" 2>&1 < /dev/null &
-  else
-    nohup "$@" >"$logfile" 2>&1 < /dev/null &
-  fi
-  echo $!
+  # On macOS, `setsid` may not exist; and VS Code tasks can SIGTERM the process
+  # group when the task ends. Spawn the child in a new session explicitly.
+  python3 - "$logfile" "$@" <<'PY'
+import os
+import subprocess
+import sys
+
+logfile = sys.argv[1]
+cmd = sys.argv[2:]
+
+with open(logfile, "ab", buffering=0) as f:
+    p = subprocess.Popen(
+        cmd,
+        stdout=f,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        preexec_fn=os.setsid,
+    )
+
+print(p.pid)
+PY
 }
 
 echo "[start.local] backend -> http://$HOST:$BACKEND_PORT (strict)"

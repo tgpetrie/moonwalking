@@ -78,12 +78,32 @@ export function WatchlistProvider({ children }) {
   }, []);
 
   const refreshFromData = useCallback((bySymbol = {}) => {
-    setItems((prev) => prev.map((i) => {
-      const live = bySymbol[i.symbol];
-      if (!live) return i;
-      const curr = live.current_price ?? live.price ?? i.current;
-      return { ...i, current: curr };
-    }));
+    setItems((prev) => {
+      let changed = false;
+
+      const next = prev.map((i) => {
+        const live = bySymbol[i.symbol];
+        if (!live) return i;
+
+        const currRaw = live.current_price ?? live.price ?? i.current;
+        const currNum = currRaw == null ? null : Number(currRaw);
+        const curr = Number.isFinite(currNum) ? currNum : i.current;
+
+        const needsBaseline = i.baseline == null && i.priceAdded == null;
+        const currentChanged = i.current !== curr;
+
+        if (!needsBaseline && !currentChanged) return i;
+
+        changed = true;
+        return {
+          ...i,
+          current: curr,
+          ...(needsBaseline ? { baseline: curr, priceAdded: curr } : null),
+        };
+      });
+
+      return changed ? next : prev;
+    });
   }, []);
 
   const value = useMemo(() => ({ items, has, add, remove, toggle, refreshFromData }), [items, has, add, remove, toggle, refreshFromData]);

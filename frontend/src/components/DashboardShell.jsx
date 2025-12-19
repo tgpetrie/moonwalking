@@ -39,6 +39,20 @@ export default function DashboardShell({ onInfo }) {
     setHighlightActive(active);
   };
 
+  const onOver = (e) => {
+    if (e.target.closest?.(".bh-row, .bh-banner-item")) {
+      e.currentTarget.classList.add("rabbit-hot");
+    }
+  };
+
+  const onOut = (e) => {
+    const leaving = e.target.closest?.(".bh-row, .bh-banner-item");
+    const entering = e.relatedTarget?.closest?.(".bh-row, .bh-banner-item");
+    if (leaving && !entering) {
+      e.currentTarget.classList.remove("rabbit-hot");
+    }
+  };
+
   const counts = Object.values(coverage || {}).filter((v) => typeof v === "number");
   const total = counts.reduce((a, b) => a + b, 0);
   const hasZeros = counts.some((v) => v === 0);
@@ -61,6 +75,7 @@ export default function DashboardShell({ onInfo }) {
     window.addEventListener("openInfo", handler);
     return () => window.removeEventListener("openInfo", handler);
   }, []);
+
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const status = useMemo(() => {
@@ -89,7 +104,8 @@ export default function DashboardShell({ onInfo }) {
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div className="bh-board">
+          <div className="bh-board board-core" onMouseOver={onOver} onMouseOut={onOut}>
+            <div className="rabbit-bg" aria-hidden="true" />
             {/* 1h Price Banner (top) */}
             <section className="bh-board-row-full">
               <div className="board-section">
@@ -109,6 +125,9 @@ export default function DashboardShell({ onInfo }) {
                   <div className="board-section-title">1 Minute Momentum – Live</div>
                   <div className="board-section-subtitle">Fastest short-term movers right now</div>
                 </div>
+                <div className="bh-linediv" aria-hidden="true">
+                  <img src="/linediv.png" alt="" className="bh-linediv-img" />
+                </div>
                 <GainersTable1Min
                   tokens={gainers1m}
                   loading={loading}
@@ -124,9 +143,15 @@ export default function DashboardShell({ onInfo }) {
                   <div className="board-section-title">3 Minute Leaderboard</div>
                   <div className="board-section-subtitle">Shorter bursts of momentum</div>
                 </div>
+                <div className="bh-linediv" aria-hidden="true">
+                  <img src="/linediv.png" alt="" className="bh-linediv-img" />
+                </div>
                 <section className="panel-row--3m">
                   <div className="bh-panel bh-panel-half">
                     <div className="table-title">TOP GAINERS (3M)</div>
+                    <div className="bh-linediv" aria-hidden="true">
+                      <img src="/linediv.png" alt="" className="bh-linediv-img" />
+                    </div>
                     <GainersTable3Min
                       tokens={gainers3m}
                       loading={loading}
@@ -137,6 +162,9 @@ export default function DashboardShell({ onInfo }) {
                   </div>
                   <div className="bh-panel bh-panel-half">
                     <div className="table-title">TOP LOSERS (3M)</div>
+                    <div className="bh-linediv" aria-hidden="true">
+                      <img src="/linediv.png" alt="" className="bh-linediv-img" />
+                    </div>
                     <LosersTable3Min
                       tokens={losers3m}
                       loading={loading}
@@ -155,6 +183,9 @@ export default function DashboardShell({ onInfo }) {
                 <div className="board-section-header">
                   <div className="board-section-title">Your Watchlist</div>
                   <div className="board-section-subtitle">Track your favorite tokens</div>
+                </div>
+                <div className="bh-linediv" aria-hidden="true">
+                  <img src="/linediv.png" alt="" className="bh-linediv-img" />
                 </div>
                 <div className="bh-row-block">
                   <WatchlistPanel onRowHover={handleHoverHighlight} />
