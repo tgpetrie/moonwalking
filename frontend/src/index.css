@@ -1484,6 +1484,140 @@ tr.table-row.is-flat .bh-token-rank {
   mix-blend-mode: screen; /* makes rabbit lift through it */
 }
 
+/* =========================================================
+   SINGLE BUNNY SYSTEM — global ink + row-local wake slice
+   Asset: /public/purple-rabbit-bg.png
+   ========================================================= */
+
+/* Board-level bunny variables and anchor */
+.board-core{
+  position: relative;
+  isolation: isolate; /* makes z-index sane */
+  --bunny-url: url("/purple-rabbit-bg.png");
+  --bunny-size: min(1200px, 92vw);
+  --bunny-x: 52%;
+  --bunny-y: 45%;
+}
+
+/* Global bunny ink (nearly invisible) */
+.rabbit-bg{
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-image: var(--bunny-url);
+  background-repeat: no-repeat;
+  background-size: var(--bunny-size);
+  background-position: var(--bunny-x) var(--bunny-y);
+  background-attachment: fixed;
+
+  opacity: 0.012;                  /* barely visible */
+  filter: saturate(0.85);
+  mix-blend-mode: screen;
+  transform: translateZ(0);
+}
+
+/* Rows sit above global bunny */
+.bh-row{
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  background: transparent; /* ensure no default row bg */
+}
+
+/* Always-on rail (the missing natural div) */
+.bh-row::before{
+  content:"";
+  position:absolute;
+  left:0; right:0;
+  bottom:0;
+  height:1px;
+  pointer-events:none;
+
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.10),
+    rgba(120,80,255,0.08),
+    rgba(255,90,170,0.08)
+  );
+  opacity: 0.45;
+  transition: opacity 140ms ease;
+}
+
+.bh-row:hover::before{
+  opacity: 0.9;
+}
+
+/* Hover flashlight (row highlight) */
+.bh-row::after{
+  content:"";
+  position:absolute;
+  inset:-2px 0 -2px 0;  /* slightly taller than row */
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 140ms ease;
+
+  background: radial-gradient(120% 180% at 55% 50%,
+    rgba(255,176,46,0.18) 0%,
+    rgba(255,176,46,0.08) 36%,
+    rgba(0,0,0,0) 62%
+  );
+  z-index: 1; /* sits under text */
+}
+
+.bh-row:hover::after{
+  opacity:1;
+}
+
+/* Row-local bunny wake slice: paint the same fixed-attached bunny on the row when hovered */
+.bh-row:hover{
+  background-image: var(--bunny-url);
+  background-repeat: no-repeat;
+  background-size: var(--bunny-size);
+  background-position: var(--bunny-x) var(--bunny-y);
+  background-attachment: fixed;
+
+  /* Make it “pop” only when hovered */
+  filter:
+    drop-shadow(0 0 14px rgba(255,176,46,0.22))
+    drop-shadow(0 0 42px rgba(255,176,46,0.14))
+    saturate(1.25);
+
+  mix-blend-mode: screen;
+}
+
+/* Banner hover: match row behavior */
+.bh-banner-item{
+  position: relative;
+  z-index: 2;
+}
+.bh-banner-item::after{
+  content:"";
+  position:absolute;
+  inset:-6px -10px;
+  opacity:0;
+  pointer-events:none;
+  transition: opacity 140ms ease;
+  background: radial-gradient(120% 200% at 50% 50%,
+    rgba(255,176,46,0.18) 0%,
+    rgba(255,176,46,0.06) 42%,
+    rgba(0,0,0,0) 68%
+  );
+}
+.bh-banner-item:hover::after{ opacity:1; }
+.bh-banner-item:hover{
+  background-image: var(--bunny-url);
+  background-repeat: no-repeat;
+  background-size: var(--bunny-size);
+  background-position: var(--bunny-x) var(--bunny-y);
+  background-attachment: fixed;
+  filter:
+    drop-shadow(0 0 12px rgba(255,176,46,0.20))
+    drop-shadow(0 0 36px rgba(255,176,46,0.12));
+  mix-blend-mode: screen;
+}
+
+
 /* losers = violet flashlight (only if you have a losers row class) */
 .bh-row.is-loser:hover::after,
 .bh-row[data-kind="loser"]:hover::after {
