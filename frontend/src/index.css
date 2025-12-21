@@ -2647,6 +2647,86 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 18px rgba(255,90,170,0.06);
 }
 
+/* =========================================================
+   DOT BLOOM (authoritative final)
+   Replaces spotlight/mask behavior with one emitter on rabbit-bg
+   ========================================================= */
+
+/* Kill any old mask/spotlight behavior on the rabbit layer */
+.board-core .rabbit-bg,
+.board-core .rabbit-bg::before{
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Ensure rabbit host exists + is a stable coordinate surface */
+.board-core{
+  position: relative;
+}
+
+.board-core .rabbit-bg{
+  position: absolute;
+  inset: 60px 0 60px 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
+  opacity: 0.010;
+  mix-blend-mode: screen;
+  filter: brightness(0.78) contrast(0.90) saturate(0.92);
+}
+
+/* HARD KILL any previous pseudo spotlight on rabbit-bg */
+.board-core .rabbit-bg::before{
+  content: none !important;
+}
+
+/* One glow emitter (dot-bloom), light-only */
+.board-core .rabbit-bg::after{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  pointer-events: none;
+  z-index: 0;
+
+  /* driven by JS */
+  --bh-glow-x: 50px;
+  --bh-glow-y: 50px;
+  --bh-glow-a: 0;
+  --bh-glow-c: var(--bh-gain);
+
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+
+  opacity: var(--bh-glow-a);
+
+  background: color-mix(in oklab, var(--bh-glow-c), transparent 12%);
+
+  transform: translate3d(calc(var(--bh-glow-x) - 3px), calc(var(--bh-glow-y) - 3px), 0);
+
+  box-shadow:
+     10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+    -10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px  10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px -10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+
+     18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+     18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+
+      0px   0px 18px 8px color-mix(in oklab, var(--bh-glow-c), transparent 86%);
+
+  mix-blend-mode: screen;
+  filter: blur(0.6px) drop-shadow(0 0 14px color-mix(in oklab, var(--bh-glow-c), transparent 48%));
+}
+
+/* Ensure rows sit above rabbit */
+.board-core .bh-row{ position: relative; z-index: 2; }
+
 /* === Final dot-bloom rabbit emitter (single system, no masks) === */
 :root {
   --bh-glow-x: 50%;
