@@ -195,8 +195,8 @@ if [ ! -d node_modules ]; then
   echo "[start.local] installing frontend dependencies..."
   npm install
 fi
-VITE_API_URL="http://$HOST:$BACKEND_PORT" \
 VITE_PROXY_TARGET="http://$HOST:$BACKEND_PORT" \
+VITE_WS_URL="http://$HOST:$BACKEND_PORT" \
 BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" \
 exec npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
 EOF
@@ -209,8 +209,8 @@ else
       echo "[start.local] installing frontend dependencies..."
       npm install
     fi
-    VITE_API_URL="http://$HOST:$BACKEND_PORT" \
     VITE_PROXY_TARGET="http://$HOST:$BACKEND_PORT" \
+    VITE_WS_URL="http://$HOST:$BACKEND_PORT" \
     BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" \
     npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
   ) > /tmp/mw_frontend.log 2>&1 &
