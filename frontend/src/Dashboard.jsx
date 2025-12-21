@@ -87,68 +87,53 @@ export default function Dashboard() {
     boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
   }, [banner1h?.length, vol1hTokens?.length, payload]);
 
-  // Pointer-driven dot emitter for the rabbit layer (event delegation on board)
+  // Rabbit hover emitter (event delegation on the board)
   useEffect(() => {
     const board = boardRef.current;
     if (!board) return;
 
-    const layer = board.querySelector(".rabbit-bg");
-    if (!layer) return;
+    const rabbit = board.querySelector(".rabbit-bg");
+    if (!rabbit) return;
 
     let raf = 0;
     let active = false;
 
-    const normSide = (raw) => {
-      const v = String(raw || "").toLowerCase();
-      if (v.includes("loss")) return "loser";
-      return "gainer";
+    const setEmitter = (clientX, clientY, on, side = null) => {
+      const rr = rabbit.getBoundingClientRect();
+      const x = Math.max(0, clientX - rr.left);
+      const y = Math.max(0, clientY - rr.top);
+
+      rabbit.style.setProperty("--bh-glow-x", `${x}px`);
+      rabbit.style.setProperty("--bh-glow-y", `${y}px`);
+      rabbit.style.setProperty("--bh-glow-a", on ? "1" : "0");
+
+      const isLoser = typeof side === "string" && /loss|loser/i.test(side);
+      rabbit.style.setProperty("--bh-glow-c", isLoser ? "var(--bh-loss)" : "var(--bh-gain)");
+
+      active = Boolean(on);
     };
 
-    const setVars = (x, y, side, on) => {
-      layer.style.setProperty("--bh-glow-a", on ? "1" : "0");
-      layer.style.setProperty("--bh-glow-c", side === "loser" ? "var(--bh-loss)" : "var(--bh-gain)");
-      layer.style.setProperty("--bh-glow-x", `${x}px`);
-      layer.style.setProperty("--bh-glow-y", `${y}px`);
-    };
-
-    const update = (e) => {
+    const onMove = (e) => {
       const row = e.target?.closest?.(".bh-row");
       if (!row || !board.contains(row)) {
-        if (active) {
-          active = false;
-          layer.style.setProperty("--bh-glow-a", "0");
-        }
+        if (active) setEmitter(e.clientX, e.clientY, false);
         return;
       }
-
-      const side = normSide(row.dataset.side) ||
-        (row.classList.contains("is-loss") || row.classList.contains("bh-row--loss") ? "loser" : "gainer");
-
-      const r = layer.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-
+      const side = row.getAttribute?.("data-side") || null;
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        active = true;
-        setVars(x, y, side, true);
-      });
+      raf = requestAnimationFrame(() => setEmitter(e.clientX, e.clientY, true, side));
     };
-
-    const onMove = (e) => update(e);
 
     const onOut = (e) => {
       const fromRow = e.target?.closest?.(".bh-row");
       const toRow = e.relatedTarget?.closest?.(".bh-row");
       if (fromRow && (!toRow || !board.contains(toRow))) {
-        active = false;
-        layer.style.setProperty("--bh-glow-a", "0");
+        setEmitter(e.clientX, e.clientY, false);
       }
     };
 
-    const onLeaveBoard = () => {
-      active = false;
-      layer.style.setProperty("--bh-glow-a", "0");
+    const onLeaveBoard = (e) => {
+      setEmitter(e.clientX || 0, e.clientY || 0, false);
     };
 
     board.addEventListener("pointermove", onMove, { passive: true });
@@ -160,9 +145,12 @@ export default function Dashboard() {
       board.removeEventListener("pointermove", onMove);
       board.removeEventListener("pointerout", onOut);
       board.removeEventListener("pointerleave", onLeaveBoard);
+      rabbit.style.removeProperty("--bh-glow-x");
+      rabbit.style.removeProperty("--bh-glow-y");
+      rabbit.style.removeProperty("--bh-glow-a");
+      rabbit.style.removeProperty("--bh-glow-c");
     };
   }, []);
-
 
   return (
     <main className="min-h-screen text-white relative overflow-x-hidden">

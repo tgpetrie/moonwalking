@@ -113,6 +113,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                   token={token}
                   rank={offset + index + 1}
                   changeField="change_1m"
+                  side="gainer"
                   renderAs="div"
                   onInfo={onInfo}
                   onToggleWatchlist={onToggleWatchlist}
@@ -129,6 +130,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                   token={token}
                   rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
                   changeField="change_1m"
+                  side="gainer"
                   renderAs="div"
                   onInfo={onInfo}
                   onToggleWatchlist={onToggleWatchlist}

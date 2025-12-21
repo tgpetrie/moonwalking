@@ -64,6 +64,65 @@ export default function DashboardShell({ onInfo }) {
     return () => window.removeEventListener("openInfo", handler);
   }, []);
 
+<<<<<<< Updated upstream
+=======
+  // Thin-band rabbit reveal (event delegation on board)
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const rabbit = board.querySelector(".rabbit-bg");
+    if (!rabbit) return;
+
+    const root = document.documentElement;
+    let raf = 0;
+    let active = false;
+
+    const setBand = (clientY, on) => {
+      const rr = rabbit.getBoundingClientRect();
+      const y = Math.max(0, clientY - rr.top);
+      root.style.setProperty("--bh-rabbit-y", `${y}px`);
+      root.style.setProperty("--bh-rabbit-reveal", on ? "0.55" : "0");
+      active = Boolean(on);
+    };
+
+    const onMove = (e) => {
+      const row = e.target?.closest?.(".bh-row");
+      if (!row || !board.contains(row)) {
+        if (active) setBand(e.clientY, false);
+        return;
+      }
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setBand(e.clientY, true));
+    };
+
+    const onOut = (e) => {
+      const fromRow = e.target?.closest?.(".bh-row");
+      const toRow = e.relatedTarget?.closest?.(".bh-row");
+      if (fromRow && (!toRow || !board.contains(toRow))) {
+        setBand(e.clientY, false);
+      }
+    };
+
+    const onLeaveBoard = (e) => {
+      setBand(e.clientY || 0, false);
+    };
+
+    board.addEventListener("pointermove", onMove, { passive: true });
+    board.addEventListener("pointerout", onOut, { passive: true });
+    board.addEventListener("pointerleave", onLeaveBoard);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      board.removeEventListener("pointermove", onMove);
+      board.removeEventListener("pointerout", onOut);
+      board.removeEventListener("pointerleave", onLeaveBoard);
+      root.style.removeProperty("--bh-rabbit-y");
+      root.style.removeProperty("--bh-rabbit-reveal");
+    };
+  }, []);
+
+>>>>>>> Stashed changes
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const status = useMemo(() => {

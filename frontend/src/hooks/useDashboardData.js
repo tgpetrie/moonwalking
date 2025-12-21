@@ -16,7 +16,7 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, isLoading, mutate, isValidating } = useSWR(`${API_BASE_URL || ""}/api/data`, fetchAllData, {
+  const { data, error, isLoading, mutate, isValidating } = useSWR(`/api/data`, fetchAllData, {
     revalidateOnFocus: true,
     keepPreviousData: true,
     dedupingInterval: 0,

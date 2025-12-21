@@ -29,6 +29,27 @@ export const API_ENDPOINTS = {
   },
 };
 
+// Ensure the frontend always receives the canonical payload structure
+function normalizeApi(payload) {
+  const p = payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object' ? payload.data : payload || {};
+
+  return {
+    // keep original keys but ensure canonical fallbacks
+    ...p,
+    banner_1h_price: Array.isArray(p.banner_1h_price) ? p.banner_1h_price : (p.banner_1h_price ? p.banner_1h_price : []),
+    banner_1h_volume: Array.isArray(p.banner_1h_volume) ? p.banner_1h_volume : (p.banner_1h_volume ? p.banner_1h_volume : []),
+    gainers_1m: Array.isArray(p.gainers_1m) ? p.gainers_1m : [],
+    gainers_3m: Array.isArray(p.gainers_3m) ? p.gainers_3m : [],
+    losers_3m: Array.isArray(p.losers_3m) ? p.losers_3m : [],
+
+    latest_by_symbol: p.latest_by_symbol ?? {},
+    meta: p.meta ?? {},
+    updated_at: p.updated_at ?? null,
+    errors: p.errors ?? [],
+    coverage: p.coverage ?? null,
+  };
+}
+
 export async function fetchJson(path, opts = {}) {
   const url = joinUrl(API_ORIGIN, path);
   const res = await fetch(url, { headers: { Accept: 'application/json' }, ...opts });
@@ -43,11 +64,31 @@ export async function fetchData(path = '/api/data') {
   const url = joinUrl(API_BASE, path);
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`fetch ${url} failed: ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  return normalizeApi(json);
 }
 
 // Convenience: fetch the main payload the app expects.
-export async function fetchAllData() {
+export async function fetchAllData(keyUrl) {
+  // SWR passes the key as the first arg. Prefer it so local dev can stay
+  // same-origin (`/api/data` via Vite proxy) even if VITE_API_URL is set.
+  if (typeof keyUrl === "string" && keyUrl.trim()) {
+    const u = keyUrl.trim();
+    const candidates = u.endsWith("/api/data") ? [u, u.replace(/\/api\/data$/, "/data")] : [u];
+    let lastErr = null;
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return normalizeApi(json);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("fetchAllData: failed");
+  }
+
   const base = API_BASE || "";
   const tryUrls = [`${base}/api/data`, `${base}/data`];
   let lastErr = null;
@@ -55,7 +96,8 @@ export async function fetchAllData() {
     try {
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const json = await res.json();
+      return normalizeApi(json);
     } catch (err) {
       lastErr = err;
     }

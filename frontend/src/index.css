@@ -89,6 +89,14 @@
   position: relative;
 }
 
+/* Ensure both panels occupy their full grid cell (prevents "hugging"/collapsed width) */
+.panel-row--1m > *,
+.panel-row--3m > * {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+
 .panel-row--1m .bh-table,
 .panel-row--1m .bh-row {
   position: relative;
@@ -1316,14 +1324,15 @@ tr.table-row.is-flat .bh-token-rank {
   color: var(--bh-muted);
 }
 
-.watchlist-panel .bh-row,
+./* DEPRECATED: watchlist-specific overrides disabled. Watchlist now uses canonical row/grid rules. */
+/* .watchlist-panel .bh-row,
 .watchlist-panel .bh-row *{
   box-sizing: border-box;
 }
 
 .watchlist-panel .bh-row{
   grid-template-columns: var(--bh-row-cols) !important;
-}
+} */
 
 /* ===== INSIGHTS FLOAT ===== */
 
@@ -2646,11 +2655,19 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 0 1px rgba(120,80,255,0.13),
     inset 0 0 18px rgba(255,90,170,0.06);
 }
+/* RABBIT + DOT-BLOOM EMITTER (resolved)
+   - Provide both rabbit band variables (legacy) and dot-bloom variables.
+   - The emitter (::after) is authoritative and driven by JS in Dashboard.jsx.
+*/
 
-/* === Final dot-bloom rabbit emitter (single system, no masks) === */
 :root {
-  --bh-glow-x: 50%;
-  --bh-glow-y: 50%;
+  --bh-rabbit-y: 0px;
+  --bh-rabbit-reveal: 0;
+  --bh-rabbit-band: 22px;
+  --bh-rabbit-soft: 8px;
+
+  --bh-glow-x: 50px;
+  --bh-glow-y: 50px;
   --bh-glow-a: 0;
   --bh-glow-c: var(--bh-gain);
 }
@@ -2661,47 +2678,89 @@ tr.table-row.is-flat .bh-token-rank {
 
 .board-core .rabbit-bg {
   position: absolute;
-  inset: 0;
+  inset: 120px 0 140px 0;
   pointer-events: none;
   z-index: 0;
-  background: transparent;
-  opacity: 1;
-  filter: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
-  -webkit-mask: none !important;
-  mask: none !important;
+  overflow: visible;
+  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
+  opacity: var(--bh-rabbit-opacity, 0.010);
   mix-blend-mode: screen;
+  filter: brightness(var(--bh-rabbit-bright, 0.78)) contrast(var(--bh-rabbit-contrast, 0.90)) saturate(var(--bh-rabbit-sat, 0.92));
 }
 
-.board-core .rabbit-bg::before {
-  content: none !important;
-}
+/* Disable legacy masked ::before reveal for rabbit layer */
+.board-core .rabbit-bg::before { content: none !important; }
 
+/* One emitter. No slab. Just a living constellation. */
 .board-core .rabbit-bg::after {
   content: "";
   position: absolute;
-  width: 360px;
-  height: 360px;
-  left: var(--bh-glow-x);
-  top: var(--bh-glow-y);
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
   pointer-events: none;
+  z-index: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
   opacity: var(--bh-glow-a);
-  background:
-    radial-gradient(35% 35% at 50% 50%, color-mix(in srgb, var(--bh-glow-c) 94%, transparent) 0%, transparent 100%),
-    radial-gradient(85% 85% at 50% 50%, color-mix(in srgb, var(--bh-glow-c) 35%, transparent) 0%, transparent 100%);
-  filter:
-    drop-shadow(0 0 32px color-mix(in srgb, var(--bh-glow-c) 70%, transparent))
-    drop-shadow(0 0 78px color-mix(in srgb, var(--bh-glow-c) 45%, transparent));
-  transition: opacity 120ms ease, transform 120ms ease;
-  will-change: transform, opacity;
+  will-change: transform, filter, opacity;
+  background: color-mix(in oklab, var(--bh-glow-c), transparent 12%);
+  transform: translate3d(calc(var(--bh-glow-x) - 3px), calc(var(--bh-glow-y) - 3px), 0);
+  box-shadow:
+     10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+    -10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px  10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px -10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+     18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+     18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+      0px   0px 18px 8px color-mix(in oklab, var(--bh-glow-c), transparent 86%);
+  mix-blend-mode: screen;
+  filter: blur(0.6px) drop-shadow(0 0 14px color-mix(in oklab, var(--bh-glow-c), transparent 48%));
 }
 
-/* Keep content above the emitter */
+/* Keep rows above rabbit plane */
 .board-core .panel,
 .board-core .bh-row,
 .board-core section {
+  position: relative;
+  z-index: 1;
+}
+  --bh-glow-c: var(--bh-gain);
+
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+
+  opacity: var(--bh-glow-a);
+  will-change: transform, filter, opacity;
+
+  background: color-mix(in oklab, var(--bh-glow-c), transparent 12%);
+  transform: translate3d(calc(var(--bh-glow-x) - 3px), calc(var(--bh-glow-y) - 3px), 0);
+
+  box-shadow:
+     10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+    -10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px  10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+      0px -10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
+
+     18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+     18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+    -18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
+
+      0px   0px 18px 8px color-mix(in oklab, var(--bh-glow-c), transparent 86%);
+
+  mix-blend-mode: screen;
+  filter: blur(0.6px) drop-shadow(0 0 14px color-mix(in oklab, var(--bh-glow-c), transparent 48%));
+}
+
+/* Keep rows above rabbit plane */
+>>>>>>> Stashed changes
+.board-core .bh-row,
+.board-core .bh-table,
+.board-core .panel-row-watchlist {
   position: relative;
   z-index: 1;
 }

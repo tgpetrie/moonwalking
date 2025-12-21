@@ -94,6 +94,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
               token={token}
               rank={index + 1}
               changeField="change_3m"
+              side="gainer"
               onInfo={onInfo}
               onToggleWatchlist={onToggleWatchlist}
               isWatchlisted={watchlist.includes(token.symbol)}

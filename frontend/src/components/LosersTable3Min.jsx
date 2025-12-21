@@ -141,6 +141,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
               token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
               rank={idx + 1}
               changeField="change_3m"
+              side="loser"
               onInfo={() => handleInfo(tokenProps.symbol)}
               onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
               isWatchlisted={isStarred(tokenProps.symbol)}

@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# default to 5001 because that’s what your current runtime is using
-BACKEND_PORT="${BACKEND_PORT:-5001}"
-PY="${PY:-$ROOT/backend/.venv/bin/python}"
-LOG="${LOG:-$ROOT/backend.strict.log}"
+PORT="${PORT:-5001}"
+HOST="${HOST:-127.0.0.1}"
 
-source "$ROOT/scripts/ports_strict.sh"
+echo "[strict] starting backend on ${HOST}:${PORT} (no auto-port fallback)"
+cd "$(dirname "$0")"
 
-kill_port "$BACKEND_PORT"
+# Activate venv if present
+if [ -f "../.venv/bin/activate" ]; then
+	# shellcheck disable=SC1091
+	source "../.venv/bin/activate"
+fi
 
-echo "[strict] starting backend on :$BACKEND_PORT"
-cd "$ROOT/backend"
+export PORT HOST
 
-# if your app reads PORT, keep it; if it reads something else, adjust here
-PORT="$BACKEND_PORT" nohup "$PY" app.py > "$LOG" 2>&1 & disown || true
-
-# your canonical aggregate is /data
-wait_http "http://127.0.0.1:${BACKEND_PORT}/data"
-
-echo "[strict] backend OK -> http://127.0.0.1:${BACKEND_PORT}/data"
+# Run in strict mode: pin the port and attempt to free it first.
+python app.py --port "$PORT" --host "$HOST" --kill-port

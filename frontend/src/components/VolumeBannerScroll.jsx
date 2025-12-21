@@ -40,7 +40,9 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
         const pctNum = Number(changePct ?? 0);
         return { ...t, symbol, volume_1h_now: Number.isFinite(Number(volNow)) ? volNow : 0, volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
       })
-      .filter((t) => t.symbol && t.volume_change_1h_pct !== 0)
+      // Backend sometimes ships volume values without a computed % change (all zeros).
+      // Still render the banner so the UI doesn't go quiet.
+      .filter((t) => t.symbol)
       .sort((a, b) => (b.volume_change_1h_pct || 0) - (a.volume_change_1h_pct || 0))
       .slice(0, 24);
   }, [rawItems]);

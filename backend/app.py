@@ -469,6 +469,9 @@ if cors_env == '*':
         # permissive wildcard for production.
         r"^https?://192\.168\.\d+\.\d+(:\d+)?$",
     ]
+    # Expose a canonical `cors_origins` variable so runtime inspection
+    # endpoints (e.g. /api/server-info) can always reference it.
+    cors_origins = dev_origins
     try:
         CORS(app, resources={r"/*": {"origins": dev_origins}})
         logging.info(f"CORS configured with dev_origins: {len(dev_origins)} origins")
@@ -1451,15 +1454,15 @@ CONFIG = {
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Background update interval in seconds
     'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 15)),  # Max coins to return
     'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
-    'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.6)),  # Minimum % change for banner (loosened so more movers qualify)
+    'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.15)),  # Minimum % change for banner (loosened for dev)
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
     'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
     # 1-minute feature load controls
     'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
-    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 45)),  # Throttle 1-min recompute (default 45s)
+    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 25)),  # Throttle 1-min recompute (default 25s)
     # 1-minute retention / hysteresis controls
-    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.09)),   # % change to ENTER list (loosened)
-    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.035)),    # lower % to remain after entering (loosened)
+    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.03)),   # % change to ENTER list (loosened for dev)
+    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.015)),    # lower % to remain after entering (loosened for dev)
     'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 25)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
     # Alert hygiene (streak-triggered alerts with cooldown)
@@ -3066,6 +3069,7 @@ def data_aggregate():
 
         def build_1h_volume_banner(tokens: list[dict], top_n: int = 20):
             enriched = []
+            fallback_rows = []
             for t in tokens:
                 vol_now = t.get("volume_1h_now") or t.get("volume_24h") or t.get("volume_1h")
                 vol_prev = t.get("volume_1h_prev")
@@ -3109,10 +3113,23 @@ def data_aggregate():
                 row["change_1h_volume"] = normalized_pct
                 row["volume_change_percentage_1h"] = normalized_pct
                 enriched.append(row)
+                if normalized_pct in (None, 0.0) and vol_now_f is not None:
+                    fallback_rows.append(row)
 
             enriched = [t for t in enriched if t.get("volume_change_1h_pct") not in (None, 0.0)]
-            enriched = _sort_rows_by_numeric(enriched, "volume_change_1h_pct", descending=True)
-            return _rank_and_trade(enriched, top_n)
+            if enriched:
+                enriched = _sort_rows_by_numeric(enriched, "volume_change_1h_pct", descending=True)
+                return _rank_and_trade(enriched, top_n)
+
+            # Dev-friendly fallback: if no 1h delta is available, rank by volume now
+            fallback_rows = [t for t in fallback_rows if t.get("volume_1h_now") is not None]
+            if fallback_rows:
+                fallback_rows = _sort_rows_by_numeric(fallback_rows, "volume_1h_now", descending=True)
+                for row in fallback_rows:
+                    row["volume_change_1h_pct"] = row.get("volume_change_1h_pct") or 0.0
+                return _rank_and_trade(fallback_rows, top_n)
+
+            return []
 
         gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m", limit=50)
         gainers_3m, losers_3m = build_3m_slices(all_rows, top_n=50)

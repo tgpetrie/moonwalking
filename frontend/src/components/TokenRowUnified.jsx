@@ -21,6 +21,7 @@ export function TokenRowUnified({
   onToggleWatchlist,
   onInfo,
   isWatchlisted,
+  side, // optional: "gainer" | "loser" (preferred; passed from parent tables)
   renderAs = "div",
   density = "normal", // "normal" | "tight"
 }) {
@@ -80,7 +81,7 @@ export function TokenRowUnified({
 
       {/* 3. Price stack (current / previous) */}
       <CellTag className="bh-cell bh-cell-price">
-        <div className="bh-price-current">{formatPrice(currentPrice)}</div>
+        <div className="tr-price-current bh-price-current">{formatPrice(currentPrice)}</div>
         <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
       </CellTag>
 
@@ -119,9 +120,17 @@ export function TokenRowUnified({
     }
   };
 
+  const dataSide =
+    side === "gainer" || side === "loser"
+      ? side
+      : Number.isFinite(changeNum)
+        ? (changeNum >= 0 ? "gainer" : "loser")
+        : "flat";
+
   return (
     <RowTag
-      className={rowClassName}
+      className={`${rowClassName} token-row table-row`}
+      data-side={dataSide}
       role={url ? "link" : undefined}
       tabIndex={url ? 0 : undefined}
       onClick={handleClick}
