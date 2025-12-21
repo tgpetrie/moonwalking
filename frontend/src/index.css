@@ -53,6 +53,7 @@
   --bh-row-gap: 18px;
 }
 
+
 .bh-rail {
   width: min(1040px, calc(100vw - 48px));
   margin: 0 auto;
@@ -340,11 +341,6 @@ body {
 .board-wrapper {
   position: relative;
   width: 100%;
-}
-
-.board-core > *{
-  position: relative;
-  z-index: 1;
 }
 
 /* ===== SECTION HEADERS ===== */
@@ -1398,55 +1394,1314 @@ tr.table-row.is-flat .bh-token-rank {
   content: none !important;
 }
 
-.board-core{ isolation:isolate; }
+/* =========================================================
+   FINAL AUTHORITATIVE: Rabbit + Row Flashlight (ROW ONLY)
+   Keep this as the LAST block in index.css.
+   ========================================================= */
+
+/* Board creates a clean stacking context for backdrop-filter */
+.board-core{
+  position: relative;
+  isolation: isolate;
+}
+
+/* Single bunny art: always present, barely visible */
+.board-core .rabbit-bg{
+  position: absolute;
+  inset: 90px 0 120px 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
+  opacity: 0.010; /* keep ink faint */
+  mix-blend-mode: screen;
+  filter: brightness(0.80) contrast(0.92) saturate(0.95);
+}
+
+/* All board content sits above the bunny */
+.board-core > *{ position: relative; z-index: 2; }
+
+/* ---------------------------------------------------------
+   ROW + BANNER “FLASHLIGHT” (screen + mild contrast)
+   The glow exists independently; the bunny is just faint ink beneath.
+   --------------------------------------------------------- */
+
+.bh-row,
+.bh-banner-item{
+  position: relative;
+  z-index: 3;
+  transform: translateZ(0);
+}
+
+.bh-row::after,
+.bh-banner-item::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transform: scale(1);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.bh-row:hover::after,
+.bh-banner-item:hover::after{
+  opacity: 1;
+  transform: scale(1.01);
+
+  background:
+    radial-gradient(110% 180% at 50% 50%,
+      rgba(0,0,0,0) 58%,
+      rgba(255,176,46,0.10) 78%,
+      rgba(255,176,46,0.16) 100%),
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.06) 22%,
+      rgba(255,176,46,0.10) 50%,
+      rgba(255,176,46,0.06) 78%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(120% 200% at 55% 50%,
+      rgba(255,176,46,0.10) 0%,
+      rgba(255,176,46,0.00) 55%);
+
+  mix-blend-mode: screen;
+  -webkit-backdrop-filter: contrast(3.0) brightness(1.12) saturate(1.08);
+  backdrop-filter: contrast(3.0) brightness(1.12) saturate(1.08);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.20),
+    inset 0 0 18px rgba(255,176,46,0.08),
+    0 0 18px rgba(255,176,46,0.06);
+}
+
+.bh-row:hover .bh-sym,
+.bh-row:hover .bh-price,
+.bh-row:hover .bh-pct,
+.bh-banner-item:hover .bh-sym,
+.bh-banner-item:hover .bh-price,
+.bh-banner-item:hover .bh-pct{
+  filter: drop-shadow(0 0 12px rgba(255,176,46,0.28));
+}
+
+/* ---------------------------------------------------------
+   TICKER HOVER: zoom + sheen
+   --------------------------------------------------------- */
+
+.bh-ticker-item{
+  position: relative;
+  transform: translateZ(0) scale(1);
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.bh-ticker-item:hover{
+  transform: translateZ(0) scale(1.02);
+  filter: drop-shadow(0 0 14px rgba(255,176,46,0.18));
+}
+.bh-ticker-item::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.00),
+    rgba(255,176,46,0.10),
+    rgba(255,176,46,0.00)
+  );
+}
+
+.bh-ticker-item:hover::after{
+  opacity: 1;
+}
 
 /* =========================================================
-   FINAL: Rabbit ink + Row flashlight (ROW ONLY)
-   - Single DOM node: `.board-core .rabbit-bg` owns the PNG ink (purple-rabbit-bg.png)
-   - Rows reveal the rabbit by applying a transparent sheen (::after) that
-     uses `backdrop-filter: contrast(...)` to snap the silhouette.
-   - No per-row background-image, no masks, no pointer math.
-   - KEEP THIS BLOCK AT THE BOTTOM OF `frontend/src/index.css` (last-wins)
-   ======================================================== */
+   BHABIT — Hover: inner glow only (no border, no outer glow)
+   Put at VERY BOTTOM of frontend/src/index.css
+   ========================================================= */
 
-.board-core { isolation: isolate; }
+/* Ensure the row can host the overlay cleanly */
+.bh-row{
+  position: relative;
+  z-index: 2;
+}
 
-.board-core .rabbit-bg {
+/* Keep your always-on rail behavior as-is (leave your ::before alone)
+   If you want this to override rails too, tell me. */
+
+/* Overlay exists, but invisible until hover */
+.bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  transform: scale(1);
+}
+
+/* Stronger “glass pulse” — INNER ONLY */
+.bh-row:hover::after{
+  opacity: 1;
+  transform: scale(1.012);
+
+  /* translucent sheen + brighter core (still not a fill) */
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.022) 18%,
+      rgba(255,176,46,0.052) 50%,
+      rgba(255,176,46,0.022) 82%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(150% 240% at 55% 50%,
+      rgba(255,176,46,0.16) 0%,
+      rgba(255,176,46,0.030) 42%,
+      rgba(0,0,0,0) 72%);
+
+  /* the “reveal” engine */
+  backdrop-filter: contrast(3.6) brightness(1.18) saturate(1.12);
+
+  /* IMPORTANT: no border, no outer glow */
+  box-shadow:
+    inset 0 0 28px rgba(255,176,46,0.12),
+    inset 0 0 0 999px rgba(0,0,0,0.00);
+}
+
+/* Losers: purple inner pulse (same strength, different hue) */
+.bh-row.bh-loss:hover::after,
+.bh-row[data-side="loss"]:hover::after{
+  background:
+    linear-gradient(90deg,
+      rgba(120,80,255,0.00) 0%,
+      rgba(120,80,255,0.020) 18%,
+      rgba(120,80,255,0.048) 50%,
+      rgba(120,80,255,0.020) 82%,
+      rgba(120,80,255,0.00) 100%),
+    radial-gradient(150% 240% at 55% 50%,
+      rgba(160,110,255,0.18) 0%,
+      rgba(160,110,255,0.030) 42%,
+      rgba(0,0,0,0) 72%);
+  backdrop-filter: contrast(3.6) brightness(1.14) saturate(1.18);
+}
+
+/* Kill any bordery hover styles coming from elsewhere */
+.bh-row:hover{
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* FORCE TUNER VISIBLE (TEMP) */
+.bh-style-tuner{
+  position: fixed !important;
+  top: 16px !important;
+  right: 16px !important;
+  z-index: 99999 !important;
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* HARD KILL: remove any hover fill slabs */
+.bh-row,
+.bh-row:hover{
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* common inner wrappers that accidentally carry the fill */
+.bh-row > div,
+.bh-row .row,
+.bh-row .row-inner,
+.bh-row .bh-row-inner,
+.bh-row .token-row,
+.bh-row .token-row-inner{
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* CANONICAL ROW GRID — applies to gainers/losers/watchlist */
+.bh-row{
+  display: grid;
+  grid-template-columns: 56px 1fr 170px 120px 56px;
+  align-items: center;
+  column-gap: 12px;
+}
+
+/* Selector-based side colors */
+.bh-row[data-side="gain"]:hover::after{
+  backdrop-filter: contrast(var(--tune-contrast, 3.2)) brightness(var(--tune-brightness, 1.12)) saturate(1.1);
+}
+
+.bh-row[data-side="loss"]:hover::after{
+  backdrop-filter: contrast(var(--tune-contrast, 3.2)) brightness(var(--tune-brightness, 1.12)) saturate(1.1);
+}
+
+/* =========================================================
+   BHABIT — ABSOLUTE SLAB KILL (base row must stay transparent)
+   ========================================================= */
+
+.bh-row,
+.bh-row:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* If any nested element is painting the slab, kill it too */
+.bh-row > * {
+  background: transparent;
+}
+
+/* Keep only the inner-glass layer */
+.bh-row::after {
+  background-color: transparent !important;
+}
+
+/* =========================================================
+   Tuner-driven glass + rabbit vars (defaults)
+   ========================================================= */
+
+:root{
+  --bh-glass-contrast: 4.0;
+  --bh-glass-bright: 1.16;
+  --bh-glass-sat: 1.10;
+  --bh-rabbit-opacity: 0.018;
+  --bh-glow-gold: 0.20;
+  --bh-glow-purple: 0.22;
+  --bh-glow-soft: 0.08;
+}
+
+.rabbit-bg{
+  opacity: var(--bh-rabbit-opacity);
+}
+
+.bh-row:hover::after{
+  opacity: 1;
+  background:
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,176,46, var(--bh-glow-gold)) 0%,
+      rgba(255,176,46, var(--bh-glow-soft)) 42%,
+      rgba(0,0,0,0) 72%);
+  backdrop-filter:
+    contrast(var(--bh-glass-contrast))
+    brightness(var(--bh-glass-bright))
+    saturate(var(--bh-glass-sat));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.22),
+    inset 0 0 26px rgba(255,176,46,0.10);
+}
+
+.bh-row[data-side="loser"]:hover::after{
+  background:
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(160,110,255, var(--bh-glow-purple)) 0%,
+      rgba(160,110,255, var(--bh-glow-soft)) 42%,
+      rgba(0,0,0,0) 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(160,110,255,0.22),
+    inset 0 0 26px rgba(160,110,255,0.12);
+}
+
+/* =========================================================
+   GLASS THAT CANNOT LOOK LIKE A FILL (masked inner band)
+   ========================================================= */
+
+.bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  transform: translateZ(0);
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Inner-only lens band (center glow + edge fade) */
+.bh-row:hover::after{
+  opacity:1;
+  transform: scale(1.006);
+
+  /* lens only (no paint) */
+  background:
+    radial-gradient(120% 260% at 52% 50%,
+      rgba(255,255,255,0.07) 0%,
+      rgba(255,255,255,0.02) 36%,
+      rgba(0,0,0,0) 70%);
+
+  /* the “reveal” */
+  backdrop-filter:
+    contrast(var(--bh-glass-contrast, 4.2))
+    brightness(var(--bh-glass-bright, 1.12))
+    saturate(var(--bh-glass-sat, 1.06));
+
+  /* inner edge only */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.18),
+    inset 0 0 22px rgba(255,176,46,0.08);
+
+  /* this is the key: mask the rectangle so it’s not a slab */
+  -webkit-mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,0.0) 10%,
+    rgba(0,0,0,1.0) 50%,
+    rgba(0,0,0,0.0) 90%,
+    transparent 100%);
+  mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,0.0) 10%,
+    rgba(0,0,0,1.0) 50%,
+    rgba(0,0,0,0.0) 90%,
+    transparent 100%);
+}
+
+/* Purple losers */
+.bh-row[data-side="loser"]:hover::after{
+  box-shadow:
+    inset 0 0 0 1px rgba(160,110,255,0.18),
+    inset 0 0 22px rgba(160,110,255,0.10);
+}
+
+/* Gold gainers */
+.bh-row[data-side="gainer"]:hover::after{
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.18),
+    inset 0 0 22px rgba(255,176,46,0.08);
+}
+
+/* =========================================================
+   RABBIT HOVER REVEAL (mask follows hovered row)
+   ========================================================= */
+
+:root{
+  --bh-hover-x: 50vw;
+  --bh-hover-y: 50vh;
+  --bh-rabbit-reveal: 0;
+}
+
+.rabbit-bg{
+  opacity: var(--bh-rabbit-opacity, 0.018);
   position: absolute;
-  inset: 0 0 0 0;
+  inset: 90px 0 120px 0;
   pointer-events: none;
-  background-image: url('/purple-rabbit-bg.png');
-  background-repeat: no-repeat;
-  background-position: center 78%;
-  background-size: cover;
-  opacity: 0.008; /* faint until a row reveals it */
-  filter: grayscale(0.2) blur(.2px) saturate(.98) contrast(.94);
-  z-index: 0;
+}
+
+.rabbit-bg::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: inherit;
+  opacity: var(--bh-rabbit-reveal, 0);
+  -webkit-mask-image: radial-gradient(
+    180px 260px at var(--bh-hover-x) var(--bh-hover-y),
+    rgba(0,0,0, calc(0.95 * var(--bh-rabbit-reveal))) 0%,
+    rgba(0,0,0, calc(0.55 * var(--bh-rabbit-reveal))) 35%,
+    rgba(0,0,0, 0) 70%
+  );
+  mask-image: radial-gradient(
+    180px 260px at var(--bh-hover-x) var(--bh-hover-y),
+    rgba(0,0,0, calc(0.95 * var(--bh-rabbit-reveal))) 0%,
+    rgba(0,0,0, calc(0.55 * var(--bh-rabbit-reveal))) 35%,
+    rgba(0,0,0, 0) 70%
+  );
+  filter:
+    drop-shadow(0 0 14px rgba(255,176,46, calc(0.35 * var(--bh-rabbit-reveal))))
+    drop-shadow(0 0 22px rgba(120,80,255, calc(0.22 * var(--bh-rabbit-reveal))));
+  mix-blend-mode: screen;
+}
+
+/* ===============================
+   HARD OVERRIDE: NO HOVER FILL
+   Put LAST in index.css
+   =============================== */
+
+/* 1) Kill any background/fill coming from the row itself */
+.bh-row:hover,
+.bh-row.is-hover,
+.bh-row[aria-selected="true"]{
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* 2) Kill any older ::after rules that might be painting a slab */
+.bh-row::after{
+  content:"" !important;
+  position:absolute !important;
+  inset:0 !important;
+  pointer-events:none !important;
+  opacity:0 !important;
+  transform: scale(1) !important;
+  background: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  transition: opacity 160ms ease, transform 160ms ease !important;
+}
+
+/* 3) Glass-only hover: inner rim + thin sheen, center stays empty */
+.bh-row:hover::after{
+  opacity:1 !important;
+  transform: scale(1.01) !important;
+
+  background:
+    radial-gradient(120% 220% at 50% 50%,
+      rgba(0,0,0,0) 70%,
+      rgba(255,176,46,0.045) 88%,
+      rgba(255,176,46,0.075) 100%),
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.020) 28%,
+      rgba(255,176,46,0.040) 50%,
+      rgba(255,176,46,0.020) 72%,
+      rgba(255,176,46,0.00) 100%) !important;
+
+  mix-blend-mode: screen !important;
+  backdrop-filter: contrast(3.1) brightness(1.10) saturate(1.06) !important;
+
+  /* inner-only, no outside glow */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.16),
+    inset 0 0 14px rgba(255,176,46,0.06) !important;
+}
+
+/* =========================================================
+   BHABIT — Stronger silhouette + per-side color (gold gain / purple loss)
+   LAST BLOCK in index.css
+   ========================================================= */
+
+/* Ensure rows sit above the rabbit */
+.board-core .bh-row { position: relative; z-index: 2; }
+
+/* Keep rabbit faint at rest but “ink-ready” */
+.board-core .rabbit-bg{
+  opacity: 0.010;
+  mix-blend-mode: screen;
+  /* compress range so it resists light until glass hits it */
+  filter: brightness(0.72) contrast(0.92) saturate(0.90);
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+/* Always-on rail */
+.board-core .bh-row::before{
+  content:"";
+  position:absolute;
+  left:0; right:0; bottom:0;
+  height:1px;
+  pointer-events:none;
+  opacity: 0.35;
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.12),
+    rgba(120, 80, 255, 0.10),
+    rgba(255, 90, 170, 0.08));
+  transition: opacity 140ms ease;
+}
+.board-core .bh-row:hover::before{ opacity: 0.85; }
+
+/* Flashlight layer (shared, no fill) */
+.board-core .bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transform: scale(1);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+/* --- GAINERS (gold) --- */
+.board-core .bh-row.is-gain:hover::after{
+  opacity: 1;
+  transform: scale(1.012);
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.030) 18%,
+      rgba(255,176,46,0.060) 50%,
+      rgba(255,176,46,0.030) 82%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,176,46,0.18) 0%,
+      rgba(255,176,46,0.040) 42%,
+      rgba(0,0,0,0) 72%);
+
+  /* This is the silhouette punch */
+  backdrop-filter: contrast(3.85) brightness(1.18) saturate(1.12);
+
+  /* inner-only edge, no outside glow */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.26),
+    inset 0 0 32px rgba(255,176,46,0.12);
+}
+
+/* --- LOSERS (purple) --- */
+.board-core .bh-row.is-loss:hover::after,
+.board-core .bh-row.bh-row--loss:hover::after{
+  opacity: 1;
+  transform: scale(1.012);
+  background:
+    linear-gradient(90deg,
+      rgba(120,80,255,0.00) 0%,
+      rgba(120,80,255,0.030) 18%,
+      rgba(120,80,255,0.060) 50%,
+      rgba(120,80,255,0.030) 82%,
+      rgba(120,80,255,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(120,80,255,0.18) 0%,
+      rgba(120,80,255,0.040) 42%,
+      rgba(0,0,0,0) 72%);
+
+  backdrop-filter: contrast(3.85) brightness(1.18) saturate(1.12);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(120,80,255,0.26),
+    inset 0 0 32px rgba(120,80,255,0.12);
+}
+
+/* Optional: text “activation” color by side (still subtle) */
+.board-core .bh-row.is-gain:hover .bh-sym,
+.board-core .bh-row.is-gain:hover .bh-price,
+.board-core .bh-row.is-gain:hover .bh-pct{
+  filter: drop-shadow(0 0 10px rgba(255,176,46,0.26));
+}
+
+.board-core .bh-row.is-loss:hover .bh-sym,
+.board-core .bh-row.is-loss:hover .bh-price,
+.board-core .bh-row.is-loss:hover .bh-pct,
+.board-core .bh-row.bh-row--loss:hover .bh-sym,
+.board-core .bh-row.bh-row--loss:hover .bh-price,
+.board-core .bh-row.bh-row--loss:hover .bh-pct{
+  filter: drop-shadow(0 0 10px rgba(120,80,255,0.26));
+}
+
+/* =========================================================
+   BHABIT — Hover POP (glass, no fill, no outside glow)
+   Drop this at the VERY BOTTOM of index.css
+   ========================================================= */
+
+.board-core .bh-row { position: relative; z-index: 2; }
+
+/* Always-on rail (subtle) */
+.board-core .bh-row::before{
+  content:"";
+  position:absolute;
+  left:0; right:0; bottom:0;
+  height:1px;
+  pointer-events:none;
+  opacity: 0.35;
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.10),
+    rgba(120, 80, 255, 0.06),
+    rgba(255, 90, 170, 0.06));
+  transition: opacity 140ms ease;
+}
+.board-core .bh-row:hover::before{ opacity: 0.85; }
+
+/* Flashlight layer (no fill; glass only) */
+.board-core .bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transform: scale(1);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+/* The pop: more contrast, brighter core, still transparent */
+.board-core .bh-row:hover::after{
+  opacity: 1;
+  transform: scale(1.012);
+
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.028) 18%,
+      rgba(255,176,46,0.055) 50%,
+      rgba(255,176,46,0.028) 82%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,176,46,0.14) 0%,
+      rgba(255,176,46,0.035) 40%,
+      rgba(0,0,0,0) 70%);
+
+  backdrop-filter: contrast(3.35) brightness(1.16) saturate(1.10);
+
+  /* Inner only: no outside glow */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.22),
+    inset 0 0 26px rgba(255,176,46,0.10);
+}
+
+.board-core .bh-row:hover .bh-sym,
+.board-core .bh-row:hover .bh-price,
+.board-core .bh-row:hover .bh-pct{
+  filter: drop-shadow(0 0 10px rgba(255,176,46,0.22));
+}
+
+/* =========================================================
+   BHABIT — LIVE TUNING VARS (authoritative)
+   ========================================================= */
+:root{
+  --bh-bunny-opacity: 0.010;
+  --bh-bunny-bright: 0.78;
+  --bh-bunny-contrast: 0.88;
+  --bh-bunny-sat: 0.92;
+
+  --bh-glass-contrast: 4.6;
+  --bh-glass-bright: 1.22;
+  --bh-glass-sat: 1.18;
+
+  --bh-gold-a1: 0.045;
+  --bh-gold-a2: 0.075;
+
+  --bh-violet-a1: 0.050;
+  --bh-violet-a2: 0.085;
+}
+
+/* Bunny coverage (more scroll coverage without “waking”) */
+.board-core .rabbit-bg{
+  inset: 60px 0 60px 0;
+  opacity: var(--bh-bunny-opacity);
+  filter: brightness(var(--bh-bunny-bright))
+          contrast(var(--bh-bunny-contrast))
+          saturate(var(--bh-bunny-sat));
+  mix-blend-mode: screen;
+}
+
+/* Row hover glass — base */
+.bh-row:hover::after{
+  opacity: 1;
+  backdrop-filter:
+    contrast(var(--bh-glass-contrast))
+    brightness(var(--bh-glass-bright))
+    saturate(var(--bh-glass-sat));
+  box-shadow:
+    inset 0 0 0 0 rgba(0,0,0,0),
+    inset 0 0 22px rgba(0,0,0,0); /* kill any outside/edge glow */
+}
+
+/* GAINERS: gold glass bias (no fill) */
+.bh-row[data-side="gain"]:hover::after{
+  background:
+    linear-gradient(90deg,
+      rgba(0,0,0,0) 0%,
+      rgba(255,176,46,var(--bh-gold-a1)) 45%,
+      rgba(255,176,46,var(--bh-gold-a2)) 50%,
+      rgba(255,176,46,var(--bh-gold-a1)) 55%,
+      rgba(0,0,0,0) 100%);
+}
+
+/* LOSERS: violet glass bias (no fill) */
+.bh-row[data-side="loss"]:hover::after{
+  background:
+    linear-gradient(90deg,
+      rgba(0,0,0,0) 0%,
+      rgba(165,110,255,var(--bh-violet-a1)) 45%,
+      rgba(165,110,255,var(--bh-violet-a2)) 50%,
+      rgba(165,110,255,var(--bh-violet-a1)) 55%,
+      rgba(0,0,0,0) 100%);
+}
+
+/* =========================================================
+   BHABIT — FINAL GLASS (no fill) + SIDE COLOR + TUNING VARS
+   Query tuner uses: --bh-rabbit-opacity, --bh-glass-contrast, --bh-g-core1, --bh-l-core1
+   ========================================================= */
+:root{
+  /* rabbit */
+  --bh-rabbit-opacity: 0.010;
+  --bh-rabbit-bright: 0.78;
+  --bh-rabbit-contrast: 0.90;
+
+  /* glass strength */
+  --bh-glass-contrast: 3.35;
+  --bh-glass-bright: 1.16;
+  --bh-glass-sat: 1.10;
+  --bh-glass-scale: 1.012;
+
+  /* gain (gold) */
+  --bh-g-a1: 0.028;
+  --bh-g-a2: 0.055;
+  --bh-g-core1: 0.14;
+  --bh-g-core2: 0.035;
+  --bh-g-edge: 0.22;
+  --bh-g-inset: 0.10;
+
+  /* loss (purple) */
+  --bh-l-a1: 0.028;
+  --bh-l-a2: 0.055;
+  --bh-l-core1: 0.16;
+  --bh-l-core2: 0.040;
+  --bh-l-edge: 0.22;
+  --bh-l-inset: 0.11;
+}
+
+/* rabbit stays faint */
+.board-core .rabbit-bg{
+  opacity: var(--bh-rabbit-opacity) !important;
+  filter: brightness(var(--bh-rabbit-bright)) contrast(var(--bh-rabbit-contrast)) saturate(0.92) !important;
+}
+
+/* rails always-on */
+.bh-row::before{
+  content:"";
+  position:absolute;
+  left:0; right:0; bottom:0;
+  height:1px;
+  pointer-events:none;
+  opacity: 0.35;
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.10),
+    rgba(120,80,255,0.06),
+    rgba(255,90,170,0.06)
+  );
+  transition: opacity 140ms ease;
+}
+.bh-row:hover::before{ opacity: 0.85; }
+
+/* glass layer */
+.bh-row{ position:relative; z-index:2; }
+.bh-row::after{
+  content:"" !important;
+  position:absolute !important;
+  inset:0 !important;
+  pointer-events:none !important;
+  opacity:0 !important;
+  transform: scale(1) !important;
+  transition: opacity 140ms ease, transform 140ms ease !important;
+}
+
+/* gainers: gold glass (no fill, only sheen + core) */
+.bh-row[data-side="gainer"]:hover::after{
+  opacity: 1 !important;
+  transform: scale(var(--bh-glass-scale)) !important;
+
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,var(--bh-g-a1)) 18%,
+      rgba(255,176,46,var(--bh-g-a2)) 50%,
+      rgba(255,176,46,var(--bh-g-a1)) 82%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,176,46,var(--bh-g-core1)) 0%,
+      rgba(255,176,46,var(--bh-g-core2)) 40%,
+      rgba(0,0,0,0) 70%) !important;
+
+  backdrop-filter: contrast(var(--bh-glass-contrast)) brightness(var(--bh-glass-bright)) saturate(var(--bh-glass-sat)) !important;
+
+  /* inner only — no outside glow */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,var(--bh-g-edge)),
+    inset 0 0 26px rgba(255,176,46,var(--bh-g-inset)) !important;
+}
+
+/* losers: purple glass */
+.bh-row[data-side="loser"]:hover::after{
+  opacity: 1 !important;
+  transform: scale(var(--bh-glass-scale)) !important;
+
+  background:
+    linear-gradient(90deg,
+      rgba(150,110,255,0.00) 0%,
+      rgba(150,110,255,var(--bh-l-a1)) 18%,
+      rgba(150,110,255,var(--bh-l-a2)) 50%,
+      rgba(150,110,255,var(--bh-l-a1)) 82%,
+      rgba(150,110,255,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(150,110,255,var(--bh-l-core1)) 0%,
+      rgba(150,110,255,var(--bh-l-core2)) 40%,
+      rgba(0,0,0,0) 70%) !important;
+
+  backdrop-filter: contrast(var(--bh-glass-contrast)) brightness(var(--bh-glass-bright)) saturate(var(--bh-glass-sat)) !important;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(150,110,255,var(--bh-l-edge)),
+    inset 0 0 26px rgba(150,110,255,var(--bh-l-inset)) !important;
+}
+
+/* =========================================================
+   HARD OVERRIDE — glass-only hover (no fill slabs)
+   Put at VERY BOTTOM of frontend/src/index.css
+   ========================================================= */
+
+/* If any legacy rule sets a background on hover, kill it */
+.bh-row:hover,
+.bh-row:hover * {
+  background-color: transparent !important;
+}
+
+/* Keep row positioned for pseudo layers */
+.bh-row { position: relative; }
+
+/* Rail stays subtle */
+.bh-row::before{
+  content:"";
+  position:absolute;
+  left:0; right:0; bottom:0;
+  height:1px;
+  pointer-events:none;
+  opacity:.30;
+  background: linear-gradient(90deg,
+    rgba(255,176,46,0.10),
+    rgba(140,90,255,0.06),
+    rgba(255,90,170,0.06)
+  );
+  transition: opacity 140ms ease;
+}
+.bh-row:hover::before{ opacity:.85; }
+
+/* The overlay exists, but starts invisible */
+.bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  transform: translateZ(0);
+  background: none !important;   /* important: no default paint */
+  box-shadow: none !important;   /* no outer glow */
+}
+
+/* Glass-only: edge sheen + inner edge, zero “center fill” */
+.bh-row:hover::after{
+  opacity:1;
+
+  /* Edge-weighted sheen (center stays essentially empty) */
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.018) 18%,
+      rgba(255,176,46,0.000) 50%,
+      rgba(255,176,46,0.018) 82%,
+      rgba(255,176,46,0.00) 100%),
+
+    /* A thin “rim light” that hugs the row edges */
+    radial-gradient(160% 260% at 50% 50%,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.00) 58%,
+      rgba(255,176,46,0.075) 78%,
+      rgba(255,176,46,0.00) 100%);
+
+  /* The silhouette snap */
+  backdrop-filter: contrast(3.6) brightness(1.12) saturate(1.08);
+
+  /* Inner edge only (no outer border look) */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.18),
+    inset 0 0 22px rgba(255,176,46,0.08);
+}
+
+/* Losers: same physics, purple */
+.bh-row[data-side="loser"]:hover::after{
+  background:
+    linear-gradient(90deg,
+      rgba(140,90,255,0.00) 0%,
+      rgba(140,90,255,0.018) 18%,
+      rgba(140,90,255,0.000) 50%,
+      rgba(140,90,255,0.018) 82%,
+      rgba(140,90,255,0.00) 100%),
+    radial-gradient(160% 260% at 50% 50%,
+      rgba(140,90,255,0.00) 0%,
+      rgba(140,90,255,0.00) 58%,
+      rgba(140,90,255,0.085) 78%,
+      rgba(140,90,255,0.00) 100%);
+  backdrop-filter: contrast(3.8) brightness(1.10) saturate(1.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(140,90,255,0.20),
+    inset 0 0 24px rgba(140,90,255,0.10);
+}
+
+/* =========================
+   StyleTuner: fixed overlay, never affects layout
+   ========================= */
+.style-tuner{
+  position: fixed !important;
+  top: 92px;
+  right: 24px;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+@media (max-width: 1100px){
+  .style-tuner{ width: 300px; right: 16px; top: 76px; }
+}
+
+/* =========================
+   Glass-only hover: no fill, just inner sheen + inner edge
+   Uses tuner vars if present
+   ========================= */
+
+/* If ANY hover background exists elsewhere, kill it */
+.bh-row:hover{
+  background: transparent !important;
+}
+
+/* Make sure the overlay itself never paints a flat color */
+.bh-row::after{
+  background-color: transparent !important;
+}
+
+:root{
+  --bh-glass-contrast: 3.35;
+  --bh-rabbit-opacity: 0.010;
+  --bh-glow-gold: 0.16;
+  --bh-glow-purple: 0.16;
+}
+
+.bh-row{ position: relative; z-index: 2; }
+.bh-row::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  transform: scale(1);
+}
+
+.bh-row[data-side="gainer"]:hover::after{
+  opacity: 1;
+  transform: scale(1.01);
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46, calc(var(--bh-glow-gold) * 0.10)) 25%,
+      rgba(255,176,46, calc(var(--bh-glow-gold) * 0.16)) 50%,
+      rgba(255,176,46, calc(var(--bh-glow-gold) * 0.10)) 75%,
+      rgba(255,176,46,0.00) 100%);
+  backdrop-filter: contrast(var(--bh-glass-contrast)) brightness(1.04) saturate(1.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.22),
+    inset 0 0 22px rgba(255,176,46,0.10);
+}
+
+.bh-row[data-side="loser"]:hover::after{
+  opacity: 1;
+  transform: scale(1.01);
+  background:
+    linear-gradient(90deg,
+      rgba(170,120,255,0.00) 0%,
+      rgba(170,120,255, calc(var(--bh-glow-purple) * 0.10)) 25%,
+      rgba(170,120,255, calc(var(--bh-glow-purple) * 0.16)) 50%,
+      rgba(170,120,255, calc(var(--bh-glow-purple) * 0.10)) 75%,
+      rgba(170,120,255,0.00) 100%);
+  backdrop-filter: contrast(var(--bh-glass-contrast)) brightness(1.04) saturate(1.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(170,120,255,0.24),
+    inset 0 0 22px rgba(170,120,255,0.10);
+}
+
+/* ===== BHABIT: GLASS-ONLY HOVER (NO SLAB) ===== */
+
+/* Base: keep row transparent */
+.bh-row {
+  background: transparent !important;
+}
+
+/* Turn the old gradient fills OFF */
+.bh-row::before,
+.bh-row::after {
+  background: none !important;
+  background-image: none !important;
+  opacity: 1 !important;
+}
+
+/* Rebuild hover using only a glass edge + inner sheen (still transparent) */
+.bh-row:hover::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+
+  /* No fill; just subtle inner glass */
+  background: rgba(255, 255, 255, 0.015) !important;
+
+  /* Inner sheen and edge definition */
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 18px 28px rgba(255, 255, 255, 0.02),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18)
+  !important;
+
+  pointer-events: none !important;
+}
+
+/* Gold vs Purple tint should be a LIGHT cast, not a fill slab */
+.bh-row[data-side="gainer"]:hover::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 176, 46, 0.10),
+    inset 0 0 28px rgba(255, 176, 46, var(--bh-glow-gold, 0.18)),
+    inset 0 18px 28px rgba(255, 255, 255, 0.02),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18)
+  !important;
+}
+
+.bh-row[data-side="loser"]:hover::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(120, 80, 255, 0.12),
+    inset 0 0 30px rgba(120, 80, 255, var(--bh-glow-purple, 0.20)),
+    inset 0 18px 28px rgba(255, 255, 255, 0.02),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18)
+  !important;
+}
+
+/* Make hover layer brighten what's behind it (rabbit) without becoming a slab */
+.bh-row:hover::after {
+  mix-blend-mode: screen !important;
+}
+
+/* ===== Natural glass hover: no fill slab ===== */
+
+/* hard-kill any background fill on the row itself */
+.bh-row,
+.bh-row:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* glass overlay is the ONLY visible hover */
+.bh-row::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  background: none !important; /* prevents tint slabs */
+}
+
+.bh-row:hover::after{
+  opacity: 1;
+  transform: scale(1.01);
+
+  /* no fill: just a faint sheen */
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.00) 0%,
+      rgba(255,255,255,0.025) 45%,
+      rgba(255,255,255,0.00) 100%);
+
+  /* this is the magic that reveals whatever is behind (rabbit) */
+  backdrop-filter: contrast(var(--bh-glass-contrast, 3.8))
+                   brightness(1.12)
+                   saturate(1.10);
+
+  /* inner edge only */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.20),
+    inset 0 0 22px rgba(255,176,46,0.08);
+}
+
+/* losers get purple edge instead of gold */
+.bh-row[data-side="loser"]:hover::after{
+  box-shadow:
+    inset 0 0 0 1px rgba(170,110,255,0.22),
+    inset 0 0 22px rgba(170,110,255,0.10);
+}
+
+/* expand rabbit coverage (not opacity) so glass has something to reveal */
+.rabbit-bg, .bh-bunny-layer{
+  inset: 40px 0 40px 0;
+  opacity: var(--bh-rabbit-opacity, 0.012);
+}
+
+/* === HARD KILL: no paint slabs on hover === */
+.bh-row,
+.bh-row:hover{
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* If any internal wrapper is doing the slab */
+.bh-row > *{
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* ===== BHABIT rabbit hover mask reveal (locked-in) ===== */
+
+:root {
+  --bh-hover-x: 50%;
+  --bh-hover-y: 50%;
+  --bh-rabbit-reveal: 0;
+
+  /* spotlight shape */
+  --bh-rabbit-spot: 64px;
+  --bh-rabbit-feather: 160px;
+
+  /* visibility */
+  --bh-rabbit-base-opacity: 0.010;   /* nearly invisible */
+  --bh-rabbit-reveal-opacity: 0.52;  /* strong reveal */
+}
+
+/* Applies safely to either rabbit implementation */
+.rabbit-bg,
+.bh-bunny-layer,
+.bh-bunny-layer .rabbit-base,
+.bh-bunny-layer .rabbit-highlight {
+  opacity: var(--bh-rabbit-base-opacity);
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+/* Reveal amount + clarity */
+:root[data-hover-side] .rabbit-bg,
+:root[data-hover-side] .bh-bunny-layer,
+:root[data-hover-side] .bh-bunny-layer .rabbit-base,
+:root[data-hover-side] .bh-bunny-layer .rabbit-highlight {
+  opacity: calc(
+    var(--bh-rabbit-base-opacity) +
+    (var(--bh-rabbit-reveal) * var(--bh-rabbit-reveal-opacity))
+  );
+  filter: contrast(1.55) brightness(1.22);
+}
+
+/* Spotlight mask follows hover coords (rabbit space) */
+:root[data-hover-side] .rabbit-bg,
+:root[data-hover-side] .bh-bunny-layer {
+  -webkit-mask-image: radial-gradient(
+    circle at var(--bh-hover-x) var(--bh-hover-y),
+    rgba(0,0,0,1) 0px,
+    rgba(0,0,0,1) var(--bh-rabbit-spot),
+    rgba(0,0,0,0) var(--bh-rabbit-feather)
+  );
+  mask-image: radial-gradient(
+    circle at var(--bh-hover-x) var(--bh-hover-y),
+    rgba(0,0,0,1) 0px,
+    rgba(0,0,0,1) var(--bh-rabbit-spot),
+    rgba(0,0,0,0) var(--bh-rabbit-feather)
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Side tints */
+:root[data-hover-side="gainer"] .rabbit-bg,
+:root[data-hover-side="gainer"] .bh-bunny-layer {
+  filter:
+    contrast(1.60) brightness(1.24)
+    drop-shadow(0 0 18px rgba(255,176,46,0.34))
+    drop-shadow(0 0 46px rgba(255,176,46,0.18));
+}
+
+:root[data-hover-side="loser"] .rabbit-bg,
+:root[data-hover-side="loser"] .bh-bunny-layer {
+  filter:
+    contrast(1.60) brightness(1.24)
+    drop-shadow(0 0 18px rgba(120,80,255,0.34))
+    drop-shadow(0 0 46px rgba(255,90,170,0.16));
+}
+
+/* === FINAL: glass-only row hover, no slab === */
+.bh-row {
+  background: transparent !important;
 }
 
 .bh-row::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 0 0;
-  pointer-events: none;
-  transition: opacity .08s linear, transform .18s cubic-bezier(.2,.9,.3,1);
-  opacity: 0;
-  will-change: opacity, transform;
-  mix-blend-mode: normal;
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  background-color: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
 }
 
+/* Hover glass: low alpha + inner edge only */
 .bh-row:hover::after {
   opacity: 1;
-  transform: translateZ(0);
-  backdrop-filter: contrast(2.7) brightness(1.12) saturate(1.08);
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.018) 18%,
+      rgba(255,176,46,0.032) 50%,
+      rgba(255,176,46,0.018) 82%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,176,46,0.075) 0%,
+      rgba(255,176,46,0.018) 42%,
+      rgba(0,0,0,0) 72%);
+
+  backdrop-filter: contrast(2.10) brightness(1.06) saturate(1.06);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.12),
+    inset 0 0 18px rgba(255,176,46,0.07);
 }
 
-.bh-ticker-item {
-  transition: transform .16s ease-out;
+/* Loser rows: purple glass instead of gold */
+.bh-row[data-side="loser"]:hover::after {
+  background:
+    linear-gradient(90deg,
+      rgba(120,80,255,0.00) 0%,
+      rgba(120,80,255,0.018) 18%,
+      rgba(120,80,255,0.032) 50%,
+      rgba(120,80,255,0.018) 82%,
+      rgba(120,80,255,0.00) 100%),
+    radial-gradient(140% 220% at 55% 50%,
+      rgba(255,90,170,0.065) 0%,
+      rgba(255,90,170,0.016) 42%,
+      rgba(0,0,0,0) 72%);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(120,80,255,0.13),
+    inset 0 0 18px rgba(255,90,170,0.06);
 }
 
-.bh-ticker-item:hover { transform: scale(1.028) translateZ(0); }
+/* === Final dot-bloom rabbit emitter (single system, no masks) === */
+:root {
+  --bh-glow-x: 50%;
+  --bh-glow-y: 50%;
+  --bh-glow-a: 0;
+  --bh-glow-c: var(--bh-gain);
+}
 
-/* End authoritative rabbit + row flashlight block */
-.bh-row:hover::before{ opacity: 0.75; }
+.board-core {
+  position: relative;
+}
+
+.board-core .rabbit-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: transparent;
+  opacity: 1;
+  filter: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  mix-blend-mode: screen;
+}
+
+.board-core .rabbit-bg::before {
+  content: none !important;
+}
+
+.board-core .rabbit-bg::after {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  left: var(--bh-glow-x);
+  top: var(--bh-glow-y);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: var(--bh-glow-a);
+  background:
+    radial-gradient(35% 35% at 50% 50%, color-mix(in srgb, var(--bh-glow-c) 94%, transparent) 0%, transparent 100%),
+    radial-gradient(85% 85% at 50% 50%, color-mix(in srgb, var(--bh-glow-c) 35%, transparent) 0%, transparent 100%);
+  filter:
+    drop-shadow(0 0 32px color-mix(in srgb, var(--bh-glow-c) 70%, transparent))
+    drop-shadow(0 0 78px color-mix(in srgb, var(--bh-glow-c) 45%, transparent));
+  transition: opacity 120ms ease, transform 120ms ease;
+  will-change: transform, opacity;
+}
+
+/* Keep content above the emitter */
+.board-core .panel,
+.board-core .bh-row,
+.board-core section {
+  position: relative;
+  z-index: 1;
+}

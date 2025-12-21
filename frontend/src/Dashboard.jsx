@@ -87,6 +87,82 @@ export default function Dashboard() {
     boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
   }, [banner1h?.length, vol1hTokens?.length, payload]);
 
+  // Pointer-driven dot emitter for the rabbit layer (event delegation on board)
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const layer = board.querySelector(".rabbit-bg");
+    if (!layer) return;
+
+    let raf = 0;
+    let active = false;
+
+    const normSide = (raw) => {
+      const v = String(raw || "").toLowerCase();
+      if (v.includes("loss")) return "loser";
+      return "gainer";
+    };
+
+    const setVars = (x, y, side, on) => {
+      layer.style.setProperty("--bh-glow-a", on ? "1" : "0");
+      layer.style.setProperty("--bh-glow-c", side === "loser" ? "var(--bh-loss)" : "var(--bh-gain)");
+      layer.style.setProperty("--bh-glow-x", `${x}px`);
+      layer.style.setProperty("--bh-glow-y", `${y}px`);
+    };
+
+    const update = (e) => {
+      const row = e.target?.closest?.(".bh-row");
+      if (!row || !board.contains(row)) {
+        if (active) {
+          active = false;
+          layer.style.setProperty("--bh-glow-a", "0");
+        }
+        return;
+      }
+
+      const side = normSide(row.dataset.side) ||
+        (row.classList.contains("is-loss") || row.classList.contains("bh-row--loss") ? "loser" : "gainer");
+
+      const r = layer.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        active = true;
+        setVars(x, y, side, true);
+      });
+    };
+
+    const onMove = (e) => update(e);
+
+    const onOut = (e) => {
+      const fromRow = e.target?.closest?.(".bh-row");
+      const toRow = e.relatedTarget?.closest?.(".bh-row");
+      if (fromRow && (!toRow || !board.contains(toRow))) {
+        active = false;
+        layer.style.setProperty("--bh-glow-a", "0");
+      }
+    };
+
+    const onLeaveBoard = () => {
+      active = false;
+      layer.style.setProperty("--bh-glow-a", "0");
+    };
+
+    board.addEventListener("pointermove", onMove, { passive: true });
+    board.addEventListener("pointerout", onOut, { passive: true });
+    board.addEventListener("pointerleave", onLeaveBoard);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      board.removeEventListener("pointermove", onMove);
+      board.removeEventListener("pointerout", onOut);
+      board.removeEventListener("pointerleave", onLeaveBoard);
+    };
+  }, []);
+
 
   return (
     <main className="min-h-screen text-white relative overflow-x-hidden">
@@ -132,6 +208,7 @@ export default function Dashboard() {
         </header>
 
         <div className="board-core" ref={boardRef}>
+          <div className="rabbit-bg" aria-hidden />
           {/* Section label + 1h banner */}
           <section className="mb-8">
             <TopBannerScroll items={banner1h} />
