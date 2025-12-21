@@ -8,6 +8,7 @@ Rules
 - `TokenRow` is the single source of truth for row structure. Use only its props: `rank`, `symbol`, `name`, `currentPrice`, `previousPrice`, `percentChange`, `onToggleWatchlist`, `onInfo`, `isWatchlisted`.
 - Do not introduce per-table `grid-template-columns` that conflict with `.bh-row`.
 - Motion wrappers may be used (e.g., `motion(TokenRow)`), but never let motion own the structure of the row — `TokenRow` must remain a `forwardRef` component.
+- Rabbit glow/reveal is driven by event delegation on `.board-core` in `frontend/src/Dashboard.jsx` (updates CSS vars, rows remain purely presentational).
 
 How to revert
 - The edits in this change are confined to `frontend/src/components/Losers3m.jsx` and `frontend/src/components/Watchlist.jsx`.

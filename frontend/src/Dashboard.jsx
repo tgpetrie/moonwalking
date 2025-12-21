@@ -102,7 +102,6 @@ export default function Dashboard() {
       const rr = rabbit.getBoundingClientRect();
       const x = Math.max(0, clientX - rr.left);
       const y = Math.max(0, clientY - rr.top);
-
       rabbit.style.setProperty("--bh-glow-x", `${x}px`);
       rabbit.style.setProperty("--bh-glow-y", `${y}px`);
       rabbit.style.setProperty("--bh-glow-a", on ? "1" : "0");
@@ -110,11 +109,25 @@ export default function Dashboard() {
       const isLoser = typeof side === "string" && /loss|loser/i.test(side);
       rabbit.style.setProperty("--bh-glow-c", isLoser ? "var(--bh-loss)" : "var(--bh-gain)");
 
+      // Toggle board-level bunny hover variable as a reliable fallback
+      // so CSS can react to hover even if :has() is unsupported.
+      try {
+        if (board && board.style) {
+          board.style.setProperty("--bh-bunny-hover", on ? "1" : "0");
+        }
+      } catch (err) {
+        // silently ignore in older browsers
+      }
+
+      // temporary verification log removed
+
       active = Boolean(on);
     };
 
+    const rowSelector = ".token-row.table-row, .bh-row";
+
     const onMove = (e) => {
-      const row = e.target?.closest?.(".bh-row");
+      const row = e.target?.closest?.(rowSelector);
       if (!row || !board.contains(row)) {
         if (active) setEmitter(e.clientX, e.clientY, false);
         return;
@@ -125,8 +138,8 @@ export default function Dashboard() {
     };
 
     const onOut = (e) => {
-      const fromRow = e.target?.closest?.(".bh-row");
-      const toRow = e.relatedTarget?.closest?.(".bh-row");
+      const fromRow = e.target?.closest?.(rowSelector);
+      const toRow = e.relatedTarget?.closest?.(rowSelector);
       if (fromRow && (!toRow || !board.contains(toRow))) {
         setEmitter(e.clientX, e.clientY, false);
       }

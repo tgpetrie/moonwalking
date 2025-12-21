@@ -21,6 +21,7 @@ export default function DashboardShell({ onInfo }) {
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
   const partialStreakRef = useRef(0);
+  const boardRef = useRef(null);
 
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
@@ -64,8 +65,6 @@ export default function DashboardShell({ onInfo }) {
     return () => window.removeEventListener("openInfo", handler);
   }, []);
 
-<<<<<<< Updated upstream
-=======
   // Thin-band rabbit reveal (event delegation on board)
   useEffect(() => {
     const board = boardRef.current;
@@ -122,8 +121,6 @@ export default function DashboardShell({ onInfo }) {
     };
   }, []);
 
->>>>>>> Stashed changes
-
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const status = useMemo(() => {
     const now = Date.now();
@@ -151,7 +148,7 @@ export default function DashboardShell({ onInfo }) {
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div className="bh-board board-core">
+          <div ref={boardRef} className="bh-board board-core">
             <div className="rabbit-bg" aria-hidden="true" />
             {/* 1h Price Banner (top) */}
             <section className="bh-board-row-full">

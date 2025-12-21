@@ -22,7 +22,6 @@
   --bh-col-actions: 72px;
   --bh-row-px: 14px;
   --bh-row-py: 12px;
-  --bh-row-gap: 14px;
 
   /* Bunny layer */
   --bh-bunny-opacity: 0.22;
@@ -48,9 +47,9 @@
   --bh-bunny-idle: 0.035;
   --bh-bunny-hover: 0.14;
 
-  /* Unified Row Specs */
-  --bh-row-cols: 32px minmax(0,1.6fr) minmax(0,1.25fr) minmax(0,0.95fr) 44px;
-  --bh-row-gap: 18px;
+  /* Unified Row Specs (single source of truth for row geometry) */
+  --bh-row-cols: 56px minmax(0,1fr) 170px 120px 56px;
+  --bh-row-gap: 12px;
 }
 
 
@@ -61,10 +60,8 @@
 
 .bh-row {
   display: grid;
-  grid-template-columns: var(--bh-row-cols);
-  column-gap: var(--bh-row-gap);
+  /* grid-template-columns, column-gap and padding moved to single final rule; keep visual/interaction styles here */
   align-items: center;
-  padding: var(--bh-row-py) var(--bh-row-px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   transition: background-color 0.2s ease;
   position: relative;
@@ -119,33 +116,7 @@
 .price-now,
 .price-current,
 .token-price-current {
-  color: var(--bh-price) !important;
-}
-
-.bh-price-sub,
-.bh-token-price-sub,
-.bh-price-previous,
-.price-prev,
-.price-previous {
-  color: color-mix(in srgb, var(--bh-fg, rgba(255,255,255,0.9)) 62%, transparent) !important;
-  opacity: 0.85;
-}
-
-/* TokenRowSimple-style price blocks: avoid mint bleeding to the subline */
-.token-price{
-  color: inherit;
-}
-.token-price-sub{
-  color: var(--bh-fg) !important;
-  opacity: 0.6;
-}
-
-/* ===== GLOBAL RESETS ===== */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+  /* legacy price selector hooks (intentionally empty) */
 }
 
 html,
@@ -306,35 +277,6 @@ body {
   margin: 0 auto;
   padding-inline: 16px;
   background: transparent;
-}
-
-/* One full-width strip */
-.bh-board-row-full {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  column-gap: 0;
-  margin-bottom: 28px;
-}
-
-.bh-board-row-full.bh-row-watchlist,
-.bh-board-row-full.bh-row-volume {
-  margin-top: 8px;
-}
-
-.panel-row {
-  width: 100%;
-  margin-top: var(--bh-panel-gap);
-}
-
-.bh-panel-half {
-  width: 100%;
-}
-
-/* Two equal panels side by side */
-.bh-board-row-halves {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: var(--bh-panel-gap);
   margin-bottom: 28px;
 }
 
@@ -500,9 +442,7 @@ body {
   position: relative;
   display: grid;
   align-items: center;
-  column-gap: var(--bh-row-gap);
-  padding: var(--bh-row-py) var(--bh-row-px);
-  grid-template-columns: var(--bh-row-cols);
+  /* grid-template-columns, column-gap and padding are managed centrally via variables (single source of truth) */
   min-height: 58px;
   cursor: pointer;
   overflow: visible;
@@ -745,54 +685,14 @@ a.bh-row {
   border-color: rgba(168, 111, 255, 0.35);
   color: rgba(168, 111, 255, 0.9);
 }
-
-.bh-row--gain .bh-rank,
-.bh-row.is-gain .bh-rank {
-  background: transparent !important;
-  border-color: rgba(245, 159, 34, 0.35);
-  color: rgba(245, 159, 34, 0.92);
-}
-
-/* Context-aware rank colors: flat rows muted */
-.bh-row--flat .bh-rank,
-.bh-row.is-flat .bh-rank {
-  border-color: rgba(255, 255, 255, 0.32);
-  color: var(--bh-muted);
-}
-
-.gainers-table .bh-rank{
-  border-color: rgba(245, 159, 34, 0.35);
-}
-
-.losers-table .bh-rank{
-  border-color: rgba(168, 111, 255, 0.35);
-}
-
-/* Context-aware rank colors for table rows */
-tr.table-row.is-gain .tr-col-rank,
-.token-row.table-row.is-gain .tr-col-rank,
-tr.table-row.is-gain .bh-token-rank {
+.token-row.table-row.is-gain .tr-col-rank {
   color: var(--bh-gain);
+  border-color: rgba(245, 159, 34, 0.35);
 }
 
-tr.table-row.is-loss .tr-col-rank,
-.token-row.table-row.is-loss .tr-col-rank,
-tr.table-row.is-loss .bh-token-rank {
+.token-row.table-row.is-loss .tr-col-rank {
   color: var(--bh-loss);
-}
-
-tr.table-row.is-flat .tr-col-rank,
-.token-row.table-row.is-flat .tr-col-rank,
-tr.table-row.is-flat .bh-token-rank {
-  color: var(--bh-muted);
-}
-
-.bh-symbol {
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.02rem;
-  color: #ffffff;
-  text-transform: uppercase;
+  border-color: rgba(168, 111, 255, 0.35);
 }
 
 .bh-name {
@@ -1324,7 +1224,7 @@ tr.table-row.is-flat .bh-token-rank {
   color: var(--bh-muted);
 }
 
-./* DEPRECATED: watchlist-specific overrides disabled. Watchlist now uses canonical row/grid rules. */
+/* DEPRECATED: watchlist-specific overrides disabled. Watchlist now uses canonical row/grid rules. */
 /* .watchlist-panel .bh-row,
 .watchlist-panel .bh-row *{
   box-sizing: border-box;
@@ -1371,7 +1271,6 @@ tr.table-row.is-flat .bh-token-rank {
   }
 
   .bh-row {
-    grid-template-columns: var(--bh-row-cols);
     font-size: 0.85rem;
   }
 
@@ -1404,30 +1303,54 @@ tr.table-row.is-flat .bh-token-rank {
 }
 
 /* =========================================================
-   FINAL AUTHORITATIVE: Rabbit + Row Flashlight (ROW ONLY)
-   Keep this as the LAST block in index.css.
+   DISABLED — Old rabbit + row flashlight
    ========================================================= */
-
-/* Board creates a clean stacking context for backdrop-filter */
+/*
 .board-core{
   position: relative;
   isolation: isolate;
 }
 
-/* Single bunny art: always present, barely visible */
 .board-core .rabbit-bg{
   position: absolute;
   inset: 90px 0 120px 0;
   z-index: 0;
   pointer-events: none;
   background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010; /* keep ink faint */
+  opacity: 0.010;
   mix-blend-mode: screen;
   filter: brightness(0.80) contrast(0.92) saturate(0.95);
 }
+*/
 
 /* All board content sits above the bunny */
 .board-core > *{ position: relative; z-index: 2; }
+
+/* ------------------------------------------------------------
+   Rabbit hover bridge
+   Lets a hovered row "wake up" the background rabbit layer.
+   No refactors, no grid changes.
+------------------------------------------------------------ */
+
+/* DISABLED — Old :has() hover boost */
+/*
+.board-core { --bh-bunny-hover: 0; }
+
+.board-core:has(.bh-row:hover),
+.board-core:has(.token-row.table-row:hover) {
+  --bh-bunny-hover: 1;
+}
+
+.board-core .bh-bunny-layer,
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  /* barely there but visible on dark backgrounds */
+  opacity: 0.012;
+  mix-blend-mode: screen;
+  filter: brightness(1.03) contrast(1.02) saturate(1.01);
+  transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
+}
+*/
 
 /* ---------------------------------------------------------
    ROW + BANNER “FLASHLIGHT” (screen + mild contrast)
@@ -1630,10 +1553,9 @@ tr.table-row.is-flat .bh-token-rank {
 
 /* CANONICAL ROW GRID — applies to gainers/losers/watchlist */
 .bh-row{
+  /* removed hardcoded grid-template-columns and column-gap; single source lives in :root + final rule */
   display: grid;
-  grid-template-columns: 56px 1fr 170px 120px 56px;
   align-items: center;
-  column-gap: 12px;
 }
 
 /* Selector-based side colors */
@@ -1679,6 +1601,8 @@ tr.table-row.is-flat .bh-token-rank {
   --bh-glow-soft: 0.08;
 }
 
+/* DISABLED — Old rabbit opacity override and row hover glass */
+/*
 .rabbit-bg{
   opacity: var(--bh-rabbit-opacity);
 }
@@ -1709,6 +1633,7 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 0 1px rgba(160,110,255,0.22),
     inset 0 0 26px rgba(160,110,255,0.12);
 }
+*/
 
 /* =========================================================
    GLASS THAT CANNOT LOOK LIKE A FILL (masked inner band)
@@ -1778,10 +1703,8 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 22px rgba(255,176,46,0.08);
 }
 
-/* =========================================================
-   RABBIT HOVER REVEAL (mask follows hovered row)
-   ========================================================= */
-
+/* DISABLED — Old rabbit hover reveal with mask */
+/*
 :root{
   --bh-hover-x: 50vw;
   --bh-hover-y: 50vh;
@@ -1819,6 +1742,7 @@ tr.table-row.is-flat .bh-token-rank {
     drop-shadow(0 0 22px rgba(120,80,255, calc(0.22 * var(--bh-rabbit-reveal))));
   mix-blend-mode: screen;
 }
+*/
 
 /* ===============================
    HARD OVERRIDE: NO HOVER FILL
@@ -1873,22 +1797,17 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 14px rgba(255,176,46,0.06) !important;
 }
 
-/* =========================================================
-   BHABIT — Stronger silhouette + per-side color (gold gain / purple loss)
-   LAST BLOCK in index.css
-   ========================================================= */
-
-/* Ensure rows sit above the rabbit */
+/* DISABLED — Old BHABIT stronger silhouette */
+/*
 .board-core .bh-row { position: relative; z-index: 2; }
 
-/* Keep rabbit faint at rest but “ink-ready” */
 .board-core .rabbit-bg{
   opacity: 0.010;
   mix-blend-mode: screen;
-  /* compress range so it resists light until glass hits it */
   filter: brightness(0.72) contrast(0.92) saturate(0.90);
   transition: opacity 160ms ease, filter 160ms ease;
 }
+*/
 
 /* Always-on rail */
 .board-core .bh-row::before{
@@ -2067,7 +1986,8 @@ tr.table-row.is-flat .bh-token-rank {
   --bh-violet-a2: 0.085;
 }
 
-/* Bunny coverage (more scroll coverage without “waking”) */
+/* DISABLED — Old bunny coverage */
+/*
 .board-core .rabbit-bg{
   inset: 60px 0 60px 0;
   opacity: var(--bh-bunny-opacity);
@@ -2076,6 +1996,7 @@ tr.table-row.is-flat .bh-token-rank {
           saturate(var(--bh-bunny-sat));
   mix-blend-mode: screen;
 }
+*/
 
 /* Row hover glass — base */
 .bh-row:hover::after{
@@ -2144,11 +2065,13 @@ tr.table-row.is-flat .bh-token-rank {
   --bh-l-inset: 0.11;
 }
 
-/* rabbit stays faint */
+/* DISABLED — rabbit stays faint */
+/*
 .board-core .rabbit-bg{
   opacity: var(--bh-rabbit-opacity) !important;
   filter: brightness(var(--bh-rabbit-bright)) contrast(var(--bh-rabbit-contrast)) saturate(0.92) !important;
 }
+*/
 
 /* rails always-on */
 .bh-row::before{
@@ -2511,11 +2434,13 @@ tr.table-row.is-flat .bh-token-rank {
     inset 0 0 22px rgba(170,110,255,0.10);
 }
 
-/* expand rabbit coverage (not opacity) so glass has something to reveal */
+/* DISABLED — expand rabbit coverage */
+/*
 .rabbit-bg, .bh-bunny-layer{
   inset: 40px 0 40px 0;
   opacity: var(--bh-rabbit-opacity, 0.012);
 }
+*/
 
 /* === HARD KILL: no paint slabs on hover === */
 .bh-row,
@@ -2546,7 +2471,8 @@ tr.table-row.is-flat .bh-token-rank {
   --bh-rabbit-reveal-opacity: 0.52;  /* strong reveal */
 }
 
-/* Applies safely to either rabbit implementation */
+/* DISABLED — Old rabbit spotlight with mask and side tints */
+/*
 .rabbit-bg,
 .bh-bunny-layer,
 .bh-bunny-layer .rabbit-base,
@@ -2555,7 +2481,6 @@ tr.table-row.is-flat .bh-token-rank {
   transition: opacity 160ms ease, filter 160ms ease;
 }
 
-/* Reveal amount + clarity */
 :root[data-hover-side] .rabbit-bg,
 :root[data-hover-side] .bh-bunny-layer,
 :root[data-hover-side] .bh-bunny-layer .rabbit-base,
@@ -2567,7 +2492,6 @@ tr.table-row.is-flat .bh-token-rank {
   filter: contrast(1.55) brightness(1.22);
 }
 
-/* Spotlight mask follows hover coords (rabbit space) */
 :root[data-hover-side] .rabbit-bg,
 :root[data-hover-side] .bh-bunny-layer {
   -webkit-mask-image: radial-gradient(
@@ -2586,7 +2510,6 @@ tr.table-row.is-flat .bh-token-rank {
   mask-repeat: no-repeat;
 }
 
-/* Side tints */
 :root[data-hover-side="gainer"] .rabbit-bg,
 :root[data-hover-side="gainer"] .bh-bunny-layer {
   filter:
@@ -2602,6 +2525,7 @@ tr.table-row.is-flat .bh-token-rank {
     drop-shadow(0 0 18px rgba(120,80,255,0.34))
     drop-shadow(0 0 46px rgba(255,90,170,0.16));
 }
+*/
 
 /* === FINAL: glass-only row hover, no slab === */
 .bh-row {
@@ -2676,6 +2600,8 @@ tr.table-row.is-flat .bh-token-rank {
   position: relative;
 }
 
+/* DISABLED — Old dot emitter system */
+/*
 .board-core .rabbit-bg {
   position: absolute;
   inset: 120px 0 140px 0;
@@ -2688,10 +2614,8 @@ tr.table-row.is-flat .bh-token-rank {
   filter: brightness(var(--bh-rabbit-bright, 0.78)) contrast(var(--bh-rabbit-contrast, 0.90)) saturate(var(--bh-rabbit-sat, 0.92));
 }
 
-/* Disable legacy masked ::before reveal for rabbit layer */
 .board-core .rabbit-bg::before { content: none !important; }
 
-/* One emitter. No slab. Just a living constellation. */
 .board-core .rabbit-bg::after {
   content: "";
   position: absolute;
@@ -2719,6 +2643,7 @@ tr.table-row.is-flat .bh-token-rank {
   mix-blend-mode: screen;
   filter: blur(0.6px) drop-shadow(0 0 14px color-mix(in oklab, var(--bh-glow-c), transparent 48%));
 }
+*/
 
 /* Keep rows above rabbit plane */
 .board-core .panel,
@@ -2726,41 +2651,172 @@ tr.table-row.is-flat .bh-token-rank {
 .board-core section {
   position: relative;
   z-index: 1;
-}
-  --bh-glow-c: var(--bh-gain);
+  }
 
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
+/* =========================================================
+   FINAL: SINGLE SOURCE OF TRUTH FOR ROW GEOMETRY
+   (put LAST in index.css)
+   ========================================================= */
 
-  opacity: var(--bh-glow-a);
-  will-change: transform, filter, opacity;
-
-  background: color-mix(in oklab, var(--bh-glow-c), transparent 12%);
-  transform: translate3d(calc(var(--bh-glow-x) - 3px), calc(var(--bh-glow-y) - 3px), 0);
-
-  box-shadow:
-     10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
-    -10px   0px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
-      0px  10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
-      0px -10px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 38%),
-
-     18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
-    -18px   8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
-     18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
-    -18px  -8px 0 0 color-mix(in oklab, var(--bh-glow-c), transparent 58%),
-
-      0px   0px 18px 8px color-mix(in oklab, var(--bh-glow-c), transparent 86%);
-
-  mix-blend-mode: screen;
-  filter: blur(0.6px) drop-shadow(0 0 14px color-mix(in oklab, var(--bh-glow-c), transparent 48%));
+/* Canonical token-row grid only. Other app grids remain untouched. */
+.bh-row, .token-row.table-row {
+  display: grid;
+  /* Canonical token-row grid only. Other app grids remain untouched. */
+  grid-template-columns: var(--bh-cols, var(--bh-row-cols));
+  column-gap: var(--bh-row-gap);
+  padding: var(--bh-row-py) var(--bh-row-px);
 }
 
-/* Keep rows above rabbit plane */
->>>>>>> Stashed changes
-.board-core .bh-row,
-.board-core .bh-table,
-.board-core .panel-row-watchlist {
+/* Optional per-row overrides (use only where truly needed) */
+.bh-row.cols-compact { --bh-cols: 44px minmax(0, 1fr) 150px 110px 44px; }
+.bh-row.cols-wide    { --bh-cols: 64px minmax(0, 1fr) 190px 140px 64px; }
+
+.bh-row,
+.bh-row *{
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-cell-rank{ grid-column: 1; }
+.bh-cell-symbol{ grid-column: 2; }
+.bh-cell-price{ grid-column: 3; justify-self: end; text-align: right; }
+.bh-cell-change{ grid-column: 4; justify-self: end; text-align: right; }
+.bh-cell-actions{ grid-column: 5; justify-self: end; }
+
+/* =========================================================
+   FINAL AUTHORITATIVE — Rabbit Glow Emitter on Row Hover
+   Keep this as the LAST block in index.css.
+   ========================================================= */
+
+/* Board positioning */
+.board-core {
   position: relative;
-  z-index: 1;
+}
+
+/* Base rabbit layer: barely visible - NEVER changes */
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  mix-blend-mode: screen;
+  opacity: var(--bh-bunny-idle, 0.015);
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: 50% 20%;
+  background-size: min(1100px, 88vw) auto;
+  filter:
+    brightness(1.05)
+    contrast(1.03)
+    saturate(1.01);
+  transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
+}
+
+/* Bright rabbit slice - ONLY visible on hover, ONLY where mask reveals it */
+.board-core .rabbit-bg::before,
+.board-core .bh-bunny-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: 50% 20%;
+  background-size: min(1100px, 88vw) auto;
+  mix-blend-mode: screen;
+  filter:
+    brightness(5)
+    contrast(2.2)
+    saturate(2)
+    hue-rotate(-15deg)
+    drop-shadow(0 0 35px rgba(245, 178, 58, 0.5))
+    drop-shadow(0 0 60px rgba(245, 178, 58, 0.3));
+  -webkit-mask-image:
+    radial-gradient(
+      ellipse 1400px 200px at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 20%),
+      black 0%,
+      black 20%,
+      rgba(0,0,0,0.7) 35%,
+      rgba(0,0,0,0.4) 50%,
+      rgba(0,0,0,0.2) 65%,
+      rgba(0,0,0,0.08) 80%,
+      transparent 100%
+    );
+  mask-image:
+    radial-gradient(
+      ellipse 1400px 200px at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 20%),
+      black 0%,
+      black 20%,
+      rgba(0,0,0,0.7) 35%,
+      rgba(0,0,0,0.4) 50%,
+      rgba(0,0,0,0.2) 65%,
+      rgba(0,0,0,0.08) 80%,
+      transparent 100%
+    );
+  pointer-events: none;
+  transition: opacity 350ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Row-hover turns the emitter on (works without :has()) */
+/* Keep base rabbit extremely faint at all times */
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  opacity: var(--bh-bunny-opacity, 0.02);
+  filter: none;
+}
+
+/* Localized emitter: only the area behind the hovered row lights up */
+.board-core .rabbit-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* Use the same rabbit art, but reveal only a small window */
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: 50% 45%;
+  background-size: min(720px, 72vw) auto;
+
+  /* The "window" follows the hovered row center */
+  -webkit-mask-image: radial-gradient(
+    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,0) 46%
+  );
+  mask-image: radial-gradient(
+    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,0) 46%
+  );
+
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 18px rgba(245, 178, 58, 0.65))
+    drop-shadow(0 0 36px rgba(245, 178, 58, 0.30));
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg::after {
+  opacity: 0.85;
+}
+
+/* Optional: tiny gold bloom that’s independent of the rabbit art */
+.board-core .rabbit-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    rgba(245, 178, 58, 0.20),
+    rgba(245, 178, 58, 0.10) 18%,
+    rgba(0, 0, 0, 0) 52%
+  );
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg::before {
+  opacity: 1;
 }

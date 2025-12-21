@@ -127,6 +127,27 @@ export function TokenRowUnified({
         ? (changeNum >= 0 ? "gainer" : "loser")
         : "flat";
 
+  const setRabbitHover = (on) => (e) => {
+    const row = e.currentTarget;
+    const board = row.closest(".board-core");
+    if (!board) return;
+
+    if (on) {
+      board.setAttribute("data-row-hover", "1");
+      const r = row.getBoundingClientRect();
+      const b = board.getBoundingClientRect();
+
+      // Calculate position relative to board-core container
+      const x = ((r.left + r.width / 2 - b.left) / b.width) * 100;
+      const y = ((r.top + r.height / 2 - b.top) / b.height) * 100;
+
+      board.style.setProperty("--bh-emitter-x", `${x}%`);
+      board.style.setProperty("--bh-emitter-y", `${y}%`);
+    } else {
+      board.removeAttribute("data-row-hover");
+    }
+  };
+
   return (
     <RowTag
       className={`${rowClassName} token-row table-row`}
@@ -135,6 +156,8 @@ export function TokenRowUnified({
       tabIndex={url ? 0 : undefined}
       onClick={handleClick}
       onKeyDown={onKeyDown}
+      onPointerEnter={setRabbitHover(true)}
+      onPointerLeave={setRabbitHover(false)}
       aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
     >
       {renderCells()}
