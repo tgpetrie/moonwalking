@@ -45,7 +45,7 @@ function normalizeApi(payload) {
     latest_by_symbol: p.latest_by_symbol ?? {},
     meta: p.meta ?? {},
     updated_at: p.updated_at ?? null,
-    errors: p.errors ?? [],
+    errors: (p.errors && typeof p.errors === "object") ? p.errors : {},
     coverage: p.coverage ?? null,
   };
 }
@@ -70,28 +70,28 @@ export async function fetchData(path = '/api/data') {
 
 // Convenience: fetch the main payload the app expects.
 export async function fetchAllData(keyUrl) {
-  // SWR passes the key as the first arg. Prefer it so local dev can stay
-  // same-origin (`/api/data` via Vite proxy) even if VITE_API_URL is set.
   if (typeof keyUrl === "string" && keyUrl.trim()) {
     const u = keyUrl.trim();
-    const candidates = u.endsWith("/api/data") ? [u, u.replace(/\/api\/data$/, "/data")] : [u];
-    let lastErr = null;
-    for (const url of candidates) {
-      try {
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        return normalizeApi(json);
-      } catch (err) {
-        lastErr = err;
-      }
+
+    // Same-origin path like "/api/data" should be fetched exactly.
+    if (u.startsWith("/")) {
+      const res = await fetch(u, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      return normalizeApi(json);
     }
-    throw lastErr || new Error("fetchAllData: failed");
+
+    // Absolute URL: try as-is only
+    const res = await fetch(u, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return normalizeApi(json);
   }
 
   const base = API_BASE || "";
   const tryUrls = [`${base}/api/data`, `${base}/data`];
   let lastErr = null;
+
   for (const url of tryUrls) {
     try {
       const res = await fetch(url, { cache: "no-store" });
@@ -102,7 +102,7 @@ export async function fetchAllData(keyUrl) {
       lastErr = err;
     }
   }
-  throw lastErr || new Error('fetchAllData: no available endpoint');
+  throw lastErr || new Error("fetchAllData: no available endpoint");
 }
 
 export const fetchAllDataApi = fetchAllData;
