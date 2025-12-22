@@ -1,10 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
+
+const buildRowKey = (row, index) => {
+  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
+  return `${base}-${index}`;
+};
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
@@ -49,6 +55,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   }, [tokensProp, payload]);
 
   const [expanded, setExpanded] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
   const filtered = useMemo(
     () =>
       mapped
@@ -61,6 +68,17 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     [mapped]
   );
   const visible = useMemo(() => (expanded ? filtered : filtered.slice(0, 8)), [filtered, expanded]);
+  const refreshSig = useMemo(() => {
+    return visible
+      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
+      .join("|");
+  }, [visible]);
+  useEffect(() => {
+    if (!visible.length) return;
+    setPulseOn(true);
+    const timer = setTimeout(() => setPulseOn(false), 700);
+    return () => clearTimeout(timer);
+  }, [refreshSig, visible.length]);
 
   const hasData = filtered.length > 0;
 
@@ -135,18 +153,26 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     <div className="losers-table">
       <div className="bh-panel bh-panel-half">
         <div className="bh-table">
-          {visible.map((tokenProps, idx) => (
-            <TokenRowUnified
-              key={tokenProps.symbol ?? `${idx}`}
-              token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
-              rank={idx + 1}
-              changeField="change_3m"
-              side="loser"
-              onInfo={() => handleInfo(tokenProps.symbol)}
-              onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
-              isWatchlisted={isStarred(tokenProps.symbol)}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {visible.map((tokenProps, idx) => {
+              const rowKey = buildRowKey(tokenProps, idx);
+              return (
+                <motion.div key={rowKey} layout="position">
+                  <TokenRowUnified
+                    token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
+                    rank={idx + 1}
+                    changeField="change_3m"
+                    side="loser"
+                    onInfo={() => handleInfo(tokenProps.symbol)}
+                    onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
+                    isWatchlisted={isStarred(tokenProps.symbol)}
+                    pulse={pulseOn}
+                    pulseDelayMs={idx * 18}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
 

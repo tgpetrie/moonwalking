@@ -1,6 +1,24 @@
 // frontend/src/hooks/useDashboardData.js
 import useSWR from "swr";
+import { useEffect, useRef } from "react";
 import { API_BASE_URL, fetchAllData } from "../api";
+
+const LS_KEY = "bh_last_payload_v1";
+
+function readLastPayload() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastPayload(value) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(value));
+  } catch {}
+}
 
 // map raw backend row to UI row while preserving ALL backend fields
 function mapRowWithInitial(x = {}) {
@@ -16,12 +34,17 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
+  const fallback = typeof window !== "undefined" ? readLastPayload() : null;
+
   const { data, error, isLoading, mutate, isValidating } = useSWR(`/api/data`, fetchAllData, {
-    revalidateOnFocus: true,
+    fallbackData: fallback || undefined,
     keepPreviousData: true,
-    dedupingInterval: 0,
-    refreshInterval: 1500, // Poll frequently; UI is resilient to partial data
-    errorRetryInterval: 1500,
+    dedupingInterval: 1200,
+    refreshInterval: 2000,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    errorRetryInterval: 2500,
+    errorRetryCount: 8,
     shouldRetryOnError: () => true,
   });
 
@@ -48,8 +71,27 @@ export function useDashboardData() {
     if (r && r.symbol) priceMap[r.symbol] = r.price;
   }
 
-  // Track last successful update time
-  const lastUpdated = data ? new Date() : null;
+  // Persist last good payload for instant reloads
+  const prevDataRef = useRef(null);
+  useEffect(() => {
+    if (!data || error) return;
+    if (prevDataRef.current !== data) {
+      prevDataRef.current = data;
+      writeLastPayload(data);
+    }
+  }, [data, error]);
+
+  // Last updated timestamp should only move when SWR delivers new payload
+  const lastUpdatedTsRef = useRef(null);
+  useEffect(() => {
+    if (!data || error) return;
+    if (prevDataRef.current === data) {
+      lastUpdatedTsRef.current = Date.now();
+    }
+  }, [data, error]);
+
+  const lastUpdatedTs = lastUpdatedTsRef.current;
+  const lastUpdated = lastUpdatedTs ? new Date(lastUpdatedTs) : null;
 
   return {
     raw: data,
@@ -67,6 +109,7 @@ export function useDashboardData() {
     isValidating,
     error,
     mutate,
+    lastUpdatedTs,
     lastUpdated,
   };
 }

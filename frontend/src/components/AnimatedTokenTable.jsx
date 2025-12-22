@@ -56,8 +56,7 @@ export function AnimatedTokenTable({ tokens, thead, renderRow, onRowClick, onRow
               return (
                 <motion.tr
                   key={token.symbol}
-                  layout
-                  layoutId={token.symbol}
+                  layout="position"
                   variants={rowVariants}
                   initial="initial"
                   animate="animate"

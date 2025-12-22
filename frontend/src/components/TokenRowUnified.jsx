@@ -24,6 +24,8 @@ export function TokenRowUnified({
   side, // optional: "gainer" | "loser" (preferred; passed from parent tables)
   renderAs = "div",
   density = "normal", // "normal" | "tight"
+  pulse = false,
+  pulseDelayMs = 0,
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -150,7 +152,8 @@ export function TokenRowUnified({
 
   return (
     <RowTag
-      className={`${rowClassName} token-row table-row`}
+      className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
+      style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
       data-side={dataSide}
       role={url ? "link" : undefined}
       tabIndex={url ? 0 : undefined}

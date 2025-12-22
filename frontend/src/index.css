@@ -3005,115 +3005,139 @@ a.bh-row {
   opacity: 1;
 }
 
-/* ---- Seamless banner marquee (no snap-back) ---- */
-/* Keep horizontal clip, allow the chip to grow vertically without getting cut */
-.bh-banner-wrap {
-  overflow-x: hidden;
-  overflow-y: visible;
+/* ===== BANNERS: clean marquee + borderless glow + strong magnify ===== */
+
+.bh-banner-wrap{
+  max-width: var(--bh-board-width);
+  margin: 0 auto;
+  padding: 0 16px;
+  overflow: hidden;
 }
 
-.bh-banner .bh-banner-track--loop {
-  display: inline-flex;
-  flex-wrap: nowrap;
+.bh-banner-track{
+  display: flex;
+  gap: 14px;
+  white-space: nowrap;
   align-items: center;
-  width: max-content;
+  animation-name: continuous-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: var(--bh-banner-duration, 520s);
   will-change: transform;
-  animation: bh-banner-marquee 120s linear infinite;
 }
 
-/* Ensure items don't shrink (prevents spacing/width jitter) */
-.bh-banner .bh-banner-item {
-  flex: 0 0 auto;
+.bh-banner--top{ --bh-banner-duration: 650s; }
+.bh-banner--bottom{ --bh-banner-duration: 750s; }
+
+@keyframes continuous-scroll{
+  0%{ transform: translateX(0); }
+  100%{ transform: translateX(-50%); }
 }
 
-/* Because the list is doubled, -50% lands exactly on the clone boundary */
-@keyframes bh-banner-marquee {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bh-banner .bh-banner-track--loop {
-    animation: none;
-    transform: none;
-  }
-}
-
-/* ===== Banner typography hierarchy ===== */
-.bh-banner-price,
-.bh-banner-chip__price {
-  font-weight: 500;            /* semi, but lighter than % */
-  opacity: 0.92;
-}
-
-.bh-banner-change,
-.bh-banner-chip__pct {
-  font-weight: 650;            /* heavier focal point */
-  letter-spacing: 0.01em;
-}
-
-/* ===== Banner hover: glow behind, no defined borders ===== */
+/* IMPORTANT: hover must work while moving */
 .bh-banner-item,
-.bh-banner-chip {
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
+.bh-banner-chip{
+  pointer-events: auto;
   position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+
+  padding: 6px 12px;
+  border-radius: 9999px;
+
+  border: none;
+  background: transparent;
+  text-decoration: none;
+
+  transform: translateZ(0);
+  will-change: transform, filter;
+  transition: transform 140ms ease, filter 140ms ease;
 }
 
+/* borderless glow lens behind item */
 .bh-banner-item::before,
-.bh-banner-chip::before {
+.bh-banner-chip::before{
   content: "";
   position: absolute;
-  inset: -14px;                /* bigger halo footprint */
+  inset: -12px -16px;
   border-radius: 9999px;
-  pointer-events: none;
 
   opacity: 0;
-  transform: scale(0.92);
-  transition: opacity 140ms ease, transform 140ms ease;
+  filter: blur(12px);
+  pointer-events: none;
+  z-index: -1;
 
-  /* default halo (flat) */
-  background: radial-gradient(circle at 50% 50%,
-    rgba(255,255,255,0.10) 0%,
-    rgba(255,255,255,0.04) 38%,
-    transparent 72%);
-  filter: blur(16px);          /* blur = no edge */
+  transition: opacity 140ms ease, filter 140ms ease;
 }
 
-/* gold halo */
-.bh-banner-item.is-gain::before,
-.bh-banner-chip.is-gain::before {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(255,165,0,0.22) 0%,
-    rgba(255,165,0,0.08) 40%,
-    transparent 74%);
+/* default glow (gain) */
+.bh-banner-item::before,
+.bh-banner-chip::before{
+  background: radial-gradient(
+    circle at 50% 55%,
+    rgba(255, 184, 77, 0.22) 0%,
+    rgba(255, 184, 77, 0.10) 30%,
+    rgba(255, 184, 77, 0.00) 70%
+  );
 }
 
-/* purple halo */
+/* loss glow */
 .bh-banner-item.is-loss::before,
-.bh-banner-chip.is-loss::before {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(179,140,255,0.24) 0%,
-    rgba(179,140,255,0.09) 40%,
-    transparent 74%);
+.bh-banner-chip.is-loss::before{
+  background: radial-gradient(
+    circle at 50% 55%,
+    rgba(174, 75, 245, 0.22) 0%,
+    rgba(174, 75, 245, 0.10) 30%,
+    rgba(174, 75, 245, 0.00) 70%
+  );
 }
 
+/* flat glow */
+.bh-banner-item.is-flat::before,
+.bh-banner-chip.is-flat::before{
+  background: radial-gradient(
+    circle at 50% 55%,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.04) 30%,
+    rgba(255, 255, 255, 0.00) 70%
+  );
+}
+
+/* strong magnify + deep shadow, still borderless */
 .bh-banner-item:hover,
 .bh-banner-item:focus-visible,
 .bh-banner-chip:hover,
-.bh-banner-chip:focus-visible {
-  /* keep magnify */
-  transform: translateZ(0) scale(1.16);
-  filter: drop-shadow(0 18px 34px rgba(0,0,0,0.55));
-  z-index: 50;
+.bh-banner-chip:focus-visible{
+  transform: scale(1.18);
+  filter: drop-shadow(0 14px 28px rgba(0,0,0,0.55));
+  z-index: 6;
 }
 
 .bh-banner-item:hover::before,
 .bh-banner-item:focus-visible::before,
 .bh-banner-chip:hover::before,
-.bh-banner-chip:focus-visible::before {
+.bh-banner-chip:focus-visible::before{
   opacity: 1;
-  transform: scale(1.0);
+  filter: blur(16px);
+}
+
+/* typography weights: price semi-bold, % strongest */
+.bh-banner-symbol{
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #f5f2ff;
+}
+.bh-banner-price{
+  font-weight: 600;
+}
+.bh-banner-change{
+  font-weight: 700;
+}
+
+/* Optional: STALE pill styling (used later) */
+.live-pill--stale {
+  background: transparent;
+  color: rgba(255, 184, 77, 0.95);
+  text-shadow: 0 0 18px rgba(255, 184, 77, 0.22);
 }

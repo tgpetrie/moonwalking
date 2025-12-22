@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
@@ -7,10 +8,16 @@ import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
 
+const buildRowKey = (row, index) => {
+  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
+  return `${base}-${index}`;
+};
+
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -53,6 +60,17 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
   }, [data, tokensProp]);
 
   const visibleRows = isExpanded ? gainers3m : gainers3m.slice(0, MAX_BASE);
+  const refreshSig = useMemo(() => {
+    return visibleRows
+      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
+      .join("|");
+  }, [visibleRows]);
+  useEffect(() => {
+    if (!visibleRows.length) return;
+    setPulseOn(true);
+    const timer = setTimeout(() => setPulseOn(false), 700);
+    return () => clearTimeout(timer);
+  }, [refreshSig, visibleRows.length]);
   const count = gainers3m.length;
   const hasData = count > 0;
 
@@ -88,18 +106,26 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
     <div className="gainers-table">
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
-          {visibleRows.map((token, index) => (
-            <TokenRowUnified
-              key={token.symbol}
-              token={token}
-              rank={index + 1}
-              changeField="change_3m"
-              side="gainer"
-              onInfo={onInfo}
-              onToggleWatchlist={onToggleWatchlist}
-              isWatchlisted={watchlist.includes(token.symbol)}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {visibleRows.map((token, index) => {
+              const rowKey = buildRowKey(token, index);
+              return (
+                <motion.div key={rowKey} layout="position">
+                  <TokenRowUnified
+                    token={token}
+                    rank={index + 1}
+                    changeField="change_3m"
+                    side="gainer"
+                    onInfo={onInfo}
+                    onToggleWatchlist={onToggleWatchlist}
+                    isWatchlisted={watchlist.includes(token.symbol)}
+                    pulse={pulseOn}
+                    pulseDelayMs={index * 18}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
 

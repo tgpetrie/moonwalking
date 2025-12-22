@@ -13,8 +13,10 @@ const formatVolume = (val) => {
 const formatPct = (val) => {
   const n = Number(val ?? 0);
   if (!Number.isFinite(n)) return "0.00%";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  const abs = Math.abs(n);
+  const decimals = abs < 0.1 ? 4 : abs < 1 ? 3 : 2;
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(decimals)}%`;
 };
 
 const normalizeSymbol = (value) => {
@@ -76,16 +78,7 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
       // Backend sometimes ships volume values without a computed % change (all zeros).
       // Still render the banner so the UI doesn't go quiet.
       .filter((t) => t.symbol)
-      .sort((a, b) => {
-        // Sort by absolute % change if available, otherwise by volume
-        const aPct = Math.abs(a.volume_change_1h_pct || 0);
-        const bPct = Math.abs(b.volume_change_1h_pct || 0);
-        if (aPct > 0 || bPct > 0) {
-          return bPct - aPct;
-        }
-        // Fallback: sort by volume if no % change
-        return (b.volume_1h_now || 0) - (a.volume_1h_now || 0);
-      })
+      .sort((a, b) => (Number(b.volume_change_1h_pct) || 0) - (Number(a.volume_change_1h_pct) || 0))
       .slice(0, 25);
   }, [rawItems]);
 

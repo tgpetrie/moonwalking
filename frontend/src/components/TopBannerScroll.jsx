@@ -13,10 +13,14 @@ const classifyPct = (val) => {
   if (!Number.isFinite(n)) {
     return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
   }
-  const rounded = parseFloat(n.toFixed(2));
-  if (rounded === 0) return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
-  if (rounded > 0) return { display: `+${rounded.toFixed(2)}%`, state: "positive", className: "bh-banner-change--pos" };
-  return { display: `${rounded.toFixed(2)}%`, state: "negative", className: "bh-banner-change--neg" };
+
+  const abs = Math.abs(n);
+  const decimals = abs < 0.1 ? 4 : abs < 1 ? 3 : 2;
+  const rounded = parseFloat(n.toFixed(decimals));
+
+  if (rounded === 0) return { display: `0.${"0".repeat(decimals)}%`, state: "flat", className: "bh-banner-change--flat" };
+  if (rounded > 0) return { display: `+${rounded.toFixed(decimals)}%`, state: "positive", className: "bh-banner-change--pos" };
+  return { display: `${rounded.toFixed(decimals)}%`, state: "negative", className: "bh-banner-change--neg" };
 };
 
 const normalizeSymbol = (value) => {
@@ -53,7 +57,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
         return { ...t, symbol, price_now: priceNow, price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
       })
       .filter((t) => t.symbol)
-      .sort((a, b) => Math.abs(b.price_change_1h_pct || 0) - Math.abs(a.price_change_1h_pct || 0))
+      .sort((a, b) => (Number(b.price_change_1h_pct) || 0) - (Number(a.price_change_1h_pct) || 0))
       .slice(0, 25);
   }, [rawItems]);
 

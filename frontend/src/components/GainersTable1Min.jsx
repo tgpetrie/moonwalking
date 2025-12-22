@@ -1,8 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
+
+const buildRowKey = (row, index) => {
+  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
+  return `${base}-${index}`;
+};
 
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -43,7 +49,19 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   }, [data, tokensProp]);
 
   const [expanded, setExpanded] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
   const visibleItems = expanded ? gainers1m : gainers1m.slice(0, 8);
+  const refreshSig = useMemo(() => {
+    return visibleItems
+      .map((row) => `${row.symbol}:${Number(row.change_1m ?? 0).toFixed(4)}`)
+      .join("|");
+  }, [visibleItems]);
+  useEffect(() => {
+    if (!visibleItems.length) return;
+    setPulseOn(true);
+    const timer = setTimeout(() => setPulseOn(false), 700);
+    return () => clearTimeout(timer);
+  }, [refreshSig, visibleItems.length]);
 
   const hasData = gainers1m.length > 0;
 
@@ -107,36 +125,54 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         return (
           <div key={`bh-1m-grid-${gridIndex}`} className="panel-row--1m">
             <div className="bh-table">
-              {leftColumn.map((token, index) => (
-                <TokenRowUnified
-                  key={token.symbol ?? `${token.base}-${offset + index}`}
-                  token={token}
-                  rank={offset + index + 1}
-                  changeField="change_1m"
-                  side="gainer"
-                  renderAs="div"
-                  onInfo={onInfo}
-                  onToggleWatchlist={onToggleWatchlist}
-                  isWatchlisted={watchlist.includes(token.symbol)}
-                  density={density}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {leftColumn.map((token, index) => {
+                  const absoluteIndex = offset + index;
+                  const rowKey = buildRowKey(token, absoluteIndex);
+                  return (
+                    <motion.div key={rowKey} layout="position">
+                      <TokenRowUnified
+                        token={token}
+                        rank={offset + index + 1}
+                        changeField="change_1m"
+                        side="gainer"
+                        renderAs="div"
+                        onInfo={onInfo}
+                        onToggleWatchlist={onToggleWatchlist}
+                        isWatchlisted={watchlist.includes(token.symbol)}
+                        density={density}
+                        pulse={pulseOn}
+                        pulseDelayMs={absoluteIndex * 18}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
 
             <div className="bh-table">
-              {rightColumn.map((token, index) => (
-                <TokenRowUnified
-                  key={token.symbol ?? `${token.base}-r${offset + index}`}
-                  token={token}
-                  rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
-                  changeField="change_1m"
-                  side="gainer"
-                  renderAs="div"
-                  onInfo={onInfo}
-                  onToggleWatchlist={onToggleWatchlist}
-                  isWatchlisted={watchlist.includes(token.symbol)}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {rightColumn.map((token, index) => {
+                  const absoluteIndex = offset + MAX_ROWS_PER_COLUMN + index;
+                  const rowKey = buildRowKey(token, absoluteIndex);
+                  return (
+                    <motion.div key={rowKey} layout="position">
+                      <TokenRowUnified
+                        token={token}
+                        rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
+                        changeField="change_1m"
+                        side="gainer"
+                        renderAs="div"
+                        onInfo={onInfo}
+                        onToggleWatchlist={onToggleWatchlist}
+                        isWatchlisted={watchlist.includes(token.symbol)}
+                        pulse={pulseOn}
+                        pulseDelayMs={absoluteIndex * 18}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           </div>
         );
