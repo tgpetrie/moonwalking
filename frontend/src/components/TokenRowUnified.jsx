@@ -141,8 +141,8 @@ export function TokenRowUnified({
       const x = ((r.left + r.width / 2 - b.left) / b.width) * 100;
       const y = ((r.top + r.height / 2 - b.top) / b.height) * 100;
 
-      board.style.setProperty("--bh-emitter-x", `${x}%`);
-      board.style.setProperty("--bh-emitter-y", `${y}%`);
+      board.style.setProperty("--emit-x", `${x}%`);
+      board.style.setProperty("--emit-y", `${y}%`);
     } else {
       board.removeAttribute("data-row-hover");
     }

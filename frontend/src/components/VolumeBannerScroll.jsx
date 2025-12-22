@@ -61,6 +61,24 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
     );
   }
 
+  const setRabbitHover = (on) => (e) => {
+    const item = e.currentTarget;
+    const board = item.closest(".board-core");
+    if (!board) return;
+
+    if (on) {
+      board.setAttribute("data-row-hover", "1");
+      const r = item.getBoundingClientRect();
+      const b = board.getBoundingClientRect();
+      const x = ((r.left + r.width / 2 - b.left) / b.width) * 100;
+      const y = ((r.top + r.height / 2 - b.top) / b.height) * 100;
+      board.style.setProperty("--emit-x", `${x}%`);
+      board.style.setProperty("--emit-y", `${y}%`);
+    } else {
+      board.removeAttribute("data-row-hover");
+    }
+  };
+
   return (
     <div className="bh-banner bh-banner--bottom">
       <div className="bh-banner-wrap">
@@ -70,7 +88,12 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
             const url = coinbaseSpotUrl(t || {});
             if (!url) {
               return (
-                <div key={`${t.symbol}-${idx}`} className="bh-banner-item">
+                <div
+                  key={`${t.symbol}-${idx}`}
+                  className="bh-banner-item"
+                  onPointerEnter={setRabbitHover(true)}
+                  onPointerLeave={setRabbitHover(false)}
+                >
                   <span className="bh-banner-symbol">{t.symbol || "--"}</span>
                   <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
                   <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>{formatPct(t.volume_change_1h_pct)}</span>
@@ -78,7 +101,15 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
               );
             }
             return (
-              <a key={`${t.symbol}-${idx}`} className="bh-banner-item" href={url} target="_blank" rel="noreferrer noopener">
+              <a
+                key={`${t.symbol}-${idx}`}
+                className="bh-banner-item"
+                href={url}
+                target="_blank"
+                rel="noreferrer noopener"
+                onPointerEnter={setRabbitHover(true)}
+                onPointerLeave={setRabbitHover(false)}
+              >
                 <span className="bh-banner-symbol">{t.symbol || "--"}</span>
                 <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
                 <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>{formatPct(t.volume_change_1h_pct)}</span>

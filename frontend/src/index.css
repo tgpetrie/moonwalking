@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
 @import './sentiment-v2.css';
 
 /* ===== BHABIT DASHBOARD – CANONICAL GRID & LAYOUT ===== */
@@ -1332,8 +1332,7 @@ a.bh-row {
    No refactors, no grid changes.
 ------------------------------------------------------------ */
 
-/* DISABLED — Old :has() hover boost */
-/*
+/* DISABLED — Old :has() hover boost
 .board-core { --bh-bunny-hover: 0; }
 
 .board-core:has(.bh-row:hover),
@@ -1344,7 +1343,6 @@ a.bh-row {
 .board-core .bh-bunny-layer,
 .board-core .rabbit-bg,
 .board-core .bh-bunny-layer {
-  /* barely there but visible on dark backgrounds */
   opacity: 0.012;
   mix-blend-mode: screen;
   filter: brightness(1.03) contrast(1.02) saturate(1.01);
@@ -2692,115 +2690,48 @@ a.bh-row {
   position: relative;
 }
 
-/* Base rabbit layer: barely visible - NEVER changes */
+/* CLEAN NATURAL RABBIT SYSTEM - One stage, one rabbit */
+
+/* Base rabbit: barely visible ink with permanent mask */
 .board-core .rabbit-bg,
 .board-core .bh-bunny-layer {
-  pointer-events: none;
   position: absolute;
   inset: 0;
+  pointer-events: none;
   z-index: 0;
+  background: url("/purple-rabbit-bg.png") 50% 20% / min(1100px, 88vw) auto no-repeat;
+  opacity: 0.003;
   mix-blend-mode: screen;
-  opacity: var(--bh-bunny-idle, 0.015);
-  background-image: url("/purple-rabbit-bg.png");
-  background-repeat: no-repeat;
-  background-position: 50% 20%;
-  background-size: min(1100px, 88vw) auto;
-  filter:
-    brightness(1.05)
-    contrast(1.03)
-    saturate(1.01);
-  transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
-}
-
-/* Bright rabbit slice - ONLY visible on hover, ONLY where mask reveals it */
-.board-core .rabbit-bg::before,
-.board-core .bh-bunny-layer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background-image: url("/purple-rabbit-bg.png");
-  background-repeat: no-repeat;
-  background-position: 50% 20%;
-  background-size: min(1100px, 88vw) auto;
-  mix-blend-mode: screen;
-  filter:
-    brightness(5)
-    contrast(2.2)
-    saturate(2)
-    hue-rotate(-15deg)
-    drop-shadow(0 0 35px rgba(245, 178, 58, 0.5))
-    drop-shadow(0 0 60px rgba(245, 178, 58, 0.3));
-  -webkit-mask-image:
-    radial-gradient(
-      ellipse 1400px 200px at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 20%),
-      black 0%,
-      black 20%,
-      rgba(0,0,0,0.7) 35%,
-      rgba(0,0,0,0.4) 50%,
-      rgba(0,0,0,0.2) 65%,
-      rgba(0,0,0,0.08) 80%,
-      transparent 100%
-    );
-  mask-image:
-    radial-gradient(
-      ellipse 1400px 200px at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 20%),
-      black 0%,
-      black 20%,
-      rgba(0,0,0,0.7) 35%,
-      rgba(0,0,0,0.4) 50%,
-      rgba(0,0,0,0.2) 65%,
-      rgba(0,0,0,0.08) 80%,
-      transparent 100%
-    );
-  pointer-events: none;
-  transition: opacity 350ms cubic-bezier(0.2, 0, 0.2, 1);
-}
-
-/* Row-hover turns the emitter on (works without :has()) */
-/* Keep base rabbit extremely faint at all times */
-.board-core .rabbit-bg,
-.board-core .bh-bunny-layer {
-  opacity: var(--bh-bunny-opacity, 0.02);
-  filter: none;
-}
-
-/* Localized emitter: only the area behind the hovered row lights up */
-.board-core .rabbit-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-
-  /* Use the same rabbit art, but reveal only a small window */
-  background-image: url("/purple-rabbit-bg.png");
-  background-repeat: no-repeat;
-  background-position: 50% 45%;
-  background-size: min(720px, 72vw) auto;
-
-  /* The "window" follows the hovered row center */
+  transition: opacity 180ms ease, filter 180ms ease;
   -webkit-mask-image: radial-gradient(
-    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,1) 0%,
-    rgba(0,0,0,1) 16%,
-    rgba(0,0,0,0) 46%
+    rgba(0,0,0,0.9) 30%,
+    rgba(0,0,0,0.4) 55%,
+    rgba(0,0,0,0) 82%
   );
   mask-image: radial-gradient(
-    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,1) 0%,
-    rgba(0,0,0,1) 16%,
-    rgba(0,0,0,0) 46%
+    rgba(0,0,0,0.9) 30%,
+    rgba(0,0,0,0.4) 55%,
+    rgba(0,0,0,0) 82%
   );
+}
 
-  opacity: 0;
+/* On hover: very subtle whisper with faint purple/orange glow */
+.board-core[data-row-hover="1"] .rabbit-bg,
+.board-core[data-row-hover="1"] .bh-bunny-layer {
+  opacity: 0.045;
   filter:
-    drop-shadow(0 0 18px rgba(245, 178, 58, 0.65))
-    drop-shadow(0 0 36px rgba(245, 178, 58, 0.30));
+    brightness(1.5)
+    contrast(1.1)
+    saturate(1.05)
+    drop-shadow(0 0 8px rgba(245, 176, 46, 0.08))
+    drop-shadow(0 0 16px rgba(160, 100, 255, 0.06));
 }
 
-.board-core[data-row-hover="1"] .rabbit-bg::after {
-  opacity: 0.85;
-}
+/* DISABLED - using base layer approach instead */
 
 /* Optional: tiny gold bloom that’s independent of the rabbit art */
 .board-core .rabbit-bg::before {
