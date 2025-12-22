@@ -8,6 +8,7 @@ import math
 from flask import Flask, jsonify, request, g
 from flask_talisman import Talisman
 from flask_cors import CORS
+import random
 import requests
 import time
 import threading
@@ -731,8 +732,9 @@ def _get_gainers_table_1min_swr():
     if not data:
         return None
     gainers = data.get('gainers', [])
+    limit = int(CONFIG.get("ONE_MIN_MAX_COINS", 35))
     gainers_table_data = []
-    for i, coin in enumerate(gainers[:20]):
+    for i, coin in enumerate(gainers[:limit]):
         # accept either the processed shape (current/gain/initial_1min) or the
         # seeded fixture shape (current_price, price_change_percentage_1min)
         current_price = coin.get('current') or coin.get('current_price') or 0
@@ -779,8 +781,9 @@ def _get_gainers_table_3min_swr():
     if not data:
         return None
     gainers = data.get('gainers', [])
+    limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     gainers_table_data = []
-    for i, coin in enumerate(gainers[:20]):
+    for i, coin in enumerate(gainers[:limit]):
         sym = coin['symbol']
         direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
         gainers_table_data.append({
@@ -813,8 +816,9 @@ def _get_losers_table_3min_swr():
     if not data:
         return None
     losers = data.get('losers', [])
+    limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     losers_table_data = []
-    for i, coin in enumerate(losers[:20]):
+    for i, coin in enumerate(losers[:limit]):
         sym = coin['symbol']
         direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
         losers_table_data.append({
@@ -1452,7 +1456,7 @@ CONFIG = {
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Background update interval in seconds
-    'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 15)),  # Max coins to return
+    'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 30)),  # Max coins to return
     'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
     'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.15)),  # Minimum % change for banner (loosened for dev)
     'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
@@ -1463,8 +1467,13 @@ CONFIG = {
     # 1-minute retention / hysteresis controls
     'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.03)),   # % change to ENTER list (loosened for dev)
     'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.015)),    # lower % to remain after entering (loosened for dev)
-    'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 25)),       # cap displayed coins
+    'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 35)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
+    'TOP_MOVERS_SAMPLE_SIZE': int(os.environ.get('TOP_MOVERS_SAMPLE_SIZE', 120)),  # 24h movers sample size
+    'ONE_MIN_DEFAULT_SEED_COUNT': int(os.environ.get('ONE_MIN_DEFAULT_SEED_COUNT', 10)),  # seed count for 1m list
+    'PRICE_UNIVERSE_SAMPLE_SIZE': int(os.environ.get('PRICE_UNIVERSE_SAMPLE_SIZE', 120)),  # USD products sample size
+    'PRICE_UNIVERSE_MAX': int(os.environ.get('PRICE_UNIVERSE_MAX', 250)),  # Hard cap on sample size
+    'PRICE_MIN_SUCCESS_RATIO': float(os.environ.get('PRICE_MIN_SUCCESS_RATIO', 0.70)),  # coverage guard
     # Alert hygiene (streak-triggered alerts with cooldown)
     'ALERTS_COOLDOWN_SECONDS': int(os.environ.get('ALERTS_COOLDOWN_SECONDS', 300)),  # 5 minutes
     # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
@@ -1792,74 +1801,124 @@ def get_coinbase_prices():
                 'JUP-USD', 'SKY-USD', 'TAO-USD'
             ]
             
-            # Reorder products to prioritize major coins
-            prioritized_products = []
-            remaining_products = []
-            
-            for product in usd_products:
-                if product["id"] in major_coins:
-                    prioritized_products.append(product)
-                else:
-                    remaining_products.append(product)
-            
-            # Combine prioritized + remaining, but limit total to 100 for speed
-            all_products = prioritized_products + remaining_products[:100-len(prioritized_products)]
+            sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120))
+            sample_max = int(CONFIG.get("PRICE_UNIVERSE_MAX", 250))
+            sample = max(30, min(sample, sample_max))
+
+            usd_ids = [p.get("id") for p in usd_products if p.get("id")]
+            chosen = [pid for pid in major_coins if pid in usd_ids]
+            chosen_set = set(chosen)
+            rest = [pid for pid in usd_ids if pid not in chosen_set]
+            final_ids = (chosen + rest)[:sample]
+            product_by_id = {p["id"]: p for p in usd_products if p.get("id")}
+            final_products = [product_by_id[pid] for pid in final_ids if pid in product_by_id]
             
             # Use ThreadPoolExecutor for concurrent API calls
             def fetch_ticker(product):
-                """Fetch ticker data for a single product (robust to missing/None price).
-
-                Returns (symbol, price) on success, ('__RL__', None) on 429 rate-limit,
-                or (None, None) for other failures.
                 """
-                symbol = product["id"]
-                ticker_url = f"https://api.exchange.coinbase.com/products/{symbol}/ticker"
-                try:
-                    ticker_response = requests.get(ticker_url, timeout=1.5)
-                    if ticker_response.status_code == 200:
-                        try:
-                            ticker_data = ticker_response.json()
-                        except ValueError:
-                            logging.debug(f"ticker {symbol} returned invalid json")
-                            return None, None
-                        price_val = ticker_data.get('price')
-                        if price_val is None:
-                            logging.debug(f"ticker {symbol} missing price field")
-                            return None, None
-                        try:
-                            price = float(price_val)
-                        except (TypeError, ValueError):
-                            logging.debug(f"ticker {symbol} price parse fail: {price_val}")
-                            return None, None
-                        if price > 0:
-                            return symbol, price
-                    elif ticker_response.status_code == 429:
-                        # propagate a rate-limit marker so caller can escalate backoff
-                        logging.debug(f"ticker {symbol} rate limited (429)")
-                        return '__RL__', None
-                    else:
-                        logging.debug(f"ticker {symbol} status {ticker_response.status_code}")
-                except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout) as e:
-                    logging.debug(f"ticker {symbol} timeout {e}")
-                except requests.exceptions.RequestException as e:
-                    logging.debug(f"ticker {symbol} request err {e}")
-                except Exception as ticker_error:
-                    logging.debug(f"Failed to get ticker for {symbol}: {ticker_error}")
-                return None, None
+                Returns: (symbol, price, status_code, err_tag)
+                  - symbol/price populated only on success
+                  - status_code set on HTTP responses; 0 if exception before HTTP
+                  - err_tag is a short string for diagnostics
+                """
+                product_id = product.get("id")
+                if not product_id:
+                    return (None, None, 0, "missing_id")
+
+                url = f"https://api.exchange.coinbase.com/products/{product_id}/ticker"
+
+                backoffs = [0.0, 0.2, 0.6]
+                last_code = 0
+                last_err = None
+
+                for delay in backoffs:
+                    if delay:
+                        time.sleep(delay)
+                    time.sleep(random.uniform(0.0, 0.05))
+
+                    try:
+                        r = requests.get(url, timeout=int(CONFIG.get("API_TIMEOUT", 10)))
+                        last_code = r.status_code
+
+                        if r.status_code == 200:
+                            data = r.json() if r.content else {}
+                            price = data.get("price")
+                            if price is None:
+                                return (None, None, 200, "no_price")
+                            try:
+                                price_f = float(price)
+                            except Exception:
+                                return (None, None, 200, "bad_price")
+
+                            symbol = product_id.split("-")[0]
+                            return (symbol, price_f, 200, None)
+
+                        if r.status_code == 429 or (500 <= r.status_code <= 599):
+                            if r.status_code == 429:
+                                ra = r.headers.get("Retry-After")
+                                try:
+                                    if ra:
+                                        time.sleep(min(1.5, float(ra)))
+                                    else:
+                                        time.sleep(0.5)
+                                except Exception:
+                                    time.sleep(0.5)
+                            last_err = "retryable_http"
+                            continue
+
+                        return (None, None, r.status_code, "non_retry_http")
+
+                    except Exception as e:
+                        last_code = 0
+                        last_err = f"exc:{type(e).__name__}"
+                        continue
+
+                return (None, None, last_code, last_err or "retry_exhausted")
+
+            logging.info(
+                "prices: products=%d usd=%d submitted=%d",
+                len(products),
+                len(usd_products),
+                len(final_products),
+            )
 
             # Use ThreadPoolExecutor for faster concurrent API calls
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                # Submit all tasks
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 future_to_product = {executor.submit(fetch_ticker, product): product 
-                                   for product in all_products[:50]}
-                
-                # Collect results as they complete
+                                   for product in final_products}
+
+                submitted = len(future_to_product)
+                ok = 0
+                http429 = 0
+                http5xx = 0
+                other = 0
+                exceptions = 0
+
                 for future in as_completed(future_to_product):
-                    symbol, price = future.result()
+                    try:
+                        symbol, price, code, err_tag = future.result()
+                    except Exception:
+                        exceptions += 1
+                        continue
+
                     if symbol and price:
                         current_prices[symbol] = price
-            
-            logging.info(f"Successfully fetched {len(current_prices)} prices from Coinbase")
+                        ok += 1
+                        continue
+
+                    if code == 429:
+                        http429 += 1
+                    elif 500 <= code <= 599:
+                        http5xx += 1
+                    elif code == 0:
+                        exceptions += 1
+                    else:
+                        other += 1
+
+            logging.info(
+                "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d",
+                submitted, ok, http429, http5xx, other, exceptions, sample
+            )
             return current_prices
         else:
             logging.error(f"Coinbase products API Error: {products_response.status_code}")
@@ -1947,6 +2006,9 @@ def calculate_interval_changes(current_prices):
                 "price_change_percentage_3min": price_change,
                 "actual_interval_minutes": actual_interval_minutes
             })
+
+    if not formatted_data:
+        logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices))
 
     return formatted_data
 
@@ -2080,8 +2142,9 @@ def get_coinbase_24h_top_movers():
         # Use ThreadPoolExecutor for concurrent API calls (SPEED OPTIMIZATION)
         with ThreadPoolExecutor(max_workers=15) as executor:
             # Submit all tasks
+            sample = int(CONFIG.get("TOP_MOVERS_SAMPLE_SIZE", 120))
             future_to_product = {executor.submit(fetch_product_data, product): product 
-                               for product in usd_products[:30]}  # Reduced to 30 for faster response
+                               for product in usd_products[:sample]}  # Reduced for faster response
             
             # Collect results as they complete
             for future in as_completed(future_to_product):
@@ -2219,9 +2282,10 @@ def get_crypto_data():
         # Get 24h top movers for banner
         banner_24h_movers = get_24h_top_movers()
         
+        limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
         result = {
-            "gainers": format_crypto_data(gainers[:15]),
-            "losers": format_crypto_data(losers[:15]),
+            "gainers": format_crypto_data(gainers[:limit]),
+            "losers": format_crypto_data(losers[:limit]),
             "top24h": format_crypto_data(top24h),
             "banner": format_banner_data(banner_24h_movers[:20])
         }
@@ -3898,7 +3962,7 @@ def get_crypto_data_1min(current_prices=None):
         # gently prefill with the top movers over a tiny threshold so UI isn't empty.
         if not retained_symbols:
             seed_pct = float(CONFIG.get('ONE_MIN_SEED_PCT', 0.02))  # 0.02% default
-            seed_count = int(CONFIG.get('ONE_MIN_SEED_COUNT', 6))
+            seed_count = int(CONFIG.get('ONE_MIN_DEFAULT_SEED_COUNT', 10))
             seeded = 0
             for coin in sorted_candidates:
                 if seeded >= seed_count:

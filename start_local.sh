@@ -9,6 +9,20 @@ set -euo pipefail
 # - Starts backend (non-fatal if bind blocked) and always starts frontend
 # -------------------------------------------------------------------
 
+# Load NVM if available
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
+  source "$NVM_DIR/nvm.sh"
+  # Use Node v22 if available, otherwise default
+  nvm use 22 2>/dev/null || nvm use default 2>/dev/null || true
+elif [ -d "$HOME/.nvm/versions/node" ]; then
+  # Direct PATH approach if nvm.sh not available
+  LATEST_NODE=$(ls -1d "$HOME/.nvm/versions/node"/v* 2>/dev/null | sort -V | tail -1)
+  if [ -n "$LATEST_NODE" ]; then
+    export PATH="$LATEST_NODE/bin:$PATH"
+  fi
+fi
+
 HOST="${HOST:-127.0.0.1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -158,6 +172,8 @@ if [ "$DETACH" = "1" ]; then
 cd "$ROOT_DIR"
 if [ -d "backend/.venv" ]; then
   source backend/.venv/bin/activate
+elif [ -d ".venv" ]; then
+  source .venv/bin/activate
 fi
 export PYTHONPATH="$ROOT_DIR/backend"
 export FLASK_APP=backend.app
@@ -170,9 +186,11 @@ EOF
 else
   (
     cd "$ROOT_DIR"
-    # Activate venv if it exists
+    # Activate venv if it exists (check backend/.venv first, then .venv)
     if [ -d "backend/.venv" ]; then
       source backend/.venv/bin/activate
+    elif [ -d ".venv" ]; then
+      source .venv/bin/activate
     fi
     export PYTHONPATH="$ROOT_DIR/backend"
     export FLASK_APP=backend.app

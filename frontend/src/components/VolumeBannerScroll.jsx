@@ -35,16 +35,58 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
     return rawItems
       .map((t) => {
         const symbol = normalizeSymbol(t?.symbol || t?.ticker);
-        const volNow = t?.volume_1h_now ?? t?.volume_24h ?? t?.volume_1h ?? 0;
-        const changePct = t?.volume_change_1h_pct ?? t?.change_1h_volume ?? t?.volume_1h_pct ?? t?.volume_change_pct ?? 0;
-        const pctNum = Number(changePct ?? 0);
-        return { ...t, symbol, volume_1h_now: Number.isFinite(Number(volNow)) ? volNow : 0, volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
+
+        const volNowRaw = t?.volume_1h_now ?? t?.volume_1h ?? t?.volume_24h ?? 0;
+        const volNow = Number(volNowRaw);
+
+        const changePctRaw =
+          t?.volume_change_1h_pct ??
+          t?.change_1h_volume ??
+          t?.volume_1h_pct ??
+          t?.volume_change_pct;
+
+        const pctFromBackend = Number(changePctRaw);
+
+        // Optional "ago" keys for fallback computation
+        const volAgoRaw =
+          t?.volume_1h_ago ??
+          t?.volume_1h_prev ??
+          t?.volume_prev_1h ??
+          t?.volume_then_1h ??
+          t?.volume_prior_1h;
+
+        const volAgo = Number(volAgoRaw);
+
+        let computedPct = NaN;
+        if (Number.isFinite(volNow) && Number.isFinite(volAgo) && volAgo > 0) {
+          computedPct = ((volNow - volAgo) / volAgo) * 100;
+        }
+
+        const volume_change_1h_pct =
+          Number.isFinite(pctFromBackend) && pctFromBackend !== 0 ? pctFromBackend :
+          Number.isFinite(computedPct) ? computedPct : 0;
+
+        return {
+          ...t,
+          symbol,
+          volume_1h_now: Number.isFinite(volNow) ? volNow : 0,
+          volume_change_1h_pct,
+        };
       })
       // Backend sometimes ships volume values without a computed % change (all zeros).
       // Still render the banner so the UI doesn't go quiet.
       .filter((t) => t.symbol)
-      .sort((a, b) => (b.volume_change_1h_pct || 0) - (a.volume_change_1h_pct || 0))
-      .slice(0, 24);
+      .sort((a, b) => {
+        // Sort by absolute % change if available, otherwise by volume
+        const aPct = Math.abs(a.volume_change_1h_pct || 0);
+        const bPct = Math.abs(b.volume_change_1h_pct || 0);
+        if (aPct > 0 || bPct > 0) {
+          return bPct - aPct;
+        }
+        // Fallback: sort by volume if no % change
+        return (b.volume_1h_now || 0) - (a.volume_1h_now || 0);
+      })
+      .slice(0, 25);
   }, [rawItems]);
 
   const display = normalized.length ? normalized : [];
@@ -82,15 +124,17 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
   return (
     <div className="bh-banner bh-banner--bottom">
       <div className="bh-banner-wrap">
-        <div className="bh-banner-track">
+        <div key="volume-banner-track" className="bh-banner-track bh-banner-track--loop">
           {looped.map((t, idx) => {
-            const isPos = (t.volume_change_1h_pct ?? 0) >= 0;
+            const pct = Number(t.volume_change_1h_pct ?? 0);
+            const isPos = pct > 0;
+            const stateClass = pct < 0 ? "is-loss" : pct > 0 ? "is-gain" : "is-flat";
             const url = coinbaseSpotUrl(t || {});
             if (!url) {
               return (
                 <div
                   key={`${t.symbol}-${idx}`}
-                  className="bh-banner-item"
+                  className={`bh-banner-item bh-banner-chip ${stateClass}`}
                   onPointerEnter={setRabbitHover(true)}
                   onPointerLeave={setRabbitHover(false)}
                 >
@@ -103,7 +147,7 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
             return (
               <a
                 key={`${t.symbol}-${idx}`}
-                className="bh-banner-item"
+                className={`bh-banner-item bh-banner-chip ${stateClass}`}
                 href={url}
                 target="_blank"
                 rel="noreferrer noopener"

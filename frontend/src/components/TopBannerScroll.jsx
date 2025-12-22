@@ -53,8 +53,8 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
         return { ...t, symbol, price_now: priceNow, price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
       })
       .filter((t) => t.symbol)
-      .sort((a, b) => (b.price_change_1h_pct || 0) - (a.price_change_1h_pct || 0))
-      .slice(0, 24);
+      .sort((a, b) => Math.abs(b.price_change_1h_pct || 0) - Math.abs(a.price_change_1h_pct || 0))
+      .slice(0, 25);
   }, [rawItems]);
 
   const display = normalized.length ? normalized : [];
@@ -92,15 +92,16 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
   return (
     <div className="bh-banner bh-banner--top">
       <div className="bh-banner-wrap">
-        <div className="bh-banner-track">
+        <div key="price-banner-track" className="bh-banner-track bh-banner-track--loop">
           {looped.map((t, idx) => {
             const pctInfo = classifyPct(t.price_change_1h_pct ?? 0);
+            const stateClass = pctInfo.state === "negative" ? "is-loss" : pctInfo.state === "positive" ? "is-gain" : "is-flat";
             const url = coinbaseSpotUrl(t || {});
             if (!url) {
               return (
                 <div
                   key={`${t.symbol}-${idx}`}
-                  className="bh-banner-item"
+                  className={`bh-banner-item bh-banner-chip ${stateClass}`}
                   onPointerEnter={setRabbitHover(true)}
                   onPointerLeave={setRabbitHover(false)}
                 >
@@ -113,7 +114,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
             return (
               <a
                 key={`${t.symbol}-${idx}`}
-                className="bh-banner-item"
+                className={`bh-banner-item bh-banner-chip ${stateClass}`}
                 href={url}
                 target="_blank"
                 rel="noreferrer noopener"
