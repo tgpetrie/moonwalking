@@ -1182,6 +1182,30 @@ def api_sentiment_latest():
         }
         return jsonify(fallback)
 
+@app.route('/api/metrics')
+def api_metrics():
+    """Get observability metrics for sentiment aggregator monitoring.
+
+    Returns JSON with:
+    - cache_hit_rate: Percentage of cache hits
+    - avg_response_time_ms: Average response time
+    - requests_last_hour: Recent request count
+    - source_availability: Per-source health metrics
+    """
+    try:
+        from sentiment_aggregator import get_metrics
+        metrics = get_metrics()
+        return jsonify(metrics)
+    except Exception as exc:
+        print(f"[Metrics API] Error: {exc}")
+        return jsonify({
+            "error": str(exc),
+            "cache_hit_rate": 0.0,
+            "avg_response_time_ms": 0.0,
+            "requests_last_hour": 0,
+            "source_availability": {}
+        }), 500
+
 @app.route('/api/signals/pumpdump')
 def api_signals_pumpdump():
     """Stub signals endpoint to keep mobile/web screens functional.
