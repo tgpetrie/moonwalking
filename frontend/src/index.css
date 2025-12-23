@@ -3449,3 +3449,100 @@ a.bh-row {
   opacity: 0.65;
 }
 */
+
+/* ========================================
+   INSIGHTS PANEL (sentiment tabbed popup)
+   ======================================== */
+
+.insights-card {
+  background: rgba(10, 12, 18, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+}
+
+.insights-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.insights-tabs button {
+  padding: 6px 12px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.insights-tabs button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.insights-tabs button.active {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.insights-close-btn {
+  margin-left: auto !important;
+  font-size: 0.7rem !important;
+  opacity: 0.65;
+}
+
+.insights-close-btn:hover {
+  opacity: 1;
+}
+
+.insights-body {
+  padding: 16px 14px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.insights-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.insights-row:last-child {
+  border-bottom: none;
+}
+
+.insights-label {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.insights-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: right;
+}
+
+.insights-placeholder {
+  padding: 20px 0;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.48);
+  font-style: italic;
+}
