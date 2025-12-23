@@ -33,6 +33,10 @@ try:
     import tweepy  # type: ignore
 except Exception:
     tweepy = None
+try:
+    import redis  # type: ignore
+except Exception:
+    redis = None
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -188,6 +192,92 @@ class SentimentHistory:
 _SENTIMENT_HISTORY = SentimentHistory()
 
 
+class MetricsTracker:
+    """Track performance metrics for observability."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._requests_total = 0
+        self._requests_last_hour = []
+        self._response_times = []  # Last 100 response times
+        self._source_failures: Dict[str, int] = {}
+        self._source_successes: Dict[str, int] = {}
+
+    def record_cache_hit(self):
+        """Record a cache hit."""
+        with self._lock:
+            self._cache_hits += 1
+
+    def record_cache_miss(self):
+        """Record a cache miss."""
+        with self._lock:
+            self._cache_misses += 1
+
+    def record_request(self, response_time_ms: float):
+        """Record a request with response time."""
+        with self._lock:
+            self._requests_total += 1
+            self._requests_last_hour.append(int(time.time()))
+            self._response_times.append(response_time_ms)
+
+            # Keep only last 100 response times
+            if len(self._response_times) > 100:
+                self._response_times = self._response_times[-100:]
+
+            # Prune old requests (older than 1 hour)
+            cutoff = time.time() - 3600
+            self._requests_last_hour = [t for t in self._requests_last_hour if t >= cutoff]
+
+    def record_source_failure(self, source_name: str):
+        """Record a source fetch failure."""
+        with self._lock:
+            self._source_failures[source_name] = self._source_failures.get(source_name, 0) + 1
+
+    def record_source_success(self, source_name: str):
+        """Record a source fetch success."""
+        with self._lock:
+            self._source_successes[source_name] = self._source_successes.get(source_name, 0) + 1
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get current metrics snapshot."""
+        with self._lock:
+            total_cache_ops = self._cache_hits + self._cache_misses
+            cache_hit_rate = (self._cache_hits / total_cache_ops) if total_cache_ops > 0 else 0.0
+
+            avg_response_time = (
+                sum(self._response_times) / len(self._response_times)
+                if self._response_times
+                else 0.0
+            )
+
+            # Calculate source availability (successes / total attempts)
+            source_availability = {}
+            all_sources = set(self._source_failures.keys()) | set(self._source_successes.keys())
+            for source in all_sources:
+                failures = self._source_failures.get(source, 0)
+                successes = self._source_successes.get(source, 0)
+                total_attempts = failures + successes
+                availability = (successes / total_attempts) if total_attempts > 0 else 0.0
+                source_availability[source] = round(availability, 3)
+
+            return {
+                "cache_hit_rate": round(cache_hit_rate, 3),
+                "avg_response_time_ms": round(avg_response_time, 1),
+                "requests_last_hour": len(self._requests_last_hour),
+                "requests_total": self._requests_total,
+                "cache_hits": self._cache_hits,
+                "cache_misses": self._cache_misses,
+                "source_availability": source_availability,
+                "source_failures": dict(self._source_failures),
+                "source_successes": dict(self._source_successes),
+            }
+
+
+_METRICS = MetricsTracker()
+
+
 # ----------------------------
 # TTL cache (in-process)
 # ----------------------------
@@ -222,8 +312,123 @@ class TTLCache:
             logger.debug(f"Cache set: {key} (TTL={ttl}s)")
 
 
-_RESULT_CACHE = TTLCache()
-_SOURCE_CACHE = TTLCache()
+class RedisCache:
+    """Redis-backed cache with automatic fallback to in-memory TTL cache."""
+
+    def __init__(self, redis_url: str, key_prefix: str = "", fallback_to_memory: bool = True):
+        self.key_prefix = key_prefix
+        self.fallback_to_memory = fallback_to_memory
+        self._memory_cache = TTLCache() if fallback_to_memory else None
+        self._redis_client: Optional[Any] = None
+        self._redis_available = False
+
+        if redis is None:
+            logger.warning("Redis library not installed, using in-memory cache")
+            return
+
+        try:
+            self._redis_client = redis.from_url(
+                redis_url,
+                decode_responses=False,  # We'll handle encoding/decoding manually
+                socket_connect_timeout=2,
+                socket_timeout=2,
+                retry_on_timeout=False,
+            )
+            # Test connection
+            self._redis_client.ping()
+            self._redis_available = True
+            logger.info(f"Redis cache initialized: {redis_url}")
+        except Exception as e:
+            logger.warning(f"Failed to connect to Redis at {redis_url}: {e}")
+            if not fallback_to_memory:
+                raise CacheError(f"Redis connection failed and fallback disabled: {e}")
+            logger.info("Falling back to in-memory cache")
+
+    def _make_key(self, key: str) -> str:
+        """Add prefix to cache key."""
+        return f"{self.key_prefix}{key}"
+
+    def get(self, key: str) -> Optional[Any]:
+        """Get value from cache (tries Redis, falls back to memory)."""
+        prefixed_key = self._make_key(key)
+
+        # Try Redis first if available
+        if self._redis_available and self._redis_client:
+            try:
+                data = self._redis_client.get(prefixed_key)
+                if data is None:
+                    logger.debug(f"Redis cache miss: {key}")
+                    return None
+                # Deserialize from JSON
+                value = json.loads(data.decode('utf-8'))
+                logger.debug(f"Redis cache hit: {key}")
+                return value
+            except Exception as e:
+                logger.error(f"Redis get error for {key}: {e}")
+                self._redis_available = False  # Mark as unavailable
+                # Fall through to memory cache
+
+        # Fallback to memory cache
+        if self._memory_cache:
+            return self._memory_cache.get(key)
+
+        return None
+
+    def set(self, key: str, value: Any, ttl: int) -> None:
+        """Set value in cache (tries Redis, falls back to memory)."""
+        prefixed_key = self._make_key(key)
+
+        # Try Redis first if available
+        if self._redis_available and self._redis_client:
+            try:
+                # Serialize to JSON
+                data = json.dumps(value).encode('utf-8')
+                self._redis_client.setex(prefixed_key, ttl, data)
+                logger.debug(f"Redis cache set: {key} (TTL={ttl}s)")
+                return
+            except Exception as e:
+                logger.error(f"Redis set error for {key}: {e}")
+                self._redis_available = False  # Mark as unavailable
+                # Fall through to memory cache
+
+        # Fallback to memory cache
+        if self._memory_cache:
+            self._memory_cache.set(key, value, ttl)
+
+    def clear(self) -> None:
+        """Clear all cache entries (pattern-based for Redis)."""
+        if self._redis_available and self._redis_client:
+            try:
+                pattern = f"{self.key_prefix}*"
+                cursor = 0
+                while True:
+                    cursor, keys = self._redis_client.scan(cursor, match=pattern, count=100)
+                    if keys:
+                        self._redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
+                logger.info(f"Cleared Redis cache with prefix: {self.key_prefix}")
+            except Exception as e:
+                logger.error(f"Redis clear error: {e}")
+
+        if self._memory_cache:
+            self._memory_cache._data.clear()
+            logger.info("Cleared in-memory cache")
+
+
+def _create_cache_backend() -> Any:
+    """Create cache backend based on configuration."""
+    cache_config = _CONFIG.get("cache", {})
+    backend = cache_config.get("backend", "memory")
+
+    if backend == "redis":
+        redis_url = cache_config.get("redis_url", "redis://localhost:6379/0")
+        key_prefix = cache_config.get("key_prefix", "sentiment:")
+        fallback = cache_config.get("fallback_to_memory", True)
+        return RedisCache(redis_url, key_prefix, fallback)
+    else:
+        logger.info("Using in-memory cache (configured backend: memory)")
+        return TTLCache()
 
 
 # ----------------------------
@@ -282,6 +487,52 @@ def load_config() -> Dict[str, Any]:
 
 
 _CONFIG = load_config()
+
+# Initialize cache backends after config is loaded
+_RESULT_CACHE = _create_cache_backend()
+_SOURCE_CACHE = _create_cache_backend()
+
+# HTTP connection pooling
+_HTTP_SESSION: Optional[Any] = None
+_HTTP_SESSION_LOCK = threading.Lock()
+
+
+def _get_http_session() -> Optional[Any]:
+    """Get or create persistent aiohttp ClientSession with connection pooling."""
+    global _HTTP_SESSION
+
+    if aiohttp is None:
+        return None
+
+    with _HTTP_SESSION_LOCK:
+        if _HTTP_SESSION is None or _HTTP_SESSION.closed:
+            # Create session with connection pooling
+            connector = aiohttp.TCPConnector(
+                limit=100,  # Max 100 concurrent connections
+                limit_per_host=30,  # Max 30 per host
+                ttl_dns_cache=300,  # DNS cache for 5 minutes
+                enable_cleanup_closed=True,
+            )
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            _HTTP_SESSION = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                raise_for_status=False,  # We'll handle status manually
+            )
+            logger.info("Created persistent HTTP session with connection pooling (limit=100, per_host=30)")
+
+        return _HTTP_SESSION
+
+
+async def _close_http_session() -> None:
+    """Close the persistent HTTP session (for cleanup)."""
+    global _HTTP_SESSION
+
+    with _HTTP_SESSION_LOCK:
+        if _HTTP_SESSION is not None and not _HTTP_SESSION.closed:
+            await _HTTP_SESSION.close()
+            logger.info("Closed persistent HTTP session")
+            _HTTP_SESSION = None
 
 
 def _cfg(path: str, default=None):
@@ -537,11 +788,16 @@ def coingecko_id_for_symbol(sym: str) -> Optional[str]:
 async def _fetch_json_async(url: str, timeout_s: int = 10) -> Any:
     if aiohttp is None:
         raise RuntimeError("aiohttp not installed")
+
+    session = _get_http_session()
+    if session is None:
+        raise RuntimeError("Failed to get HTTP session")
+
+    # Override timeout for this specific request
     t = aiohttp.ClientTimeout(total=timeout_s)
-    async with aiohttp.ClientSession(timeout=t) as session:
-        async with session.get(url) as resp:
-            resp.raise_for_status()
-            return await resp.json()
+    async with session.get(url, timeout=t) as resp:
+        resp.raise_for_status()
+        return await resp.json()
 
 
 def _fetch_json_sync(url: str, timeout_s: int = 10) -> Any:
@@ -1014,9 +1270,11 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     if cached is not None:
         logger.debug(f"Returning cached sentiment for {sym}")
         cached["metadata"]["cache_hit"] = True
+        _METRICS.record_cache_hit()
         return cached
 
     logger.debug(f"Cache miss for {sym}, fetching from sources")
+    _METRICS.record_cache_miss()
     sources_cfg = _cfg("sources", {}) or {}
     bucket = _tier_bucket()
     sources: List[Dict[str, Any]] = []
@@ -1201,6 +1459,9 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         f"tier_scores={tier_scores}"
     )
 
+    # Record metrics
+    _METRICS.record_request(elapsed_ms)
+
     return out
 
 
@@ -1237,3 +1498,19 @@ def get_sentiment_for_symbol(symbol: str) -> Dict[str, Any]:
     _ensure_bg_loop()
     fut = asyncio.run_coroutine_threadsafe(_compute_sentiment_async(symbol), _BG_LOOP)
     return fut.result()
+
+
+def get_metrics() -> Dict[str, Any]:
+    """Get observability metrics for monitoring.
+
+    Returns:
+        Dictionary containing:
+        - cache_hit_rate: Percentage of cache hits (0.0-1.0)
+        - avg_response_time_ms: Average response time in milliseconds
+        - requests_last_hour: Number of requests in the last hour
+        - requests_total: Total requests since startup
+        - cache_hits/cache_misses: Cache hit/miss counts
+        - source_availability: Availability percentage per source
+        - source_failures/source_successes: Per-source failure/success counts
+    """
+    return _METRICS.get_metrics()

@@ -9,6 +9,12 @@ sentiment:
     fringe: 0.30
   divergence_threshold: 0.12
 
+cache:
+  backend: redis  # Options: "redis" or "memory"
+  redis_url: redis://localhost:6379/0
+  fallback_to_memory: true  # Use in-memory cache if Redis unavailable
+  key_prefix: "sentiment:"
+
 sources:
   fear_greed:
     enabled: true

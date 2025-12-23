@@ -42,3 +42,6 @@ praw==7.7.1
 tweepy==4.14.0
 vaderSentiment==3.3.2
 PyYAML==6.0.2
+
+# Distributed caching (Phase 3)
+redis==5.0.1
