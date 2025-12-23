@@ -55,6 +55,17 @@ sources:
       - SatoshiStreetBets
       - CryptoMoonShots
 
+  twitter:
+    enabled: true
+    tier: tier2
+    weight: 0.70
+    max_tweets: 50
+    cache_ttl: 600
+    search_terms:
+      - "${symbol}"
+      - "$${symbol}"
+      - "#${symbol}"
+
 lexicon:
   bullish: 2.0
   moon: 2.2

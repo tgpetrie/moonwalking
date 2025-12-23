@@ -29,6 +29,10 @@ try:
     import praw  # type: ignore
 except Exception:
     praw = None
+try:
+    import tweepy  # type: ignore
+except Exception:
+    tweepy = None
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -804,6 +808,102 @@ def fetch_reddit_sentiment(subreddits: List[str], query: Optional[str], max_post
     return result
 
 
+def _tweepy_client() -> Optional[Any]:
+    """Create Twitter API v2 client using Bearer token."""
+    if tweepy is None:
+        return None
+    bearer_token = (os.getenv("TWITTER_BEARER_TOKEN") or "").strip()
+    if not bearer_token:
+        return None
+    try:
+        return tweepy.Client(bearer_token=bearer_token)
+    except Exception:
+        return None
+
+
+async def fetch_twitter_sentiment_async(symbol: str, max_tweets: int = 50) -> Dict[str, Any]:
+    """Fetch Twitter sentiment for a symbol using Twitter API v2."""
+    cache_key = _hash_key("twitter", symbol)
+    cached = _SOURCE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    client = _tweepy_client()
+    if client is None:
+        result = {"enabled": False, "reason": "twitter_not_configured"}
+        _SOURCE_CACHE.set(cache_key, result, 600)  # Cache disabled status for 10 min
+        return result
+
+    # Build search query with multiple term variations
+    search_terms = [symbol, f"${symbol}", f"#{symbol}"]
+    query = " OR ".join(search_terms) + " -is:retweet lang:en"
+
+    try:
+        logger.debug(f"Fetching Twitter sentiment for {symbol} (max_tweets={max_tweets})")
+        start_time = time.time()
+
+        # Search recent tweets (last 7 days)
+        # Note: tweepy v4 uses synchronous calls, so we run in executor
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: client.search_recent_tweets(
+                query=query,
+                max_results=min(max_tweets, 100),  # API limit is 100
+                tweet_fields=["public_metrics", "created_at"],
+            )
+        )
+
+        elapsed = (time.time() - start_time) * 1000
+
+        if not response.data:
+            result = {"enabled": True, "score_0_1": None, "tweets": 0, "mentions": 0}
+            _SOURCE_CACHE.set(cache_key, result, 600)
+            logger.info(f"Twitter {symbol}: no tweets found")
+            return result
+
+        tweets = response.data
+        scores: List[float] = []
+        weighted_scores: List[float] = []
+
+        for tweet in tweets:
+            text = tweet.text
+            sentiment = vader_score_0_1(text)
+            scores.append(sentiment)
+
+            # Weight by engagement (likes + retweets)
+            metrics = tweet.public_metrics or {}
+            likes = metrics.get("like_count", 0)
+            retweets = metrics.get("retweet_count", 0)
+            engagement = likes + (retweets * 2)  # Retweets count double
+
+            # Add engagement-weighted samples
+            weight_multiplier = min(1 + (engagement / 100), 5)  # Cap at 5x weight
+            for _ in range(int(weight_multiplier)):
+                weighted_scores.append(sentiment)
+
+        avg_score = sum(scores) / len(scores) if scores else 0.5
+        weighted_avg = sum(weighted_scores) / len(weighted_scores) if weighted_scores else avg_score
+
+        result = {
+            "enabled": True,
+            "score_0_1": float(weighted_avg),
+            "tweets": len(tweets),
+            "mentions": len(tweets),
+            "avg_score": float(avg_score),
+            "weighted_avg": float(weighted_avg),
+        }
+        _SOURCE_CACHE.set(cache_key, result, 600)
+        logger.info(f"Twitter {symbol}: score={weighted_avg:.3f}, tweets={len(tweets)} [fetched in {elapsed:.0f}ms]")
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to fetch Twitter sentiment for {symbol}: {e}")
+        result = {"enabled": True, "score_0_1": None, "tweets": 0, "error": str(e)}
+        _SOURCE_CACHE.set(cache_key, result, 600)
+        return result
+
+
 # ----------------------------
 # Aggregation helpers
 # ----------------------------
@@ -1009,6 +1109,25 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         ))
         _add(bucket, str(rs_cfg.get("tier", "tier3")), rs_score if _isfinite(rs_score) else None, float(rs_cfg.get("weight", 0.60)))
 
+    # Twitter sentiment (async)
+    tw_cfg = sources_cfg.get("twitter", {})
+    twitter_score = None
+    twitter_mentions = None
+    if tw_cfg.get("enabled", False):
+        max_tweets = int(tw_cfg.get("max_tweets", 50) or 50)
+        tw = await fetch_twitter_sentiment_async(sym, max_tweets=max_tweets)
+        twitter_score = tw.get("score_0_1")
+        twitter_mentions = tw.get("mentions")
+        sources.append(_source_record(
+            name=f"Twitter ({sym})",
+            tier=str(tw_cfg.get("tier", "tier2")),
+            weight=float(tw_cfg.get("weight", 0.70)),
+            score_0_1=twitter_score if _isfinite(twitter_score) else None,
+            meta={"twitter": tw, "mentions": twitter_mentions},
+            url="https://twitter.com/",
+        ))
+        _add(bucket, str(tw_cfg.get("tier", "tier2")), twitter_score if _isfinite(twitter_score) else None, float(tw_cfg.get("weight", 0.70)))
+
     tier_scores = _finalize_tier_scores(bucket)
     overall = _weighted_overall(tier_scores, tier_weights)
     divergence = _divergence_alerts(tier_scores, divergence_threshold)
@@ -1022,7 +1141,7 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     # Populate social_breakdown with actual values
     social_breakdown = {
         "reddit": rg_score if rg_cfg.get("enabled", False) and _isfinite(rg_score) else None,
-        "twitter": None,  # TODO: Phase 2 - Twitter integration
+        "twitter": twitter_score if tw_cfg.get("enabled", False) and _isfinite(twitter_score) else None,
         "telegram": None,  # Future: Telegram integration
         "news": rss_score if rss_cfg.get("enabled", False) and _isfinite(rss_score) else None,
     }
@@ -1052,7 +1171,10 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         "tier_scores": tier_scores,
         "divergence_alerts": divergence,
         "coin_metrics": cg_metrics or {},
-        "social_metrics": {"reddit_mentions": reddit_mentions},
+        "social_metrics": {
+            "reddit_mentions": reddit_mentions,
+            "twitter_mentions": twitter_mentions,
+        },
         "social_breakdown": social_breakdown,
         "trending_topics": trending_topics,
         "sentiment_history": sentiment_history,
