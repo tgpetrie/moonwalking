@@ -33,6 +33,38 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 # ----------------------------
+# Custom Exceptions
+# ----------------------------
+
+class SentimentAggregatorError(Exception):
+    """Base exception for sentiment aggregator errors."""
+    pass
+
+
+class SourceFetchError(SentimentAggregatorError):
+    """Raised when a data source fetch operation fails."""
+    def __init__(self, source_name: str, message: str, original_error: Optional[Exception] = None):
+        self.source_name = source_name
+        self.original_error = original_error
+        super().__init__(f"{source_name}: {message}")
+
+
+class CacheError(SentimentAggregatorError):
+    """Raised when cache operations fail."""
+    pass
+
+
+class ConfigError(SentimentAggregatorError):
+    """Raised when configuration loading or validation fails."""
+    pass
+
+
+class SymbolNormalizationError(SentimentAggregatorError):
+    """Raised when symbol normalization fails."""
+    pass
+
+
+# ----------------------------
 # Logging Configuration
 # ----------------------------
 
@@ -49,6 +81,56 @@ logger = logging.getLogger(__name__)
 _log_level = os.getenv('SENTIMENT_LOG_LEVEL', 'INFO').upper()
 if _log_level in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
     logger.setLevel(getattr(logging, _log_level))
+
+
+# ----------------------------
+# Circuit Breaker for Source Reliability
+# ----------------------------
+
+class CircuitBreaker:
+    """Circuit breaker to prevent repeated calls to failing sources."""
+
+    def __init__(self, failure_threshold: int = 5, timeout_seconds: int = 300):
+        self.failure_threshold = failure_threshold
+        self.timeout_seconds = timeout_seconds
+        self.failures: Dict[str, int] = {}
+        self.opened_at: Dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def record_success(self, source_name: str) -> None:
+        """Record a successful call."""
+        with self._lock:
+            self.failures.pop(source_name, None)
+            self.opened_at.pop(source_name, None)
+
+    def record_failure(self, source_name: str) -> None:
+        """Record a failed call."""
+        with self._lock:
+            self.failures[source_name] = self.failures.get(source_name, 0) + 1
+            if self.failures[source_name] >= self.failure_threshold:
+                self.opened_at[source_name] = time.time()
+                logger.warning(
+                    f"Circuit breaker OPEN for {source_name} "
+                    f"(failures={self.failures[source_name]}, cooldown={self.timeout_seconds}s)"
+                )
+
+    def is_open(self, source_name: str) -> bool:
+        """Check if circuit is open (should skip calls)."""
+        with self._lock:
+            if source_name not in self.opened_at:
+                return False
+
+            # Check if cooldown period has elapsed
+            if time.time() - self.opened_at[source_name] > self.timeout_seconds:
+                logger.info(f"Circuit breaker attempting half-open for {source_name}")
+                self.failures[source_name] = self.failure_threshold - 1  # Allow retry
+                self.opened_at.pop(source_name, None)
+                return False
+
+            return True
+
+
+_CIRCUIT_BREAKER = CircuitBreaker()
 
 
 # ----------------------------
