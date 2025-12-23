@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useDataFeed } from "../hooks/useDataFeed";
+import { useData } from "../hooks/useData";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+
 const formatVolume = (val) => {
   const n = Number(val ?? 0);
   if (!Number.isFinite(n)) return "0";
@@ -21,68 +22,52 @@ const formatPct = (val) => {
 
 const normalizeSymbol = (value) => {
   if (!value) return "";
-  return value.replace(/-USD$|-USDT$|-PERP$/i, "").toUpperCase();
+  return value.replace(/-usd$|-usdt$|-perp$/i, "").toUpperCase();
 };
 
-export function VolumeBannerScroll({ tokens: tokensProp }) {
-  const { data } = useDataFeed();
-  const rawItems = useMemo(() => {
-    const list = tokensProp?.length ? tokensProp : data?.banner_1h_volume || data?.banner_volume_1h || [];
-    if (Array.isArray(list)) return list;
-    if (list && Array.isArray(list.data)) return list.data;
-    return [];
-  }, [tokensProp, data]);
+export function VolumeBannerScroll({ tokens = [] }) {
+  const { volume1h } = useData();
 
-  const normalized = useMemo(() => {
+  const rawItems = useMemo(() => {
+    if (Array.isArray(tokens) && tokens.length) return tokens;
+    if (Array.isArray(volume1h) && volume1h.length) return volume1h;
+    return [];
+  }, [tokens, volume1h]);
+
+  const display = useMemo(() => {
     return rawItems
       .map((t) => {
         const symbol = normalizeSymbol(t?.symbol || t?.ticker);
-
-        const volNowRaw = t?.volume_1h_now ?? t?.volume_1h ?? t?.volume_24h ?? 0;
-        const volNow = Number(volNowRaw);
-
-        const changePctRaw =
+        const volNow = Number(
+          t?.volume_1h_now ??
+            t?.volume_1h ??
+            t?.volume_24h ??
+            t?.volume ??
+            0
+        );
+        const pctRaw =
           t?.volume_change_1h_pct ??
           t?.change_1h_volume ??
-          t?.volume_1h_pct ??
-          t?.volume_change_pct;
-
-        const pctFromBackend = Number(changePctRaw);
-
-        // Optional "ago" keys for fallback computation
-        const volAgoRaw =
-          t?.volume_1h_ago ??
-          t?.volume_1h_prev ??
-          t?.volume_prev_1h ??
-          t?.volume_then_1h ??
-          t?.volume_prior_1h;
-
-        const volAgo = Number(volAgoRaw);
-
-        let computedPct = NaN;
-        if (Number.isFinite(volNow) && Number.isFinite(volAgo) && volAgo > 0) {
-          computedPct = ((volNow - volAgo) / volAgo) * 100;
-        }
-
-        const volume_change_1h_pct =
-          Number.isFinite(pctFromBackend) && pctFromBackend !== 0 ? pctFromBackend :
-          Number.isFinite(computedPct) ? computedPct : 0;
-
+          t?.volume_change_pct ??
+          t?.volume_change ??
+          0;
+        const pctNum = Number(pctRaw);
         return {
           ...t,
           symbol,
           volume_1h_now: Number.isFinite(volNow) ? volNow : 0,
-          volume_change_1h_pct,
+          volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
         };
       })
-      // Backend sometimes ships volume values without a computed % change (all zeros).
-      // Still render the banner so the UI doesn't go quiet.
       .filter((t) => t.symbol)
-      .sort((a, b) => (Number(b.volume_change_1h_pct) || 0) - (Number(a.volume_change_1h_pct) || 0))
+      .sort(
+        (a, b) =>
+          (Number(b.volume_change_1h_pct) || 0) -
+          (Number(a.volume_change_1h_pct) || 0)
+      )
       .slice(0, 25);
   }, [rawItems]);
 
-  const display = normalized.length ? normalized : [];
   const looped = display.length ? [...display, ...display] : [];
   if (!looped.length) {
     return (
@@ -117,12 +102,26 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
   return (
     <div className="bh-banner bh-banner--bottom">
       <div className="bh-banner-wrap">
-        <div key="volume-banner-track" className="bh-banner-track bh-banner-track--loop">
+        <div className="bh-banner-track bh-banner-track--loop">
           {looped.map((t, idx) => {
             const pct = Number(t.volume_change_1h_pct ?? 0);
             const isPos = pct > 0;
             const stateClass = pct < 0 ? "is-loss" : pct > 0 ? "is-gain" : "is-flat";
             const url = coinbaseSpotUrl(t || {});
+            const inner = (
+              <>
+                <span className="bh-banner-symbol">{t.symbol || "--"}</span>
+                <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
+                <span
+                  className={`bh-banner-change ${
+                    isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"
+                  }`}
+                >
+                  {formatPct(t.volume_change_1h_pct)}
+                </span>
+              </>
+            );
+
             if (!url) {
               return (
                 <div
@@ -131,12 +130,11 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
                   onPointerEnter={setRabbitHover(true)}
                   onPointerLeave={setRabbitHover(false)}
                 >
-                  <span className="bh-banner-symbol">{t.symbol || "--"}</span>
-                  <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
-                  <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>{formatPct(t.volume_change_1h_pct)}</span>
+                  {inner}
                 </div>
               );
             }
+
             return (
               <a
                 key={`${t.symbol}-${idx}`}
@@ -147,9 +145,7 @@ export function VolumeBannerScroll({ tokens: tokensProp }) {
                 onPointerEnter={setRabbitHover(true)}
                 onPointerLeave={setRabbitHover(false)}
               >
-                <span className="bh-banner-symbol">{t.symbol || "--"}</span>
-                <span className="bh-banner-price">{formatVolume(t.volume_1h_now)} vol</span>
-                <span className={`bh-banner-change ${isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"}`}>{formatPct(t.volume_change_1h_pct)}</span>
+                {inner}
               </a>
             );
           })}

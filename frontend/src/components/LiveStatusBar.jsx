@@ -5,7 +5,7 @@ function formatTime(dt) {
   return dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function LiveStatusBar({ loading, error, lastUpdated, isValidating }) {
+export function LiveStatusBar({ loading, error, lastUpdated, isValidating, heartbeatPulse, lastFetchTs }) {
   let status = "LIVE";
   let statusClass = "live-pill live-pill--ok";
   let label = "Streaming";
@@ -32,11 +32,13 @@ export function LiveStatusBar({ loading, error, lastUpdated, isValidating }) {
           <span className="live-dot" />
           {status}
         </span>
+        <span className={`live-beat ${heartbeatPulse ? "is-active" : ""}`} data-active={heartbeatPulse ? "1" : "0"} aria-hidden />
         <span className="live-label">{label}</span>
       </div>
       <div className="live-status-right">
         <span className="live-updated-label">Last updated</span>
         <span className="live-updated-time">{formatTime(lastUpdated)}</span>
+        <span className="live-updated-subline">{`Last fetch ${formatTime(lastFetchTs)}`}</span>
       </div>
     </div>
   );

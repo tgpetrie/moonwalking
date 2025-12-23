@@ -1,18 +1,8 @@
 // frontend/src/hooks/useDashboardData.js
-import useSWR from "swr";
 import { useEffect, useRef } from "react";
-import { API_BASE_URL, fetchAllData } from "../api";
+import { useData } from "../context/DataContext";
 
 const LS_KEY = "bh_last_payload_v1";
-
-function readLastPayload() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
 
 function writeLastPayload(value) {
   try {
@@ -34,30 +24,17 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const fallback = typeof window !== "undefined" ? readLastPayload() : null;
+  // Use the optimized DataContext instead of direct SWR
+  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs } = useData();
 
-  const { data, error, isLoading, mutate, isValidating } = useSWR(`/api/data`, fetchAllData, {
-    fallbackData: fallback || undefined,
-    keepPreviousData: true,
-    dedupingInterval: 1200,
-    refreshInterval: 2000,
-    revalidateOnFocus: true,
-    revalidateOnReconnect: true,
-    errorRetryInterval: 2500,
-    errorRetryCount: 8,
-    shouldRetryOnError: () => true,
-  });
+  const payload = data || {};
 
-  const payload = data?.data || data || {};
-  const errors = data?.errors || payload?.errors || {};
-  const coverage = data?.coverage || payload?.coverage || {};
-  const fatal = (errors && errors.fatal) ? errors.fatal : null;
-
-  const g1 = Array.isArray(payload.gainers_1m) ? payload.gainers_1m : [];
-  const g3 = Array.isArray(payload.gainers_3m) ? payload.gainers_3m : [];
-  const l3 = Array.isArray(payload.losers_3m) ? payload.losers_3m : [];
-  const bv = Array.isArray(payload.banner_1h_volume) ? payload.banner_1h_volume : [];
-  const bp = Array.isArray(payload.banner_1h_price) ? payload.banner_1h_price : [];
+  // Use the granular slices from DataContext (which have independent publish cadences)
+  const g1 = Array.isArray(oneMinRows) && oneMinRows.length > 0 ? oneMinRows : Array.isArray(payload.gainers_1m) ? payload.gainers_1m : [];
+  const g3 = Array.isArray(threeMin?.gainers) && threeMin.gainers.length > 0 ? threeMin.gainers : Array.isArray(payload.gainers_3m) ? payload.gainers_3m : [];
+  const l3 = Array.isArray(threeMin?.losers) && threeMin.losers.length > 0 ? threeMin.losers : Array.isArray(payload.losers_3m) ? payload.losers_3m : [];
+  const bv = Array.isArray(banners?.volume) && banners.volume.length > 0 ? banners.volume : Array.isArray(payload.banner_1h_volume) ? payload.banner_1h_volume : [];
+  const bp = Array.isArray(banners?.price) && banners.price.length > 0 ? banners.price : Array.isArray(payload.banner_1h_price) ? payload.banner_1h_price : [];
 
   const gainers1m = g1.map(mapRowWithInitial);
   const gainers3m = g3.map(mapRowWithInitial);
@@ -81,17 +58,22 @@ export function useDashboardData() {
     }
   }, [data, error]);
 
-  // Last updated timestamp should only move when SWR delivers new payload
+  // Last updated timestamp
   const lastUpdatedTsRef = useRef(null);
   useEffect(() => {
     if (!data || error) return;
-    if (prevDataRef.current === data) {
+    if (prevDataRef.current !== data) {
       lastUpdatedTsRef.current = Date.now();
     }
   }, [data, error]);
 
   const lastUpdatedTs = lastUpdatedTsRef.current;
   const lastUpdated = lastUpdatedTs ? new Date(lastUpdatedTs) : null;
+
+  // Extract error/coverage metadata from payload
+  const errors = payload.errors || {};
+  const coverage = payload.coverage || {};
+  const fatal = errors?.fatal || null;
 
   return {
     raw: data,
@@ -104,12 +86,14 @@ export function useDashboardData() {
     errors,
     coverage,
     fatal,
-    loading: isLoading,
-    isLoading,
-    isValidating,
+    loading,
+    isLoading: loading,
+    isValidating: false, // No longer using SWR validation
     error,
-    mutate,
+    mutate: null, // No longer using SWR mutate
     lastUpdatedTs,
     lastUpdated,
+    heartbeatPulse,
+    lastFetchTs,
   };
 }

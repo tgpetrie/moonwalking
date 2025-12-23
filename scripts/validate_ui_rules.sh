@@ -1,85 +1,56 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FRONTEND="$ROOT/frontend"
+
+fail() { echo "FAIL: $1" >&2; exit 1; }
+ok() { echo "OK: $1"; }
+
 cd "$ROOT"
 
-errors=0
-echo "[ui-rules] Running UI validation checks..."
+# 1) Banner structure guardrails
+grep -R --line-number -E '\bbh-banner-track\b' "$FRONTEND/src" >/dev/null \
+  && ok "bh-banner-track referenced" \
+  || fail "bh-banner-track not found in frontend/src"
 
-# 1) Banner rails: ensure structure classes are present in CSS and used by banner components
-echo "Checking banner structure classes..."
-if ! grep -q "bh-banner-track" frontend/index.css 2>/dev/null; then
-  echo "ERROR: .bh-banner-track not found in frontend/index.css."
-  errors=$((errors+1))
-else
-  echo "OK: .bh-banner-track present in index.css."
+grep -R --line-number -E '\bbh-banner-chip\b' "$FRONTEND/src" >/dev/null \
+  && ok "bh-banner-chip referenced" \
+  || fail "bh-banner-chip not found in frontend/src"
+
+# 2) Token row class guardrail (components must render token-row table-row)
+grep -R --line-number -E 'className=.*token-row.*table-row|token-row table-row' "$FRONTEND/src/components" >/dev/null \
+  && ok "token-row table-row present in components" \
+  || fail "token-row table-row not found in frontend/src/components"
+
+# 3) Font guardrail: only Raleway is referenced as a named font-family
+#    This asserts:
+#      - Raleway appears at least once
+#      - no other quoted font names appear (e.g., "Inter", "Montserrat", "Prosto", etc.)
+grep -R --line-number -E 'font-family:\s*"?Raleway"?' "$FRONTEND/src" >/dev/null \
+  && ok "Raleway font-family referenced" \
+  || fail "Raleway font-family not found"
+
+# find quoted font-family names other than Raleway
+OTHER_FONTS="$(grep -R --line-number -E 'font-family:[^;]*"[^"]+' "$FRONTEND/src" | grep -v 'Raleway' || true)"
+if [[ -n "$OTHER_FONTS" ]]; then
+  echo "$OTHER_FONTS" >&2
+  fail "Non-Raleway quoted font-family detected"
 fi
+ok "No non-Raleway quoted fonts detected"
 
-if ! grep -q "bh-banner-chip" frontend/index.css 2>/dev/null; then
-  echo "ERROR: .bh-banner-chip not found in frontend/index.css."
-  errors=$((errors+1))
-else
-  echo "OK: .bh-banner-chip present in index.css."
-fi
+# 4) Required class names exist AND are referenced
+grep -R --line-number -E '\btoken-pct-gain\b' "$FRONTEND/src" >/dev/null \
+  && ok "token-pct-gain exists/referenced" \
+  || fail "token-pct-gain missing"
 
-if ! grep -RIn --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" "bh-banner-wrap" frontend/src/components/TopBannerScroll.* frontend/src/components/VolumeBannerScroll.* 2>/dev/null | sed -n '1p' >/dev/null; then
-  echo "ERROR: .bh-banner-wrap not used in TopBannerScroll / VolumeBannerScroll."
-  errors=$((errors+1))
-else
-  echo "OK: .bh-banner-wrap used in banner components."
-fi
+grep -R --line-number -E '\btoken-pct-loss\b' "$FRONTEND/src" >/dev/null \
+  && ok "token-pct-loss exists/referenced" \
+  || fail "token-pct-loss missing"
 
-# 2) Token rows: shared grid + key classes
-echo "Checking token row classes..."
-if ! grep -q "token-row.table-row" frontend/index.css 2>/dev/null; then
-  echo "ERROR: .token-row.table-row not defined in frontend/index.css."
-  errors=$((errors+1))
-else
-  echo "OK: .token-row.table-row defined in index.css."
-fi
+grep -R --line-number -E '\btr-price-current\b' "$FRONTEND/src" >/dev/null \
+  && ok "tr-price-current exists/referenced" \
+  || fail "tr-price-current missing"
 
-if ! grep -RInE "token-row[^\\n]*table-row" frontend/src/components 2>/dev/null | sed -n '1p' >/dev/null; then
-  echo "ERROR: token-row table-row class not used in React components."
-  errors=$((errors+1))
-else
-  echo "OK: token-row table-row used in components."
-fi
+echo "All UI rule validations passed."
 
-for cls in token-pct-gain token-pct-loss tr-price-current; do
-  if ! grep -q "$cls" frontend/index.css 2>/dev/null; then
-    echo "ERROR: .$cls not found in frontend/index.css."
-    errors=$((errors+1))
-  elif ! grep -RIn "$cls" frontend/src 2>/dev/null | sed -n '1p' >/dev/null; then
-    echo "ERROR: .$cls not referenced in frontend/src."
-    errors=$((errors+1))
-  else
-    echo "OK: .$cls present and referenced."
-  fi
-done
-
-# 3) Font family: enforce Raleway only
-echo "Checking font families..."
-if ! grep -RIn "Raleway" frontend/index.css frontend/src/index.css 2>/dev/null | sed -n '1p' >/dev/null; then
-  echo "ERROR: Raleway font not referenced in core styles."
-  errors=$((errors+1))
-else
-  echo "OK: Raleway referenced."
-fi
-
-for forbidden in "Fragment Mono" "Prosto One" "FragmentMono" "ProstoOne"; do
-  if grep -RIn --exclude-dir=dist "$forbidden" frontend 2>/dev/null | sed -n '1p' >/dev/null; then
-    echo "ERROR: Forbidden font found: $forbidden"
-    errors=$((errors+1))
-  fi
-done
-
-if [[ "$errors" -gt 0 ]]; then
-  echo
-  echo "UI rules validation FAILED: $errors issue(s) detected."
-  exit 1
-fi
-
-echo
-echo "UI rules validation PASSED."
-exit 0

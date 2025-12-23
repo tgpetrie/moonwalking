@@ -1,5 +1,5 @@
 // src/components/TokenRowUnified.jsx
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
@@ -52,6 +52,35 @@ export function TokenRowUnified({
     .filter(Boolean)
     .join(" ");
 
+  const [priceFlash, setPriceFlash] = useState(false);
+  const [pctFlash, setPctFlash] = useState(false);
+  const prevPriceRef = useRef(currentPrice);
+  const prevPctRef = useRef(changeNum);
+
+  useEffect(() => {
+    let cleanup;
+    const prev = prevPriceRef.current;
+    if (prev !== undefined && prev !== currentPrice) {
+      setPriceFlash(true);
+      const timer = setTimeout(() => setPriceFlash(false), 420);
+      cleanup = () => clearTimeout(timer);
+    }
+    prevPriceRef.current = currentPrice;
+    return cleanup;
+  }, [currentPrice]);
+
+  useEffect(() => {
+    let cleanup;
+    const prev = prevPctRef.current;
+    if (prev !== undefined && prev !== changeNum) {
+      setPctFlash(true);
+      const timer = setTimeout(() => setPctFlash(false), 420);
+      cleanup = () => clearTimeout(timer);
+    }
+    prevPctRef.current = changeNum;
+    return cleanup;
+  }, [changeNum]);
+
   const handleToggleStar = () => {
     if (!symbol || typeof onToggleWatchlist !== "function") return;
     const activePrice = currentPrice ?? token?.price ?? null;
@@ -83,13 +112,15 @@ export function TokenRowUnified({
 
       {/* 3. Price stack (current / previous) */}
       <CellTag className="bh-cell bh-cell-price">
-        <div className="tr-price-current bh-price-current">{formatPrice(currentPrice)}</div>
+        <div className={`tr-price-current bh-price-current${priceFlash ? " is-updating" : ""}`}>
+          {formatPrice(currentPrice)}
+        </div>
         <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
       </CellTag>
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change">
-        <span className={`bh-change ${pctInfo.className}`}>{pctInfo.display}</span>
+        <span className={`bh-change ${pctInfo.className}${pctFlash ? " is-updating" : ""}`}>{pctInfo.display}</span>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}

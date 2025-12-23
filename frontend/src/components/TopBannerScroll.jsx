@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useDataFeed } from "../hooks/useDataFeed";
+import { useData } from "../hooks/useData";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+
 const formatPrice = (val) => {
   const n = Number(val ?? 0);
   if (Number.isNaN(n)) return "$0.00";
@@ -11,58 +12,79 @@ const formatPrice = (val) => {
 const classifyPct = (val) => {
   const n = Number(val ?? 0);
   if (!Number.isFinite(n)) {
-    return { display: "0.00%", state: "flat", className: "bh-banner-change--flat" };
+    return { display: "0.00%", className: "bh-banner-change--flat" };
   }
 
   const abs = Math.abs(n);
   const decimals = abs < 0.1 ? 4 : abs < 1 ? 3 : 2;
   const rounded = parseFloat(n.toFixed(decimals));
 
-  if (rounded === 0) return { display: `0.${"0".repeat(decimals)}%`, state: "flat", className: "bh-banner-change--flat" };
-  if (rounded > 0) return { display: `+${rounded.toFixed(decimals)}%`, state: "positive", className: "bh-banner-change--pos" };
-  return { display: `${rounded.toFixed(decimals)}%`, state: "negative", className: "bh-banner-change--neg" };
+  if (rounded === 0) {
+    return { display: `0.${"0".repeat(decimals)}%`, className: "bh-banner-change--flat" };
+  }
+
+  if (rounded > 0) {
+    return {
+      display: `+${rounded.toFixed(decimals)}%`,
+      className: "bh-banner-change--pos",
+    };
+  }
+
+  return {
+    display: `${rounded.toFixed(decimals)}%`,
+    className: "bh-banner-change--neg",
+  };
 };
 
 const normalizeSymbol = (value) => {
   if (!value) return "";
-  return value.replace(/-USD$|-USDT$|-PERP$/i, "").toUpperCase();
+  return value.replace(/-usd$|-usdt$|-perp$/i, "").toUpperCase();
 };
 
-export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) {
-  const { data } = useDataFeed();
-  const feedRows = useMemo(() => {
-    const list = data?.banner_1h_price || data?.banner_1h || data?.banner_price_1h;
-    if (Array.isArray(list)) return list;
-    if (list && Array.isArray(list.data)) return list.data;
-    return [];
-  }, [data]);
+export function TopBannerScroll({ tokens = [], rows = [], items = [] }) {
+  const { banner1h } = useData();
 
   const rawItems = useMemo(() => {
     if (Array.isArray(tokens) && tokens.length) return tokens;
     if (Array.isArray(rows) && rows.length) return rows;
-    if (rows && Array.isArray(rows.data)) return rows.data;
     if (Array.isArray(items) && items.length) return items;
-    if (items && Array.isArray(items.data)) return items.data;
-    if (feedRows.length) return feedRows;
+    if (Array.isArray(banner1h) && banner1h.length) return banner1h;
     return [];
-  }, [tokens, rows, items, feedRows]);
+  }, [tokens, rows, items, banner1h]);
 
   const normalized = useMemo(() => {
     return rawItems
       .map((t) => {
         const symbol = normalizeSymbol(t?.symbol || t?.ticker);
-        const priceNow = t?.price_now ?? t?.current_price ?? t?.price;
-        const changePct = t?.price_change_1h_pct ?? t?.change_1h_price ?? t?.pct_change_1h ?? t?.price_change_1h ?? t?.pct_change ?? 0;
-        const pctNum = Number(changePct ?? 0);
-        return { ...t, symbol, price_now: priceNow, price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0 };
+        const priceNow = Number(
+          t?.price_now ?? t?.current_price ?? t?.price ?? 0
+        );
+        const pctRaw =
+          t?.price_change_1h_pct ??
+          t?.change_1h_price ??
+          t?.pchange_1h ??
+          t?.price_change ??
+          0;
+        const pctNum = Number(pctRaw);
+        return {
+          ...t,
+          symbol,
+          price_now: Number.isFinite(priceNow) ? priceNow : 0,
+          price_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
+        };
       })
       .filter((t) => t.symbol)
-      .sort((a, b) => (Number(b.price_change_1h_pct) || 0) - (Number(a.price_change_1h_pct) || 0))
+      .sort(
+        (a, b) =>
+          (Number(b.price_change_1h_pct) || 0) -
+          (Number(a.price_change_1h_pct) || 0)
+      )
       .slice(0, 25);
   }, [rawItems]);
 
   const display = normalized.length ? normalized : [];
   const looped = display.length ? [...display, ...display] : [];
+
   if (!looped.length) {
     return (
       <div className="bh-banner bh-banner--top">
@@ -96,11 +118,19 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
   return (
     <div className="bh-banner bh-banner--top">
       <div className="bh-banner-wrap">
-        <div key="price-banner-track" className="bh-banner-track bh-banner-track--loop">
+        <div className="bh-banner-track bh-banner-track--loop">
           {looped.map((t, idx) => {
-            const pctInfo = classifyPct(t.price_change_1h_pct ?? 0);
-            const stateClass = pctInfo.state === "negative" ? "is-loss" : pctInfo.state === "positive" ? "is-gain" : "is-flat";
+            const pctInfo = classifyPct(t.price_change_1h_pct);
+            const stateClass = pctInfo.className.replace("bh-banner-change--", "is-");
             const url = coinbaseSpotUrl(t || {});
+            const inner = (
+              <>
+                <span className="bh-banner-symbol">{t.symbol || "--"}</span>
+                <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
+                <span className={`bh-banner-change ${pctInfo.className}`}>{pctInfo.display}</span>
+              </>
+            );
+
             if (!url) {
               return (
                 <div
@@ -109,12 +139,11 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
                   onPointerEnter={setRabbitHover(true)}
                   onPointerLeave={setRabbitHover(false)}
                 >
-                  <span className="bh-banner-symbol">{t.symbol || "--"}</span>
-                  <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
-                  <span className={`bh-banner-change ${pctInfo.className}`}>{pctInfo.display}</span>
+                  {inner}
                 </div>
               );
             }
+
             return (
               <a
                 key={`${t.symbol}-${idx}`}
@@ -125,9 +154,7 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
                 onPointerEnter={setRabbitHover(true)}
                 onPointerLeave={setRabbitHover(false)}
               >
-                <span className="bh-banner-symbol">{t.symbol || "--"}</span>
-                <span className="bh-banner-price">{formatPrice(t.price_now)}</span>
-                <span className={`bh-banner-change ${pctInfo.className}`}>{pctInfo.display}</span>
+                {inner}
               </a>
             );
           })}
@@ -136,3 +163,5 @@ export default function TopBannerScroll({ rows = [], items = [], tokens = [] }) 
     </div>
   );
 }
+
+export default TopBannerScroll;

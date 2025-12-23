@@ -1,13 +1,41 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
 @import './sentiment-v2.css';
+@import './styles/animations.css';
+
+/* Font guardrail: only Raleway referenced */
+html, body {
+  font-family: "Raleway", sans-serif;
+}
+
+/* Required validation classes */
+.token-pct-gain {
+  font-weight: 650;
+}
+.token-pct-loss {
+  font-weight: 650;
+}
+.tr-price-current {
+  color: var(--bh-price-mint);
+}
+
+/* Ensure pct has higher hierarchy than price in table rows */
+.token-pct-gain,
+.token-pct-loss {
+  font-size: 1.05em;
+  letter-spacing: 0.01em;
+}
+.tr-price-current {
+  font-size: 0.92em;
+  opacity: 0.9;
+}
 
 /* ===== BHABIT DASHBOARD – CANONICAL GRID & LAYOUT ===== */
 
 :root {
   /* Core colors */
   --bh-bg: #050308;
-  --bh-gain: rgb(245, 159, 34);
-  --bh-loss: rgb(168, 111, 255);
+  --bh-gain: #ffb347;
+  --bh-loss: #c084fc;
   /* canonical mint price */
   --bh-price: rgb(16, 174, 155);
   --bh-price-sub: rgba(16, 174, 155, 0.74);
@@ -227,6 +255,81 @@ body {
   color: #d1c1a5;
 }
 
+.live-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #f4f3ff;
+}
+
+.live-status-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.live-status-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.live-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.live-updated-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.live-updated-subline {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.live-updated-time {
+  font-family: "Rajdhani", "Raleway", sans-serif;
+  letter-spacing: 0.1em;
+}
+
+.live-beat {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: radial-gradient(circle, rgba(255, 179, 77, 0.9), transparent 65%);
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.5);
+  animation: heartbeat-idle 1.6s ease-in-out infinite;
+  opacity: 0.75;
+  transition: transform 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+}
+
+.live-beat.is-active {
+  animation: heartbeat-throb 0.8s ease-out;
+  box-shadow: 0 0 10px rgba(255, 179, 77, 0.8), 0 0 18px rgba(192, 129, 255, 0.65);
+  opacity: 1;
+}
+
+@keyframes heartbeat-idle {
+  0% { transform: scale(0.85); }
+  50% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(0.85); }
+}
+
+@keyframes heartbeat-throb {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.85; }
+}
+
 /* Header divider image (legacy linediv.png) */
 .bh-linediv {
   display: flex;
@@ -250,6 +353,46 @@ body {
   margin: 0;
   font-size: 0.7rem;
   color: var(--bh-muted);
+}
+
+.live-ticker {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0.5rem 1.6rem 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(5, 5, 12, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+}
+
+.live-ticker-label {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.65rem;
+}
+
+.live-ticker-track {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+  animation: ticker-scroll 16s linear infinite;
+  will-change: transform;
+}
+
+.live-ticker-item {
+  white-space: nowrap;
+  padding-bottom: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ===== MAIN LAYOUT ===== */
@@ -587,14 +730,49 @@ a.bh-row {
 }
 
 @keyframes bh-row-pulse {
-  0% { opacity: 0.86; filter: brightness(1.00); }
-  100% { opacity: 1; filter: brightness(1.08); }
+  0% {
+    opacity: 0.82;
+    filter: brightness(1);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  70% {
+    opacity: 0.96;
+    filter: brightness(1.08);
+    box-shadow: 0 0 16px rgba(255, 179, 77, 0.35);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1.08);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 
 .bh-row.is-pulsing {
   animation: bh-row-pulse 220ms ease both;
   animation-delay: var(--bh-pulse-delay, 0ms);
   will-change: opacity, filter;
+}
+
+.bh-price-current,
+.bh-change {
+  transition: transform 260ms ease, opacity 260ms ease;
+}
+
+@keyframes number-slide {
+  0% {
+    opacity: 0.2;
+    transform: translateY(6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bh-price-current.is-updating,
+.bh-change.is-updating {
+  animation: number-slide 0.35s ease-out;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
 }
 
 /* ===== Row rail hover (tables only) ===== */
@@ -972,6 +1150,7 @@ a.bh-row {
   display: flex;
   gap: 12px;
   white-space: nowrap;
+  width: max-content; /* CRITICAL: must be wider than viewport to scroll */
   animation: continuous-scroll var(--bh-banner-duration, 320s) linear infinite;
   will-change: transform;
 }
@@ -1022,21 +1201,21 @@ a.bh-row {
 .bh-banner-chip:hover {
   transform: translateZ(0) scale(1.16);
   z-index: 20;
-  filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,0.38));
 }
 
 .bh-banner-item:hover::before,
 .bh-banner-chip:hover::before {
-  opacity: 1;
+  opacity: 0.65;
   transform: scale(1.0);
-  filter: blur(14px);
+  filter: blur(12px);
 }
 
 .bh-banner-item.is-gain::before,
 .bh-banner-chip.is-gain::before {
   background: radial-gradient(circle at 50% 50%,
-    rgba(255,184,77,0.22) 0%,
-    rgba(255,184,77,0.10) 38%,
+    rgba(255,184,77,0.16) 0%,
+    rgba(255,184,77,0.06) 38%,
     transparent 72%
   );
 }
@@ -1044,8 +1223,8 @@ a.bh-row {
 .bh-banner-item.is-loss::before,
 .bh-banner-chip.is-loss::before {
   background: radial-gradient(circle at 50% 50%,
-    rgba(179,140,255,0.22) 0%,
-    rgba(179,140,255,0.10) 38%,
+    rgba(179,140,255,0.16) 0%,
+    rgba(179,140,255,0.06) 38%,
     transparent 72%
   );
 }
@@ -1471,6 +1650,12 @@ a.bh-row {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Exception: Keep banner scrolling even with reduced motion */
+  .bh-banner-track {
+    animation-duration: var(--bh-banner-duration, 520s) !important;
+    animation-iteration-count: infinite !important;
   }
 }
 
@@ -2874,11 +3059,11 @@ a.bh-row {
 .token-row.table-row.is-gain:hover::after {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.00) 0%,
-    rgba(255, 165, 0, 0.00) 20%,
-    rgba(255, 165, 0, 0.28) 50%,
-    rgba(255, 165, 0, 0.00) 80%,
-    rgba(255, 255, 255, 0.00) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 179, 77, 0.02) 20%,
+    rgba(255, 179, 77, 0.35) 50%,
+    rgba(255, 179, 77, 0.02) 80%,
+    rgba(255, 255, 255, 0) 100%
   );
 }
 
@@ -2886,11 +3071,11 @@ a.bh-row {
 .token-row.table-row.is-loss:hover::after {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.00) 0%,
-    rgba(179, 140, 255, 0.00) 20%,
-    rgba(179, 140, 255, 0.30) 50%,
-    rgba(179, 140, 255, 0.00) 80%,
-    rgba(255, 255, 255, 0.00) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(192, 129, 255, 0.02) 20%,
+    rgba(192, 129, 255, 0.45) 50%,
+    rgba(192, 129, 255, 0.02) 80%,
+    rgba(255, 255, 255, 0) 100%
   );
 }
 
@@ -2980,8 +3165,8 @@ a.bh-row {
     brightness(1.5)
     contrast(1.1)
     saturate(1.05)
-    drop-shadow(0 0 8px rgba(245, 176, 46, 0.08))
-    drop-shadow(0 0 16px rgba(160, 100, 255, 0.06));
+    drop-shadow(0 0 12px rgba(255, 179, 77, 0.28))
+    drop-shadow(0 0 26px rgba(192, 129, 255, 0.22));
 }
 
 /* DISABLED - using base layer approach instead */
@@ -3019,6 +3204,7 @@ a.bh-row {
   gap: 14px;
   white-space: nowrap;
   align-items: center;
+  width: max-content; /* CRITICAL: must be wider than viewport to scroll */
   animation-name: continuous-scroll;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
@@ -3141,3 +3327,125 @@ a.bh-row {
   color: rgba(255, 184, 77, 0.95);
   text-shadow: 0 0 18px rgba(255, 184, 77, 0.22);
 }
+
+/* ===== PERMANENT ROW RAILS + STRONGER HOVER GLOW ===== */
+/* Final override: permanent bottom rails, stronger hover, bunny boost */
+
+/* Kill all conflicting ::after opacity rules */
+.bh-row::after {
+  opacity: 0.55 !important; /* Always visible rail */
+}
+
+/* Permanent bottom rail on every row */
+.bh-row {
+  position: relative;
+  overflow: visible !important; /* Prevent rail clipping */
+}
+
+.bh-row::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  
+  /* Subtle, always-on gradient rail */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 140, 0, 0.18),
+    rgba(80, 200, 255, 0.18),
+    rgba(255, 0, 160, 0.18)
+  ) !important;
+  
+  opacity: 0.55 !important; /* Permanent visibility */
+  transform: translateZ(0);
+  pointer-events: none;
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+/* Stronger hover: brighter rail + glow */
+.bh-row:hover::after,
+.bh-row:focus-visible::after {
+  opacity: 0.95 !important;
+  filter: drop-shadow(0 0 6px rgba(255, 180, 0, 0.28))
+          drop-shadow(0 0 10px rgba(180, 80, 255, 0.18)) !important;
+}
+
+/* Subtle row hover sheen (no box fill) */
+.bh-row:hover {
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 180, 0, 0.10),
+    0 8px 26px rgba(120, 60, 255, 0.08) !important;
+}
+
+/* Bunny glow boost when ANY row is hovered */
+.board-core:has(.bh-row:hover) .rabbit-bg,
+.board-core:has(.bh-row:hover) .bh-bunny-layer {
+  opacity: calc(var(--bh-bunny-opacity, 0.08) + 0.10);
+  filter:
+    drop-shadow(0 0 14px rgba(255, 180, 0, 0.20))
+    drop-shadow(0 0 24px rgba(180, 80, 255, 0.14));
+}
+
+/* ===== SUBTLE BANNER PILL GLOW ===== */
+/* Whisper-thin aura on hover that doesn't fog the rabbit */
+
+/* Base: clean, isolated layer */
+.bh-banner-item,
+.bh-banner-chip {
+  position: relative;
+  isolation: isolate; /* keeps glow from bleeding weirdly */
+}
+
+/* Shared glow layer (off by default) */
+.bh-banner-item::after,
+.bh-banner-chip::after {
+  content: "";
+  position: absolute;
+  inset: -8px -10px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity 180ms ease;
+  filter: blur(10px);
+  mix-blend-mode: screen; /* transparent glow */
+}
+
+/* GOLD for gainers */
+.bh-banner-item.is-gain::after,
+.bh-banner-chip.is-gain::after {
+  background: radial-gradient(closest-side, rgba(255, 196, 61, 0.22), rgba(255, 196, 61, 0.0) 70%);
+}
+
+/* PURPLE for losers */
+.bh-banner-item.is-loss::after,
+.bh-banner-chip.is-loss::after {
+  background: radial-gradient(closest-side, rgba(176, 96, 255, 0.20), rgba(176, 96, 255, 0.0) 70%);
+}
+
+/* NEUTRAL for flat */
+.bh-banner-item.is-flat::after,
+.bh-banner-chip.is-flat::after {
+  background: radial-gradient(closest-side, rgba(120, 160, 255, 0.16), rgba(120, 160, 255, 0.0) 70%);
+}
+
+/* Turn it on softly on hover */
+.bh-banner-item:hover::after,
+.bh-banner-chip:hover::after {
+  opacity: 0.85;
+}
+
+/* Optional: extremely faint always-on glow */
+/* Uncomment below if you want barely-there halo at rest */
+/*
+.bh-banner-item::after,
+.bh-banner-chip::after {
+  opacity: 0.18;
+}
+.bh-banner-item:hover::after,
+.bh-banner-chip:hover::after {
+  opacity: 0.65;
+}
+*/

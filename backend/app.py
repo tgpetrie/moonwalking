@@ -537,6 +537,14 @@ try:
 except Exception:
     logging.exception('Skipping blueprint registration during test or mocked environment')
 
+# Register intelligence API blueprint
+try:
+    from intelligence_api import intelligence_bp
+    app.register_blueprint(intelligence_bp)
+    logging.info('✅ Intelligence API blueprint registered')
+except Exception as e:
+    logging.warning(f'Intelligence API blueprint registration skipped: {e}')
+
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
 # want to turn it off). When disabled, ensure `app.jinja_env` exists so any
 # code that expects it won't fail during import/collection.
@@ -1213,6 +1221,99 @@ def get_social_sentiment_endpoint(symbol):
     except Exception as e:
         app.logger.error(f"Error in sentiment endpoint: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/intelligence-report/<symbol>')
+def api_intelligence_report(symbol):
+    """
+    Returns Hybrid Intelligence Report for Divergence Detection.
+
+    Combines:
+    - FinBERT local inference (institutional sentiment)
+    - Fear & Greed Index (retail sentiment)
+    - Social volume metrics
+    - Gemini-generated narrative explaining divergence
+    """
+    try:
+        from sentiment_data_sources import fetch_fear_and_greed_index, fetch_coingecko_social, COINGECKO_ID_MAP
+        from sentiment_aggregator import fetch_reddit_count
+
+        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
+
+        # Get current price from Coinbase
+        try:
+            price_resp = requests.get(f"https://api.coinbase.com/v2/prices/{clean_symbol}-USD/spot", timeout=3)
+            price_data = price_resp.json()
+            current_price = float(price_data['data']['amount']) if price_data.get('data') else None
+        except Exception:
+            current_price = None
+
+        # Fetch RSS headlines for FinBERT analysis (mock for now, replace with real RSS)
+        mock_headlines = [
+            f"{clean_symbol} institutional adoption accelerates as major funds enter",
+            f"Regulatory clarity improves for {clean_symbol} trading infrastructure",
+            f"{clean_symbol} network activity reaches new highs amid market uncertainty",
+        ]
+
+        # Score headlines with FinBERT (local M3/N100 inference)
+        finbert_result = ai_engine.score_headlines_local(mock_headlines)
+
+        # Fetch Fear & Greed Index (retail sentiment)
+        fg_data = fetch_fear_and_greed_index()
+        fear_greed_value = fg_data['value'] if fg_data else 50
+
+        # Fetch social volume (Reddit mentions)
+        try:
+            reddit_count = fetch_reddit_count(clean_symbol) if 'fetch_reddit_count' in dir() else 0
+        except Exception:
+            reddit_count = 0
+
+        # Bundle metrics for Gemini prompt
+        metrics_bundle = {
+            'finbert_score': finbert_result['score'],
+            'finbert_label': finbert_result['label'],
+            'fear_greed': fear_greed_value,
+            'social_volume': reddit_count,
+            'confidence': finbert_result['confidence']
+        }
+
+        # Generate divergence narrative with Gemini
+        divergence_prompt = f"""
+ROLE: Senior Crypto Market Analyst
+ASSET: {clean_symbol} at ${current_price or 'N/A'}
+
+INPUT DATA:
+- Institutional News (FinBERT Local Score): {metrics_bundle['finbert_score']:.2f} (Range -1 to 1)
+- Retail Heat (Reddit/RSS Count): {metrics_bundle['social_volume']} mentions
+- Market Context (Fear & Greed Index): {metrics_bundle['fear_greed']} (0-100)
+- Key Headlines: {mock_headlines[:3]}
+
+TASK:
+Analyze the relationship between these data points. Specifically, identify any DIVERGENCE
+(e.g., news is Bullish but the Fear & Greed index is Low).
+
+OUTPUT FORMAT:
+One concise sentence (max 25 words). Start with the primary driver. Be decisive.
+"""
+
+        narrative = ai_engine.generate_narrative(clean_symbol, [divergence_prompt], current_price or 0)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "symbol": clean_symbol,
+                "metrics": metrics_bundle,
+                "narrative": narrative,
+                "raw_context": {
+                    "top_headlines": mock_headlines,
+                    "price": current_price
+                }
+            }
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error in intelligence-report endpoint: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/api/metrics')
 def api_metrics():
