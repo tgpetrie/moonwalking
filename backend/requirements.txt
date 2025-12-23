@@ -5,6 +5,7 @@ flask-socketio==5.3.6
 
 # HTTP requests and data handling
 requests==2.32.2
+aiohttp==3.8.5
 
 # Testing
 pytest==8.3.5
@@ -30,3 +31,10 @@ flask-talisman==1.1.0
 # Technical analysis dependencies
 numpy
 pandas
+
+
+# Sentiment + feeds + reddit
+feedparser==6.0.10
+praw==7.7.1
+vaderSentiment==3.3.2
+PyYAML==6.0.2

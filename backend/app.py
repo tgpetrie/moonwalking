@@ -18,6 +18,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from datetime import datetime, timedelta, timezone
+import asyncio
 
 from watchlist import watchlist_bp, watchlist_db
 try:
@@ -1152,6 +1153,34 @@ def api_sentiment_basic():
             "btc_funding": {"rate_percentage": 0.0},
             "timestamp": datetime.utcnow().isoformat() + "Z",
         })
+
+from sentiment_aggregator_unified import get_sentiment_for_symbol
+
+@app.route('/api/sentiment/latest')
+def api_sentiment_latest():
+    """Returning rich, coin-specific sentiment (uses enhanced aggregator)."""
+    symbol = request.args.get('symbol', "BTC").upper()
+
+    try:
+        data = get_sentiment_for_symbol(symbol)
+        return jsonify(data)
+    except Exception as exc:
+        print(f"[Sentiment API] Error: {exc}")
+        import random, hashlib
+        seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
+        fallback = {
+            'symbol': symbol,
+            'overall_sentiment': (50 + seed) / 100,
+            'fear_greed_index': 50 + seed,
+            'total_sources': 0,
+            'sources': [],
+            'sentiment_history': [],
+            'social_breakdown': {'reddit': 0.5, 'twitter': 0.5, 'telegram': 0.5, 'news': 0.5},
+            'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
+            'timestamp': datetime.utcnow().isoformat() + "Z",
+            'error': str(exc),
+        }
+        return jsonify(fallback)
 
 @app.route('/api/signals/pumpdump')
 def api_signals_pumpdump():
