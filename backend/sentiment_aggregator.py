@@ -134,6 +134,57 @@ _CIRCUIT_BREAKER = CircuitBreaker()
 
 
 # ----------------------------
+# Sentiment History Storage
+# ----------------------------
+
+class SentimentHistory:
+    """Store sentiment history snapshots for trending analysis."""
+
+    def __init__(self, max_snapshots: int = 100):
+        self.max_snapshots = max_snapshots
+        self._history: Dict[str, List[Dict[str, Any]]] = {}
+        self._lock = threading.Lock()
+
+    def add_snapshot(self, symbol: str, score: float, fear_greed: Optional[int] = None) -> None:
+        """Add a sentiment snapshot for a symbol."""
+        with self._lock:
+            if symbol not in self._history:
+                self._history[symbol] = []
+
+            snapshot = {
+                "timestamp": int(time.time()),
+                "score": float(score),
+                "fear_greed": fear_greed
+            }
+
+            self._history[symbol].append(snapshot)
+
+            # Keep only recent snapshots (circular buffer)
+            if len(self._history[symbol]) > self.max_snapshots:
+                self._history[symbol] = self._history[symbol][-self.max_snapshots:]
+
+            logger.debug(f"Added sentiment snapshot for {symbol}: score={score:.3f}")
+
+    def get_history(self, symbol: str, hours: int = 24) -> List[Dict[str, Any]]:
+        """Get sentiment history for the last N hours."""
+        with self._lock:
+            if symbol not in self._history:
+                return []
+
+            cutoff = time.time() - (hours * 3600)
+            recent = [
+                s for s in self._history[symbol]
+                if s["timestamp"] >= cutoff
+            ]
+
+            logger.debug(f"Retrieved {len(recent)} history snapshots for {symbol} (last {hours}h)")
+            return recent
+
+
+_SENTIMENT_HISTORY = SentimentHistory()
+
+
+# ----------------------------
 # TTL cache (in-process)
 # ----------------------------
 
@@ -306,6 +357,73 @@ def vader_score_0_1(text: str) -> float:
     c = float(vs.get("compound", 0.0))
     c = max(-1.0, min(1.0, c))
     return (c + 1.0) / 2.0
+
+
+# ----------------------------
+# Trending Topics Extraction
+# ----------------------------
+
+def extract_trending_topics(rss_data: Dict[str, Any], reddit_data: Dict[str, Any], max_topics: int = 10) -> List[Dict[str, Any]]:
+    """Extract trending crypto topics from RSS and Reddit content."""
+    from collections import Counter
+    import re
+
+    # Crypto-related keywords to look for
+    crypto_keywords = {
+        "bitcoin", "btc", "ethereum", "eth", "crypto", "blockchain",
+        "defi", "nft", "web3", "metaverse", "dao", "mining",
+        "staking", "yield", "token", "coin", "altcoin", "memecoin",
+        "binance", "bnb", "solana", "sol", "cardano", "ada",
+        "ripple", "xrp", "dogecoin", "doge", "shiba", "polygon",
+        "matic", "avalanche", "avax", "polkadot", "dot",
+        "etf", "sec", "regulation", "halving", "bullish", "bearish",
+        "pump", "dump", "moon", "hodl", "fud", "fomo"
+    }
+
+    stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "is", "was", "are", "be", "been", "being"}
+
+    topic_counter = Counter()
+    topic_sentiment: Dict[str, List[float]] = {}
+
+    # Extract from RSS feeds
+    if rss_data.get("enabled") and rss_data.get("feeds"):
+        for feed in rss_data.get("feeds", []):
+            for item in feed.get("entries", []):
+                title = str(item.get("title", "")).lower()
+                words = re.findall(r'\b\w+\b', title)
+                for word in words:
+                    if word in crypto_keywords and word not in stopwords:
+                        topic_counter[word] += 1
+                        if word not in topic_sentiment:
+                            topic_sentiment[word] = []
+                        # Score the full title for context
+                        topic_sentiment[word].append(vader_score_0_1(title))
+
+    # Extract from Reddit
+    if reddit_data.get("enabled") and reddit_data.get("subreddits"):
+        for subreddit in reddit_data.get("subreddits", []):
+            for post in subreddit.get("posts", []):
+                title = str(post.get("title", "")).lower()
+                words = re.findall(r'\b\w+\b', title)
+                for word in words:
+                    if word in crypto_keywords and word not in stopwords:
+                        topic_counter[word] += 1
+                        if word not in topic_sentiment:
+                            topic_sentiment[word] = []
+                        topic_sentiment[word].append(vader_score_0_1(title))
+
+    # Build trending topics list
+    trending = []
+    for topic, mentions in topic_counter.most_common(max_topics):
+        avg_sentiment = sum(topic_sentiment[topic]) / len(topic_sentiment[topic]) if topic_sentiment.get(topic) else 0.5
+        trending.append({
+            "topic": topic.capitalize(),
+            "mentions": mentions,
+            "sentiment": round(avg_sentiment, 3)
+        })
+
+    logger.debug(f"Extracted {len(trending)} trending topics (from {len(topic_counter)} unique keywords)")
+    return trending
 
 
 # ----------------------------
@@ -895,6 +1013,27 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     overall = _weighted_overall(tier_scores, tier_weights)
     divergence = _divergence_alerts(tier_scores, divergence_threshold)
 
+    # Extract trending topics from RSS and Reddit
+    trending_topics = extract_trending_topics(
+        rss if rss_cfg.get("enabled", False) else {},
+        rg if rg_cfg.get("enabled", False) else {}
+    )
+
+    # Populate social_breakdown with actual values
+    social_breakdown = {
+        "reddit": rg_score if rg_cfg.get("enabled", False) and _isfinite(rg_score) else None,
+        "twitter": None,  # TODO: Phase 2 - Twitter integration
+        "telegram": None,  # Future: Telegram integration
+        "news": rss_score if rss_cfg.get("enabled", False) and _isfinite(rss_score) else None,
+    }
+
+    # Get sentiment history for this symbol
+    sentiment_history = _SENTIMENT_HISTORY.get_history(sym, hours=24)
+
+    # Store current sentiment snapshot in history
+    if overall is not None:
+        _SENTIMENT_HISTORY.add_snapshot(sym, overall, fear_greed=idx)
+
     out: Dict[str, Any] = {
         "symbol": sym,
         "timestamp": int(time.time()),
@@ -914,9 +1053,9 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         "divergence_alerts": divergence,
         "coin_metrics": cg_metrics or {},
         "social_metrics": {"reddit_mentions": reddit_mentions},
-        "social_breakdown": {"reddit": None, "twitter": None, "telegram": None, "news": None},
-        "trending_topics": [],
-        "sentiment_history": [],
+        "social_breakdown": social_breakdown,
+        "trending_topics": trending_topics,
+        "sentiment_history": sentiment_history,
         "metadata": {
             "cache_hit": False,
             "processing_time_ms": int((time.time() - t0) * 1000),
