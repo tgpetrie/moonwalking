@@ -1154,7 +1154,7 @@ def api_sentiment_basic():
             "timestamp": datetime.utcnow().isoformat() + "Z",
         })
 
-from sentiment_aggregator_unified import get_sentiment_for_symbol
+from sentiment_aggregator import get_sentiment_for_symbol
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
