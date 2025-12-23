@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import math
 import os
 import threading
@@ -32,6 +33,25 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 # ----------------------------
+# Logging Configuration
+# ----------------------------
+
+# Configure structured logging for sentiment aggregator
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logger = logging.getLogger(__name__)
+
+# Set logging level from environment variable if provided
+_log_level = os.getenv('SENTIMENT_LOG_LEVEL', 'INFO').upper()
+if _log_level in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+    logger.setLevel(getattr(logging, _log_level))
+
+
+# ----------------------------
 # TTL cache (in-process)
 # ----------------------------
 
@@ -50,15 +70,19 @@ class TTLCache:
         with self._lock:
             ent = self._data.get(key)
             if not ent:
+                logger.debug(f"Cache miss: {key}")
                 return None
             if time.time() >= ent.expires_at:
+                logger.debug(f"Cache expired: {key}")
                 self._data.pop(key, None)
                 return None
+            logger.debug(f"Cache hit: {key}")
             return ent.value
 
     def set(self, key: str, value: Any, ttl: int) -> None:
         with self._lock:
             self._data[key] = CacheEntry(value=value, expires_at=time.time() + ttl)
+            logger.debug(f"Cache set: {key} (TTL={ttl}s)")
 
 
 _RESULT_CACHE = TTLCache()
@@ -87,10 +111,14 @@ def load_config() -> Dict[str, Any]:
     for p in candidates:
         if os.path.exists(p):
             try:
-                return _read_yaml(p)
-            except Exception:
+                config = _read_yaml(p)
+                logger.info(f"Loaded sentiment config from: {p}")
+                return config
+            except Exception as e:
+                logger.warning(f"Failed to load config from {p}: {e}")
                 continue
 
+    logger.info("Using default sentiment configuration (no config file found)")
     return {
         "sentiment": {
             "cache_ttl_seconds": 300,
@@ -181,10 +209,12 @@ if isinstance(_LEX, dict) and _LEX:
             fv = float(v)
             if _isfinite(fv):
                 lex_update[str(k).lower()] = fv
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Skipping invalid lexicon entry {k}={v}: {e}")
             continue
     if lex_update:
         _ANALYZER.lexicon.update(lex_update)
+        logger.info(f"Updated VADER lexicon with {len(lex_update)} crypto-specific terms")
 
 
 def vader_score_0_1(text: str) -> float:
@@ -343,15 +373,22 @@ async def fetch_fear_greed() -> Tuple[Optional[int], Optional[str], Dict[str, An
 
     url = "https://api.alternative.me/fng/?limit=1&format=json"
     try:
+        logger.debug("Fetching Fear & Greed Index from alternative.me")
+        start_time = time.time()
         data = await fetch_json(url, timeout_s=8)
+        elapsed = (time.time() - start_time) * 1000
+
         v = (data.get("data") or [{}])[0] or {}
         idx = int(v.get("value"))
         label = str(v.get("value_classification", "")).strip() or None
         meta = {"source": "alternative.me", "raw": v}
         result = (idx, label, meta)
         _SOURCE_CACHE.set(cache_key, result, FG_TTL)
+
+        logger.info(f"Fear & Greed Index: {idx} ({label}) [fetched in {elapsed:.0f}ms]")
         return result
     except Exception as e:
+        logger.error(f"Failed to fetch Fear & Greed Index: {e}")
         result = (None, None, {"error": str(e)})
         _SOURCE_CACHE.set(cache_key, result, FG_TTL)
         return result
@@ -365,6 +402,7 @@ async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
         return cached
 
     if not cid:
+        logger.warning(f"Unknown CoinGecko ID for symbol: {sym}")
         result = {"enabled": False, "reason": "unknown_coingecko_id"}
         _SOURCE_CACHE.set(cache_key, result, CG_TTL)
         return result
@@ -374,7 +412,10 @@ async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
         "?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true&sparkline=false"
     )
     try:
+        logger.debug(f"Fetching CoinGecko metrics for {sym} (id={cid})")
+        start_time = time.time()
         j = await fetch_json(url, timeout_s=10)
+        elapsed = (time.time() - start_time) * 1000
         md = j.get("market_data", {}) or {}
         cd = j.get("community_data", {}) or {}
         dd = j.get("developer_data", {}) or {}
@@ -410,8 +451,10 @@ async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
             },
         }
         _SOURCE_CACHE.set(cache_key, result, CG_TTL)
+        logger.info(f"CoinGecko {sym}: score={score:.3f}, price_24h={ch24:.2f}% [fetched in {elapsed:.0f}ms]")
         return result
     except Exception as e:
+        logger.error(f"Failed to fetch CoinGecko metrics for {sym} (id={cid}): {e}")
         result = {"enabled": True, "error": str(e), "coingecko_id": cid}
         _SOURCE_CACHE.set(cache_key, result, CG_TTL)
         return result
@@ -419,6 +462,7 @@ async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
 
 def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str, Any]:
     if feedparser is None:
+        logger.warning("RSS feeds disabled: feedparser not installed")
         return {"enabled": False, "reason": "feedparser_not_installed"}
 
     cache_key = _hash_key("rss", json.dumps(feeds, sort_keys=True))
@@ -426,6 +470,7 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
     if cached is not None:
         return cached
 
+    logger.debug(f"Fetching {len(feeds or [])} RSS feeds (max_items={max_items})")
     results: List[Dict[str, Any]] = []
     weighted_samples: List[float] = []
     total_items = 0
@@ -456,7 +501,9 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
                 total_items += len(local_scores)
             else:
                 results.append({"name": name, "url": url, "items": 0, "weight": weight})
+                logger.debug(f"RSS feed {name} returned no items")
         except Exception as e:
+            logger.error(f"Failed to fetch RSS feed {name} ({url}): {e}")
             results.append({"name": name, "url": url, "error": str(e), "weight": weight})
 
     if not weighted_samples:
@@ -464,13 +511,15 @@ def fetch_rss_sentiment(feeds: List[Dict[str, Any]], max_items: int) -> Dict[str
         _SOURCE_CACHE.set(cache_key, result, RSS_TTL)
         return result
 
+    avg_score = float(sum(weighted_samples) / len(weighted_samples))
     result = {
         "enabled": True,
-        "score_0_1": float(sum(weighted_samples) / len(weighted_samples)),
+        "score_0_1": avg_score,
         "feeds": results,
         "items": total_items,
     }
     _SOURCE_CACHE.set(cache_key, result, RSS_TTL)
+    logger.info(f"RSS sentiment: score={avg_score:.3f}, feeds={len(results)}, items={total_items}")
     return result
 
 
@@ -611,6 +660,12 @@ def _divergence_alerts(tier_scores: Dict[str, Optional[float]], threshold: float
         return []
     sev = "medium" if abs(diff) < float(threshold) * 2 else "high"
     direction = "more_bullish" if diff > 0 else "more_bearish"
+
+    logger.warning(
+        f"Divergence alert: Tier1={t1:.3f} vs Tier3={t3:.3f}, "
+        f"diff={abs(diff):.3f} ({direction}, severity={sev})"
+    )
+
     return [{
         "type": "tier_divergence",
         "severity": sev,
@@ -645,6 +700,7 @@ def _source_record(name: str, tier: str, weight: float, score_0_1: Optional[floa
 
 async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     sym = normalize_symbol(symbol)
+    logger.info(f"Computing sentiment for {symbol} (normalized: {sym})")
 
     ttl = RESULT_TTL
     max_rss = int(_cfg("sentiment.max_rss_items", 25) or 25)
@@ -656,9 +712,11 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     cache_key = _hash_key("sentiment", sym, cfg_hash)
     cached = _RESULT_CACHE.get(cache_key)
     if cached is not None:
+        logger.debug(f"Returning cached sentiment for {sym}")
         cached["metadata"]["cache_hit"] = True
         return cached
 
+    logger.debug(f"Cache miss for {sym}, fetching from sources")
     sources_cfg = _cfg("sources", {}) or {}
     bucket = _tier_bucket()
     sources: List[Dict[str, Any]] = []
@@ -787,6 +845,19 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     }
 
     _RESULT_CACHE.set(cache_key, out, ttl)
+
+    # Log summary
+    elapsed_ms = out["metadata"]["processing_time_ms"]
+    sources_ok = out["metadata"]["sources_successful"]
+    total_sources = out["metadata"]["sources_queried"]
+    overall_score = out["overall_sentiment"]
+
+    logger.info(
+        f"Sentiment computed for {sym}: score={overall_score:.3f}, "
+        f"sources={sources_ok}/{total_sources}, elapsed={elapsed_ms}ms, "
+        f"tier_scores={tier_scores}"
+    )
+
     return out
 
 
@@ -819,6 +890,7 @@ def get_sentiment_for_symbol(symbol: str) -> Dict[str, Any]:
     If called from an async context, it will still leverage the same background
     loop to keep behavior consistent.
     """
+    logger.debug(f"get_sentiment_for_symbol called with symbol={symbol}")
     _ensure_bg_loop()
     fut = asyncio.run_coroutine_threadsafe(_compute_sentiment_async(symbol), _BG_LOOP)
     return fut.result()
