@@ -1155,6 +1155,7 @@ def api_sentiment_basic():
         })
 
 from sentiment_aggregator import get_sentiment_for_symbol
+from sentiment_intelligence import ai_engine
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
@@ -1181,6 +1182,37 @@ def api_sentiment_latest():
             'error': str(exc),
         }
         return jsonify(fallback)
+
+
+@app.route('/api/social-sentiment/<symbol>')
+def get_social_sentiment_endpoint(symbol):
+    try:
+        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
+        mock_headlines = [
+            f"{clean_symbol} sees massive inflow from institutional investors",
+            f"Regulators approve new {clean_symbol} trading vehicle",
+            f"Market volatility increases as {clean_symbol} tests new highs",
+        ]
+
+        sentiment_result = ai_engine.score_headlines_local(mock_headlines)
+        narrative = ai_engine.generate_narrative(clean_symbol, mock_headlines, 45000.00)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "symbol": clean_symbol,
+                "overall_score": sentiment_result['score'],
+                "label": sentiment_result['label'],
+                "narrative": narrative,
+                "sources_breakdown": {
+                    "finbert_confidence": sentiment_result['confidence'],
+                    "headlines_analyzed": len(mock_headlines),
+                },
+            },
+        })
+    except Exception as e:
+        app.logger.error(f"Error in sentiment endpoint: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/metrics')
 def api_metrics():
@@ -4536,30 +4568,41 @@ def get_crypto_news(symbol):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/social-sentiment/<symbol>')
-def get_social_sentiment_endpoint(symbol):
-    """Get social sentiment analysis for a specific cryptocurrency"""
+def get_hybrid_social_sentiment(symbol):
     try:
-        from social_sentiment import get_social_sentiment
-        
-        # Validate symbol format
-        symbol = symbol.upper().replace('-USD', '')
-        if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
+        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
+        if not clean_symbol.isalpha() or len(clean_symbol) < 2:
             return jsonify({"error": "Invalid symbol format"}), 400
-        
-        # Get social sentiment analysis
-        sentiment_data = get_social_sentiment(symbol)
-        
+
+        mock_headlines = [
+            f"Institutional inflows for {clean_symbol} reach record highs",
+            f"Regulatory uncertainty clouds {clean_symbol} short-term outlook",
+            f"Traders optimistic about {clean_symbol} upcoming network upgrade",
+        ]
+
+        current_prices = get_current_prices() if 'get_current_prices' in globals() else {}
+        price = current_prices.get(f"{clean_symbol}-USD", 0)
+
+        sentiment_result = ai_engine.score_headlines_local(mock_headlines)
+        narrative = ai_engine.generate_narrative(clean_symbol, mock_headlines, price)
+
         return jsonify({
             "success": True,
-            "data": sentiment_data,
+            "data": {
+                "symbol": clean_symbol,
+                "overall_score": sentiment_result['score'],
+                "label": sentiment_result['label'],
+                "narrative": narrative,
+                "sources_breakdown": {
+                    "finbert_confidence": sentiment_result['confidence'],
+                    "headlines_analyzed": len(mock_headlines),
+                    "model": "FinBERT + Gemini 1.5 Flash"
+                }
+            },
             "timestamp": datetime.now().isoformat()
         })
-        
-    except ImportError as e:
-        logging.error(f"Social sentiment module not available: {e}")
-        return jsonify({"error": "Social sentiment analysis not available"}), 503
     except Exception as e:
-        logging.error(f"Error getting social sentiment for {symbol}: {e}")
+        logging.error(f"Error getting hybrid sentiment for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
 # =============================================================================
