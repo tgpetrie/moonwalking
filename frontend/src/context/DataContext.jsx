@@ -4,6 +4,20 @@ import { fetchAllData } from "../api";
 const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
 
+const LS_KEY = "bh_last_payload_v1";
+const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3000);
+
+const readCachedPayload = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 // Environment-driven cadence knobs (defaults optimized for N100)
 const FETCH_MS = Number(import.meta.env.VITE_FETCH_MS || 8000);
 const PUBLISH_3M_MS = Number(import.meta.env.VITE_PUBLISH_3M_MS || 30000);
@@ -40,22 +54,36 @@ function normalizeApiData(payload) {
 }
 
 export function DataProvider({ children }) {
+  const cachedNormalized = useMemo(() => {
+    const cached = readCachedPayload();
+    return cached ? normalizeApiData(cached) : null;
+  }, []);
+
   // "Published" slices that drive the UI at different cadences
-  const [oneMinRows, setOneMinRows] = useState([]);
-  const [threeMin, setThreeMin] = useState({ gainers: [], losers: [] });
-  const [banners, setBanners] = useState({ price: [], volume: [] });
-  const [latestBySymbol, setLatestBySymbol] = useState({});
+  const [oneMinRows, setOneMinRows] = useState(() => cachedNormalized?.gainers_1m ?? []);
+  const [threeMin, setThreeMin] = useState(() => ({
+    gainers: cachedNormalized?.gainers_3m ?? [],
+    losers: cachedNormalized?.losers_3m ?? [],
+  }));
+  const [banners, setBanners] = useState(() => ({
+    price: cachedNormalized?.banner_1h_price ?? [],
+    volume: cachedNormalized?.banner_1h_volume ?? [],
+  }));
+  const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
 
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedNormalized);
   const [lastFetchTs, setLastFetchTs] = useState(null);
   const [heartbeatPulse, setHeartbeatPulse] = useState(false);
+  const [warming, setWarming] = useState(() => !cachedNormalized);
 
   // Timing refs for gated publishing
   const last3mPublishRef = useRef(0);
   const lastBannerPublishRef = useRef(0);
-  const latestNormalizedRef = useRef(null);
+  const latestNormalizedRef = useRef(cachedNormalized);
   const abortRef = useRef(null);
+  const fastAbortRef = useRef(null);
+  const fastInFlightRef = useRef(false);
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
 
@@ -97,6 +125,9 @@ export function DataProvider({ children }) {
 
   const fetchData = useCallback(async () => {
     try {
+      if (!latestNormalizedRef.current) {
+        setWarming(true);
+      }
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
@@ -104,13 +135,47 @@ export function DataProvider({ children }) {
       const norm = normalizeApiData(json);
       const now = Date.now();
 
-      latestNormalizedRef.current = norm;
-      setLatestBySymbol(norm.latest_by_symbol || {});
+      const hasAny =
+        (Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
+        (Array.isArray(norm.gainers_3m) && norm.gainers_3m.length) ||
+        (Array.isArray(norm.losers_3m) && norm.losers_3m.length) ||
+        (Array.isArray(norm.banner_1h_price) && norm.banner_1h_price.length) ||
+        (Array.isArray(norm.banner_1h_volume) && norm.banner_1h_volume.length);
+
+      const cached = latestNormalizedRef.current;
+      const cacheHasAny =
+        cached &&
+        ((Array.isArray(cached.gainers_1m) && cached.gainers_1m.length) ||
+          (Array.isArray(cached.gainers_3m) && cached.gainers_3m.length) ||
+          (Array.isArray(cached.losers_3m) && cached.losers_3m.length) ||
+          (Array.isArray(cached.banner_1h_price) && cached.banner_1h_price.length) ||
+          (Array.isArray(cached.banner_1h_volume) && cached.banner_1h_volume.length));
+
       setError(null);
       setLoading(false);
 
-      // 1m: every fetch, but stagger the row commits for "live feel"
-      staggerCommit1m(norm.gainers_1m);
+      if (!hasAny && cacheHasAny) {
+        setWarming(true);
+      } else {
+        latestNormalizedRef.current = norm;
+        setLatestBySymbol(norm.latest_by_symbol || {});
+        setWarming(!hasAny);
+
+        // 1m: every fetch, but stagger the row commits for "live feel"
+        staggerCommit1m(norm.gainers_1m);
+
+        // 3m: publish every PUBLISH_3M_MS (default 30s)
+        if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
+          last3mPublishRef.current = now;
+          setThreeMin({ gainers: norm.gainers_3m, losers: norm.losers_3m });
+        }
+
+        // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
+        if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
+          lastBannerPublishRef.current = now;
+          setBanners({ price: norm.banner_1h_price, volume: norm.banner_1h_volume });
+        }
+      }
 
       setLastFetchTs(now);
       setHeartbeatPulse(true);
@@ -120,25 +185,52 @@ export function DataProvider({ children }) {
       heartbeatTimerRef.current = setTimeout(() => {
         setHeartbeatPulse(false);
       }, 420);
-
-      // 3m: publish every PUBLISH_3M_MS (default 30s)
-      if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
-        last3mPublishRef.current = now;
-        setThreeMin({ gainers: norm.gainers_3m, losers: norm.losers_3m });
-      }
-
-      // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
-      if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
-        lastBannerPublishRef.current = now;
-        setBanners({ price: norm.banner_1h_price, volume: norm.banner_1h_volume });
-      }
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.warn('[DataContext] Fetch failed:', e.message);
       setError(e);
       setLoading(false);
+      if (!latestNormalizedRef.current) {
+        setWarming(true);
+      }
     }
   }, [staggerCommit1m]);
+
+  const applyFast1m = useCallback((norm, now) => {
+    const has1m = Array.isArray(norm?.gainers_1m) && norm.gainers_1m.length > 0;
+    if (!has1m) {
+      return;
+    }
+
+    latestNormalizedRef.current = norm;
+    setLatestBySymbol(norm.latest_by_symbol || {});
+    setWarming(false);
+    staggerCommit1m(norm.gainers_1m);
+
+    setLastFetchTs(now);
+    setHeartbeatPulse(true);
+    if (heartbeatTimerRef.current) {
+      clearTimeout(heartbeatTimerRef.current);
+    }
+    heartbeatTimerRef.current = setTimeout(() => {
+      setHeartbeatPulse(false);
+    }, 420);
+  }, [staggerCommit1m]);
+
+  const fetchFast1m = useCallback(async () => {
+    if (!FAST_1M_MS || FAST_1M_MS <= 0) return;
+    if (fastInFlightRef.current) return;
+    fastInFlightRef.current = true;
+    try {
+      const json = await fetchAllData();
+      const norm = normalizeApiData(json);
+      applyFast1m(norm, Date.now());
+    } catch {
+      // fast loop is best-effort; do not surface errors
+    } finally {
+      fastInFlightRef.current = false;
+    }
+  }, [applyFast1m]);
 
   useEffect(() => {
     let mounted = true;
@@ -166,6 +258,17 @@ export function DataProvider({ children }) {
     };
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
+    fetchFast1m();
+    const id = setInterval(fetchFast1m, FAST_1M_MS);
+    return () => {
+      clearInterval(id);
+      if (fastAbortRef.current) fastAbortRef.current.abort();
+      fastInFlightRef.current = false;
+    };
+  }, [fetchFast1m]);
+
   // Legacy compatibility: combine all published slices
   const combinedData = useMemo(() => ({
     gainers_1m: oneMinRows,
@@ -190,7 +293,8 @@ export function DataProvider({ children }) {
     refetch: fetchData,
     heartbeatPulse,
     lastFetchTs,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs]);
+    warming,
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

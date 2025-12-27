@@ -58,10 +58,9 @@ body {
   }
   100% { 
     opacity: 1;                                                          
-    transform: t   ranslate    Y(0); rrfg                                                                                                    evcd
+    transform: translateY(0); 
   }
 }
-                               y
 @keyframes breathing {
   0%, 100% { 
     transform: scale(1);                                                         eee                                     bt
@@ -567,4 +566,266 @@ tr.table-row.is-flat::after,
     rgba(68, 68, 68, 0) 100%
   );
   opacity: 0.12;
+}
+
+/* ---------------------------
+   ANOMALY STREAM (BHABIT)
+   --------------------------- */
+
+.anomaly-shell {
+  border: 1px solid rgba(16, 174, 155, 0.10);
+  box-shadow: none;
+}
+
+.anomaly-shell:hover {
+  border-color: rgba(16, 174, 155, 0.16);
+}
+
+.anomaly-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(16, 174, 155, 0.06);
+  border-bottom: 1px solid rgba(16, 174, 155, 0.10);
+}
+
+.anomaly-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(16, 174, 155, 0.95);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.anomaly-live {
+  color: rgba(255, 198, 64, 0.95);
+  text-shadow: 0 0 10px rgba(255, 198, 64, 0.35);
+}
+
+.anomaly-standby {
+  color: rgba(16, 174, 155, 0.55);
+}
+
+.anomaly-updated {
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: rgba(245, 248, 255, 0.40);
+}
+
+.anomaly-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.anomaly-ver {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(16, 174, 155, 0.55);
+}
+
+.anomaly-toggle {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(16, 174, 155, 0.85);
+}
+
+.anomaly-console {
+  height: calc(170px - 38px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: opacity 180ms ease;
+}
+
+.anomaly-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+.anomaly-time {
+  color: rgba(245, 248, 255, 0.35);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.anomaly-msg {
+  text-transform: uppercase;
+}
+
+.anomaly-sys {
+  color: rgba(16, 174, 155, 0.92);
+}
+
+.anomaly-sysdim {
+  color: rgba(16, 174, 155, 0.55);
+}
+
+.anomaly-gold {
+  color: rgba(255, 198, 64, 0.95);
+}
+
+.anomaly-purple {
+  color: rgba(168, 88, 255, 0.95);
+}
+
+.anomaly-cyan {
+  color: rgba(34, 211, 238, 0.95);
+}
+
+.anomaly-cursor {
+  color: rgba(16, 174, 155, 0.90);
+  font-weight: 800;
+  text-shadow: 0 0 12px rgba(16, 174, 155, 0.35);
+}
+
+/* Gold Glow (Velocity) */
+.drop-shadow-gold { text-shadow: 0 0 12px rgba(255, 198, 64, 0.55); }
+
+/* Purple Glow (Dump) */
+.drop-shadow-purple { text-shadow: 0 0 12px rgba(168, 88, 255, 0.55); }
+
+/* Cyan Glow (Volume) */
+.drop-shadow-cyan { text-shadow: 0 0 12px rgba(34, 211, 238, 0.55); }
+
+/* CRT Screen Background - subtle texture */
+.crt-screen {
+  background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+  background-image: linear-gradient(rgba(16, 174, 155, 0.025) 50%, rgba(0, 0, 0, 0.10) 50%);
+  background-size: 100% 3px;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.85);
+}
+
+/* Hide Scrollbar */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ---------------------------
+   PERMANENT GRID & HIERARCHY
+   --------------------------- */
+
+:root {
+  --bh-cols: 38px 1.4fr 110px 120px 34px 34px;
+  --bh-white: rgba(245, 246, 250, 0.92);
+  --bh-white-dim: rgba(245, 246, 250, 0.62);
+  --bh-gold: rgba(255, 196, 61, 0.34);
+  --bh-purple: rgba(176, 96, 255, 0.32);
+  --bh-rail-dim: rgba(245, 246, 250, 0.10);
+  --bh-rail-hot: rgba(255, 196, 61, 0.18);
+  --bh-rail-cool: rgba(176, 96, 255, 0.18);
+}
+
+/* Canonical row grid everywhere */
+.bh-row-grid {
+  display: grid;
+  grid-template-columns: var(--bh-cols);
+  column-gap: 12px;
+  align-items: stretch;
+}
+
+/* Force cell columns (prevents any panel-specific drift) */
+.bh-cell-rank { grid-column: 1; }
+.bh-cell-token { grid-column: 2; }
+.bh-cell-pct { grid-column: 3; }
+.bh-cell-prices { grid-column: 4; }
+.bh-cell-star { grid-column: 5; }
+.bh-cell-info { grid-column: 6; }
+
+/* The critical part: pct centered vertically relative to the stacked prices */
+.bh-cell-pct {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.bh-cell-prices {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  line-height: 1.05;
+  gap: 4px;
+}
+
+/* Hierarchy: percent > current price > previous price */
+.bh-pct {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.bh-price-current {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--bh-mint);
+}
+
+.bh-price-prev {
+  font-size: 11px;
+  font-weight: 520;
+  color: var(--bh-white-dim);
+}
+
+/* Token text pearly white */
+.bh-symbol,
+.bh-name {
+  color: var(--bh-white);
+}
+
+/* Permanent bottom rail (always visible, not hover-only) */
+.bh-row {
+  position: relative;
+  isolation: isolate;
+}
+
+.bh-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  opacity: 0.65;
+  background: linear-gradient(
+    90deg,
+    rgba(16, 174, 155, 0.12),
+    var(--bh-rail-dim),
+    rgba(255, 196, 61, 0.10),
+    var(--bh-rail-dim),
+    rgba(176, 96, 255, 0.10)
+  );
+  pointer-events: none;
+}
+
+/* Stronger inner glow on hover — still transparent, rabbit stays subtle */
+.bh-row::before {
+  content: "";
+  position: absolute;
+  inset: -6px -10px;
+  border-radius: 14px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(10px);
+  transition: opacity 160ms ease;
+  mix-blend-mode: screen;
+}
+
+.bh-row[data-side="gainer"]:hover::before {
+  opacity: 0.85;
+  background: radial-gradient(closest-side, var(--bh-gold), rgba(255, 196, 61, 0) 70%);
+}
+
+.bh-row[data-side="loser"]:hover::before {
+  opacity: 0.85;
+  background: radial-gradient(closest-side, var(--bh-purple), rgba(176, 96, 255, 0) 70%);
 }

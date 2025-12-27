@@ -45,7 +45,9 @@ export function normalizeSentiment(raw = {}) {
     reddit: clamp01(pick(socialBreakdownRaw, "reddit")),
     twitter: clamp01(pick(socialBreakdownRaw, "twitter")),
     telegram: clamp01(pick(socialBreakdownRaw, "telegram")),
+    stocktwits: clamp01(pick(socialBreakdownRaw, "stocktwits")),
     chan: clamp01(pick(socialBreakdownRaw, "chan")),
+    custom: clamp01(pick(socialBreakdownRaw, "custom")),
   };
 
   const sourceBreakdownRaw =
@@ -73,6 +75,7 @@ export function normalizeSentiment(raw = {}) {
     twitter: clamp01(pick(p, "twitter")),
     telegram: clamp01(pick(p, "telegram")),
     chan: clamp01(pick(p, "chan")),
+    custom: clamp01(pick(p, "custom")),
   }));
 
   const trendingTopicsRaw = arr(
@@ -92,6 +95,20 @@ export function normalizeSentiment(raw = {}) {
     message: pick(a, "message") || "",
   }));
 
+  // Tiered sentiment data (optional, from sentiment pipeline)
+  const tierScoresRaw = pick(raw, "tier_scores", "tierScores") || {};
+  const tierScores = tierScoresRaw ? {
+    tier1: clamp01(pick(tierScoresRaw, "tier1")),
+    tier2: clamp01(pick(tierScoresRaw, "tier2")),
+    tier3: clamp01(pick(tierScoresRaw, "tier3")),
+    fringe: clamp01(pick(tierScoresRaw, "fringe")),
+  } : null;
+
+  const hasTieredData = pick(raw, "has_tiered_data", "hasTieredData") || false;
+  const totalDataPoints = toNum(pick(raw, "total_data_points", "totalDataPoints"), 0);
+  const confidence = clamp01(pick(raw, "confidence"));
+  const pipelineTimestamp = pick(raw, "pipeline_timestamp", "pipelineTimestamp") || null;
+
   const updatedAt = pick(raw, "updated_at", "updatedAt", "ts", "timestamp") || null;
 
   return {
@@ -104,6 +121,12 @@ export function normalizeSentiment(raw = {}) {
     socialHistory,
     trendingTopics,
     divergenceAlerts,
+    // Tiered data fields
+    tierScores,
+    hasTieredData,
+    totalDataPoints,
+    confidence,
+    pipelineTimestamp,
     updatedAt,
     raw,
   };

@@ -1,31 +1,92 @@
 // src/components/DashboardShell.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
-import TopBannerScroll from "./TopBannerScroll.jsx";
 import VolumeBannerScroll from "./VolumeBannerScroll.jsx";
+import TopBannerScroll from "./TopBannerScroll.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
 import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
-import InsightsPanel from "./InsightsPanel.jsx";
+import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
 import { LiveStatusBar } from "./LiveStatusBar.jsx";
+import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { useIntelligence } from "../context/IntelligenceContext.jsx";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
 
 export default function DashboardShell({ onInfo }) {
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming } = useDashboardData();
+  const { heartbeatPulse: intelPulse } = useIntelligence();
+  const combinedPulse = Boolean(heartbeatPulse || intelPulse);
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
-  const [insightsSymbol, setInsightsSymbol] = useState(null);
+  const [sentimentSymbol, setSentimentSymbol] = useState(null);
+  const [sentimentOpen, setSentimentOpen] = useState(false);
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
 
+  // Rabbit dot-bloom hover emitter (event delegation on the board)
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    let raf = 0;
+    let active = false;
+
+    const rowSelector = ".bh-row, .token-row.table-row";
+
+    const setEmitter = (clientX, clientY, on) => {
+      const b = board.getBoundingClientRect();
+      const w = Math.max(1, b.width);
+      const h = Math.max(1, b.height);
+      const xPct = Math.min(100, Math.max(0, ((clientX - b.left) / w) * 100));
+      const yPct = Math.min(100, Math.max(0, ((clientY - b.top) / h) * 100));
+
+      board.style.setProperty("--emit-x", `${xPct}%`);
+      board.style.setProperty("--emit-y", `${yPct}%`);
+
+      if (on) board.setAttribute("data-row-hover", "1");
+      else board.removeAttribute("data-row-hover");
+
+      active = Boolean(on);
+    };
+
+    const onMove = (e) => {
+      const row = e.target?.closest?.(rowSelector);
+      if (!row || !board.contains(row)) {
+        if (active) setEmitter(e.clientX, e.clientY, false);
+        return;
+      }
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setEmitter(e.clientX, e.clientY, true));
+    };
+
+    const onLeaveBoard = (e) => {
+      setEmitter(e.clientX || 0, e.clientY || 0, false);
+    };
+
+    board.addEventListener("pointermove", onMove, { passive: true });
+    board.addEventListener("pointerleave", onLeaveBoard);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      board.removeEventListener("pointermove", onMove);
+      board.removeEventListener("pointerleave", onLeaveBoard);
+      board.removeAttribute("data-row-hover");
+      board.style.removeProperty("--emit-x");
+      board.style.removeProperty("--emit-y");
+    };
+  }, []);
+
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
-    if (sym) setInsightsSymbol(sym);
+    if (sym) {
+      setSentimentSymbol(sym);
+      setSentimentOpen(true);
+    }
   };
 
   const handleToggleWatchlist = (symbol, price = null) => {
@@ -34,6 +95,7 @@ export default function DashboardShell({ onInfo }) {
 
   const watchlistSymbols = watchlistItems.map((item) => item.symbol);
   const onInfoProp = onInfo || handleInfo;
+  const uiLoading = loading || warming;
 
   const handleHoverHighlight = (percent = 50, active = false) => {
     setHighlightY(percent);
@@ -59,13 +121,22 @@ export default function DashboardShell({ onInfo }) {
   // Listen for "openInfo" events from anywhere (e.g. TokenRowUnified)
   useEffect(() => {
     const handler = (e) => {
-      if (e.detail) setInsightsSymbol(e.detail);
+      if (e.detail) {
+        setSentimentSymbol(String(e.detail).toUpperCase());
+        setSentimentOpen(true);
+      }
     };
     window.addEventListener("openInfo", handler);
     return () => window.removeEventListener("openInfo", handler);
   }, []);
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
+  const formatTempTime = (value) => {
+    if (!value) return "—";
+    const date = value instanceof Date ? value : new Date(value);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
+
   const status = useMemo(() => {
     const now = Date.now();
     const isWarming = now - mountedAt < 25000;
@@ -96,6 +167,9 @@ export default function DashboardShell({ onInfo }) {
           <span className="bh-logo-icon">🐇</span>
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
+          <span className={`bh-warming-pill ${warming ? "is-warming" : "is-live"}`}>
+            {warming ? "Warming up data…" : `Last data ${formatTempTime(lastUpdated)}`}
+          </span>
         </div>
         <div className="bh-topbar-right">
           <LiveStatusBar
@@ -103,47 +177,30 @@ export default function DashboardShell({ onInfo }) {
             error={error}
             lastUpdated={lastUpdated}
             isValidating={isValidating}
-            heartbeatPulse={heartbeatPulse}
+            heartbeatPulse={combinedPulse}
             lastFetchTs={lastFetchTs}
           />
         </div>
       </header>
 
-      <div className="live-ticker" aria-live="polite">
-        <span className="live-ticker-label">Live ticker</span>
-        <div className="live-ticker-track" role="presentation">
-          {[...tickerItems, ...tickerItems].map((item, idx) => (
-            <span key={`${item}-${idx}`} className="live-ticker-item">
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
+      {/* 1 Hour Price Change Banner - Full Width */}
+      <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} />
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
           <div ref={boardRef} className="bh-board board-core">
             <div className="rabbit-bg" aria-hidden="true" />
-            {/* 1h Price Banner (top) */}
-            <section className="bh-board-row-full">
-              <div className="board-section">
-                <div className="board-section-header">
-                  <div className="board-section-title">1 Hour Price %</div>
-                </div>
-                <TopBannerScroll tokens={bannerPrice1h} />
-              </div>
-            </section>
 
             {/* 1m and 3m Rail */}
             <div className="bh-rail">
               {/* 1-min Gainers */}
               <div className="board-section">
-                <div className="board-section-header">
-                  <div className="board-section-title">1 Min Gainers</div>
+                <div className="board-section-header board-section-header--center">
+                  <div className="board-section-title board-section-title--center">TOP GAINERS (1M)</div>
                 </div>
                 <GainersTable1Min
                   tokens={gainers1m}
-                  loading={loading}
+                  loading={uiLoading}
                   onInfo={onInfoProp}
                   onToggleWatchlist={handleToggleWatchlist}
                   watchlist={watchlistSymbols}
@@ -152,15 +209,12 @@ export default function DashboardShell({ onInfo }) {
 
               {/* 3m Gainers / Losers */}
               <div className="board-section">
-                <div className="board-section-header">
-                  <div className="board-section-title">3 Min Gainers/Losers</div>
-                </div>
                 <section className="panel-row--3m">
                   <div className="bh-panel bh-panel-half">
                     <div className="table-title">TOP GAINERS (3M)</div>
                     <GainersTable3Min
                       tokens={gainers3m}
-                      loading={loading}
+                      loading={uiLoading}
                       onInfo={onInfoProp}
                       onToggleWatchlist={handleToggleWatchlist}
                       watchlist={watchlistSymbols}
@@ -170,7 +224,7 @@ export default function DashboardShell({ onInfo }) {
                     <div className="table-title">TOP LOSERS (3M)</div>
                     <LosersTable3Min
                       tokens={losers3m}
-                      loading={loading}
+                      loading={uiLoading}
                       onInfo={onInfoProp}
                       onToggleWatchlist={handleToggleWatchlist}
                       watchlist={watchlistSymbols}
@@ -180,37 +234,47 @@ export default function DashboardShell({ onInfo }) {
               </div>
             </div>
 
+            {/* Anomaly Stream - Intelligence Log */}
+            <section className="bh-board-row-full">
+              <div className="bh-panel bh-panel--rail">
+                <AnomalyStream
+                  data={{ gainers_1m: gainers1m, losers_3m: losers3m, updated_at: lastUpdated }}
+                  volumeData={bannerVolume1h || []}
+                />
+              </div>
+            </section>
+
             {/* Watchlist (full-width) */}
             <section className="bh-board-row-full bh-row-watchlist">
-              <div className="board-section">
-                <div className="board-section-header">
-                  <div className="board-section-title">Watchlist</div>
-                </div>
-                <div className="bh-row-block">
-                  <WatchlistPanel onRowHover={handleHoverHighlight} />
+              <div className="bh-panel bh-panel--rail">
+                <div className="board-section">
+                  <div className="board-section-header">
+                    <div className="board-section-title">Watchlist</div>
+                  </div>
+                  <div className="bh-row-block">
+                    <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                  </div>
                 </div>
               </div>
             </section>
 
-            {/* 1h Volume Banner (bottom) */}
-            <section className="bh-board-row-full bh-row-volume">
-              <div className="board-section">
-                <div className="board-section-header">
-                  <div className="board-section-title">1 Hour Volume</div>
-                </div>
-                <VolumeBannerScroll tokens={bannerVolume1h} />
-              </div>
-            </section>
           </div>
         </BoardWrapper>
       </main>
 
+      {/* 1 Hour Volume Banner - Full Width */}
+      <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} />
+
       {/* Insights floating card aligned to board rails */}
-      {insightsSymbol && (
-        <div className="bh-insight-float">
-          <InsightsPanel symbol={insightsSymbol} onClose={() => setInsightsSymbol(null)} />
-        </div>
-      )}
+      <SentimentPopupAdvanced
+        key={sentimentSymbol || "GLOBAL"}
+        isOpen={sentimentOpen}
+        symbol={sentimentSymbol || undefined}
+        onClose={() => {
+          setSentimentOpen(false);
+          setSentimentSymbol(null);
+        }}
+      />
     </div>
   );
 }

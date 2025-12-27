@@ -24,8 +24,7 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  // Use the optimized DataContext instead of direct SWR
-  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs } = useData();
+  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs, warming } = useData();
 
   const payload = data || {};
 
@@ -95,5 +94,6 @@ export function useDashboardData() {
     lastUpdated,
     heartbeatPulse,
     lastFetchTs,
+    warming,
   };
 }

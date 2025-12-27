@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
@@ -8,6 +9,22 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
+
+const getRowIdentity = (row) => (
+  row?.product_id ??
+  row?.symbol ??
+  row?.base ??
+  row?.ticker ??
+  null
+);
+
+const buildRowKey = (row, index) => {
+  const base = getRowIdentity(row);
+  if (!base) return `row-${index}`;
+  // Use a stable key based on the row identity (avoid including index)
+  // so reorders keep the same key and framer-motion can animate layout changes.
+  return String(base);
+};
 
 export default function Losers3m({
   tokens: tokensProp,
@@ -38,7 +55,7 @@ export default function Losers3m({
       ? sourceList.data
       : [];
 
-    return source
+    const sorted = source
       .map((row, idx) => {
         const nr = normalizeTableRow(row);
         const pctRaw =
@@ -62,11 +79,39 @@ export default function Losers3m({
       })
       .filter((r) => Number.isFinite(r.change_3m) && r.change_3m < 0)
       .sort((a, b) => a.change_3m - b.change_3m);
+
+    const seen = new Set();
+    const deduped = [];
+    sorted.forEach((row) => {
+      const ident = getRowIdentity(row);
+      if (!ident) {
+        deduped.push(row);
+        return;
+      }
+      const key = String(ident).toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(row);
+    });
+
+    return deduped;
   }, [data, hybridPayload, tokensProp]);
 
   const [expanded, setExpanded] = useState(false);
+  const [pulseOn, setPulseOn] = useState(false);
   const visible = expanded ? rows : rows.slice(0, MAX_BASE);
   const hasData = rows.length > 0;
+  const refreshSig = useMemo(() => {
+    return visible
+      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
+      .join("|");
+  }, [visible]);
+  useEffect(() => {
+    if (!visible.length) return;
+    setPulseOn(true);
+    const timer = setTimeout(() => setPulseOn(false), 700);
+    return () => clearTimeout(timer);
+  }, [refreshSig, visible.length]);
 
   const handleToggleStar = (symbol, price) => {
     if (!symbol) return;
@@ -128,18 +173,32 @@ export default function Losers3m({
     <>
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
-          {visible.map((row, idx) => (
-            <TokenRowUnified
-              key={row.symbol ?? idx}
-              token={row}
-              rank={idx + 1}
-              changeField="change_3m"
-              onInfo={handleInfo}
-              onToggleWatchlist={() => handleToggleStar(row.symbol, row.current_price ?? row.price)}
-              isWatchlisted={isStarred(row.symbol)}
-              renderAs="div"
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {visible.map((row, idx) => {
+              const rowKey = buildRowKey(row, idx);
+              return (
+                <motion.div
+                  key={rowKey}
+                  layout
+                  layoutId={rowKey}
+                  transition={{ type: "spring", stiffness: 680, damping: 36 }}
+                >
+                  <TokenRowUnified
+                    token={row}
+                    rank={idx + 1}
+                    changeField="change_3m"
+                    side="loser"
+                    onInfo={handleInfo}
+                    onToggleWatchlist={() => handleToggleStar(row.symbol, row.current_price ?? row.price)}
+                    isWatchlisted={isStarred(row.symbol)}
+                    renderAs="div"
+                    pulse={pulseOn}
+                    pulseDelayMs={idx * 18}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
 

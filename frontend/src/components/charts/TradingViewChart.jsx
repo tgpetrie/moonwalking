@@ -1,57 +1,43 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import { mapToTradingViewSymbol } from "./tradingViewSymbols.js";
+import React, { useEffect, useRef } from 'react';
 
-/**
- * TradingView Advanced Chart embed. Lives inside an iframe so failures are contained.
- */
-export default function TradingViewChart({ symbol, height = 320, theme = "dark", interval = "60" }) {
+const TradingViewChart = ({ symbol, theme = 'dark', autosize = true }) => {
   const containerRef = useRef(null);
-  const tvSymbol = mapToTradingViewSymbol(symbol);
-  const widgetId = useMemo(
-    () => `tv_${tvSymbol.replace(/[^a-zA-Z0-9_]/g, "_")}_${Math.random().toString(36).slice(2, 7)}`,
-    [tvSymbol]
-  );
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.id = widgetId;
-    containerRef.current.innerHTML = "";
+    // Prevent duplicate script injection
+    if (containerRef.current && containerRef.current.querySelector('script')) return;
 
-    const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/tv.js";
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
     script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize,
+      symbol: `BINANCE:${symbol}USDT`, // Defaulting to Binance USDT pairs
+      interval: '60',
+      timezone: 'Etc/UTC',
+      theme,
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      save_image: false,
+      calendar: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com'
+    });
 
-    script.onload = () => {
-      try {
-        // eslint-disable-next-line no-undef
-        new TradingView.widget({
-          autosize: true,
-          symbol: tvSymbol,
-          interval,
-          timezone: "Etc/UTC",
-          theme,
-          style: "1",
-          locale: "en",
-          enable_publishing: false,
-          allow_symbol_change: false,
-          hide_top_toolbar: false,
-          hide_legend: false,
-          save_image: false,
-          container_id: widgetId
-        });
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.error("TradingView widget failed", err);
-        }
-      }
-    };
-
-    containerRef.current.appendChild(script);
-  }, [tvSymbol, theme, interval, widgetId]);
+    if (containerRef.current) {
+      containerRef.current.appendChild(script);
+    }
+  }, [symbol, theme, autosize]);
 
   return (
-    <div className="panel-soft" style={{ width: "100%", height }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+    <div className="tradingview-widget-container" ref={containerRef} style={{ height: '100%', width: '100%' }}>
+      <div className="tradingview-widget-container__widget" style={{ height: '100%', width: '100%' }} />
     </div>
   );
-}
+};
+
+export default TradingViewChart;

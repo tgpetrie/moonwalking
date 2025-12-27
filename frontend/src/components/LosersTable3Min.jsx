@@ -8,8 +8,8 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
 
 const buildRowKey = (row, index) => {
-  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
-  return `${base}-${index}`;
+  const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
+  return base ? String(base) : `row-${index}`;
 };
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
@@ -157,7 +157,11 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
             {visible.map((tokenProps, idx) => {
               const rowKey = buildRowKey(tokenProps, idx);
               return (
-                <motion.div key={rowKey} layout="position">
+                <motion.div
+                  key={rowKey}
+                  layout
+                  transition={{ type: "spring", stiffness: 520, damping: 46 }}
+                >
                   <TokenRowUnified
                     token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
                     rank={idx + 1}

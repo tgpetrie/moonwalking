@@ -24,46 +24,51 @@ function InfoIcon({ className = "" }) {
   );
 }
 
-export default function RowActions({ starred, onToggleStar, onInfoClick }) {
+const stopEvent = (event) => {
+  if (!event) return;
+  event.preventDefault();
+  event.stopPropagation();
+};
+
+export function RowStar({ starred, onToggleStar, className = "" }) {
   const handleStarClick = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+    stopEvent(event);
     onToggleStar?.();
   };
+  return (
+    <button
+      type="button"
+      className={`bh-row-action ${starred ? "is-active" : ""} ${className}`}
+      onClick={handleStarClick}
+      aria-label="Toggle watchlist"
+    >
+      <StarIcon filled={starred} className="bh-row-icon" />
+    </button>
+  );
+}
 
+export function RowInfo({ onInfoClick, className = "" }) {
   const handleInfoClick = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+    stopEvent(event);
     onInfoClick?.();
   };
+  return (
+    <button
+      type="button"
+      className={`bh-row-action bh-action bh-action--info ${className}`}
+      onClick={handleInfoClick}
+      aria-label="Open sentiment"
+    >
+      <InfoIcon className="bh-row-icon" />
+    </button>
+  );
+}
 
+export default function RowActions({ starred, onToggleStar, onInfoClick }) {
   return (
     <div className="bh-row-actions row-actions">
-      <button
-        type="button"
-        className={`bh-row-action ${starred ? "is-active" : ""}`}
-        onClick={handleStarClick}
-        aria-label="Toggle watchlist"
-      >
-        <StarIcon filled={starred} className="bh-row-icon" />
-      </button>
-
-      <button
-        type="button"
-        className="bh-row-action bh-action bh-action--info"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleInfoClick(e);
-        }}
-        aria-label="Open sentiment"
-      >
-        <InfoIcon className="bh-row-icon" />
-      </button>
+      <RowStar starred={starred} onToggleStar={onToggleStar} />
+      <RowInfo onInfoClick={onInfoClick} />
     </div>
   );
 }

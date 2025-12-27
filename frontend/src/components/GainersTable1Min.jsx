@@ -5,9 +5,20 @@ import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
 
+const getRowIdentity = (row) => (
+  row?.product_id ??
+  row?.symbol ??
+  row?.base ??
+  row?.ticker ??
+  null
+);
+
 const buildRowKey = (row, index) => {
-  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
-  return `${base}-${index}`;
+  const base = getRowIdentity(row);
+  if (!base) return `row-${index}`;
+  // Use a stable key based on the row identity (avoid including index)
+  // so reorders keep the same key and framer-motion can animate layout changes.
+  return String(base);
 };
 
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
@@ -18,65 +29,108 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
 
   const gainers1m = useMemo(() => {
-    if (tokensProp) return tokensProp; // Use prop if provided
+    const list = Array.isArray(tokensProp)
+      ? tokensProp
+      : (() => {
+          const src = data?.gainers_1m;
+          if (Array.isArray(src)) return src;
+          if (src && Array.isArray(src.data)) return src.data;
+          return [];
+        })();
 
-    const list = data?.gainers_1m;
-    const source = Array.isArray(list)
-      ? list
-      : list && Array.isArray(list.data)
-      ? list.data
-      : [];
-
-    return source
+    const sorted = list
       .map((row) => {
-        const baselineOrNullPrev = baselineOrNull(row.previous_price_1m ?? row.price_1m_ago ?? row.previous_price ?? row.prev_price ?? row.initial_price_1min ?? null);
+        const symbol = row?.symbol ?? row?.ticker ?? row?.base ?? row?.product_id ?? "";
+        const changeRaw =
+          row?.change_1m ??
+          row?.price_change_percentage_1min ??
+          row?.pct_change ??
+          row?.pct ??
+          row?.changePct ??
+          0;
+        const change = Number(changeRaw);
+        const baselineOrNullPrev = baselineOrNull(
+          row?.previous_price_1m ??
+            row?.price_1m_ago ??
+            row?.previous_price ??
+            row?.prev_price ??
+            row?.initial_price_1min ??
+            null
+        );
 
         return {
           ...row,
-          change_1m:
-            row.change_1m ??
-            row.price_change_percentage_1min ??
-            row.pct_change ??
-            row.pct ??
-            row.changePct ??
-            0,
+          symbol: symbol || row?.symbol,
+          change_1m: Number.isFinite(change) ? change : 0,
           previous_price_1m: baselineOrNullPrev,
-          current_price: row.price ?? row.current_price ?? row.current,
+          current_price: row?.current_price ?? row?.price ?? row?.current,
         };
       })
       .filter((r) => Number(r.change_1m) > 0)
       .sort((a, b) => Number(b.change_1m) - Number(a.change_1m));
+
+    const seen = new Set();
+    const deduped = [];
+    sorted.forEach((row) => {
+      const ident = getRowIdentity(row);
+      if (!ident) {
+        deduped.push(row);
+        return;
+      }
+      const key = String(ident).toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(row);
+    });
+
+    return deduped;
   }, [data, tokensProp]);
+
+  const MAX_ROWS_PER_COLUMN = 4;
+  const MAX_VISIBLE_COLLAPSED = 8;
+  const MAX_VISIBLE_EXPANDED = 16;
 
   const [expanded, setExpanded] = useState(false);
   const [pulseOn, setPulseOn] = useState(false);
-  const visibleItems = expanded ? gainers1m : gainers1m.slice(0, 8);
+  const filteredRows = useMemo(
+    () =>
+      (gainers1m || [])
+        .filter(Boolean)
+        .filter((row) => row.symbol || row.product_id),
+    [gainers1m]
+  );
+  const maxVisible = expanded ? MAX_VISIBLE_EXPANDED : MAX_VISIBLE_COLLAPSED;
+  const displayRows = filteredRows.slice(0, maxVisible);
+  const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
+  const skeletonSingle = filteredRows.length <= MAX_ROWS_PER_COLUMN;
   const refreshSig = useMemo(() => {
-    return visibleItems
+    return displayRows
       .map((row) => `${row.symbol}:${Number(row.change_1m ?? 0).toFixed(4)}`)
       .join("|");
-  }, [visibleItems]);
+  }, [displayRows]);
   useEffect(() => {
-    if (!visibleItems.length) return;
+    if (!displayRows.length) return;
     setPulseOn(true);
     const timer = setTimeout(() => setPulseOn(false), 700);
     return () => clearTimeout(timer);
-  }, [refreshSig, visibleItems.length]);
+  }, [refreshSig, displayRows.length]);
 
-  const hasData = gainers1m.length > 0;
+  const hasData = displayRows.length > 0;
 
   // Loading skeleton state
   if (isLoading && !hasData) {
     return (
       <div className="gainers-table">
-        <div className="panel-row--1m">
+        <div className={`panel-row--1m ${skeletonSingle ? "panel-row--single" : ""}`}>
           <div className="bh-table">
             {/* Use div-based skeleton rows to match TokenRowUnified rendering */}
             <TableSkeletonRows columns={5} rows={6} />
           </div>
-          <div className="bh-table">
-            <TableSkeletonRows columns={5} rows={6} />
-          </div>
+          {!skeletonSingle && (
+            <div className="bh-table">
+              <TableSkeletonRows columns={5} rows={6} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -86,7 +140,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   if (!isLoading && !hasData) {
     return (
       <div className="gainers-table">
-        <div className="panel-row--1m">
+        <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
           <div className="bh-table">
             <div className="token-row token-row--empty">
               <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
@@ -99,88 +153,84 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     );
   }
 
-  const MAX_ROWS_PER_COLUMN = 4;
-  const MAX_VISIBLE = MAX_ROWS_PER_COLUMN * 2;
-  const grids = [];
-
-  for (let i = 0; i < visibleItems.length; i += MAX_VISIBLE) {
-    grids.push({
-      rows: visibleItems.slice(i, i + MAX_VISIBLE),
-      offset: i,
-    });
-  }
+  const leftLimit = displayRows.length > MAX_VISIBLE_COLLAPSED ? 8 : 4;
+  const leftColumn = displayRows.slice(0, leftLimit);
+  const rightColumn = displayRows.slice(leftLimit, leftLimit * 2);
+  const hasSecondColumn = rightColumn.length > 0;
+  const density = hasSecondColumn ? "normal" : "tight";
 
   return (
     <div className="gainers-table">
-      {grids.map(({ rows, offset }, gridIndex) => {
-        const total = rows.length;
-        const hasSecondColumn = total > MAX_ROWS_PER_COLUMN;
-        const density = hasSecondColumn ? "normal" : "tight";
-        const visibleTokens = hasSecondColumn
-          ? rows.slice(0, MAX_VISIBLE)
-          : rows.slice(0, MAX_ROWS_PER_COLUMN);
-        const leftColumn = visibleTokens.slice(0, MAX_ROWS_PER_COLUMN);
-        const rightColumn = visibleTokens.slice(MAX_ROWS_PER_COLUMN);
+      <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
+        <div className="bh-table">
+          <AnimatePresence initial={false}>
+            {leftColumn.map((token, index) => {
+              const rowKey = buildRowKey(token, index);
+              return (
+                <motion.div
+                  key={rowKey}
+                  layout
+                  layoutId={rowKey}
+                  transition={{ type: "spring", stiffness: 680, damping: 36 }}
+                >
+                  <TokenRowUnified
+                    token={token}
+                    rank={index + 1}
+                    changeField="change_1m"
+                    side="gainer"
+                    renderAs="div"
+                    onInfo={onInfo}
+                    onToggleWatchlist={onToggleWatchlist}
+                    isWatchlisted={watchlist.includes(token.symbol)}
+                    density={density}
+                    pulse={pulseOn}
+                    pulseDelayMs={index * 18}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
 
-        return (
-          <div key={`bh-1m-grid-${gridIndex}`} className="panel-row--1m">
-            <div className="bh-table">
-              <AnimatePresence initial={false}>
-                {leftColumn.map((token, index) => {
-                  const absoluteIndex = offset + index;
-                  const rowKey = buildRowKey(token, absoluteIndex);
-                  return (
-                    <motion.div key={rowKey} layout="position">
-                      <TokenRowUnified
-                        token={token}
-                        rank={offset + index + 1}
-                        changeField="change_1m"
-                        side="gainer"
-                        renderAs="div"
-                        onInfo={onInfo}
-                        onToggleWatchlist={onToggleWatchlist}
-                        isWatchlisted={watchlist.includes(token.symbol)}
-                        density={density}
-                        pulse={pulseOn}
-                        pulseDelayMs={absoluteIndex * 18}
-                      />
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-
-            <div className="bh-table">
-              <AnimatePresence initial={false}>
-                {rightColumn.map((token, index) => {
-                  const absoluteIndex = offset + MAX_ROWS_PER_COLUMN + index;
-                  const rowKey = buildRowKey(token, absoluteIndex);
-                  return (
-                    <motion.div key={rowKey} layout="position">
-                      <TokenRowUnified
-                        token={token}
-                        rank={offset + MAX_ROWS_PER_COLUMN + index + 1}
-                        changeField="change_1m"
-                        side="gainer"
-                        renderAs="div"
-                        onInfo={onInfo}
-                        onToggleWatchlist={onToggleWatchlist}
-                        isWatchlisted={watchlist.includes(token.symbol)}
-                        pulse={pulseOn}
-                        pulseDelayMs={absoluteIndex * 18}
-                      />
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
+        {hasSecondColumn && (
+          <div className="bh-table">
+            <AnimatePresence initial={false}>
+              {rightColumn.map((token, index) => {
+                const absoluteIndex = leftLimit + index;
+                const rowKey = buildRowKey(token, absoluteIndex);
+                return (
+                <motion.div
+                  key={rowKey}
+                  layout
+                  layoutId={rowKey}
+                  transition={{ type: "spring", stiffness: 680, damping: 36 }}
+                >
+                    <TokenRowUnified
+                      token={token}
+                      rank={absoluteIndex + 1}
+                      changeField="change_1m"
+                      side="gainer"
+                      renderAs="div"
+                      onInfo={onInfo}
+                      onToggleWatchlist={onToggleWatchlist}
+                      isWatchlisted={watchlist.includes(token.symbol)}
+                      density={density}
+                      pulse={pulseOn}
+                      pulseDelayMs={absoluteIndex * 18}
+                    />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
-        );
-      })}
-      {gainers1m.length > 8 && (
+        )}
+      </div>
+      {filteredRows.length > MAX_VISIBLE_COLLAPSED && (
         <div className="panel-footer">
           <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
-            {expanded ? "Show less" : `Show more (${gainers1m.length - 8} more)`}
+            {expanded
+              ? "Show less"
+              : `Show more (${Math.min(filteredRows.length, MAX_VISIBLE_EXPANDED) - MAX_VISIBLE_COLLAPSED} more)`}
           </button>
         </div>
       )}

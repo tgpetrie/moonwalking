@@ -2,7 +2,9 @@
 
 function formatTime(dt) {
   if (!dt) return "—";
-  return dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // Handle both Date objects and timestamps
+  const date = dt instanceof Date ? dt : new Date(dt);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 export function LiveStatusBar({ loading, error, lastUpdated, isValidating, heartbeatPulse, lastFetchTs }) {
@@ -39,6 +41,11 @@ export function LiveStatusBar({ loading, error, lastUpdated, isValidating, heart
         <span className="live-updated-label">Last updated</span>
         <span className="live-updated-time">{formatTime(lastUpdated)}</span>
         <span className="live-updated-subline">{`Last fetch ${formatTime(lastFetchTs)}`}</span>
+        {error ? (
+          <span className="live-error-msg" title={error?.message || String(error)}>
+            {String(error?.message || "Error fetching data").slice(0, 80)}
+          </span>
+        ) : null}
       </div>
     </div>
   );

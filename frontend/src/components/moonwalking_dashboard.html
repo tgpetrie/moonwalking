@@ -754,7 +754,7 @@
     <script>
         // Configuration
         const CONFIG = {
-            API_BASE: 'http://localhost:8001',
+            API_BASE: window.location.origin,
             REFRESH_INTERVAL: 30000, // 30 seconds
             MAX_RETRIES: 3,
             RETRY_DELAY: 2000
@@ -1372,7 +1372,7 @@
         // WebSocket connection for real-time updates (optional)
         function connectWebSocket() {
             try {
-                const ws = new WebSocket(`ws://${window.location.hostname}:8001/ws/alerts`);
+                const ws = new WebSocket(`ws://${window.location.host}/ws/alerts`);
                 
                 ws.onopen = function() {
                     console.log('🔗 WebSocket connected');

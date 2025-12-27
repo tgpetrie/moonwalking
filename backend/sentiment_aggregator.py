@@ -39,6 +39,47 @@ except Exception:
     redis = None
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+# Import new handlers
+try:
+    from backend.chinese_sources import ChineseSourceHandler
+except ImportError:
+    try:
+        from chinese_sources import ChineseSourceHandler
+    except ImportError:
+        ChineseSourceHandler = None
+
+try:
+    from backend.telegram_handler import TelegramHandler
+except ImportError:
+    try:
+        from telegram_handler import TelegramHandler
+    except ImportError:
+        TelegramHandler = None
+
+try:
+    from backend.custom_scrapers import CustomScraperHandler
+except ImportError:
+    try:
+        from custom_scrapers import CustomScraperHandler
+    except ImportError:
+        CustomScraperHandler = None
+
+try:
+    from backend.reddit_handler import RedditHandler
+except ImportError:
+    try:
+        from reddit_handler import RedditHandler
+    except ImportError:
+        RedditHandler = None
+
+try:
+    from backend.stocktwits_handler import StockTwitsHandler
+except ImportError:
+    try:
+        from stocktwits_handler import StockTwitsHandler
+    except ImportError:
+        StockTwitsHandler = None
+
 
 # ----------------------------
 # Custom Exceptions
@@ -1386,6 +1427,117 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         ))
         _add(bucket, str(tw_cfg.get("tier", "tier2")), twitter_score if _isfinite(twitter_score) else None, float(tw_cfg.get("weight", 0.70)))
 
+    # StockTwits (Async)
+    st_cfg = sources_cfg.get("stocktwits", {})
+    st_score = None
+    if st_cfg.get("enabled", True) and StockTwitsHandler:
+        try:
+            async with StockTwitsHandler([sym]) as handler:
+                st_results = await handler.fetch_symbol_sentiment(sym)
+            
+            if st_results:
+                st_score = st_results.get("sentiment")
+                
+                sources.append(_source_record(
+                    name=f"StockTwits ({sym})",
+                    tier=str(st_cfg.get("tier", "tier3")),
+                    weight=float(st_cfg.get("weight", 0.60)),
+                    score_0_1=st_score if _isfinite(st_score) else None,
+                    meta={"stocktwits": st_results},
+                    url=f"https://stocktwits.com/symbol/{sym}.X",
+                ))
+                _add(bucket, str(st_cfg.get("tier", "tier3")), st_score if _isfinite(st_score) else None, float(st_cfg.get("weight", 0.60)))
+        except Exception as e:
+            logger.error(f"Error fetching StockTwits: {e}")
+
+    # Chinese Sources (Async)
+    cn_cfg = sources_cfg.get("chinese", {})
+    cn_score = None
+    if cn_cfg.get("enabled", False) and ChineseSourceHandler:
+        try:
+            cn_sources = cn_cfg.get("sources", [])
+            async with ChineseSourceHandler(cn_sources) as handler:
+                cn_results = await handler.fetch_all_sources()
+                
+            if cn_results:
+                # Calculate average sentiment
+                valid_scores = [float(r.get("sentiment", 0)) for r in cn_results if r.get("sentiment") is not None]
+                if valid_scores:
+                    avg_compound = sum(valid_scores) / len(valid_scores)
+                    cn_score = (avg_compound + 1.0) / 2.0  # Convert -1..1 to 0..1
+            
+            sources.append(_source_record(
+                name="Chinese Markets",
+                tier=str(cn_cfg.get("tier", "tier2")),
+                weight=float(cn_cfg.get("weight", 0.70)),
+                score_0_1=cn_score if _isfinite(cn_score) else None,
+                meta={"count": len(cn_results), "sources": [r.get("source") for r in cn_results]},
+                url=None,
+            ))
+            _add(bucket, str(cn_cfg.get("tier", "tier2")), cn_score if _isfinite(cn_score) else None, float(cn_cfg.get("weight", 0.70)))
+        except Exception as e:
+            logger.error(f"Error fetching Chinese sources: {e}")
+
+    # Telegram Channels (Async)
+    tg_cfg = sources_cfg.get("telegram", {})
+    tg_score = None
+    if tg_cfg.get("enabled", False) and TelegramHandler:
+        try:
+            tg_channels = tg_cfg.get("channels", [])
+            # TelegramHandler might need API keys from env, ensure they are set or handled inside
+            async with TelegramHandler(tg_channels) as handler:
+                tg_results = await handler.fetch_all_channels()
+                
+            if tg_results:
+                valid_scores = [float(r.get("sentiment", 0)) for r in tg_results if r.get("sentiment") is not None]
+                if valid_scores:
+                    avg_compound = sum(valid_scores) / len(valid_scores)
+                    tg_score = (avg_compound + 1.0) / 2.0
+            
+            sources.append(_source_record(
+                name="Telegram Channels",
+                tier=str(tg_cfg.get("tier", "tier3")),
+                weight=float(tg_cfg.get("weight", 0.60)),
+                score_0_1=tg_score if _isfinite(tg_score) else None,
+                meta={"count": len(tg_results), "channels": list(set(r.get("channel") for r in tg_results))},
+                url="https://web.telegram.org/",
+            ))
+            _add(bucket, str(tg_cfg.get("tier", "tier3")), tg_score if _isfinite(tg_score) else None, float(tg_cfg.get("weight", 0.60)))
+        except Exception as e:
+            logger.error(f"Error fetching Telegram sources: {e}")
+
+    # Custom Scrapers (4chan, Forums)
+    custom_cfg = sources_cfg.get("custom_scrapers", {})
+    custom_score = None
+    if custom_cfg.get("enabled", False) and CustomScraperHandler:
+        try:
+            custom_sources = custom_cfg.get("sources", [])
+            async with CustomScraperHandler(custom_sources) as handler:
+                custom_results = await handler.fetch_all_sources()
+            
+            if custom_results:
+                # Custom scrapers return 'calculated_sentiment' in metadata (0..1)
+                valid_scores = []
+                for item in custom_results:
+                    meta = item.get('metadata', {})
+                    if 'calculated_sentiment' in meta:
+                        valid_scores.append(float(meta['calculated_sentiment']))
+                
+                if valid_scores:
+                    custom_score = sum(valid_scores) / len(valid_scores)
+            
+            sources.append(_source_record(
+                name="Custom Scrapers (4chan/Forums)",
+                tier=str(custom_cfg.get("tier", "tier3")),
+                weight=float(custom_cfg.get("weight", 0.50)),
+                score_0_1=custom_score if _isfinite(custom_score) else None,
+                meta={"count": len(custom_results), "sources": list(set(r.get("source") for r in custom_results))},
+                url=None,
+            ))
+            _add(bucket, str(custom_cfg.get("tier", "tier3")), custom_score if _isfinite(custom_score) else None, float(custom_cfg.get("weight", 0.50)))
+        except Exception as e:
+            logger.error(f"Error fetching Custom Scrapers: {e}")
+
     tier_scores = _finalize_tier_scores(bucket)
     overall = _weighted_overall(tier_scores, tier_weights)
     divergence = _divergence_alerts(tier_scores, divergence_threshold)
@@ -1400,7 +1552,9 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     social_breakdown = {
         "reddit": rg_score if rg_cfg.get("enabled", False) and _isfinite(rg_score) else None,
         "twitter": twitter_score if tw_cfg.get("enabled", False) and _isfinite(twitter_score) else None,
-        "telegram": None,  # Future: Telegram integration
+        "telegram": tg_score if tg_cfg.get("enabled", False) and _isfinite(tg_score) else None,
+        "stocktwits": st_score if st_cfg.get("enabled", True) and _isfinite(st_score) else None,
+        "custom": custom_score if custom_cfg.get("enabled", False) and _isfinite(custom_score) else None,
         "news": rss_score if rss_cfg.get("enabled", False) and _isfinite(rss_score) else None,
     }
 
@@ -1487,7 +1641,7 @@ def _ensure_bg_loop() -> None:
     _BG_THREAD.start()
 
 
-def get_sentiment_for_symbol(symbol: str) -> Dict[str, Any]:
+def get_sentiment_for_symbol(symbol: str, timeout_s: float = None) -> Dict[str, Any]:
     """Sync-friendly entrypoint for Flask routes.
 
     Uses a shared background event loop to avoid creating a new loop per request.
@@ -1497,7 +1651,9 @@ def get_sentiment_for_symbol(symbol: str) -> Dict[str, Any]:
     logger.debug(f"get_sentiment_for_symbol called with symbol={symbol}")
     _ensure_bg_loop()
     fut = asyncio.run_coroutine_threadsafe(_compute_sentiment_async(symbol), _BG_LOOP)
-    return fut.result()
+    if timeout_s is None:
+        return fut.result()
+    return fut.result(timeout=timeout_s)
 
 
 def get_metrics() -> Dict[str, Any]:

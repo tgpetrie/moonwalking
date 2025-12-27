@@ -526,7 +526,7 @@ async def websocket_sentiment(websocket: WebSocket) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Moonwalking Sentiment API service")
     parser.add_argument("--host", default=os.getenv("SENTIMENT_HOST", "0.0.0.0"))
-    parser.add_argument("--port", type=int, default=int(os.getenv("SENTIMENT_PORT", "8001")))
+    parser.add_argument("--port", type=int, default=int(os.getenv("SENTIMENT_PORT", "5004")))
     parser.add_argument("--log-level", default=os.getenv("SENTIMENT_LOG_LEVEL", "info"))
     parser.add_argument("--reload", action="store_true", help="Enable uvicorn autoreload (dev only)")
     args = parser.parse_args()

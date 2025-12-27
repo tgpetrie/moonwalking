@@ -9,8 +9,8 @@ import { baselineOrNull } from "../utils/num.js";
 const MAX_BASE = 8;
 
 const buildRowKey = (row, index) => {
-  const base = row.symbol ?? row.base ?? row.ticker ?? `row-${index}`;
-  return `${base}-${index}`;
+  const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
+  return base ? String(base) : `row-${index}`;
 };
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) => {
@@ -110,7 +110,11 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
             {visibleRows.map((token, index) => {
               const rowKey = buildRowKey(token, index);
               return (
-                <motion.div key={rowKey} layout="position">
+                <motion.div
+                  key={rowKey}
+                  layout
+                  transition={{ type: "spring", stiffness: 520, damping: 46 }}
+                >
                   <TokenRowUnified
                     token={token}
                     rank={index + 1}

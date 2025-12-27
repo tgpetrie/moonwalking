@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useData } from "../hooks/useData";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { useBannerLensMarquee } from "../hooks/useBannerLensMarquee";
 
 const formatVolume = (val) => {
   const n = Number(val ?? 0);
@@ -12,8 +13,9 @@ const formatVolume = (val) => {
 };
 
 const formatPct = (val) => {
-  const n = Number(val ?? 0);
-  if (!Number.isFinite(n)) return "0.00%";
+  if (val == null) return "—";
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
   const decimals = abs < 0.1 ? 4 : abs < 1 ? 3 : 2;
   const sign = n > 0 ? "+" : "";
@@ -25,8 +27,10 @@ const normalizeSymbol = (value) => {
   return value.replace(/-usd$|-usdt$|-perp$/i, "").toUpperCase();
 };
 
-export function VolumeBannerScroll({ tokens = [] }) {
+export function VolumeBannerScroll({ tokens = [], loading = false }) {
   const { volume1h } = useData();
+  const MIN_BASELINE = 100;
+  const { wrapRef, trackRef } = useBannerLensMarquee(42, [tokens?.length, volume1h?.length]);
 
   const rawItems = useMemo(() => {
     if (Array.isArray(tokens) && tokens.length) return tokens;
@@ -52,29 +56,42 @@ export function VolumeBannerScroll({ tokens = [] }) {
           t?.volume_change ??
           0;
         const pctNum = Number(pctRaw);
+        const prev = Number(
+          t?.volume_1h_prev ??
+            t?.volume_prev ??
+            t?.volume_prev_1h ??
+            t?.volume_1h_ago ??
+            null
+        );
+        const hasBaseline = Number.isFinite(prev) && prev >= MIN_BASELINE;
         return {
           ...t,
           symbol,
           volume_1h_now: Number.isFinite(volNow) ? volNow : 0,
-          volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : 0,
+          volume_change_1h_pct: Number.isFinite(pctNum) ? pctNum : null,
+          volume_baseline_ok: hasBaseline,
         };
       })
-      .filter((t) => t.symbol)
+      .filter((t) => t.symbol && t.volume_change_1h_pct != null)
       .sort(
-        (a, b) =>
-          (Number(b.volume_change_1h_pct) || 0) -
-          (Number(a.volume_change_1h_pct) || 0)
+        (a, b) => {
+          if (a.volume_baseline_ok !== b.volume_baseline_ok) {
+            return a.volume_baseline_ok ? -1 : 1;
+          }
+          return (Number(b.volume_change_1h_pct) || 0) - (Number(a.volume_change_1h_pct) || 0);
+        }
       )
       .slice(0, 25);
   }, [rawItems]);
 
   const looped = display.length ? [...display, ...display] : [];
   if (!looped.length) {
+    const emptyCopy = loading ? "Warming up volume feed…" : "No 1h volume activity yet.";
     return (
       <div className="bh-banner bh-banner--bottom">
         <div className="bh-banner-wrap">
           <div className="bh-banner-track">
-            <span className="bh-banner-empty">No 1h volume activity yet.</span>
+            <span className="bh-banner-empty">{emptyCopy}</span>
           </div>
         </div>
       </div>
@@ -101,10 +118,10 @@ export function VolumeBannerScroll({ tokens = [] }) {
 
   return (
     <div className="bh-banner bh-banner--bottom">
-      <div className="bh-banner-wrap">
-        <div className="bh-banner-track bh-banner-track--loop">
+      <div className="bh-banner-wrap" ref={wrapRef}>
+        <div className="bh-banner-track bh-banner-track--manual" ref={trackRef}>
           {looped.map((t, idx) => {
-            const pct = Number(t.volume_change_1h_pct ?? 0);
+            const pct = t.volume_baseline_ok ? Number(t.volume_change_1h_pct ?? 0) : null;
             const isPos = pct > 0;
             const stateClass = pct < 0 ? "is-loss" : pct > 0 ? "is-gain" : "is-flat";
             const url = coinbaseSpotUrl(t || {});
@@ -117,7 +134,7 @@ export function VolumeBannerScroll({ tokens = [] }) {
                     isPos ? "bh-banner-change--pos" : "bh-banner-change--neg"
                   }`}
                 >
-                  {formatPct(t.volume_change_1h_pct)}
+                  {formatPct(pct)}
                 </span>
               </>
             );

@@ -21,9 +21,10 @@ class TelegramHandler:
         self.logger = logging.getLogger(__name__)
         
         # Telegram API credentials (get from https://my.telegram.org)
-        self.api_id = 'YOUR_API_ID'  # Replace with your API ID
-        self.api_hash = 'YOUR_API_HASH'  # Replace with your API hash
-        self.phone = 'YOUR_PHONE_NUMBER'  # Replace with your phone number
+        import os
+        self.api_id = os.getenv('TELEGRAM_API_ID')
+        self.api_hash = os.getenv('TELEGRAM_API_HASH')
+        self.phone = os.getenv('TELEGRAM_PHONE')
         
         self.client = None
         self.channels_cache = {}

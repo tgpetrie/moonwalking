@@ -19,6 +19,9 @@ from dataclasses import asdict
 
 from moonwalking_alert_system import MoonwalkingAlert, AlertType, AlertSeverity
 
+
+MOONWALKING_API_BASE = os.getenv("MOONWALKING_API_BASE", "http://127.0.0.1:5002").rstrip("/")
+
 class DiscordNotifier:
     """Discord bot for Moonwalking alerts"""
     
@@ -77,7 +80,7 @@ class DiscordNotifier:
             try:
                 # Get status from API
                 async with aiohttp.ClientSession() as session:
-                    async with session.get('http://localhost:8001/health') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/health") as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             
@@ -115,7 +118,7 @@ class DiscordNotifier:
             """Get recent active alerts"""
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f'http://localhost:8001/alerts?limit={limit}') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/alerts?limit={limit}") as resp:
                         if resp.status == 200:
                             alerts = await resp.json()
                             
@@ -151,7 +154,7 @@ class DiscordNotifier:
             try:
                 symbol = symbol.upper()
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f'http://localhost:8001/symbols/{symbol}') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/symbols/{symbol}") as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             
@@ -216,7 +219,7 @@ class DiscordNotifier:
             """Get market overview"""
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get('http://localhost:8001/market') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/market") as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             
@@ -457,7 +460,7 @@ class TelegramNotifier:
             """Status command"""
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get('http://localhost:8001/health') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/health") as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             
@@ -480,7 +483,7 @@ class TelegramNotifier:
             """Alerts command"""
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get('http://localhost:8001/alerts?limit=5') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/alerts?limit=5") as resp:
                         if resp.status == 200:
                             alerts = await resp.json()
                             
@@ -515,7 +518,7 @@ class TelegramNotifier:
             
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f'http://localhost:8001/symbols/{symbol}') as resp:
+                    async with session.get(f"{MOONWALKING_API_BASE}/symbols/{symbol}") as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             

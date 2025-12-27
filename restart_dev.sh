@@ -1,4 +1,4 @@
-/;.....#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -72,7 +72,9 @@ say "starting backend (STRICT) on ${BACKEND_HOST}:${BACKEND_PORT}"
   export HOST="$BACKEND_HOST"
   export PORT="$BACKEND_PORT"
   # must not auto-hop; prefer venv python, then python3, then python
-  if [[ -f "$ROOT_DIR/.venv/bin/python" ]]; then
+  if [[ -f "$ROOT_DIR/backend/.venv/bin/python" ]]; then
+    exec "$ROOT_DIR/backend/.venv/bin/python" -u app.py
+  elif [[ -f "$ROOT_DIR/.venv/bin/python" ]]; then
     exec "$ROOT_DIR/.venv/bin/python" -u app.py
   elif command -v python3 >/dev/null 2>&1; then
     exec python3 -u app.py

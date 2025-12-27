@@ -33,16 +33,9 @@ export default defineConfig({
     proxy: {
       '/data': { target, changeOrigin: true },
       '/api': { target, changeOrigin: true },
-      '/api/sentiment': {
-        target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sentiment/, '/sentiment'),
-      },
-      '/sentiment': {
-        target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
-        secure: false,
-      },
+      // Keep legacy sentiment paths working, but route through the main backend proxy target.
+      '/api/sentiment': { target, changeOrigin: true },
+      '/sentiment': { target, changeOrigin: true },
     }
   },
   preview: { port: vitePort }

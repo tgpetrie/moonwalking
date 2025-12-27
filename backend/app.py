@@ -15,7 +15,7 @@ import threading
 from collections import defaultdict, deque
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 import logging
 from datetime import datetime, timedelta, timezone
 import asyncio
@@ -1165,17 +1165,54 @@ def api_sentiment_basic():
 from sentiment_aggregator import get_sentiment_for_symbol
 from sentiment_intelligence import ai_engine
 
+_SENTIMENT_CACHE = {}
+_SENTIMENT_CACHE_LOCK = threading.Lock()
+_SENTIMENT_TTL_S = int(os.getenv("SENTIMENT_TTL_S", "60"))
+_SENTIMENT_TIMEOUT_S = float(os.getenv("SENTIMENT_TIMEOUT_S", "6"))
+
+def _sentiment_cache_lookup(symbol):
+    now = time.time()
+    with _SENTIMENT_CACHE_LOCK:
+        entry = _SENTIMENT_CACHE.get(symbol)
+    if not entry:
+        return None, True, None
+    age = now - entry["ts"]
+    return entry["data"], age > _SENTIMENT_TTL_S, entry["ts"]
+
+def _sentiment_cache_set(symbol, data):
+    with _SENTIMENT_CACHE_LOCK:
+        _SENTIMENT_CACHE[symbol] = {"ts": time.time(), "data": data}
+
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
     """Returning rich, coin-specific sentiment (uses enhanced aggregator)."""
     symbol = request.args.get('symbol', "BTC").upper()
 
+    cached, is_stale, cache_ts = _sentiment_cache_lookup(symbol)
+    if cached and not is_stale:
+        payload = dict(cached)
+        payload["symbol"] = payload.get("symbol") or symbol
+        payload["stale"] = False
+        payload["ts_cache"] = cache_ts
+        return jsonify(payload)
+
     try:
-        data = get_sentiment_for_symbol(symbol)
-        return jsonify(data)
-    except Exception as exc:
-        print(f"[Sentiment API] Error: {exc}")
-        import random, hashlib
+        data = get_sentiment_for_symbol(symbol, timeout_s=_SENTIMENT_TIMEOUT_S)
+        _sentiment_cache_set(symbol, data)
+        payload = dict(data)
+        payload["symbol"] = payload.get("symbol") or symbol
+        payload["stale"] = False
+        payload["ts_cache"] = time.time()
+        return jsonify(payload)
+    except FuturesTimeout as exc:
+        if cached:
+            payload = dict(cached)
+            payload["symbol"] = payload.get("symbol") or symbol
+            payload["stale"] = True
+            payload["ts_cache"] = cache_ts
+            payload["error"] = f"timeout:{exc}"
+            return jsonify(payload)
+        import hashlib
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
         fallback = {
             'symbol': symbol,
@@ -1187,10 +1224,205 @@ def api_sentiment_latest():
             'social_breakdown': {'reddit': 0.5, 'twitter': 0.5, 'telegram': 0.5, 'news': 0.5},
             'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
             'timestamp': datetime.utcnow().isoformat() + "Z",
+            'error': f"timeout:{exc}",
+            'stale': True,
+        }
+        return jsonify(fallback)
+    except Exception as exc:
+        print(f"[Sentiment API] Error: {exc}")
+        import random, hashlib
+        seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
+        if cached:
+            payload = dict(cached)
+            payload["symbol"] = payload.get("symbol") or symbol
+            payload["stale"] = True
+            payload["ts_cache"] = cache_ts
+            payload["error"] = str(exc)
+            return jsonify(payload)
+        fallback = {
+            'symbol': symbol,
+            'overall_sentiment': (50 + seed) / 100,
+            'fear_greed_index': 50 + seed,
+            'total_sources': 0,
+            'sources': [],
+            'sentiment_history': [],
+            'social_breakdown': {'reddit': 0.5, 'twitter': 0.5, 'telegram': 0.5, 'news': 0.5},
+            'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
+            'timestamp': datetime.utcnow().isoformat() + "Z",
             'error': str(exc),
+            'stale': True,
         }
         return jsonify(fallback)
 
+
+# ============================================================================
+# SENTIMENT PIPELINE PROXY ENDPOINTS
+# ============================================================================
+
+SENTIMENT_PIPELINE_URL = os.getenv('SENTIMENT_PIPELINE_URL', 'http://localhost:8002')
+
+@app.route('/api/sentiment/tiered')
+def get_tiered_sentiment():
+    """
+    Proxy endpoint for tiered sentiment from the sentiment pipeline.
+    Forwards requests to the sentiment pipeline running on port 8002.
+    """
+    try:
+        # Forward request to sentiment pipeline
+        response = requests.get(
+            f'{SENTIMENT_PIPELINE_URL}/sentiment/latest',
+            timeout=5
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Transform the response to match frontend expectations
+        # The main_runner.py returns data with structure we need to adapt
+        return jsonify({
+            'success': True,
+            'data': data,
+            'timestamp': data.get('timestamp', datetime.utcnow().isoformat())
+        })
+
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline not running',
+            'message': 'The sentiment collection pipeline is not available. Start it with: ./start_sentiment_pipeline.sh'
+        }), 503
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline timeout',
+            'message': 'The sentiment pipeline took too long to respond'
+        }), 504
+
+    except Exception as e:
+        logging.error(f"Error proxying to sentiment pipeline: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to fetch sentiment data from pipeline'
+        }), 500
+
+@app.route('/api/sentiment/pipeline-health')
+def check_sentiment_pipeline_health():
+    """
+    Check if the sentiment pipeline is running and healthy.
+    """
+    try:
+        response = requests.get(
+            f'{SENTIMENT_PIPELINE_URL}/health',
+            timeout=2
+        )
+        response.raise_for_status()
+        health_data = response.json()
+
+        return jsonify({
+            'success': True,
+            'pipeline_running': True,
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'health_data': health_data
+        })
+
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'success': False,
+            'pipeline_running': False,
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'error': 'Connection refused - pipeline not running',
+            'help': 'Start the pipeline with: ./start_sentiment_pipeline.sh'
+        }), 503
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'pipeline_running': False,
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/sentiment/sources')
+def get_sentiment_sources():
+    """
+    Get list of all sentiment data sources with their tier and status.
+    """
+    try:
+        response = requests.get(
+            f'{SENTIMENT_PIPELINE_URL}/stats',
+            timeout=5
+        )
+        response.raise_for_status()
+        stats = response.json()
+
+        return jsonify({
+            'success': True,
+            'sources': stats,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    except Exception as e:
+        logging.error(f"Error fetching sentiment sources: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/sentiment/divergence')
+def get_sentiment_divergence():
+    """
+    Get divergence analysis between different sentiment tiers.
+    Useful for detecting when retail sentiment diverges from institutional.
+    """
+    try:
+        response = requests.get(
+            f'{SENTIMENT_PIPELINE_URL}/sentiment/latest',
+            timeout=5
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract tier scores if available
+        tier_scores = data.get('tier_scores', {})
+        overall_metrics = data.get('overall_metrics', {})
+
+        # Calculate divergences
+        divergences = []
+        if 'tier1' in tier_scores and 'tier3' in tier_scores:
+            tier1_score = tier_scores['tier1']
+            tier3_score = tier_scores['tier3']
+            divergence = abs(tier1_score - tier3_score)
+
+            if divergence > 0.2:  # 20% divergence threshold
+                divergences.append({
+                    'type': 'institutional_vs_retail',
+                    'tier1_score': tier1_score,
+                    'tier3_score': tier3_score,
+                    'divergence': divergence,
+                    'severity': 'high' if divergence > 0.3 else 'medium',
+                    'message': f'Institutional sentiment ({tier1_score:.2f}) diverges from retail ({tier3_score:.2f})'
+                })
+
+        return jsonify({
+            'success': True,
+            'divergences': divergences,
+            'tier_scores': tier_scores,
+            'overall_sentiment': overall_metrics.get('weighted_sentiment', 0.5),
+            'timestamp': data.get('timestamp', datetime.utcnow().isoformat())
+        })
+
+    except Exception as e:
+        logging.error(f"Error fetching divergence data: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================================
+# END SENTIMENT PIPELINE PROXY ENDPOINTS
+# ============================================================================
 
 @app.route('/api/social-sentiment/<symbol>')
 def get_social_sentiment_endpoint(symbol):
@@ -2920,149 +3152,140 @@ def data_aggregate():
         # 1m gainers snapshot
         try:
             g1_rows, g1_ts = get_gainers_1m()
-            if g1_rows:
-                for r in g1_rows:
-                    sym = _sym_from(r)
-                    if not sym:
-                        continue
-                    base = _ensure_row(sym)
-                    price = r.get("current_price") or r.get("price") or 0
+            for r in (g1_rows or []):
+                sym = _sym_from(r)
+                if not sym:
+                    continue
+                base = _ensure_row(sym)
+                price = r.get("current_price") or r.get("price") or 0
+                try:
+                    price_f = float(price)
+                except (TypeError, ValueError):
+                    price_f = 0.0
+                if price_f > 0:
+                    base["price"] = price_f
+                    base["current_price"] = price_f
+                    base["price_now"] = price_f
+
+                initial_1m = r.get("initial_price_1min") or r.get("initial_1min") or r.get("previous_price_1m")
+                initial_1m_val = None
+                if initial_1m is not None:
                     try:
-                        price_f = float(price)
+                        initial_1m_val = float(initial_1m)
                     except (TypeError, ValueError):
-                        price_f = 0.0
-                    if price_f > 0:
-                        base["price"] = price_f
-                        base["current_price"] = price_f
-                        base["price_now"] = price_f
+                        initial_1m_val = None
+                if initial_1m_val is not None and initial_1m_val > 0:
+                    base["initial_price_1min"] = initial_1m_val
+                    base["previous_price_1m"] = initial_1m_val
 
-                    initial_1m = r.get("initial_price_1min") or r.get("initial_1min") or r.get("previous_price_1m")
-                    initial_1m_val = None
-                    if initial_1m is not None:
-                        try:
-                            initial_1m_val = float(initial_1m)
-                        except (TypeError, ValueError):
-                            initial_1m_val = None
-                    if initial_1m_val is not None and initial_1m_val > 0:
-                        base["initial_price_1min"] = initial_1m_val
-                        base["previous_price_1m"] = initial_1m_val
+                gain_1m_raw = r.get("price_change_percentage_1min")
+                gain_1m_val = None
+                if gain_1m_raw is not None:
+                    try:
+                        gain_1m_val = float(gain_1m_raw)
+                    except (TypeError, ValueError):
+                        gain_1m_val = None
 
-                    gain_1m_raw = r.get("price_change_percentage_1min")
-                    gain_1m_val = None
-                    if gain_1m_raw is not None:
-                        try:
-                            gain_1m_val = float(gain_1m_raw)
-                        except (TypeError, ValueError):
-                            gain_1m_val = None
+                change_1m_val = pct_change(price_f, initial_1m_val)
+                if change_1m_val is None and gain_1m_val is not None:
+                    change_1m_val = gain_1m_val
 
-                    change_1m_val = pct_change(price_f, initial_1m_val)
-                    if change_1m_val is None and gain_1m_val is not None:
-                        change_1m_val = gain_1m_val
-
-                    base["change_1m"] = change_1m_val
-                    # keep legacy key for existing UI bits
-                    base["price_change_percentage_1min"] = change_1m_val
-                meta["gainers_1m"] = {"source": "snapshot", "ts": g1_ts}
-            else:
-                raise RuntimeError("empty")
+                base["change_1m"] = change_1m_val
+                # keep legacy key for existing UI bits
+                base["price_change_percentage_1min"] = change_1m_val
+            meta["gainers_1m"] = {"source": "snapshot", "ts": g1_ts}
         except Exception:
             errors["gainers_1m"] = "missing_snapshot"
 
         # 3m gainers snapshot
         try:
             g3_rows, g3_ts = get_gainers_3m()
-            if g3_rows:
-                for r in g3_rows:
-                    sym = _sym_from(r)
-                    if not sym:
-                        continue
-                    base = _ensure_row(sym)
-                    price = r.get("current_price") or r.get("price") or 0
+            for r in (g3_rows or []):
+                sym = _sym_from(r)
+                if not sym:
+                    continue
+                base = _ensure_row(sym)
+                price = r.get("current_price") or r.get("price") or 0
+                try:
+                    price_f = float(price)
+                except (TypeError, ValueError):
+                    price_f = 0.0
+                if price_f > 0:
+                    base["price"] = price_f
+                    base["current_price"] = price_f
+                    base["price_now"] = price_f
+                initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                initial_3m_val = None
+                if initial_3m is not None:
                     try:
-                        price_f = float(price)
+                        initial_3m_val = float(initial_3m)
                     except (TypeError, ValueError):
-                        price_f = 0.0
-                    if price_f > 0:
-                        base["price"] = price_f
-                        base["current_price"] = price_f
-                        base["price_now"] = price_f
-                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
-                    initial_3m_val = None
-                    if initial_3m is not None:
-                        try:
-                            initial_3m_val = float(initial_3m)
-                        except (TypeError, ValueError):
-                            initial_3m_val = None
-                    if initial_3m_val is not None and initial_3m_val > 0:
-                        base["initial_price_3min"] = initial_3m_val
-                        base["previous_price_3m"] = initial_3m_val
+                        initial_3m_val = None
+                if initial_3m_val is not None and initial_3m_val > 0:
+                    base["initial_price_3min"] = initial_3m_val
+                    base["previous_price_3m"] = initial_3m_val
 
-                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
-                    gain_3m_val = None
-                    if gain_3m is not None:
-                        try:
-                            gain_3m_val = float(gain_3m)
-                        except (TypeError, ValueError):
-                            gain_3m_val = None
+                gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                gain_3m_val = None
+                if gain_3m is not None:
+                    try:
+                        gain_3m_val = float(gain_3m)
+                    except (TypeError, ValueError):
+                        gain_3m_val = None
 
-                    change_3m_val = pct_change(price_f, initial_3m_val)
-                    if change_3m_val is None and gain_3m_val is not None:
-                        change_3m_val = gain_3m_val
+                change_3m_val = pct_change(price_f, initial_3m_val)
+                if change_3m_val is None and gain_3m_val is not None:
+                    change_3m_val = gain_3m_val
 
-                    base["change_3m"] = change_3m_val
-                    base["price_change_percentage_3min"] = change_3m_val
-                meta["gainers_3m"] = {"source": "snapshot", "ts": g3_ts}
-            else:
-                raise RuntimeError("empty")
+                base["change_3m"] = change_3m_val
+                base["price_change_percentage_3min"] = change_3m_val
+            meta["gainers_3m"] = {"source": "snapshot", "ts": g3_ts}
         except Exception:
             errors["gainers_3m"] = "missing_snapshot"
         # 3m losers snapshot
         try:
             l3_rows, l3_ts = get_losers_3m()
-            if l3_rows:
-                for r in l3_rows:
-                    sym = _sym_from(r)
-                    if not sym:
-                        continue
-                    base = _ensure_row(sym)
-                    price = r.get("current_price") or r.get("price") or 0
+            for r in (l3_rows or []):
+                sym = _sym_from(r)
+                if not sym:
+                    continue
+                base = _ensure_row(sym)
+                price = r.get("current_price") or r.get("price") or 0
+                try:
+                    price_f = float(price)
+                except (TypeError, ValueError):
+                    price_f = 0.0
+                if price_f > 0:
+                    base["price"] = price_f
+                    base["current_price"] = price_f
+                    base["price_now"] = price_f
+                gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
+                gain_3m_val = None
+                if gain_3m is not None:
                     try:
-                        price_f = float(price)
+                        gain_3m_val = float(gain_3m)
                     except (TypeError, ValueError):
-                        price_f = 0.0
-                    if price_f > 0:
-                        base["price"] = price_f
-                        base["current_price"] = price_f
-                        base["price_now"] = price_f
-                    gain_3m = r.get("price_change_percentage_3min") or r.get("gain")
-                    gain_3m_val = None
-                    if gain_3m is not None:
-                        try:
-                            gain_3m_val = float(gain_3m)
-                        except (TypeError, ValueError):
-                            gain_3m_val = None
-                    # losers also carry the same 3m initial reference so the UI
-                    # can show the baseline under the current price
-                    initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
-                    initial_3m_val = None
-                    if initial_3m is not None:
-                        try:
-                            initial_3m_val = float(initial_3m)
-                        except (TypeError, ValueError):
-                            initial_3m_val = None
-                    if initial_3m_val is not None and initial_3m_val > 0:
-                        base["initial_price_3min"] = initial_3m_val
-                        base["previous_price_3m"] = initial_3m_val
+                        gain_3m_val = None
+                # losers also carry the same 3m initial reference so the UI
+                # can show the baseline under the current price
+                initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                initial_3m_val = None
+                if initial_3m is not None:
+                    try:
+                        initial_3m_val = float(initial_3m)
+                    except (TypeError, ValueError):
+                        initial_3m_val = None
+                if initial_3m_val is not None and initial_3m_val > 0:
+                    base["initial_price_3min"] = initial_3m_val
+                    base["previous_price_3m"] = initial_3m_val
 
-                    change_3m_val = pct_change(price_f, initial_3m_val)
-                    if change_3m_val is None and gain_3m_val is not None:
-                        change_3m_val = gain_3m_val
+                change_3m_val = pct_change(price_f, initial_3m_val)
+                if change_3m_val is None and gain_3m_val is not None:
+                    change_3m_val = gain_3m_val
 
-                    base["change_3m"] = change_3m_val
-                    base["price_change_percentage_3min"] = change_3m_val
-                meta["losers_3m"] = {"source": "snapshot", "ts": l3_ts}
-            else:
-                raise RuntimeError("empty")
+                base["change_3m"] = change_3m_val
+                base["price_change_percentage_3min"] = change_3m_val
+            meta["losers_3m"] = {"source": "snapshot", "ts": l3_ts}
         except Exception:
             errors["losers_3m"] = "missing_snapshot"
 
@@ -4813,6 +5036,52 @@ def background_crypto_updates():
             logging.error(f"Error in background update: {e}")
         
         time.sleep(CONFIG['UPDATE_INTERVAL'])  # Dynamic interval
+
+
+# =============================================================================
+# BACKGROUND STARTUP (for `flask run`)
+# =============================================================================
+
+_MW_BG_THREAD = None
+_MW_BG_LOCK = threading.Lock()
+
+
+def _mw_ensure_background_started():
+    """Start the background updater when running under `flask run`.
+
+    When the backend is launched via `flask run`, the `__main__` block is not
+    executed, so the background updater thread would never start and SWR
+    snapshots remain empty (dashboard shows no data).
+    """
+    global _MW_BG_THREAD
+
+    # Avoid starting the thread in the Werkzeug reloader parent process.
+    # Only the child process sets WERKZEUG_RUN_MAIN=true.
+    if os.environ.get("FLASK_DEBUG") == "1" and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        return
+
+    with _MW_BG_LOCK:
+        if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
+            return
+        try:
+            t = threading.Thread(target=background_crypto_updates)
+            t.daemon = True
+            t.start()
+            _MW_BG_THREAD = t
+            try:
+                app.logger.info("Background update thread started (flask-run bootstrap)")
+            except Exception:
+                pass
+        except Exception as e:
+            try:
+                app.logger.warning(f"Failed to start background updater thread: {e}")
+            except Exception:
+                pass
+
+
+@app.before_request
+def _mw_bootstrap_background_once():
+    _mw_ensure_background_started()
 
 # =============================================================================
 # COMMAND LINE ARGUMENTS

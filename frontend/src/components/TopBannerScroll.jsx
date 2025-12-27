@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useData } from "../hooks/useData";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { useBannerLensMarquee } from "../hooks/useBannerLensMarquee";
 
 const formatPrice = (val) => {
   const n = Number(val ?? 0);
@@ -41,8 +42,9 @@ const normalizeSymbol = (value) => {
   return value.replace(/-usd$|-usdt$|-perp$/i, "").toUpperCase();
 };
 
-export function TopBannerScroll({ tokens = [], rows = [], items = [] }) {
+export function TopBannerScroll({ tokens = [], rows = [], items = [], loading = false }) {
   const { banner1h } = useData();
+  const { wrapRef, trackRef } = useBannerLensMarquee(42, [tokens?.length, rows?.length, items?.length, banner1h?.length]);
 
   const rawItems = useMemo(() => {
     if (Array.isArray(tokens) && tokens.length) return tokens;
@@ -86,11 +88,12 @@ export function TopBannerScroll({ tokens = [], rows = [], items = [] }) {
   const looped = display.length ? [...display, ...display] : [];
 
   if (!looped.length) {
+    const emptyCopy = loading ? "Warming up market feed…" : "No 1h price movers yet.";
     return (
       <div className="bh-banner bh-banner--top">
         <div className="bh-banner-wrap">
           <div className="bh-banner-track">
-            <span className="bh-banner-empty">No 1h price movers yet.</span>
+            <span className="bh-banner-empty">{emptyCopy}</span>
           </div>
         </div>
       </div>
@@ -117,8 +120,8 @@ export function TopBannerScroll({ tokens = [], rows = [], items = [] }) {
 
   return (
     <div className="bh-banner bh-banner--top">
-      <div className="bh-banner-wrap">
-        <div className="bh-banner-track bh-banner-track--loop">
+      <div className="bh-banner-wrap" ref={wrapRef}>
+        <div className="bh-banner-track bh-banner-track--manual" ref={trackRef}>
           {looped.map((t, idx) => {
             const pctInfo = classifyPct(t.price_change_1h_pct);
             const stateClass = pctInfo.className.replace("bh-banner-change--", "is-");

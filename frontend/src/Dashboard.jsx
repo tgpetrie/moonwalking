@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { fetchAllData } from "./api.js";
+import { useDataFeed } from "./hooks/useDataFeed";
 import TopBannerScroll from "./components/TopBannerScroll";
 import VolumeBannerScroll from "./components/VolumeBannerScroll";
 import GainersTable1Min from "./components/GainersTable1Min.jsx";
@@ -8,6 +8,7 @@ import LosersTable3Min from "./components/LosersTable3Min";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import { useWatchlist } from "./context/WatchlistContext.jsx";
 import AssetDetailPanel from "./components/AssetDetailPanel.jsx";
+import AnomalyStream from "./components/AnomalyStream.jsx";
 
 function formatTimestamp(d = new Date()) {
   const time = d.toLocaleTimeString([], {
@@ -24,49 +25,26 @@ function formatTimestamp(d = new Date()) {
 }
 
 export default function Dashboard() {
-  const tsLabel = formatTimestamp();
-  const [payload, setPayload] = useState(null);
-  const [error, setError] = useState(null);
+  const { data: feedData } = useDataFeed();
+  const payload = feedData?.data ?? feedData ?? {};
+  const tsLabel = formatTimestamp(payload.updated_at ? new Date(payload.updated_at) : undefined);
   const [selectedSymbol, setSelectedSymbol] = useState(null);
-
-  useEffect(() => {
-    // Use centralized API helper so calls respect VITE_API_BASE or the
-    // DEFAULT_API_BASE fallback defined in `src/api.js`.
-    let mounted = true;
-    fetchAllData()
-      .then((json) => {
-        if (!mounted) return;
-        setPayload(json);
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        console.error("[ui] fetchAllData error", err);
-        setError(err?.message || String(err));
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const loading = !payload && !error;
-  const data = payload?.data || payload || {};
-  const meta = payload?.meta || {};
-  const errs = payload?.errors || {};
-
-  const handleInfo = (symbol) => setSelectedSymbol(symbol);
-
-  const { items: watchlistItems } = useWatchlist();
-  const hasWatchlist = (watchlistItems?.length ?? 0) > 0;
-
-  // simple banner bindings if present in /data (accept either `banner_1h` or `banner_1h_price`)
-  const banner1h = useMemo(() => data.banner_1h || data.banner_1h_price || [], [data.banner_1h, data.banner_1h_price]);
-
+  const updatedLabel = useMemo(() => {
+    const raw = payload.updated_at;
+    if (!raw) return "";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return String(raw);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }, [payload.updated_at]);
+  const banner1h = useMemo(() => {
+    return payload.banner_1h || payload.banner_1h_price || [];
+  }, [payload.banner_1h, payload.banner_1h_price]);
   const vol1hTokens = useMemo(() => {
     const candidates =
-      data.banner_1h_volume ||
-      data.volume_1h ||
-      data.volume_1h_top ||
-      data.volume_1h_tokens ||
+      payload.banner_1h_volume ||
+      payload.volume_1h ||
+      payload.volume_1h_top ||
+      payload.volume_1h_tokens ||
       [];
     const list = Array.isArray(candidates?.data) ? candidates.data : Array.isArray(candidates) ? candidates : [];
     return list.map((t) => ({
@@ -74,7 +52,12 @@ export default function Dashboard() {
       volume_1h_delta: t.volume_1h_delta ?? t.volume_change_abs ?? t.volume_change ?? 0,
       volume_1h_pct: t.volume_1h_pct ?? t.volume_change_pct ?? t.change_1h_volume ?? 0,
     }));
-  }, [data.banner_1h_volume, data.volume_1h, data.volume_1h_top, data.volume_1h_tokens]);
+  }, [payload.banner_1h_volume, payload.volume_1h, payload.volume_1h_top, payload.volume_1h_tokens]);
+
+  const handleInfo = (symbol) => setSelectedSymbol(symbol);
+
+  const { items: watchlistItems } = useWatchlist();
+  const hasWatchlist = (watchlistItems?.length ?? 0) > 0;
 
   const boardRef = useRef(null);
   const showMoreRef = useRef(null);
@@ -85,7 +68,7 @@ export default function Dashboard() {
     const seamRect = showMoreRef.current.getBoundingClientRect();
     const centerY = seamRect.top + seamRect.height / 2 - boardRect.top;
     boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
-  }, [banner1h?.length, vol1hTokens?.length, payload]);
+  }, [banner1h.length, vol1hTokens.length, payload.updated_at]);
 
   // Rabbit hover emitter (event delegation on the board)
   useEffect(() => {
@@ -210,51 +193,64 @@ export default function Dashboard() {
 
         <div className="board-core" ref={boardRef}>
           <div className="rabbit-bg" aria-hidden />
-          {/* Section label + 1h banner */}
-          <section className="mb-8">
-            <TopBannerScroll items={banner1h} />
+
+          <section className="bh-banner-section">
+            <div className="bh-banner-header">
+              <div className="bh-banner-title">1-HOUR PRICE CHANGE</div>
+              <div className="bh-banner-sub">
+                <span className="bh-live">LIVE</span>
+                <span className="bh-updated">Last updated {updatedLabel || "--"}</span>
+              </div>
+            </div>
+            <TopBannerScroll />
           </section>
 
-          {/* 1-min gainers */}
-          <section className="mb-10">
-            <GainersTable1Min
-              rows={data.gainers_1m || []}
-              loading={loading}
-              error={errs.gainers_1m}
-              snapshotInfo={meta.gainers_1m}
-              onInfo={handleInfo}
-            />
+          <section className="bh-section">
+            <div className="bh-section-title bh-section-title--center">1-MIN GAINERS</div>
+            <div className="bh-section-body">
+              <GainersTable1Min onInfo={handleInfo} />
+            </div>
           </section>
 
-          {/* Anchor seam for rabbit centering */}
           <div ref={showMoreRef} className="show-more-anchor" aria-hidden />
 
-          {/* 3m gainers / losers side-by-side */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-            <GainersTable3Min
-              rows={data.gainers_3m || []}
-              loading={loading}
-              error={errs.gainers_3m}
-              onInfo={handleInfo}
-            />
-            <LosersTable3Min
-              rows={data.losers_3m || []}
-              loading={loading}
-              error={errs.losers_3m}
-              onInfo={handleInfo}
-            />
+          <section className="bh-section">
+            <div className="panel-3m-grid">
+              <div className="bh-table-block">
+                <div className="bh-section-title bh-section-title--center">TOP GAINERS (3M)</div>
+                <div className="bh-section-body">
+                  <GainersTable3Min onInfo={handleInfo} />
+                </div>
+              </div>
+              <div className="bh-table-block">
+                <div className="bh-section-title bh-section-title--center">TOP LOSERS (3M)</div>
+                <div className="bh-section-body">
+                  <LosersTable3Min onInfo={handleInfo} />
+                </div>
+              </div>
+            </div>
           </section>
 
-          {/* Optional Watchlist row (full-width under 3m) */}
+          <section className="mb-10">
+            <div className="bh-panel bh-panel-full">
+              <AnomalyStream
+                data={payload}
+                volumeData={payload.banner_1h_volume || payload.volume_1h || []}
+              />
+            </div>
+          </section>
+
           {hasWatchlist && (
             <section className="panel-row-watchlist mb-10">
               <WatchlistPanel onInfo={handleInfo} />
             </section>
           )}
 
-          {/* Bottom volume banner */}
-          <section>
-            <VolumeBannerScroll tokens={vol1hTokens} />
+          <section className="bh-banner-section">
+            <div className="bh-banner-header">
+              <div className="bh-banner-title">1-HOUR VOLUME CHANGE</div>
+            </div>
+            <VolumeBannerScroll />
           </section>
         </div>
       </div>

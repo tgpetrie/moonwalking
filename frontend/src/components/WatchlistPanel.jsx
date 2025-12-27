@@ -124,7 +124,7 @@ export default function WatchlistPanel({ onInfo }) {
   };
 
   return (
-    <div className="bh-panel bh-panel-full watchlist-panel">
+    <div className="bh-panel bh-panel--rail watchlist-panel">
       <form className="bh-watchlist-search" onSubmit={handleSearchSubmit}>
         <input
           type="text"
@@ -160,18 +160,29 @@ export default function WatchlistPanel({ onInfo }) {
       {!items.length && <div className="bh-watchlist-empty">Star a token or search to pin it here.</div>}
 
       {items.length > 0 && (
-        <div className="bh-table">
-          {watchlistTokens.map((token, index) => (
-            <TokenRowUnified
-              key={token.key ?? `${token.symbol}-${index}`}
-              token={token}
-              rank={index + 1}
-              changeField="change_1m"
-              onToggleWatchlist={handleToggleWatchlist}
-              onInfo={onInfo}
-              isWatchlisted
-            />
-          ))}
+        <div className="panel-row-watchlist panel-row--1m">
+          <div className="bh-table">
+            {watchlistTokens.map((token, index) => (
+              <TokenRowUnified
+                key={token.key ?? `${token.symbol}-${index}`}
+                token={token}
+                rank={index + 1}
+                changeField="change_1m"
+                onToggleWatchlist={handleToggleWatchlist}
+                onInfo={onInfo}
+                isWatchlisted
+                className="bh-row bh-row-grid"
+                cellClassMap={{
+                  rank: "bh-cell--rank",
+                  symbol: "bh-cell--symbol",
+                  name: "bh-cell--name",
+                  price: "bh-cell--price",
+                  pct: "bh-cell--pct",
+                  actions: "bh-cell--actions",
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

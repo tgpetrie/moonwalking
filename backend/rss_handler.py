@@ -173,8 +173,13 @@ class RSSHandler:
         
         try:
             # CryptoPanic API parameters
+            api_key = os.environ.get('CRYPTOPANIC_API_KEY')
+            if not api_key:
+                self.logger.warning("CRYPTOPANIC_API_KEY not found in environment")
+                return []
+
             params = {
-                'auth_token': 'YOUR_CRYPTOPANIC_TOKEN',  # Replace with actual token
+                'auth_token': api_key,
                 'public': 'true',
                 'kind': 'news',
                 'filter': 'hot',

@@ -8,49 +8,69 @@ import normalizeSentiment from "../adapters/normalizeSentiment";
  * - Treat all backend responses as snake_case and run them through normalizeSentiment.
  */
 
-const DEFAULT_BASE = "http://127.0.0.1:8001";
+const FAIL_COOLDOWN_MS = 8000;
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
 
 export function useSentimentLatest(
   symbol,
   { enabled = true, refreshMs = 30000 } = {}
 ) {
-  const baseRaw = import.meta.env.VITE_SENTIMENT_API_BASE || DEFAULT_BASE;
-  const base = baseRaw.replace(/\/$/, "");
+  const API_BASE =
+    import.meta.env.VITE_API_BASE ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:5001";
+
+  const base = API_BASE.replace(/\/$/, "");
 
   const lastGoodRef = useRef(null);
+  const lastGoodSymbolRef = useRef(null);
   const [raw, setRaw] = useState(null);
   const [data, setData] = useState(() => normalizeSentiment(null));
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(false);
   const [stale, setStale] = useState(false);
   const [error, setError] = useState(null);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
 
   const buildUrl = useCallback(() => {
     return symbol
-      ? `${base}/sentiment/latest?symbol=${encodeURIComponent(symbol)}`
-      : `${base}/sentiment/latest`;
+      ? `${base}/api/sentiment/latest?symbol=${encodeURIComponent(symbol)}`
+      : `${base}/api/sentiment/latest`;
   }, [base, symbol]);
 
   const fetchOnce = useCallback(async () => {
     if (!enabled) return;
 
+    // Cooldown: if we failed recently, don't spam
+    if (Date.now() < cooldownUntil) {
+      return;
+    }
+
     setValidating(true);
     setError(null);
     setStale(false);
 
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(buildUrl(), { cache: "no-store" });
+      const res = await fetch(buildUrl(), { cache: "no-store", signal: ac.signal });
       if (!res.ok) throw new Error(`sentiment ${res.status}`);
 
       const json = await res.json();
       lastGoodRef.current = json;
+      lastGoodSymbolRef.current = symbol || "";
       setRaw(json);
       setData(normalizeSentiment(json));
       setLoading(false);
       setStale(false);
     } catch (err) {
+      // Set cooldown on failure
+      setCooldownUntil(Date.now() + FAIL_COOLDOWN_MS);
+
       const fallback = lastGoodRef.current;
-      if (fallback) {
+      const fallbackSymbol = lastGoodSymbolRef.current;
+      if (fallback && fallbackSymbol === (symbol || "")) {
         setRaw(fallback);
         setData(normalizeSentiment(fallback));
         setError(null);
@@ -61,9 +81,10 @@ export function useSentimentLatest(
       }
       setLoading(false);
     } finally {
+      clearTimeout(timeoutId);
       setValidating(false);
     }
-  }, [buildUrl, enabled]);
+  }, [buildUrl, enabled, cooldownUntil, symbol]);
 
   useEffect(() => {
     if (!enabled) {
@@ -74,6 +95,15 @@ export function useSentimentLatest(
     const id = setInterval(fetchOnce, refreshMs);
     return () => clearInterval(id);
   }, [fetchOnce, enabled, refreshMs]);
+
+  useEffect(() => {
+    lastGoodRef.current = null;
+    lastGoodSymbolRef.current = symbol || "";
+    setLoading(true);
+    setError(null);
+    setStale(false);
+    setData(normalizeSentiment(null));
+  }, [symbol]);
 
   return {
     data,

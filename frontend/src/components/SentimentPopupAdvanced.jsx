@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { X, TrendingUp, Users, BarChart2, Activity, AlertTriangle, Zap, DollarSign, Lock } from 'lucide-react';
+import { useTieredSentiment } from '../hooks/useTieredSentiment';
+import TradingViewChart from './charts/TradingViewChart';
 import { Chart as ChartJS, registerables } from 'chart.js';
-import useSentimentLatest from '../hooks/useSentimentLatest';
-import '../styles/sentiment-popup-advanced.css';
 
 // Register Chart.js components
 ChartJS.register(...registerables);
@@ -12,7 +13,7 @@ ChartJS.register(...registerables);
  */
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const { data: sentimentData, loading, error, refresh } = useSentimentLatest(symbol);
+  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData } = useTieredSentiment(symbol);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Chart references
@@ -57,6 +58,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       weight: 0.50,
       updateFrequency: 'Real-time'
     },
+    'Telegram': {
+      url: 'https://web.telegram.org/',
+      description: 'Sentiment from major crypto channels (@cryptonews, @bitcoin)',
+      tier: 'tier-3',
+      icon: '✈️',
+      weight: 0.60,
+      updateFrequency: 'Real-time'
+    },
+    'StockTwits': {
+      url: 'https://stocktwits.com/',
+      description: 'Real-time message stream from StockTwits community',
+      tier: 'tier-3',
+      icon: '💬',
+      weight: 0.60,
+      updateFrequency: 'Real-time'
+    },
     'News Feeds': {
       url: 'https://www.coindesk.com/',
       description: 'Aggregated crypto news from CoinDesk, CryptoSlate, and Bitcoin Magazine',
@@ -64,6 +81,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       icon: '📰',
       weight: 0.75,
       updateFrequency: 'Continuous'
+    },
+    'Custom Scrapers': {
+      url: null,
+      description: 'Aggregated sentiment from 4chan /biz/, BitcoinTalk, and other forums',
+      tier: 'tier-3',
+      icon: '🕵️',
+      weight: 0.50,
+      updateFrequency: 'Periodic'
     }
   };
 
@@ -307,7 +332,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       sentimentData.fearGreedIndex || 65,
       ((sentimentData.socialBreakdown?.news || 0.7) * 100),
       ((sentimentData.socialBreakdown?.reddit || 0.65) * 100 +
-       (sentimentData.socialBreakdown?.twitter || 0.6) * 100) / 2
+       (sentimentData.socialBreakdown?.twitter || 0.6) * 100 +
+       (sentimentData.socialBreakdown?.telegram || 0.5) * 100 +
+       (sentimentData.socialBreakdown?.stocktwits || 0.5) * 100 +
+       (sentimentData.socialBreakdown?.custom || 0.5) * 100) / 5
     ];
 
     chartInstancesRef.current.tier = new ChartJS(canvas, {
@@ -481,7 +509,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   if (!isOpen) return null;
 
-  const score = sentimentData ? Math.round(sentimentData.overall * 100) : 0;
+  const score = sentimentData ? Math.round((sentimentData.overallSentiment || sentimentData.overall || 0) * 100) : 0;
   const fg = sentimentData?.fearGreedIndex || 50;
   const insight = generateTopInsight(score, fg);
   const gaugePos = updateGaugePosition(score);
@@ -687,6 +715,126 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 </div>
               </div>
 
+              {/* Tiered Sentiment Breakdown */}
+              {sentimentData?.hasTieredData && sentimentData?.tierScores && (
+                <div className="info-section">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+                    </svg>
+                    Who's Buying? Whale vs Retail Sentiment
+                  </h3>
+                  <div className="tier-breakdown-grid">
+                    <div className="tier-card tier-1">
+                      <div className="tier-header">
+                        <span className="tier-icon">🐋</span>
+                        <span className="tier-label">Whales & Institutions</span>
+                      </div>
+                      <div className="tier-score">
+                        {(sentimentData.tierScores.tier1 * 100).toFixed(0)}%
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-1-fill"
+                          style={{ width: `${sentimentData.tierScores.tier1 * 100}%` }}
+                        />
+                      </div>
+                      <div className="tier-meta">Smart Money: CoinGecko, Fear & Greed, Binance</div>
+                    </div>
+
+                    <div className="tier-card tier-2">
+                      <div className="tier-header">
+                        <span className="tier-icon">📰</span>
+                        <span className="tier-label">Mainstream Normies</span>
+                      </div>
+                      <div className="tier-score">
+                        {(sentimentData.tierScores.tier2 * 100).toFixed(0)}%
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-2-fill"
+                          style={{ width: `${sentimentData.tierScores.tier2 * 100}%` }}
+                        />
+                      </div>
+                      <div className="tier-meta">News & Big Reddit: CoinDesk, r/CC</div>
+                    </div>
+
+                    <div className="tier-card tier-3">
+                      <div className="tier-header">
+                        <span className="tier-icon">💎</span>
+                        <span className="tier-label">Diamond Hands & Degens</span>
+                      </div>
+                      <div className="tier-score">
+                        {(sentimentData.tierScores.tier3 * 100).toFixed(0)}%
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-3-fill"
+                          style={{ width: `${sentimentData.tierScores.tier3 * 100}%` }}
+                        />
+                      </div>
+                      <div className="tier-meta">Apes Strong Together: r/SSB, CT, Telegram</div>
+                    </div>
+
+                    <div className="tier-card tier-fringe">
+                      <div className="tier-header">
+                        <span className="tier-icon">🌚</span>
+                        <span className="tier-label">Moonboys & Schizos</span>
+                      </div>
+                      <div className="tier-score">
+                        {(sentimentData.tierScores.fringe * 100).toFixed(0)}%
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-fringe-fill"
+                          style={{ width: `${sentimentData.tierScores.fringe * 100}%` }}
+                        />
+                      </div>
+                      <div className="tier-meta">Anon Intel: /biz/, BitcoinTalk, Weibo</div>
+                    </div>
+                  </div>
+
+                  {/* Pipeline Status Indicator */}
+                  {pipelineHealth?.running && (
+                    <div className="pipeline-status success">
+                      <span className="status-indicator">✓</span>
+                      <span>📡 LIVE: Scanning {sentimentData.totalDataPoints || 0} sources across all tiers - Data is SAFU</span>
+                    </div>
+                  )}
+                  {!pipelineHealth?.running && pipelineHealth?.checked && (
+                    <div className="pipeline-status warning">
+                      <span className="status-indicator">⚠</span>
+                      <span>Pipeline rekt - running on cached hopium. DYOR: ./start_sentiment_pipeline.sh</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Divergence Alerts */}
+              {sentimentData?.divergenceAlerts && sentimentData.divergenceAlerts.length > 0 && (
+                <div className="info-section">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                      <path d="M12 9v4M12 17h.01"/>
+                    </svg>
+                    Divergence Alerts
+                  </h3>
+                  <div className="divergence-alerts">
+                    {sentimentData.divergenceAlerts.map((alert, idx) => (
+                      <div key={idx} className={`alert-box ${alert.type}`}>
+                        <span className="alert-icon">
+                          {alert.type === 'warning' ? '🚨' : 'ℹ️'}
+                        </span>
+                        <div className="alert-content">
+                          <p>{alert.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="info-section">
                 <h3>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -710,10 +858,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                   </svg>
-                  Understanding This Data
+                  How to Read the Tea Leaves
                 </h3>
                 <div className="explainer-box">
-                  <p>This analysis aggregates sentiment from <strong>{sourceCount}+</strong> real-time data sources, weighted by reliability tier. <strong>Tier 1</strong> sources (institutional data) carry more weight than <strong>Tier 3</strong> (retail/social). Click on the <strong>Live Sources</strong> tab to verify any data point yourself.</p>
+                  <p>This analysis scans <strong>{sourceCount}+</strong> live sources from Whales to Anons. <strong>🐋 Smart money</strong> gets more weight than <strong>💎 degen sentiment</strong>. When whales buy while apes panic = accumulation zone. When retail FOMOs while whales sell = possible top. Click <strong>Live Sources</strong> to verify - trust, but verify anon.</p>
                 </div>
               </div>
             </section>

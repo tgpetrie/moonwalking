@@ -11,7 +11,7 @@ const rowVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      y: { type: "spring", stiffness: 420, damping: 32 },
+      y: { type: "spring", stiffness: 620, damping: 34 },
       opacity: { duration: 0.15 },
       delay: rank * 0.015, // stagger by rank
     },

@@ -109,6 +109,7 @@ Behavior:
 - `frontend/src/components/charts/TradingViewChart.jsx`
 
 `Charts` tab renders TradingView immediately, and only gates *history charts*.
+`Charts` tab renders TradingView immediately, and only gates *history charts*.
 
 #### Sentiment modal skin + rabbit haze
 **Files:**

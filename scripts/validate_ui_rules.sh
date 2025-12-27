@@ -1,56 +1,58 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+fail() { echo "FAIL: $*" >&2; exit 1; }
+ok() { echo "OK: $*"; }
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FRONTEND="$ROOT/frontend"
-
-fail() { echo "FAIL: $1" >&2; exit 1; }
-ok() { echo "OK: $1"; }
-
 cd "$ROOT"
 
-# 1) Banner structure guardrails
-grep -R --line-number -E '\bbh-banner-track\b' "$FRONTEND/src" >/dev/null \
-  && ok "bh-banner-track referenced" \
-  || fail "bh-banner-track not found in frontend/src"
+CSS="frontend/src/index.css"
 
-grep -R --line-number -E '\bbh-banner-chip\b' "$FRONTEND/src" >/dev/null \
-  && ok "bh-banner-chip referenced" \
-  || fail "bh-banner-chip not found in frontend/src"
+test -f "$CSS" || fail "missing $CSS"
 
-# 2) Token row class guardrail (components must render token-row table-row)
-grep -R --line-number -E 'className=.*token-row.*table-row|token-row table-row' "$FRONTEND/src/components" >/dev/null \
-  && ok "token-row table-row present in components" \
-  || fail "token-row table-row not found in frontend/src/components"
+# Banners must use these classes
+grep -R --line-number "bh-banner-track" frontend/src >/dev/null || fail "banners must use .bh-banner-track"
+grep -R --line-number "bh-banner-chip" frontend/src >/dev/null || fail "banners must use .bh-banner-chip"
 
-# 3) Font guardrail: only Raleway is referenced as a named font-family
-#    This asserts:
-#      - Raleway appears at least once
-#      - no other quoted font names appear (e.g., "Inter", "Montserrat", "Prosto", etc.)
-grep -R --line-number -E 'font-family:\s*"?Raleway"?' "$FRONTEND/src" >/dev/null \
-  && ok "Raleway font-family referenced" \
-  || fail "Raleway font-family not found"
+# Banner marquee loop class must exist
+grep -R --line-number "bh-banner-track--loop" frontend/src >/dev/null || fail "banners must use .bh-banner-track--loop"
 
-# find quoted font-family names other than Raleway
-OTHER_FONTS="$(grep -R --line-number -E 'font-family:[^;]*"[^"]+' "$FRONTEND/src" | grep -v 'Raleway' || true)"
-if [[ -n "$OTHER_FONTS" ]]; then
-  echo "$OTHER_FONTS" >&2
-  fail "Non-Raleway quoted font-family detected"
-fi
-ok "No non-Raleway quoted fonts detected"
+# Typography hierarchy contract must exist
+grep -n "\.bh-pct" "$CSS" >/dev/null || fail "missing .bh-pct"
+grep -n "\.bh-price-current" "$CSS" >/dev/null || fail "missing .bh-price-current"
+grep -n "\.bh-price-prev" "$CSS" >/dev/null || fail "missing .bh-price-prev"
 
-# 4) Required class names exist AND are referenced
-grep -R --line-number -E '\btoken-pct-gain\b' "$FRONTEND/src" >/dev/null \
-  && ok "token-pct-gain exists/referenced" \
-  || fail "token-pct-gain missing"
+# Global color tokens must exist
+grep -n "\-\-bh-white" "$CSS" >/dev/null || fail "missing --bh-white"
+grep -n "\-\-bh-mint" "$CSS" >/dev/null || fail "missing --bh-mint"
 
-grep -R --line-number -E '\btoken-pct-loss\b' "$FRONTEND/src" >/dev/null \
-  && ok "token-pct-loss exists/referenced" \
-  || fail "token-pct-loss missing"
+# Permanent rail must be bottom-based
+grep -n "\.bh-row::after" "$CSS" >/dev/null || fail "missing .bh-row::after (permanent rail)"
+grep -n "bottom: 0" "$CSS" >/dev/null || fail "rail must be positioned at bottom: 0"
 
-grep -R --line-number -E '\btr-price-current\b' "$FRONTEND/src" >/dev/null \
-  && ok "tr-price-current exists/referenced" \
-  || fail "tr-price-current missing"
+# Canonical grid must exist
+grep -n "\-\-bh-cols" "$CSS" >/dev/null || fail "missing --bh-cols"
+grep -R --line-number "bh-row-grid" frontend/src >/dev/null || fail "rows must use .bh-row-grid"
 
-echo "All UI rule validations passed."
+# Cadence defaults must exist (8s / 30s / 120s)
+grep -n "VITE_FETCH_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_FETCH_MS in DataContext"
+grep -n "8000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 8000 default fetch cadence"
+grep -n "VITE_PUBLISH_3M_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_PUBLISH_3M_MS in DataContext"
+grep -n "30000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 30000 default 3m cadence"
+grep -n "VITE_PUBLISH_BANNER_MS" frontend/src/context/DataContext.jsx >/dev/null || fail "missing VITE_PUBLISH_BANNER_MS in DataContext"
+grep -n "120000" frontend/src/context/DataContext.jsx >/dev/null || fail "missing 120000 default banner cadence"
+grep -n "setInterval(fetchOnce, 8000)" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must poll every 8s"
+grep -n "last3mRef" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must cache 3m refresh"
+grep -n "lastBannersRef" frontend/src/hooks/useDataFeed.js >/dev/null || fail "useDataFeed must cache banner refresh"
 
+# Block old labels
+grep -R --line-number "3 Min Gainers/Losers" frontend/src && fail "remove '3 Min Gainers/Losers' text"
+grep -R --line-number "1 hour price %" frontend/src && fail "remove '1 hour price %' label"
+
+# AnomalyStream must reference canonical keys
+grep -R --line-number "gainers_1m" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference gainers_1m"
+grep -R --line-number "losers_3m" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference losers_3m"
+grep -R --line-number "volume_change_1h_pct" frontend/src/components/AnomalyStream.jsx >/dev/null || fail "AnomalyStream must reference volume_change_1h_pct"
+
+ok "UI rules validated."

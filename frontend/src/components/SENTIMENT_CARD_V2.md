@@ -10,7 +10,7 @@ A developer-grade spec for the BHABIT / CBMo4ers Sentiment popup: stable fetchin
 ## 0) Goal
 Ship a stable, never‑crashing insights popup that:
 
-1. Pulls real sentiment data from `/sentiment/latest` (FastAPI, port 8001 in dev).
+1. Pulls real sentiment data from `/sentiment/latest` (FastAPI; base URL configured per environment).
 2. Preserves the **last‑good snapshot** during revalidation or API outages.
 3. Provides four tabs: **Overview**, **Social**, **Charts**, **Sources**.
 4. Adds actionable intelligence: freshness, confidence, divergence, rhyme.
@@ -23,7 +23,7 @@ Ship a stable, never‑crashing insights popup that:
 ### 1.1 Raw API
 Endpoint:
 - `GET {VITE_SENTIMENT_API_BASE}/sentiment/latest?symbol=UNI`
-- Dev base: `http://127.0.0.1:8001`
+- Dev base: `http://127.0.0.1:5001`
 
 Current raw shape:
 ```json
