@@ -56,6 +56,7 @@ export function RowInfo({ onInfoClick, className = "" }) {
     <button
       type="button"
       className={`bh-row-action bh-action bh-action--info ${className}`}
+      onMouseDown={(e) => { if (e) { e.preventDefault(); e.stopPropagation(); } }}
       onClick={handleInfoClick}
       aria-label="Open sentiment"
     >

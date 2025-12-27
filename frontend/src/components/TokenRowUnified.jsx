@@ -128,7 +128,7 @@ export function TokenRowUnified({
         <RowActions
           starred={Boolean(isWatchlisted)}
           onToggleStar={handleToggleStar}
-          onInfoClick={() => openSentiment(token.symbol)}
+          onInfoClick={() => setInfoOpen ? setInfoOpen((v) => !v) : openSentiment(token.symbol)}
         />
       </CellTag>
     </>
@@ -136,6 +136,13 @@ export function TokenRowUnified({
 
   const url = coinbaseSpotUrl(token || {});
   const rowClassName = [rowClass, url ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
+  const [infoOpen, setInfoOpen] = useState(false);
+  const toggleInfo = (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    if (e?.stopPropagation) e.stopPropagation();
+    setInfoOpen((v) => !v);
+  };
+
   const open = () => {
     if (!url) return;
     if (window.getSelection?.().toString()) return;
@@ -182,19 +189,37 @@ export function TokenRowUnified({
   };
 
   return (
-    <RowTag
-      className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
-      style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
-      data-side={dataSide}
-      role={url ? "link" : undefined}
-      tabIndex={url ? 0 : undefined}
-      onClick={handleClick}
-      onKeyDown={onKeyDown}
-      onPointerEnter={setRabbitHover(true)}
-      onPointerLeave={setRabbitHover(false)}
-      aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
-    >
-      {renderCells()}
-    </RowTag>
+    <>
+      <RowTag
+        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
+        style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        data-side={dataSide}
+        role={url ? "link" : undefined}
+        tabIndex={url ? 0 : undefined}
+        onClick={handleClick}
+        onKeyDown={onKeyDown}
+        onPointerEnter={setRabbitHover(true)}
+        onPointerLeave={setRabbitHover(false)}
+        aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
+      >
+        {renderCells()}
+      </RowTag>
+
+      {infoOpen && (renderAs === "tr" ? (
+        <tr className="bh-info-row">
+          <td colSpan="99">
+            <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+              <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
+              <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
+            </div>
+          </td>
+        </tr>
+      ) : (
+        <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
+          <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
+        </div>
+      ))}
+    </>
   );
 }

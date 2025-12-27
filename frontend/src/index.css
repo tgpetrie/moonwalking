@@ -3546,3 +3546,66 @@ a.bh-row {
   color: rgba(255, 255, 255, 0.48);
   font-style: italic;
 }
+
+/* ===== Row hover zoom (leave rabbit bloom alone) ===== */
+
+.bh-row{
+  transition: transform 140ms ease, filter 140ms ease;
+  will-change: transform;
+  transform-origin: 50% 50%;
+}
+
+.bh-row:hover{
+  transform: translateY(-2px) scale(1.016);  /* stronger than before */
+  filter: saturate(1.05) contrast(1.08);
+}
+
+/* keep zoom subtle on small screens so it doesn't feel jumpy */
+@media (max-width: 520px){
+  .bh-row:hover{
+    transform: translateY(-1px) scale(1.010);
+  }
+}
+
+/* Info button + panel (minimal; does not interfere with rabbit bloom) */
+.bh-action.bh-action--info{
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.62);
+  opacity: 0.72;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.bh-row:hover .bh-action.bh-action--info{
+  opacity: 0.95;
+  transform: translateY(-0.5px);
+}
+
+.bh-info-panel{
+  margin: 8px 0 0 0;
+  padding: 12px 12px 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0));
+  backdrop-filter: blur(10px);
+}
+
+.bh-info-panel__title{
+  color: rgba(255,255,255,0.82);
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.bh-info-panel__muted{
+  color: rgba(255,255,255,0.55);
+  font-size: 13px;
+}
