@@ -22,7 +22,9 @@ export default function App() {
       <WatchlistProvider>
         <SentimentProvider>
           <IntelligenceBridge>
-            <DashboardShell />
+            <div className="bh-shell">
+              <DashboardShell />
+            </div>
           </IntelligenceBridge>
         </SentimentProvider>
       </WatchlistProvider>

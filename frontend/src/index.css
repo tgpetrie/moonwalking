@@ -952,23 +952,6 @@ a.bh-row {
   padding: 0;
 }
 
-/* Context-aware rank colors: losers show violet/purple */
-.bh-row--loss .bh-rank,
-.bh-row.is-loss .bh-rank {
-  background: transparent !important;
-  border-color: rgba(168, 111, 255, 0.35);
-  color: rgba(168, 111, 255, 0.9);
-}
-.token-row.table-row.is-gain .tr-col-rank {
-  color: var(--bh-gain);
-  border-color: rgba(245, 159, 34, 0.35);
-}
-
-.token-row.table-row.is-loss .tr-col-rank {
-  color: var(--bh-loss);
-  border-color: rgba(168, 111, 255, 0.35);
-}
-
 .bh-name {
   font-size: 0.74rem;
   color: var(--bh-muted);
@@ -3608,4 +3591,259 @@ a.bh-row {
 .bh-info-panel__muted{
   color: rgba(255,255,255,0.55);
   font-size: 13px;
+}
+
+/* ===== Banner spacing: tighten vertical rhythm ===== */
+
+.bh-banner-block{
+  padding-top: 8px;
+  padding-bottom: 6px;
+}
+
+.bh-banner-title,
+.bh-banner-subtitle{
+  margin: 0;
+  line-height: 1.12;
+}
+
+.bh-banner-track{
+  padding: 4px 0;       /* reduces the airy strip */
+  gap: 12px;
+}
+
+.bh-banner-item{
+  padding: 5px 10px;    /* tighter pills */
+  line-height: 1.05;
+}
+
+/* ===== Tight rails: reduce row air across 1m/3m/watchlist ===== */
+
+.bh-table{ margin-top: 10px; }
+
+.bh-row{
+  min-height: 44px;     /* density */
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.bh-row > *{ align-self: center; }
+
+/* kill accidental list spacing without changing structure */
+.bh-table > * + *{ margin-top: 0; }
+
+/* ===== Row hover zoom: stronger, still glass ===== */
+
+.bh-row{
+  transition: transform 140ms ease, filter 140ms ease;
+  will-change: transform;
+  transform-origin: 50% 50%;
+}
+
+.bh-row:hover{
+  transform: translateY(-2px) scale(1.016);
+  filter: saturate(1.05) contrast(1.08);
+}
+
+@media (max-width: 520px){
+  .bh-row:hover{ transform: translateY(-1px) scale(1.010); }
+}
+
+/* ===== Rank badge: number neutral; ring context colored ===== */
+
+/* number color (same everywhere) */
+.bh-rank,
+.bh-rank-num,
+.bh-rank .num{
+  color: rgba(255,255,255,0.78);
+}
+
+/* default ring = gold (gainers + neutral) */
+.bh-rank,
+.bh-rank-ring,
+.bh-rank-circle{
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(255,176,46,0.32);
+  box-shadow: none;
+  background: transparent;
+}
+
+/* losers ring = purple (number stays neutral) */
+.bh-row[data-side="loser"] .bh-rank,
+.bh-row[data-side="loser"] .bh-rank-ring,
+.bh-row[data-side="loser"] .bh-rank-circle{
+  border-color: rgba(120,80,255,0.35);
+}
+
+.bh-row[data-side="loser"]:hover .bh-rank,
+.bh-row[data-side="loser"]:hover .bh-rank-ring,
+.bh-row[data-side="loser"]:hover .bh-rank-circle{
+  border-color: rgba(120,80,255,0.55);
+}
+
+/* ===== Watchlist alignment: remove wrapper side padding drift ===== */
+
+.watchlist-panel,
+.bh-watchlist,
+.watchlist,
+.watchlist-wrapper{
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* ===== Info panel: never block row hover tracking ===== */
+
+.bh-info-panel{
+  pointer-events: auto;
+}
+
+.bh-row .bh-action--info{
+  pointer-events: auto;
+}
+
+/* Watchlist must use same row grid contract as tables */
+.bh-watchlist .bh-row,
+.bh-watchlist .bh-row-grid,
+.watchlist-panel .bh-row,
+.watchlist-panel .bh-row-grid{
+  width: 100%;
+}
+
+/* If watchlist wrapper has extra left padding, kill it */
+.bh-watchlist,
+.watchlist-panel{
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Force the same column template if watchlist got a different one */
+.bh-watchlist .bh-row-grid,
+.watchlist-panel .bh-row-grid{
+  grid-template-columns: var(--bh-row-cols, 52px 1.2fr 1fr 1fr 0.9fr 86px) !important;
+}
+
+/* Mint is for the current price only */
+.bh-price-now{
+  color: rgb(16, 174, 155) !important;
+}
+
+/* Previous price should be muted */
+.bh-price-prev{
+  color: rgba(255,255,255,0.42) !important;
+}
+
+/* Clamp any accidental mint on previous price */
+.bh-row .bh-price-prev,
+.bh-row .bh-prev,
+.bh-row .prev-price{
+  color: rgba(255,255,255,0.42) !important;
+}
+
+/* Intelligence log container: keep it aligned with the UI language */
+.bh-intel-log{
+  width: 100%;
+  margin-top: 14px;
+}
+
+.bh-intel-log .bh-log-row{
+  display: grid;
+  grid-template-columns: 86px 64px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  background: transparent;
+}
+
+.bh-intel-log .bh-log-time{
+  color: rgba(255,255,255,0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.bh-intel-log .bh-log-type{
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.bh-intel-log .bh-log-msg{
+  color: rgba(255,255,255,0.78);
+}
+
+/* Minimal Anomaly Stream (intel log) surface rules — restore visual skin */
+.bh-anom{
+  width: 100%;
+  margin: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid rgba(145,88,255,0.12);
+  background: transparent;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  transition: height 0.26s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.bh-anom-head{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(176,96,255,0.06), rgba(128,75,255,0.04));
+  border-bottom: 1px solid rgba(145,88,255,0.14);
+  cursor: pointer;
+  user-select: none;
+}
+
+.bh-anom-title{
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(176,96,255,0.95);
+  font-weight: 700;
+}
+
+.bh-anom-state.is-live{ color: #ffc43df2; animation: bhPulse 1.15s ease-in-out infinite; }
+.bh-anom-state.is-standby{ opacity: 0.55; }
+.bh-anom-meta{ font-size: 11px; letter-spacing: 0.06em; opacity: 0.6; color: rgba(176,96,255,0.85); }
+
+.bh-anom-body{ flex: 1; overflow: auto; padding: 12px 14px; font-size: 12px; letter-spacing: 0.03em; background: transparent; }
+.bh-anom-body.is-hidden{ opacity: 0; pointer-events: none; }
+
+.bh-anom-line{ display: flex; gap: 10px; align-items: baseline; line-height: 1.2; margin: 0 0 8px; }
+.bh-anom-time{ opacity: 0.45; color: rgba(245,246,250,0.92); white-space: nowrap; font-size: 11px; }
+.bh-anom-msg{ text-transform: uppercase; font-weight: 700; }
+.tone-mint .bh-anom-msg{ color: #10ae9bf2; }
+.tone-mint-dim .bh-anom-msg{ color: #10ae9bbf; }
+.tone-gold .bh-anom-msg{ color: #ffc43df2; text-shadow: 0 0 10px rgba(255,196,61,0.55); }
+.tone-purple .bh-anom-msg{ color: #b060fff2; text-shadow: 0 0 10px rgba(176,96,255,0.55); }
+.tone-cyan .bh-anom-msg{ color: #22d3eef2; text-shadow: 0 0 10px rgba(34,211,238,0.55); }
+.bh-anom-cursor{ color: #b060fff2; font-weight: 800; animation: bhPulse 1.1s ease-in-out infinite; }
+
+@keyframes bhPulse{ 0%,to{ opacity: .9; transform: scale(1); } 50%{ opacity: 1; transform: scale(1.02); } }
+
+/* ===== Page frame + shell to center the board ===== */
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center; /* center horizontally */
+  align-items: flex-start; /* keep it top-anchored */
+  background: var(--bh-bg, #06060a);
+}
+
+/* Vite root: keep app centered even when inner uses full width */
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Centered shell for the main board */
+.bh-shell {
+  width: min(1320px, calc(100vw - 48px));
+  margin: 24px auto;
 }
