@@ -3847,3 +3847,15 @@ body {
   width: min(1320px, calc(100vw - 48px));
   margin: 24px auto;
 }
+
+/* Stronger centering: ensure inner app respects the shell and centers content */
+.bh-shell{
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.bh-shell > .bh-app{
+  width: 100%;
+  max-width: inherit;
+}
