@@ -12,6 +12,17 @@ HOST="${HOST:-127.0.0.1}"
 echo "[start_app] backend:  http://${HOST}:${BACKEND_PORT}"
 echo "[start_app] frontend: http://${HOST}:${FRONTEND_PORT}"
 
+# Start sentiment pipeline (background)
+(
+  # Run the pipeline on its default port (8002) unless overridden
+  SENTIMENT_PORT="${SENTIMENT_PORT:-8002}"
+  SENTIMENT_HOST="${HOST}"
+  echo "[start_app] sentiment pipeline: http://${SENTIMENT_HOST}:${SENTIMENT_PORT} (starting in background)"
+  # Use the repo helper script which honors env vars
+  SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_HOST="$SENTIMENT_HOST" ./scripts/start_sentiment.sh > /tmp/mw_pipeline_${SENTIMENT_PORT}.log 2>&1 &
+  echo $! > /tmp/mw_sentiment.pid
+) &
+
 # Start backend
 (
   cd backend
