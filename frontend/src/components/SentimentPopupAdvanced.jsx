@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { X, TrendingUp, Users, BarChart2, Activity, AlertTriangle, Zap, DollarSign, Lock } from 'lucide-react';
+import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { useTieredSentiment } from '../hooks/useTieredSentiment';
 import TradingViewChart from './charts/TradingViewChart';
 import { Chart as ChartJS, registerables } from 'chart.js';
@@ -7,13 +7,34 @@ import { Chart as ChartJS, registerables } from 'chart.js';
 // Register Chart.js components
 ChartJS.register(...registerables);
 
+const TIER_ICONS = {
+  tier1: 'T1',
+  tier2: 'T2',
+  tier3: 'T3',
+  fringe: 'FX'
+};
+
+const TIER_ORDER = {
+  tier1: 1,
+  tier2: 2,
+  tier3: 3,
+  fringe: 4
+};
+
+const TIER_LABELS = {
+  tier1: 'Tier 1 · Institutional',
+  tier2: 'Tier 2 · Professional',
+  tier3: 'Tier 3 · Retail',
+  fringe: 'Fringe · Schizo'
+};
+
 /**
  * Advanced Sentiment Analysis Popup
  * Multi-tab interface with live data, charts, and insights
  */
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData } = useTieredSentiment(symbol);
+  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Chart references
@@ -24,72 +45,34 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   const chartInstancesRef = useRef({});
 
-  // Source metadata with real URLs
-  const SOURCE_METADATA = {
-    'Fear & Greed Index': {
-      url: 'https://alternative.me/crypto/fear-and-greed-index/',
-      description: 'Market-wide emotional indicator (0-100 scale) tracking volatility, momentum, social media, and dominance',
-      tier: 'tier-1',
-      icon: '📊',
-      weight: 0.90,
-      updateFrequency: 'Daily'
-    },
-    'CoinGecko': {
-      url: 'https://www.coingecko.com/',
-      description: 'Leading cryptocurrency data aggregator with market cap, volume, and price data for 10,000+ coins',
-      tier: 'tier-1',
-      icon: '🦎',
-      weight: 0.85,
-      updateFrequency: 'Real-time'
-    },
-    'Reddit': {
-      url: 'https://www.reddit.com/r/CryptoCurrency/',
-      description: 'Largest crypto community on Reddit with 7M+ members',
-      tier: 'tier-3',
-      icon: '🔴',
-      weight: 0.60,
-      updateFrequency: 'Real-time'
-    },
-    'Twitter/X': {
-      url: 'https://twitter.com/search?q=%23crypto',
-      description: 'Real-time social sentiment from crypto influencers and traders',
-      tier: 'tier-3',
-      icon: '𝕏',
-      weight: 0.50,
-      updateFrequency: 'Real-time'
-    },
-    'Telegram': {
-      url: 'https://web.telegram.org/',
-      description: 'Sentiment from major crypto channels (@cryptonews, @bitcoin)',
-      tier: 'tier-3',
-      icon: '✈️',
-      weight: 0.60,
-      updateFrequency: 'Real-time'
-    },
-    'StockTwits': {
-      url: 'https://stocktwits.com/',
-      description: 'Real-time message stream from StockTwits community',
-      tier: 'tier-3',
-      icon: '💬',
-      weight: 0.60,
-      updateFrequency: 'Real-time'
-    },
-    'News Feeds': {
-      url: 'https://www.coindesk.com/',
-      description: 'Aggregated crypto news from CoinDesk, CryptoSlate, and Bitcoin Magazine',
-      tier: 'tier-2',
-      icon: '📰',
-      weight: 0.75,
-      updateFrequency: 'Continuous'
-    },
-    'Custom Scrapers': {
-      url: null,
-      description: 'Aggregated sentiment from 4chan /biz/, BitcoinTalk, and other forums',
-      tier: 'tier-3',
-      icon: '🕵️',
-      weight: 0.50,
-      updateFrequency: 'Periodic'
-    }
+  const sortedSources = useMemo(() => {
+    if (!pipelineSources || !pipelineSources.length) return [];
+    return [...pipelineSources].sort((a, b) => {
+      const tierA = TIER_ORDER[a.tier] ?? 99;
+      const tierB = TIER_ORDER[b.tier] ?? 99;
+      if (tierA !== tierB) return tierA - tierB;
+      return (b.trust_weight ?? 0) - (a.trust_weight ?? 0);
+    });
+  }, [pipelineSources]);
+
+  const formatTimestamp = (value) => {
+    if (!value) return '--:--';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getTierBadgeLabel = (tier) => {
+    if (!tier) return 'UNKNOWN';
+    if (tier === 'fringe') return 'FRINGE';
+    const match = tier.match(/tier(\d)/i);
+    if (match) return `TIER ${match[1]}`;
+    return tier.replace('-', ' ').toUpperCase();
+  };
+
+  const getSourceScoreLabel = (score) => {
+    if (typeof score !== 'number') return '--';
+    return `${(score * 100).toFixed(1)}%`;
   };
 
   // Close on Escape key
@@ -165,7 +148,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (fg > 80) {
       return {
         type: 'alert',
-        icon: '🚨',
+        icon: <AlertTriangle size={16} />,
         title: 'Extreme Greed Detected',
         message: `Fear & Greed at ${fg} suggests market euphoria. Historical data shows this often precedes corrections. Consider taking profits on winning positions.`
       };
@@ -174,7 +157,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (fg < 20) {
       return {
         type: 'bullish',
-        icon: '💎',
+        icon: <TrendingUp size={16} />,
         title: 'Extreme Fear = Opportunity',
         message: `Fear & Greed at ${fg} indicates maximum fear. Warren Buffett: "Be greedy when others are fearful." This could be a buying opportunity for long-term holders.`
       };
@@ -183,7 +166,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (score > 75) {
       return {
         type: 'bullish',
-        icon: '📈',
+        icon: <TrendingUp size={16} />,
         title: 'Strong Bullish Sentiment',
         message: `Overall sentiment at ${score}/100 shows broad market optimism. Momentum favors buyers, but watch for overbought conditions.`
       };
@@ -192,7 +175,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (score < 35) {
       return {
         type: 'bearish',
-        icon: '📉',
+        icon: <Activity size={16} />,
         title: 'Bearish Sentiment Prevailing',
         message: `Sentiment at ${score}/100 indicates widespread pessimism. This could mean continued downside or a contrarian buying opportunity.`
       };
@@ -200,7 +183,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
     return {
       type: 'neutral',
-      icon: '⚖️',
+      icon: <Activity size={16} />,
       title: 'Market in Equilibrium',
       message: `Sentiment at ${score}/100 with F&G at ${fg} shows balanced market conditions. Good time to research and build positions gradually.`
     };
@@ -514,9 +497,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const insight = generateTopInsight(score, fg);
   const gaugePos = updateGaugePosition(score);
 
-  const sourceCount = sentimentData?.sourceBreakdown
+  const fallbackSourceCount = sentimentData?.sourceBreakdown
     ? Object.values(sentimentData.sourceBreakdown).reduce((a, b) => a + b, 0)
     : 5;
+  const sourceCount = pipelineSources?.length || fallbackSourceCount;
 
   const lastUpdate = sentimentData?.timestamp
     ? new Date(sentimentData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -530,7 +514,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       aria-modal="true"
       aria-labelledby="sentimentTitle"
     >
-      <div className="sentiment-popup">
+      <div className="sentiment-popup" data-sentiment-symbol={symbol}>
         {/* Header */}
         <header className="popup-header">
           <div className="header-left">
@@ -727,7 +711,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   <div className="tier-breakdown-grid">
                     <div className="tier-card tier-1">
                       <div className="tier-header">
-                        <span className="tier-icon">🐋</span>
+                        <span className="tier-icon">T1</span>
                         <span className="tier-label">Whales & Institutions</span>
                       </div>
                       <div className="tier-score">
@@ -744,7 +728,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
                     <div className="tier-card tier-2">
                       <div className="tier-header">
-                        <span className="tier-icon">📰</span>
+                        <span className="tier-icon">T2</span>
                         <span className="tier-label">Mainstream Normies</span>
                       </div>
                       <div className="tier-score">
@@ -761,7 +745,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
                     <div className="tier-card tier-3">
                       <div className="tier-header">
-                        <span className="tier-icon">💎</span>
+                        <span className="tier-icon">T3</span>
                         <span className="tier-label">Diamond Hands & Degens</span>
                       </div>
                       <div className="tier-score">
@@ -778,7 +762,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
                     <div className="tier-card tier-fringe">
                       <div className="tier-header">
-                        <span className="tier-icon">🌚</span>
+                        <span className="tier-icon">FX</span>
                         <span className="tier-label">Moonboys & Schizos</span>
                       </div>
                       <div className="tier-score">
@@ -798,13 +782,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   {pipelineHealth?.running && (
                     <div className="pipeline-status success">
                       <span className="status-indicator">✓</span>
-                      <span>📡 LIVE: Scanning {sentimentData.totalDataPoints || 0} sources across all tiers - Data is SAFU</span>
+                      <span>LIVE: Scanning {sentimentData.totalDataPoints || 0} sources across all tiers - Data is healthy</span>
                     </div>
                   )}
                   {!pipelineHealth?.running && pipelineHealth?.checked && (
                     <div className="pipeline-status warning">
                       <span className="status-indicator">⚠</span>
-                      <span>Pipeline rekt - running on cached hopium. DYOR: ./start_sentiment_pipeline.sh</span>
+                      <span>Pipeline offline - showing cached data. Start: ./start_sentiment_pipeline.sh</span>
                     </div>
                   )}
                 </div>
@@ -824,7 +808,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     {sentimentData.divergenceAlerts.map((alert, idx) => (
                       <div key={idx} className={`alert-box ${alert.type}`}>
                         <span className="alert-icon">
-                          {alert.type === 'warning' ? '🚨' : 'ℹ️'}
+                          {alert.type === 'warning' ? '!' : 'i'}
                         </span>
                         <div className="alert-content">
                           <p>{alert.message}</p>
@@ -861,7 +845,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   How to Read the Tea Leaves
                 </h3>
                 <div className="explainer-box">
-                  <p>This analysis scans <strong>{sourceCount}+</strong> live sources from Whales to Anons. <strong>🐋 Smart money</strong> gets more weight than <strong>💎 degen sentiment</strong>. When whales buy while apes panic = accumulation zone. When retail FOMOs while whales sell = possible top. Click <strong>Live Sources</strong> to verify - trust, but verify anon.</p>
+                  <p>This analysis scans <strong>{sourceCount}+</strong> live sources from Whales to Anons. <strong>Smart money</strong> gets more weight than <strong>Retail sentiment</strong>. When whales buy while apes panic = accumulation zone. When retail FOMOs while whales sell = possible top. Click <strong>Live Sources</strong> to verify - trust, but verify anon.</p>
                 </div>
               </div>
             </section>
@@ -879,7 +863,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     Live Data Sources
                   </h3>
-                  <p className="section-desc">Click any source to visit and verify the data yourself</p>
+                  <p className="section-desc">Sources are rendered directly from the pipeline inventory (via /api/sentiment/sources).</p>
                 </div>
 
                 <div className="tier-legend">
@@ -902,39 +886,52 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               </div>
 
               <div className="sources-list">
-                {Object.entries(SOURCE_METADATA).map(([name, metadata]) => (
-                  <div key={name} className={`source-card ${metadata.tier}`}>
-                    <div className="source-info">
-                      <div className="source-header">
-                        <span className="source-icon">{metadata.icon}</span>
-                        <div>
-                          <div className="source-name">{name}</div>
-                          <a
-                            href={metadata.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="source-link"
-                          >
-                            Visit Source
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
-                            </svg>
-                          </a>
+                {sortedSources.length > 0 ? (
+                  sortedSources.map((source) => {
+                    const tierKey = source.tier || 'tier3';
+                    const tierClass = tierKey === 'fringe' ? 'tier-fringe' : tierKey.replace(/tier(\d)/i, 'tier-$1');
+                    const badgeLabel = getTierBadgeLabel(tierKey);
+                    const statusLabel = source.status ? `${source.status.charAt(0).toUpperCase()}${source.status.slice(1)}` : 'Unknown';
+                    const weightLabel = typeof source.trust_weight === 'number'
+                      ? source.trust_weight.toFixed(2)
+                      : '--';
+                    const scoreLabel = getSourceScoreLabel(source.sentiment_score);
+
+                    return (
+                      <div key={source.name} className={`source-card ${tierClass}`}>
+                        <div className="source-info">
+                          <div className="source-header">
+                            <span className="source-icon" aria-hidden="true">{TIER_ICONS[tierKey] || '⚙️'}</span>
+                            <div>
+                              <div className="source-name">{source.name}</div>
+                              <span className="source-status">{statusLabel}</span>
+                            </div>
+                          </div>
+                          <div className="source-desc">
+                            {TIER_LABELS[tierKey] || 'Live pipeline source'}
+                          </div>
+                          <div className="source-meta">
+                            <span>Weight: {weightLabel}</span>
+                            <span>Status: {statusLabel}</span>
+                            <span>Updated: {formatTimestamp(source.last_updated)}</span>
+                          </div>
+                        </div>
+                        <div className="source-metrics">
+                          <span className={`tier-badge ${tierClass}`}>{badgeLabel}</span>
+                          <span className="source-score">Score {scoreLabel}</span>
                         </div>
                       </div>
-                      <div className="source-desc">{metadata.description}</div>
-                      <div className="source-meta">
-                        <span>Weight: {metadata.weight}</span>
-                        <span>Updates: {metadata.updateFrequency}</span>
-                      </div>
-                    </div>
-                    <div className="source-metrics">
-                      <span className={`tier-badge ${metadata.tier}`}>
-                        {metadata.tier.replace('-', ' ').toUpperCase()}
-                      </span>
-                    </div>
+                    );
+                  })
+                ) : (
+                  <div className="sources-empty">
+                    <p>
+                      {pipelineHealth.checked && !pipelineHealth.running
+                        ? 'Sentiment pipeline offline. Start the collector to reveal live sources.'
+                        : 'Loading pipeline sources...'}
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
             </section>
           )}

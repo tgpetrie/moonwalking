@@ -29,6 +29,7 @@ export function useTieredSentiment(
   const [raw, setRaw] = useState(null);
   const [data, setData] = useState(() => normalizeSentiment(null));
   const [tieredData, setTieredData] = useState(null);
+  const [sources, setSources] = useState([]);
   const [pipelineHealth, setPipelineHealth] = useState({ running: false, checked: false });
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(false);
@@ -84,6 +85,27 @@ export function useTieredSentiment(
       }
     } catch (err) {
       console.warn('[useTieredSentiment] Failed to fetch tiered data:', err.message);
+      return null;
+    }
+  }, [base]);
+
+  const fetchSources = useCallback(async () => {
+    try {
+      const res = await fetch(`${base}/api/sentiment/sources`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+
+      if (!res.ok) {
+        throw new Error(`sentiment sources ${res.status}`);
+      }
+
+      const json = await res.json();
+      const payload = Array.isArray(json) ? json : json.sources ?? [];
+      setSources(payload);
+      return payload;
+    } catch (err) {
+      console.warn('[useTieredSentiment] Failed to fetch sources:', err?.message || err);
       return null;
     }
   }, [base]);
@@ -223,6 +245,7 @@ export function useTieredSentiment(
       const [symbolData, tieredDataResult] = await Promise.allSettled([
         fetchSymbolSentiment(),
         fetchTieredData(),
+        fetchSources(),
       ]);
 
       // Get symbol data (primary)
@@ -272,7 +295,7 @@ export function useTieredSentiment(
     } finally {
       setValidating(false);
     }
-  }, [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, mergeTieredData]);
+  }, [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, fetchSources, mergeTieredData]);
 
   // Check pipeline health on mount
   useEffect(() => {
@@ -304,6 +327,7 @@ export function useTieredSentiment(
     data,
     raw,
     tieredData,
+    sources,
     pipelineHealth,
     loading,
     validating,

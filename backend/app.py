@@ -1259,18 +1259,25 @@ def api_sentiment_latest():
 # SENTIMENT PIPELINE PROXY ENDPOINTS
 # ============================================================================
 
-SENTIMENT_PIPELINE_URL = os.getenv('SENTIMENT_PIPELINE_URL', 'http://localhost:8002')
+SENTIMENT_HOST = os.getenv('SENTIMENT_HOST', '127.0.0.1')
+SENTIMENT_PORT = os.getenv('SENTIMENT_PORT', '8002')
+SENTIMENT_PIPELINE_URL = f"http://{SENTIMENT_HOST}:{SENTIMENT_PORT}"
+
+def _pipeline_url(path: str) -> str:
+    clean_path = path if path.startswith('/') else f'/{path}'
+    return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
+
 
 @app.route('/api/sentiment/tiered')
 def get_tiered_sentiment():
     """
     Proxy endpoint for tiered sentiment from the sentiment pipeline.
-    Forwards requests to the sentiment pipeline running on port 8002.
+    Honors the configured SENTIMENT_HOST/SENTIMENT_PORT to keep the proxy in sync with the orchestrator.
     """
     try:
         # Forward request to sentiment pipeline
         response = requests.get(
-            f'{SENTIMENT_PIPELINE_URL}/sentiment/latest',
+            _pipeline_url('/sentiment/latest'),
             timeout=5
         )
         response.raise_for_status()
@@ -1289,13 +1296,15 @@ def get_tiered_sentiment():
         return jsonify({
             'success': False,
             'error': 'Sentiment pipeline not running',
-            'message': 'The sentiment collection pipeline is not available. Start it with: ./start_sentiment_pipeline.sh'
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'message': f'The sentiment collection pipeline is not available at {SENTIMENT_PIPELINE_URL}; start it with: ./scripts/start_sentiment.sh'
         }), 503
 
     except requests.exceptions.Timeout:
         return jsonify({
             'success': False,
             'error': 'Sentiment pipeline timeout',
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
             'message': 'The sentiment pipeline took too long to respond'
         }), 504
 
@@ -1304,6 +1313,7 @@ def get_tiered_sentiment():
         return jsonify({
             'success': False,
             'error': str(e),
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
             'message': 'Failed to fetch sentiment data from pipeline'
         }), 500
 
@@ -1314,7 +1324,7 @@ def check_sentiment_pipeline_health():
     """
     try:
         response = requests.get(
-            f'{SENTIMENT_PIPELINE_URL}/health',
+            _pipeline_url('/health'),
             timeout=2
         )
         response.raise_for_status()
@@ -1333,7 +1343,7 @@ def check_sentiment_pipeline_health():
             'pipeline_running': False,
             'pipeline_url': SENTIMENT_PIPELINE_URL,
             'error': 'Connection refused - pipeline not running',
-            'help': 'Start the pipeline with: ./start_sentiment_pipeline.sh'
+            'help': f'Start the pipeline with: ./scripts/start_sentiment.sh (listening at {SENTIMENT_PIPELINE_URL})'
         }), 503
 
     except Exception as e:
@@ -1351,72 +1361,80 @@ def get_sentiment_sources():
     """
     try:
         response = requests.get(
-            f'{SENTIMENT_PIPELINE_URL}/stats',
+            _pipeline_url('/sentiment/sources'),
             timeout=5
         )
         response.raise_for_status()
-        stats = response.json()
+        sources = response.json()
 
         return jsonify({
             'success': True,
-            'sources': stats,
+            'sources': sources,
             'timestamp': datetime.utcnow().isoformat()
         })
 
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline not running',
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'message': f'Could not reach sentiment pipeline at {SENTIMENT_PIPELINE_URL}'
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline timeout',
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'message': 'The sentiment pipeline took too long to respond'
+        }), 504
     except Exception as e:
         logging.error(f"Error fetching sentiment sources: {e}")
         return jsonify({
             'success': False,
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
             'error': str(e)
         }), 500
 
 @app.route('/api/sentiment/divergence')
 def get_sentiment_divergence():
     """
-    Get divergence analysis between different sentiment tiers.
-    Useful for detecting when retail sentiment diverges from institutional.
+    Proxy endpoint that returns the divergence payload from the pipeline.
     """
     try:
         response = requests.get(
-            f'{SENTIMENT_PIPELINE_URL}/sentiment/latest',
+            _pipeline_url('/sentiment/divergence'),
             timeout=5
         )
         response.raise_for_status()
-        data = response.json()
-
-        # Extract tier scores if available
-        tier_scores = data.get('tier_scores', {})
-        overall_metrics = data.get('overall_metrics', {})
-
-        # Calculate divergences
-        divergences = []
-        if 'tier1' in tier_scores and 'tier3' in tier_scores:
-            tier1_score = tier_scores['tier1']
-            tier3_score = tier_scores['tier3']
-            divergence = abs(tier1_score - tier3_score)
-
-            if divergence > 0.2:  # 20% divergence threshold
-                divergences.append({
-                    'type': 'institutional_vs_retail',
-                    'tier1_score': tier1_score,
-                    'tier3_score': tier3_score,
-                    'divergence': divergence,
-                    'severity': 'high' if divergence > 0.3 else 'medium',
-                    'message': f'Institutional sentiment ({tier1_score:.2f}) diverges from retail ({tier3_score:.2f})'
-                })
+        divergence_payload = response.json()
 
         return jsonify({
             'success': True,
-            'divergences': divergences,
-            'tier_scores': tier_scores,
-            'overall_sentiment': overall_metrics.get('weighted_sentiment', 0.5),
-            'timestamp': data.get('timestamp', datetime.utcnow().isoformat())
+            'data': divergence_payload,
+            'timestamp': divergence_payload.get('timestamp', datetime.utcnow().isoformat())
         })
+
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline not running',
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'message': f'Could not reach sentiment pipeline at {SENTIMENT_PIPELINE_URL}'
+        }), 503
+
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'success': False,
+            'error': 'Sentiment pipeline timeout',
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
+            'message': 'The sentiment pipeline took too long to respond'
+        }), 504
 
     except Exception as e:
         logging.error(f"Error fetching divergence data: {e}")
         return jsonify({
             'success': False,
+            'pipeline_url': SENTIMENT_PIPELINE_URL,
             'error': str(e)
         }), 500
 
