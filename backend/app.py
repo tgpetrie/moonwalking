@@ -1168,12 +1168,10 @@ from sentiment_intelligence import ai_engine
 _SENTIMENT_CACHE = {}
 _SENTIMENT_CACHE_LOCK = threading.Lock()
 _SENTIMENT_TTL_S = int(os.getenv("SENTIMENT_TTL_S", "60"))
-_SENTIMENT_TIMEOUT_CONNECT_S = float(os.getenv("SENTIMENT_TIMEOUT_CONNECT_S", "2"))
-_SENTIMENT_TIMEOUT_READ_S = float(os.getenv("SENTIMENT_TIMEOUT_READ_S", "6"))
-_SENTIMENT_TIMEOUT_S = float(os.getenv(
-    "SENTIMENT_TIMEOUT_S",
-    str(_SENTIMENT_TIMEOUT_CONNECT_S + _SENTIMENT_TIMEOUT_READ_S)
-))
+_SENTIMENT_TIMEOUT_FAST_S = float(os.getenv("SENTIMENT_TIMEOUT_FAST_S", "3"))
+_SENTIMENT_TIMEOUT_SLOW_S = float(os.getenv("SENTIMENT_TIMEOUT_SLOW_S", "25"))
+# Legacy env still supported; falls back to slow timeout if provided
+_SENTIMENT_TIMEOUT_S = float(os.getenv("SENTIMENT_TIMEOUT_S", str(_SENTIMENT_TIMEOUT_SLOW_S)))
 
 def _sentiment_cache_lookup(symbol):
     now = time.time()
@@ -1192,6 +1190,9 @@ def _sentiment_cache_set(symbol, data):
 def api_sentiment_latest():
     """Returning rich, coin-specific sentiment (uses enhanced aggregator)."""
     symbol = request.args.get('symbol', "BTC").upper()
+    fresh = request.args.get("fresh", "0") == "1"
+
+    timeout_budget = _SENTIMENT_TIMEOUT_SLOW_S if fresh else _SENTIMENT_TIMEOUT_FAST_S
 
     cached, is_stale, cache_ts = _sentiment_cache_lookup(symbol)
     if cached and not is_stale:
@@ -1202,7 +1203,7 @@ def api_sentiment_latest():
         return jsonify(payload)
 
     try:
-        data = get_sentiment_for_symbol(symbol, timeout_s=_SENTIMENT_TIMEOUT_S)
+        data = get_sentiment_for_symbol(symbol, timeout_s=timeout_budget)
         _sentiment_cache_set(symbol, data)
         payload = dict(data)
         payload["symbol"] = payload.get("symbol") or symbol
@@ -1217,7 +1218,7 @@ def api_sentiment_latest():
             payload["ts_cache"] = cache_ts
             payload["error"] = f"timeout:{exc}"
             payload["upstream_url"] = SENTIMENT_PIPELINE_URL
-            payload["hint"] = f"sentiment aggregator exceeded timeout ({_SENTIMENT_TIMEOUT_S}s)"
+            payload["hint"] = f"sentiment aggregator exceeded timeout ({timeout_budget}s)"
             return jsonify(payload)
         import hashlib
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
@@ -1233,7 +1234,7 @@ def api_sentiment_latest():
             'timestamp': datetime.utcnow().isoformat() + "Z",
             'error': f"timeout:{exc}",
             'upstream_url': SENTIMENT_PIPELINE_URL,
-            'hint': f"sentiment aggregator exceeded timeout ({_SENTIMENT_TIMEOUT_S}s)",
+            'hint': f"sentiment aggregator exceeded timeout ({timeout_budget}s)",
             'stale': True,
         }
         return jsonify(fallback)
