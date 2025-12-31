@@ -781,13 +781,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   {/* Pipeline Status Indicator */}
                   {pipelineHealth?.running && (
                     <div className="pipeline-status success">
-                      <span className="status-indicator">✓</span>
+                      <span className="status-indicator">OK</span>
                       <span>LIVE: Scanning {sentimentData.totalDataPoints || 0} sources across all tiers - Data is healthy</span>
                     </div>
                   )}
                   {!pipelineHealth?.running && pipelineHealth?.checked && (
                     <div className="pipeline-status warning">
-                      <span className="status-indicator">⚠</span>
+                      <span className="status-indicator">!</span>
                       <span>Pipeline offline - showing cached data. Start: ./start_sentiment_pipeline.sh</span>
                     </div>
                   )}
@@ -901,7 +901,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <div key={source.name} className={`source-card ${tierClass}`}>
                         <div className="source-info">
                           <div className="source-header">
-                            <span className="source-icon" aria-hidden="true">{TIER_ICONS[tierKey] || '⚙️'}</span>
+                            <span className="source-icon" aria-hidden="true">{TIER_ICONS[tierKey] || 'SRC'}</span>
                             <div>
                               <div className="source-name">{source.name}</div>
                               <span className="source-status">{statusLabel}</span>

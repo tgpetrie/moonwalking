@@ -78,10 +78,10 @@ data = {
 **Location:** [frontend/src/components/SentimentPopupAdvanced.jsx](frontend/src/components/SentimentPopupAdvanced.jsx)
 
 **Changes:**
-- ✅ Uses `useTieredSentiment` instead of `useSentimentLatest`
-- ✅ Displays 4-tier breakdown grid in Overview tab
-- ✅ Shows divergence alerts when detected
-- ✅ Indicates pipeline health status
+- Uses `useTieredSentiment` instead of `useSentimentLatest`
+- Displays 4-tier breakdown grid in Overview tab
+- Shows divergence alerts when detected
+- Indicates pipeline health status
 
 **New UI Elements:**
 
@@ -90,24 +90,24 @@ Displays when `sentimentData.has_tiered_data === true`:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ 🏛️ Tier 1: Institutional         70%          │
+│ T1: Institutional               70%             │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░ (green bar)              │
 │ CoinGecko, Fear & Greed, Binance               │
 ├─────────────────────────────────────────────────┤
-│ 📰 Tier 2: Mainstream             65%          │
+│ T2: Mainstream                  65%             │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░ (orange bar)             │
 │ CoinDesk, Reddit r/CC, News Feeds              │
 ├─────────────────────────────────────────────────┤
-│ 🗣️ Tier 3: Retail                 58%          │
+│ T3: Retail                      58%             │
 │ ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ (purple bar)             │
 │ r/SSB, Telegram, Twitter/X                     │
 ├─────────────────────────────────────────────────┤
-│ 🌐 Fringe Sources                 45%          │
+│ Fringe Sources                  45%             │
 │ ▓▓▓▓▓▓▓░░░░░░░░░░░░░ (pink bar)               │
 │ 4chan /biz/, BitcoinTalk, Weibo                │
 └─────────────────────────────────────────────────┘
 
-✓ Live data from sentiment pipeline (127 data points)
+Live data from sentiment pipeline (127 data points)
 ```
 
 #### **Divergence Alerts Section**
@@ -115,7 +115,7 @@ Shows when `sentimentData.divergence_alerts.length > 0`:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ 🚨 WARNING                                      │
+│ WARNING                                         │
 │ Institutional sources (70%) more bullish than   │
 │ retail (58%) - 12% divergence detected         │
 └─────────────────────────────────────────────────┘
@@ -269,6 +269,28 @@ if (institutionalRetailDivergence > 0.2) {  // 20% threshold
 }
 ```
 
+#### 4. `/api/sentiment/divergence?symbol=BTC`
+**Proxy to sentiment pipeline** - Symbol-aware divergence analysis.
+
+Returns:
+```json
+{
+  "success": true,
+  "data": {
+    "alerts": [...],
+    "tier_comparison": { ... },
+    "timestamp": "2025-12-25T..."
+  }
+}
+```
+
+#### 5. `/api/sentiment/sources`
+**Proxy + normalization** - The backend probes multiple pipeline paths and normalizes the result into `sources`:
+- Tries `/sentiment/sources`, `/sources`, `/stats`, `/sentiment/stats`
+- Returns `pipeline_url` that actually responded, plus `raw` when the shape is non-standard
+
+**Known upstream variations:** the pipeline may expose source inventory at `/stats` or `/sources`; the backend adapts automatically.
+
 ---
 
 ## Testing the Integration
@@ -302,7 +324,7 @@ curl http://localhost:5001/api/sentiment/divergence | jq '.divergences'
 ### 3. UI Testing
 
 1. **Open dashboard:** http://localhost:5173
-2. **Click info button (ℹ️)** on any token
+2. **Click the info button** on any token
 3. **Check Overview tab:**
    - Should see "Tiered Sentiment Analysis" section
    - 4 cards with scores and progress bars
@@ -323,19 +345,19 @@ curl http://localhost:5001/api/sentiment/divergence | jq '.divergences'
 ```
 ┌─ Tiered Sentiment Analysis ─────────────────────┐
 │                                                  │
-│ 🏛️ Tier 1: Institutional    68%                │
+│ T1: Institutional            68%                 │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░                           │
 │                                                  │
-│ 📰 Tier 2: Mainstream        65%                │
+│ T2: Mainstream               65%                 │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░                           │
 │                                                  │
-│ 🗣️ Tier 3: Retail            64%                │
+│ T3: Retail                   64%                 │
 │ ▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░                           │
 │                                                  │
-│ 🌐 Fringe Sources            62%                │
+│ Fringe Sources               62%                 │
 │ ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░                           │
 │                                                  │
-│ ✓ Live data from pipeline (127 data points)    │
+│ Live data from pipeline (127 data points)       │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -344,27 +366,27 @@ curl http://localhost:5001/api/sentiment/divergence | jq '.divergences'
 ```
 ┌─ Tiered Sentiment Analysis ─────────────────────┐
 │                                                  │
-│ 🏛️ Tier 1: Institutional    75%  ✅            │
+│ T1: Institutional            75% (strong)        │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░                           │
 │                                                  │
-│ 📰 Tier 2: Mainstream        65%                │
+│ T2: Mainstream               65%                 │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░                           │
 │                                                  │
-│ 🗣️ Tier 3: Retail            42%  ⚠️            │
+│ T3: Retail                   42% (weak)          │
 │ ▓▓▓▓▓░░░░░░░░░░░░░░░                           │
 │                                                  │
-│ 🌐 Fringe Sources            38%                │
+│ Fringe Sources               38%                 │
 │ ▓▓▓▓░░░░░░░░░░░░░░░░                           │
 │                                                  │
-│ ✓ Live data from pipeline (127 data points)    │
+│ Live data from pipeline (127 data points)       │
 └──────────────────────────────────────────────────┘
 
 ┌─ Divergence Alerts ──────────────────────────────┐
 │                                                  │
-│ 🚨 Institutional sources (75%) more bullish     │
-│    than retail (42%)                            │
+│ WARNING: Institutional sources (75%) more       │
+│    bullish than retail (42%)                    │
 │                                                  │
-│ ℹ️  Mainstream media more bullish than fringe   │
+│ INFO: Mainstream media more bullish than fringe │
 │    sources                                      │
 └──────────────────────────────────────────────────┘
 ```
@@ -529,15 +551,15 @@ curl http://localhost:5001/api/sentiment/pipeline-health
 ## Files Changed
 
 ### New Files
-- ✅ [frontend/src/hooks/useTieredSentiment.js](frontend/src/hooks/useTieredSentiment.js) - Enhanced sentiment hook
+- [frontend/src/hooks/useTieredSentiment.js](frontend/src/hooks/useTieredSentiment.js) - Enhanced sentiment hook
 
 ### Modified Files
-- ✅ [frontend/src/components/SentimentPopupAdvanced.jsx](frontend/src/components/SentimentPopupAdvanced.jsx) - Added tier display
-- ✅ [frontend/src/styles/sentiment-popup-advanced.css](frontend/src/styles/sentiment-popup-advanced.css) - Added tier styles
+- [frontend/src/components/SentimentPopupAdvanced.jsx](frontend/src/components/SentimentPopupAdvanced.jsx) - Added tier display
+- [frontend/src/styles/sentiment-popup-advanced.css](frontend/src/styles/sentiment-popup-advanced.css) - Added tier styles
 
 ### Backend Files (Previously Created)
-- ✅ [backend/app.py](backend/app.py) - Proxy endpoints (lines 1258-1425)
-- ✅ [start_sentiment_pipeline.sh](start_sentiment_pipeline.sh) - Startup script
+- [backend/app.py](backend/app.py) - Proxy endpoints (lines 1258-1425)
+- [start_sentiment_pipeline.sh](start_sentiment_pipeline.sh) - Startup script
 
 ---
 
@@ -555,5 +577,5 @@ curl http://localhost:5001/api/sentiment/pipeline-health
 ---
 
 **Created:** 2025-12-25
-**Status:** ✅ Complete and tested
+**Status:** Complete and tested
 **Maintainer:** Moonwalking Team

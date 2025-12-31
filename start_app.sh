@@ -52,6 +52,9 @@ echo "[start_app] frontend: http://${HOST}:${FRONTEND_PORT}"
   cd backend
   export PORT="$BACKEND_PORT"
   export HOST="$HOST"
+  export SENTIMENT_HOST="$SENTIMENT_HOST"
+  export SENTIMENT_PORT="$SENTIMENT_PORT"
+  export SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL"
   # If you use .env in backend, load it here (optional):
   # [ -f .env ] && set -a && source .env && set +a
   ./start_backend_strict.sh

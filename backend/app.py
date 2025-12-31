@@ -1168,7 +1168,12 @@ from sentiment_intelligence import ai_engine
 _SENTIMENT_CACHE = {}
 _SENTIMENT_CACHE_LOCK = threading.Lock()
 _SENTIMENT_TTL_S = int(os.getenv("SENTIMENT_TTL_S", "60"))
-_SENTIMENT_TIMEOUT_S = float(os.getenv("SENTIMENT_TIMEOUT_S", "6"))
+_SENTIMENT_TIMEOUT_CONNECT_S = float(os.getenv("SENTIMENT_TIMEOUT_CONNECT_S", "2"))
+_SENTIMENT_TIMEOUT_READ_S = float(os.getenv("SENTIMENT_TIMEOUT_READ_S", "6"))
+_SENTIMENT_TIMEOUT_S = float(os.getenv(
+    "SENTIMENT_TIMEOUT_S",
+    str(_SENTIMENT_TIMEOUT_CONNECT_S + _SENTIMENT_TIMEOUT_READ_S)
+))
 
 def _sentiment_cache_lookup(symbol):
     now = time.time()
@@ -1211,6 +1216,8 @@ def api_sentiment_latest():
             payload["stale"] = True
             payload["ts_cache"] = cache_ts
             payload["error"] = f"timeout:{exc}"
+            payload["upstream_url"] = SENTIMENT_PIPELINE_URL
+            payload["hint"] = f"sentiment aggregator exceeded timeout ({_SENTIMENT_TIMEOUT_S}s)"
             return jsonify(payload)
         import hashlib
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
@@ -1225,6 +1232,8 @@ def api_sentiment_latest():
             'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
             'timestamp': datetime.utcnow().isoformat() + "Z",
             'error': f"timeout:{exc}",
+            'upstream_url': SENTIMENT_PIPELINE_URL,
+            'hint': f"sentiment aggregator exceeded timeout ({_SENTIMENT_TIMEOUT_S}s)",
             'stale': True,
         }
         return jsonify(fallback)
@@ -1238,6 +1247,8 @@ def api_sentiment_latest():
             payload["stale"] = True
             payload["ts_cache"] = cache_ts
             payload["error"] = str(exc)
+            payload["upstream_url"] = SENTIMENT_PIPELINE_URL
+            payload["hint"] = "sentiment aggregator error; serving cached payload"
             return jsonify(payload)
         fallback = {
             'symbol': symbol,
@@ -1250,6 +1261,8 @@ def api_sentiment_latest():
             'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
             'timestamp': datetime.utcnow().isoformat() + "Z",
             'error': str(exc),
+            'upstream_url': SENTIMENT_PIPELINE_URL,
+            'hint': "sentiment aggregator error; serving synthetic fallback",
             'stale': True,
         }
         return jsonify(fallback)
@@ -1266,6 +1279,21 @@ SENTIMENT_PIPELINE_URL = f"http://{SENTIMENT_HOST}:{SENTIMENT_PORT}"
 def _pipeline_url(path: str) -> str:
     clean_path = path if path.startswith('/') else f'/{path}'
     return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
+
+
+def _pipeline_try_get_json(paths, timeout=5):
+    """Try multiple pipeline paths and return (data, used_url)."""
+    last_err = None
+    for p in paths:
+        try:
+            url = _pipeline_url(p)
+            r = requests.get(url, timeout=timeout)
+            r.raise_for_status()
+            return r.json(), url
+        except Exception as e:
+            last_err = e
+            continue
+    raise last_err if last_err else RuntimeError("pipeline request failed")
 
 
 @app.route('/api/sentiment/tiered')
@@ -1360,40 +1388,35 @@ def get_sentiment_sources():
     Get list of all sentiment data sources with their tier and status.
     """
     try:
-        response = requests.get(
-            _pipeline_url('/sentiment/sources'),
-            timeout=5
-        )
-        response.raise_for_status()
-        sources = response.json()
+        payload, used_url = _pipeline_try_get_json([
+            "/sentiment/sources",
+            "/sources",
+            "/stats",
+            "/sentiment/stats",
+        ], timeout=5)
+
+        sources = []
+        if isinstance(payload, list):
+            sources = payload
+        elif isinstance(payload, dict):
+            if isinstance(payload.get("sources"), list):
+                sources = payload.get("sources")
+            elif isinstance(payload.get("data"), dict) and isinstance(payload["data"].get("sources"), list):
+                sources = payload["data"].get("sources")
 
         return jsonify({
-            'success': True,
-            'sources': sources,
-            'timestamp': datetime.utcnow().isoformat()
+            "success": True,
+            "pipeline_url": used_url,
+            "sources": sources,
+            "raw": payload if not sources else None,
         })
-
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline not running',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': f'Could not reach sentiment pipeline at {SENTIMENT_PIPELINE_URL}'
-        }), 503
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline timeout',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': 'The sentiment pipeline took too long to respond'
-        }), 504
     except Exception as e:
-        logging.error(f"Error fetching sentiment sources: {e}")
         return jsonify({
-            'success': False,
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'error': str(e)
-        }), 500
+            "success": False,
+            "pipeline_url": _pipeline_url("/sentiment/sources"),
+            "error": str(e),
+            "help": "Start the pipeline with: ./start_sentiment_pipeline.sh"
+        }), 502
 
 @app.route('/api/sentiment/divergence')
 def get_sentiment_divergence():

@@ -40,12 +40,19 @@ except Exception:
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Import new handlers
+CHINESE_SOURCES_AVAILABLE = False
+CHINESE_SOURCES_IMPORT_ERROR = None
+ChineseSourceHandler = None
 try:
     from backend.chinese_sources import ChineseSourceHandler
-except ImportError:
+    CHINESE_SOURCES_AVAILABLE = True
+except Exception as _e:
+    CHINESE_SOURCES_IMPORT_ERROR = str(_e)
     try:
         from chinese_sources import ChineseSourceHandler
-    except ImportError:
+        CHINESE_SOURCES_AVAILABLE = True
+    except Exception as _e2:
+        CHINESE_SOURCES_IMPORT_ERROR = CHINESE_SOURCES_IMPORT_ERROR or str(_e2)
         ChineseSourceHandler = None
 
 try:
@@ -1453,7 +1460,7 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     # Chinese Sources (Async)
     cn_cfg = sources_cfg.get("chinese", {})
     cn_score = None
-    if cn_cfg.get("enabled", False) and ChineseSourceHandler:
+    if cn_cfg.get("enabled", False) and CHINESE_SOURCES_AVAILABLE and ChineseSourceHandler:
         try:
             cn_sources = cn_cfg.get("sources", [])
             async with ChineseSourceHandler(cn_sources) as handler:
