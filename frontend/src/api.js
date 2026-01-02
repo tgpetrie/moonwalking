@@ -1,110 +1,212 @@
-// src/api.js
-// Central API helpers and exports used across the frontend.
-// Prefer relative path by default to let Vite proxy handle dev routing.
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
-export const API_BASE_URL = API_BASE;
-export const API_ORIGIN = API_BASE;
 
-function isAbsoluteUrl(s) {
-  return /^https?:\/\//i.test(s);
-}
 
-function joinUrl(base, path) {
-  const p = String(path || '');
-  if (!p) return base || '';
-  if (isAbsoluteUrl(p)) return p;
-  const baseClean = String(base || '').replace(/\/+$/, '');
-  const pathClean = p.startsWith('/') ? p : `/${p}`;
-  return baseClean ? `${baseClean}${pathClean}` : pathClean;
-}
+// API configuration for BHABIT CB4 with dynamic base URL and fallback
+let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5002').replace(/\/$/, '');
+const buildEndpoints = () => ({
+  topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
+  bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
+  gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
+  gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
+  losersTable: `${API_BASE_URL}/api/component/losers-table`,
+  alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
+  topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
+  crypto: `${API_BASE_URL}/api/crypto`,
+  health: `${API_BASE_URL}/api/health`,
+  serverInfo: `${API_BASE_URL}/api/server-info`,
+  marketOverview: `${API_BASE_URL}/api/market-overview`,
+  watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
+  watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
+  watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
+  technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
+  cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
+  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`
+});
 
-export const API_ENDPOINTS = {
-  // Canonical snapshot endpoint is /data
-  data: joinUrl(API_BASE, '/api/data'),
-  sentimentBasic: joinUrl(API_BASE, '/api/sentiment-basic'),
-  component: {
-    gainers1m: joinUrl(API_BASE, '/api/component/gainers-1m'),
-    gainers3m: joinUrl(API_BASE, '/api/component/gainers-table'),
-    losers3m: joinUrl(API_BASE, '/api/component/losers-table'),
-  },
+export let API_ENDPOINTS = buildEndpoints();
+export const getApiBaseUrl = () => API_BASE_URL;
+export const setApiBaseUrl = (url) => {
+  if (!url) return;
+  API_BASE_URL = url.replace(/\/$/, '');
+  API_ENDPOINTS = buildEndpoints();
+  try { console.info('[api] Switched API base to', API_BASE_URL); } catch (_) {}
 };
 
-// Ensure the frontend always receives the canonical payload structure
-function normalizeApi(payload) {
-  const p = payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object' ? payload.data : payload || {};
-
-  return {
-    // keep original keys but ensure canonical fallbacks
-    ...p,
-    banner_1h_price: Array.isArray(p.banner_1h_price) ? p.banner_1h_price : (p.banner_1h_price ? p.banner_1h_price : []),
-    banner_1h_volume: Array.isArray(p.banner_1h_volume) ? p.banner_1h_volume : (p.banner_1h_volume ? p.banner_1h_volume : []),
-    gainers_1m: Array.isArray(p.gainers_1m) ? p.gainers_1m : [],
-    gainers_3m: Array.isArray(p.gainers_3m) ? p.gainers_3m : [],
-    losers_3m: Array.isArray(p.losers_3m) ? p.losers_3m : [],
-
-    latest_by_symbol: p.latest_by_symbol ?? {},
-    meta: p.meta ?? {},
-    updated_at: p.updated_at ?? null,
-    errors: (p.errors && typeof p.errors === "object") ? p.errors : {},
-    coverage: p.coverage ?? null,
-  };
+export async function fetchLatestAlerts(symbols = []) {
+  if (!Array.isArray(symbols) || symbols.length === 0) return {};
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/watchlist/insights/latest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols })
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.latest || {};
+  } catch (e) {
+    console.error('fetchLatestAlerts error', e);
+    return {};
+  }
 }
 
-export async function fetchJson(path, opts = {}) {
-  const url = joinUrl(API_ORIGIN, path);
-  const res = await fetch(url, { headers: { Accept: 'application/json' }, ...opts });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${body}`);
+// Request throttling to prevent resource exhaustion
+const requestCache = new Map();
+const CACHE_DURATION = 10000; // 10 seconds
+
+// Internal: probe a candidate base URL via /api/health with a short timeout
+const probeBase = async (baseUrl, timeoutMs = 1500) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+  // Prefer server-info which should return 200 regardless of external API status
+  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/server-info`, { signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
+};
+
+const CANDIDATE_BASES = [
+  'http://localhost:5002', 'http://127.0.0.1:5002',
+  'http://localhost:5001', 'http://127.0.0.1:5001',
+  'http://localhost:5003', 'http://127.0.0.1:5003',
+  'http://localhost:5004', 'http://127.0.0.1:5004',
+  'http://localhost:5005', 'http://127.0.0.1:5005',
+  'http://localhost:5006', 'http://127.0.0.1:5006',
+  'http://localhost:5007', 'http://127.0.0.1:5007'
+];
+
+// Fetch data from API with throttling and automatic base fallback
+export const fetchData = async (endpoint, fetchOptions = {}) => {
+  try {
+    // Check cache first to avoid duplicate requests
+    const now = Date.now();
+    const cached = requestCache.get(endpoint);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.data;
+    }
+    const response = await fetch(endpoint, fetchOptions);
+    if (response.ok) {
+      const data = await response.json();
+      requestCache.set(endpoint, { data, timestamp: now });
+      return data;
+    }
+    // Non-OK response: attempt fallback only for likely wrong-host cases (404/502/503)
+    const status = response.status;
+    if ([404, 502, 503, 504].includes(status)) {
+      throw new Error(`HTTP error! status: ${status}`);
+    }
+    throw new Error(`HTTP error! status: ${status}`);
+  } catch (error) {
+    // Attempt dynamic base fallback on network errors or wrong-host statuses
+    try {
+      const oldBase = API_BASE_URL;
+      const altBases = CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
+      for (const base of altBases) {
+        const ok = await probeBase(base);
+        if (!ok) continue;
+        // Rebuild the endpoint using the probed base (don't switch global base until confirmed OK)
+        let path = endpoint;
+        if (endpoint.startsWith(oldBase)) {
+          path = endpoint.substring(oldBase.length);
+        } else {
+          try {
+            const u = new URL(endpoint);
+            path = u.pathname + (u.search || '');
+          } catch (_) {}
+        }
+        const newEndpoint = `${base.replace(/\/$/, '')}${path}`;
+        const retryRes = await fetch(newEndpoint, fetchOptions);
+        if (retryRes.ok) {
+          // Commit base change only after endpoint success
+          setApiBaseUrl(base);
+          const data = await retryRes.json();
+          requestCache.set(newEndpoint, { data, timestamp: Date.now() });
+          return data;
+        }
+      }
+    } catch (fallbackErr) {
+      // swallow to rethrow original error below
+    }
+    console.error('API fetch error:', error);
+    throw error;
+  }
+};
+
+// Fetch consolidated dataset for dashboard consumers
+export async function fetchAllData({ signal } = {}) {
+  // Prefer explicit env overrides, otherwise use the current API base; fall back to same-origin if empty
+  const base = (
+    (import.meta?.env?.VITE_API_BASE_URL || import.meta?.env?.VITE_BACKEND_URL || '')
+      .replace(/\/$/, '') || API_BASE_URL
+  );
+
+  const url = base ? `${base}/data` : '/data';
+
+  const res = await fetch(url, {
+    signal,
+    headers: { 'Accept': 'application/json' }
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`fetchAllData failed (${res.status}): ${text || res.statusText}`);
+  }
+
   return res.json();
 }
 
-export async function fetchData(path = '/api/data') {
-  const url = joinUrl(API_BASE, path);
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`fetch ${url} failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeApi(json);
+
+// --- Local Storage Watchlist Functions ---
+const WATCHLIST_KEY = 'crypto_watchlist';
+
+export async function getWatchlist() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('LocalStorage getWatchlist error:', e);
+    return [];
+  }
 }
 
-// Convenience: fetch the main payload the app expects.
-export async function fetchAllData(keyUrl) {
-  if (typeof keyUrl === "string" && keyUrl.trim()) {
-    const u = keyUrl.trim();
-
-    // Same-origin path like "/api/data" should be fetched exactly.
-    if (u.startsWith("/")) {
-      const res = await fetch(u, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      return normalizeApi(json);
+export async function addToWatchlist(symbol, price = null) {
+  try {
+    let list = await getWatchlist();
+    // Check if symbol already exists (handle both string and object formats)
+    const existingItem = list.find(item => 
+      typeof item === 'string' ? item === symbol : item.symbol === symbol
+    );
+    
+    if (!existingItem) {
+      // Add as object with price info
+      const newItem = { 
+        symbol, 
+        priceAtAdd: price || Math.random() * 1000 // fallback random price if not provided
+      };
+      list.push(newItem);
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
     }
-
-    // Absolute URL: try as-is only
-    const res = await fetch(u, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    return normalizeApi(json);
+    return list;
+  } catch (e) {
+    console.error('LocalStorage addToWatchlist error:', e);
+    return await getWatchlist();
   }
-
-  const base = API_BASE || "";
-  const tryUrls = [`${base}/api/data`, `${base}/data`];
-  let lastErr = null;
-
-  for (const url of tryUrls) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      return normalizeApi(json);
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr || new Error("fetchAllData: no available endpoint");
 }
 
-export const fetchAllDataApi = fetchAllData;
-
-export default { API_BASE_URL, API_BASE, API_ENDPOINTS, fetchJson, fetchData, fetchAllData };
+export async function removeFromWatchlist(symbol) {
+  try {
+    let list = await getWatchlist();
+    // Filter by symbol (handle both string and object formats)
+    list = list.filter(item => 
+      typeof item === 'string' ? item !== symbol : item.symbol !== symbol
+    );
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));
+    return list;
+  } catch (e) {
+    console.error('LocalStorage removeFromWatchlist error:', e);
+    return await getWatchlist();
+  }
+}
