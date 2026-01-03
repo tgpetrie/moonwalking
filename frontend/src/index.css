@@ -7,46 +7,26 @@ html, body {
   font-family: "Raleway", sans-serif;
 }
 
-/* Required validation classes */
-.token-pct-gain {
-  font-weight: 650;
-}
-.token-pct-loss {
-  font-weight: 650;
-}
-.tr-price-current {
-  color: var(--bh-price-mint);
-}
-
-/* Ensure pct has higher hierarchy than price in table rows */
-.token-pct-gain,
-.token-pct-loss {
-  font-size: 1.05em;
-  letter-spacing: 0.01em;
-}
-.tr-price-current {
-  font-size: 0.92em;
-  opacity: 0.9;
-}
-
 /* ===== BHABIT DASHBOARD – CANONICAL GRID & LAYOUT ===== */
 
 :root {
   /* Core colors */
+  --bh-mint: #10ae9b;
   --bh-bg: #050308;
   --bh-gain: #ffb347;
   --bh-loss: #c084fc;
   /* canonical mint price */
-  --bh-price: rgb(16, 174, 155);
+  --bh-price: var(--bh-mint);
+  --bh-price-mint: var(--bh-mint);
   --bh-price-sub: rgba(16, 174, 155, 0.74);
-  --bh-price-teal: var(--bh-price);
+  --bh-price-teal: var(--bh-mint);
   --bh-muted: rgba(255, 255, 255, 0.35);
   --bh-fg: rgba(255, 255, 255, 0.9);
 
   /* Token row geometry */
-  --bh-col-rank: 56px;
-  --bh-col-price: 140px;
-  --bh-col-pct: 96px;
+  --bh-col-rank: 34px;
+  --bh-col-price: 108px;
+  --bh-col-pct: 84px;
   --bh-col-actions: 72px;
   --bh-row-px: 14px;
   --bh-row-py: 12px;
@@ -76,8 +56,38 @@ html, body {
   --bh-bunny-hover: 0.14;
 
   /* Unified Row Specs (single source of truth for row geometry) */
-  --bh-row-cols: 56px minmax(0,1fr) 170px 120px 56px;
-  --bh-row-gap: 12px;
+  --bh-row-cols: var(--bh-col-rank) minmax(0, 1fr) var(--bh-col-price) var(--bh-col-pct) var(--bh-col-actions);
+  --bh-row-gap: 10px;
+}
+
+/* Required validation classes */
+.token-pct-gain {
+  font-weight: 650;
+}
+.token-pct-loss {
+  font-weight: 650;
+}
+.tr-price-current {
+  color: var(--bh-price-mint);
+}
+
+/* Ensure pct has higher hierarchy than price in table rows */
+.token-pct-gain,
+.token-pct-loss {
+  font-size: 1.05em;
+  letter-spacing: 0.01em;
+}
+.tr-price-current {
+  font-size: 0.92em;
+  opacity: 0.9;
+}
+
+.tr-price-current,
+.metrics-price,
+.bh-price-current,
+.bh-banner-price,
+.bh-banner-chip__price {
+  color: var(--bh-mint) !important;
 }
 
 
@@ -178,14 +188,15 @@ body {
 
 .bh-topbar {
   height: 54px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 1.6rem;
   gap: 1rem;
-  background: rgba(2, 6, 23, 0.5);
-  backdrop-filter: blur(14px);
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
   position: relative;
   z-index: 10;
 }
@@ -450,17 +461,11 @@ body {
 }
 
 .bh-section-header::after {
-  content: "";
-  display: inline-block;
-  margin-top: 6px;
-  width: 100%; /* underline exactly under the header text */
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 181, 67, 0.95) 40%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  content: none !important;
+  display: none !important;
+  margin: 0;
+  width: 0;
+  height: 0;
 }
 
 .bh-section-header--losers {
@@ -468,12 +473,8 @@ body {
 }
 
 .bh-section-header--losers::after {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(181, 108, 255, 0.9) 40%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  content: none !important;
+  display: none !important;
 }
 
 .bh-section-header--ghost {
@@ -526,27 +527,15 @@ body {
 }
 
 .section-head-line {
-  width: 3.2rem;
-  height: 1px;
-  border-radius: 999px;
+  display: none !important;
 }
 
 .section-head-line-gain {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 184, 77, 0),
-    rgba(255, 184, 77, 0.9),
-    rgba(255, 184, 77, 0)
-  );
+  display: none !important;
 }
 
 .section-head-line-loss {
-  background: linear-gradient(
-    90deg,
-    rgba(192, 132, 252, 0),
-    rgba(192, 132, 252, 0.9),
-    rgba(192, 132, 252, 0)
-  );
+  display: none !important;
 }
 
 /* ===== CANONICAL TOKEN ROW LAYOUT ===== */
@@ -1104,38 +1093,46 @@ a.bh-row {
   position: relative;
 }
 
-.bh-banner-wrap{
-  max-width: var(--bh-board-width);
-  margin: 0 auto;
-  padding: 10px 16px;
-  position: relative;
-  overflow: visible;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(0,0,0,1) 7%,
-    rgba(0,0,0,1) 93%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(0,0,0,1) 7%,
-    rgba(0,0,0,1) 93%,
-    transparent 100%
-  );
+ .bh-banner-wrap{
+   max-width: var(--bh-board-width);
+   margin: 0 auto;
+   padding: 10px 16px;
+   position: relative;
+   overflow: visible;
+   -webkit-mask-image: linear-gradient(
+     to right,
+     transparent 0%,
+     rgba(0,0,0,1) 7%,
+     rgba(0,0,0,1) 93%,
+     transparent 100%
+   );
+   mask-image: linear-gradient(
+     to right,
+     transparent 0%,
+     rgba(0,0,0,1) 7%,
+     rgba(0,0,0,1) 93%,
+     transparent 100%
+   );
+ }
+
+:root {
+  --bh-banner-speed: 180s;
 }
 
-.bh-banner--top{ --bh-banner-duration: 520s; }
-.bh-banner--bottom{ --bh-banner-duration: 600s; }
+.bh-banner--top{ --bh-banner-duration: var(--bh-banner-speed); }
+.bh-banner--bottom{ --bh-banner-duration: var(--bh-banner-speed); }
 
 .bh-banner-track{
   display: flex;
   gap: 12px;
   white-space: nowrap;
-  width: max-content; /* CRITICAL: must be wider than viewport to scroll */
-  animation: continuous-scroll var(--bh-banner-duration, 320s) linear infinite;
+  width: max-content; /* must be wider than viewport to scroll */
+  animation: continuous-scroll var(--bh-banner-duration, 180s) linear infinite;
   will-change: transform;
+}
+
+.bh-banner-track--manual{
+  animation: none !important;
 }
 
 @keyframes continuous-scroll{
@@ -1232,11 +1229,16 @@ a.bh-row {
 }
 
 /* Tone the whole chip by direction (gold/gain vs purple/loss). */
-.bh-banner-chip.is-gain { color: var(--bh-gain); }
-.bh-banner-chip.is-loss { color: var(--bh-loss); }
+.bh-banner-chip.is-gain,
+.bh-banner-chip.is-up { color: var(--bh-gain); }
+.bh-banner-chip.is-loss,
+.bh-banner-chip.is-down { color: var(--bh-loss); }
 
 .bh-banner-chip.is-gain .bh-banner-chip__symbol,
 .bh-banner-chip.is-loss .bh-banner-chip__symbol,
+.bh-banner-chip.is-up .bh-banner-chip__symbol,
+.bh-banner-chip.is-down .bh-banner-chip__symbol,
+.bh-banner-chip .bh-banner-chip__sym,
 .bh-banner-chip .bh-banner-symbol {
   color: #f5f2ff;
 }
@@ -1290,6 +1292,11 @@ a.bh-row {
   font-weight: 500;
   letter-spacing: 0.02em;
 }
+.bh-banner-chip__sym {
+  color: #f5f2ff;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
 
 .bh-banner-chip__price,
 .bh-banner-price {
@@ -1313,6 +1320,10 @@ a.bh-row {
   color: var(--bh-loss);
 }
 
+.bh-banner-chip--muted {
+  color: var(--bh-muted);
+}
+
 .bh-banner-chip__pct--flat {
   color: var(--bh-muted);
 }
@@ -1322,6 +1333,22 @@ a.bh-row {
   font-size: 0.85rem;
   margin: 0;
   padding: 8px 12px;
+}
+
+.bh-topbanner {
+  width: 100%;
+}
+
+.bh-topbanner__title {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bh-muted);
+}
+
+.bh-banner-scroll {
+  overflow: hidden;
 }
 
 /* ===== PANELS & CONTAINERS ===== */
@@ -3191,12 +3218,15 @@ a.bh-row {
   animation-name: continuous-scroll;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  animation-duration: var(--bh-banner-duration, 520s);
+  animation-duration: var(--bh-banner-duration, var(--bh-banner-speed, 180s));
   will-change: transform;
 }
 
-.bh-banner--top{ --bh-banner-duration: 650s; }
-.bh-banner--bottom{ --bh-banner-duration: 750s; }
+.bh-banner--top,
+.bh-banner--bottom,
+.bh-banner--volume{
+  --bh-banner-duration: var(--bh-banner-speed, 180s);
+}
 
 @keyframes continuous-scroll{
   0%{ transform: translateX(0); }
@@ -3719,7 +3749,7 @@ a.bh-row {
 /* Force the same column template if watchlist got a different one */
 .bh-watchlist .bh-row-grid,
 .watchlist-panel .bh-row-grid{
-  grid-template-columns: var(--bh-row-cols, 52px 1.2fr 1fr 1fr 0.9fr 86px) !important;
+  grid-template-columns: var(--bh-row-cols, 34px minmax(0,1fr) 108px 84px 72px) !important;
 }
 
 /* Mint is for the current price only */
@@ -3859,3 +3889,14 @@ body {
   width: 100%;
   max-width: inherit;
 }
+.bh-row-grid {
+  grid-template-columns: var(--bh-row-cols);
+  column-gap: var(--bh-row-gap);
+}
+
+.bh-cell-symbol { justify-self: start; text-align: left; }
+.bh-cell-price,
+.bh-cell-change,
+.bh-cell-actions { justify-self: end; text-align: right; }
+
+.bh-cell-price { margin-right: -6px; }

@@ -48,13 +48,19 @@ export function useBannerLensMarquee(speedPxPerSec = 40, deps = []) {
       const dt = (ts - lastTs) / 1000;
       lastTs = ts;
 
+      if (halfWidth <= 0 && track.scrollWidth) {
+        halfWidth = track.scrollWidth / 2;
+      }
+
       if (halfWidth > 0) {
         offset += speedPxPerSec * dt;
         if (offset >= halfWidth) offset -= halfWidth;
       }
 
-      track.style.transform = `translate3d(${-offset}px, 0, 0)`;
-      applyLens();
+      if (track.children.length) {
+        track.style.transform = `translate3d(${-offset}px, 0, 0)`;
+        applyLens();
+      }
       rafId = requestAnimationFrame(tick);
     };
 

@@ -221,6 +221,10 @@ if (institutionalRetailDivergence > 0.2) {  // 20% threshold
 }
 ```
 
+**Fast vs fresh contract:**
+- Default call is cache-first with a tight timeout budget; no `stale` or `hint` fields unless the backend reports a failure.
+- `fresh=1` forces the long-budget compute path while keeping the same clean JSON shape.
+
 #### 2. `/api/sentiment/tiered` (NEW)
 **Proxy to sentiment pipeline** - Tiered breakdown
 

@@ -11,6 +11,9 @@ import normalizeSentiment from "../adapters/normalizeSentiment";
 
 const FAIL_COOLDOWN_MS = 8000;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
+const FRESH_REQUEST_TIMEOUT_MS = Number(
+  import.meta.env.VITE_SENTIMENT_FRESH_TIMEOUT_MS || 32000
+);
 
 export function useTieredSentiment(
   symbol,
@@ -110,21 +113,33 @@ export function useTieredSentiment(
     }
   }, [base]);
 
-  // Fetch symbol-specific sentiment
-  const fetchSymbolSentiment = useCallback(async () => {
-    const url = symbol
-      ? `${base}/api/sentiment/latest?symbol=${encodeURIComponent(symbol)}`
-      : `${base}/api/sentiment/latest`;
+  const buildLatestUrl = useCallback(
+    (freshLatest = false) => {
+      const qs = new URLSearchParams();
+      if (symbol) qs.set("symbol", symbol);
+      if (freshLatest) qs.set("fresh", "1");
+      const query = qs.toString();
+      return `${base}/api/sentiment/latest${query ? `?${query}` : ""}`;
+    },
+    [base, symbol]
+  );
 
-    const res = await fetch(url, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
+  // Fetch symbol-specific sentiment (optionally with fresh=1)
+  const fetchSymbolSentiment = useCallback(
+    async (freshLatest = false) => {
+      const res = await fetch(buildLatestUrl(freshLatest), {
+        cache: "no-store",
+        signal: AbortSignal.timeout(
+          freshLatest ? FRESH_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS
+        ),
+      });
 
-    if (!res.ok) throw new Error(`sentiment ${res.status}`);
+      if (!res.ok) throw new Error(`sentiment ${res.status}`);
 
-    return await res.json();
-  }, [base, symbol]);
+      return await res.json();
+    },
+    [buildLatestUrl]
+  );
 
   // Merge tiered data into the normalized sentiment structure
   const mergeTieredData = useCallback((symbolData, tieredData) => {
@@ -228,7 +243,9 @@ export function useTieredSentiment(
     return enhanced;
   }, []);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (options = {}) => {
+    const freshLatest = options?.freshLatest === true;
+
     if (!enabled) return;
 
     // Cooldown: if we failed recently, don't spam
@@ -243,7 +260,7 @@ export function useTieredSentiment(
     try {
       // Fetch both in parallel
       const [symbolData, tieredDataResult] = await Promise.allSettled([
-        fetchSymbolSentiment(),
+        fetchSymbolSentiment(freshLatest),
         fetchTieredData(),
         fetchSources(),
       ]);

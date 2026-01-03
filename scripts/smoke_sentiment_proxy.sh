@@ -32,6 +32,12 @@ if command -v rg >/dev/null 2>&1; then
   if rg -q "127\\.0\\.0\\.1:8002|:8002" frontend; then
     echo "WARN: Found references to :8002 in frontend sources (check DevTools for leaks)"
   fi
+
+  # Guardrail: block hardcoded pipeline URLs from sneaking into source
+  if rg -n "8002|SENTIMENT_PIPELINE_URL|localhost:8002|127\\.0\\.0\\.1:8002" frontend/src; then
+    echo "ERROR: Found pipeline URL references in frontend/src (strip them before pushing)."
+    exit 1
+  fi
 fi
 
 echo "All sentiment proxy checks completed."

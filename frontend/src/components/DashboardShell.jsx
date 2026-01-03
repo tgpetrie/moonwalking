@@ -84,6 +84,7 @@ export default function DashboardShell({ onInfo }) {
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
     if (sym) {
+      console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
       setSentimentOpen(true);
     }
@@ -121,10 +122,11 @@ export default function DashboardShell({ onInfo }) {
   // Listen for "openInfo" events from anywhere (e.g. TokenRowUnified)
   useEffect(() => {
     const handler = (e) => {
-      if (e.detail) {
-        setSentimentSymbol(String(e.detail).toUpperCase());
-        setSentimentOpen(true);
-      }
+      if (!e.detail) return;
+      const sym = String(e.detail).toUpperCase();
+      console.log("INFO_CLICK", sym);
+      setSentimentSymbol(sym);
+      setSentimentOpen(true);
     };
     window.addEventListener("openInfo", handler);
     return () => window.removeEventListener("openInfo", handler);

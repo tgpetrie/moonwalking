@@ -45,6 +45,7 @@ export function TokenRowUnified({
   const CellTag = renderAs === "tr" ? "td" : "div";
   const rowClass = [
     "bh-row",
+    "bh-row-grid",
     density === "tight" ? "bh-row--tight" : "",
     pctInfo.state === "negative" ? "bh-row--loss" : "",
     pctInfo.state === "positive" ? "is-gain" : pctInfo.state === "negative" ? "is-loss" : "is-flat",
@@ -88,12 +89,13 @@ export function TokenRowUnified({
   };
 
   const openSentiment = (sym) => {
-    if (!sym) return;
+    const normalized = sym ? String(sym).toUpperCase() : null;
+    if (!normalized) return;
     if (typeof onInfo === "function") {
-      onInfo(sym);
+      onInfo(normalized);
     }
     if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
-      window.dispatchEvent(new CustomEvent("openInfo", { detail: sym }));
+      window.dispatchEvent(new CustomEvent("openInfo", { detail: normalized }));
     }
   };
 
@@ -128,7 +130,7 @@ export function TokenRowUnified({
         <RowActions
           starred={Boolean(isWatchlisted)}
           onToggleStar={handleToggleStar}
-          onInfoClick={() => setInfoOpen ? setInfoOpen((v) => !v) : openSentiment(token.symbol)}
+          onInfoClick={() => openSentiment(symbol || token?.ticker || token?.base || token?.product_id)}
         />
       </CellTag>
     </>

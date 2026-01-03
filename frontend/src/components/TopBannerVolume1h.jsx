@@ -1,6 +1,7 @@
 // frontend/src/components/TopBannerVolume1h.jsx — cleaned single export
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import { formatCompact, formatPct, tickerFromSymbol } from "../utils/format";
+import { useBannerLensMarquee } from "../hooks/useBannerLensMarquee";
 
 export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) {
   const raw = Array.isArray(propItems) && propItems.length ? propItems : (Array.isArray(rows) ? rows : []);
@@ -22,31 +23,10 @@ export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) 
     [raw]
   );
 
-  const [displayItems, setDisplayItems] = useState(items);
-  const ref = useRef(null);
+  const { wrapRef, trackRef } = useBannerLensMarquee(42, [items?.length]);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || items.length === 0) return;
-    const anim = el.animate(
-      [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
-      { duration: 32000, iterations: Infinity, easing: "linear" }
-    );
-    return () => anim.cancel();
-  }, [items.length]);
-
-  useEffect(() => {
-    if (!items.length) return;
-    setDisplayItems((prev) => (prev?.length ? prev : items));
-    const id = setInterval(() => {
-      setDisplayItems(items);
-    }, 60000);
-    return () => clearInterval(id);
-  }, [items]);
-
-  const source = displayItems && displayItems.length ? displayItems : items;
-  const shouldScroll = (source?.length || 0) >= 15;
-  const looped = shouldScroll ? [...source, ...source] : source;
+  const source = items;
+  const looped = source.length ? [...source, ...source] : source;
 
   if (!items.length) {
     return (
@@ -71,24 +51,25 @@ export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) 
         <span className="banner-heading__rail" />
       </div>
       <div className="ticker bh-banner bh-banner--volume">
-        <div className="bh-banner-track" ref={ref}>
-          {looped.map((it, i) => {
-            if (!it) return null;
-            const baseLen = source.length || 1;
-            const cls = it.pct >= 0 ? "is-gain" : "is-loss";
-            return (
-              <span
-                key={`${it.symbol}-${i}`}
-                className={`bh-banner-item ${cls}`}
-              >
-                <b className="bh-banner-symbol">{it.symbol || "--"}</b>
-                <span className="bh-banner-price">{it.volume_now ? formatCompact(it.volume_now) : "--"}</span>
-                <span className="bh-banner-pct">
-                  {Number.isFinite(it.pct) ? formatPct(it.pct) : "--"}
+        <div className="bh-banner-wrap" ref={wrapRef}>
+          <div className="bh-banner-track bh-banner-track--manual" ref={trackRef}>
+            {looped.map((it, i) => {
+              if (!it) return null;
+              const cls = it.pct >= 0 ? "is-gain" : "is-loss";
+              return (
+                <span
+                  key={`${it.symbol}-${i}`}
+                  className={`bh-banner-item ${cls}`}
+                >
+                  <b className="bh-banner-symbol">{it.symbol || "--"}</b>
+                  <span className="bh-banner-price">{it.volume_now ? formatCompact(it.volume_now) : "--"}</span>
+                  <span className="bh-banner-pct">
+                    {Number.isFinite(it.pct) ? formatPct(it.pct) : "--"}
+                  </span>
                 </span>
-              </span>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

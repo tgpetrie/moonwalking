@@ -113,7 +113,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refresh();
+    await refresh({ freshLatest: true });
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 

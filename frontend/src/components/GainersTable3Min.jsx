@@ -7,6 +7,7 @@ import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
+const MAX_EXPANDED = 16;
 
 const buildRowKey = (row, index) => {
   const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
@@ -59,7 +60,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
       .sort((a, b) => b._pct - a._pct);
   }, [data, tokensProp]);
 
-  const visibleRows = isExpanded ? gainers3m : gainers3m.slice(0, MAX_BASE);
+  const visibleRows = isExpanded ? gainers3m.slice(0, MAX_EXPANDED) : gainers3m.slice(0, MAX_BASE);
   const refreshSig = useMemo(() => {
     return visibleRows
       .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
@@ -140,7 +141,9 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
             aria-expanded={isExpanded}
             onClick={() => setIsExpanded((s) => !s)}
           >
-            {isExpanded ? "Show Less" : `Show More (${Math.max(count - MAX_BASE, 0)} more)`}
+            {isExpanded
+              ? "Show less"
+              : `Show more (${Math.min(count, MAX_EXPANDED) - MAX_BASE} more)`}
           </button>
         </div>
       )}

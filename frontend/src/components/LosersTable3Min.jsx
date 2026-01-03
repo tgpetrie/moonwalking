@@ -7,6 +7,9 @@ import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
 
+const MAX_BASE = 8;
+const MAX_EXPANDED = 16;
+
 const buildRowKey = (row, index) => {
   const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
   return base ? String(base) : `row-${index}`;
@@ -67,7 +70,10 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         .sort((a, b) => Number(a.change_3m) - Number(b.change_3m)),
     [mapped]
   );
-  const visible = useMemo(() => (expanded ? filtered : filtered.slice(0, 8)), [filtered, expanded]);
+  const visible = useMemo(
+    () => (expanded ? filtered.slice(0, MAX_EXPANDED) : filtered.slice(0, MAX_BASE)),
+    [filtered, expanded]
+  );
   const refreshSig = useMemo(() => {
     return visible
       .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
@@ -180,10 +186,12 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         </div>
       </div>
 
-      {!expanded && mapped.length > 8 && (
+      {mapped.length > MAX_BASE && (
         <div className="panel-footer">
-          <button className="btn-show-more" onClick={() => setExpanded(true)}>
-            Show more
+          <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
+            {expanded
+              ? "Show less"
+              : `Show more (${Math.min(mapped.length, MAX_EXPANDED) - MAX_BASE} more)`}
           </button>
         </div>
       )}
