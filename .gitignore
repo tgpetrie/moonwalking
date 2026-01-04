@@ -127,3 +127,6 @@ frontend/vite*.err
 
 # Editor junk
 .history/
+
+# Local reference copies (do not track)
+moonwalkings_UI_GOOD/

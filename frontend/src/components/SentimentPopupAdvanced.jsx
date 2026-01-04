@@ -3,6 +3,7 @@ import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { useTieredSentiment } from '../hooks/useTieredSentiment';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import '../styles/sentiment-popup-advanced.css';
+import { SkeletonBlock, SkeletonCard, SkeletonText } from './ui/Skeleton';
 
 // Register Chart.js components
 ChartJS.register(...registerables);
@@ -760,9 +761,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         <main className="tab-content">
           {/* Loading State */}
           {loading && (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#a3a3a3' }}>
-              <div style={{ fontSize: '14px', marginBottom: '0.5rem' }}>Loading sentiment data for {symbol}...</div>
-              <div style={{ fontSize: '12px', opacity: 0.6 }}>
+            <div className="loading-skeleton">
+              <div className="skeleton-header">
+                <SkeletonBlock w="220px" h={24} radius={8} />
+                <SkeletonBlock w="160px" h={14} radius={6} />
+              </div>
+              <div className="skeleton-grid">
+                {[...Array(4)].map((_, idx) => (
+                  <SkeletonCard key={idx} className="skeleton-stat-card">
+                    <SkeletonBlock w="36px" h="36px" radius={12} />
+                    <SkeletonText lines={2} lineH={12} widths={['70%', '50%']} />
+                  </SkeletonCard>
+                ))}
+              </div>
+              <SkeletonBlock h={180} radius={20} className="loading-gauge" />
+              <SkeletonBlock h={260} radius={16} className="loading-chart" />
+              <div className="loading-footer-text">
                 Fetching from {sourceCount ? `${sourceCount} sources` : 'pipeline sources'}
               </div>
             </div>
