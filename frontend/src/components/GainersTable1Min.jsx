@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
-import { TableSkeletonRows } from "./TableSkeletonRows";
+import SkeletonGrid1m from "./skeletons/SkeletonGrid1m.jsx";
 import { baselineOrNull } from "../utils/num.js";
 
 const getRowIdentity = (row) => (
@@ -121,16 +121,8 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   if (isLoading && !hasData) {
     return (
       <div className="gainers-table">
-        <div className={`panel-row--1m ${skeletonSingle ? "panel-row--single" : ""}`}>
-          <div className="bh-table">
-            {/* Use div-based skeleton rows to match TokenRowUnified rendering */}
-            <TableSkeletonRows columns={5} rows={6} />
-          </div>
-          {!skeletonSingle && (
-            <div className="bh-table">
-              <TableSkeletonRows columns={5} rows={6} />
-            </div>
-          )}
+        <div className="panel-row--1m panel-row--grid-skeleton">
+          <SkeletonGrid1m rows={4} cols={4} />
         </div>
       </div>
     );

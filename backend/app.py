@@ -450,14 +450,9 @@ if cors_env == '*':
     # Default development restriction: only allow local dev origins so we don't ship a
     # permissive CORS policy accidentally. This is intended for local tooling only.
     dev_origins = [
-        # Vite dev server (current + alternate ports)
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5176",
-        "http://localhost:5176",
-        # Also accept the static-serve port (5174) commonly used for built SPA
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
+        # Any localhost/127.0.0.1 port (covers Vite hopping ports)
+        r"^http://127\.0\.0\.1:\d+$",
+        r"^http://localhost:\d+$",
         # Cloudflare / other dev tools
         "http://127.0.0.1:3100",
         "http://localhost:3100",
@@ -475,7 +470,13 @@ if cors_env == '*':
     # endpoints (e.g. /api/server-info) can always reference it.
     cors_origins = dev_origins
     try:
-        CORS(app, resources={r"/*": {"origins": dev_origins}})
+        CORS(
+            app,
+            resources={r"/*": {"origins": dev_origins}},
+            supports_credentials=True,
+            methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
         logging.info(f"CORS configured with dev_origins: {len(dev_origins)} origins")
     except Exception as e:
         # If tests replace Flask with a very small MockFlask lacking expected

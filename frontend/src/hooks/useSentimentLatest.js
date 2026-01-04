@@ -15,13 +15,9 @@ export function useSentimentLatest(
   symbol,
   { enabled = true, refreshMs = 30000 } = {}
 ) {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE ||
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    "http://127.0.0.1:5001";
-
-  const base = API_BASE.replace(/\/$/, "");
+  // Use relative paths so Vite proxy handles the request
+  // This avoids CORS issues by keeping requests same-origin
+  const base = "";
 
   const lastGoodRef = useRef(null);
   const lastGoodSymbolRef = useRef(null);

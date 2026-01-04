@@ -19,13 +19,9 @@ export function useTieredSentiment(
   symbol,
   { enabled = true, refreshMs = 30000 } = {}
 ) {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE ||
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    "http://127.0.0.1:5001";
-
-  const base = API_BASE.replace(/\/$/, "");
+  // Use relative paths so Vite proxy handles the request
+  // This avoids CORS issues by keeping requests same-origin
+  const base = "";
 
   const lastGoodRef = useRef(null);
   const lastGoodSymbolRef = useRef(null);
@@ -127,18 +123,31 @@ export function useTieredSentiment(
   // Fetch symbol-specific sentiment (optionally with fresh=1)
   const fetchSymbolSentiment = useCallback(
     async (freshLatest = false) => {
-      const res = await fetch(buildLatestUrl(freshLatest), {
-        cache: "no-store",
-        signal: AbortSignal.timeout(
-          freshLatest ? FRESH_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS
-        ),
-      });
+      const url = buildLatestUrl(freshLatest);
+      console.log('[useTieredSentiment] Fetching symbol sentiment for:', symbol, 'URL:', url);
+      console.log('[useTieredSentiment] Timeout setting:', freshLatest ? FRESH_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
 
-      if (!res.ok) throw new Error(`sentiment ${res.status}`);
+      try {
+        const res = await fetch(url, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(
+            freshLatest ? FRESH_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS
+          ),
+        });
 
-      return await res.json();
+        console.log('[useTieredSentiment] Fetch response received:', res.status, res.ok);
+
+        if (!res.ok) throw new Error(`sentiment ${res.status}`);
+
+        const json = await res.json();
+        console.log('[useTieredSentiment] Fetch JSON parsed:', json);
+        return json;
+      } catch (err) {
+        console.error('[useTieredSentiment] fetchSymbolSentiment ERROR:', err.name, err.message);
+        throw err;
+      }
     },
-    [buildLatestUrl]
+    [buildLatestUrl, symbol]
   );
 
   // Merge tiered data into the normalized sentiment structure
@@ -246,6 +255,8 @@ export function useTieredSentiment(
   const fetchAll = useCallback(async (options = {}) => {
     const freshLatest = options?.freshLatest === true;
 
+    console.log('[useTieredSentiment] fetchAll called for symbol:', symbol, 'enabled:', enabled);
+
     if (!enabled) return;
 
     // Cooldown: if we failed recently, don't spam
@@ -259,17 +270,25 @@ export function useTieredSentiment(
 
     try {
       // Fetch both in parallel
-      const [symbolData, tieredDataResult] = await Promise.allSettled([
+      console.log('[useTieredSentiment] Starting Promise.allSettled for 3 fetches...');
+      const [symbolData, tieredDataResult, sourcesResult] = await Promise.allSettled([
         fetchSymbolSentiment(freshLatest),
         fetchTieredData(),
         fetchSources(),
       ]);
 
+      console.log('[useTieredSentiment] Promise.allSettled completed');
+      console.log('[useTieredSentiment] symbolData status:', symbolData.status);
+      console.log('[useTieredSentiment] tieredDataResult status:', tieredDataResult.status);
+      console.log('[useTieredSentiment] sourcesResult status:', sourcesResult.status);
+
       // Get symbol data (primary)
       let symbolJson = null;
       if (symbolData.status === 'fulfilled') {
         symbolJson = symbolData.value;
+        console.log('[useTieredSentiment] symbolData value:', symbolJson);
       } else {
+        console.error('[useTieredSentiment] symbolData REJECTED:', symbolData.reason);
         throw symbolData.reason;
       }
 
@@ -277,10 +296,15 @@ export function useTieredSentiment(
       let tieredJson = null;
       if (tieredDataResult.status === 'fulfilled') {
         tieredJson = tieredDataResult.value;
+      } else {
+        console.warn('[useTieredSentiment] tieredData rejected:', tieredDataResult.reason?.message);
       }
 
       // Merge and normalize
       const merged = mergeTieredData(symbolJson, tieredJson);
+
+      console.log('[useTieredSentiment] Merged data for', symbol, ':', merged);
+      console.log('[useTieredSentiment] overallSentiment:', merged.overallSentiment);
 
       lastGoodRef.current = merged;
       lastGoodSymbolRef.current = symbol || "";

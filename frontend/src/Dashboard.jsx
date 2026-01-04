@@ -7,7 +7,7 @@ import GainersTable3Min from "./components/GainersTable3Min";
 import LosersTable3Min from "./components/LosersTable3Min";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import { useWatchlist } from "./context/WatchlistContext.jsx";
-import AssetDetailPanel from "./components/AssetDetailPanel.jsx";
+import SentimentPopupAdvanced from "./components/SentimentPopupAdvanced.jsx";
 import AnomalyStream from "./components/AnomalyStream.jsx";
 
 function formatTimestamp(d = new Date()) {
@@ -255,7 +255,8 @@ export default function Dashboard() {
         </div>
       </div>
       {selectedSymbol && (
-        <AssetDetailPanel
+        <SentimentPopupAdvanced
+          isOpen={true}
           symbol={selectedSymbol}
           onClose={() => setSelectedSymbol(null)}
         />

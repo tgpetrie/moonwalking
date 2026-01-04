@@ -15,5 +15,10 @@ fi
 
 export PORT HOST
 
+KILL_FLAG=""
+if [ "${MW_RECLAIM_PORTS:-0}" = "1" ]; then
+	KILL_FLAG="--kill-port"
+fi
+
 # Run in strict mode: pin the port and attempt to free it first.
-python app.py --port "$PORT" --host "$HOST" --kill-port
+python app.py --port "$PORT" --host "$HOST" $KILL_FLAG

@@ -3,6 +3,7 @@ import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { useTieredSentiment } from '../hooks/useTieredSentiment';
 import TradingViewChart from './charts/TradingViewChart';
 import { Chart as ChartJS, registerables } from 'chart.js';
+import '../styles/sentiment-popup-advanced.css';
 
 // Register Chart.js components
 ChartJS.register(...registerables);
@@ -34,8 +35,23 @@ const TIER_LABELS = {
  */
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol);
+  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol, { enabled: isOpen });
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Debug logging and manual refresh trigger
+  useEffect(() => {
+    if (isOpen && symbol) {
+      console.log('[SentimentPopup] Opened for symbol:', symbol);
+      console.log('[SentimentPopup] Loading:', loading);
+      console.log('[SentimentPopup] Data:', sentimentData);
+
+      // Manually trigger refresh when popup opens
+      if (refresh && typeof refresh === 'function') {
+        console.log('[SentimentPopup] Triggering manual refresh for', symbol);
+        refresh();
+      }
+    }
+  }, [isOpen, symbol]); // Only trigger when popup opens or symbol changes
 
   // Chart references
   const trendChartRef = useRef(null);
@@ -526,7 +542,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               </svg>
             </div>
             <div className="header-text">
-              <h1 id="sentimentTitle">Sentiment Analysis</h1>
+              <h1 id="sentimentTitle">Sentiment Analysis {symbol ? `· ${symbol}` : ''}</h1>
               <p className="subtitle">Multi-source market intelligence</p>
             </div>
           </div>
@@ -599,8 +615,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
         {/* Tab Content */}
         <main className="tab-content">
+          {/* Loading State */}
+          {loading && (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#a3a3a3' }}>
+              <div style={{ fontSize: '14px', marginBottom: '0.5rem' }}>Loading sentiment data for {symbol}...</div>
+              <div style={{ fontSize: '12px', opacity: 0.6 }}>Fetching from {sourceCount || 11} sources</div>
+            </div>
+          )}
+
           {/* OVERVIEW TAB */}
-          {activeTab === 'overview' && (
+          {!loading && activeTab === 'overview' && (
             <section className="tab-panel active" role="tabpanel">
               <div className="stats-grid">
                 <div className="stat-card primary">
@@ -852,7 +876,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           )}
 
           {/* SOURCES TAB */}
-          {activeTab === 'sources' && (
+          {!loading && activeTab === 'sources' && (
             <section className="tab-panel active" role="tabpanel">
               <div className="info-section">
                 <div className="section-header">
@@ -937,7 +961,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           )}
 
           {/* CHARTS TAB */}
-          {activeTab === 'charts' && (
+          {!loading && activeTab === 'charts' && (
             <section className="tab-panel active" role="tabpanel">
               <div className="info-section">
                 <div className="section-header">
@@ -1003,7 +1027,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           )}
 
           {/* INSIGHTS TAB */}
-          {activeTab === 'insights' && (
+          {!loading && activeTab === 'insights' && (
             <section className="tab-panel active" role="tabpanel">
               <div className="info-section">
                 <div className="section-header">

@@ -1,25 +1,42 @@
 
 
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
-let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5002').replace(/\/$/, '');
+const DEFAULT_API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_BACKEND_URL ||
+  'http://127.0.0.1:5003' // sane local default; avoid random/stale ports
+).replace(/\/$/, '');
+
+const joinUrl = (base, path) => {
+  const b = String(base || '').replace(/\/+$/, '');
+  const p = String(path || '');
+  const normalized = p.startsWith('/') ? p : `/${p}`;
+  return `${b}${normalized}`;
+};
+
+let API_BASE_URL = DEFAULT_API_BASE;
+const joinEndpoint = (path) => joinUrl(API_BASE_URL, path);
+
 const buildEndpoints = () => ({
-  topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
-  bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
-  gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
-  gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
-  losersTable: `${API_BASE_URL}/api/component/losers-table`,
-  alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
-  topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
-  crypto: `${API_BASE_URL}/api/crypto`,
-  health: `${API_BASE_URL}/api/health`,
-  serverInfo: `${API_BASE_URL}/api/server-info`,
-  marketOverview: `${API_BASE_URL}/api/market-overview`,
-  watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
-  watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
-  watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
-  technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
-  cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
-  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`
+  topBanner: joinEndpoint('/api/component/top-banner-scroll'),
+  bottomBanner: joinEndpoint('/api/component/bottom-banner-scroll'),
+  gainersTable: joinEndpoint('/api/component/gainers-table'),
+  gainersTable1Min: joinEndpoint('/api/component/gainers-table-1min'),
+  losersTable: joinEndpoint('/api/component/losers-table'),
+  alertsRecent: joinEndpoint('/api/alerts/recent'),
+  topMoversBar: joinEndpoint('/api/component/top-movers-bar'),
+  crypto: joinEndpoint('/api/crypto'),
+  health: joinEndpoint('/api/health'),
+  serverInfo: joinEndpoint('/api/server-info'),
+  marketOverview: joinEndpoint('/api/market-overview'),
+  watchlistInsights: joinEndpoint('/api/watchlist/insights'),
+  watchlistInsightsLog: joinEndpoint('/api/watchlist/insights/log'),
+  watchlistInsightsPrice: joinEndpoint('/api/watchlist/insights/price'),
+  technicalAnalysis: (symbol) => joinEndpoint(`/api/technical-analysis/${symbol}`),
+  cryptoNews: (symbol) => joinEndpoint(`/api/news/${symbol}`),
+  socialSentiment: (symbol) => joinEndpoint(`/api/social-sentiment/${symbol}`)
 });
 
 export let API_ENDPOINTS = buildEndpoints();
@@ -34,7 +51,7 @@ export const setApiBaseUrl = (url) => {
 export async function fetchLatestAlerts(symbols = []) {
   if (!Array.isArray(symbols) || symbols.length === 0) return {};
   try {
-    const res = await fetch(`${API_BASE_URL}/api/watchlist/insights/latest`, {
+    const res = await fetch(joinEndpoint('/api/watchlist/insights/latest'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbols })
@@ -134,24 +151,25 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
   }
 };
 
-// Fetch consolidated dataset for dashboard consumers
+// Fetch consolidated dataset for dashboard consumers (fixed base + /data)
 export async function fetchAllData({ signal } = {}) {
-  // Prefer explicit env overrides, otherwise use the current API base; fall back to same-origin if empty
-  const base = (
-    (import.meta?.env?.VITE_API_BASE_URL || import.meta?.env?.VITE_BACKEND_URL || '')
-      .replace(/\/$/, '') || API_BASE_URL
+  const apiBase = (
+    import.meta?.env?.VITE_API_BASE_URL ||
+    import.meta?.env?.VITE_API_BASE ||
+    import.meta?.env?.VITE_API_URL ||
+    API_BASE_URL
   );
 
-  const url = base ? `${base}/data` : '/data';
-
+  const url = joinUrl(apiBase, '/data');
   const res = await fetch(url, {
     signal,
-    headers: { 'Accept': 'application/json' }
+    headers: { Accept: 'application/json' },
+    cache: 'no-store'
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`fetchAllData failed (${res.status}): ${text || res.statusText}`);
+    throw new Error(`fetchAllData failed ${res.status}: ${text || res.statusText}`);
   }
 
   return res.json();
