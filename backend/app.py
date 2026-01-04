@@ -1213,7 +1213,7 @@ def api_sentiment_latest():
         return jsonify(data)
     except Exception as exc:
         # Fallback to Fear & Greed + basic data if pipeline unavailable
-        logger.warning(f"Sentiment pipeline unavailable for {symbol}: {exc}")
+        logging.warning(f"Sentiment pipeline unavailable for {symbol}: {exc}")
 
         fallback_data = {
             'symbol': symbol,
@@ -1957,7 +1957,9 @@ def ask_codex():
 CONFIG = {
     'CACHE_TTL': int(os.environ.get('CACHE_TTL', 60)),  # Cache for 60 seconds
     'INTERVAL_MINUTES': int(os.environ.get('INTERVAL_MINUTES', 3)),  # Calculate changes over 3 minutes
-    'MAX_PRICE_HISTORY': int(os.environ.get('MAX_PRICE_HISTORY', 20)),  # Keep last 20 data points
+    # Keep enough points for 1h-style calculations. At 60s update interval,
+    # 90 gives ~90 minutes of history.
+    'MAX_PRICE_HISTORY': int(os.environ.get('MAX_PRICE_HISTORY', 90)),
     'PORT': int(os.environ.get('PORT', 5001)),  # Default port
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
@@ -2025,6 +2027,221 @@ one_hour_price_trends = {}
 one_hour_volume_trends = {}
 # Track 24h volume snapshots to estimate 1h volume deltas: symbol -> deque[(ts, vol_24h)]
 volume_history_24h = defaultdict(lambda: deque(maxlen=180))
+
+# ----------------------------------------------------------------------------
+# Candle-based 1h volume cache (display-set symbols only)
+# ----------------------------------------------------------------------------
+_CANDLE_VOLUME_CACHE = {}  # product_id -> {vol1h, vol1h_pct_change, ts_computed, last_error}
+_CANDLE_VOLUME_CACHE_LOCK = threading.Lock()
+MAX_CANDLE_SYMBOLS = 60  # Cap to avoid rate limits
+
+def _fetch_coinbase_candles(product_id, granularity=60, count=70):
+    """Fetch candles from Coinbase API.
+
+    Args:
+        product_id: e.g. "BTC-USD"
+        granularity: seconds per candle (60 = 1min)
+        count: number of candles to fetch
+
+    Returns:
+        List of candles [[timestamp, low, high, open, close, volume], ...]
+    """
+    try:
+        url = f"https://api.exchange.coinbase.com/products/{product_id}/candles"
+        params = {"granularity": granularity}
+
+        # Don't use start/end to get latest candles
+        resp = requests.get(url, params=params, timeout=5)
+
+        if resp.status_code == 429:
+            logging.warning(f"[Candles] Rate limited for {product_id}")
+            return None
+
+        if not resp.ok:
+            logging.debug(f"[Candles] HTTP {resp.status_code} for {product_id}")
+            return None
+
+        data = resp.json()
+        if not isinstance(data, list):
+            return None
+
+        # Return most recent candles (API returns them in desc order by timestamp)
+        return data[:count]
+    except Exception as e:
+        logging.debug(f"[Candles] Fetch error for {product_id}: {e}")
+        return None
+
+def _compute_1h_volume_from_candles(product_id):
+    """Compute 1h volume by summing recent 1-minute candles.
+
+    Returns:
+        (vol1h, vol1h_pct_change) or (None, None) on error
+    """
+    candles = _fetch_coinbase_candles(product_id, granularity=60, count=70)
+
+    if not candles or len(candles) < 60:
+        return None, None
+
+    try:
+        # Candles are [[timestamp, low, high, open, close, volume], ...]
+        # Sum last 60 candles for 1h volume
+        vol1h = sum(float(c[5]) for c in candles[:60] if len(c) > 5)
+
+        # Compute 1h volume change % (compare to previous hour)
+        if len(candles) >= 120:
+            vol_prev_1h = sum(float(c[5]) for c in candles[60:120] if len(c) > 5)
+            if vol_prev_1h > 0:
+                vol1h_pct = ((vol1h - vol_prev_1h) / vol_prev_1h) * 100.0
+            else:
+                vol1h_pct = None
+        else:
+            vol1h_pct = None
+
+        return vol1h, vol1h_pct
+    except Exception as e:
+        logging.debug(f"[Candles] Volume compute error for {product_id}: {e}")
+        return None, None
+
+def _update_candle_volume_cache(product_ids):
+    """Background worker: update candle volume cache for display-set symbols.
+
+    Args:
+        product_ids: List of product_id strings (e.g. ["BTC-USD", "ETH-USD"])
+    """
+    if not product_ids:
+        return
+
+    # Cap to avoid overwhelming the API
+    products = list(set(product_ids))[:MAX_CANDLE_SYMBOLS]
+    now = time.time()
+
+    with _CANDLE_VOLUME_CACHE_LOCK:
+        for product_id in products:
+            # Check if recently updated (within 30s)
+            cached = _CANDLE_VOLUME_CACHE.get(product_id, {})
+            ts_computed = cached.get('ts_computed', 0)
+            if now - ts_computed < 30:
+                continue  # Skip, too recent
+
+            vol1h, vol1h_pct = _compute_1h_volume_from_candles(product_id)
+
+            if vol1h is not None:
+                _CANDLE_VOLUME_CACHE[product_id] = {
+                    'vol1h': vol1h,
+                    'vol1h_pct_change': vol1h_pct,
+                    'ts_computed': now,
+                    'last_error': None,
+                }
+            else:
+                # Keep last good value but mark stale
+                if product_id not in _CANDLE_VOLUME_CACHE:
+                    _CANDLE_VOLUME_CACHE[product_id] = {
+                        'vol1h': None,
+                        'vol1h_pct_change': None,
+                        'ts_computed': now,
+                        'last_error': 'fetch_failed',
+                    }
+                else:
+                    # Update only error + timestamp, keep old volume
+                    _CANDLE_VOLUME_CACHE[product_id]['last_error'] = 'fetch_failed'
+                    _CANDLE_VOLUME_CACHE[product_id]['ts_computed'] = now
+
+def _get_candle_volume_for_symbols(symbols):
+    """Get cached candle volumes for given symbols.
+
+    Returns:
+        List of dicts with {symbol, product_id, vol1h, vol1h_pct_change, stale}
+    """
+    results = []
+    with _CANDLE_VOLUME_CACHE_LOCK:
+        for sym in symbols:
+            product_id = f"{sym}-USD"
+            cached = _CANDLE_VOLUME_CACHE.get(product_id)
+            if not cached:
+                continue
+
+            vol1h = cached.get('vol1h')
+            if vol1h is None:
+                continue
+
+            now = time.time()
+            ts_computed = cached.get('ts_computed', 0)
+            stale = (now - ts_computed) > 60  # Stale if > 1 min old
+
+            results.append({
+                'symbol': sym,
+                'product_id': product_id,
+                'vol1h': vol1h,
+                'vol1h_pct_change': cached.get('vol1h_pct_change'),
+                'stale': stale,
+            })
+
+    return results
+
+# ----------------------------------------------------------------------------
+# Background-computed component snapshots (cache-only /data)
+# ----------------------------------------------------------------------------
+_MW_COMPONENT_SNAPSHOTS = {
+    'gainers_1m': None,
+    'gainers_3m': None,
+    'losers_3m': None,
+    'banner_1h_price': None,
+    'banner_1h_volume': None,
+    'volume_1h_candles': None,
+    'updated_at': None,
+}
+_MW_COMPONENT_SNAPSHOTS_LOCK = threading.Lock()
+
+# Last-good snapshot tracking: timestamp and full payload
+_MW_LAST_GOOD_TS = None
+_MW_LAST_GOOD_DATA = None
+
+
+def _mw_set_component_snapshots(**updates):
+    global _MW_LAST_GOOD_TS, _MW_LAST_GOOD_DATA
+    with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        for k, v in updates.items():
+            _MW_COMPONENT_SNAPSHOTS[k] = v
+
+        # Update last-good timestamp if we have meaningful data
+        g1 = _MW_COMPONENT_SNAPSHOTS.get('gainers_1m') or {}
+        g3 = _MW_COMPONENT_SNAPSHOTS.get('gainers_3m') or {}
+        l3 = _MW_COMPONENT_SNAPSHOTS.get('losers_3m') or {}
+        bp = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_price') or {}
+        bv = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_volume') or {}
+        v1h = _MW_COMPONENT_SNAPSHOTS.get('volume_1h_candles') or {}
+
+        # Check if any component has data (not empty)
+        has_data = (
+            (isinstance(g1, dict) and len(g1.get('data', [])) > 0) or
+            (isinstance(g3, dict) and len(g3.get('data', [])) > 0) or
+            (isinstance(l3, dict) and len(l3.get('data', [])) > 0) or
+            (isinstance(bp, dict) and len(bp.get('data', [])) > 0) or
+            (isinstance(bv, dict) and len(bv.get('data', [])) > 0) or
+            (isinstance(v1h, dict) and len(v1h.get('data', [])) > 0)
+        )
+
+        if has_data:
+            import time
+            _MW_LAST_GOOD_TS = time.time()
+            _MW_LAST_GOOD_DATA = dict(_MW_COMPONENT_SNAPSHOTS)
+
+
+def _mw_get_component_snapshot(name: str):
+    with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        return _MW_COMPONENT_SNAPSHOTS.get(name)
+
+
+def _mw_get_last_good_metadata():
+    """Return (last_good_ts, stale_seconds, warming) for /data meta field."""
+    global _MW_LAST_GOOD_TS
+    with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        if _MW_LAST_GOOD_TS is None:
+            return None, None, True
+        import time
+        now = time.time()
+        stale_seconds = int(now - _MW_LAST_GOOD_TS)
+        return _MW_LAST_GOOD_TS, stale_seconds, False
 
 # DEV seed for 1h volume history so banners have data immediately.
 def seed_volume_history_if_dev():
@@ -2286,7 +2503,18 @@ def api_config():
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        # Hard deadline so `/data` never hangs for long during local dev.
+        # When the deadline is hit we return partial results.
+        deadline_seconds = float(os.environ.get('PRICE_FETCH_DEADLINE_SECONDS', '8'))
+        deadline_ts = time.time() + max(1.0, deadline_seconds)
+
+        products_timeout = float(os.environ.get('COINBASE_PRODUCTS_TIMEOUT', '5'))
+        products_timeout = max(1.0, min(products_timeout, float(CONFIG.get('API_TIMEOUT', 10))))
+
+        ticker_timeout = float(os.environ.get('COINBASE_TICKER_TIMEOUT', '3'))
+        ticker_timeout = max(1.0, min(ticker_timeout, float(CONFIG.get('API_TIMEOUT', 10))))
+
+        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=products_timeout)
         if products_response.status_code == 200:
             products = products_response.json()
             current_prices = {}
@@ -2343,7 +2571,9 @@ def get_coinbase_prices():
                     time.sleep(random.uniform(0.0, 0.05))
 
                     try:
-                        r = requests.get(url, timeout=int(CONFIG.get("API_TIMEOUT", 10)))
+                        # Keep per-request timeout small; overall duration is bounded
+                        # by `PRICE_FETCH_DEADLINE_SECONDS` in the caller.
+                        r = requests.get(url, timeout=ticker_timeout)
                         last_code = r.status_code
 
                         if r.status_code == 200:
@@ -2400,30 +2630,43 @@ def get_coinbase_prices():
                 other = 0
                 exceptions = 0
 
-                for future in as_completed(future_to_product):
-                    try:
-                        symbol, price, code, err_tag = future.result()
-                    except Exception:
-                        exceptions += 1
-                        continue
+                # Collect results until deadline; return partial data if slow.
+                remaining = max(0.1, deadline_ts - time.time())
+                try:
+                    for future in as_completed(future_to_product, timeout=remaining):
+                        try:
+                            symbol, price, code, err_tag = future.result()
+                        except Exception:
+                            exceptions += 1
+                            continue
 
-                    if symbol and price:
-                        current_prices[symbol] = price
-                        ok += 1
-                        continue
+                        if symbol and price:
+                            current_prices[symbol] = price
+                            ok += 1
+                            continue
 
-                    if code == 429:
-                        http429 += 1
-                    elif 500 <= code <= 599:
-                        http5xx += 1
-                    elif code == 0:
-                        exceptions += 1
-                    else:
-                        other += 1
+                        if code == 429:
+                            http429 += 1
+                        elif 500 <= code <= 599:
+                            http5xx += 1
+                        elif code == 0:
+                            exceptions += 1
+                        else:
+                            other += 1
+                except Exception as e:
+                    # TimeoutError or unexpected iterator issue: best-effort partial return.
+                    logging.warning(f"price_fetch_deadline_reached: returning_partial ok={ok} submitted={submitted} err={type(e).__name__}")
+                finally:
+                    # Cancel any futures that haven't started yet.
+                    for f in future_to_product:
+                        try:
+                            f.cancel()
+                        except Exception:
+                            pass
 
             logging.info(
-                "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d",
-                submitted, ok, http429, http5xx, other, exceptions, sample
+                "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
+                submitted, ok, http429, http5xx, other, exceptions, sample, deadline_seconds
             )
             return current_prices
         else:
@@ -2746,21 +2989,33 @@ def format_banner_data(banner_data):
 # MAIN DATA PROCESSING FUNCTION
 # =============================================================================
 
-def get_crypto_data():
-    """Main function to fetch and process 1-minute crypto data.
+def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
+    """Main function to fetch and process 3-minute crypto data.
 
-    Accepts optional pre-fetched `current_prices` to reuse a caller's snapshot
-    (e.g., background refresher) and avoid a second Coinbase fetch.
+    Params:
+        - current_prices: optional dict[symbol->price] from a shared fetch.
+        - force_refresh: when True, bypasses the cache TTL so the background
+          updater can append to history every tick.
     """
     current_time = time.time()
     
     # Check cache first
-    if cache["data"] and (current_time - cache["timestamp"]) < cache["ttl"]:
+    if (not force_refresh) and cache["data"] and (current_time - cache["timestamp"]) < cache["ttl"]:
         return cache["data"]
     
     try:
-        # Get current prices for 3-minute calculations
-        current_prices = get_current_prices()
+        # Resolve a usable price snapshot.
+        if current_prices is None:
+            # Reuse prices from recent fetch (e.g., 1-min snapshot) to avoid
+            # parallel bursts during a single `/data` aggregation.
+            prices_age_limit = 10
+            if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
+                current_prices = last_current_prices['data']
+            else:
+                current_prices = get_current_prices()
+                if current_prices:
+                    last_current_prices['data'] = current_prices
+                    last_current_prices['timestamp'] = current_time
         if not current_prices:
             logging.warning("No current prices available")
             return None
@@ -3104,38 +3359,59 @@ def _wrap_rows_and_ts(payload):
     return [], None
 
 def get_gainers_1m():
-    """Return (rows, ts) for 1m gainers from SWR snapshot."""
-    data = _get_gainers_table_1min_swr()
+    """Return (rows, ts) for 1m gainers.
+
+    Prefer the background-computed snapshot so `/data` stays cache-only.
+    Fallback to SWR builder only if the background thread hasn't produced
+    a snapshot yet.
+    """
+    data = _mw_get_component_snapshot('gainers_1m') or _get_gainers_table_1min_swr()
     return _wrap_rows_and_ts(data)
 
 
 def get_gainers_3m():
-    """Return (rows, ts) for 3m gainers from SWR snapshot."""
-    data = _get_gainers_table_3min_swr()
+    """Return (rows, ts) for 3m gainers (cache-only preferred)."""
+    data = _mw_get_component_snapshot('gainers_3m') or _get_gainers_table_3min_swr()
     return _wrap_rows_and_ts(data)
 
 
 def get_losers_3m():
-    """Return (rows, ts) for 3m losers from SWR snapshot."""
-    data = _get_losers_table_3min_swr()
+    """Return (rows, ts) for 3m losers (cache-only preferred)."""
+    data = _mw_get_component_snapshot('losers_3m') or _get_losers_table_3min_swr()
     return _wrap_rows_and_ts(data)
 
 
 def get_banner_1h():
-    """Return (rows, ts) for 1h price-change banner. Mark as computed."""
+    """Return (rows, ts) for 1h price-change banner.
+
+    Prefer the background snapshot to avoid on-demand Coinbase calls.
+    """
+    snap = _mw_get_component_snapshot('banner_1h_price')
+    if isinstance(snap, dict):
+        return _wrap_rows_and_ts(snap)
+
+    # Fallback (best-effort)
     rows = _compute_top_banner_data_safe() or []
-    ts = datetime.now().isoformat()
-    return rows, ts
+    return rows, datetime.now().isoformat()
 
 
-def get_banner_1h_volume():
-    """Return (rows, ts) for 1h volume banner, reusing bottom-banner computation."""
+def get_banner_1h_volume(banner_data=None):
+    """Return (rows, ts) for 1h volume banner.
+
+    Prefer the background snapshot to avoid on-demand Coinbase calls.
+    If `banner_data` is provided, use it as the 24h banner source instead
+    of fetching.
+    """
+    snap = _mw_get_component_snapshot('banner_1h_volume')
+    if isinstance(snap, dict):
+        return _wrap_rows_and_ts(snap)
+
     try:
         # Prefer detailed banner data when available, but fall back to the
         # collected `volume_history_24h` snapshots to produce a top-by-volume
         # view so the volume banner (`bV`) can populate even if price filters
         # exclude some coins from the standard movers list.
-        banner_data = get_24h_top_movers() or []
+        banner_data = banner_data or (get_24h_top_movers() or [])
         now_ts = time.time()
         rows = []
 
@@ -3214,15 +3490,133 @@ def get_banner_1h_volume():
 def data_aggregate():
     """Unified aggregate data endpoint used by the dashboard SPA.
 
-    Builds a canonical per-symbol row map and derives the various sorted
-    views (1m/3m tables, 1h price banner, 1h volume banner) from it.
-    Always returns HTTP 200/206 JSON and never raises in local dev.
+    Snapshot-only: returns the last background-computed snapshot (or a fast
+    warming payload). This route must never do live Coinbase/network work.
+    Always returns HTTP 200 JSON and never raises in local dev.
     """
     try:
         logger = getattr(app, "logger", logging.getLogger(__name__))
         meta: dict[str, dict] = {}
         errors: dict[str, str] = {}
         rows_by_symbol: dict[str, dict] = {}
+
+        # ------------------------------------------------------------------
+        # Cache-only fast path: do NOT call any SWR helpers here.
+        # ------------------------------------------------------------------
+        snap_updated_at = _mw_get_component_snapshot('updated_at')
+        snap_g1, _g1_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_1m'))
+        snap_g3, _g3_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_3m'))
+        snap_l3, _l3_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('losers_3m'))
+        snap_b1h, _b1h_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('banner_1h_price'))
+        snap_bv, _bv_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('banner_1h_volume'))
+        snap_v1h, _v1h_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('volume_1h_candles'))
+
+        if snap_updated_at:
+            # Best-effort latest_by_symbol map from snapshot rows.
+            latest_by_symbol = {}
+            for lst in (snap_g1, snap_g3, snap_l3, snap_b1h, snap_bv):
+                for item in (lst or []):
+                    try:
+                        sym = (item.get('symbol') or '').upper()
+                    except Exception:
+                        sym = ''
+                    if not sym:
+                        continue
+                    raw_price = item.get('current_price')
+                    if raw_price is None:
+                        raw_price = item.get('price')
+                    try:
+                        price_f = float(raw_price)
+                    except (TypeError, ValueError):
+                        continue
+                    latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
+
+            # Get last-good metadata
+            last_good_ts, stale_seconds, warming = _mw_get_last_good_metadata()
+
+            payload = {
+                "gainers_1m": snap_g1 or [],
+                "gainers_3m": snap_g3 or [],
+                "losers_3m": snap_l3 or [],
+                "banner_1h_price": snap_b1h or [],
+                "banner_1h_volume": snap_bv or [],
+                "volume_1h_candles": snap_v1h or [],
+                "latest_by_symbol": latest_by_symbol,
+                "updated_at": snap_updated_at,
+                "meta": {
+                    "snapshot_only": True,
+                    "ts": snap_updated_at,
+                    "lastGoodTs": last_good_ts,
+                    "staleSeconds": stale_seconds,
+                    "warming": warming,
+                    "partial": False,
+                },
+                "errors": {},
+                "coverage": {
+                    "banner_1h_price": len(snap_b1h or []),
+                    "banner_1h_volume": len(snap_bv or []),
+                    "volume_1h_candles": len(snap_v1h or []),
+                    "gainers_1m": len(snap_g1 or []),
+                    "gainers_3m": len(snap_g3 or []),
+                    "losers_3m": len(snap_l3 or []),
+                },
+            }
+            payload["data"] = {
+                "gainers_1m": payload["gainers_1m"],
+                "gainers_3m": payload["gainers_3m"],
+                "losers_3m": payload["losers_3m"],
+                "banner_1h_price": payload["banner_1h_price"],
+                "banner_1h_volume": payload["banner_1h_volume"],
+                "volume_1h_candles": payload["volume_1h_candles"],
+                "latest_by_symbol": payload["latest_by_symbol"],
+                "updated_at": payload["updated_at"],
+            }
+            resp = jsonify(payload)
+            resp.headers["Cache-Control"] = "no-store, max-age=0"
+            return resp, 200
+
+        # No snapshot yet: return a fast warming payload.
+        warming_ts = datetime.now().isoformat()
+        last_good_ts, stale_seconds, warming = _mw_get_last_good_metadata()
+        payload = {
+            "gainers_1m": [],
+            "gainers_3m": [],
+            "losers_3m": [],
+            "banner_1h_price": [],
+            "banner_1h_volume": [],
+            "volume_1h_candles": [],
+            "latest_by_symbol": {},
+            "updated_at": warming_ts,
+            "meta": {
+                "snapshot_only": True,
+                "warming": warming,
+                "ts": warming_ts,
+                "lastGoodTs": last_good_ts,
+                "staleSeconds": stale_seconds,
+                "partial": False,
+            },
+            "errors": {"warming": "no_snapshot_yet"},
+            "coverage": {
+                "banner_1h_price": 0,
+                "banner_1h_volume": 0,
+                "volume_1h_candles": 0,
+                "gainers_1m": 0,
+                "gainers_3m": 0,
+                "losers_3m": 0,
+            },
+        }
+        payload["data"] = {
+            "gainers_1m": [],
+            "gainers_3m": [],
+            "losers_3m": [],
+            "banner_1h_price": [],
+            "banner_1h_volume": [],
+            "latest_by_symbol": {},
+            "updated_at": warming_ts,
+        }
+        resp = jsonify(payload)
+        resp.headers["Cache-Control"] = "no-store, max-age=0"
+        return resp, 200
 
         def _sym_from(row: dict) -> str | None:
             raw = row.get("symbol") or row.get("pair") or row.get("product_id")
@@ -3817,10 +4211,9 @@ def data_aggregate():
             # best-effort; if this alias fails, main payload is still valid
             pass
 
-        status = 200 if not errors else 206
         resp = jsonify(payload)
         resp.headers["Cache-Control"] = "no-store, max-age=0"
-        return resp, status
+        return resp, 200
     except Exception as e:
         # Absolute guardrail: never 5xx in local dev for /data
         try:
@@ -3841,7 +4234,7 @@ def data_aggregate():
             }
         )
         resp.headers["Cache-Control"] = "no-store, max-age=0"
-        return resp, 206
+        return resp, 200
 
 @app.route('/api/component/top-banner-scroll')
 def get_top_banner_scroll():
@@ -5093,24 +5486,25 @@ def background_crypto_updates():
     """Background thread to update cache periodically"""
     while True:
         try:
-            # Update 3-min data cache
-            data_3min = get_crypto_data()
+            # Fetch prices ONCE per tick so history grows consistently.
+            current_prices = get_current_prices() or {}
+            if current_prices:
+                last_current_prices['data'] = current_prices
+                last_current_prices['timestamp'] = time.time()
+
+            # Update 3-min data cache (force refresh so we always append to history)
+            data_3min = get_crypto_data(current_prices=current_prices or None, force_refresh=True)
             if data_3min:
-                logging.info(f"3-min cache updated: {len(data_3min['gainers'])} gainers, {len(data_3min['losers'])} losers, {len(data_3min['banner'])} banner items")
+                logging.info(
+                    f"3-min cache updated: {len(data_3min.get('gainers', []))} gainers, {len(data_3min.get('losers', []))} losers, {len(data_3min.get('banner', []))} banner items"
+                )
 
             # Respect config before doing 1-min related processing
             if CONFIG.get('ENABLE_1MIN', True):
-                current_prices = get_current_prices()
                 if current_prices:
-                    # Store for reuse by on-demand endpoint
-                    last_current_prices['data'] = current_prices
-                    last_current_prices['timestamp'] = time.time()
-
-                    # Update in-memory 1-minute histories (stale-while-revalidate)
-                    calculate_1min_changes(current_prices)
-                    logging.debug(f"1-min price history updated with {len(current_prices)} new prices.")
-
-                    # Build and cache the 1-minute snapshot from these same prices
+                    # Build and cache the 1-minute snapshot from these same prices.
+                    # NOTE: get_crypto_data_1min() already appends to price_history_1min via
+                    # calculate_1min_changes(), so do NOT call it separately here.
                     try:
                         _ = get_crypto_data_1min(current_prices=current_prices)
                         logging.info("1-min snapshot refreshed by background updater")
@@ -5119,6 +5513,112 @@ def background_crypto_updates():
 
                     # Keep existing watchlist auto-logging behavior using the latest banner data
                     _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+
+            # Publish component snapshots for cache-only /data.
+            try:
+                g1m = _get_gainers_table_1min_swr() if CONFIG.get('ENABLE_1MIN', True) else None
+            except Exception:
+                g1m = None
+            try:
+                g3m = _get_gainers_table_3min_swr()
+            except Exception:
+                g3m = None
+            try:
+                l3m = _get_losers_table_3min_swr()
+            except Exception:
+                l3m = None
+
+            # Banner snapshots derived from cached 3m data when available
+            try:
+                banner_rows = (data_3min or {}).get('banner') or []
+                b1h_price_rows = []
+                for coin in banner_rows[:20]:
+                    try:
+                        b1h_price_rows.append({
+                            "symbol": coin.get("symbol"),
+                            "current_price": float(coin.get("current_price", 0) or 0),
+                            "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
+                            "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                            "market_cap": float(coin.get("market_cap", 0) or 0),
+                        })
+                    except Exception:
+                        continue
+                banner_1h_price = {
+                    'component': 'banner_1h_price',
+                    'data': b1h_price_rows,
+                    'last_updated': datetime.now().isoformat(),
+                }
+            except Exception:
+                banner_1h_price = None
+
+            try:
+                vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
+                banner_1h_volume = {
+                    'component': 'banner_1h_volume',
+                    'data': vb_rows or [],
+                    'last_updated': vb_ts or datetime.now().isoformat(),
+                }
+            except Exception:
+                banner_1h_volume = None
+
+            # Collect display-set symbols for candle volume (union of visible tables/banners)
+            display_symbols = set()
+            try:
+                # Add banner symbols
+                for coin in (banner_rows or [])[:20]:
+                    sym = coin.get('symbol')
+                    if sym:
+                        display_symbols.add(sym)
+
+                # Add 1m gainers
+                if g1m and isinstance(g1m, dict):
+                    for row in (g1m.get('data') or [])[:15]:
+                        sym = row.get('symbol')
+                        if sym:
+                            display_symbols.add(sym)
+
+                # Add 3m gainers/losers
+                if g3m and isinstance(g3m, dict):
+                    for row in (g3m.get('data') or [])[:15]:
+                        sym = row.get('symbol')
+                        if sym:
+                            display_symbols.add(sym)
+
+                if l3m and isinstance(l3m, dict):
+                    for row in (l3m.get('data') or [])[:15]:
+                        sym = row.get('symbol')
+                        if sym:
+                            display_symbols.add(sym)
+
+                # Convert to product_ids and update candle cache
+                product_ids = [f"{sym}-USD" for sym in display_symbols if sym]
+                if product_ids:
+                    logging.info(f"Updating candle volume cache for {len(product_ids)} symbols")
+                    _update_candle_volume_cache(product_ids)
+
+                # Build volume1h snapshot from candle cache
+                vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
+                # Sort by vol1h descending
+                vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
+
+                volume_1h_candles = {
+                    'component': 'volume_1h_candles',
+                    'data': vol1h_results[:20],  # Top 20 by volume
+                    'last_updated': datetime.now().isoformat(),
+                }
+            except Exception as e:
+                logging.error(f"Error building candle volume snapshot: {e}")
+                volume_1h_candles = None
+
+            _mw_set_component_snapshots(
+                gainers_1m=g1m,
+                gainers_3m=g3m,
+                losers_3m=l3m,
+                banner_1h_price=banner_1h_price,
+                banner_1h_volume=banner_1h_volume,
+                volume_1h_candles=volume_1h_candles,
+                updated_at=datetime.now().isoformat(),
+            )
 
         except Exception as e:
             logging.error(f"Error in background update: {e}")
