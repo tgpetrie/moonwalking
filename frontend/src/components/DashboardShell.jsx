@@ -15,8 +15,9 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
 
 export default function DashboardShell({ onInfo }) {
+  const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useDashboardData();
   const { heartbeatPulse: intelPulse } = useIntelligence();
   const combinedPulse = Boolean(heartbeatPulse || intelPulse);
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
@@ -139,16 +140,25 @@ export default function DashboardShell({ onInfo }) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
 
+  const STALE_THRESHOLD = 20; // seconds
+
   const status = useMemo(() => {
-    const now = Date.now();
-    const isWarming = now - mountedAt < 25000;
-    const isLive = !isPartial;
     if (fatal) return "DEGRADED";
-    if (isLive) return "LIVE";
-    if (isWarming) return "WARMING";
-    if (partialStreak >= 2) return "PARTIAL";
-    return "PARTIAL";
-  }, [fatal, isPartial, mountedAt, partialStreak]);
+
+    // Use backend warming flag: only true before first snapshot exists
+    if (warming) return "WARMING";
+
+    // Once we have data, never show WARMING again
+    // Instead show STALE if data is old
+    const isStale = staleSeconds !== null && staleSeconds > STALE_THRESHOLD;
+    if (isStale) return "STALE";
+
+    // Check if partial (some tables empty)
+    const isLive = !isPartial;
+    if (!isLive && partialStreak >= 2) return "PARTIAL";
+
+    return "LIVE";
+  }, [fatal, warming, staleSeconds, isPartial, partialStreak]);
 
   const tickerItems = useMemo(() => {
     if (!gainers1m?.length) return ["Waiting for live data…"];
@@ -170,7 +180,12 @@ export default function DashboardShell({ onInfo }) {
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
           <span className={`bh-warming-pill ${warming ? "is-warming" : "is-live"}`}>
-            {warming ? "Warming up data…" : `Last data ${formatTempTime(lastUpdated)}`}
+            {warming
+              ? "Warming up data…"
+              : staleSeconds !== null && staleSeconds > STALE_THRESHOLD
+                ? `Stale (${staleSeconds}s ago)`
+                : `Last data ${formatTempTime(lastUpdated)}`
+            }
           </span>
         </div>
         <div className="bh-topbar-right">
@@ -186,7 +201,7 @@ export default function DashboardShell({ onInfo }) {
       </header>
 
       {/* 1 Hour Price Change Banner - Full Width */}
-      <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} />
+      <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
@@ -217,6 +232,7 @@ export default function DashboardShell({ onInfo }) {
                     <GainersTable3Min
                       tokens={gainers3m}
                       loading={uiLoading}
+                      warming3m={warming3m}
                       onInfo={onInfoProp}
                       onToggleWatchlist={handleToggleWatchlist}
                       watchlist={watchlistSymbols}
@@ -227,6 +243,7 @@ export default function DashboardShell({ onInfo }) {
                     <LosersTable3Min
                       tokens={losers3m}
                       loading={uiLoading}
+                      warming3m={warming3m}
                       onInfo={onInfoProp}
                       onToggleWatchlist={handleToggleWatchlist}
                       watchlist={watchlistSymbols}
@@ -265,7 +282,7 @@ export default function DashboardShell({ onInfo }) {
       </main>
 
       {/* 1 Hour Volume Banner - Full Width */}
-      <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} />
+      <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
 
       {/* Insights floating card aligned to board rails */}
       <SentimentPopupAdvanced

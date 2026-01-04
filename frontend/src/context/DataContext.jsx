@@ -76,6 +76,9 @@ export function DataProvider({ children }) {
   const [lastFetchTs, setLastFetchTs] = useState(null);
   const [heartbeatPulse, setHeartbeatPulse] = useState(false);
   const [warming, setWarming] = useState(() => !cachedNormalized);
+  const [warming3m, setWarming3m] = useState(false);
+  const [staleSeconds, setStaleSeconds] = useState(null);
+  const [lastGoodTs, setLastGoodTs] = useState(null);
 
   // Timing refs for gated publishing
   const last3mPublishRef = useRef(0);
@@ -125,15 +128,19 @@ export function DataProvider({ children }) {
 
   const fetchData = useCallback(async () => {
     try {
-      if (!latestNormalizedRef.current) {
-        setWarming(true);
-      }
       if (abortRef.current) abortRef.current.abort();
       abortRef.current = new AbortController();
 
       const json = await fetchAllData();
       const norm = normalizeApiData(json);
       const now = Date.now();
+
+      // Extract meta fields from backend
+      const meta = norm.meta || {};
+      const backendWarming = meta.warming ?? false;
+       const backendWarming3m = meta.warming_3m ?? meta.warming3m ?? false;
+      const backendStaleSeconds = meta.staleSeconds ?? null;
+      const backendLastGoodTs = meta.lastGoodTs ?? null;
 
       const hasAny =
         (Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
@@ -154,12 +161,17 @@ export function DataProvider({ children }) {
       setError(null);
       setLoading(false);
 
+      // Use backend meta.warming as source of truth
+      setWarming(backendWarming);
+      setWarming3m(Boolean(backendWarming3m));
+      setStaleSeconds(backendStaleSeconds);
+      setLastGoodTs(backendLastGoodTs);
+
       if (!hasAny && cacheHasAny) {
-        setWarming(true);
+        // Keep warming state from backend
       } else {
         latestNormalizedRef.current = norm;
         setLatestBySymbol(norm.latest_by_symbol || {});
-        setWarming(!hasAny);
 
         // 1m: every fetch, but stagger the row commits for "live feel"
         staggerCommit1m(norm.gainers_1m);
@@ -190,9 +202,7 @@ export function DataProvider({ children }) {
       console.warn('[DataContext] Fetch failed:', e.message);
       setError(e);
       setLoading(false);
-      if (!latestNormalizedRef.current) {
-        setWarming(true);
-      }
+      // On error, don't override warming state - keep backend's last state
     }
   }, [staggerCommit1m]);
 
@@ -202,9 +212,19 @@ export function DataProvider({ children }) {
       return;
     }
 
+    // Extract meta fields from backend
+    const meta = norm.meta || {};
+    const backendWarming = meta.warming ?? false;
+    const backendWarming3m = meta.warming_3m ?? meta.warming3m ?? false;
+    const backendStaleSeconds = meta.staleSeconds ?? null;
+    const backendLastGoodTs = meta.lastGoodTs ?? null;
+
     latestNormalizedRef.current = norm;
     setLatestBySymbol(norm.latest_by_symbol || {});
-    setWarming(false);
+    setWarming(backendWarming);
+    setWarming3m(Boolean(backendWarming3m));
+    setStaleSeconds(backendStaleSeconds);
+    setLastGoodTs(backendLastGoodTs);
     staggerCommit1m(norm.gainers_1m);
 
     setLastFetchTs(now);
@@ -294,7 +314,10 @@ export function DataProvider({ children }) {
     heartbeatPulse,
     lastFetchTs,
     warming,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming]);
+    warming3m,
+    staleSeconds,
+    lastGoodTs,
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

@@ -790,6 +790,8 @@ def _get_gainers_table_3min_swr():
     data = get_crypto_data()
     if not data:
         return None
+    baseline_ready = bool(data.get("baseline_ready_3m"))
+    baseline_ts = data.get("baseline_ts_3m")
     gainers = data.get('gainers', [])
     limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     gainers_table_data = []
@@ -816,7 +818,9 @@ def _get_gainers_table_3min_swr():
         'table_type': 'gainers',
         'time_frame': '3_minutes',
         'update_interval': 3000,
-        'last_updated': datetime.now().isoformat()
+        'last_updated': datetime.now().isoformat(),
+        'warming': not baseline_ready,
+        'baseline_ts': baseline_ts,
     }
 
 @stale_while_revalidate(ttl=_LOSERS_3M_SWR_TTL, stale_window=_LOSERS_3M_SWR_STALE)
@@ -825,6 +829,8 @@ def _get_losers_table_3min_swr():
     data = get_crypto_data()
     if not data:
         return None
+    baseline_ready = bool(data.get("baseline_ready_3m"))
+    baseline_ts = data.get("baseline_ts_3m")
     losers = data.get('losers', [])
     limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     losers_table_data = []
@@ -851,7 +857,9 @@ def _get_losers_table_3min_swr():
         'table_type': 'losers',
         'time_frame': '3_minutes',
         'update_interval': 3000,
-        'last_updated': datetime.now().isoformat()
+        'last_updated': datetime.now().isoformat(),
+        'warming': not baseline_ready,
+        'baseline_ts': baseline_ts,
     }
 
 @stale_while_revalidate(ttl=_TOP_MOVERS_BAR_SWR_TTL, stale_window=_TOP_MOVERS_BAR_SWR_STALE)
@@ -1963,7 +1971,9 @@ CONFIG = {
     'PORT': int(os.environ.get('PORT', 5001)),  # Default port
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
-    'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Background update interval in seconds
+    'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Legacy: Background update interval in seconds (deprecated)
+    'PRICE_FETCH_INTERVAL': int(os.environ.get('PRICE_FETCH_INTERVAL', 25)),  # How often to fetch fresh prices from Coinbase (20-25s recommended)
+    'SNAPSHOT_COMPUTE_INTERVAL': int(os.environ.get('SNAPSHOT_COMPUTE_INTERVAL', 8)),  # How often to recompute snapshots using cached prices (8-10s recommended)
     'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 30)),  # Max coins to return
     'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
     'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.15)),  # Minimum % change for banner (loosened for dev)
@@ -2005,8 +2015,30 @@ cache = {
 }
 
 # Store price history for interval calculations
+# Rolling price history (3m + 1m)
 price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
 price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
+
+# Track readiness of the 3m baseline (first snapshot >= interval ago)
+_BASELINE_3M_LOCK = threading.Lock()
+_BASELINE_3M_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
+
+
+def _set_baseline_meta_3m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+    with _BASELINE_3M_LOCK:
+        _BASELINE_3M_META["ready"] = bool(ready)
+        _BASELINE_3M_META["baseline_ts"] = baseline_ts
+        _BASELINE_3M_META["age_seconds"] = age_seconds
+
+
+def _get_baseline_meta_3m():
+    """Get 3m baseline meta using direct price_history check."""
+    warming_3m, baseline_ts, baseline_age = _mw_check_3m_baseline_ready()
+    return {
+        "ready": not warming_3m,
+        "baseline_ts": baseline_ts,
+        "age_seconds": baseline_age
+    }
 # Cache / state for 1-min data to prevent hammering APIs
 one_minute_cache = {"data": None, "timestamp": 0}
 last_current_prices = {"data": None, "timestamp": 0}
@@ -2232,16 +2264,51 @@ def _mw_get_component_snapshot(name: str):
         return _MW_COMPONENT_SNAPSHOTS.get(name)
 
 
+def _mw_check_3m_baseline_ready():
+    """Check if we have enough price history for 3m baseline (≥180s old data).
+
+    Returns:
+        (warming_3m, baseline_ts_3m, baseline_age_seconds_3m)
+    """
+    import time
+    now = time.time()
+    oldest_ts = None
+
+    # Check a sample of symbols to see if they have history ≥180s old
+    sample_symbols = list(price_history.keys())[:20] if price_history else []
+
+    for symbol in sample_symbols:
+        history = price_history.get(symbol)
+        if history and len(history) > 0:
+            # History is stored as deque of (timestamp, price)
+            first_ts = history[0][0]
+            if oldest_ts is None or first_ts < oldest_ts:
+                oldest_ts = first_ts
+
+    if oldest_ts is None:
+        # No history at all
+        return True, None, None
+
+    baseline_age = now - oldest_ts
+
+    # Need at least 180 seconds of history for 3m baseline
+    warming_3m = baseline_age < 180
+
+    return warming_3m, oldest_ts, int(baseline_age)
+
+
 def _mw_get_last_good_metadata():
-    """Return (last_good_ts, stale_seconds, warming) for /data meta field."""
+    """Return (last_good_ts, stale_seconds, warming, warming_3m, baseline_ts_3m, baseline_age_3m) for /data meta field."""
     global _MW_LAST_GOOD_TS
     with _MW_COMPONENT_SNAPSHOTS_LOCK:
+        warming_3m, baseline_ts_3m, baseline_age_3m = _mw_check_3m_baseline_ready()
+
         if _MW_LAST_GOOD_TS is None:
-            return None, None, True
+            return None, None, True, warming_3m, baseline_ts_3m, baseline_age_3m
         import time
         now = time.time()
         stale_seconds = int(now - _MW_LAST_GOOD_TS)
-        return _MW_LAST_GOOD_TS, stale_seconds, False
+        return _MW_LAST_GOOD_TS, stale_seconds, False, warming_3m, baseline_ts_3m, baseline_age_3m
 
 # DEV seed for 1h volume history so banners have data immediately.
 def seed_volume_history_if_dev():
@@ -2418,6 +2485,8 @@ VALIDATABLE_CONFIG = {
     'INTERVAL_MINUTES': {'type': int, 'min': 1, 'max': 30},
     'MAX_PRICE_HISTORY': {'type': int, 'min': 5, 'max': 5000},
     'UPDATE_INTERVAL': {'type': int, 'min': 5, 'max': 600},
+    'PRICE_FETCH_INTERVAL': {'type': int, 'min': 5, 'max': 120},
+    'SNAPSHOT_COMPUTE_INTERVAL': {'type': int, 'min': 3, 'max': 60},
     'MAX_COINS_PER_CATEGORY': {'type': int, 'min': 1, 'max': 500},
     'MIN_VOLUME_THRESHOLD': {'type': int, 'min': 0, 'max': 10_000_000_000},
     'MIN_CHANGE_THRESHOLD': {'type': float, 'min': 0.0, 'max': 1000.0},
@@ -2677,7 +2746,11 @@ def get_coinbase_prices():
         return {}
 
 def calculate_interval_changes(current_prices):
-    """Calculate price changes over configured interval (default 3 minutes) using interpolation for accuracy."""
+    """Calculate price changes over configured interval (default 3 minutes) using the nearest *older* snapshot.
+
+    - Requires a baseline timestamp that is at least `interval_seconds` old; otherwise marks 3m as warming.
+    - Chooses the latest history point older than the target (no interpolation) to avoid premature deltas.
+    """
     current_time = time.time()
     interval_seconds = CONFIG['INTERVAL_MINUTES'] * 60
 
@@ -2687,7 +2760,9 @@ def calculate_interval_changes(current_prices):
             price_history[symbol].append((current_time, price))
 
     formatted_data = []
-    target_ts_offset = interval_seconds
+    target_ts = current_time - interval_seconds
+    baseline_ready_any = False
+    earliest_baseline_ts = None
 
     for symbol, price in current_prices.items():
         if price <= 0:
@@ -2697,64 +2772,48 @@ def calculate_interval_changes(current_prices):
         if len(history) < 2:
             continue
 
-        # Ensure chronological list
+        # Ensure chronological list (deque preserves order)
         hist_list = list(history)
-        target_ts = current_time - target_ts_offset
 
-        interval_price = None
-        interval_time = None
+        # Find the latest point that is at or older than the 3m target.
+        baseline_pair = None
+        for t, p in reversed(hist_list):
+            if t <= target_ts:
+                baseline_pair = (t, p)
+                break
 
-        # Case A: All points newer than target -> use oldest available (short interval)
-        if hist_list[0][0] > target_ts:
-            interval_time, interval_price = hist_list[0]
-        # Case B: All points older than target -> use latest older (long interval)
-        elif hist_list[-1][0] <= target_ts:
-            interval_time, interval_price = hist_list[-1]
-        else:
-            # Case C: Interpolate between the two bracketing points around target_ts
-            left = None
-            right = None
-            for i in range(len(hist_list) - 1):
-                t0, p0 = hist_list[i]
-                t1, p1 = hist_list[i + 1]
-                if t0 <= target_ts <= t1:
-                    left = (t0, p0)
-                    right = (t1, p1)
-                    break
-            if left and right and right[0] > left[0] and all(x is not None for x in (left[1], right[1])):
-                t0, p0 = left
-                t1, p1 = right
-                # Linear interpolation
-                ratio = (target_ts - t0) / (t1 - t0)
-                interval_price = p0 + (p1 - p0) * ratio
-                interval_time = target_ts
-            else:
-                # Fallback to latest older point if interpolation failed
-                # Find latest point <= target_ts
-                for t, p in reversed(hist_list):
-                    if t <= target_ts:
-                        interval_time, interval_price = t, p
-                        break
-                # If still none, use oldest
-                if interval_price is None:
-                    interval_time, interval_price = hist_list[0]
+        if baseline_pair is None:
+            # No baseline yet that's >= interval_seconds old — warming state.
+            continue
+
+        interval_time, interval_price = baseline_pair
+        try:
+            interval_price = float(interval_price)
+        except (TypeError, ValueError):
+            interval_price = None
 
         if interval_price is None or interval_price <= 0:
             continue
 
-        price_change = pct_change(price, interval_price)
-        actual_interval_minutes = (
-            CONFIG['INTERVAL_MINUTES'] if interval_time == target_ts else (current_time - interval_time) / 60
-        )
+        baseline_ready_any = True
+        if earliest_baseline_ts is None or interval_time < earliest_baseline_ts:
+            earliest_baseline_ts = interval_time
 
-        if abs(price_change) >= 0.01:
-            formatted_data.append({
-                "symbol": symbol,
-                "current_price": price,
-                "initial_price_3min": interval_price,
-                "price_change_percentage_3min": price_change,
-                "actual_interval_minutes": actual_interval_minutes
-            })
+        price_change = pct_change(price, interval_price)
+        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
+
+        formatted_data.append({
+            "symbol": symbol,
+            "current_price": price,
+            "initial_price_3min": interval_price,
+            "previous_price_3m": interval_price,
+            "price_change_percentage_3min": price_change,
+            "actual_interval_minutes": actual_interval_minutes,
+            "baseline_ts": interval_time,
+        })
+
+    age_seconds = (current_time - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    _set_baseline_meta_3m(ready=baseline_ready_any, baseline_ts=earliest_baseline_ts, age_seconds=age_seconds)
 
     if not formatted_data:
         logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices))
@@ -2950,8 +3009,10 @@ def format_crypto_data(crypto_data):
             "symbol": coin["symbol"],
             "current": coin["current_price"],
             "initial_3min": coin["initial_price_3min"],
+            "previous_price_3m": coin.get("previous_price_3m"),
             "gain": coin["price_change_percentage_3min"],
-            "interval_minutes": round(coin["actual_interval_minutes"], 1)
+            "interval_minutes": round(coin["actual_interval_minutes"], 1),
+            "baseline_ts_3m": coin.get("baseline_ts"),
         }
         for coin in crypto_data
     ]
@@ -3022,14 +3083,15 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
             
         # Calculate 3-minute interval changes (unique feature)
         crypto_data = calculate_interval_changes(current_prices)
+        baseline_meta = _get_baseline_meta_3m()
         
         if not crypto_data:
             logging.warning(f"No crypto data available - {len(current_prices)} current prices, {len(price_history)} symbols with history")
             return None
         
         # Separate gainers and losers based on 3-minute changes
-        gainers = [coin for coin in crypto_data if coin.get("price_change_percentage_3min", 0) > 0]
-        losers = [coin for coin in crypto_data if coin.get("price_change_percentage_3min", 0) < 0]
+        gainers = [coin for coin in crypto_data if (coin.get("price_change_percentage_3min") or 0) > 0]
+        losers = [coin for coin in crypto_data if (coin.get("price_change_percentage_3min") or 0) < 0]
         
         # Sort by 3-minute percentage change
         gainers.sort(key=lambda x: x["price_change_percentage_3min"], reverse=True)
@@ -3048,7 +3110,11 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
             "gainers": format_crypto_data(gainers[:limit]),
             "losers": format_crypto_data(losers[:limit]),
             "top24h": format_crypto_data(top24h),
-            "banner": format_banner_data(banner_24h_movers[:20])
+            "banner": format_banner_data(banner_24h_movers[:20]),
+            # Baseline readiness metadata for 3m tables
+            "baseline_ready_3m": bool(baseline_meta.get("ready")),
+            "baseline_ts_3m": baseline_meta.get("baseline_ts"),
+            "baseline_age_seconds_3m": baseline_meta.get("age_seconds"),
         }
         
         # Update cache
@@ -3499,17 +3565,25 @@ def data_aggregate():
         meta: dict[str, dict] = {}
         errors: dict[str, str] = {}
         rows_by_symbol: dict[str, dict] = {}
+        baseline_meta_3m = _get_baseline_meta_3m()
 
         # ------------------------------------------------------------------
         # Cache-only fast path: do NOT call any SWR helpers here.
         # ------------------------------------------------------------------
         snap_updated_at = _mw_get_component_snapshot('updated_at')
-        snap_g1, _g1_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_1m'))
-        snap_g3, _g3_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_3m'))
-        snap_l3, _l3_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('losers_3m'))
-        snap_b1h, _b1h_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('banner_1h_price'))
-        snap_bv, _bv_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('banner_1h_volume'))
-        snap_v1h, _v1h_ts = _wrap_rows_and_ts(_mw_get_component_snapshot('volume_1h_candles'))
+        snap_g1_obj = _mw_get_component_snapshot('gainers_1m')
+        snap_g3_obj = _mw_get_component_snapshot('gainers_3m')
+        snap_l3_obj = _mw_get_component_snapshot('losers_3m')
+        snap_b1h_obj = _mw_get_component_snapshot('banner_1h_price')
+        snap_bv_obj = _mw_get_component_snapshot('banner_1h_volume')
+        snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
+
+        snap_g1, _g1_ts = _wrap_rows_and_ts(snap_g1_obj)
+        snap_g3, _g3_ts = _wrap_rows_and_ts(snap_g3_obj)
+        snap_l3, _l3_ts = _wrap_rows_and_ts(snap_l3_obj)
+        snap_b1h, _b1h_ts = _wrap_rows_and_ts(snap_b1h_obj)
+        snap_bv, _bv_ts = _wrap_rows_and_ts(snap_bv_obj)
+        snap_v1h, _v1h_ts = _wrap_rows_and_ts(snap_v1h_obj)
 
         if snap_updated_at:
             # Best-effort latest_by_symbol map from snapshot rows.
@@ -3531,8 +3605,23 @@ def data_aggregate():
                         continue
                     latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
 
+            warming_3m = not bool(baseline_meta_3m.get("ready"))
+            baseline_ts_3m = baseline_meta_3m.get("baseline_ts")
+            try:
+                if isinstance(snap_g3_obj, dict) and snap_g3_obj.get("warming") is not None:
+                    warming_3m = bool(snap_g3_obj.get("warming"))
+                if isinstance(snap_l3_obj, dict) and snap_l3_obj.get("warming") is not None:
+                    warming_3m = warming_3m or bool(snap_l3_obj.get("warming"))
+                if baseline_ts_3m is None:
+                    if isinstance(snap_g3_obj, dict):
+                        baseline_ts_3m = snap_g3_obj.get("baseline_ts") or baseline_ts_3m
+                    if isinstance(snap_l3_obj, dict):
+                        baseline_ts_3m = snap_l3_obj.get("baseline_ts") or baseline_ts_3m
+            except Exception:
+                pass
+
             # Get last-good metadata
-            last_good_ts, stale_seconds, warming = _mw_get_last_good_metadata()
+            last_good_ts, stale_seconds, warming, warming_3m_meta, baseline_ts_3m_meta, baseline_age_3m_meta = _mw_get_last_good_metadata()
 
             payload = {
                 "gainers_1m": snap_g1 or [],
@@ -3549,6 +3638,9 @@ def data_aggregate():
                     "lastGoodTs": last_good_ts,
                     "staleSeconds": stale_seconds,
                     "warming": warming,
+                    "warming_3m": warming_3m,
+                    "baselineTs3m": baseline_ts_3m,
+                    "baselineAgeSeconds3m": baseline_meta_3m.get("age_seconds"),
                     "partial": False,
                 },
                 "errors": {},
@@ -3577,7 +3669,7 @@ def data_aggregate():
 
         # No snapshot yet: return a fast warming payload.
         warming_ts = datetime.now().isoformat()
-        last_good_ts, stale_seconds, warming = _mw_get_last_good_metadata()
+        last_good_ts, stale_seconds, warming, warming_3m_empty, baseline_ts_3m_empty, baseline_age_3m_empty = _mw_get_last_good_metadata()
         payload = {
             "gainers_1m": [],
             "gainers_3m": [],
@@ -3590,9 +3682,12 @@ def data_aggregate():
             "meta": {
                 "snapshot_only": True,
                 "warming": warming,
+                "warming_3m": warming_3m_empty if warming_3m_empty is not None else True,
                 "ts": warming_ts,
                 "lastGoodTs": last_good_ts,
                 "staleSeconds": stale_seconds,
+                "baselineTs3m": baseline_ts_3m_empty,
+                "baselineAgeSeconds3m": baseline_age_3m_empty,
                 "partial": False,
             },
             "errors": {"warming": "no_snapshot_yet"},
@@ -5482,148 +5577,223 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
         logging.debug(f"Auto logging skipped: {e}")
 
 
-def background_crypto_updates():
-    """Background thread to update cache periodically"""
-    while True:
+def _compute_snapshots_from_cache():
+    """Recompute snapshots using existing cached prices (fast, no network calls)."""
+    try:
+        # Get cached prices (no network fetch)
+        cached_prices = last_current_prices.get('data') or {}
+
+        # Recompute 3m data using cached prices
+        data_3min = get_crypto_data(current_prices=cached_prices, force_refresh=False) if cached_prices else None
+
+        # Recompute 1m data using cached prices
+        if CONFIG.get('ENABLE_1MIN', True) and cached_prices:
+            try:
+                _ = get_crypto_data_1min(current_prices=cached_prices)
+            except Exception as e:
+                logging.debug(f"Snapshot 1m recompute skipped: {e}")
+
+        # Build component snapshots
         try:
-            # Fetch prices ONCE per tick so history grows consistently.
-            current_prices = get_current_prices() or {}
-            if current_prices:
-                last_current_prices['data'] = current_prices
-                last_current_prices['timestamp'] = time.time()
+            g1m = _get_gainers_table_1min_swr() if CONFIG.get('ENABLE_1MIN', True) else None
+        except Exception:
+            g1m = None
+        try:
+            g3m = _get_gainers_table_3min_swr()
+        except Exception:
+            g3m = None
+        try:
+            l3m = _get_losers_table_3min_swr()
+        except Exception:
+            l3m = None
 
-            # Update 3-min data cache (force refresh so we always append to history)
-            data_3min = get_crypto_data(current_prices=current_prices or None, force_refresh=True)
-            if data_3min:
-                logging.info(
-                    f"3-min cache updated: {len(data_3min.get('gainers', []))} gainers, {len(data_3min.get('losers', []))} losers, {len(data_3min.get('banner', []))} banner items"
-                )
+        # Banner snapshots
+        try:
+            banner_rows = (data_3min or {}).get('banner') or []
+            b1h_price_rows = []
+            for coin in banner_rows[:20]:
+                try:
+                    b1h_price_rows.append({
+                        "symbol": coin.get("symbol"),
+                        "current_price": float(coin.get("current_price", 0) or 0),
+                        "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
+                        "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                        "market_cap": float(coin.get("market_cap", 0) or 0),
+                    })
+                except Exception:
+                    continue
+            banner_1h_price = {
+                'component': 'banner_1h_price',
+                'data': b1h_price_rows,
+                'last_updated': datetime.now().isoformat(),
+            }
+        except Exception:
+            banner_1h_price = None
 
-            # Respect config before doing 1-min related processing
-            if CONFIG.get('ENABLE_1MIN', True):
-                if current_prices:
-                    # Build and cache the 1-minute snapshot from these same prices.
-                    # NOTE: get_crypto_data_1min() already appends to price_history_1min via
-                    # calculate_1min_changes(), so do NOT call it separately here.
-                    try:
-                        _ = get_crypto_data_1min(current_prices=current_prices)
-                        logging.info("1-min snapshot refreshed by background updater")
-                    except Exception as e:
-                        logging.error(f"Background 1-min snapshot build failed: {e}")
+        try:
+            vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
+            banner_1h_volume = {
+                'component': 'banner_1h_volume',
+                'data': vb_rows or [],
+                'last_updated': vb_ts or datetime.now().isoformat(),
+            }
+        except Exception:
+            banner_1h_volume = None
 
-                    # Keep existing watchlist auto-logging behavior using the latest banner data
-                    _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+        # Candle volume snapshot (uses existing cache, no fetches)
+        display_symbols = set()
+        try:
+            for coin in (banner_rows or [])[:20]:
+                sym = coin.get('symbol')
+                if sym:
+                    display_symbols.add(sym)
 
-            # Publish component snapshots for cache-only /data.
-            try:
-                g1m = _get_gainers_table_1min_swr() if CONFIG.get('ENABLE_1MIN', True) else None
-            except Exception:
-                g1m = None
-            try:
-                g3m = _get_gainers_table_3min_swr()
-            except Exception:
-                g3m = None
-            try:
-                l3m = _get_losers_table_3min_swr()
-            except Exception:
-                l3m = None
-
-            # Banner snapshots derived from cached 3m data when available
-            try:
-                banner_rows = (data_3min or {}).get('banner') or []
-                b1h_price_rows = []
-                for coin in banner_rows[:20]:
-                    try:
-                        b1h_price_rows.append({
-                            "symbol": coin.get("symbol"),
-                            "current_price": float(coin.get("current_price", 0) or 0),
-                            "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
-                            "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
-                            "market_cap": float(coin.get("market_cap", 0) or 0),
-                        })
-                    except Exception:
-                        continue
-                banner_1h_price = {
-                    'component': 'banner_1h_price',
-                    'data': b1h_price_rows,
-                    'last_updated': datetime.now().isoformat(),
-                }
-            except Exception:
-                banner_1h_price = None
-
-            try:
-                vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
-                banner_1h_volume = {
-                    'component': 'banner_1h_volume',
-                    'data': vb_rows or [],
-                    'last_updated': vb_ts or datetime.now().isoformat(),
-                }
-            except Exception:
-                banner_1h_volume = None
-
-            # Collect display-set symbols for candle volume (union of visible tables/banners)
-            display_symbols = set()
-            try:
-                # Add banner symbols
-                for coin in (banner_rows or [])[:20]:
-                    sym = coin.get('symbol')
+            if g1m and isinstance(g1m, dict):
+                for row in (g1m.get('data') or [])[:15]:
+                    sym = row.get('symbol')
                     if sym:
                         display_symbols.add(sym)
 
-                # Add 1m gainers
-                if g1m and isinstance(g1m, dict):
-                    for row in (g1m.get('data') or [])[:15]:
-                        sym = row.get('symbol')
-                        if sym:
-                            display_symbols.add(sym)
+            if g3m and isinstance(g3m, dict):
+                for row in (g3m.get('data') or [])[:15]:
+                    sym = row.get('symbol')
+                    if sym:
+                        display_symbols.add(sym)
 
-                # Add 3m gainers/losers
-                if g3m and isinstance(g3m, dict):
-                    for row in (g3m.get('data') or [])[:15]:
-                        sym = row.get('symbol')
-                        if sym:
-                            display_symbols.add(sym)
+            if l3m and isinstance(l3m, dict):
+                for row in (l3m.get('data') or [])[:15]:
+                    sym = row.get('symbol')
+                    if sym:
+                        display_symbols.add(sym)
 
-                if l3m and isinstance(l3m, dict):
-                    for row in (l3m.get('data') or [])[:15]:
-                        sym = row.get('symbol')
-                        if sym:
-                            display_symbols.add(sym)
+            vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
+            vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
 
-                # Convert to product_ids and update candle cache
+            volume_1h_candles = {
+                'component': 'volume_1h_candles',
+                'data': vol1h_results[:20],
+                'last_updated': datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logging.debug(f"Candle snapshot skip: {e}")
+            volume_1h_candles = None
+
+        # Update snapshots
+        _mw_set_component_snapshots(
+            gainers_1m=g1m,
+            gainers_3m=g3m,
+            losers_3m=l3m,
+            banner_1h_price=banner_1h_price,
+            banner_1h_volume=banner_1h_volume,
+            volume_1h_candles=volume_1h_candles,
+            updated_at=datetime.now().isoformat(),
+        )
+        logging.debug("Snapshot recomputed from cached prices")
+
+    except Exception as e:
+        logging.error(f"Error in snapshot recompute: {e}")
+
+
+def _fetch_prices_and_update_history():
+    """Fetch fresh prices from Coinbase and update price history (slow, network calls)."""
+    try:
+        # Fetch prices from Coinbase
+        current_prices = get_current_prices() or {}
+        if current_prices:
+            last_current_prices['data'] = current_prices
+            last_current_prices['timestamp'] = time.time()
+
+            # Update 3m data cache with fresh prices (force refresh to append history)
+            data_3min = get_crypto_data(current_prices=current_prices, force_refresh=True)
+            if data_3min:
+                logging.info(
+                    f"Price fetch: {len(data_3min.get('gainers', []))} gainers, {len(data_3min.get('losers', []))} losers, {len(data_3min.get('banner', []))} banner"
+                )
+
+            # Update 1m history with fresh prices
+            if CONFIG.get('ENABLE_1MIN', True):
+                try:
+                    _ = get_crypto_data_1min(current_prices=current_prices)
+                    logging.debug("1m history updated with fresh prices")
+                except Exception as e:
+                    logging.error(f"1m history update failed: {e}")
+
+                # Watchlist auto-logging
+                _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+
+            # Update candle volume cache (background, display-set only)
+            try:
+                # Collect display-set from current snapshots
+                display_symbols = set()
+
+                with _MW_COMPONENT_SNAPSHOTS_LOCK:
+                    g1m_snap = _MW_COMPONENT_SNAPSHOTS.get('gainers_1m')
+                    g3m_snap = _MW_COMPONENT_SNAPSHOTS.get('gainers_3m')
+                    l3m_snap = _MW_COMPONENT_SNAPSHOTS.get('losers_3m')
+                    banner_snap = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_price')
+
+                    if banner_snap and isinstance(banner_snap, dict):
+                        for row in (banner_snap.get('data') or [])[:20]:
+                            sym = row.get('symbol')
+                            if sym:
+                                display_symbols.add(sym)
+
+                    if g1m_snap and isinstance(g1m_snap, dict):
+                        for row in (g1m_snap.get('data') or [])[:15]:
+                            sym = row.get('symbol')
+                            if sym:
+                                display_symbols.add(sym)
+
+                    if g3m_snap and isinstance(g3m_snap, dict):
+                        for row in (g3m_snap.get('data') or [])[:15]:
+                            sym = row.get('symbol')
+                            if sym:
+                                display_symbols.add(sym)
+
+                    if l3m_snap and isinstance(l3m_snap, dict):
+                        for row in (l3m_snap.get('data') or [])[:15]:
+                            sym = row.get('symbol')
+                            if sym:
+                                display_symbols.add(sym)
+
                 product_ids = [f"{sym}-USD" for sym in display_symbols if sym]
                 if product_ids:
-                    logging.info(f"Updating candle volume cache for {len(product_ids)} symbols")
+                    logging.debug(f"Updating candle cache for {len(product_ids)} symbols")
                     _update_candle_volume_cache(product_ids)
-
-                # Build volume1h snapshot from candle cache
-                vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
-                # Sort by vol1h descending
-                vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
-
-                volume_1h_candles = {
-                    'component': 'volume_1h_candles',
-                    'data': vol1h_results[:20],  # Top 20 by volume
-                    'last_updated': datetime.now().isoformat(),
-                }
             except Exception as e:
-                logging.error(f"Error building candle volume snapshot: {e}")
-                volume_1h_candles = None
+                logging.debug(f"Candle cache update skip: {e}")
 
-            _mw_set_component_snapshots(
-                gainers_1m=g1m,
-                gainers_3m=g3m,
-                losers_3m=l3m,
-                banner_1h_price=banner_1h_price,
-                banner_1h_volume=banner_1h_volume,
-                volume_1h_candles=volume_1h_candles,
-                updated_at=datetime.now().isoformat(),
-            )
+    except Exception as e:
+        logging.error(f"Error in price fetch: {e}")
+
+
+def background_crypto_updates():
+    """Two-loop background worker: fast snapshot compute + slower price fetch."""
+    logging.info(f"Starting two-loop background worker: compute every {CONFIG['SNAPSHOT_COMPUTE_INTERVAL']}s, fetch every {CONFIG['PRICE_FETCH_INTERVAL']}s")
+
+    # Initial fetch to populate cache
+    _fetch_prices_and_update_history()
+    _compute_snapshots_from_cache()
+
+    last_fetch_time = time.time()
+
+    while True:
+        try:
+            now = time.time()
+
+            # Check if it's time to fetch fresh prices
+            if now - last_fetch_time >= CONFIG['PRICE_FETCH_INTERVAL']:
+                _fetch_prices_and_update_history()
+                last_fetch_time = now
+
+            # Always recompute snapshots from cache
+            _compute_snapshots_from_cache()
 
         except Exception as e:
-            logging.error(f"Error in background update: {e}")
-        
-        time.sleep(CONFIG['UPDATE_INTERVAL'])  # Dynamic interval
+            logging.error(f"Error in background worker: {e}")
+
+        # Sleep for snapshot compute interval (fast cadence)
+        time.sleep(CONFIG['SNAPSHOT_COMPUTE_INTERVAL'])
 
 
 # =============================================================================

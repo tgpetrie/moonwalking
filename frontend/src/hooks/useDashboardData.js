@@ -16,15 +16,21 @@ function mapRowWithInitial(x = {}) {
   const symbol = String(x.ticker ?? x.symbol ?? "").toUpperCase();
   const displaySymbol = symbol.replace(/-(USD|USDT|PERP)$/i, "");
 
-  // Return the ORIGINAL object with symbol normalization, don't destroy fields
+  // Map backend field names to UI field names
+  const change_3m = x.change_3m ?? x.price_change_percentage_3min ?? undefined;
+  const change_1m = x.change_1m ?? x.price_change_percentage_1min ?? undefined;
+
+  // Return the ORIGINAL object with symbol normalization + field mapping
   return {
-    ...x, // preserve ALL backend fields (change_1m, change_3m, etc.)
+    ...x, // preserve ALL backend fields
     symbol: displaySymbol,
+    change_3m,
+    change_1m,
   };
 }
 
 export function useDashboardData() {
-  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs, warming } = useData();
+  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useData();
 
   const payload = data || {};
 
@@ -95,5 +101,8 @@ export function useDashboardData() {
     heartbeatPulse,
     lastFetchTs,
     warming,
+    warming3m,
+    staleSeconds,
+    lastGoodTs,
   };
 }

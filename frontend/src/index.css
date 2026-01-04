@@ -26,8 +26,8 @@ html, body {
   /* Token row geometry */
   --bh-col-rank: 34px;
   --bh-col-price: 108px;
-  --bh-col-pct: 84px;
-  --bh-col-actions: 72px;
+  --bh-col-pct: 92px;
+  --bh-col-actions: 56px;
   --bh-row-px: 14px;
   --bh-row-py: 12px;
 
@@ -57,7 +57,7 @@ html, body {
 
   /* Unified Row Specs (single source of truth for row geometry) */
   --bh-row-cols: var(--bh-col-rank) minmax(0, 1fr) var(--bh-col-price) var(--bh-col-pct) var(--bh-col-actions);
-  --bh-row-gap: 10px;
+  --bh-row-gap: 8px;
 }
 
 /* Required validation classes */
@@ -1261,6 +1261,15 @@ a.bh-row {
   );
 }
 
+.bh-banner-item.is-up::before,
+.bh-banner-chip.is-up::before {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255,184,77,0.16) 0%,
+    rgba(255,184,77,0.06) 38%,
+    transparent 72%
+  );
+}
+
 .bh-banner-item.is-loss::before,
 .bh-banner-chip.is-loss::before {
   background: radial-gradient(circle at 50% 50%,
@@ -1268,6 +1277,53 @@ a.bh-row {
     rgba(179,140,255,0.06) 38%,
     transparent 72%
   );
+}
+
+.bh-banner-item.is-down::before,
+.bh-banner-chip.is-down::before {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(179,140,255,0.16) 0%,
+    rgba(179,140,255,0.06) 38%,
+    transparent 72%
+  );
+}
+
+.bh-banner-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@keyframes bh-banner-breathe {
+  0%, 100% {
+    opacity: 0.10;
+    transform: scale(0.92);
+    filter: blur(10px);
+  }
+  50% {
+    opacity: 0.18;
+    transform: scale(1.00);
+    filter: blur(12px);
+  }
+}
+
+.bh-banner-item::before,
+.bh-banner-chip::before {
+  opacity: 0.10;
+  animation: bh-banner-breathe 2600ms ease-in-out infinite;
+}
+
+.bh-banner-chip--muted::before,
+.bh-banner-chip--muted:hover::before {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-banner-item::before,
+  .bh-banner-chip::before {
+    animation: none;
+  }
 }
 
 .bh-banner-symbol {
@@ -3810,7 +3866,7 @@ a.bh-row {
 /* Force the same column template if watchlist got a different one */
 .bh-watchlist .bh-row-grid,
 .watchlist-panel .bh-row-grid{
-  grid-template-columns: var(--bh-row-cols, 34px minmax(0,1fr) 108px 84px 72px) !important;
+  grid-template-columns: var(--bh-row-cols, 34px minmax(0,1fr) 108px 92px 56px) !important;
 }
 
 /* Mint is for the current price only */

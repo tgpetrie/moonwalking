@@ -2,9 +2,7 @@
 
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
 const DEFAULT_API_BASE = (
-  import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
   import.meta.env.VITE_BACKEND_URL ||
   'http://127.0.0.1:5003' // sane local default; avoid random/stale ports
 ).replace(/\/$/, '');
@@ -85,13 +83,8 @@ const probeBase = async (baseUrl, timeoutMs = 1500) => {
 };
 
 const CANDIDATE_BASES = [
-  'http://localhost:5002', 'http://127.0.0.1:5002',
-  'http://localhost:5001', 'http://127.0.0.1:5001',
-  'http://localhost:5003', 'http://127.0.0.1:5003',
-  'http://localhost:5004', 'http://127.0.0.1:5004',
-  'http://localhost:5005', 'http://127.0.0.1:5005',
-  'http://localhost:5006', 'http://127.0.0.1:5006',
-  'http://localhost:5007', 'http://127.0.0.1:5007'
+  // Keep this tight: avoid “port rot” to old dev ports.
+  'http://localhost:5003', 'http://127.0.0.1:5003'
 ];
 
 // Fetch data from API with throttling and automatic base fallback
@@ -155,8 +148,6 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
 export async function fetchAllData({ signal } = {}) {
   const apiBase = (
     import.meta?.env?.VITE_API_BASE_URL ||
-    import.meta?.env?.VITE_API_BASE ||
-    import.meta?.env?.VITE_API_URL ||
     API_BASE_URL
   );
 

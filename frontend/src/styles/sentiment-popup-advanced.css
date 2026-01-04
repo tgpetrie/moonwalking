@@ -1125,6 +1125,155 @@
 }
 
 /* ============================================================
+   TRENDING TOPICS - INSIGHTS TAB
+   ============================================================ */
+
+.trending-topics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.topic-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+    background: var(--sentiment-glass);
+    border: 1px solid var(--sentiment-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+}
+
+.topic-card:hover {
+    border-color: var(--sentiment-border-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.topic-card.bullish {
+    background: linear-gradient(135deg, rgba(69, 255, 179, 0.06), transparent);
+    border-color: rgba(69, 255, 179, 0.15);
+}
+
+.topic-card.bearish {
+    background: linear-gradient(135deg, rgba(174, 75, 245, 0.06), transparent);
+    border-color: rgba(174, 75, 245, 0.15);
+}
+
+.topic-card.neutral {
+    background: linear-gradient(135deg, rgba(241, 180, 58, 0.06), transparent);
+    border-color: rgba(241, 180, 58, 0.15);
+}
+
+.topic-tag {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sentiment-text);
+    font-family: 'Raleway', sans-serif;
+    letter-spacing: 0.3px;
+}
+
+.topic-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.sentiment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.sentiment-badge.bullish {
+    background: rgba(69, 255, 179, 0.15);
+    color: var(--sentiment-pos);
+    border: 1px solid rgba(69, 255, 179, 0.25);
+}
+
+.sentiment-badge.bearish {
+    background: rgba(174, 75, 245, 0.15);
+    color: var(--sentiment-neg);
+    border: 1px solid rgba(174, 75, 245, 0.25);
+}
+
+.sentiment-badge.neutral {
+    background: rgba(241, 180, 58, 0.15);
+    color: var(--sentiment-neu);
+    border: 1px solid rgba(241, 180, 58, 0.25);
+}
+
+.volume-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--sentiment-teal);
+    background: rgba(0, 212, 170, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+@media (max-width: 600px) {
+    .trending-topics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 400px) {
+    .trending-topics {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   TRADINGVIEW WIDGET - CHARTS TAB
+   ============================================================ */
+
+.tradingview-widget-container {
+    position: relative;
+    background: var(--sentiment-glass);
+    border: 1px solid var(--sentiment-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--section-gap);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transition: all var(--transition-base);
+}
+
+.tradingview-widget-container:hover {
+    border-color: var(--sentiment-border-hover);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.tradingview-widget-container iframe {
+    display: block;
+    background: #131722;
+}
+
+/* ============================================================
+   SOCIAL SENTIMENT BREAKDOWN - INSIGHTS TAB
+   ============================================================ */
+
+.insight-box.info {
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.06), transparent);
+    border-color: rgba(0, 212, 170, 0.2);
+}
+
+.insight-box.info .insight-icon {
+    color: var(--sentiment-teal);
+}
+
+/* ============================================================
    UTILITY CLASSES
    ============================================================ */
 

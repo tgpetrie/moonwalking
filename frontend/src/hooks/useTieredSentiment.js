@@ -5,6 +5,7 @@ const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7
 const FRESH_REQUEST_TIMEOUT_MS = Number(
   import.meta.env.VITE_SENTIMENT_FRESH_TIMEOUT_MS || 32000
 );
+const SLOW_AUX_MS = 60000;
 
 const pick = (obj, ...keys) => {
   for (const k of keys) {
@@ -111,9 +112,6 @@ export function useTieredSentiment(
 ) {
   const API_BASE =
     import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_BASE ||
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_PROXY_TARGET ||
     "http://127.0.0.1:5003";
 
   const SENTIMENT_BASE =
@@ -127,6 +125,12 @@ export function useTieredSentiment(
   const lastGoodRef = useRef(null);
   const lastGoodSymbolRef = useRef(null);
   const intervalRef = useRef(null);
+  const latestRef = useRef(null);
+  const fetchSeqRef = useRef(0);
+  const tieredRef = useRef(null);
+  const sourcesRef = useRef([]);
+  const lastTieredFetchRef = useRef(0);
+  const lastSourcesFetchRef = useRef(0);
   const [raw, setRaw] = useState(null);
   const [data, setData] = useState(() => emptyNormalized);
   const [tieredData, setTieredData] = useState(null);
@@ -187,12 +191,13 @@ export function useTieredSentiment(
 
       const payload = json?.data ?? json;
       setTieredData(payload);
+      tieredRef.current = payload;
       return payload;
     } catch (err) {
       console.warn("[useTieredSentiment] Failed to fetch tiered data:", err.message);
       return null;
     }
-  }, [sentimentBase]);
+  }, [sentimentBase, symbol]);
 
   const fetchSources = useCallback(async () => {
     try {
@@ -208,6 +213,7 @@ export function useTieredSentiment(
       const json = await res.json();
       const payload = Array.isArray(json) ? json : json.sources ?? [];
       setSources(payload);
+      sourcesRef.current = payload;
       return payload;
     } catch (err) {
       console.warn("[useTieredSentiment] Failed to fetch sources:", err?.message || err);
@@ -252,42 +258,89 @@ export function useTieredSentiment(
   const fetchAll = useCallback(
     async (options = {}) => {
       const freshLatest = options?.freshLatest === true;
+      const forceAux = options?.forceAux === true;
 
       if (!enabled) return;
+      if (Date.now() < cooldownUntil) return;
 
-      if (Date.now() < cooldownUntil) {
-        return;
-      }
+      const seq = ++fetchSeqRef.current;
+      const sym = symbol || "";
 
       setValidating(true);
       setError(null);
       setStale(false);
 
       try {
-        const [symbolData, tieredDataResult, sourcesResult] = await Promise.allSettled([
-          fetchSymbolSentiment(freshLatest),
-          fetchTieredData(),
-          fetchSources(),
-        ]);
+        const now = Date.now();
+        const auxTieredStale = now - lastTieredFetchRef.current > SLOW_AUX_MS;
+        const auxSourcesStale = now - lastSourcesFetchRef.current > SLOW_AUX_MS;
 
-        let symbolJson = null;
-        if (symbolData.status === "fulfilled") {
-          symbolJson = symbolData.value;
-        } else {
-          throw symbolData.reason;
-        }
+        const shouldFetchTiered = forceAux || auxTieredStale;
+        const shouldFetchSources = forceAux || auxSourcesStale;
 
-        const tieredJson = tieredDataResult.status === "fulfilled" ? tieredDataResult.value : null;
-        const sourcesJson = sourcesResult.status === "fulfilled" ? sourcesResult.value : null;
+        // 1) LATEST FIRST (await)
+        const symbolJson = await fetchSymbolSentiment(freshLatest);
 
-        const merged = normalizeTieredSentiment(symbolJson, tieredJson, sourcesJson);
+        // If a newer fetch started, drop this result on the floor.
+        if (fetchSeqRef.current !== seq || !enabled || (symbol || "") !== sym) return;
 
-        lastGoodRef.current = merged;
-        lastGoodSymbolRef.current = symbol || "";
+        latestRef.current = symbolJson;
+
+        // Merge using whatever aux we already have (cached)
+        const mergedImmediate = normalizeTieredSentiment(
+          symbolJson,
+          tieredRef.current,
+          sourcesRef.current
+        );
+
+        lastGoodRef.current = mergedImmediate;
+        lastGoodSymbolRef.current = sym;
+
         setRaw(symbolJson);
-        setData(merged);
+        setData(mergedImmediate);
         setLoading(false);
         setStale(false);
+
+        // 2) AUX IN BACKGROUND (do not block latest paint)
+        if (shouldFetchTiered) {
+          fetchTieredData().then((tieredPayload) => {
+            if (fetchSeqRef.current !== seq || !enabled || (symbol || "") !== sym) return;
+
+            if (tieredPayload) {
+              lastTieredFetchRef.current = Date.now();
+              tieredRef.current = tieredPayload;
+              setTieredData(tieredPayload);
+            }
+
+            const latest = latestRef.current;
+            if (latest) {
+              const merged = normalizeTieredSentiment(latest, tieredRef.current, sourcesRef.current);
+              lastGoodRef.current = merged;
+              lastGoodSymbolRef.current = sym;
+              setData(merged);
+            }
+          });
+        }
+
+        if (shouldFetchSources) {
+          fetchSources().then((sourcesPayload) => {
+            if (fetchSeqRef.current !== seq || !enabled || (symbol || "") !== sym) return;
+
+            if (Array.isArray(sourcesPayload)) {
+              lastSourcesFetchRef.current = Date.now();
+              sourcesRef.current = sourcesPayload;
+              setSources(sourcesPayload);
+            }
+
+            const latest = latestRef.current;
+            if (latest) {
+              const merged = normalizeTieredSentiment(latest, tieredRef.current, sourcesRef.current);
+              lastGoodRef.current = merged;
+              lastGoodSymbolRef.current = sym;
+              setData(merged);
+            }
+          });
+        }
       } catch (err) {
         setCooldownUntil(Date.now() + FAIL_COOLDOWN_MS);
 

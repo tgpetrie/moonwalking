@@ -14,7 +14,7 @@ const buildRowKey = (row, index) => {
   return base ? String(base) : `row-${index}`;
 };
 
-const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) => {
+const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -94,9 +94,15 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
       <div className="gainers-table">
         <div className="bh-panel bh-panel-full">
           <div className="bh-table">
-            <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-              No 3-minute movers to show right now.
-            </div>
+            {warming3m ? (
+              <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                3m baseline warming… waiting for first snapshot.
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                No 3-minute movers to show right now.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -106,6 +112,11 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, onInfo, on
   return (
     <div className="gainers-table">
       <div className="bh-panel bh-panel-full">
+        {warming3m && (
+          <div className="bh-warming-pill is-warming" style={{ margin: "0.25rem 0 0.35rem", display: "inline-flex" }}>
+            WARMING 3M BASELINE
+          </div>
+        )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
             {visibleRows.map((token, index) => {

@@ -26,13 +26,18 @@ fi
 HOST="${HOST:-127.0.0.1}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BACKEND_START=${BACKEND_START:-5001}
+BACKEND_START=${BACKEND_START:-5003}
 FRONTEND_START=${FRONTEND_START:-5173}
 
 BACKEND_PID_FILE=${BACKEND_PID_FILE:-/tmp/mw_backend.pid}
 FRONTEND_PID_FILE=${FRONTEND_PID_FILE:-/tmp/mw_frontend.pid}
+PIPELINE_PID_FILE=${PIPELINE_PID_FILE:-/tmp/mw_pipeline.pid}
 BACKEND_PORT_FILE=${BACKEND_PORT_FILE:-/tmp/mw_backend.port}
 FRONTEND_PORT_FILE=${FRONTEND_PORT_FILE:-/tmp/mw_frontend.port}
+
+SENTIMENT_HOST="${SENTIMENT_HOST:-$HOST}"
+SENTIMENT_PORT="${SENTIMENT_PORT:-8002}"
+SENTIMENT_PIPELINE_URL="http://${SENTIMENT_HOST}:${SENTIMENT_PORT}"
 
 # Usage helper: start_local.sh status
 if [ "${1:-}" = "status" ]; then
@@ -49,12 +54,19 @@ if [ "${1:-}" = "status" ]; then
   else
     echo "frontend pid: <missing>"
   fi
+  if [ -f "$PIPELINE_PID_FILE" ]; then
+    ppid=$(cat "$PIPELINE_PID_FILE" 2>/dev/null || echo "")
+    echo "pipeline pid: ${ppid:-<missing>}"
+  else
+    echo "pipeline pid: <missing>"
+  fi
   if [ -f "$BACKEND_PORT_FILE" ]; then
     echo "backend port: $(cat "$BACKEND_PORT_FILE")"
   fi
   if [ -f "$FRONTEND_PORT_FILE" ]; then
     echo "frontend port: $(cat "$FRONTEND_PORT_FILE")"
   fi
+  echo "sentiment port: $SENTIMENT_PORT"
   # health checks
   if [ -f "$BACKEND_PORT_FILE" ]; then
     bp=$(cat "$BACKEND_PORT_FILE")
@@ -71,6 +83,11 @@ if [ "${1:-}" = "status" ]; then
     else
       echo "frontend root: UNAVAILABLE"
     fi
+  fi
+  if curl -sS "http://$SENTIMENT_HOST:$SENTIMENT_PORT/health" >/dev/null 2>&1; then
+    echo "sentiment pipeline /health: OK"
+  else
+    echo "sentiment pipeline /health: UNAVAILABLE"
   fi
   exit 0
 fi
@@ -104,6 +121,7 @@ fi
 # stop previously started processes (only ours)
 kill_pidfile "$BACKEND_PID_FILE"
 kill_pidfile "$FRONTEND_PID_FILE"
+kill_pidfile "$PIPELINE_PID_FILE"
 
 kill_process_on_port() {
   local port=$1
@@ -125,6 +143,7 @@ kill_process_on_port() {
 
 kill_process_on_port "$BACKEND_START"
 kill_process_on_port "$FRONTEND_START"
+kill_process_on_port "$SENTIMENT_PORT"
 
 BACKEND_PORT="$BACKEND_START"
 FRONTEND_PORT="$FRONTEND_START"
@@ -179,6 +198,9 @@ export PYTHONPATH="$ROOT_DIR/backend"
 export FLASK_APP=backend.app
 export FLASK_ENV=development
 export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
+export SENTIMENT_HOST="$SENTIMENT_HOST"
+export SENTIMENT_PORT="$SENTIMENT_PORT"
+export SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL"
 exec flask run --host "$HOST" --port "$BACKEND_PORT"
 EOF
 )
@@ -197,6 +219,9 @@ else
     export FLASK_ENV=development
     # Export CORS origins for Vite dev ports
     export CORS_ALLOWED_ORIGINS="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:3100,http://localhost:3100"
+    export SENTIMENT_HOST="$SENTIMENT_HOST"
+    export SENTIMENT_PORT="$SENTIMENT_PORT"
+    export SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL"
     flask run --host "$HOST" --port "$BACKEND_PORT"
   ) > /tmp/mw_backend.log 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
@@ -204,6 +229,66 @@ fi
 
 # persist chosen ports so helper commands can inspect them
 echo "$BACKEND_PORT" > "$BACKEND_PORT_FILE"
+
+# --- start sentiment pipeline (best-effort) ---
+port_in_use() {
+  local p="$1"
+  command -v lsof >/dev/null 2>&1 || return 1
+  lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+PIPELINE=""
+for c in \
+  "$ROOT_DIR/scripts/start_sentiment.sh" \
+  "$ROOT_DIR/backend/start_sentiment_pipeline.sh" \
+  "$ROOT_DIR/start_sentiment_pipeline.sh" \
+  "$ROOT_DIR/backend/start_pipeline.sh" \
+  "$ROOT_DIR/start_pipeline.sh"
+do
+  if [ -x "$c" ]; then
+    PIPELINE="$c"
+    break
+  fi
+done
+
+if [ -n "$PIPELINE" ]; then
+  if port_in_use "$SENTIMENT_PORT"; then
+    echo "[start.local] sentiment port ${SENTIMENT_PORT} already in use; assuming pipeline is running, skipping start"
+    PIPELINE=""
+  fi
+fi
+
+if [ -n "$PIPELINE" ]; then
+  echo "[start.local] sentiment pipeline: http://${SENTIMENT_HOST}:${SENTIMENT_PORT} (starting via ${PIPELINE})"
+  if [ "$DETACH" = "1" ]; then
+    pipeline_cmd=$(cat <<EOF
+cd "$ROOT_DIR"
+SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" exec "$PIPELINE"
+EOF
+)
+    start_detached /tmp/mw_pipeline.log bash -c "$pipeline_cmd" > "$PIPELINE_PID_FILE"
+  else
+    (
+      cd "$ROOT_DIR"
+      SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" "$PIPELINE"
+    ) > /tmp/mw_pipeline.log 2>&1 &
+    echo $! > "$PIPELINE_PID_FILE"
+  fi
+
+  # Wait for pipeline to be ready (best-effort)
+  echo "[start.local] waiting for sentiment pipeline to start..."
+  i=0
+  while [ $i -lt 30 ]; do
+    if curl -sS "http://${SENTIMENT_HOST}:${SENTIMENT_PORT}/health" >/dev/null 2>&1; then
+      echo "[start.local] sentiment pipeline /health is responding"
+      break
+    fi
+    sleep 1
+    i=$((i+1))
+  done
+else
+  echo "[start.local] sentiment pipeline starter not found; skipping pipeline start"
+fi
 
 # Frontend — ensure deps then start Vite with env BACKEND_PORT and VITE_PORT
 if [ "$DETACH" = "1" ]; then
@@ -214,6 +299,8 @@ if [ ! -d node_modules ]; then
   npm install
 fi
 VITE_API_URL="http://$HOST:$BACKEND_PORT" \
+VITE_API_BASE_URL="http://$HOST:$BACKEND_PORT" \
+VITE_SENTIMENT_BASE_URL="http://$HOST:$BACKEND_PORT" \
 VITE_PROXY_TARGET="http://$HOST:$BACKEND_PORT" \
 BACKEND_PORT="$BACKEND_PORT" VITE_PORT="$FRONTEND_PORT" \
 exec npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort
@@ -291,5 +378,10 @@ if [ "${OPEN_BROWSER:-0}" = "1" ]; then
   open "http://$HOST:$FRONTEND_PORT" >/dev/null 2>&1 || true
 fi
 
-echo "[start.local] logs → /tmp/mw_backend.log /tmp/mw_frontend.log"
+echo "[start.local] logs → /tmp/mw_backend.log /tmp/mw_frontend.log /tmp/mw_pipeline.log"
 echo "[start.local] to follow logs live: TAIL_LOGS=1 ./start_local.sh"
+echo ""
+echo "[start.local] services:"
+echo "  backend:   http://$HOST:$BACKEND_PORT"
+echo "  frontend:  http://$HOST:$FRONTEND_PORT"
+echo "  pipeline:  http://$SENTIMENT_HOST:$SENTIMENT_PORT"

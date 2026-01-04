@@ -106,7 +106,7 @@ export default function TopBannerScroll(props) {
 
     if (!endpoint || hasExternalList) return;
 
-    const API_BASE = (import.meta?.env?.VITE_API_BASE || "").trim();
+    const API_BASE = (import.meta?.env?.VITE_API_BASE_URL || "").trim();
     const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
 
     const ac = new AbortController();
@@ -233,8 +233,10 @@ export default function TopBannerScroll(props) {
                 >
                   <span className="bh-banner-chip__rank">{it.rank}</span>
                   <span className="bh-banner-chip__sym">{it.symbol}</span>
-                  <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
-                  <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                  <span className="bh-banner-right">
+                    <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
+                    <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                  </span>
                 </a>
               );
             })

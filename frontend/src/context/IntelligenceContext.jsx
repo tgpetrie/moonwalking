@@ -3,11 +3,9 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useCal
 const IntelligenceContext = createContext(null);
 
 const API_BASE =
-    import.meta.env.VITE_API_BASE ||
     import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_PROXY_TARGET ||
     "http://127.0.0.1:5003";
+const apiBase = API_BASE.replace(/\/$/, "");
 const POLL_MS = Number(import.meta.env.VITE_INTEL_POLL_MS || 300000); // 5 minutes default
 const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || "false") === "true";
 
@@ -76,8 +74,8 @@ export function IntelligenceProvider({ children, watchSymbols }) {
         try {
             const qs = encodeURIComponent(symbols.join(","));
             const res = await fetch(
-                `${API_BASE}/api/intelligence-reports?symbols=${qs}`,
-                { signal: ac.signal }
+                `${apiBase}/api/intelligence-reports?symbols=${qs}`,
+                { cache: "no-store", signal: ac.signal }
             );
 
             if (!res.ok) throw new Error(`HTTP ${res.status}`);

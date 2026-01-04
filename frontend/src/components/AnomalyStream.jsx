@@ -23,6 +23,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
 
   const seenRef = useRef(new Set());
   const scrollRef = useRef(null);
+  const lastHeartbeatRef = useRef(0);
 
   useEffect(() => {
     if (!isCollapsed && scrollRef.current) {
@@ -101,15 +102,18 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       }
     }
 
-    if (newLogs.length === 0 && Math.random() > 0.95) {
+    // Show heartbeat only once every 30 seconds when no anomalies
+    const nowMs = Date.now();
+    if (newLogs.length === 0 && nowMs - lastHeartbeatRef.current > 30000) {
       const systems = ["CACHE_SYNC", "SNAPSHOT_ENGINE", "COINBASE_POLL", "BANNER_LOOP"];
       const sys = systems[Math.floor(Math.random() * systems.length)];
       newLogs.push({
-        id: `hb-${Date.now()}`,
+        id: `hb-${nowMs}`,
         time: timeStr,
         msg: `PING >> ${sys} heartbeat verified...`,
         tone: "mint-dim",
       });
+      lastHeartbeatRef.current = nowMs;
     }
 
     if (newLogs.length) {

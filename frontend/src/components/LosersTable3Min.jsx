@@ -15,7 +15,7 @@ const buildRowKey = (row, index) => {
   return base ? String(base) : `row-${index}`;
 };
 
-export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
+export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
 
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -145,9 +145,15 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         <div className="bh-panel bh-panel-half">
           <div className="bh-table">
             <div className="token-row token-row--empty">
-              <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-                No 3-minute losers to show right now.
-              </div>
+              {warming3m ? (
+                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                  3m baseline warming… waiting for first snapshot.
+                </div>
+              ) : (
+                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                  No 3-minute losers to show right now.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -158,6 +164,11 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   return (
     <div className="losers-table">
       <div className="bh-panel bh-panel-half">
+        {warming3m && (
+          <div className="bh-warming-pill is-warming" style={{ margin: "0.25rem 0 0.35rem", display: "inline-flex" }}>
+            WARMING 3M BASELINE
+          </div>
+        )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
             {visible.map((tokenProps, idx) => {

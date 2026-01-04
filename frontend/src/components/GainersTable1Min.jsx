@@ -2,8 +2,23 @@ import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
-import SkeletonGrid1m from "./skeletons/SkeletonGrid1m.jsx";
 import { baselineOrNull } from "../utils/num.js";
+import "./ui/skeleton.css";
+
+const SkeletonGrid1m = ({ rows = 4 }) => {
+  return (
+    <div className="bh-skel-grid bh-skel-grid--1m" role="status" aria-label="Loading 1-minute movers">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="bh-skel-row">
+          <div className="bh-skel bh-skel-chip" />
+          <div className="bh-skel bh-skel-line" />
+          <div className="bh-skel bh-skel-pill" />
+          <div className="bh-skel bh-skel-icon" />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const getRowIdentity = (row) => (
   row?.product_id ??
