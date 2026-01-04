@@ -1189,7 +1189,52 @@ def _sentiment_cache_set(symbol, data):
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
-    """Returning rich, coin-specific sentiment (uses enhanced aggregator)."""
+    """Proxy to sentiment pipeline for rich, multi-source sentiment data."""
+    symbol = request.args.get('symbol', "BTC").upper()
+    fresh = request.args.get("fresh", "0")
+
+    # Build URL for sentiment pipeline
+    pipeline_url = f"{SENTIMENT_PIPELINE_URL.rstrip('/')}/sentiment/latest"
+    params = {"symbol": symbol}
+    if fresh == "1":
+        params["fresh"] = "1"
+
+    try:
+        # Proxy request to sentiment pipeline with short timeout
+        resp = requests.get(pipeline_url, params=params, timeout=5.0)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # Add symbol and metadata
+        data["symbol"] = symbol
+        data["upstream"] = "sentiment_pipeline"
+        data["ts_cache"] = time.time()
+
+        return jsonify(data)
+    except Exception as exc:
+        # Fallback to Fear & Greed + basic data if pipeline unavailable
+        logger.warning(f"Sentiment pipeline unavailable for {symbol}: {exc}")
+
+        fallback_data = {
+            'symbol': symbol,
+            'overall_sentiment': 0.5,
+            'fear_greed_index': 50,
+            'social_breakdown': {},
+            'social_metrics': {},
+            'source_breakdown': {'tier1': 0, 'tier2': 0, 'tier3': 0, 'fringe': 0},
+            'sources': [],
+            'sentiment_history': [],
+            'timestamp': time.time(),
+            'error': str(exc),
+            'upstream': 'fallback',
+        }
+        return jsonify(fallback_data), 503
+
+
+# Legacy endpoint - keeping for backward compatibility
+@app.route('/api/sentiment/latest_legacy')
+def api_sentiment_latest_legacy():
+    """Legacy aggregator-based sentiment (deprecated - use /api/sentiment/latest instead)."""
     symbol = request.args.get('symbol', "BTC").upper()
     fresh = request.args.get("fresh", "0") == "1"
 

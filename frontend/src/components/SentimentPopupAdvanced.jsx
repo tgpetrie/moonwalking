@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { useTieredSentiment } from '../hooks/useTieredSentiment';
-import TradingViewChart from './charts/TradingViewChart';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import '../styles/sentiment-popup-advanced.css';
 
@@ -33,33 +32,116 @@ const TIER_LABELS = {
  * Advanced Sentiment Analysis Popup
  * Multi-tab interface with live data, charts, and insights
  */
+const resolveTvSymbol = (sym, exchange = 'auto') => {
+  const s = String(sym || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const coinbase = s ? `COINBASE:${s}USD` : 'COINBASE:BTCUSD';
+  const binance = s ? `BINANCE:${s}USDT` : 'BINANCE:BTCUSDT';
+
+  if (exchange === 'coinbase') return { symbol: coinbase, source: 'coinbase' };
+  if (exchange === 'binance') return { symbol: binance, source: 'binance' };
+
+  // auto: prefer Coinbase for well-known majors, fallback to Binance for long/odd tickers
+  if (!s) return { symbol: coinbase, source: 'coinbase' };
+  if (s === 'BTC') return { symbol: 'COINBASE:BTCUSD', source: 'coinbase' };
+  if (s === 'ETH') return { symbol: 'COINBASE:ETHUSD', source: 'coinbase' };
+  if (s.length > 6) return { symbol: binance, source: 'binance' };
+  return { symbol: coinbase, source: 'coinbase' };
+};
+
+const buildTradingViewEmbedUrl = (tvSymbol) => {
+  const params = new URLSearchParams({
+    symbol: tvSymbol,
+    interval: '15',
+    theme: 'dark',
+    style: '1',
+    timezone: 'Etc/UTC',
+    withdateranges: '1',
+    hide_side_toolbar: '0',
+    allow_symbol_change: '1',
+  });
+  return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
+};
+
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
+  const REFRESH_MS = 15000;
   const [activeTab, setActiveTab] = useState('overview');
-  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol, { enabled: isOpen });
+  const [chartExchange, setChartExchange] = useState('auto'); // auto | coinbase | binance
+  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol, { enabled: isOpen, refreshMs: REFRESH_MS });
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Debug logging and manual refresh trigger
-  useEffect(() => {
-    if (isOpen && symbol) {
-      console.log('[SentimentPopup] Opened for symbol:', symbol);
-      console.log('[SentimentPopup] Loading:', loading);
-      console.log('[SentimentPopup] Data:', sentimentData);
-
-      // Manually trigger refresh when popup opens
-      if (refresh && typeof refresh === 'function') {
-        console.log('[SentimentPopup] Triggering manual refresh for', symbol);
-        refresh();
-      }
-    }
-  }, [isOpen, symbol]); // Only trigger when popup opens or symbol changes
 
   // Chart references
   const trendChartRef = useRef(null);
   const pieChartRef = useRef(null);
   const tierChartRef = useRef(null);
   const correlationChartRef = useRef(null);
+  const socialChartRef = useRef(null);
 
   const chartInstancesRef = useRef({});
+
+  const destroyChart = (key) => {
+    const chart = chartInstancesRef.current[key];
+    if (chart) {
+      chart.destroy();
+      delete chartInstancesRef.current[key];
+    }
+  };
+
+  const ensureChart = (key, canvas, factoryFn) => {
+    if (!canvas) return null;
+    if (!chartInstancesRef.current[key]) {
+      chartInstancesRef.current[key] = factoryFn();
+    }
+    return chartInstancesRef.current[key];
+  };
+
+  const updateChart = (chart, { labels, datasets }) => {
+    if (!chart) return;
+    chart.data.labels = labels;
+    chart.data.datasets = datasets;
+    chart.update('none');
+  };
+
+  const sentimentHistory = Array.isArray(sentimentData?.sentimentHistory)
+    ? sentimentData.sentimentHistory
+    : [];
+  const socialHistory = Array.isArray(sentimentData?.socialHistory)
+    ? sentimentData.socialHistory
+    : [];
+  const socialBreakdown = sentimentData?.socialBreakdown || {};
+  const sourceBreakdown = sentimentData?.sourceBreakdown || {};
+  const divergenceAlerts = Array.isArray(sentimentData?.divergenceAlerts)
+    ? sentimentData.divergenceAlerts
+    : [];
+  const trendingTopics = Array.isArray(sentimentData?.trendingTopics)
+    ? sentimentData.trendingTopics
+    : [];
+  const tierScores = sentimentData?.tierScores || {};
+  const fearGreedIndex = Number.isFinite(sentimentData?.fearGreedIndex)
+    ? sentimentData.fearGreedIndex
+    : 50;
+  const hasTieredData = Boolean(sentimentData?.hasTieredData);
+
+  const safeAlerts = useMemo(() => {
+    return divergenceAlerts
+      .map((a) => {
+        const message = typeof a?.message === 'string' ? a.message : String(a?.message ?? '').trim();
+        const type = typeof a?.type === 'string' ? a.type : 'info';
+        if (!message) return null;
+        return { type, message };
+      })
+      .filter(Boolean);
+  }, [divergenceAlerts]);
+
+  const safeTopics = useMemo(() => {
+    return trendingTopics
+      .map((t) => {
+        const sentiment = (t?.sentiment || 'neutral')?.toString().toLowerCase();
+        const tag = t?.tag || t?.topic || 'Topic';
+        const volume = t?.volume ?? t?.count ?? '';
+        return { sentiment, tag, volume };
+      })
+      .filter(Boolean);
+  }, [trendingTopics]);
 
   const sortedSources = useMemo(() => {
     if (!pipelineSources || !pipelineSources.length) return [];
@@ -117,7 +199,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     }
 
     return () => {
-      // Cleanup charts on unmount or tab change
       if (activeTab !== 'charts') {
         Object.values(chartInstancesRef.current).forEach(chart => {
           if (chart) chart.destroy();
@@ -125,7 +206,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         chartInstancesRef.current = {};
       }
     };
-  }, [activeTab, sentimentData, isOpen]);
+  }, [activeTab, sentimentData, isOpen, sentimentHistory, socialHistory]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -225,6 +306,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       initPieChart();
       initTierChart();
       initCorrelationChart();
+      initSocialHistoryChart();
     } catch (error) {
       console.error('Error initializing charts:', error);
     }
@@ -234,72 +316,61 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     const canvas = trendChartRef.current;
     if (!canvas) return;
 
-    if (chartInstancesRef.current.trend) {
-      chartInstancesRef.current.trend.destroy();
-    }
+    const history = sentimentHistory;
 
-    const history = sentimentData.sentimentHistory || [];
+    if (!history.length) {
+      if (chartInstancesRef.current.trend) {
+        destroyChart('trend');
+      }
+      return;
+    }
 
     const labels = history.map(h => {
       const date = new Date(h.timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     });
 
-    const sentimentScores = history.map(h => h.sentiment * 100);
-    const fgScores = history.map(h => h.fearGreed || h.sentiment * 100);
+    const sentimentScores = history.map(h => (typeof h.sentiment === 'number' ? h.sentiment * 100 : null));
 
-    chartInstancesRef.current.trend = new ChartJS(canvas, {
+    const datasets = [
+      {
+        label: 'Overall Sentiment',
+        data: sentimentScores,
+        borderColor: '#ae4bf5',
+        backgroundColor: 'rgba(174, 75, 245, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 4
+      }
+    ];
+
+    const chart = ensureChart('trend', canvas, () => new ChartJS(canvas, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Overall Sentiment',
-            data: sentimentScores,
-            borderColor: '#ae4bf5',
-            backgroundColor: 'rgba(174, 75, 245, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 4
-          },
-          {
-            label: 'Fear & Greed',
-            data: fgScores,
-            borderColor: '#45ffb3',
-            backgroundColor: 'transparent',
-            borderDash: [5, 5],
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 4
-          }
-        ]
-      },
-      options: getChartOptions('Sentiment Score')
-    });
+      data: { labels, datasets },
+      options: getChartOptions('Sentiment (0-100)')
+    }));
+
+    updateChart(chart, { labels, datasets });
   };
 
   const initPieChart = () => {
     const canvas = pieChartRef.current;
     if (!canvas) return;
 
-    if (chartInstancesRef.current.pie) {
-      chartInstancesRef.current.pie.destroy();
-    }
+    const breakdown = sourceBreakdown || { tier1: 0, tier2: 0, tier3: 0, fringe: 0 };
 
-    const breakdown = sentimentData.sourceBreakdown || { tier1: 2, tier2: 3, tier3: 0 };
+    const labels = ['Tier 1', 'Tier 2', 'Tier 3', 'Fringe'];
+    const datasets = [{
+      data: [breakdown.tier1 || 0, breakdown.tier2 || 0, breakdown.tier3 || 0, breakdown.fringe || 0],
+      backgroundColor: ['#45ffb3', '#f1b43a', '#ae4bf5', '#6a7cff'],
+      borderColor: '#141414',
+      borderWidth: 2
+    }];
 
-    chartInstancesRef.current.pie = new ChartJS(canvas, {
+    const chart = ensureChart('pie', canvas, () => new ChartJS(canvas, {
       type: 'doughnut',
-      data: {
-        labels: ['Tier 1', 'Tier 2', 'Tier 3'],
-        datasets: [{
-          data: [breakdown.tier1 || 0, breakdown.tier2 || 0, breakdown.tier3 || 0],
-          backgroundColor: ['#45ffb3', '#f1b43a', '#ae4bf5'],
-          borderColor: '#141414',
-          borderWidth: 2
-        }]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -315,41 +386,39 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         },
         cutout: '60%'
       }
-    });
+    }));
+
+    updateChart(chart, { labels, datasets });
   };
 
   const initTierChart = () => {
     const canvas = tierChartRef.current;
     if (!canvas) return;
 
-    if (chartInstancesRef.current.tier) {
-      chartInstancesRef.current.tier.destroy();
-    }
+    const redditTwitter = [socialBreakdown.reddit, socialBreakdown.twitter].filter(v => typeof v === 'number');
+    const tgChan = [socialBreakdown.telegram, socialBreakdown.chan].filter(v => typeof v === 'number');
 
-    // Calculate average sentiment by tier from social breakdown
-    const avgScores = [
-      sentimentData.fearGreedIndex || 65,
-      ((sentimentData.socialBreakdown?.news || 0.7) * 100),
-      ((sentimentData.socialBreakdown?.reddit || 0.65) * 100 +
-       (sentimentData.socialBreakdown?.twitter || 0.6) * 100 +
-       (sentimentData.socialBreakdown?.telegram || 0.5) * 100 +
-       (sentimentData.socialBreakdown?.stocktwits || 0.5) * 100 +
-       (sentimentData.socialBreakdown?.custom || 0.5) * 100) / 5
+    const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+
+    const buckets = [
+      { label: 'Macro (F&G)', value: fearGreedIndex },
+      { label: 'Reddit/Twitter', value: avg(redditTwitter) * 100 },
+      { label: 'Telegram/Chan', value: avg(tgChan) * 100 },
     ];
 
-    chartInstancesRef.current.tier = new ChartJS(canvas, {
+    const labels = buckets.map(b => b.label);
+    const datasets = [{
+      label: 'Avg. Sentiment',
+      data: buckets.map(b => b.value || 0),
+      backgroundColor: ['rgba(69, 255, 179, 0.6)', 'rgba(241, 180, 58, 0.6)', 'rgba(174, 75, 245, 0.6)'],
+      borderColor: ['#45ffb3', '#f1b43a', '#ae4bf5'],
+      borderWidth: 1,
+      borderRadius: 4
+    }];
+
+    const chart = ensureChart('tier', canvas, () => new ChartJS(canvas, {
       type: 'bar',
-      data: {
-        labels: ['Tier 1', 'Tier 2', 'Tier 3'],
-        datasets: [{
-          label: 'Avg. Sentiment',
-          data: avgScores,
-          backgroundColor: ['rgba(69, 255, 179, 0.6)', 'rgba(241, 180, 58, 0.6)', 'rgba(174, 75, 245, 0.6)'],
-          borderColor: ['#45ffb3', '#f1b43a', '#ae4bf5'],
-          borderWidth: 1,
-          borderRadius: 4
-        }]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -367,53 +436,61 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           }
         }
       }
-    });
+    }));
+
+    updateChart(chart, { labels, datasets });
   };
 
   const initCorrelationChart = () => {
     const canvas = correlationChartRef.current;
     if (!canvas) return;
 
-    if (chartInstancesRef.current.correlation) {
-      chartInstancesRef.current.correlation.destroy();
-    }
+    const history = sentimentHistory;
 
-    const history = sentimentData.sentimentHistory || [];
+    if (!history.length) {
+      if (chartInstancesRef.current.correlation) {
+        destroyChart('correlation');
+      }
+      return;
+    }
 
     const labels = history.map(h => {
       const date = new Date(h.timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     });
 
-    const sentimentScores = history.map(h => h.sentiment * 100);
-    const priceData = history.map(h => h.price || 45000);
+    const sentimentScores = history.map(h => (typeof h.sentiment === 'number' ? h.sentiment * 100 : null));
+    const priceData = history.map(h => {
+      if (typeof h.price === 'number') return h.price;
+      if (typeof h.priceNormalized === 'number') return h.priceNormalized;
+      return null;
+    });
 
-    chartInstancesRef.current.correlation = new ChartJS(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'BTC Price',
-            data: priceData,
-            borderColor: '#f1b43a',
-            backgroundColor: 'rgba(241, 180, 58, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Sentiment',
-            data: sentimentScores,
-            borderColor: '#ae4bf5',
-            backgroundColor: 'transparent',
-            tension: 0.4,
-            pointRadius: 0,
-            yAxisID: 'y1'
-          }
-        ]
+    const datasets = [
+      {
+        label: 'Price (normalized)',
+        data: priceData,
+        borderColor: '#f1b43a',
+        backgroundColor: 'rgba(241, 180, 58, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        yAxisID: 'y'
       },
+      {
+        label: 'Sentiment',
+        data: sentimentScores,
+        borderColor: '#ae4bf5',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 0,
+        yAxisID: 'y1'
+      }
+    ];
+
+    const chart = ensureChart('correlation', canvas, () => new ChartJS(canvas, {
+      type: 'line',
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -434,7 +511,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
             grid: { color: 'rgba(255,255,255,0.05)' },
             ticks: {
               color: '#f1b43a',
-              callback: v => '$' + v.toLocaleString()
+              callback: v => v
             }
           },
           y1: {
@@ -451,7 +528,58 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           }
         }
       }
+    }));
+
+    updateChart(chart, { labels, datasets });
+  };
+
+  const initSocialHistoryChart = () => {
+    const canvas = socialChartRef.current;
+    if (!canvas) return;
+
+    if (chartInstancesRef.current.social) {
+      // keep instance; will update below
+    }
+
+    if (!socialHistory.length) {
+      if (chartInstancesRef.current.social) {
+        destroyChart('social');
+      }
+      return;
+    }
+
+    const labels = socialHistory.map((h) => {
+      const date = new Date(h.timestamp);
+      return Number.isNaN(date.getTime())
+        ? String(h.timestamp || '')
+        : date.toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     });
+
+    const series = (label, key, color) => ({
+      label,
+      data: socialHistory.map((h) => (typeof h[key] === 'number' ? h[key] * 100 : null)),
+      tension: 0.35,
+      pointRadius: 0,
+      pointHoverRadius: 3,
+      borderColor: color,
+      backgroundColor: 'transparent',
+      spanGaps: true,
+    });
+
+    const datasets = [
+      series('Reddit', 'reddit', '#f1b43a'),
+      series('Twitter', 'twitter', '#ae4bf5'),
+      series('Telegram', 'telegram', '#45ffb3'),
+      series('Chan', 'chan', '#6a7cff'),
+    ];
+
+    const chart = ensureChart('social', canvas, () => new ChartJS(canvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: getChartOptions('Social sentiment (0-100)'),
+    }));
+
+    updateChart(chart, { labels, datasets });
   };
 
   const getChartOptions = (yLabel) => {
@@ -508,18 +636,21 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   if (!isOpen) return null;
 
-  const score = sentimentData ? Math.round((sentimentData.overallSentiment || sentimentData.overall || 0) * 100) : 0;
-  const fg = sentimentData?.fearGreedIndex || 50;
+  const score = sentimentData ? Math.round((sentimentData.overallSentiment ?? 0.5) * 100) : 0;
+  const fg = Number.isFinite(sentimentData?.fearGreedIndex) ? sentimentData.fearGreedIndex : 50;
   const insight = generateTopInsight(score, fg);
   const gaugePos = updateGaugePosition(score);
 
-  const fallbackSourceCount = sentimentData?.sourceBreakdown
-    ? Object.values(sentimentData.sourceBreakdown).reduce((a, b) => a + b, 0)
-    : 5;
+  const tvResolved = resolveTvSymbol(symbol, chartExchange);
+  const tvUrl = buildTradingViewEmbedUrl(tvResolved.symbol);
+
+  const fallbackSourceCount = sourceBreakdown
+    ? Object.values(sourceBreakdown).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0)
+    : 0;
   const sourceCount = pipelineSources?.length || fallbackSourceCount;
 
-  const lastUpdate = sentimentData?.timestamp
-    ? new Date(sentimentData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const lastUpdate = sentimentData?.pipelineTimestamp
+    ? new Date(sentimentData.pipelineTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '--:--';
 
   return (
@@ -558,6 +689,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
             </button>
           </div>
         </header>
+
+        {/* Dev debug strip (visible only in dev to verify data presence) */}
+        {import.meta.env.DEV && (
+          <div className="dev-strip">
+            normalized: {String(Boolean(sentimentData?.normalized))} ·
+            hist: {sentimentHistory.length} ·
+            social: {socialHistory.length} ·
+            sources: {Object.values(sourceBreakdown).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0)} ·
+            timestamp: {sentimentData?.pipelineTimestamp || 'n/a'}
+            {(!sentimentHistory.length || !socialHistory.length) && ' · No history returned by pipeline yet'}
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <nav className="tab-nav" role="tablist">
@@ -619,7 +762,15 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {loading && (
             <div style={{ padding: '3rem', textAlign: 'center', color: '#a3a3a3' }}>
               <div style={{ fontSize: '14px', marginBottom: '0.5rem' }}>Loading sentiment data for {symbol}...</div>
-              <div style={{ fontSize: '12px', opacity: 0.6 }}>Fetching from {sourceCount || 11} sources</div>
+              <div style={{ fontSize: '12px', opacity: 0.6 }}>
+                Fetching from {sourceCount ? `${sourceCount} sources` : 'pipeline sources'}
+              </div>
+            </div>
+          )}
+
+          {!loading && error && (
+            <div style={{ padding: '1rem', margin: '0 0 1rem 0', background: '#2b1a1a', color: '#ff9b9b', borderRadius: '8px' }}>
+              Failed to load sentiment data: {String(error)}
             </div>
           )}
 
@@ -670,26 +821,26 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <span className="stat-label">Active Sources</span>
                     <span className="stat-value">{sourceCount}</span>
                     <span className="stat-sublabel">
-                      T1: {sentimentData?.sourceBreakdown?.tier1 || 0} |
-                      T2: {sentimentData?.sourceBreakdown?.tier2 || 0} |
-                      T3: {sentimentData?.sourceBreakdown?.tier3 || 0}
+                      T1: {sourceBreakdown?.tier1 || 0} |
+                      T2: {sourceBreakdown?.tier2 || 0} |
+                      T3: {sourceBreakdown?.tier3 || 0}
                     </span>
                   </div>
                 </div>
 
-                <div className="stat-card">
-                  <div className="stat-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 6v6l4 2"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <span className="stat-label">Last Updated</span>
-                    <span className="stat-value small">{lastUpdate}</span>
-                    <span className="stat-sublabel">Auto-refresh: 30s</span>
-                  </div>
+              <div className="stat-card">
+                <div className="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                  </svg>
                 </div>
+                <div className="stat-content">
+                  <span className="stat-label">Last Updated</span>
+                  <span className="stat-value small">{lastUpdate}</span>
+                  <span className="stat-sublabel">Auto-refresh: {Math.round(REFRESH_MS / 1000)}s</span>
+                </div>
+              </div>
               </div>
 
               <div className="gauge-section">
@@ -724,7 +875,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               </div>
 
               {/* Tiered Sentiment Breakdown */}
-              {sentimentData?.hasTieredData && sentimentData?.tierScores && (
+              {hasTieredData && tierScores && (
                 <div className="info-section">
                   <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -739,12 +890,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Whales & Institutions</span>
                       </div>
                       <div className="tier-score">
-                        {(sentimentData.tierScores.tier1 * 100).toFixed(0)}%
+                        {((tierScores.tier1 ?? 0.5) * 100).toFixed(0)}%
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-1-fill"
-                          style={{ width: `${sentimentData.tierScores.tier1 * 100}%` }}
+                          style={{ width: `${(tierScores.tier1 ?? 0.5) * 100}%` }}
                         />
                       </div>
                       <div className="tier-meta">Smart Money: CoinGecko, Fear & Greed, Binance</div>
@@ -756,12 +907,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Mainstream Normies</span>
                       </div>
                       <div className="tier-score">
-                        {(sentimentData.tierScores.tier2 * 100).toFixed(0)}%
+                        {((tierScores.tier2 ?? 0.5) * 100).toFixed(0)}%
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-2-fill"
-                          style={{ width: `${sentimentData.tierScores.tier2 * 100}%` }}
+                          style={{ width: `${(tierScores.tier2 ?? 0.5) * 100}%` }}
                         />
                       </div>
                       <div className="tier-meta">News & Big Reddit: CoinDesk, r/CC</div>
@@ -773,12 +924,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Diamond Hands & Degens</span>
                       </div>
                       <div className="tier-score">
-                        {(sentimentData.tierScores.tier3 * 100).toFixed(0)}%
+                        {((tierScores.tier3 ?? 0.5) * 100).toFixed(0)}%
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-3-fill"
-                          style={{ width: `${sentimentData.tierScores.tier3 * 100}%` }}
+                          style={{ width: `${(tierScores.tier3 ?? 0.5) * 100}%` }}
                         />
                       </div>
                       <div className="tier-meta">Apes Strong Together: r/SSB, CT, Telegram</div>
@@ -790,12 +941,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Moonboys & Schizos</span>
                       </div>
                       <div className="tier-score">
-                        {(sentimentData.tierScores.fringe * 100).toFixed(0)}%
+                        {((tierScores.fringe ?? 0.5) * 100).toFixed(0)}%
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-fringe-fill"
-                          style={{ width: `${sentimentData.tierScores.fringe * 100}%` }}
+                          style={{ width: `${(tierScores.fringe ?? 0.5) * 100}%` }}
                         />
                       </div>
                       <div className="tier-meta">Anon Intel: /biz/, BitcoinTalk, Weibo</div>
@@ -819,7 +970,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               )}
 
               {/* Divergence Alerts */}
-              {sentimentData?.divergenceAlerts && sentimentData.divergenceAlerts.length > 0 && (
+              {safeAlerts.length > 0 && (
                 <div className="info-section">
                   <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -829,7 +980,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     Divergence Alerts
                   </h3>
                   <div className="divergence-alerts">
-                    {sentimentData.divergenceAlerts.map((alert, idx) => (
+                    {safeAlerts.map((alert, idx) => (
                       <div key={idx} className={`alert-box ${alert.type}`}>
                         <span className="alert-icon">
                           {alert.type === 'warning' ? '!' : 'i'}
@@ -952,7 +1103,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <p>
                       {pipelineHealth.checked && !pipelineHealth.running
                         ? 'Sentiment pipeline offline. Start the collector to reveal live sources.'
-                        : 'Loading pipeline sources...'}
+                        : 'Pipeline did not return source inventory. Enable /api/sentiment/sources to view live sources.'}
                     </p>
                   </div>
                 )}
@@ -963,6 +1114,42 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {/* CHARTS TAB */}
           {!loading && activeTab === 'charts' && (
             <section className="tab-panel active" role="tabpanel">
+              {/* TradingView Chart */}
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                      <path d="M9 22V12h6v10"/>
+                    </svg>
+                    Live Price Chart - {symbol}
+                  </h3>
+                  <p className="section-desc">TradingView real-time data (source selectable)</p>
+                  <div className="mini-toggle">
+                    {['auto', 'coinbase', 'binance'].map((opt) => (
+                      <button
+                        key={opt}
+                        className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
+                        onClick={() => setChartExchange(opt)}
+                      >
+                        {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
+                      </button>
+                    ))}
+                    <span className="mini-toggle-label">Source: {tvResolved.source}</span>
+                  </div>
+                </div>
+                <div className="tradingview-widget-container" style={{height: '420px', marginBottom: '1rem'}}>
+                  <div style={{height: '100%', width: '100%'}}>
+                    <iframe
+                      key={`${tvResolved.symbol}-${tvResolved.source}`}
+                      src={tvUrl}
+                      style={{width: '100%', height: '100%', border: 'none', borderRadius: '8px'}}
+                      title={`${symbol} Price Chart`}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="info-section">
                 <div className="section-header">
                   <h3>
@@ -970,12 +1157,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <path d="M3 3v18h18"/>
                       <path d="M7 16l4-4 4 4 6-6"/>
                     </svg>
-                    Sentiment Trend (24h)
+                    Sentiment Trend (history)
                   </h3>
                   <p className="section-desc">Track how market sentiment has evolved</p>
                 </div>
                 <div className="chart-container">
-                  <canvas ref={trendChartRef} role="img" aria-label="Sentiment trend chart"></canvas>
+                  {sentimentHistory.length ? (
+                    <canvas ref={trendChartRef} role="img" aria-label="Sentiment trend chart"></canvas>
+                  ) : (
+                    <div className="sentiment-muted">No history returned by pipeline.</div>
+                  )}
                 </div>
               </div>
 
@@ -1017,10 +1208,80 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     Sentiment vs Price Correlation
                   </h3>
-                  <p className="section-desc">How sentiment aligns with BTC price movement</p>
+                  <p className="section-desc">How sentiment aligns with price movement</p>
                 </div>
                 <div className="chart-container">
-                  <canvas ref={correlationChartRef} role="img" aria-label="Correlation chart"></canvas>
+                  {sentimentHistory.length ? (
+                    <canvas ref={correlationChartRef} role="img" aria-label="Correlation chart"></canvas>
+                  ) : (
+                    <div className="sentiment-muted">No history returned by pipeline.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 12h18"/>
+                      <path d="M3 6h12"/>
+                      <path d="M3 18h8"/>
+                    </svg>
+                    Momentum snapshot
+                  </h3>
+                  <p className="section-desc">24h change across sentiment and socials (first vs last point)</p>
+                </div>
+                <div className="momentum-grid">
+                  {(() => {
+                    const delta = (arr, key) => {
+                      if (!Array.isArray(arr) || arr.length < 2) return null;
+                      const first = arr[0]?.[key];
+                      const last = arr[arr.length - 1]?.[key];
+                      if (typeof first !== 'number' || typeof last !== 'number') return null;
+                      return ((last - first) * 100).toFixed(1);
+                    };
+                    const sentimentDelta = delta(sentimentHistory, 'sentiment');
+                    const redditDelta = delta(socialHistory, 'reddit');
+                    const twitterDelta = delta(socialHistory, 'twitter');
+                    const telegramDelta = delta(socialHistory, 'telegram');
+                    const chanDelta = delta(socialHistory, 'chan');
+                    const card = (label, val) => (
+                      <div className="momentum-card" key={label}>
+                        <span className="momentum-label">{label}</span>
+                        <span className={`momentum-value ${val === null ? 'muted' : val >= 0 ? 'pos' : 'neg'}`}>
+                          {val === null ? '—' : `${val > 0 ? '+' : ''}${val}`}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <div className="momentum-cards">
+                        {card('Sentiment', sentimentDelta)}
+                        {card('Reddit', redditDelta)}
+                        {card('Twitter', twitterDelta)}
+                        {card('Telegram', telegramDelta)}
+                        {card('Chan', chanDelta)}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 3v18h18"/>
+                    </svg>
+                    Social Trend
+                  </h3>
+                  <p className="section-desc">Reddit, Twitter, Telegram, Chan trend (normalized)</p>
+                </div>
+                <div className="chart-container">
+                  {socialHistory.length ? (
+                    <canvas ref={socialChartRef} role="img" aria-label="Social trend chart"></canvas>
+                  ) : (
+                    <div className="sentiment-muted">No social history returned by pipeline.</div>
+                  )}
                 </div>
               </div>
             </section>
@@ -1029,6 +1290,63 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {/* INSIGHTS TAB */}
           {!loading && activeTab === 'insights' && (
             <section className="tab-panel active" role="tabpanel">
+              {/* Divergence Alerts */}
+              {safeAlerts.length > 0 && (
+                <div className="info-section">
+                  <div className="section-header">
+                    <h3>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        <path d="M12 9v4M12 17h.01"/>
+                      </svg>
+                      Divergence Alerts
+                    </h3>
+                    <p className="section-desc">Conflicts between different market tiers</p>
+                  </div>
+                  <div className="divergence-alerts">
+                    {safeAlerts.map((alert, idx) => (
+                      <div key={idx} className={`alert-box ${alert.type}`}>
+                        <span className="alert-icon">
+                          {alert.type === 'warning' ? 'WARN' : alert.type === 'success' ? 'OK' : 'INFO'}
+                        </span>
+                        <div className="alert-content">
+                          <p>{alert.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trending Topics */}
+              {safeTopics.length > 0 && (
+                <div className="info-section">
+                  <div className="section-header">
+                    <h3>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                      Trending Topics
+                    </h3>
+                    <p className="section-desc">What people are talking about</p>
+                  </div>
+                  <div className="trending-topics">
+                    {safeTopics.slice(0, 5).map((topic, idx) => (
+                      <div key={idx} className={`topic-card ${topic.sentiment}`}>
+                        <div className="topic-tag">{topic.tag}</div>
+                        <div className="topic-meta">
+                          <span className={`sentiment-badge ${topic.sentiment}`}>
+                            {topic.sentiment ? topic.sentiment.toUpperCase() : 'NEUTRAL'}
+                          </span>
+                          <span className="volume-badge">{topic.volume}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Insight */}
               <div className="info-section">
                 <div className="section-header">
                   <h3>
@@ -1036,9 +1354,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <circle cx="12" cy="12" r="4"/>
                       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/>
                     </svg>
-                    Market Insights
+                    AI Market Analysis
                   </h3>
-                  <p className="section-desc">AI-generated analysis based on multi-source data</p>
+                  <p className="section-desc">Generated from multi-source intelligence</p>
                 </div>
 
                 <div className="insights-list">
@@ -1049,6 +1367,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <p>{insight.message}</p>
                     </div>
                   </div>
+
+                  {/* Social Sentiment Summary */}
+                  {socialBreakdown && (
+                    <div className="insight-box info">
+                      <span className="insight-icon">SOC</span>
+                      <div className="insight-content">
+                        <strong>Social Sentiment Breakdown</strong>
+                        <p>
+                          Reddit: {Math.round((socialBreakdown.reddit || 0) * 100)}% •
+                          Twitter: {Math.round((socialBreakdown.twitter || 0) * 100)}% •
+                          Telegram: {Math.round((socialBreakdown.telegram || 0) * 100)}%
+                          {socialBreakdown.chan && ` • CHAN: ${Math.round(socialBreakdown.chan * 100)}%`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
