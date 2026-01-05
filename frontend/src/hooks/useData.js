@@ -25,7 +25,7 @@ export function useData() {
 
   const view = useMemo(() => {
     const banner1hRaw = payload.banner_1h_price ?? payload.banner1h ?? [];
-    const volume1hRaw = payload.banner_1h_volume ?? payload.volume1h ?? [];
+    const volume1hRaw = payload.volume1h ?? payload.banner_1h_volume ?? [];
     const gainers1mRaw = payload.gainers_1m ?? [];
     const gainers3mRaw = payload.gainers_3m ?? [];
     const losers3mRaw = payload.losers_3m ?? [];

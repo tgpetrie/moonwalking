@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getApiBaseUrl, getSentimentBaseUrl } from "../api";
 
 const FAIL_COOLDOWN_MS = 8000;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
@@ -6,6 +7,26 @@ const FRESH_REQUEST_TIMEOUT_MS = Number(
   import.meta.env.VITE_SENTIMENT_FRESH_TIMEOUT_MS || 32000
 );
 const SLOW_AUX_MS = 60000;
+
+const parsePipelineResponse = async (response) => {
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (err) {
+    payload = null;
+  }
+  if (!response.ok) {
+    const detail =
+      payload?.detail ?? payload?.error ?? payload?.message ?? response.statusText ?? `HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+  return payload;
+};
+
+const safePipelineFetch = async (url, options = {}) => {
+  const response = await fetch(url, options);
+  return await parsePipelineResponse(response);
+};
 
 const pick = (obj, ...keys) => {
   for (const k of keys) {
@@ -110,17 +131,8 @@ export function useTieredSentiment(
   symbol,
   { enabled = true, refreshMs = 15000 } = {}
 ) {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL ||
-    "http://127.0.0.1:5003";
-
-  const SENTIMENT_BASE =
-    import.meta.env.VITE_SENTIMENT_BASE_URL ||
-    import.meta.env.VITE_SENTIMENT_URL ||
-    API_BASE;
-
-  const apiBase = API_BASE.replace(/\/$/, "");
-  const sentimentBase = SENTIMENT_BASE.replace(/\/$/, "");
+  const apiBase = (getApiBaseUrl() || "").replace(/\/$/, "");
+  const sentimentBase = (getSentimentBaseUrl() || "").replace(/\/$/, "");
 
   const lastGoodRef = useRef(null);
   const lastGoodSymbolRef = useRef(null);
@@ -144,28 +156,23 @@ export function useTieredSentiment(
 
   const checkPipelineHealth = useCallback(async () => {
     try {
-      const res = await fetch(`${sentimentBase}/api/sentiment/pipeline-health`, {
+      const res = await fetch(`${sentimentBase}/api/sentiment/health`, {
         cache: "no-store",
         signal: AbortSignal.timeout(2000),
       });
 
-      if (res.ok) {
-        const healthData = await res.json();
-        const running =
-          Boolean(healthData?.pipeline_running) ||
-          Boolean(healthData?.running) ||
-          healthData?.status === "healthy" ||
-          healthData?.status === "ok";
-        setPipelineHealth({
-          running,
-          checked: true,
-          data: healthData,
-        });
-        return running;
-      } else {
-        setPipelineHealth({ running: false, checked: true });
-        return false;
-      }
+      const healthData = await parsePipelineResponse(res);
+      const running =
+        Boolean(healthData?.pipeline_running) ||
+        Boolean(healthData?.running) ||
+        healthData?.status === "healthy" ||
+        healthData?.status === "ok";
+      setPipelineHealth({
+        running,
+        checked: true,
+        data: healthData,
+      });
+      return running;
     } catch (err) {
       setPipelineHealth({ running: false, checked: true, error: err.message });
       return false;
@@ -178,18 +185,10 @@ export function useTieredSentiment(
       if (symbol) qs.set("symbol", symbol);
       const url = `${sentimentBase}/api/sentiment/tiered${qs.toString() ? `?${qs}` : ""}`;
 
-      const res = await fetch(url, {
+      const payload = await safePipelineFetch(url, {
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-
-      if (!res.ok) {
-        throw new Error(`tiered sentiment ${res.status}`);
-      }
-
-      const json = await res.json();
-
-      const payload = json?.data ?? json;
       setTieredData(payload);
       tieredRef.current = payload;
       return payload;
@@ -201,20 +200,15 @@ export function useTieredSentiment(
 
   const fetchSources = useCallback(async () => {
     try {
-      const res = await fetch(`${sentimentBase}/api/sentiment/sources`, {
+      const payload = await safePipelineFetch(`${sentimentBase}/api/sentiment/sources`, {
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
 
-      if (!res.ok) {
-        throw new Error(`sentiment sources ${res.status}`);
-      }
-
-      const json = await res.json();
-      const payload = Array.isArray(json) ? json : json.sources ?? [];
-      setSources(payload);
-      sourcesRef.current = payload;
-      return payload;
+      const list = Array.isArray(payload) ? payload : payload.sources ?? [];
+      setSources(list);
+      sourcesRef.current = list;
+      return list;
     } catch (err) {
       console.warn("[useTieredSentiment] Failed to fetch sources:", err?.message || err);
       return null;
@@ -236,17 +230,14 @@ export function useTieredSentiment(
     async (freshLatest = false) => {
       const url = buildLatestUrl(freshLatest);
       try {
-        const res = await fetch(url, {
+        const payload = await safePipelineFetch(url, {
           cache: "no-store",
           signal: AbortSignal.timeout(
             freshLatest ? FRESH_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS
           ),
         });
 
-        if (!res.ok) throw new Error(`sentiment ${res.status}`);
-
-        const json = await res.json();
-        return json;
+        return payload;
       } catch (err) {
         console.error("[useTieredSentiment] fetchSymbolSentiment ERROR:", err.name, err.message);
         throw err;
@@ -343,6 +334,12 @@ export function useTieredSentiment(
         }
       } catch (err) {
         setCooldownUntil(Date.now() + FAIL_COOLDOWN_MS);
+        setPipelineHealth((prev) => ({
+          ...prev,
+          running: false,
+          checked: true,
+          error: err?.message,
+        }));
 
         const fallback = lastGoodRef.current;
         const fallbackSymbol = lastGoodSymbolRef.current;

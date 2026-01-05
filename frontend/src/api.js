@@ -15,11 +15,12 @@ const joinUrl = (base, path) => {
 };
 
 let API_BASE_URL = DEFAULT_API_BASE;
+let SENTIMENT_BASE_URL = DEFAULT_API_BASE;
 const joinEndpoint = (path) => joinUrl(API_BASE_URL, path);
 
 const buildEndpoints = () => ({
-  topBanner: joinEndpoint('/api/component/top-banner-scroll'),
-  bottomBanner: joinEndpoint('/api/component/bottom-banner-scroll'),
+  topBanner: joinEndpoint('/api/banner-top'),
+  bottomBanner: joinEndpoint('/api/banner-bottom'),
   gainersTable: joinEndpoint('/api/component/gainers-table'),
   gainersTable1Min: joinEndpoint('/api/component/gainers-table-1min'),
   losersTable: joinEndpoint('/api/component/losers-table'),
@@ -39,9 +40,11 @@ const buildEndpoints = () => ({
 
 export let API_ENDPOINTS = buildEndpoints();
 export const getApiBaseUrl = () => API_BASE_URL;
+export const getSentimentBaseUrl = () => SENTIMENT_BASE_URL;
 export const setApiBaseUrl = (url) => {
   if (!url) return;
   API_BASE_URL = url.replace(/\/$/, '');
+  SENTIMENT_BASE_URL = API_BASE_URL;
   API_ENDPOINTS = buildEndpoints();
   try { console.info('[api] Switched API base to', API_BASE_URL); } catch (_) {}
 };

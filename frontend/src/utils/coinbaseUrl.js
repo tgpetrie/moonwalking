@@ -7,10 +7,19 @@ export function coinbaseSpotUrl(row) {
     return trade;
   }
 
-  // Only use an explicit, backend-provided product id. Do not guess from symbol.
-  const pid = row?.product_id || row?.productId || row?.product;
+  // Get product_id or construct from symbol
+  let pid = row?.product_id || row?.productId || row?.product;
+
+  // If no product_id, construct it from symbol (e.g., "ETH" -> "ETH-USD")
+  if (!pid && row?.symbol) {
+    const symbol = String(row.symbol).toUpperCase().trim();
+    if (symbol) {
+      pid = symbol.includes('-') ? symbol : `${symbol}-USD`;
+    }
+  }
+
   if (!pid) return null;
-  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(String(pid))}`;
+  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(String(pid).toUpperCase())}`;
 }
 
 export default coinbaseSpotUrl;

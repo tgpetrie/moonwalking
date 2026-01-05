@@ -14,6 +14,39 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
  * - Watchlist
  */
 
+// Badge thresholds (hour-vs-hour volume, velocity 1m, dump 3m)
+const BADGE_THRESH = {
+  VEL_1M: 1.5,     // percent
+  DUMP_3M: -2.0,   // percent
+  VOL_1H: 80.0,    // percent change between last full hour vs previous full hour
+};
+
+function getBadges(token) {
+  const badges = [];
+
+  const ch1m = Number(token.change_1m);
+  const ch3m = Number(token.change_3m);
+  const vol1h = Number(token.volume_change_1h_pct); // from candle engine
+
+  if (Number.isFinite(ch1m) && ch1m >= BADGE_THRESH.VEL_1M) {
+    badges.push({ label: "VEL", tone: "gold" });
+  }
+
+  if (Number.isFinite(ch3m) && ch3m <= BADGE_THRESH.DUMP_3M) {
+    badges.push({ label: "DUMP", tone: "purple" });
+  }
+
+  if (Number.isFinite(vol1h) && vol1h >= BADGE_THRESH.VOL_1H) {
+    badges.push({ label: "VOL", tone: "cyan" });
+  }
+
+  return badges;
+}
+
+const Badge = ({ label, tone }) => (
+  <span className={`bh-badge bh-badge--${tone}`}>{label}</span>
+);
+
 export function TokenRowUnified({
   token,
   rank,
@@ -25,6 +58,8 @@ export function TokenRowUnified({
   renderAs = "div",
   density = "normal", // "normal" | "tight"
   pulse = false,
+  pulsePrice,
+  pulsePct,
   pulseDelayMs = 0,
 }) {
   const symbol = token?.symbol;
@@ -57,6 +92,10 @@ export function TokenRowUnified({
   const [pctFlash, setPctFlash] = useState(false);
   const prevPriceRef = useRef(currentPrice);
   const prevPctRef = useRef(changeNum);
+  const pricePulse = Boolean(pulsePrice ?? pulse);
+  const pctPulse = Boolean(pulsePct ?? pulse);
+  const priceAnimate = priceFlash || pricePulse;
+  const pctAnimate = pctFlash || pctPulse;
 
   useEffect(() => {
     let cleanup;
@@ -84,7 +123,12 @@ export function TokenRowUnified({
 
   const handleToggleStar = () => {
     if (!symbol || typeof onToggleWatchlist !== "function") return;
-    const activePrice = currentPrice ?? token?.price ?? null;
+    // Ensure we pass a valid numeric price
+    const activePrice = Number(currentPrice ?? token?.price ?? token?.current);
+    if (!Number.isFinite(activePrice) || activePrice <= 0) {
+      console.warn(`[TokenRowUnified] Cannot toggle watchlist for ${symbol}: invalid price`, activePrice);
+      return;
+    }
     onToggleWatchlist(symbol, activePrice);
   };
 
@@ -108,13 +152,28 @@ export function TokenRowUnified({
 
       {/* 2. Token name */}
       <CellTag className="bh-cell bh-cell-symbol">
-        <div className="bh-symbol">{token.symbol}</div>
+        <div className="bh-symbol-line">
+          <span className="bh-symbol">{token.symbol}</span>
+          {(() => {
+            const badges = getBadges(token);
+            return badges.length > 0 ? (
+              <span className="bh-badges" aria-label="status badges">
+                {badges.map((b, i) => (
+                  <Badge key={`${b.label}-${i}`} label={b.label} tone={b.tone} />
+                ))}
+              </span>
+            ) : null;
+          })()}
+        </div>
         {token.base && <div className="bh-name">{token.base}</div>}
       </CellTag>
 
       {/* 3. Price stack (current / previous) */}
       <CellTag className="bh-cell bh-cell-price">
-        <div className={`tr-price-current bh-price-current${priceFlash ? " is-updating" : ""}`}>
+        <div
+          className={`tr-price-current bh-price-current${priceAnimate ? " is-updating bh-value-pulse" : ""}`}
+          style={priceAnimate ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        >
           {formatPrice(currentPrice)}
         </div>
         <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
@@ -122,7 +181,12 @@ export function TokenRowUnified({
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change">
-        <span className={`bh-change ${pctInfo.className}${pctFlash ? " is-updating" : ""}`}>{pctInfo.display}</span>
+        <span
+          className={`bh-change ${pctInfo.className}${pctAnimate ? " is-updating bh-value-pulse" : ""}`}
+          style={pctAnimate ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        >
+          {pctInfo.display}
+        </span>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}
@@ -138,13 +202,6 @@ export function TokenRowUnified({
 
   const url = coinbaseSpotUrl(token || {});
   const rowClassName = [rowClass, url ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
-  const [infoOpen, setInfoOpen] = useState(false);
-  const toggleInfo = (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
-    setInfoOpen((v) => !v);
-  };
-
   const open = () => {
     if (!url) return;
     if (window.getSelection?.().toString()) return;
@@ -162,12 +219,8 @@ export function TokenRowUnified({
     }
   };
 
-  // Minimal explicit row URL + handlers (ensure row click opens Coinbase)
-  const rowUrl = token?.product_id
-    ? `https://www.coinbase.com/price/${String(token.product_id).split("-")[0].toLowerCase()}`
-    : token?.symbol
-      ? `https://www.coinbase.com/price/${String(token.symbol).toLowerCase()}`
-      : null;
+  // Row click URL (use the same coinbaseSpotUrl utility for consistency)
+  const rowUrl = url; // Already computed above via coinbaseSpotUrl(token)
 
   const onRowClick = (e) => {
     if (!rowUrl) return;
@@ -215,8 +268,7 @@ export function TokenRowUnified({
   return (
     <>
       <RowTag
-        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
-        style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        className={`${rowClassName} token-row table-row`}
         data-side={dataSide}
         role={rowUrl ? "link" : undefined}
         tabIndex={rowUrl ? 0 : undefined}
@@ -229,21 +281,6 @@ export function TokenRowUnified({
         {renderCells()}
       </RowTag>
 
-      {infoOpen && (renderAs === "tr" ? (
-        <tr className="bh-info-row">
-          <td colSpan="99">
-            <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-              <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
-              <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
-            </div>
-          </td>
-        </tr>
-      ) : (
-        <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
-          <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
-        </div>
-      ))}
     </>
   );
 }

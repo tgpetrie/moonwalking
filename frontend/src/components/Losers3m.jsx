@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
@@ -13,17 +13,12 @@ const MAX_BASE = 8;
 const getRowIdentity = (row) => (
   row?.product_id ??
   row?.symbol ??
-  row?.base ??
-  row?.ticker ??
   null
 );
 
-const buildRowKey = (row, index) => {
+const buildRowKey = (row) => {
   const base = getRowIdentity(row);
-  if (!base) return `row-${index}`;
-  // Use a stable key based on the row identity (avoid including index)
-  // so reorders keep the same key and framer-motion can animate layout changes.
-  return String(base);
+  return base ? String(base) : undefined;
 };
 
 export default function Losers3m({
@@ -35,6 +30,7 @@ export default function Losers3m({
 }) {
   const { has, add, remove } = useWatchlist();
   const { data, isLoading: hookLoading } = useDataFeed();
+  const lastValueRef = useRef(new Map());
 
   // Legacy live feed hook kept for wiring parity (data feed used by default)
   const { data: hybridPayload = {} } = useHybridLiveNamed({
@@ -84,10 +80,7 @@ export default function Losers3m({
     const deduped = [];
     sorted.forEach((row) => {
       const ident = getRowIdentity(row);
-      if (!ident) {
-        deduped.push(row);
-        return;
-      }
+      if (!ident) return;
       const key = String(ident).toUpperCase();
       if (seen.has(key)) return;
       seen.add(key);
@@ -98,20 +91,23 @@ export default function Losers3m({
   }, [data, hybridPayload, tokensProp]);
 
   const [expanded, setExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
   const visible = expanded ? rows : rows.slice(0, MAX_BASE);
-  const hasData = rows.length > 0;
-  const refreshSig = useMemo(() => {
-    return visible
-      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
-      .join("|");
+  const rowsWithPulse = useMemo(() => {
+    const map = lastValueRef.current;
+    return visible.map((row) => {
+      const key = getRowIdentity(row) ?? row?.ticker ?? row?.base ?? row?.rank;
+      const price = Number(row?.current_price ?? row?.price ?? 0);
+      const pct = Number(row?.change_3m ?? row?.price_change_percentage_3min ?? row?._pct ?? row?.pct ?? 0);
+      const prev = key ? map.get(key) : null;
+      const priceChanged = prev ? prev.price !== price : false;
+      const pctChanged = prev ? prev.pct !== pct : false;
+      if (key) {
+        map.set(key, { price, pct });
+      }
+      return { row, priceChanged, pctChanged };
+    });
   }, [visible]);
-  useEffect(() => {
-    if (!visible.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, visible.length]);
+  const hasData = rows.length > 0;
 
   const handleToggleStar = (symbol, price) => {
     if (!symbol) return;
@@ -174,8 +170,8 @@ export default function Losers3m({
       <div className="bh-panel bh-panel-full">
         <div className="bh-table">
           <AnimatePresence initial={false}>
-            {visible.map((row, idx) => {
-              const rowKey = buildRowKey(row, idx);
+            {rowsWithPulse.map(({ row, priceChanged, pctChanged }, idx) => {
+              const rowKey = buildRowKey(row) || row.symbol || row.product_id;
               return (
                 <motion.div
                   key={rowKey}
@@ -192,7 +188,8 @@ export default function Losers3m({
                     onToggleWatchlist={() => handleToggleStar(row.symbol, row.current_price ?? row.price)}
                     isWatchlisted={isStarred(row.symbol)}
                     renderAs="div"
-                    pulse={pulseOn}
+                    pulsePrice={priceChanged}
+                    pulsePct={pctChanged}
                     pulseDelayMs={idx * 18}
                   />
                 </motion.div>

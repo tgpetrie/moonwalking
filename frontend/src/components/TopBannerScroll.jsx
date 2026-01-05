@@ -31,6 +31,7 @@ function normalizeItem(raw, idx) {
   const productId = raw.product_id || (symbol ? `${symbol}-USD` : null);
 
   const pct =
+    toNum(raw.price_change_1h) ??
     toNum(raw.pct_change_1h) ??
     toNum(raw.pct_change) ??
     toNum(raw.changePct) ??
@@ -217,7 +218,7 @@ export default function TopBannerScroll(props) {
             doubled.map((it, i) => {
               const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
               const href = it.productId
-                ? `https://www.coinbase.com/price/${String(it.productId).toLowerCase().replace("-usd", "")}`
+                ? `https://www.coinbase.com/advanced-trade/spot/${String(it.productId).toUpperCase()}`
                 : "#";
 
               return (

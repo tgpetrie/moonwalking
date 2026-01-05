@@ -20,6 +20,20 @@ import logging
 from datetime import datetime, timedelta, timezone
 import asyncio
 
+try:
+    from volume_1h_store import ensure_db as ensure_volume_db
+    from volume_1h_candles import refresh_product_minutes, RateLimitError
+    from volume_1h_compute import compute_volume_1h
+except ImportError as e:
+    logging.warning(f"Volume tracking imports failed: {e}")
+    def ensure_volume_db():
+        pass
+    refresh_product_minutes = None
+    class RateLimitError(Exception):
+        pass
+    def compute_volume_1h():
+        return []
+
 from watchlist import watchlist_bp, watchlist_db
 try:
     from reliability import stale_while_revalidate
@@ -111,6 +125,16 @@ PRODUCT_IDS = None
 PRODUCT_IDS_BY_BASE = None
 PRODUCT_IDS_TS = 0
 PRODUCT_IDS_TTL = 60 * 60  # 1 hour
+
+# Volume 1h settings (env overrides)
+VOLUME_1H_REFRESH_SEC = int(os.environ.get("VOLUME_1H_REFRESH_SEC", 90))
+VOLUME_1H_MAX_TRACKED = int(os.environ.get("VOLUME_1H_MAX_TRACKED", 80))
+VOLUME_1H_WORKERS = int(os.environ.get("VOLUME_1H_WORKERS", 4))
+VOLUME_1H_BANNER_SIZE = int(os.environ.get("VOLUME_1H_BANNER_SIZE", 12))
+VOLUME_1H_BASELINE = [
+    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD",
+    "ADA-USD", "AVAX-USD", "LINK-USD", "LTC-USD",
+]
 
 # Debugging helper for product id resolution
 DEBUG_PID = os.getenv("DEBUG_PRODUCT_ID", "").lower() in ("1", "true", "yes")
@@ -1110,35 +1134,22 @@ def api_sentiment():
     """Return simple sentiment rows for a comma-separated symbols list."""
     syms_param = (request.args.get('symbols') or '').strip()
     if not syms_param:
-        return jsonify([])
-    syms = [s.strip().upper() for s in syms_param.split(',') if s.strip()]
-    out = []
-    now_ms = int(time.time() * 1000)
-    for sym in syms:
-        try:
-            s = get_social_sentiment(sym)
-            dist = s.get('sentiment_distribution') or {}
-            metrics = s.get('social_metrics') or {}
-            tw = (metrics.get('twitter') or {}).get('mentions_24h') or 0
-            rd = (metrics.get('reddit') or {}).get('posts_24h') or 0
-            tg = (metrics.get('telegram') or {}).get('messages_24h') or 0
-            total_mentions = int(tw) + int(rd) + int(tg)
-            out.append({
-                'symbol': sym,
-                'ts': now_ms,
-                'mentions': total_mentions,
-                'sent_score': float((s.get('overall_sentiment') or {}).get('score') or 0.0),
-                'pos': float(dist.get('positive') or 0.0),
-                'neg': float(dist.get('negative') or 0.0),
-                'velocity': 0.0,
-                'source_mix': {
-                    'twitter': int(tw),
-                    'reddit': int(rd),
-                    'telegram': int(tg),
-                },
-            })
-        except Exception:
-            continue
+        # No symbols provided, return divergence data
+        payload, used_url, err_info = _proxy_pipeline_request('/sentiment/divergence', timeout=5)
+        if err_info:
+            return _pipeline_error_response(err_info, 'Sentiment divergence fetch failed')
+
+        divergence_payload = payload or {}
+        return jsonify({
+            'success': True,
+            'data': divergence_payload,
+            'timestamp': divergence_payload.get('timestamp', datetime.utcnow().isoformat()),
+            'pipeline_url': used_url,
+        })
+
+    # Process symbols list
+    out = {}
+    # TODO: implement symbol-specific sentiment
     return jsonify(out)
 
 
@@ -1202,28 +1213,15 @@ def api_sentiment_latest():
     fresh = request.args.get("fresh", "0")
 
     # Build URL for sentiment pipeline
-    pipeline_url = f"{SENTIMENT_PIPELINE_URL.rstrip('/')}/sentiment/latest"
     params = {"symbol": symbol}
     if fresh == "1":
         params["fresh"] = "1"
 
-    try:
-        # Proxy request to sentiment pipeline with short timeout
-        resp = requests.get(pipeline_url, params=params, timeout=5.0)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Add symbol and metadata
-        data["symbol"] = symbol
-        data["upstream"] = "sentiment_pipeline"
-        data["ts_cache"] = time.time()
-
-        return jsonify(data)
-    except Exception as exc:
-        # Fallback to Fear & Greed + basic data if pipeline unavailable
-        logging.warning(f"Sentiment pipeline unavailable for {symbol}: {exc}")
-
+    payload, used_url, err_info = _proxy_pipeline_request("/sentiment/latest", params=params, timeout=5.0)
+    if err_info:
+        logging.warning("Sentiment pipeline unavailable for %s: %s", symbol, err_info.get("detail"))
         fallback_data = {
+            'ok': False,
             'symbol': symbol,
             'overall_sentiment': 0.5,
             'fear_greed_index': 50,
@@ -1233,10 +1231,20 @@ def api_sentiment_latest():
             'sources': [],
             'sentiment_history': [],
             'timestamp': time.time(),
-            'error': str(exc),
+            'error': err_info.get('error'),
+            'detail': err_info.get('detail'),
+            'pipeline_url': err_info.get('pipeline_url'),
             'upstream': 'fallback',
         }
-        return jsonify(fallback_data), 503
+        return jsonify(fallback_data), err_info.get('status', 503)
+
+    data = payload or {}
+    data["symbol"] = symbol
+    data["upstream"] = "sentiment_pipeline"
+    data["ts_cache"] = time.time()
+    data["pipeline_url"] = used_url
+    data["ok"] = True
+    return jsonify(data)
 
 
 # Legacy endpoint - keeping for backward compatibility
@@ -1336,6 +1344,49 @@ def _pipeline_url(path: str) -> str:
     return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
 
 
+def _proxy_pipeline_request(path: str, params: dict | None = None, timeout: float = 5.0):
+    """Proxy a GET to the pipeline and normalize success/error payloads."""
+    url = _pipeline_url(path)
+    try:
+        response = requests.get(url, params=params or {}, timeout=timeout)
+        response.raise_for_status()
+        payload = response.json()
+        return payload, url, None
+    except requests.exceptions.ConnectionError as exc:
+        return None, url, {
+            "error": "pipeline_unreachable",
+            "detail": str(exc),
+            "status": 503,
+            "pipeline_url": url,
+        }
+    except requests.exceptions.Timeout as exc:
+        return None, url, {
+            "error": "pipeline_timeout",
+            "detail": str(exc),
+            "status": 504,
+            "pipeline_url": url,
+        }
+    except Exception as exc:
+        return None, url, {
+            "error": "pipeline_error",
+            "detail": str(exc),
+            "status": 502,
+            "pipeline_url": url,
+        }
+
+
+def _pipeline_error_response(err_info: dict, message: str | None = None):
+    body = {
+        "success": False,
+        "ok": False,
+        "error": err_info.get("error"),
+        "detail": err_info.get("detail"),
+        "pipeline_url": err_info.get("pipeline_url"),
+        "message": message or "Sentiment pipeline is not available",
+    }
+    return jsonify(body), err_info.get("status", 502)
+
+
 def _pipeline_try_get_json(paths, timeout=5):
     """Try multiple pipeline paths and return (data, used_url)."""
     last_err = None
@@ -1357,85 +1408,40 @@ def get_tiered_sentiment():
     Proxy endpoint for tiered sentiment from the sentiment pipeline.
     Honors the configured SENTIMENT_HOST/SENTIMENT_PORT to keep the proxy in sync with the orchestrator.
     """
-    try:
-        # Forward request to sentiment pipeline
-        response = requests.get(
-            _pipeline_url('/sentiment/latest'),
-            timeout=5
-        )
-        response.raise_for_status()
+    payload, used_url, err_info = _proxy_pipeline_request('/sentiment/latest', timeout=5)
+    if err_info:
+        return _pipeline_error_response(err_info, 'Sentiment pipeline not running')
 
-        data = response.json()
-
-        # Transform the response to match frontend expectations
-        # The main_runner.py returns data with structure we need to adapt
-        return jsonify({
-            'success': True,
-            'data': data,
-            'timestamp': data.get('timestamp', datetime.utcnow().isoformat())
-        })
-
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline not running',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': f'The sentiment collection pipeline is not available at {SENTIMENT_PIPELINE_URL}; start it with: ./scripts/start_sentiment.sh'
-        }), 503
-
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline timeout',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': 'The sentiment pipeline took too long to respond'
-        }), 504
-
-    except Exception as e:
-        logging.error(f"Error proxying to sentiment pipeline: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': 'Failed to fetch sentiment data from pipeline'
-        }), 500
+    data = payload or {}
+    return jsonify({
+        'success': True,
+        'data': data,
+        'timestamp': data.get('timestamp', datetime.utcnow().isoformat()),
+        'pipeline_url': used_url,
+    })
 
 @app.route('/api/sentiment/pipeline-health')
 def check_sentiment_pipeline_health():
     """
     Check if the sentiment pipeline is running and healthy.
     """
-    try:
-        response = requests.get(
-            _pipeline_url('/health'),
-            timeout=2
-        )
-        response.raise_for_status()
-        health_data = response.json()
+    payload, used_url, err_info = _proxy_pipeline_request('/health', timeout=2)
+    if err_info:
+        return _pipeline_error_response(err_info, 'Sentiment pipeline health check failed')
 
-        return jsonify({
-            'success': True,
-            'pipeline_running': True,
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'health_data': health_data
-        })
+    health_data = payload or {}
+    return jsonify({
+        'success': True,
+        'ok': True,
+        'pipeline_running': True,
+        'pipeline_url': used_url,
+        'health_data': health_data,
+    })
 
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'success': False,
-            'pipeline_running': False,
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'error': 'Connection refused - pipeline not running',
-            'help': f'Start the pipeline with: ./scripts/start_sentiment.sh (listening at {SENTIMENT_PIPELINE_URL})'
-        }), 503
 
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'pipeline_running': False,
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'error': str(e)
-        }), 500
+@app.route('/api/sentiment/health')
+def api_sentiment_health():
+    return check_sentiment_pipeline_health()
 
 @app.route('/api/sentiment/sources')
 def get_sentiment_sources():
@@ -2015,13 +2021,18 @@ cache = {
 }
 
 # Store price history for interval calculations
-# Rolling price history (3m + 1m)
+# Rolling price history (3m + 1m + 1h)
 price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
 price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
+price_history_1hour = defaultdict(lambda: deque(maxlen=80))  # 1h tracking: 80 snapshots = ~75min at 1min intervals
 
 # Track readiness of the 3m baseline (first snapshot >= interval ago)
 _BASELINE_3M_LOCK = threading.Lock()
 _BASELINE_3M_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
+
+# Track readiness of 1h baseline
+_BASELINE_1H_LOCK = threading.Lock()
+_BASELINE_1H_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
 
 
 def _set_baseline_meta_3m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
@@ -2039,6 +2050,18 @@ def _get_baseline_meta_3m():
         "baseline_ts": baseline_ts,
         "age_seconds": baseline_age
     }
+
+def _set_baseline_meta_1h(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+    with _BASELINE_1H_LOCK:
+        _BASELINE_1H_META["ready"] = bool(ready)
+        _BASELINE_1H_META["baseline_ts"] = baseline_ts
+        _BASELINE_1H_META["age_seconds"] = age_seconds
+
+def _get_baseline_meta_1h():
+    """Get 1h baseline meta using direct price_history_1hour check."""
+    with _BASELINE_1H_LOCK:
+        return dict(_BASELINE_1H_META)
+
 # Cache / state for 1-min data to prevent hammering APIs
 one_minute_cache = {"data": None, "timestamp": 0}
 last_current_prices = {"data": None, "timestamp": 0}
@@ -2210,6 +2233,42 @@ def _get_candle_volume_for_symbols(symbols):
 
     return results
 
+def calculate_1hour_volume_changes(current_prices):
+    """Calculate real-time 1h volume changes using candle data.
+
+    Returns list of dicts with symbol, current_price, vol1h, vol1h_pct_change.
+    """
+    # Get all symbols that have current prices
+    symbols = list(current_prices.keys())
+
+    if not symbols:
+        return []
+
+    # Update candle cache for these symbols (background fetch)
+    _update_candle_volume_cache([f"{sym}-USD" for sym in symbols[:60]])
+
+    # Get cached volume data
+    volume_data = _get_candle_volume_for_symbols(symbols)
+
+    # Combine with current prices
+    results = []
+    for vol_entry in volume_data:
+        symbol = vol_entry['symbol']
+        current_price = current_prices.get(symbol, 0)
+
+        if current_price <= 0:
+            continue
+
+        results.append({
+            "symbol": symbol,
+            "current_price": current_price,
+            "vol1h": vol_entry['vol1h'],
+            "vol1h_pct_change": vol_entry.get('vol1h_pct_change'),
+            "stale": vol_entry.get('stale', False),
+        })
+
+    return results
+
 # ----------------------------------------------------------------------------
 # Background-computed component snapshots (cache-only /data)
 # ----------------------------------------------------------------------------
@@ -2227,6 +2286,9 @@ _MW_COMPONENT_SNAPSHOTS_LOCK = threading.Lock()
 # Last-good snapshot tracking: timestamp and full payload
 _MW_LAST_GOOD_TS = None
 _MW_LAST_GOOD_DATA = None
+_VOLUME_DB_READY = False
+_VOLUME_BACKOFF = {}
+_VOLUME_FAILS = {}
 
 
 def _mw_set_component_snapshots(**updates):
@@ -2262,6 +2324,111 @@ def _mw_set_component_snapshots(**updates):
 def _mw_get_component_snapshot(name: str):
     with _MW_COMPONENT_SNAPSHOTS_LOCK:
         return _MW_COMPONENT_SNAPSHOTS.get(name)
+
+
+def _volume_db_init_once():
+    global _VOLUME_DB_READY
+    if not _VOLUME_DB_READY:
+        try:
+            ensure_volume_db()
+            _VOLUME_DB_READY = True
+        except Exception as e:
+            logging.warning(f"volume1h db init failed: {e}")
+
+
+def _volume1h_compute_ranked(payload: dict):
+    _volume_db_init_once()
+    now_ts = int(time.time())
+    tracked = get_volume_tracked_product_ids(payload)
+    items = []
+    for pid in tracked:
+        try:
+            m = compute_volume_1h(pid, now_ts)
+        except Exception as e:
+            logging.debug(f"volume1h compute error for {pid}: {e}")
+            continue
+        if m:
+            items.append(m)
+
+    def sort_key(row):
+        pct = row.get("volume_change_1h_pct")
+        pct_abs = abs(pct) if isinstance(pct, (int, float)) else None
+        vol_now = row.get("volume_1h_now") or 0
+        return (-(pct_abs if pct_abs is not None else -1), -vol_now)
+
+    # Sort: abs pct desc (None last via -1 trick), then volume desc
+    items.sort(key=sort_key)
+    items = items[: VOLUME_1H_BANNER_SIZE]
+    for idx, row in enumerate(items, start=1):
+        row["rank"] = idx
+    return items
+
+
+# ----------------------------------------------------------------------------
+# 1h volume helpers (tracked set + SQLite-backed compute)
+# ----------------------------------------------------------------------------
+def _product_id_from_row(row):
+    if not row:
+        return None
+    pid = row.get("product_id") or row.get("productId")
+    if isinstance(pid, str) and pid:
+        return pid
+    sym = row.get("symbol") or row.get("ticker")
+    if sym:
+        return f"{str(sym).upper()}-USD"
+    return None
+
+
+def get_volume_tracked_product_ids(payload: dict) -> list[str]:
+    seen = set()
+    out = []
+
+    def add(pid: str):
+        if not pid:
+            return
+        if pid in seen:
+            return
+        seen.add(pid)
+        out.append(pid)
+
+    for pid in VOLUME_1H_BASELINE:
+        add(pid)
+
+    for key in ("gainers_1m", "gainers_3m", "losers_3m", "watchlist"):
+        rows = payload.get(key) or []
+        for row in rows:
+            pid = _product_id_from_row(row)
+            if pid:
+                add(pid)
+
+    return out[: VOLUME_1H_MAX_TRACKED]
+
+
+def _volume1h_build_payload_snapshot():
+    def _unwrap(name):
+        snap = _mw_get_component_snapshot(name)
+        if isinstance(snap, dict):
+            return snap.get("data") or []
+        if isinstance(snap, list):
+            return snap
+        return []
+
+    payload = {
+        "gainers_1m": _unwrap("gainers_1m"),
+        "gainers_3m": _unwrap("gainers_3m"),
+        "losers_3m": _unwrap("losers_3m"),
+    }
+
+    try:
+        # Optional watchlist from last-good payload if available
+        if isinstance(_MW_LAST_GOOD_DATA, dict):
+            wl = _MW_LAST_GOOD_DATA.get("watchlist")
+            if wl:
+                payload["watchlist"] = wl
+    except Exception:
+        pass
+
+    return payload
 
 
 def _mw_check_3m_baseline_ready():
@@ -2758,6 +2925,7 @@ def calculate_interval_changes(current_prices):
     for symbol, price in current_prices.items():
         if price > 0:
             price_history[symbol].append((current_time, price))
+            price_history_1hour[symbol].append((current_time, price))  # Track 1h history
 
     formatted_data = []
     target_ts = current_time - interval_seconds
@@ -2824,12 +2992,13 @@ def calculate_1min_changes(current_prices):
     """Calculate price changes over 1 minute"""
     current_time = time.time()
     interval_seconds = 60 # 1 minute
-    
+
     # Update price history with current prices
     for symbol, price in current_prices.items():
         if price > 0:
             price_history_1min[symbol].append((current_time, price))
-    
+            price_history_1hour[symbol].append((current_time, price))  # Track 1h history
+
     # Calculate changes for each symbol
     formatted_data = []
     for symbol, price in current_prices.items():
@@ -2872,6 +3041,72 @@ def calculate_1min_changes(current_prices):
                 "actual_interval_minutes": actual_interval_minutes
             })
     
+    return formatted_data
+
+def calculate_1hour_price_changes(current_prices):
+    """Calculate real-time 1-hour price changes using price_history_1hour.
+
+    Returns list of dicts with symbol, current_price, price_1h_ago, price_change_1h.
+    """
+    current_time = time.time()
+    interval_seconds = 3600  # 1 hour
+
+    formatted_data = []
+    baseline_ready_any = False
+    earliest_baseline_ts = None
+    target_ts = current_time - interval_seconds
+
+    for symbol, price in current_prices.items():
+        if price <= 0:
+            continue
+
+        history = price_history_1hour[symbol]
+        if len(history) < 2:
+            continue
+
+        # Find the latest point that is at or older than 1h ago
+        hist_list = list(history)
+        baseline_pair = None
+        for t, p in reversed(hist_list):
+            if t <= target_ts:
+                baseline_pair = (t, p)
+                break
+
+        if baseline_pair is None:
+            # No baseline yet that's >= 1h old — warming state
+            continue
+
+        interval_time, interval_price = baseline_pair
+        try:
+            interval_price = float(interval_price)
+        except (TypeError, ValueError):
+            interval_price = None
+
+        if interval_price is None or interval_price <= 0:
+            continue
+
+        baseline_ready_any = True
+        if earliest_baseline_ts is None or interval_time < earliest_baseline_ts:
+            earliest_baseline_ts = interval_time
+
+        price_change = pct_change(price, interval_price)
+        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
+
+        formatted_data.append({
+            "symbol": symbol,
+            "current_price": price,
+            "price_1h_ago": interval_price,
+            "price_change_1h": price_change,
+            "actual_interval_minutes": actual_interval_minutes
+        })
+
+    # Update baseline meta
+    if baseline_ready_any and earliest_baseline_ts is not None:
+        baseline_age = current_time - earliest_baseline_ts
+        _set_baseline_meta_1h(ready=True, baseline_ts=earliest_baseline_ts, age_seconds=baseline_age)
+    else:
+        _set_baseline_meta_1h(ready=False, baseline_ts=None, age_seconds=None)
+
     return formatted_data
 
 def get_current_prices():
@@ -3278,31 +3513,66 @@ def analyze_coin_potential(symbol, chart_data):
 
 @app.route('/api/banner-top')
 def get_top_banner():
-    """Top banner: Current price + 1h % change (unique endpoint)"""
+    """Top banner: Current price + REAL-TIME 1h % change (unique endpoint)"""
     try:
-        # Get specific data for top banner - focus on price and 1h changes
-        banner_data = get_24h_top_movers()
-        
-        if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
-            
-        # Format specifically for top banner - normalized shape expected by clients/tests
-        items = []
-        for coin in banner_data[:20]:  # Top 20 for scrolling
-            items.append({
-                "symbol": coin["symbol"],
-                "current_price": coin.get("current_price") or coin.get('current') or 0,
-                "price_change_1h": coin.get("price_change_1h", 0),
-                "market_cap": coin.get("market_cap", 0)
+        # Get current prices from live feed
+        current_prices = get_current_prices()
+
+        # Calculate REAL 1h price changes from price_history_1hour
+        hour_changes = calculate_1hour_price_changes(current_prices)
+
+        # Get baseline metadata
+        baseline_meta = _get_baseline_meta_1h()
+
+        # If warming up (no 1h baseline yet), fall back to 24h top movers with estimates
+        if not baseline_meta.get("ready") or not hour_changes:
+            logging.info("Top banner: 1h baseline warming, using 24h top movers fallback")
+            banner_data = get_24h_top_movers()
+            if not banner_data:
+                return jsonify({"error": "No banner data available"}), 503
+
+            items = []
+            for coin in banner_data[:20]:
+                items.append({
+                    "symbol": coin["symbol"],
+                    "current_price": coin.get("current_price") or coin.get('current') or 0,
+                    "price_change_1h": coin.get("price_change_1h", 0),  # estimated
+                    "market_cap": coin.get("market_cap", 0),
+                    "_source": "24h_fallback"
+                })
+
+            return jsonify({
+                "items": items,
+                "count": len(items),
+                "limit": 20,
+                "age_seconds": 0,
+                "stale": True,
+                "warming": True,
+                "ts": int(time.time())
             })
 
-        # Provide test-friendly root keys: items, count, limit, age_seconds, stale, ts
+        # Sort by absolute 1h change (biggest movers first)
+        sorted_changes = sorted(hour_changes, key=lambda x: abs(x.get("price_change_1h", 0)), reverse=True)
+
+        # Format for top banner
+        items = []
+        for change in sorted_changes[:20]:  # Top 20 biggest 1h movers
+            items.append({
+                "symbol": change["symbol"],
+                "current_price": change["current_price"],
+                "price_change_1h": change["price_change_1h"],
+                "price_1h_ago": change.get("price_1h_ago", 0),
+                "_source": "realtime_1h"
+            })
+
+        baseline_age = baseline_meta.get("age_seconds", 0)
         return jsonify({
             "items": items,
             "count": len(items),
             "limit": 20,
-            "age_seconds": 0,
+            "age_seconds": baseline_age,
             "stale": False,
+            "warming": False,
             "ts": int(time.time())
         })
     except Exception as e:
@@ -3311,25 +3581,64 @@ def get_top_banner():
 
 @app.route('/api/banner-bottom')
 def get_bottom_banner():
-    """Bottom banner: Volume + 1h % change (unique endpoint)"""
+    """Bottom banner: REAL-TIME 1h volume changes from candles (unique endpoint)"""
     try:
-        # Get specific data for bottom banner - focus on volume and 1h changes
-        banner_data = get_24h_top_movers()
-        
-        if not banner_data:
-            return jsonify({"error": "No banner data available"}), 503
-            
-        # Sort by volume for bottom banner
-        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
-        
-        # Format specifically for bottom banner - normalized shape expected by clients/tests
+        # Get current prices from live feed
+        current_prices = get_current_prices()
+
+        # Calculate REAL 1h volume changes from candles
+        volume_changes = calculate_1hour_volume_changes(current_prices)
+
+        # If no volume data yet, fall back to 24h top movers sorted by volume
+        if not volume_changes:
+            logging.info("Bottom banner: No 1h volume data, using 24h volume fallback")
+            banner_data = get_24h_top_movers()
+            if not banner_data:
+                return jsonify({"error": "No banner data available"}), 503
+
+            volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
+
+            items = []
+            for coin in volume_sorted[:20]:
+                # Use 1h price change as fallback until volume data warms up
+                price_change_1h_fallback = coin.get("price_change_1h", 0) or 0
+                items.append({
+                    "symbol": coin["symbol"],
+                    "volume_24h": coin.get("volume_24h", 0),
+                    "volume_change_1h": price_change_1h_fallback,  # Fallback to price % until volume data ready
+                    "current_price": coin.get("current_price") or coin.get('current') or 0,
+                    "_source": "24h_fallback_using_price_change"
+                })
+
+            return jsonify({
+                "items": items,
+                "count": len(items),
+                "limit": 20,
+                "age_seconds": 0,
+                "stale": True,
+                "warming": True,
+                "ts": int(time.time())
+            })
+
+        # Sort by absolute 1h volume change (biggest movers first)
+        # Filter out stale or None changes
+        valid_changes = [v for v in volume_changes if v.get('vol1h_pct_change') is not None and not v.get('stale', False)]
+
+        if not valid_changes:
+            # All stale, use whatever we have
+            valid_changes = volume_changes
+
+        sorted_changes = sorted(valid_changes, key=lambda x: abs(x.get("vol1h_pct_change") or 0), reverse=True)
+
+        # Format for bottom banner
         items = []
-        for coin in volume_sorted[:20]:  # Top 20 by volume
+        for change in sorted_changes[:20]:  # Top 20 biggest 1h volume movers
             items.append({
-                "symbol": coin["symbol"],
-                "volume_24h": coin.get("volume_24h", 0),
-                "price_change_1h": coin.get("price_change_1h", 0),
-                "current_price": coin.get("current_price") or coin.get('current') or 0
+                "symbol": change["symbol"],
+                "current_price": change["current_price"],
+                "vol1h": change["vol1h"],
+                "volume_change_1h": change.get("vol1h_pct_change", 0),
+                "_source": "realtime_candles"
             })
 
         return jsonify({
@@ -3338,6 +3647,7 @@ def get_bottom_banner():
             "limit": 20,
             "age_seconds": 0,
             "stale": False,
+            "warming": False,
             "ts": int(time.time())
         })
     except Exception as e:
@@ -3483,22 +3793,34 @@ def get_banner_1h_volume(banner_data=None):
 
         # Helper to compute vol change from history
         def _vol_change_for(sym, vol_now):
+            baseline_ready = False
             vol_change = None
             vol_change_pct = None
+            baseline_vol = None
+            baseline_ts = None
+            baseline_missing_reason = None
             try:
                 hist = volume_history_24h.get(sym, deque())
                 if hist:
-                    vol_then = None
-                    for ts, vol in hist:
-                        if now_ts - ts >= 3600:
-                            vol_then = vol
+                    for ts, vol in reversed(hist):
+                        if now_ts - ts >= 3500:
+                            baseline_ts = ts
+                            baseline_vol = vol
                             break
-                    if vol_then is not None:
-                        vol_change = vol_now - vol_then
-                        vol_change_pct = pct_change(vol_now, vol_then)
+                    if baseline_ts is None:
+                        baseline_missing_reason = "needs_60m_history"
+                    else:
+                        baseline_ready = True
+                        if baseline_vol is not None:
+                            vol_change = (vol_now or 0) - baseline_vol
+                            vol_change_pct = pct_change(vol_now, baseline_vol)
+                else:
+                    baseline_missing_reason = "no_snapshot"
             except Exception:
-                pass
-            return vol_change, vol_change_pct
+                if baseline_missing_reason is None:
+                    baseline_missing_reason = "needs_60m_history"
+            baseline_age = (now_ts - baseline_ts) if baseline_ready and baseline_ts else None
+            return vol_change, vol_change_pct, baseline_vol, baseline_ready, baseline_age, baseline_missing_reason
 
         # If banner_data provides volume_24h, use it; otherwise derive from
         # `volume_history_24h` latest snapshot per symbol.
@@ -3537,15 +3859,29 @@ def get_banner_1h_volume(banner_data=None):
                 except Exception:
                     current_price = 0.0
 
-            vol_change_1h, vol_change_1h_pct = _vol_change_for(sym, vol_now)
+            (
+                vol_change_1h,
+                vol_change_1h_pct,
+                baseline_vol,
+                baseline_ready,
+                baseline_age,
+                baseline_missing_reason,
+            ) = _vol_change_for(sym, vol_now)
 
             rows.append({
                 "symbol": sym,
                 "current_price": float(current_price or 0),
                 "volume_24h": float(vol_now or 0),
+                "volume_1h_now": float(vol_now or 0),
+                "volume_1h_prev": float(baseline_vol or 0),
                 "price_change_1h": float(price_change_1h or 0),
-                "volume_change_1h": vol_change_1h,
-                "volume_change_1h_pct": vol_change_1h_pct,
+                "volume_change_1h": _safe_float(vol_change_1h),
+                "volume_change_1h_pct": baseline_ready
+                    and _safe_float(vol_change_1h_pct)
+                    or None,
+                "baseline_ready": bool(baseline_ready),
+                "baseline_age_sec": baseline_age,
+                "baseline_missing_reason": None if baseline_ready else baseline_missing_reason,
             })
 
         return rows, datetime.now().isoformat()
@@ -3630,6 +3966,7 @@ def data_aggregate():
                 "banner_1h_price": snap_b1h or [],
                 "banner_1h_volume": snap_bv or [],
                 "volume_1h_candles": snap_v1h or [],
+                "volume1h": [],
                 "latest_by_symbol": latest_by_symbol,
                 "updated_at": snap_updated_at,
                 "meta": {
@@ -3648,6 +3985,7 @@ def data_aggregate():
                     "banner_1h_price": len(snap_b1h or []),
                     "banner_1h_volume": len(snap_bv or []),
                     "volume_1h_candles": len(snap_v1h or []),
+                    "volume1h": 0,
                     "gainers_1m": len(snap_g1 or []),
                     "gainers_3m": len(snap_g3 or []),
                     "losers_3m": len(snap_l3 or []),
@@ -3660,9 +3998,18 @@ def data_aggregate():
                 "banner_1h_price": payload["banner_1h_price"],
                 "banner_1h_volume": payload["banner_1h_volume"],
                 "volume_1h_candles": payload["volume_1h_candles"],
+                "volume1h": [],
                 "latest_by_symbol": payload["latest_by_symbol"],
                 "updated_at": payload["updated_at"],
             }
+            try:
+                volume1h_rows = _volume1h_compute_ranked(payload)
+                payload["volume1h"] = volume1h_rows
+                payload["data"]["volume1h"] = volume1h_rows
+                payload["coverage"]["volume1h"] = len(volume1h_rows)
+            except Exception as e:
+                logging.debug(f"volume1h compute skip: {e}")
+
             resp = jsonify(payload)
             resp.headers["Cache-Control"] = "no-store, max-age=0"
             return resp, 200
@@ -3677,6 +4024,7 @@ def data_aggregate():
             "banner_1h_price": [],
             "banner_1h_volume": [],
             "volume_1h_candles": [],
+            "volume1h": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
             "meta": {
@@ -3695,6 +4043,7 @@ def data_aggregate():
                 "banner_1h_price": 0,
                 "banner_1h_volume": 0,
                 "volume_1h_candles": 0,
+                "volume1h": 0,
                 "gainers_1m": 0,
                 "gainers_3m": 0,
                 "losers_3m": 0,
@@ -3706,6 +4055,7 @@ def data_aggregate():
             "losers_3m": [],
             "banner_1h_price": [],
             "banner_1h_volume": [],
+            "volume1h": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
         }
@@ -5767,6 +6117,57 @@ def _fetch_prices_and_update_history():
         logging.error(f"Error in price fetch: {e}")
 
 
+def _volume1h_updater_loop():
+    _volume_db_init_once()
+    logging.info(f"Starting volume1h updater: interval={VOLUME_1H_REFRESH_SEC}s workers={VOLUME_1H_WORKERS}")
+    while True:
+        loop_start = time.time()
+        snapshot_payload = _volume1h_build_payload_snapshot()
+        tracked = get_volume_tracked_product_ids(snapshot_payload)
+
+        ok = 0
+        fail = 0
+        rl = 0
+        skipped = 0
+        now_ts = int(time.time())
+
+        if tracked:
+            with ThreadPoolExecutor(max_workers=VOLUME_1H_WORKERS) as executor:
+                futures = {}
+                for pid in tracked:
+                    backoff_until = _VOLUME_BACKOFF.get(pid, 0)
+                    if now_ts < backoff_until:
+                        skipped += 1
+                        continue
+                    futures[executor.submit(refresh_product_minutes, pid, now_ts)] = pid
+
+                for fut in as_completed(futures):
+                    pid = futures[fut]
+                    try:
+                        res = fut.result()
+                        if res:
+                            _VOLUME_FAILS[pid] = 0
+                            _VOLUME_BACKOFF[pid] = 0
+                            ok += 1
+                        else:
+                            raise RuntimeError("refresh_failed")
+                    except RateLimitError:
+                        rl += 1
+                        _VOLUME_FAILS[pid] = _VOLUME_FAILS.get(pid, 0) + 1
+                        delay = min(600, 30 * (2 ** (_VOLUME_FAILS[pid] - 1)))
+                        _VOLUME_BACKOFF[pid] = int(time.time()) + delay
+                    except Exception as e:
+                        fail += 1
+                        _VOLUME_FAILS[pid] = _VOLUME_FAILS.get(pid, 0) + 1
+                        delay = min(300, 10 * (2 ** (_VOLUME_FAILS[pid] - 1)))
+                        _VOLUME_BACKOFF[pid] = int(time.time()) + delay
+                        logging.debug(f"volume1h refresh error for {pid}: {e}")
+
+        logging.info(f"[volume1h] tracked={len(tracked)} ok={ok} fail={fail} rl={rl} skip={skipped}")
+        sleep_for = max(1, VOLUME_1H_REFRESH_SEC - (time.time() - loop_start))
+        time.sleep(sleep_for)
+
+
 def background_crypto_updates():
     """Two-loop background worker: fast snapshot compute + slower price fetch."""
     logging.info(f"Starting two-loop background worker: compute every {CONFIG['SNAPSHOT_COMPUTE_INTERVAL']}s, fetch every {CONFIG['PRICE_FETCH_INTERVAL']}s")
@@ -5802,6 +6203,8 @@ def background_crypto_updates():
 
 _MW_BG_THREAD = None
 _MW_BG_LOCK = threading.Lock()
+_MW_VOLUME_THREAD = None
+_MW_VOLUME_LOCK = threading.Lock()
 
 
 def _mw_ensure_background_started():
@@ -5811,7 +6214,7 @@ def _mw_ensure_background_started():
     executed, so the background updater thread would never start and SWR
     snapshots remain empty (dashboard shows no data).
     """
-    global _MW_BG_THREAD
+    global _MW_BG_THREAD, _MW_VOLUME_THREAD
 
     # Avoid starting the thread in the Werkzeug reloader parent process.
     # Only the child process sets WERKZEUG_RUN_MAIN=true.
@@ -5835,6 +6238,24 @@ def _mw_ensure_background_started():
                 app.logger.warning(f"Failed to start background updater thread: {e}")
             except Exception:
                 pass
+
+    with _MW_VOLUME_LOCK:
+        if _MW_VOLUME_THREAD is None or not _MW_VOLUME_THREAD.is_alive():
+            try:
+                ensure_volume_db()
+                vt = threading.Thread(target=_volume1h_updater_loop)
+                vt.daemon = True
+                vt.start()
+                _MW_VOLUME_THREAD = vt
+                try:
+                    app.logger.info("Volume 1h updater thread started (flask-run bootstrap)")
+                except Exception:
+                    pass
+            except Exception as e:
+                try:
+                    app.logger.warning(f"Failed to start volume updater thread: {e}")
+                except Exception:
+                    pass
 
 
 @app.before_request
@@ -5942,6 +6363,16 @@ if __name__ == '__main__':
                 logging.debug("Cache warmup skipped: snapshot builders not available at startup")
     except Exception:
         logging.debug("Unexpected error during cache warmup after DEV seeding")
+
+    # Start volume 1h updater thread (candles → SQLite)
+    try:
+        ensure_volume_db()
+        vol_thread = threading.Thread(target=_volume1h_updater_loop)
+        vol_thread.daemon = True
+        vol_thread.start()
+        logging.info("Volume 1h updater thread started")
+    except Exception as e:
+        logging.warning(f"Failed to start volume 1h updater thread: {e}")
 
     # Start background thread for periodic updates
     background_thread = threading.Thread(target=background_crypto_updates)

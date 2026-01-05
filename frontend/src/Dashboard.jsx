@@ -24,6 +24,24 @@ function formatTimestamp(d = new Date()) {
   return `${time} on ${date}`;
 }
 
+/**
+ * Normalize symbol format for sentiment endpoint
+ * Backend expects base symbols (BTC, ETH) not product IDs (BTC-USD)
+ */
+function normalizeSentimentSymbol(input) {
+  if (!input) return null;
+  const s = String(input).trim().toUpperCase();
+
+  // Convert common formats: "BTC-USD" / "BTC/USD" -> "BTC"
+  // Sentiment endpoint expects BASE symbols
+  const base = s
+    .replace(/\/USD$/i, "")
+    .replace(/-USD$/i, "")
+    .replace(/_USD$/i, "");
+
+  return base || null;
+}
+
 export default function Dashboard() {
   const { data: feedData } = useDataFeed();
   const payload = feedData?.data ?? feedData ?? {};
@@ -47,14 +65,15 @@ export default function Dashboard() {
       payload.volume_1h_tokens ||
       [];
     const list = Array.isArray(candidates?.data) ? candidates.data : Array.isArray(candidates) ? candidates : [];
-    return list.map((t) => ({
-      symbol: t.symbol,
-      volume_1h_delta: t.volume_1h_delta ?? t.volume_change_abs ?? t.volume_change ?? 0,
-      volume_1h_pct: t.volume_1h_pct ?? t.volume_change_pct ?? t.change_1h_volume ?? 0,
-    }));
+    // Pass through raw backend data; VolumeBannerScroll will normalize it
+    return list;
   }, [payload.banner_1h_volume, payload.volume_1h, payload.volume_1h_top, payload.volume_1h_tokens]);
 
-  const handleInfo = (symbol) => setSelectedSymbol(symbol);
+  const handleInfo = (symbol) => {
+    const sym = normalizeSentimentSymbol(symbol);
+    if (!sym) return;
+    setSelectedSymbol(sym);
+  };
 
   const { items: watchlistItems } = useWatchlist();
   const hasWatchlist = (watchlistItems?.length ?? 0) > 0;
@@ -69,6 +88,27 @@ export default function Dashboard() {
     const centerY = seamRect.top + seamRect.height / 2 - boardRect.top;
     boardRef.current.style.setProperty("--rabbit-center-y", `${centerY}px`);
   }, [banner1h.length, vol1hTokens.length, payload.updated_at]);
+
+  // Global openInfo event listener (backstop for sentiment popup)
+  // This ensures sentiment popup opens even if onInfo prop is not wired correctly
+  useEffect(() => {
+    const onOpenInfo = (e) => {
+      const sym = normalizeSentimentSymbol(e?.detail);
+      if (!sym) return;
+
+      // Optional debug logging
+      try {
+        if (localStorage.getItem("mw_debug_sentiment") === "1") {
+          console.log("[sentiment] openInfo event:", { raw: e?.detail, normalized: sym });
+        }
+      } catch {}
+
+      setSelectedSymbol(sym);
+    };
+
+    window.addEventListener("openInfo", onOpenInfo);
+    return () => window.removeEventListener("openInfo", onOpenInfo);
+  }, []);
 
   // Rabbit hover emitter (event delegation on the board)
   useEffect(() => {
@@ -202,7 +242,7 @@ export default function Dashboard() {
                 <span className="bh-updated">Last updated {updatedLabel || "--"}</span>
               </div>
             </div>
-            <TopBannerScroll />
+            <TopBannerScroll data={banner1h} />
           </section>
 
           <section className="bh-section">
@@ -231,26 +271,37 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <section className="mb-10">
-            <div className="bh-panel bh-panel-full">
-              <AnomalyStream
-                data={payload}
-                volumeData={payload.banner_1h_volume || payload.volume_1h || []}
-              />
+          {/* Intelligence + Watchlist, aligned to same grid rails as 3m tables */}
+          <section className="bh-section">
+            <div className="panel-3m-grid">
+              <div className={`bh-table-block ${hasWatchlist ? "" : "bh-span-2"}`}>
+                <div className="bh-section-title bh-section-title--center">INTELLIGENCE</div>
+                <div className="bh-section-body">
+                  <div className="bh-table">
+                    <AnomalyStream
+                      data={payload}
+                      volumeData={payload.banner_1h_volume || payload.volume_1h || []}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {hasWatchlist && (
+                <div className="bh-table-block">
+                  <div className="bh-section-title bh-section-title--center">WATCHLIST</div>
+                  <div className="bh-section-body">
+                    <WatchlistPanel onInfo={handleInfo} />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
-
-          {hasWatchlist && (
-            <section className="panel-row-watchlist mb-10">
-              <WatchlistPanel onInfo={handleInfo} />
-            </section>
-          )}
 
           <section className="bh-banner-section">
             <div className="bh-banner-header">
               <div className="bh-banner-title">1-HOUR VOLUME CHANGE</div>
             </div>
-            <VolumeBannerScroll />
+            <VolumeBannerScroll data={vol1hTokens} />
           </section>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import normalizeSentiment from "../adapters/normalizeSentiment";
+import { getSentimentBaseUrl } from "../api";
 
 /*
  * Stability fence: every consumer relies on this hook returning the same shape.
@@ -11,13 +12,26 @@ import normalizeSentiment from "../adapters/normalizeSentiment";
 const FAIL_COOLDOWN_MS = 8000;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
 
+const parsePipelineResponse = async (response) => {
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (err) {
+    payload = null;
+  }
+  if (!response.ok) {
+    const detail =
+      payload?.detail ?? payload?.error ?? payload?.message ?? response.statusText ?? `HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+  return payload;
+};
+
 export function useSentimentLatest(
   symbol,
   { enabled = true, refreshMs = 30000 } = {}
 ) {
-  // Use relative paths so Vite proxy handles the request
-  // This avoids CORS issues by keeping requests same-origin
-  const base = "";
+  const base = (getSentimentBaseUrl() || "").replace(/\/$/, "");
 
   const lastGoodRef = useRef(null);
   const lastGoodSymbolRef = useRef(null);
@@ -30,9 +44,10 @@ export function useSentimentLatest(
   const [cooldownUntil, setCooldownUntil] = useState(0);
 
   const buildUrl = useCallback(() => {
-    return symbol
-      ? `${base}/api/sentiment/latest?symbol=${encodeURIComponent(symbol)}`
-      : `${base}/api/sentiment/latest`;
+    const path = symbol
+      ? `/api/sentiment/latest?symbol=${encodeURIComponent(symbol)}`
+      : "/api/sentiment/latest";
+    return base ? `${base}${path}` : path;
   }, [base, symbol]);
 
   const fetchOnce = useCallback(async () => {
@@ -51,9 +66,7 @@ export function useSentimentLatest(
     const timeoutId = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(buildUrl(), { cache: "no-store", signal: ac.signal });
-      if (!res.ok) throw new Error(`sentiment ${res.status}`);
-
-      const json = await res.json();
+      const json = await parsePipelineResponse(res);
       lastGoodRef.current = json;
       lastGoodSymbolRef.current = symbol || "";
       setRaw(json);

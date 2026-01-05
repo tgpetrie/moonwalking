@@ -138,7 +138,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
 
       <div ref={scrollRef} className={`bh-anom-body ${isCollapsed ? "is-hidden" : ""}`}>
         {logs.map((log) => (
-          <div key={log.id} className={`bh-anom-line tone-${log.tone}`}>
+          <div key={log.id} className={`bh-anom-line bh-row tone-${log.tone}`} data-side="flat">
             <span className="bh-anom-time">[{log.time}]</span>
             <span className="bh-anom-msg">{log.msg}</span>
           </div>

@@ -3,8 +3,26 @@ import { useData } from "../hooks/useData";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 function toNum(v) {
-  const n = typeof v === "string" ? Number(v) : v;
-  return Number.isFinite(n) ? n : null;
+  if (v == null) return null;
+
+  if (typeof v === "string") {
+    let s = v.trim();
+    if (!s) return null;
+    s = s.replace(/,/g, "");
+    s = s.replace(/%/g, "");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  return Number.isFinite(v) ? v : null;
+}
+
+function pickNumber(...vals) {
+  for (const v of vals) {
+    const n = toNum(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 function fmtVolume(n) {
@@ -36,30 +54,66 @@ function normalizeVolItem(raw, idx) {
   const symbol = symbolRaw ? symbolRaw.replace(/-usd$|-usdt$|-perp$/i, "").toUpperCase() : null;
   const productId = raw.product_id || raw.productId || (symbol ? `${symbol}-USD` : null);
 
-  const volumeNow =
-    toNum(raw.volume_1h_now) ??
-    toNum(raw.volume_1h) ??
-    toNum(raw.volume_now) ??
-    toNum(raw.vol1h) ??
-    toNum(raw.volume) ??
-    toNum(raw.volume_24h) ??
-    null;
+  const volumeNow = pickNumber(
+    raw.volume_1h_now,
+    raw.volume_1h,
+    raw.volume_now,
+    raw.vol1h,
+    raw.volume,
+    raw.volume_24h
+  );
 
-  const pct =
-    toNum(raw.volume_change_1h_pct) ??
-    toNum(raw.volume_change_pct_1h) ??
-    toNum(raw.volume_change_pct) ??
-    toNum(raw.changePct) ??
-    toNum(raw.pct_change) ??
-    toNum(raw.pct) ??
-    null;
+  let baseline = pickNumber(
+    raw.volume_1h_prev,
+    raw.volume_prev_1h,
+    raw.volume_prev,
+    raw.volume_1h_ago,
+    raw.prev_volume
+  );
 
-  const baseline =
-    toNum(raw.volume_1h_prev) ??
-    toNum(raw.volume_prev_1h) ??
-    toNum(raw.volume_prev) ??
-    toNum(raw.volume_1h_ago) ??
-    null;
+  let delta = pickNumber(
+    raw.volume_1h_delta,
+    raw.volume_change_1h,
+    raw.volume_change,
+    raw.volume_change_abs,
+    raw.delta
+  );
+
+  let pct = pickNumber(
+    raw.volume_change_1h_pct,
+    raw.volume_1h_pct,
+    raw.volume_change_pct_1h,
+    raw.volume_change_pct,
+    raw.changePct,
+    raw.pct_change,
+    raw.pct
+  );
+
+  const baselineReadyRaw =
+    raw.baseline_ready ?? raw.baselineReady ?? raw.baselineReadyFlag ?? null;
+  const baselineReady =
+    baselineReadyRaw === false
+      ? false
+      : baselineReadyRaw === true
+      ? true
+      : baseline != null;
+  const baselineAge = pickNumber(raw.baseline_age_sec, raw.baselineAgeSec);
+  const baselineMissingReason =
+    raw.baseline_missing_reason ?? raw.baselineMissingReason ?? null;
+
+  if (baseline == null && Number.isFinite(volumeNow) && Number.isFinite(delta)) {
+    baseline = volumeNow - delta;
+  }
+  if (baseline == null && Number.isFinite(volumeNow) && Number.isFinite(pct)) {
+    const denom = 1 + pct / 100;
+    if (denom > 0) baseline = volumeNow / denom;
+  }
+  if (pct == null && Number.isFinite(volumeNow) && Number.isFinite(baseline) && baseline > 0) {
+    pct = ((volumeNow - baseline) / baseline) * 100;
+  }
+  if (delta == null && Number.isFinite(volumeNow) && Number.isFinite(baseline)) {
+    delta = volumeNow - baseline;
+  }
 
   const rank = toNum(raw.rank) ?? idx + 1;
 
@@ -70,9 +124,13 @@ function normalizeVolItem(raw, idx) {
     symbol: String(symbol || productId),
     product_id: productId,
     volumeNow,
-    pct,
     baseline,
+    pct,
+    delta,
     rank,
+    baselineReady,
+    baselineAge,
+    baselineMissingReason,
   };
 }
 
@@ -107,6 +165,34 @@ export function VolumeBannerScroll({
     return out;
   }, [rawList]);
 
+  const debugSigRef = useRef(null);
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const enabled = window.localStorage?.getItem("mw_debug_volume") === "1";
+      if (!enabled) return;
+      if (debugSigRef.current === rawList) return;
+      debugSigRef.current = rawList;
+
+      let hasNow = 0;
+      let hasBaseline = 0;
+      let hasPct = 0;
+      for (const it of items) {
+        if (Number.isFinite(it.volumeNow)) hasNow += 1;
+        if (Number.isFinite(it.baseline)) hasBaseline += 1;
+        if (Number.isFinite(it.pct)) hasPct += 1;
+      }
+      const sample = items[0] || null;
+      console.log("[mw] volume banner diagnostics", {
+        total: items.length,
+        hasVolumeNow: hasNow,
+        hasBaseline,
+        hasPct,
+        sample,
+      });
+    } catch {}
+  }, [items, rawList]);
+
   const doubled = useMemo(() => (items.length ? [...items, ...items] : []), [items]);
   const showFallback = items.length === 0;
 
@@ -136,9 +222,9 @@ export function VolumeBannerScroll({
   }, [computeHalfWidth, items.length]);
 
   useEffect(() => {
-    xRef.current = 0;
+    xRef.current = -halfWidthRef.current;
     lastTsRef.current = null;
-    if (trackRef.current) trackRef.current.style.transform = "translate3d(0,0,0)";
+    if (trackRef.current) trackRef.current.style.transform = `translate3d(${xRef.current}px,0,0)`;
   }, [items.length]);
 
   const tick = useCallback(
@@ -156,8 +242,8 @@ export function VolumeBannerScroll({
 
       if (!paused && !prefersReduce && half > 0) {
         const dx = (Number(speed) || 0) * (dt / 1000);
-        xRef.current -= dx;
-        if (xRef.current <= -half) xRef.current += half;
+        xRef.current += dx;
+        if (xRef.current >= 0) xRef.current = -half;
         if (trackRef.current) {
           trackRef.current.style.transform = `translate3d(${xRef.current}px, 0, 0)`;
         }
@@ -198,9 +284,22 @@ export function VolumeBannerScroll({
       <div className="bh-banner-wrap" onMouseEnter={onEnter} onMouseLeave={onLeave}>
         <div ref={trackRef} className="bh-banner-track bh-banner-track--manual" style={{ transform: "translate3d(0,0,0)" }}>
           {doubled.map((it, i) => {
+            const hasVolume = Number.isFinite(it.volumeNow);
             const pct = Number.isFinite(it.pct) ? it.pct : null;
-            const stateClass = pct == null ? "is-flat" : pct >= 0 ? "is-gain" : "is-loss";
+            const fallbackPct =
+              hasVolume && it.baselineReady !== false && Number.isFinite(it.baseline) && it.baseline > 0
+                ? ((it.volumeNow - it.baseline) / it.baseline) * 100
+                : null;
+            const resolvedPct = it.baselineReady === false ? null : pct ?? fallbackPct;
+            const stateClass =
+              resolvedPct == null ? "is-flat" : resolvedPct >= 0 ? "is-gain" : "is-loss";
             const url = coinbaseSpotUrl({ ...it, product_id: it.product_id });
+            const showWarming = hasVolume && it.baselineReady === false;
+            const pctLabel = !hasVolume
+              ? "—"
+              : showWarming
+              ? "WARMING"
+              : fmtPct(resolvedPct);
 
             const chip = (
               <>
@@ -209,7 +308,7 @@ export function VolumeBannerScroll({
                 <span className="bh-banner-right">
                   <span className="bh-banner-chip__price">{fmtVolume(it.volumeNow)} vol</span>
                   <span className={`bh-banner-chip__pct ${stateClass === "is-gain" ? "bh-banner-change--pos" : stateClass === "is-loss" ? "bh-banner-change--neg" : ""}`}>
-                    {fmtPct(pct)}
+                    {pctLabel}
                   </span>
                 </span>
               </>

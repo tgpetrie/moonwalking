@@ -1,9 +1,12 @@
 // frontend/src/context/WatchlistContext.jsx — cleaned Watchlist v2 provider
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { tickerFromSymbol } from "../utils/format";
 
 const STORAGE_KEY = "bhabit_watchlist_v2";
 const WatchlistContext = createContext(null);
+
+// Normalize symbol to uppercase for consistent comparison
+const normalize = (s) => String(s || "").toUpperCase();
 
 function readInitial() {
   try {
@@ -24,25 +27,27 @@ export function WatchlistProvider({ children }) {
     } catch {}
   }, [items]);
 
-  const has = useCallback((symbol) => items.some((i) => i.symbol === tickerFromSymbol(symbol)), [items]);
+  const has = useCallback((symbol) => {
+    const norm = normalize(tickerFromSymbol(symbol));
+    return items.some((i) => normalize(i.symbol) === norm);
+  }, [items]);
 
   const add = useCallback(({ symbol, baseline = null, price = null }) => {
     // Accept either { symbol, baseline } or { symbol, price } for backward compatibility
-    const s = tickerFromSymbol(symbol);
+    const s = normalize(tickerFromSymbol(symbol));
     setItems((prev) => {
       if (!s) return prev;
-      if (prev.some((i) => i.symbol === s)) return prev;
+      if (prev.some((i) => normalize(i.symbol) === s)) return prev;
       const seed = baseline ?? price;
       const numeric = seed == null ? null : Number(seed);
-      const entryPrice = Number.isFinite(numeric) ? numeric : null;
+      const addedPrice = Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+      if (addedPrice === null) return prev; // Don't add without valid price
       const now = Date.now();
       return [
         ...prev,
         {
           symbol: s,
-          baseline: entryPrice,
-          current: entryPrice,
-          priceAdded: entryPrice,
+          addedPrice,
           addedAt: now,
         },
       ];
@@ -50,63 +55,34 @@ export function WatchlistProvider({ children }) {
   }, []);
 
   const remove = useCallback((symbol) => {
-    const s = tickerFromSymbol(symbol);
-    setItems((prev) => prev.filter((i) => i.symbol !== s));
+    const s = normalize(tickerFromSymbol(symbol));
+    setItems((prev) => prev.filter((i) => normalize(i.symbol) !== s));
   }, []);
 
   const toggle = useCallback(({ symbol, price = null }) => {
-    const s = tickerFromSymbol(symbol);
+    const s = normalize(tickerFromSymbol(symbol));
     setItems((prev) => {
       if (!s) return prev;
-      if (prev.some((i) => i.symbol === s)) {
-        return prev.filter((i) => i.symbol !== s);
+      const existing = prev.findIndex((i) => normalize(i.symbol) === s);
+      if (existing >= 0) {
+        // Remove if exists
+        const next = [...prev];
+        next.splice(existing, 1);
+        return next;
       }
+      // Add if doesn't exist
       const numeric = price == null ? null : Number(price);
-      const entry = Number.isFinite(numeric) ? numeric : null;
+      const addedPrice = Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+      if (addedPrice === null) return prev; // Don't add without valid price
       const now = Date.now();
       return [
+        { symbol: s, addedPrice, addedAt: now },
         ...prev,
-        {
-          symbol: s,
-          baseline: entry,
-          current: entry,
-          priceAdded: entry,
-          addedAt: now,
-        },
       ];
     });
   }, []);
 
-  const refreshFromData = useCallback((bySymbol = {}) => {
-    setItems((prev) => {
-      let changed = false;
-
-      const next = prev.map((i) => {
-        const live = bySymbol[i.symbol];
-        if (!live) return i;
-
-        const currRaw = live.current_price ?? live.price ?? i.current;
-        const currNum = currRaw == null ? null : Number(currRaw);
-        const curr = Number.isFinite(currNum) ? currNum : i.current;
-
-        const needsBaseline = i.baseline == null && i.priceAdded == null;
-        const currentChanged = i.current !== curr;
-
-        if (!needsBaseline && !currentChanged) return i;
-
-        changed = true;
-        return {
-          ...i,
-          current: curr,
-          ...(needsBaseline ? { baseline: curr, priceAdded: curr } : null),
-        };
-      });
-
-      return changed ? next : prev;
-    });
-  }, []);
-
-  const value = useMemo(() => ({ items, has, add, remove, toggle, refreshFromData }), [items, has, add, remove, toggle, refreshFromData]);
+  const value = useMemo(() => ({ items, has, add, remove, toggle }), [items, has, add, remove, toggle]);
 
   return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }

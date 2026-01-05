@@ -16,7 +16,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
     const load = async () => {
       try {
         const res = await fetchData(API_ENDPOINTS.bottomBanner);
-        const rows = res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res) ? res : []);
+        const rows = res && Array.isArray(res.items) ? res.items : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res) ? res : []));
 
         if (Array.isArray(rows) && rows.length) {
           const mapped = rows.map((r, i) => {
@@ -24,7 +24,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             const symbol = nr.symbol || r.symbol || '--';
             const currentPrice = nr.currentPrice ?? r.current_price ?? 0;
             // Use 1h volume change as `pctChange` so styling and sign color map correctly
-            const pctChange = nr.volumeChangePct ?? r.volume_change_1h_pct ?? r.volume_change_estimate ?? 0;
+            const pctChange = r.volume_change_1h ?? nr.volumeChangePct ?? r.volume_change_1h_pct ?? r.volume_change_estimate ?? 0;
             return {
               symbol,
               currentPrice,

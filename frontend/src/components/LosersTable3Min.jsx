@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
@@ -10,13 +10,14 @@ import { baselineOrNull } from "../utils/num.js";
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
 
-const buildRowKey = (row, index) => {
-  const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
-  return base ? String(base) : `row-${index}`;
+const buildRowKey = (row) => {
+  const base = row?.product_id ?? row?.symbol;
+  return base ? String(base) : undefined;
 };
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
+  const lastValueRef = useRef(new Map());
 
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data: payload = {} } = useHybridLiveNamed({
@@ -58,7 +59,6 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   }, [tokensProp, payload]);
 
   const [expanded, setExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
   const filtered = useMemo(
     () =>
       mapped
@@ -66,6 +66,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
           ...row,
           change_3m: row.price_change_percentage_3min ?? row.change_3m ?? row._pct ?? row.pct ?? 0,
         }))
+        .filter((row) => row.symbol || row.product_id)
         .filter((row) => Number(row.change_3m) < 0)
         .sort((a, b) => Number(a.change_3m) - Number(b.change_3m)),
     [mapped]
@@ -74,17 +75,21 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     () => (expanded ? filtered.slice(0, MAX_EXPANDED) : filtered.slice(0, MAX_BASE)),
     [filtered, expanded]
   );
-  const refreshSig = useMemo(() => {
-    return visible
-      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
-      .join("|");
+  const rowsWithPulse = useMemo(() => {
+    const map = lastValueRef.current;
+    return visible.map((row) => {
+      const key = row?.product_id ?? row?.symbol ?? row?.ticker ?? row?.base ?? row?.rank;
+      const price = Number(row?.current_price ?? row?.price ?? 0);
+      const pct = Number(row?.change_3m ?? row?.price_change_percentage_3min ?? row?._pct ?? row?.pct ?? 0);
+      const prev = key ? map.get(key) : null;
+      const priceChanged = prev ? prev.price !== price : false;
+      const pctChanged = prev ? prev.pct !== pct : false;
+      if (key) {
+        map.set(key, { price, pct });
+      }
+      return { row, priceChanged, pctChanged };
+    });
   }, [visible]);
-  useEffect(() => {
-    if (!visible.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, visible.length]);
 
   const hasData = filtered.length > 0;
 
@@ -171,8 +176,8 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
-            {visible.map((tokenProps, idx) => {
-              const rowKey = buildRowKey(tokenProps, idx);
+            {rowsWithPulse.map(({ row: tokenProps, priceChanged, pctChanged }, idx) => {
+              const rowKey = buildRowKey(tokenProps) || tokenProps.symbol || tokenProps.product_id;
               return (
                 <motion.div
                   key={rowKey}
@@ -187,7 +192,8 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
                     onInfo={() => handleInfo(tokenProps.symbol)}
                     onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
                     isWatchlisted={isStarred(tokenProps.symbol)}
-                    pulse={pulseOn}
+                    pulsePrice={priceChanged}
+                    pulsePct={pctChanged}
                     pulseDelayMs={idx * 18}
                   />
                 </motion.div>

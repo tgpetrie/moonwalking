@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
@@ -9,16 +9,16 @@ import { baselineOrNull } from "../utils/num.js";
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
 
-const buildRowKey = (row, index) => {
-  const base = row?.product_id ?? row?.symbol ?? row?.base ?? row?.ticker;
-  return base ? String(base) : `row-${index}`;
+const buildRowKey = (row) => {
+  const base = row?.product_id ?? row?.symbol;
+  return base ? String(base) : undefined;
 };
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
+  const lastValueRef = useRef(new Map());
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -56,22 +56,27 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
           current_price: row.price ?? row.current_price,
         };
       })
+      .filter((r) => r.symbol || r.product_id)
       .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
       .sort((a, b) => b._pct - a._pct);
   }, [data, tokensProp]);
 
   const visibleRows = isExpanded ? gainers3m.slice(0, MAX_EXPANDED) : gainers3m.slice(0, MAX_BASE);
-  const refreshSig = useMemo(() => {
-    return visibleRows
-      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
-      .join("|");
+  const rowsWithPulse = useMemo(() => {
+    const map = lastValueRef.current;
+    return visibleRows.map((row) => {
+      const key = row?.product_id ?? row?.symbol ?? row?.ticker ?? row?.base ?? row?.rank;
+      const price = Number(row?.current_price ?? row?.price ?? 0);
+      const pct = Number(row?.change_3m ?? row?.price_change_percentage_3min ?? row?._pct ?? row?.pct ?? 0);
+      const prev = key ? map.get(key) : null;
+      const priceChanged = prev ? prev.price !== price : false;
+      const pctChanged = prev ? prev.pct !== pct : false;
+      if (key) {
+        map.set(key, { price, pct });
+      }
+      return { row, priceChanged, pctChanged };
+    });
   }, [visibleRows]);
-  useEffect(() => {
-    if (!visibleRows.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, visibleRows.length]);
   const count = gainers3m.length;
   const hasData = count > 0;
 
@@ -119,8 +124,8 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
         )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
-            {visibleRows.map((token, index) => {
-              const rowKey = buildRowKey(token, index);
+            {rowsWithPulse.map(({ row: token, priceChanged, pctChanged }, index) => {
+              const rowKey = buildRowKey(token) || token?.symbol || token?.product_id;
               return (
                 <motion.div
                   key={rowKey}
@@ -135,7 +140,8 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     onInfo={onInfo}
                     onToggleWatchlist={onToggleWatchlist}
                     isWatchlisted={watchlist.includes(token.symbol)}
-                    pulse={pulseOn}
+                    pulsePrice={priceChanged}
+                    pulsePct={pctChanged}
                     pulseDelayMs={index * 18}
                   />
                 </motion.div>

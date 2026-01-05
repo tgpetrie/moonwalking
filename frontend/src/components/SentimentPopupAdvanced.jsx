@@ -70,6 +70,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol, { enabled: isOpen, refreshMs: REFRESH_MS });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Optional debug: Log symbol on open for debugging
+  useEffect(() => {
+    if (isOpen && symbol) {
+      try {
+        if (localStorage.getItem("mw_debug_sentiment") === "1") {
+          console.log("[SentimentPopup] Opened with symbol:", symbol);
+        }
+      } catch {}
+    }
+  }, [isOpen, symbol]);
+
   // Chart references
   const trendChartRef = useRef(null);
   const pieChartRef = useRef(null);

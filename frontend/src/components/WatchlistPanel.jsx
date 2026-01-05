@@ -25,7 +25,7 @@ function deltaPct(baseline, current) {
 }
 
 export default function WatchlistPanel({ onInfo }) {
-  const { items, add, remove, toggle } = useWatchlist();
+  const { items, add, toggle } = useWatchlist();
   const { data } = useDataFeed();
   const payload = data?.data ?? data ?? {};
   const [query, setQuery] = useState("");
@@ -87,22 +87,27 @@ export default function WatchlistPanel({ onInfo }) {
   const watchlistTokens = useMemo(() => {
     if (!items.length) return [];
     return items.map((entry, index) => {
-      const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
+      const canonSymbol = String(entry.symbol || "").toUpperCase();
       const live = liveBySymbol[canonSymbol] || {};
-      const livePrice = toFiniteNumber(
-        pickPrice(live) ?? entry.current ?? entry.baseline ?? null
-      );
-      const baselineOrNullValue = baselineOrNull(
-        entry.baseline ?? entry.priceAdded ?? entry.current ?? null
-      );
-      const pct = deltaPct(baselineOrNullValue, livePrice);
+
+      // Get current price from live feed
+      const currentPrice = toFiniteNumber(pickPrice(live));
+
+      // Get baseline (price when added) - this NEVER changes unless user removes + re-adds
+      const addedPrice = baselineOrNull(entry.addedPrice);
+
+      // Calculate % change since added
+      const changeWatch = deltaPct(addedPrice, currentPrice);
+
       return {
         key: `${canonSymbol}-${index}`,
         rank: index + 1,
         symbol: canonSymbol,
-        current_price: livePrice,
-        previous_price: baselineOrNullValue,
-        change_1m: pct ?? 0,
+        current_price: currentPrice,
+        previous_price: addedPrice,        // baseline for "previous price" line
+        change_watch: changeWatch,         // % change since added
+        watch_added_at: entry.addedAt,
+        ...live, // spread live data for badges, base name, etc.
       };
     });
   }, [items, liveBySymbol]);
@@ -154,7 +159,7 @@ export default function WatchlistPanel({ onInfo }) {
   const isPinned = (symbol) => watchlistSet.has(canonize(symbol));
 
   return (
-    <div className="bh-panel bh-panel--rail watchlist-panel">
+    <>
       <form className="bh-watchlist-search" onSubmit={handleSubmit}>
         <div className="bh-watchlist__searchWrap">
           <input
@@ -215,31 +220,21 @@ export default function WatchlistPanel({ onInfo }) {
       )}
 
       {items.length > 0 && (
-        <div className="panel-row-watchlist panel-row--1m">
-          <div className="bh-table">
-            {watchlistTokens.map((token, index) => (
-              <TokenRowUnified
-                key={token.key ?? `${token.symbol}-${index}`}
-                token={token}
-                rank={index + 1}
-                changeField="change_1m"
-                onToggleWatchlist={handleToggle}
-                onInfo={onInfo}
-                isWatchlisted
-                className="bh-row bh-row-grid"
-                cellClassMap={{
-                  rank: "bh-cell--rank",
-                  symbol: "bh-cell--symbol",
-                  name: "bh-cell--name",
-                  price: "bh-cell--price",
-                  pct: "bh-cell--pct",
-                  actions: "bh-cell--actions",
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        <>
+          {watchlistTokens.map((token, index) => (
+            <TokenRowUnified
+              key={token.key ?? `${token.symbol}-${index}`}
+              token={token}
+              rank={index + 1}
+              changeField="change_watch"
+              side={token.change_watch != null && token.change_watch < 0 ? "loser" : "gainer"}
+              onToggleWatchlist={handleToggle}
+              onInfo={onInfo}
+              isWatchlisted
+            />
+          ))}
+        </>
       )}
-    </div>
+    </>
   );
 }

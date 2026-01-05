@@ -40,12 +40,15 @@ export function useDashboardData() {
   const l3 = Array.isArray(threeMin?.losers) && threeMin.losers.length > 0 ? threeMin.losers : Array.isArray(payload.losers_3m) ? payload.losers_3m : [];
   const bv = Array.isArray(banners?.volume) && banners.volume.length > 0 ? banners.volume : Array.isArray(payload.banner_1h_volume) ? payload.banner_1h_volume : [];
   const bp = Array.isArray(banners?.price) && banners.price.length > 0 ? banners.price : Array.isArray(payload.banner_1h_price) ? payload.banner_1h_price : [];
+  const v1hRaw = Array.isArray(payload.volume1h) ? payload.volume1h : [];
 
   const gainers1m = g1.map(mapRowWithInitial);
   const gainers3m = g3.map(mapRowWithInitial);
   const losers3m = l3.map(mapRowWithInitial);
-  const bannerVolume1h = bv.map(mapRowWithInitial);
   const bannerPrice1h = bp.map(mapRowWithInitial);
+  const volume1h = v1hRaw.map(mapRowWithInitial);
+  const bannerVolume1h = bv.map(mapRowWithInitial);
+  const finalVolume1h = volume1h.length ? volume1h : bannerVolume1h;
 
   // build a quick symbol → current price map for watchlist reconciliation
   const priceMap = {};
@@ -87,6 +90,7 @@ export function useDashboardData() {
     losers3m,
     bannerVolume1h,
     bannerPrice1h,
+    volume1h: finalVolume1h,
     priceMap,
     errors,
     coverage,

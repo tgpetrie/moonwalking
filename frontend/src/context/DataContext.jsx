@@ -5,7 +5,9 @@ const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
 
 const LS_KEY = "bh_last_payload_v1";
-const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3000);
+const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 2400);
+const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
+const BACKOFF_WINDOW_MS = 30_000;
 
 const readCachedPayload = () => {
   if (typeof window === "undefined") return null;
@@ -19,8 +21,7 @@ const readCachedPayload = () => {
 };
 
 // Environment-driven cadence knobs (defaults optimized for N100)
-const FETCH_MS = Number(import.meta.env.VITE_FETCH_MS || 8000);
-const PUBLISH_3M_MS = Number(import.meta.env.VITE_PUBLISH_3M_MS || 30000);
+const PUBLISH_3M_MS = Number(import.meta.env.VITE_PUBLISH_3M_MS || 12000);
 const PUBLISH_BANNER_MS = Number(import.meta.env.VITE_PUBLISH_BANNER_MS || 120000);
 const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 
@@ -35,6 +36,7 @@ function normalizeApiData(payload) {
 
   const banner_1h_price  = p.banner_1h_price  ?? p.data?.banner_1h_price  ?? p.banner_1h ?? p.top_banner_1h ?? [];
   const banner_1h_volume = p.banner_1h_volume ?? p.data?.banner_1h_volume ?? p.volume_banner_1h ?? [];
+  const volume1h = p.volume1h ?? p.data?.volume1h ?? [];
 
   const latest_by_symbol = p.latest_by_symbol ?? p.data?.latest_by_symbol ?? {};
   const updated_at       = p.updated_at       ?? p.data?.updated_at       ?? Date.now();
@@ -45,6 +47,7 @@ function normalizeApiData(payload) {
     losers_3m,
     banner_1h_price,
     banner_1h_volume,
+    volume1h,
     latest_by_symbol,
     updated_at,
     meta: p.meta ?? p.data?.meta ?? {},
@@ -52,6 +55,17 @@ function normalizeApiData(payload) {
     coverage: p.coverage ?? p.data?.coverage ?? null,
   };
 }
+
+const parseStatus = (err) => {
+  if (!err) return null;
+  if (typeof err.status === "number") return err.status;
+  const match = String(err.message || "").match(/(\d{3})/);
+  if (match && match[1]) {
+    const num = Number(match[1]);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
+};
 
 export function DataProvider({ children }) {
   const cachedNormalized = useMemo(() => {
@@ -70,6 +84,7 @@ export function DataProvider({ children }) {
     volume: cachedNormalized?.banner_1h_volume ?? [],
   }));
   const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
+  const [volume1h, setVolume1h] = useState(() => cachedNormalized?.volume1h ?? []);
 
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
@@ -85,8 +100,9 @@ export function DataProvider({ children }) {
   const lastBannerPublishRef = useRef(0);
   const latestNormalizedRef = useRef(cachedNormalized);
   const abortRef = useRef(null);
-  const fastAbortRef = useRef(null);
-  const fastInFlightRef = useRef(false);
+  const pollTimerRef = useRef(null);
+  const backoffUntilRef = useRef(0);
+  const inFlightRef = useRef(false);
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
 
@@ -126,90 +142,20 @@ export function DataProvider({ children }) {
     });
   }, []);
 
-  const fetchData = useCallback(async () => {
-    try {
-      if (abortRef.current) abortRef.current.abort();
-      abortRef.current = new AbortController();
-
-      const json = await fetchAllData();
-      const norm = normalizeApiData(json);
-      const now = Date.now();
-
-      // Extract meta fields from backend
-      const meta = norm.meta || {};
-      const backendWarming = meta.warming ?? false;
-       const backendWarming3m = meta.warming_3m ?? meta.warming3m ?? false;
-      const backendStaleSeconds = meta.staleSeconds ?? null;
-      const backendLastGoodTs = meta.lastGoodTs ?? null;
-
-      const hasAny =
-        (Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
-        (Array.isArray(norm.gainers_3m) && norm.gainers_3m.length) ||
-        (Array.isArray(norm.losers_3m) && norm.losers_3m.length) ||
+  const applySnapshot = useCallback((norm, now = Date.now()) => {
+    // DEV-only one-time payload shape log for diagnostics
+    if (
+      import.meta?.env?.DEV &&
+      typeof window !== "undefined" &&
+      !window.__MW_DEBUG_LOGGED__ &&
+      ((Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
         (Array.isArray(norm.banner_1h_price) && norm.banner_1h_price.length) ||
-        (Array.isArray(norm.banner_1h_volume) && norm.banner_1h_volume.length);
-
-      const cached = latestNormalizedRef.current;
-      const cacheHasAny =
-        cached &&
-        ((Array.isArray(cached.gainers_1m) && cached.gainers_1m.length) ||
-          (Array.isArray(cached.gainers_3m) && cached.gainers_3m.length) ||
-          (Array.isArray(cached.losers_3m) && cached.losers_3m.length) ||
-          (Array.isArray(cached.banner_1h_price) && cached.banner_1h_price.length) ||
-          (Array.isArray(cached.banner_1h_volume) && cached.banner_1h_volume.length));
-
-      setError(null);
-      setLoading(false);
-
-      // Use backend meta.warming as source of truth
-      setWarming(backendWarming);
-      setWarming3m(Boolean(backendWarming3m));
-      setStaleSeconds(backendStaleSeconds);
-      setLastGoodTs(backendLastGoodTs);
-
-      if (!hasAny && cacheHasAny) {
-        // Keep warming state from backend
-      } else {
-        latestNormalizedRef.current = norm;
-        setLatestBySymbol(norm.latest_by_symbol || {});
-
-        // 1m: every fetch, but stagger the row commits for "live feel"
-        staggerCommit1m(norm.gainers_1m);
-
-        // 3m: publish every PUBLISH_3M_MS (default 30s)
-        if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
-          last3mPublishRef.current = now;
-          setThreeMin({ gainers: norm.gainers_3m, losers: norm.losers_3m });
-        }
-
-        // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
-        if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
-          lastBannerPublishRef.current = now;
-          setBanners({ price: norm.banner_1h_price, volume: norm.banner_1h_volume });
-        }
-      }
-
-      setLastFetchTs(now);
-      setHeartbeatPulse(true);
-      if (heartbeatTimerRef.current) {
-        clearTimeout(heartbeatTimerRef.current);
-      }
-      heartbeatTimerRef.current = setTimeout(() => {
-        setHeartbeatPulse(false);
-      }, 420);
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-      console.warn('[DataContext] Fetch failed:', e.message);
-      setError(e);
-      setLoading(false);
-      // On error, don't override warming state - keep backend's last state
-    }
-  }, [staggerCommit1m]);
-
-  const applyFast1m = useCallback((norm, now) => {
-    const has1m = Array.isArray(norm?.gainers_1m) && norm.gainers_1m.length > 0;
-    if (!has1m) {
-      return;
+        (Array.isArray(norm.banner_1h_volume) && norm.banner_1h_volume.length))
+    ) {
+      window.__MW_DEBUG_LOGGED__ = true;
+      console.log("[mw] 1m shape sample:", norm.gainers_1m?.slice(0, 2));
+      console.log("[mw] 1h price banner shape:", norm.banner_1h_price?.slice(0, 2));
+      console.log("[mw] 1h volume banner shape:", norm.banner_1h_volume?.slice(0, 2));
     }
 
     // Extract meta fields from backend
@@ -219,13 +165,53 @@ export function DataProvider({ children }) {
     const backendStaleSeconds = meta.staleSeconds ?? null;
     const backendLastGoodTs = meta.lastGoodTs ?? null;
 
-    latestNormalizedRef.current = norm;
-    setLatestBySymbol(norm.latest_by_symbol || {});
+    const hasAny =
+      (Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
+      (Array.isArray(norm.gainers_3m) && norm.gainers_3m.length) ||
+      (Array.isArray(norm.losers_3m) && norm.losers_3m.length) ||
+      (Array.isArray(norm.banner_1h_price) && norm.banner_1h_price.length) ||
+      (Array.isArray(norm.banner_1h_volume) && norm.banner_1h_volume.length);
+
+    const cached = latestNormalizedRef.current;
+    const cacheHasAny =
+      cached &&
+      ((Array.isArray(cached.gainers_1m) && cached.gainers_1m.length) ||
+        (Array.isArray(cached.gainers_3m) && cached.gainers_3m.length) ||
+        (Array.isArray(cached.losers_3m) && cached.losers_3m.length) ||
+        (Array.isArray(cached.banner_1h_price) && cached.banner_1h_price.length) ||
+        (Array.isArray(cached.banner_1h_volume) && cached.banner_1h_volume.length));
+
+    setError(null);
+    setLoading(false);
+
+    // Use backend meta.warming as source of truth
     setWarming(backendWarming);
     setWarming3m(Boolean(backendWarming3m));
     setStaleSeconds(backendStaleSeconds);
     setLastGoodTs(backendLastGoodTs);
-    staggerCommit1m(norm.gainers_1m);
+
+    if (!hasAny && cacheHasAny) {
+      // Keep warming state from backend
+    } else {
+      latestNormalizedRef.current = norm;
+      setLatestBySymbol(norm.latest_by_symbol || {});
+      setVolume1h(norm.volume1h || []);
+
+      // 1m: every fetch, but stagger the row commits for "live feel"
+      staggerCommit1m(norm.gainers_1m);
+
+      // 3m: publish every PUBLISH_3M_MS (default 12s)
+      if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
+        last3mPublishRef.current = now;
+        setThreeMin({ gainers: norm.gainers_3m, losers: norm.losers_3m });
+      }
+
+      // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
+      if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
+        lastBannerPublishRef.current = now;
+        setBanners({ price: norm.banner_1h_price, volume: norm.banner_1h_volume });
+      }
+    }
 
     setLastFetchTs(now);
     setHeartbeatPulse(true);
@@ -237,39 +223,76 @@ export function DataProvider({ children }) {
     }, 420);
   }, [staggerCommit1m]);
 
-  const fetchFast1m = useCallback(async () => {
-    if (!FAST_1M_MS || FAST_1M_MS <= 0) return;
-    if (fastInFlightRef.current) return;
-    fastInFlightRef.current = true;
-    try {
-      const json = await fetchAllData();
-      const norm = normalizeApiData(json);
-      applyFast1m(norm, Date.now());
-    } catch {
-      // fast loop is best-effort; do not surface errors
-    } finally {
-      fastInFlightRef.current = false;
+  const fetchData = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    if (abortRef.current) {
+      try { abortRef.current.abort(); } catch {}
     }
-  }, [applyFast1m]);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeoutMs = 6500;
+    const timeoutId = setTimeout(() => {
+      try {
+        controller.abort("timeout");
+      } catch {}
+    }, timeoutMs);
+
+    try {
+      const json = await fetchAllData({ signal: controller.signal });
+      const norm = normalizeApiData(json);
+      applySnapshot(norm, Date.now());
+      backoffUntilRef.current = 0;
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        const timedOut = controller?.signal?.reason === "timeout";
+        if (timedOut) {
+          console.warn("[DataContext] Fetch timed out after", timeoutMs, "ms");
+          backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
+        }
+        return;
+      }
+      console.warn('[DataContext] Fetch failed:', e.message);
+      setError(e);
+      setLoading(false);
+      const status = parseStatus(e);
+      if (status === 429 || (status >= 500 && status < 600) || status === null) {
+        backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
+      }
+      // On error, don't override warming state - keep backend's last state
+    } finally {
+      clearTimeout(timeoutId);
+      inFlightRef.current = false;
+    }
+  }, [applySnapshot]);
 
   useEffect(() => {
-    let mounted = true;
+    if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
+    let cancelled = false;
 
-    const doFetch = async () => {
-      if (!mounted) return;
-      await fetchData();
+    const scheduleNext = (delayMs) => {
+      if (cancelled) return;
+      pollTimerRef.current = setTimeout(run, delayMs);
     };
 
-    // Initial fetch
-    doFetch();
+    const run = async () => {
+      if (cancelled) return;
+      await fetchData();
+      if (cancelled) return;
+      const now = Date.now();
+      const delay = now < backoffUntilRef.current ? BACKOFF_1M_MS : FAST_1M_MS;
+      scheduleNext(delay);
+    };
 
-    // One fast fetch interval, multiple publish cadences
-    const id = setInterval(doFetch, FETCH_MS);
+    run();
 
     return () => {
-      mounted = false;
-      clearInterval(id);
+      cancelled = true;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
       if (abortRef.current) abortRef.current.abort();
+      inFlightRef.current = false;
       staggerTokenRef.current = null;
       if (heartbeatTimerRef.current) {
         clearTimeout(heartbeatTimerRef.current);
@@ -277,17 +300,6 @@ export function DataProvider({ children }) {
       }
     };
   }, [fetchData]);
-
-  useEffect(() => {
-    if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
-    fetchFast1m();
-    const id = setInterval(fetchFast1m, FAST_1M_MS);
-    return () => {
-      clearInterval(id);
-      if (fastAbortRef.current) fastAbortRef.current.abort();
-      fastInFlightRef.current = false;
-    };
-  }, [fetchFast1m]);
 
   // Legacy compatibility: combine all published slices
   const combinedData = useMemo(() => ({
@@ -299,8 +311,9 @@ export function DataProvider({ children }) {
     banner_1h_volume: banners.volume,
     volume_banner_1h: banners.volume, // Legacy alias
     latest_by_symbol: latestBySymbol,
+    volume1h,
     updated_at: latestNormalizedRef.current?.updated_at ?? Date.now(),
-  }), [oneMinRows, threeMin, banners, latestBySymbol]);
+  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h]);
 
   const value = useMemo(() => ({
     data: combinedData,
@@ -317,7 +330,8 @@ export function DataProvider({ children }) {
     warming3m,
     staleSeconds,
     lastGoodTs,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs]);
+    volume1h,
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
