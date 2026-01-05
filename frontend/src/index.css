@@ -3225,19 +3225,20 @@ a.bh-row {
   mix-blend-mode: soft-light;
 
   /* ROW-SPOTLIGHT: fill one row (wide), row-tall, fade ends */
+  /* ROW SPOTLIGHT — full row band, wide, row-tall, soft ends */
   -webkit-mask-image: radial-gradient(
-    ellipse 980px 120px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 1800px 220px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 22%,
-    rgba(0,0,0,1) 52%,
-    rgba(0,0,0,0) 88%
+    rgba(0,0,0,0) 28%,
+    rgba(0,0,0,1) 58%,
+    rgba(0,0,0,0) 92%
   );
   mask-image: radial-gradient(
-    ellipse 980px 120px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 1800px 220px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 22%,
-    rgba(0,0,0,1) 52%,
-    rgba(0,0,0,0) 88%
+    rgba(0,0,0,0) 28%,
+    rgba(0,0,0,1) 58%,
+    rgba(0,0,0,0) 92%
   );
 }
 
