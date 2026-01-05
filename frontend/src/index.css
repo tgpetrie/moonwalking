@@ -4195,3 +4195,36 @@ body {
 
 /* Optional: if you want it even tighter (almost row height),
    replace 160px 58px above with 140px 46px */
+
+/* =========================================================
+   RABBIT SPOTLIGHT — EXTRA SMALL FOOTPRINT (ROW-TIGHT)
+   ========================================================= */
+
+/* Smaller mask = smaller lit bunny area */
+.board-core .rabbit-bg {
+  -webkit-mask-image: radial-gradient(
+    ellipse 110px 34px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(255,255,255,0.95) 0%,
+    rgba(255,255,255,0.55) 40%,
+    rgba(255,255,255,0.10) 56%,
+    rgba(255,255,255,0.00) 64%
+  );
+  mask-image: radial-gradient(
+    ellipse 110px 34px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(255,255,255,0.95) 0%,
+    rgba(255,255,255,0.55) 40%,
+    rgba(255,255,255,0.10) 56%,
+    rgba(255,255,255,0.00) 64%
+  );
+}
+
+/* Keep hover reveal subtle so it doesn't “wash” the whole bunny */
+.board-core[data-row-hover="1"] .rabbit-bg {
+  opacity: 0.12;
+  filter:
+    saturate(0.6)
+    brightness(0.6)
+    contrast(1.15)
+    drop-shadow(0 0 8px rgba(150,110,255,0.18));
+}
+
