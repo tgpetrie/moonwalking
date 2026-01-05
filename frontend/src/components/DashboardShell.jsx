@@ -61,8 +61,14 @@ export default function DashboardShell({ onInfo }) {
         if (active) setEmitter(e.clientX, e.clientY, false);
         return;
       }
+
+      // Lock Y to the hovered row center so the spotlight doesn't bleed
+      // vertically across neighboring rows. X still follows the pointer.
+      const rowRect = row.getBoundingClientRect();
+      const centerY = rowRect.top + rowRect.height / 2;
+
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setEmitter(e.clientX, e.clientY, true));
+      raf = requestAnimationFrame(() => setEmitter(e.clientX, centerY, true));
     };
 
     const onLeaveBoard = (e) => {

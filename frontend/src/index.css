@@ -3220,18 +3220,22 @@ a.bh-row {
   opacity: 0.003;
   mix-blend-mode: screen;
   transition: opacity 180ms ease, filter 180ms ease;
+  opacity: 0.10;
+  filter: blur(10px) saturate(0.85) contrast(1.15);
+
+  /* row-sized spotlight: wide, ~row height, fades out at ends */
   -webkit-mask-image: radial-gradient(
-    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.9) 30%,
-    rgba(0,0,0,0.4) 55%,
+    ellipse 420px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0) 28%,
+    rgba(0,0,0,1) 52%,
     rgba(0,0,0,0) 82%
   );
   mask-image: radial-gradient(
-    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.9) 30%,
-    rgba(0,0,0,0.4) 55%,
+    ellipse 420px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0) 28%,
+    rgba(0,0,0,1) 52%,
     rgba(0,0,0,0) 82%
   );
 }
@@ -3239,13 +3243,9 @@ a.bh-row {
 /* On hover: very subtle whisper with faint purple/orange glow */
 .board-core[data-row-hover="1"] .rabbit-bg,
 .board-core[data-row-hover="1"] .bh-bunny-layer {
-  opacity: 0.045;
-  filter:
-    brightness(1.5)
-    contrast(1.1)
-    saturate(1.05)
-    drop-shadow(0 0 12px rgba(255, 179, 77, 0.28))
-    drop-shadow(0 0 26px rgba(192, 129, 255, 0.22));
+  opacity: 0.18;
+  /* keep subtle silhouette while hovered */
+  filter: blur(10px) saturate(0.85) contrast(1.15);
 }
 
 /* DISABLED - using base layer approach instead */
