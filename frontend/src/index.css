@@ -3220,25 +3220,24 @@ a.bh-row {
   opacity: 0.003;
   mix-blend-mode: screen;
   transition: opacity 180ms ease, filter 180ms ease;
-  opacity: 0.10;
-  filter: blur(10px) saturate(0.85) contrast(1.15);
+  opacity: 0.07; /* quieter base */
+  filter: blur(7px) saturate(0.55) contrast(1.25);
+  mix-blend-mode: soft-light;
 
-  /* row-sized spotlight: wide, ~row height, fades out at ends */
+  /* ROW-SPOTLIGHT: fill one row (wide), row-tall, fade ends */
   -webkit-mask-image: radial-gradient(
-  /* ROW-SPOTLIGHT: wide + row-tall, soft ends */
-  -webkit-mask-image: radial-gradient(
-    ellipse 760px 88px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 980px 120px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 32%,
-    rgba(0,0,0,1) 58%,
-    rgba(0,0,0,0) 86%
+    rgba(0,0,0,0) 22%,
+    rgba(0,0,0,1) 52%,
+    rgba(0,0,0,0) 88%
   );
   mask-image: radial-gradient(
-    ellipse 760px 88px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 980px 120px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 32%,
-    rgba(0,0,0,1) 58%,
-    rgba(0,0,0,0) 86%
+    rgba(0,0,0,0) 22%,
+    rgba(0,0,0,1) 52%,
+    rgba(0,0,0,0) 88%
   );
 }
 

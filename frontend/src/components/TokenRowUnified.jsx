@@ -162,6 +162,28 @@ export function TokenRowUnified({
     }
   };
 
+  // Minimal explicit row URL + handlers (ensure row click opens Coinbase)
+  const rowUrl = token?.product_id
+    ? `https://www.coinbase.com/price/${String(token.product_id).split("-")[0].toLowerCase()}`
+    : token?.symbol
+      ? `https://www.coinbase.com/price/${String(token.symbol).toLowerCase()}`
+      : null;
+
+  const onRowClick = (e) => {
+    if (!rowUrl) return;
+    const t = e.target;
+    if (t && (t.closest("button") || t.closest("a"))) return;
+    window.open(rowUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const onRowKeyDown = (e) => {
+    if (!rowUrl) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      window.open(rowUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const dataSide =
     side === "gainer" || side === "loser"
       ? side
@@ -196,13 +218,13 @@ export function TokenRowUnified({
         className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
         style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
         data-side={dataSide}
-        role={url ? "link" : undefined}
-        tabIndex={url ? 0 : undefined}
-        onClick={handleClick}
-        onKeyDown={onKeyDown}
+        role={rowUrl ? "link" : undefined}
+        tabIndex={rowUrl ? 0 : undefined}
+        onClick={onRowClick}
+        onKeyDown={onRowKeyDown}
         onPointerEnter={setRabbitHover(true)}
         onPointerLeave={setRabbitHover(false)}
-        aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
+        aria-label={rowUrl ? `Open ${token?.symbol} on Coinbase` : undefined}
       >
         {renderCells()}
       </RowTag>
