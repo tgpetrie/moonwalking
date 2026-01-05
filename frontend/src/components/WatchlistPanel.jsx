@@ -25,11 +25,11 @@ function deltaPct(baseline, current) {
 }
 
 export default function WatchlistPanel({ onInfo }) {
-  // useWatchlist wraps useContext(WatchlistContext) to keep panel in sync with starred items.
-  const { items, toggle: toggleWatchlist, add } = useWatchlist();
+  const { items, add, remove, toggle } = useWatchlist();
   const { data } = useDataFeed();
   const payload = data?.data ?? data ?? {};
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   const liveBySymbol = useMemo(() => {
     const latest = payload.latest_by_symbol || {};
@@ -40,13 +40,16 @@ export default function WatchlistPanel({ onInfo }) {
     return merged;
   }, [payload]);
 
+  const canonize = (value) => {
+    const canon = tickerFromSymbol(value) || value;
+    return typeof canon === "string" ? canon.toUpperCase() : null;
+  };
+
   const watchlistSet = useMemo(() => {
     const set = new Set();
     items.forEach((entry) => {
-      const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
-      if (canonSymbol) {
-        set.add(canonSymbol.toUpperCase());
-      }
+      const canonSymbol = canonize(entry.symbol);
+      if (canonSymbol) set.add(canonSymbol);
     });
     return set;
   }, [items]);
@@ -54,44 +57,45 @@ export default function WatchlistPanel({ onInfo }) {
   const searchPool = useMemo(() => {
     const pool = [];
     Object.entries(liveBySymbol).forEach(([rawSymbol, details]) => {
-      const canon = tickerFromSymbol(rawSymbol) || rawSymbol;
-      if (!canon) return;
+      const symbol = canonize(rawSymbol);
+      if (!symbol) return;
       pool.push({
-        symbol: canon.toUpperCase(),
-        display: canon,
+        symbol,
+        display: symbol,
         price: toFiniteNumber(pickPrice(details)),
       });
     });
     return pool;
   }, [liveBySymbol]);
 
-  const searchResults = useMemo(() => {
-    const query = search.trim().toUpperCase();
-    if (!query) return [];
-    const seen = new Set();
-    return searchPool
-      .filter(({ symbol }) => symbol.includes(query))
-      .filter(({ symbol }) => !watchlistSet.has(symbol))
-      .filter(({ symbol }) => {
-        if (seen.has(symbol)) return false;
-        seen.add(symbol);
-        return true;
-      })
-      .slice(0, 6);
-  }, [search, searchPool, watchlistSet]);
+  const normalized = query.trim().toUpperCase();
+
+  const suggestions = useMemo(() => {
+    if (!normalized) return [];
+    const hits = searchPool
+      .filter(({ symbol }) => symbol.includes(normalized))
+      .filter(({ symbol }) => !watchlistSet.has(symbol));
+    hits.sort((a, b) => {
+      const aStarts = a.symbol.startsWith(normalized) ? 0 : 1;
+      const bStarts = b.symbol.startsWith(normalized) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.symbol.localeCompare(b.symbol);
+    });
+    return hits.slice(0, 8);
+  }, [normalized, searchPool, watchlistSet]);
 
   const watchlistTokens = useMemo(() => {
     if (!items.length) return [];
-
     return items.map((entry, index) => {
       const canonSymbol = tickerFromSymbol(entry.symbol) || entry.symbol;
       const live = liveBySymbol[canonSymbol] || {};
-      const livePrice = toFiniteNumber(pickPrice(live) ?? entry.current ?? entry.baseline ?? null);
-      // Previous price should be the pinned baseline from when the token was added.
-      // Fall back to historical fields if needed, but never default to live price.
-      const baselineOrNullValue = baselineOrNull(entry.baseline ?? entry.priceAdded ?? entry.current ?? null);
+      const livePrice = toFiniteNumber(
+        pickPrice(live) ?? entry.current ?? entry.baseline ?? null
+      );
+      const baselineOrNullValue = baselineOrNull(
+        entry.baseline ?? entry.priceAdded ?? entry.current ?? null
+      );
       const pct = deltaPct(baselineOrNullValue, livePrice);
-
       return {
         key: `${canonSymbol}-${index}`,
         rank: index + 1,
@@ -103,61 +107,112 @@ export default function WatchlistPanel({ onInfo }) {
     });
   }, [items, liveBySymbol]);
 
-  const handleToggleWatchlist = (symbol, price) => {
-    if (!symbol) return;
-    toggleWatchlist({ symbol, price });
-  };
-
-  const handleAddFromSearch = useCallback(
+  const addProduct = useCallback(
     (entry) => {
-      if (!entry || !entry.display) return;
-      add({ symbol: entry.display, price: entry.price });
-      setSearch("");
+      if (!entry?.display) return;
+      const sym = canonize(entry.display);
+      if (!sym || watchlistSet.has(sym)) return;
+      add({ symbol: sym, price: entry.price });
+      setQuery("");
+      setIsOpen(false);
     },
-    [add]
+    [add, watchlistSet]
   );
 
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
-    if (searchResults.length === 0) return;
-    handleAddFromSearch(searchResults[0]);
+  const handleSubmit = useCallback(
+    (event) => {
+      event.preventDefault();
+      if (suggestions.length) {
+        addProduct(suggestions[0]);
+        return;
+      }
+      if (!normalized) return;
+      const direct = searchPool.find((p) => p.symbol === normalized);
+      if (direct) addProduct(direct);
+    },
+    [addProduct, normalized, searchPool, suggestions]
+  );
+
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        return;
+      }
+      if (event.key === "Enter") {
+        handleSubmit(event);
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleToggle = (symbol, price) => {
+    if (!symbol) return;
+    toggle({ symbol, price });
   };
+
+  const isPinned = (symbol) => watchlistSet.has(canonize(symbol));
 
   return (
     <div className="bh-panel bh-panel--rail watchlist-panel">
-      <form className="bh-watchlist-search" onSubmit={handleSearchSubmit}>
-        <input
-          type="text"
-          className="bh-watchlist-search-input"
-          placeholder="Search symbols to pin (e.g. BTC)"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search tokens to add to watchlist"
-        />
-        {search && (
-          <div className="bh-watchlist-search-results">
-            {searchResults.length > 0 ? (
-              searchResults.map((entry) => (
-                <button
-                  type="button"
-                  key={entry.symbol}
-                  className="bh-watchlist-search-option"
-                  onClick={() => handleAddFromSearch(entry)}
-                >
-                  <span>{entry.display}</span>
-                  <span className="bh-watchlist-search-price">
-                    {entry.price != null ? `$${Number(entry.price).toLocaleString()}` : "--"}
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="bh-watchlist-search-empty">No matching symbols online.</div>
-            )}
-          </div>
-        )}
+      <form className="bh-watchlist-search" onSubmit={handleSubmit}>
+        <div className="bh-watchlist__searchWrap">
+          <input
+            type="text"
+            className="bh-watchlist-search-input"
+            placeholder="Search symbols to pin (e.g. BTC)"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setIsOpen(true);
+            }}
+            aria-label="Search tokens to add to watchlist"
+            onFocus={() => setIsOpen(true)}
+            onBlur={(event) => {
+              const related = event.relatedTarget;
+              if (!related || !event.currentTarget.contains(related)) {
+                setIsOpen(false);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            spellCheck={false}
+            autoCapitalize="characters"
+            autoCorrect="off"
+          />
+          {isOpen && suggestions.length > 0 && (
+            <div className="bh-watchlist__dropdown">
+              {suggestions.map((entry) => {
+                const disabled = isPinned(entry.symbol);
+                return (
+                  <button
+                    type="button"
+                    key={entry.symbol}
+                    className={`bh-watchlist__option ${
+                      disabled ? "is-disabled" : ""
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => !disabled && addProduct(entry)}
+                  >
+                    <span className="bh-watchlist__optSym">{entry.symbol}</span>
+                    <span className="bh-watchlist__optName">
+                      {entry.display}
+                    </span>
+                    <span className="bh-watchlist__optHint">
+                      {disabled ? "Pinned" : "Add"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </form>
 
-      {!items.length && <div className="bh-watchlist-empty">Star a token or search to pin it here.</div>}
+      {!items.length && (
+        <div className="bh-watchlist-empty">
+          Star a token or search to pin it here.
+        </div>
+      )}
 
       {items.length > 0 && (
         <div className="panel-row-watchlist panel-row--1m">
@@ -168,7 +223,7 @@ export default function WatchlistPanel({ onInfo }) {
                 token={token}
                 rank={index + 1}
                 changeField="change_1m"
-                onToggleWatchlist={handleToggleWatchlist}
+                onToggleWatchlist={handleToggle}
                 onInfo={onInfo}
                 isWatchlisted
                 className="bh-row bh-row-grid"
