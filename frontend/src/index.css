@@ -3225,19 +3225,46 @@ a.bh-row {
 
   /* row-sized spotlight: wide, ~row height, fades out at ends */
   -webkit-mask-image: radial-gradient(
-    ellipse 420px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
+  /* ROW-SPOTLIGHT: wide + row-tall, soft ends */
+  -webkit-mask-image: radial-gradient(
+    ellipse 760px 88px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 28%,
-    rgba(0,0,0,1) 52%,
-    rgba(0,0,0,0) 82%
+    rgba(0,0,0,0) 32%,
+    rgba(0,0,0,1) 58%,
+    rgba(0,0,0,0) 86%
   );
   mask-image: radial-gradient(
-    ellipse 420px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 760px 88px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(0,0,0,0) 0%,
-    rgba(0,0,0,0) 28%,
-    rgba(0,0,0,1) 52%,
-    rgba(0,0,0,0) 82%
+    rgba(0,0,0,0) 32%,
+    rgba(0,0,0,1) 58%,
+    rgba(0,0,0,0) 86%
   );
+}
+
+/* Rabbit overlay must never block interaction */
+.board-core .rabbit-bg {
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+.board-core .rabbit-layer,
+.board-core .rabbit-overlay,
+.board-core .board-bg {
+  pointer-events: none !important;
+}
+
+.board-core .bh-table,
+.board-core .bh-row,
+.board-core .token-row.table-row {
+  position: relative;
+  z-index: 2; /* rows above rabbit */
+}
+
+/* Ensure row pseudo elements don't capture clicks */
+.bh-row::before,
+.bh-row::after {
+  pointer-events: none !important;
 }
 
 /* On hover: very subtle whisper with faint purple/orange glow */
