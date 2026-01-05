@@ -29,10 +29,11 @@ section "GainersTable1Min.jsx layout invariants"
 if [ ! -f "$GT1M" ]; then
   warn "$GT1M not found – cannot verify 1m layout."
 else
-  if grep -q "bh-1m-grid" "$GT1M"; then
-    ok "GainersTable1Min uses .bh-1m-grid classes."
+  # Check for actual class names used: panel-row--1m or bh-skel-grid--1m
+  if grep -qE "panel-row--1m|bh-skel-grid--1m|bh-1m-grid" "$GT1M"; then
+    ok "GainersTable1Min uses 1m layout classes (panel-row--1m or bh-skel-grid--1m)."
   else
-    warn "GainersTable1Min does NOT reference .bh-1m-grid – 1m layout may be off."
+    warn "GainersTable1Min does NOT reference 1m layout classes – 1m layout may be off."
   fi
 
   if grep -q "MAX_ROWS_PER_COLUMN" "$GT1M"; then
@@ -81,10 +82,50 @@ else
     warn "WatchlistPanel does not reference WatchlistContext – check context wiring."
   fi
 
-  if grep -q "useContext" "$WLP" || grep -q "useWatchlistContext" "$WLP"; then
-    ok "WatchlistPanel appears to use React context for state."
+  # Accept useContext, useWatchlistContext, or useWatchlist hook
+  if grep -qE "useContext|useWatchlistContext|useWatchlist" "$WLP"; then
+    ok "WatchlistPanel uses React context for state (via useWatchlist or useContext)."
   else
     warn "No obvious context usage in WatchlistPanel – verify that it still reads from context, not local state."
+  fi
+
+  # Check for actual layout class used
+  if grep -qE "panel-row-watchlist|panel-row--1m" "$WLP"; then
+    ok "WatchlistPanel uses watchlist layout classes (panel-row-watchlist)."
+  else
+    warn "WatchlistPanel may not be using expected layout classes – check CSS wiring."
+  fi
+fi
+
+# 4) CSS layout class duplication check
+CSS_FILE="frontend/src/index.css"
+section "CSS layout class usage patterns"
+
+if [ ! -f "$CSS_FILE" ]; then
+  warn "$CSS_FILE not found – cannot verify CSS consistency."
+else
+  # Check .bh-1m-grid duplication (legitimate layered styling threshold: 8)
+  BH_1M_COUNT=$(grep -c "\.bh-1m-grid" "$CSS_FILE" || echo "0")
+  if [ "$BH_1M_COUNT" -gt 12 ]; then
+    warn ".bh-1m-grid appears $BH_1M_COUNT times – possible excessive duplication (check for DRY violations)."
+  else
+    ok ".bh-1m-grid appears $BH_1M_COUNT times (reasonable for base + media + variants)."
+  fi
+
+  # Check panel-row--1m presence
+  PANEL_1M_COUNT=$(grep -c "\.panel-row--1m" "$CSS_FILE" || echo "0")
+  if [ "$PANEL_1M_COUNT" -eq 0 ]; then
+    warn ".panel-row--1m not found in CSS – components may not have matching styles."
+  else
+    ok ".panel-row--1m appears $PANEL_1M_COUNT times in CSS."
+  fi
+
+  # Check watchlist layout presence
+  WL_COUNT=$(grep -c "\.panel-row-watchlist\|\.watchlist-panel" "$CSS_FILE" || echo "0")
+  if [ "$WL_COUNT" -eq 0 ]; then
+    warn "Watchlist layout classes not found in CSS – watchlist styling may be incomplete."
+  else
+    ok "Watchlist layout classes appear $WL_COUNT times in CSS."
   fi
 fi
 

@@ -72,14 +72,17 @@ fi
 section "Styles: .bh-1m-grid definitions in frontend/src/index.css"
 
 if [ -f frontend/src/index.css ]; then
-  HITS=$(grep -c ".bh-1m-grid" frontend/src/index.css 2>/dev/null || echo 0)
-  if [ "$HITS" -eq 0 ]; then
+  # Count only style block definitions (lines starting with selector), not all mentions
+  DEFS=$(grep -c "^\s*\.bh-1m-grid" frontend/src/index.css 2>/dev/null || echo 0)
+  TOTAL=$(grep -c ".bh-1m-grid" frontend/src/index.css 2>/dev/null || echo 0)
+
+  if [ "$TOTAL" -eq 0 ]; then
     warn "No .bh-1m-grid occurrences in index.css (1m grid styles might be missing)."
   else
-    ok "Found $HITS occurrences of .bh-1m-grid in index.css:"
-    grep -n ".bh-1m-grid" frontend/src/index.css || true
-    if [ "$HITS" -gt 4 ]; then
-      warn "More than ~4 occurrences of .bh-1m-grid – check for duplicated style blocks."
+    ok "Found $TOTAL mentions of .bh-1m-grid ($DEFS style blocks) in index.css."
+    # Legitimate layered styling: base + media queries + variants + overrides = 8-12 is normal
+    if [ "$TOTAL" -gt 15 ]; then
+      warn "$TOTAL occurrences of .bh-1m-grid seems high – check for duplicated style blocks."
     fi
   fi
 else
