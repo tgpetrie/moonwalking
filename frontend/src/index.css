@@ -4203,14 +4203,14 @@ body {
 /* Smaller mask = smaller lit bunny area */
 .board-core .rabbit-bg {
   -webkit-mask-image: radial-gradient(
-    ellipse 110px 34px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 220px 18px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(255,255,255,0.95) 0%,
     rgba(255,255,255,0.55) 40%,
     rgba(255,255,255,0.10) 56%,
     rgba(255,255,255,0.00) 64%
   );
   mask-image: radial-gradient(
-    ellipse 110px 34px at var(--emit-x, 50%) var(--emit-y, 50%),
+    ellipse 220px 18px at var(--emit-x, 50%) var(--emit-y, 50%),
     rgba(255,255,255,0.95) 0%,
     rgba(255,255,255,0.55) 40%,
     rgba(255,255,255,0.10) 56%,
