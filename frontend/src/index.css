@@ -4146,3 +4146,52 @@ body {
 .bh-row[data-side="loser"] {
   --bh-side-presence: 1;
 }
+
+/* =========================================================
+   RABBIT SPOTLIGHT — TIGHT ROW-LOCAL + SILHOUETTE ONLY
+   Paste at END of index.css so it overrides earlier rabbit-bg rules.
+   ========================================================= */
+
+/* Base rabbit: almost invisible, darkened, no color-pop */
+.board-core .rabbit-bg {
+  opacity: 0.06;                 /* near-black-on-black, but violet */
+  filter: saturate(0.55) brightness(0.55) contrast(1.15);
+  mix-blend-mode: soft-light;    /* keeps it “in the fabric” */
+  pointer-events: none;
+}
+
+/* Tight mask centered on JS-provided emit coords */
+.board-core .rabbit-bg {
+  -webkit-mask-image: radial-gradient(
+    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(255,255,255,0.95) 0%,
+    rgba(255,255,255,0.65) 45%,
+    rgba(255,255,255,0.12) 62%,
+    rgba(255,255,255,0.00) 72%
+  );
+  mask-image: radial-gradient(
+    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(255,255,255,0.95) 0%,
+    rgba(255,255,255,0.65) 45%,
+    rgba(255,255,255,0.12) 62%,
+    rgba(255,255,255,0.00) 72%
+  );
+
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/* When a row is hovered, reveal slightly — still subtle */
+.board-core[data-row-hover="1"] .rabbit-bg {
+  opacity: 0.14;
+  filter:
+    saturate(0.65)
+    brightness(0.62)
+    contrast(1.18)
+    drop-shadow(0 0 10px rgba(150,110,255,0.22)); /* soft violet glow */
+}
+
+/* Optional: if you want it even tighter (almost row height),
+   replace 160px 58px above with 140px 46px */
