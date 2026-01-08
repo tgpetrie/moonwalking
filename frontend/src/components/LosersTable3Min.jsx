@@ -1,11 +1,13 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useMemo, useCallback } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
+import { useReorderCadence } from "../hooks/useReorderCadence";
+import { rowVariants } from "./motionVariants.js";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
@@ -58,7 +60,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   }, [tokensProp, payload]);
 
   const [expanded, setExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const filtered = useMemo(
     () =>
       mapped
@@ -70,21 +72,10 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         .sort((a, b) => Number(a.change_3m) - Number(b.change_3m)),
     [mapped]
   );
-  const visible = useMemo(
-    () => (expanded ? filtered.slice(0, MAX_EXPANDED) : filtered.slice(0, MAX_BASE)),
-    [filtered, expanded]
-  );
-  const refreshSig = useMemo(() => {
-    return visible
-      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
-      .join("|");
-  }, [visible]);
-  useEffect(() => {
-    if (!visible.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, visible.length]);
+
+  const sortFn = useCallback((a, b) => Number(a.change_3m) - Number(b.change_3m), []);
+  const cadenced = useReorderCadence(filtered, sortFn, prefersReducedMotion ? 0 : 360);
+  const visible = expanded ? cadenced.slice(0, MAX_EXPANDED) : cadenced.slice(0, MAX_BASE);
 
   const hasData = filtered.length > 0;
 
@@ -176,8 +167,12 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
               return (
                 <motion.div
                   key={rowKey}
-                  layout
-                  transition={{ type: "spring", stiffness: 520, damping: 46 }}
+                  layout={prefersReducedMotion ? false : "position"}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={rowVariants}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 46 }}
                 >
                   <TokenRowUnified
                     token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
@@ -187,8 +182,6 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
                     onInfo={() => handleInfo(tokenProps.symbol)}
                     onToggleWatchlist={() => handleToggleStar(tokenProps.symbol, tokenProps.current_price ?? tokenProps.price)}
                     isWatchlisted={isStarred(tokenProps.symbol)}
-                    pulse={pulseOn}
-                    pulseDelayMs={idx * 18}
                   />
                 </motion.div>
               );

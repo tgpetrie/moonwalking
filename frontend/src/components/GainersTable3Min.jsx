@@ -1,10 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo, useState, useCallback } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
+import { useReorderCadence } from "../hooks/useReorderCadence";
+import { rowVariants } from "./motionVariants.js";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
@@ -18,7 +20,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -60,18 +62,9 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
       .sort((a, b) => b._pct - a._pct);
   }, [data, tokensProp]);
 
-  const visibleRows = isExpanded ? gainers3m.slice(0, MAX_EXPANDED) : gainers3m.slice(0, MAX_BASE);
-  const refreshSig = useMemo(() => {
-    return visibleRows
-      .map((row) => `${row.symbol}:${Number(row.change_3m ?? 0).toFixed(4)}`)
-      .join("|");
-  }, [visibleRows]);
-  useEffect(() => {
-    if (!visibleRows.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, visibleRows.length]);
+  const sortFn = useCallback((a, b) => Number(b._pct ?? b.change_3m ?? 0) - Number(a._pct ?? a.change_3m ?? 0), []);
+  const cadenced = useReorderCadence(gainers3m, sortFn, prefersReducedMotion ? 0 : 360);
+  const visibleRows = isExpanded ? cadenced.slice(0, MAX_EXPANDED) : cadenced.slice(0, MAX_BASE);
   const count = gainers3m.length;
   const hasData = count > 0;
 
@@ -124,8 +117,12 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
               return (
                 <motion.div
                   key={rowKey}
-                  layout
-                  transition={{ type: "spring", stiffness: 520, damping: 46 }}
+                  layout={prefersReducedMotion ? false : "position"}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={rowVariants}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 46 }}
                 >
                   <TokenRowUnified
                     token={token}
@@ -135,8 +132,6 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     onInfo={onInfo}
                     onToggleWatchlist={onToggleWatchlist}
                     isWatchlisted={watchlist.includes(token.symbol)}
-                    pulse={pulseOn}
-                    pulseDelayMs={index * 18}
                   />
                 </motion.div>
               );

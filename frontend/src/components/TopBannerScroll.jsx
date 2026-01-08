@@ -76,6 +76,9 @@ export default function TopBannerScroll(props) {
   const [fetchErr, setFetchErr] = useState(null);
   const [paused, setPaused] = useState(false);
 
+  const prevByKeyRef = useRef(new Map());
+  const [pulseKeys, setPulseKeys] = useState(() => new Set());
+
   const trackRef = useRef(null);
   const rafRef = useRef(null);
   const lastTsRef = useRef(null);
@@ -95,6 +98,33 @@ export default function TopBannerScroll(props) {
     }
     return out;
   }, [rawList]);
+
+  useEffect(() => {
+    const prefersReduce =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReduce) return;
+    if (!items.length) return;
+
+    const nextPulse = new Set();
+    const prev = prevByKeyRef.current;
+
+    for (const it of items) {
+      const p = prev.get(it.key);
+      if (p) {
+        if (p.pct !== it.pct) nextPulse.add(`${it.key}:pct`);
+        if (p.price !== it.price) nextPulse.add(`${it.key}:price`);
+      }
+      prev.set(it.key, { pct: it.pct, price: it.price });
+    }
+
+    if (!nextPulse.size) return;
+    setPulseKeys(nextPulse);
+    const t = window.setTimeout(() => setPulseKeys(new Set()), 220);
+    return () => window.clearTimeout(t);
+  }, [items]);
 
   useEffect(() => {
     const hasExternalList =
@@ -234,8 +264,8 @@ export default function TopBannerScroll(props) {
                   <span className="bh-banner-chip__rank">{it.rank}</span>
                   <span className="bh-banner-chip__sym">{it.symbol}</span>
                   <span className="bh-banner-right">
-                    <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
-                    <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                    <span className={`bh-banner-chip__pct${pulseKeys.has(`${it.key}:pct`) ? " is-updating" : ""}`}>{fmtPct(it.pct ?? NaN)}</span>
+                    <span className={`bh-banner-chip__price${pulseKeys.has(`${it.key}:price`) ? " is-updating" : ""}`}>{fmtPrice(it.price ?? NaN)}</span>
                   </span>
                 </a>
               );

@@ -1,5 +1,6 @@
 // src/components/TokenRowUnified.jsx
 import React, { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
@@ -27,6 +28,7 @@ export function TokenRowUnified({
   pulse = false,
   pulseDelayMs = 0,
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
   const changeNum = typeof rawChange === "string" ? Number(String(rawChange).replace(/[%+]/g, "")) : Number(rawChange);
@@ -62,25 +64,29 @@ export function TokenRowUnified({
     let cleanup;
     const prev = prevPriceRef.current;
     if (prev !== undefined && prev !== currentPrice) {
-      setPriceFlash(true);
-      const timer = setTimeout(() => setPriceFlash(false), 420);
-      cleanup = () => clearTimeout(timer);
+      if (!prefersReducedMotion) {
+        setPriceFlash(true);
+        const timer = setTimeout(() => setPriceFlash(false), 220);
+        cleanup = () => clearTimeout(timer);
+      }
     }
     prevPriceRef.current = currentPrice;
     return cleanup;
-  }, [currentPrice]);
+  }, [currentPrice, prefersReducedMotion]);
 
   useEffect(() => {
     let cleanup;
     const prev = prevPctRef.current;
     if (prev !== undefined && prev !== changeNum) {
-      setPctFlash(true);
-      const timer = setTimeout(() => setPctFlash(false), 420);
-      cleanup = () => clearTimeout(timer);
+      if (!prefersReducedMotion) {
+        setPctFlash(true);
+        const timer = setTimeout(() => setPctFlash(false), 220);
+        cleanup = () => clearTimeout(timer);
+      }
     }
     prevPctRef.current = changeNum;
     return cleanup;
-  }, [changeNum]);
+  }, [changeNum, prefersReducedMotion]);
 
   const handleToggleStar = () => {
     if (!symbol || typeof onToggleWatchlist !== "function") return;
@@ -215,8 +221,7 @@ export function TokenRowUnified({
   return (
     <>
       <RowTag
-        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
-        style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        className={`${rowClassName} token-row table-row`}
         data-side={dataSide}
         role={rowUrl ? "link" : undefined}
         tabIndex={rowUrl ? 0 : undefined}

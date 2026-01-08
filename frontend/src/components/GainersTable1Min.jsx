@@ -1,9 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo, useState, useCallback } from "react";
+import { LayoutGroup, motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { baselineOrNull } from "../utils/num.js";
 import "./ui/skeleton.css";
+import { useReorderCadence } from "../hooks/useReorderCadence";
+import { rowVariants } from "./motionVariants.js";
 
 const SkeletonGrid1m = ({ rows = 4 }) => {
   return (
@@ -39,6 +41,7 @@ const buildRowKey = (row, index) => {
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
+  const prefersReducedMotion = useReducedMotion();
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -106,7 +109,6 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   const MAX_VISIBLE_EXPANDED = 16;
 
   const [expanded, setExpanded] = useState(false);
-  const [pulseOn, setPulseOn] = useState(false);
   const filteredRows = useMemo(
     () =>
       (gainers1m || [])
@@ -114,21 +116,18 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         .filter((row) => row.symbol || row.product_id),
     [gainers1m]
   );
+
+  const sortFn = useCallback((a, b) => Number(b.change_1m ?? 0) - Number(a.change_1m ?? 0), []);
+
+  const cadenced = useReorderCadence(
+    filteredRows,
+    sortFn,
+    prefersReducedMotion ? 0 : 360
+  );
   const maxVisible = expanded ? MAX_VISIBLE_EXPANDED : MAX_VISIBLE_COLLAPSED;
-  const displayRows = filteredRows.slice(0, maxVisible);
+  const displayRows = cadenced.slice(0, maxVisible);
   const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
   const skeletonSingle = filteredRows.length <= MAX_ROWS_PER_COLUMN;
-  const refreshSig = useMemo(() => {
-    return displayRows
-      .map((row) => `${row.symbol}:${Number(row.change_1m ?? 0).toFixed(4)}`)
-      .join("|");
-  }, [displayRows]);
-  useEffect(() => {
-    if (!displayRows.length) return;
-    setPulseOn(true);
-    const timer = setTimeout(() => setPulseOn(false), 700);
-    return () => clearTimeout(timer);
-  }, [refreshSig, displayRows.length]);
 
   const hasData = displayRows.length > 0;
 
@@ -168,53 +167,26 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
 
   return (
     <div className="gainers-table">
-      <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
-        <div className="bh-table">
-          <AnimatePresence initial={false}>
-            {leftColumn.map((token, index) => {
-              const rowKey = buildRowKey(token, index);
-              return (
-                <motion.div
-                  key={rowKey}
-                  layout
-                  layoutId={rowKey}
-                  transition={{ type: "spring", stiffness: 680, damping: 36 }}
-                >
-                  <TokenRowUnified
-                    token={token}
-                    rank={index + 1}
-                    changeField="change_1m"
-                    side="gainer"
-                    renderAs="div"
-                    onInfo={onInfo}
-                    onToggleWatchlist={onToggleWatchlist}
-                    isWatchlisted={watchlist.includes(token.symbol)}
-                    density={density}
-                    pulse={pulseOn}
-                    pulseDelayMs={index * 18}
-                  />
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-
-        {hasSecondColumn && (
+      <LayoutGroup>
+        <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
           <div className="bh-table">
             <AnimatePresence initial={false}>
-              {rightColumn.map((token, index) => {
-                const absoluteIndex = leftLimit + index;
-                const rowKey = buildRowKey(token, absoluteIndex);
+              {leftColumn.map((token, index) => {
+                const rowKey = buildRowKey(token, index);
                 return (
-                <motion.div
-                  key={rowKey}
-                  layout
-                  layoutId={rowKey}
-                  transition={{ type: "spring", stiffness: 680, damping: 36 }}
-                >
+                  <motion.div
+                    key={rowKey}
+                    layout={prefersReducedMotion ? false : "position"}
+                    layoutId={rowKey}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    variants={rowVariants}
+                    transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 680, damping: 36 }}
+                  >
                     <TokenRowUnified
                       token={token}
-                      rank={absoluteIndex + 1}
+                      rank={index + 1}
                       changeField="change_1m"
                       side="gainer"
                       renderAs="div"
@@ -222,16 +194,49 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       onToggleWatchlist={onToggleWatchlist}
                       isWatchlisted={watchlist.includes(token.symbol)}
                       density={density}
-                      pulse={pulseOn}
-                      pulseDelayMs={absoluteIndex * 18}
                     />
                   </motion.div>
                 );
               })}
             </AnimatePresence>
           </div>
-        )}
-      </div>
+
+          {hasSecondColumn && (
+            <div className="bh-table">
+              <AnimatePresence initial={false}>
+                {rightColumn.map((token, index) => {
+                  const absoluteIndex = leftLimit + index;
+                  const rowKey = buildRowKey(token, absoluteIndex);
+                  return (
+                    <motion.div
+                      key={rowKey}
+                      layout={prefersReducedMotion ? false : "position"}
+                      layoutId={rowKey}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      variants={rowVariants}
+                      transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 680, damping: 36 }}
+                    >
+                      <TokenRowUnified
+                        token={token}
+                        rank={absoluteIndex + 1}
+                        changeField="change_1m"
+                        side="gainer"
+                        renderAs="div"
+                        onInfo={onInfo}
+                        onToggleWatchlist={onToggleWatchlist}
+                        isWatchlisted={watchlist.includes(token.symbol)}
+                        density={density}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </LayoutGroup>
       {filteredRows.length > MAX_VISIBLE_COLLAPSED && (
         <div className="panel-footer">
           <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>

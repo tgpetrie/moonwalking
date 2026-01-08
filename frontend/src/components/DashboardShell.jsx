@@ -67,6 +67,12 @@ export default function DashboardShell({ onInfo }) {
       const rowRect = row.getBoundingClientRect();
       const centerY = rowRect.top + rowRect.height / 2;
 
+      // Make spotlight match the row height and a wide band based on row width
+      const bandH = Math.max(44, Math.min(110, rowRect.height * 0.92));
+      const bandW = Math.max(320, Math.min(900, rowRect.width * 0.78));
+      board.style.setProperty("--emit-h", `${bandH}px`);
+      board.style.setProperty("--emit-w", `${bandW}px`);
+
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => setEmitter(e.clientX, centerY, true));
     };
@@ -85,6 +91,8 @@ export default function DashboardShell({ onInfo }) {
       board.removeAttribute("data-row-hover");
       board.style.removeProperty("--emit-x");
       board.style.removeProperty("--emit-y");
+      board.style.removeProperty("--emit-w");
+      board.style.removeProperty("--emit-h");
     };
   }, []);
 

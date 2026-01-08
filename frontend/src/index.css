@@ -809,8 +809,24 @@ a.bh-row {
 
 .bh-price-current.is-updating,
 .bh-change.is-updating {
-  animation: number-slide 0.35s ease-out;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+  animation: number-slide 220ms ease-out;
+}
+
+.bh-row[data-side="gainer"] .bh-price-current.is-updating,
+.bh-row[data-side="gainer"] .bh-change.is-updating {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--bh-gain), transparent 58%));
+}
+.bh-row[data-side="loser"] .bh-price-current.is-updating,
+.bh-row[data-side="loser"] .bh-change.is-updating {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--bh-loss), transparent 58%));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-price-current.is-updating,
+  .bh-change.is-updating {
+    animation: none !important;
+    filter: none !important;
+  }
 }
 
 /* ===== Row rail hover (tables only) ===== */
@@ -1318,6 +1334,28 @@ a.bh-row {
 .bh-banner-chip.is-up { color: var(--bh-gain); }
 .bh-banner-chip.is-loss,
 .bh-banner-chip.is-down { color: var(--bh-loss); }
+
+.bh-banner-chip__pct.is-updating,
+.bh-banner-chip__price.is-updating {
+  animation: number-slide 220ms ease-out;
+}
+
+.bh-banner-chip.is-up .bh-banner-chip__pct.is-updating,
+.bh-banner-chip.is-up .bh-banner-chip__price.is-updating {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--bh-gain), transparent 58%));
+}
+.bh-banner-chip.is-down .bh-banner-chip__pct.is-updating,
+.bh-banner-chip.is-down .bh-banner-chip__price.is-updating {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--bh-loss), transparent 58%));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-banner-chip__pct.is-updating,
+  .bh-banner-chip__price.is-updating {
+    animation: none !important;
+    filter: none !important;
+  }
+}
 
 .bh-banner-chip.is-gain .bh-banner-chip__symbol,
 .bh-banner-chip.is-loss .bh-banner-chip__symbol,
@@ -4121,32 +4159,39 @@ body {
 }
 
 .board-core .rabbit-bg{
-  position:absolute;
-  inset: 60px 0 60px 0;
-  pointer-events:none;
-  z-index: 1;
-  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010;
-  mix-blend-mode: screen;
-  filter: brightness(0.78) contrast(1.05) saturate(0.95);
-  transition: opacity 160ms ease, filter 180ms ease;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: url("/purple-rabbit-bg.png") 50% 50% / min(820px, 66vw) no-repeat;
+  opacity: 0.055;
+  filter: blur(10px) saturate(0.10) contrast(1.35) brightness(0.92);
+  mix-blend-mode: soft-light;
+  transition: opacity 140ms ease, filter 140ms ease;
+
+  /* Row-sized spotlight (defaults if JS not set) */
   -webkit-mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
+    ellipse var(--emit-w, 520px) var(--emit-h, 64px) at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 42%,
+    rgba(0,0,0,0) 100%
   );
   mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
+    ellipse var(--emit-w, 520px) var(--emit-h, 64px) at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 42%,
+    rgba(0,0,0,0) 100%
   );
 }
 
+.board-core .rabbit-bg::before,
+.board-core .rabbit-bg::after{
+  content: none !important;
+}
+
 .board-core[data-row-hover="1"] .rabbit-bg{
-  opacity: 0.045;
-  filter: brightness(0.92) contrast(1.06) saturate(1.02);
+  opacity: 0.032;
+  filter: blur(10px) saturate(0.12) contrast(1.40) brightness(0.90);
 }
 
 /* =========================================================
