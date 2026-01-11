@@ -4429,3 +4429,25 @@ body {
   background: #22d3ee;
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.35);
 }
+
+/* =========================================================
+   ONE TRUE BOARD — seam guards
+   Prevent secondary wrappers from painting large backgrounds.
+   ========================================================= */
+
+.bh-panel--rail {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.bh-panel--rail::before,
+.bh-panel--rail::after {
+  content: none !important;
+}
+
+/* Prevent the rabbit layer from appearing as a mid-board band at rest. */
+.board-core:not([data-row-hover="1"]) .rabbit-bg {
+  opacity: 0 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
