@@ -399,7 +399,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     density={density}
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
-                    pulseDelayMs={index * 18}
+                    pulseDelayMs={Math.min(240, index * 24)}
                   />
                 </motion.div>
               );
@@ -435,7 +435,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       density={density}
                       pulsePrice={priceChanged}
                       pulsePct={pctChanged}
-                      pulseDelayMs={absoluteIndex * 18}
+                      pulseDelayMs={Math.min(240, absoluteIndex * 24)}
                     />
                   </motion.div>
                 );
