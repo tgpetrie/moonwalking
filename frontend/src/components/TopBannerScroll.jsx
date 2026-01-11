@@ -1,5 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+
+const COINBASE_ORIGIN = "https://www.coinbase.com";
+
+function toAdvancedTradeUrl(item) {
+  const rawPair = item?.product_id || item?.productId || item?.pair || item?.symbol;
+  if (!rawPair) return null;
+
+  const rawSymbol = item?.symbol ?? null;
+  const symbol = rawSymbol ? String(rawSymbol).replace(/-.*$/, "").toUpperCase().trim() : null;
+
+  let pair = String(rawPair).toUpperCase().trim();
+  if (!pair) return null;
+  if (!pair.includes("-")) pair = `${pair}-USD`;
+  if (!pair.endsWith("-USD") && symbol) pair = `${symbol}-USD`;
+
+  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(pair)}`;
+}
 
 function toNum(v) {
   if (v == null) return null;
@@ -29,11 +45,12 @@ function fmtPct(n) {
   if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
   const d = abs >= 100 ? 0 : abs >= 10 ? 1 : abs >= 1 ? 2 : abs >= 0.1 ? 3 : 4;
+  const sign = n > 0 ? "+" : "";
   const trimmed = n
     .toFixed(d)
     .replace(/\.0+$/, "")
     .replace(/(\.\d*[1-9])0+$/, "$1");
-  return `${trimmed}%`;
+  return `${sign}${trimmed}%`;
 }
 
 function fmtPrice(n) {
@@ -66,30 +83,9 @@ function normalizeItem(raw, idx) {
     "open_price",
   ]);
 
-  let pct = pickNumber(raw, [
-    "pct_change",
-    "percent_change",
-    "change_pct",
-    "change_percent",
-    "pct_change_1h",
-    "price_change_1h",
-    "price_change_pct_1h",
-    "price_change_percentage_1h",
-    "price_change_percentage",
-    "change_1h",
-    "change1h",
-  ]);
-
-  const fallbackPct =
-    baseline && current && baseline !== 0 ? ((current - baseline) / baseline) * 100 : null;
-
-  if (pct != null && Math.abs(pct) < 1 && fallbackPct != null && Math.abs(fallbackPct) > 1) {
-    pct = pct * 100; // backend sent ratio, convert to percent
-  }
-
-  if (pct == null && fallbackPct != null) {
-    pct = fallbackPct;
-  }
+  const directPct = toNum(raw?.price_change_1h);
+  const pct =
+    Number.isFinite(directPct) ? directPct : baseline && current && baseline !== 0 ? ((current - baseline) / baseline) * 100 : null;
 
   const price = current ?? baseline ?? null;
 
@@ -264,11 +260,7 @@ export default function TopBannerScroll(props) {
           ) : (
             doubled.map((it, i) => {
               const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
-              const href =
-                coinbaseSpotUrl({
-                  product_id: it.productId,
-                  symbol: it.symbol,
-                }) || "#";
+              const href = toAdvancedTradeUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
 
               return (
                 <a

@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useData } from "../hooks/useData";
-import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+
+const COINBASE_ORIGIN = "https://www.coinbase.com";
+
+function toAdvancedTradeUrl(item) {
+  const rawPair = item?.product_id || item?.productId || item?.pair || item?.symbol;
+  if (!rawPair) return null;
+
+  const rawSymbol = item?.symbol ?? null;
+  const symbol = rawSymbol ? String(rawSymbol).replace(/-.*$/, "").toUpperCase().trim() : null;
+
+  let pair = String(rawPair).toUpperCase().trim();
+  if (!pair) return null;
+  if (!pair.includes("-")) pair = `${pair}-USD`;
+  if (!pair.endsWith("-USD") && symbol) pair = `${symbol}-USD`;
+
+  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(pair)}`;
+}
 
 function toNum(v) {
   if (v == null) return null;
@@ -71,15 +87,8 @@ function normalizeVolItem(raw, idx) {
     raw.prev_volume
   );
 
-  let delta = pickNumber(
-    raw.volume_1h_delta,
-    raw.volume_change_1h,
-    raw.volume_change,
-    raw.volume_change_abs,
-    raw.delta
-  );
-
   let pct = pickNumber(
+    raw.volume_change_1h,
     raw.volume_change_1h_pct,
     raw.volume_1h_pct,
     raw.volume_change_pct_1h,
@@ -101,9 +110,6 @@ function normalizeVolItem(raw, idx) {
   const baselineMissingReason =
     raw.baseline_missing_reason ?? raw.baselineMissingReason ?? null;
 
-  if (baseline == null && Number.isFinite(volumeNow) && Number.isFinite(delta)) {
-    baseline = volumeNow - delta;
-  }
   if (baseline == null && Number.isFinite(volumeNow) && Number.isFinite(pct)) {
     const denom = 1 + pct / 100;
     if (denom > 0) baseline = volumeNow / denom;
@@ -111,9 +117,7 @@ function normalizeVolItem(raw, idx) {
   if (pct == null && Number.isFinite(volumeNow) && Number.isFinite(baseline) && baseline > 0) {
     pct = ((volumeNow - baseline) / baseline) * 100;
   }
-  if (delta == null && Number.isFinite(volumeNow) && Number.isFinite(baseline)) {
-    delta = volumeNow - baseline;
-  }
+  const delta = Number.isFinite(volumeNow) && Number.isFinite(baseline) ? volumeNow - baseline : null;
 
   const rank = toNum(raw.rank) ?? idx + 1;
 
@@ -284,22 +288,16 @@ export function VolumeBannerScroll({
       <div className="bh-banner-wrap" onMouseEnter={onEnter} onMouseLeave={onLeave}>
         <div ref={trackRef} className="bh-banner-track bh-banner-track--manual" style={{ transform: "translate3d(0,0,0)" }}>
           {doubled.map((it, i) => {
-            const hasVolume = Number.isFinite(it.volumeNow);
             const pct = Number.isFinite(it.pct) ? it.pct : null;
             const fallbackPct =
-              hasVolume && it.baselineReady !== false && Number.isFinite(it.baseline) && it.baseline > 0
+              Number.isFinite(it.volumeNow) && Number.isFinite(it.baseline) && it.baseline > 0
                 ? ((it.volumeNow - it.baseline) / it.baseline) * 100
                 : null;
-            const resolvedPct = it.baselineReady === false ? null : pct ?? fallbackPct;
+            const resolvedPct = pct ?? fallbackPct;
             const stateClass =
               resolvedPct == null ? "is-flat" : resolvedPct >= 0 ? "is-gain" : "is-loss";
-            const url = coinbaseSpotUrl({ ...it, product_id: it.product_id });
-            const showWarming = hasVolume && it.baselineReady === false;
-            const pctLabel = !hasVolume
-              ? "—"
-              : showWarming
-              ? "WARMING"
-              : fmtPct(resolvedPct);
+            const url = toAdvancedTradeUrl({ product_id: it.product_id, symbol: it.symbol });
+            const pctLabel = fmtPct(resolvedPct);
 
             const chip = (
               <>
