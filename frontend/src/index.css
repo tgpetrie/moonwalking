@@ -868,6 +868,42 @@ a.bh-row {
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
 }
 
+/* ===== 1m live calming: cadence reorder + value-only pulse ===== */
+.panel-row--1m .bh-price-current.is-updating,
+.panel-row--1m .bh-change.is-updating {
+  animation: none;
+  filter: none;
+}
+
+@keyframes bh-1m-value-pulse {
+  0% {
+    opacity: 0.82;
+    filter: none;
+  }
+  70% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(16, 174, 155, 0.14));
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+.panel-row--1m .bh-value-pulse {
+  animation: bh-1m-value-pulse 220ms ease-out both;
+  animation-delay: var(--bh-pulse-delay, 0ms);
+  will-change: opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-row--1m .bh-value-pulse {
+    animation: none;
+    filter: none;
+    opacity: 1;
+  }
+}
+
 /* ===== Row rail hover (tables only) ===== */
 .bh-row {
   overflow: hidden;

@@ -44,7 +44,8 @@ function getModePreset() {
 }
 
 const PRESET = getModePreset();
-const { alpha: EMA_ALPHA, commitMs: COMMIT_MS, minStayMs: MIN_STAY_MS, swapMargin: SWAP_MARGIN, bubblePasses: BUBBLE_PASSES, vanishGraceMs: VANISH_GRACE_MS, bufferRows: BUFFER_ROWS, spring: SPRING_CONFIG } = PRESET;
+const COMMIT_MS = Math.max(420, Number(PRESET.commitMs) || 420);
+const SPRING_CONFIG = PRESET.spring;
 
 const SkeletonGrid1m = ({ rows = 4 }) => {
   return (
@@ -74,6 +75,24 @@ const buildRowKey = (row) => {
   return alt ? String(alt) : undefined;
 };
 
+const sortByPct1mThenSymbol = (a, b) => {
+  const ap = Number(a?.change_1m);
+  const bp = Number(b?.change_1m);
+  const aValid = Number.isFinite(ap);
+  const bValid = Number.isFinite(bp);
+
+  if (aValid && bValid && bp !== ap) return bp - ap;
+  if (aValid !== bValid) return aValid ? -1 : 1;
+
+  const aSym = String(a?.symbol ?? a?.ticker ?? a?.base ?? a?.product_id ?? "").toUpperCase();
+  const bSym = String(b?.symbol ?? b?.ticker ?? b?.base ?? b?.product_id ?? "").toUpperCase();
+  if (aSym !== bSym) return aSym.localeCompare(bSym);
+
+  const aId = getRowIdentity(a) ?? "";
+  const bId = getRowIdentity(b) ?? "";
+  return String(aId).localeCompare(String(bId));
+};
+
 const pct1mOf = (row) => {
   const raw =
     row?.change_1m ??
@@ -92,15 +111,73 @@ const priceOf = (row) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const buildSig = (rows = []) =>
-  rows
-    .map((row) => {
-      const id = getRowIdentity(row) || row?.ticker || row?.base || "";
-      const pct = pct1mOf(row);
-      const price = priceOf(row);
-      return `${id}:${pct.toFixed(4)}:${price.toFixed(8)}`;
-    })
-    .join("|");
+function useReorderCadence(rows, sortFn, ms = 420) {
+  const latestRowsRef = useRef(rows);
+  const timerRef = useRef(null);
+  const prevLenRef = useRef(Array.isArray(rows) ? rows.length : 0);
+  const [displayOrder, setDisplayOrder] = useState(() => {
+    const list = Array.isArray(rows) ? [...rows] : [];
+    list.sort(sortFn);
+    return list.map(getRowIdentity).filter(Boolean);
+  });
+
+  const rowsById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      if (!map.has(id)) map.set(id, row);
+    });
+    return map;
+  }, [rows]);
+
+  // Always keep the latest snapshot available for the cadence commit.
+  latestRowsRef.current = Array.isArray(rows) ? rows : [];
+
+  useEffect(() => {
+    const nextRows = Array.isArray(rows) ? rows : [];
+    const nextLen = nextRows.length;
+    const prevLen = prevLenRef.current;
+    prevLenRef.current = nextLen;
+
+    const commit = () => {
+      const snapshot = Array.isArray(latestRowsRef.current) ? latestRowsRef.current : [];
+      const sorted = [...snapshot];
+      sorted.sort(sortFn);
+      setDisplayOrder(sorted.map(getRowIdentity).filter(Boolean));
+    };
+
+    // If membership changes (enter/exit), commit immediately so new coins appear quickly.
+    if (nextLen !== prevLen) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      commit();
+      return;
+    }
+
+    if (timerRef.current) return;
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      commit();
+    }, ms);
+  }, [rows, sortFn, ms]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+
+  return useMemo(
+    () => displayOrder.map((id) => rowsById.get(id)).filter(Boolean),
+    [displayOrder, rowsById]
+  );
+}
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data, isLoading: hookLoading } = useDataFeed();
@@ -171,24 +248,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   const MAX_VISIBLE_EXPANDED = 16;
 
   const [expanded, setExpanded] = useState(false);
-  const [displayRows, setDisplayRows] = useState([]);
-  // Desired candidates snapshot (sorted by score); committed display updates on COMMIT_MS cadence
-  const targetRef = useRef([]);        // desired candidates (sorted)
-  const targetSigRef = useRef("");     // signature of desired candidates
-  const currentSigRef = useRef("");    // signature of last committed displayRows
-
-  // Per-symbol stabilization meta:
-  // ema score, last seen, and min-stay window once shown
-  const metaRef = useRef(new Map());
-
-  // Keep a live ref so the commit loop reads the latest displayRows without stale closures
-  const displayRef = useRef([]);
-
-  const lastValueRef = useRef(new Map());
-
-  useEffect(() => {
-    displayRef.current = displayRows;
-  }, [displayRows]);
+  const prevByIdRef = useRef(new Map());
+  const pulseTimersRef = useRef(new Map());
+  const [pulsePriceById, setPulsePriceById] = useState({});
+  const [pulsePctById, setPulsePctById] = useState({});
 
   const filteredRows = useMemo(
     () =>
@@ -199,230 +262,78 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   );
   const maxVisible = expanded ? MAX_VISIBLE_EXPANDED : MAX_VISIBLE_COLLAPSED;
 
-  // Build a stabilized, scored candidate list whenever input rows change.
-  // We compute EMA per symbol and sort by EMA score.
-  // We keep a BUFFER beyond visible so the cutoff doesn't thrash.
-  // Vanish grace: keep recently-visible coins briefly even if they drop out.
+  const orderedRows = useReorderCadence(filteredRows, sortByPct1mThenSymbol, COMMIT_MS);
+  const displayRows = useMemo(() => orderedRows.slice(0, maxVisible), [orderedRows, maxVisible]);
+
   useEffect(() => {
-    const now = Date.now();
-    const meta = metaRef.current;
+    return () => {
+      for (const timerId of pulseTimersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      pulseTimersRef.current.clear();
+    };
+  }, []);
 
-    const PRUNE_AFTER_MS = 2 * 60 * 1000;
-    for (const [rid, m] of meta.entries()) {
-      if (!m?.lastSeenAt) continue;
-      if (now - m.lastSeenAt > PRUNE_AFTER_MS) meta.delete(rid);
-    }
+  useEffect(() => {
+    const prev = prevByIdRef.current;
+    const activeIds = new Set();
 
-    // Build scored list from current feed
-    const feedMap = new Map();
-    const scored = (filteredRows || [])
-      .map((row) => {
-        const id = getRowIdentity(row);
-        const pctNow = pct1mOf(row);
+    const trigger = (kind, id) => {
+      const timerKey = `${kind}:${id}`;
+      const existing = pulseTimersRef.current.get(timerKey);
+      if (existing) clearTimeout(existing);
 
-        if (id) {
-          feedMap.set(id, row);
-          const prev = meta.get(id) || {};
-          const prevEma = Number.isFinite(prev.ema) ? prev.ema : pctNow;
-          const ema = prevEma * (1 - EMA_ALPHA) + pctNow * EMA_ALPHA;
+      const setActive = kind === "price" ? setPulsePriceById : setPulsePctById;
 
-          meta.set(id, {
-            ...prev,
-            ema,
-            lastPct: pctNow,
-            lastSeenAt: now,
-          });
-
-          return { ...row, __score: ema };
-        }
-
-        return { ...row, __score: pctNow };
-      })
-      .filter((r) => pct1mOf(r) > 0)
-      .sort((a, b) => Number(b.__score) - Number(a.__score));
-
-    // Vanish grace: include recently-visible coins that dropped out temporarily
-    const currentVisible = new Set((displayRef.current || []).map(r => getRowIdentity(r)).filter(Boolean));
-    const graceCandidates = [];
-
-    for (const rid of currentVisible) {
-      if (feedMap.has(rid)) continue; // Already in scored list
-      const m = meta.get(rid);
-      if (!m || !m.lastSeenAt) continue;
-      if (now - m.lastSeenAt > VANISH_GRACE_MS) continue;
-
-      // Inject with decayed score
-      const decayedScore = (m.ema || 0) * 0.92;
-      if (decayedScore > 0) {
-        // Reconstruct row from meta (minimal proxy)
-        graceCandidates.push({
-          symbol: rid,
-          product_id: rid,
-          change_1m: m.lastPct || 0,
-          current_price: 0, // Stale data marker
-          __score: decayedScore,
-          __grace: true, // Mark as grace period entry
+      setActive((s) => (s?.[id] ? s : { ...s, [id]: true }));
+      const t = setTimeout(() => {
+        setActive((s) => {
+          if (!s?.[id]) return s;
+          const next = { ...s };
+          delete next[id];
+          return next;
         });
+      }, 220);
+      pulseTimersRef.current.set(timerKey, t);
+    };
+
+    for (const row of displayRows) {
+      const id = getRowIdentity(row);
+      if (!id) continue;
+      activeIds.add(id);
+
+      const nextPrice = priceOf(row);
+      const nextPct = pct1mOf(row);
+      const p = prev.get(id);
+
+      if (p) {
+        if (p.price !== nextPrice) trigger("price", id);
+        if (p.pct !== nextPct) trigger("pct", id);
       }
+
+      prev.set(id, { price: nextPrice, pct: nextPct });
     }
 
-    const allCandidates = [...scored, ...graceCandidates]
-      .sort((a, b) => Number(b.__score) - Number(a.__score));
-
-    const desired = allCandidates.slice(0, maxVisible + BUFFER_ROWS);
-
-    targetRef.current = desired;
-    targetSigRef.current = buildSig(desired);
-
-    // Optional debug logging
-    try {
-      if (localStorage.getItem("mw_debug_1m") === "1") {
-        console.log(`[1m] mode=${PRESET.mode} scored=${scored.length} grace=${graceCandidates.length} desired=${desired.length}`);
-      }
-    } catch {}
-
-    // First paint: commit immediately so UI doesn't stay empty
-    if (!displayRef.current.length && desired.length) {
-      const first = desired.slice(0, maxVisible);
-      currentSigRef.current = buildSig(first);
-      setDisplayRows(first);
+    // Prune prev cache for rows that left the visible set.
+    for (const id of prev.keys()) {
+      if (!activeIds.has(id)) prev.delete(id);
     }
-  }, [filteredRows, maxVisible]);
-
-  // Commit loop: merges desired list with current display using:
-  // - min-stay window (MIN_STAY_MS)
-  // - hysteresis swap margin (SWAP_MARGIN)
-  // - stable merge order (reduces jumpiness)
-  // Runs on COMMIT_MS cadence.
-  useEffect(() => {
-    const id = setInterval(() => {
-      const desired = Array.isArray(targetRef.current) ? targetRef.current : [];
-      if (!desired.length) return;
-
-      const now = Date.now();
-      const meta = metaRef.current;
-
-      const desiredMap = new Map();
-      const desiredIds = [];
-      for (const r of desired) {
-        const rid = getRowIdentity(r);
-        if (!rid) continue;
-        desiredMap.set(rid, r);
-        desiredIds.push(rid);
-      }
-
-      const prevRows = Array.isArray(displayRef.current) ? displayRef.current : [];
-      const prevIds = prevRows.map((r) => getRowIdentity(r)).filter(Boolean);
-      const prevSet = new Set(prevIds);
-
-      const isLocked = (rid) => {
-        const m = meta.get(rid);
-        return m && Number.isFinite(m.minStayUntil) && m.minStayUntil > now;
-      };
-
-      // Merge ordering: keep current on-screen order where possible, append new candidates
-      const mergedIds = [
-        ...prevIds.filter((rid) => desiredMap.has(rid)),     // keep existing ordering
-        ...desiredIds.filter((rid) => !prevSet.has(rid)),    // add new entrants
-      ];
-
-      const nextIds = [];
-      const nextSet = new Set();
-
-      const pushId = (rid) => {
-        if (!rid || nextSet.has(rid)) return;
-        const row = desiredMap.get(rid);
-        if (!row) return;
-        nextIds.push(rid);
-        nextSet.add(rid);
-
-        // When a coin becomes visible, give it a min-stay lease
-        const m = meta.get(rid) || {};
-        if (!Number.isFinite(m.minStayUntil) || m.minStayUntil < now) {
-          meta.set(rid, { ...m, minStayUntil: now + MIN_STAY_MS });
-        }
-      };
-
-      // Step 0: include locked rows first
-      for (const rid of prevIds) {
-        if (nextIds.length >= maxVisible) break;
-        if (!isLocked(rid)) continue;
-        if (!desiredMap.has(rid)) continue;
-        pushId(rid);
-      }
-
-      // Step A: keep what we can from merged order (stable feel)
-      for (const rid of mergedIds) {
-        if (nextIds.length >= maxVisible) break;
-        pushId(rid);
-      }
-
-      // Step B: if we still have room, fill with top desired ids
-      if (nextIds.length < maxVisible) {
-        for (const rid of desiredIds) {
-          if (nextIds.length >= maxVisible) break;
-          pushId(rid);
-        }
-      }
-
-      let nextRows = nextIds.map((rid) => desiredMap.get(rid)).filter(Boolean);
-
-      // Hysteresis re-order pass (bounded bubble)
-      // Allows rockets to climb quickly without re-sorting every tick
-      const score = (r) => Number(r?.__score ?? pct1mOf(r));
-      for (let pass = 0; pass < BUBBLE_PASSES; pass++) {
-        let swapped = false;
-        for (let i = 0; i < nextRows.length - 1; i++) {
-          const a = nextRows[i];
-          const b = nextRows[i + 1];
-          if (!a || !b) continue;
-          const sa = score(a);
-          const sb = score(b);
-          if (sb - sa > SWAP_MARGIN) {
-            nextRows[i] = b;
-            nextRows[i + 1] = a;
-            swapped = true;
-          }
-        }
-        if (!swapped) break;
-      }
-
-      // Optional debug: log top 5 after reorder
-      try {
-        if (localStorage.getItem("mw_debug_1m") === "1" && nextRows.length > 0) {
-          const top5 = nextRows.slice(0, 5).map(r => `${getRowIdentity(r)}:${score(r).toFixed(2)}`).join(' ');
-          console.log(`[1m] commit: ${top5}`);
-        }
-      } catch {}
-
-      const nextSig = buildSig(nextRows);
-      if (nextSig === currentSigRef.current) return;
-
-      currentSigRef.current = nextSig;
-      setDisplayRows(nextRows);
-    }, COMMIT_MS);
-
-    return () => clearInterval(id);
-  }, [maxVisible]);
-
-  const rowsWithPulse = useMemo(() => {
-    const map = lastValueRef.current;
-    return displayRows.map((row) => {
-      const key = getRowIdentity(row);
-      const price = priceOf(row);
-      const pct = pct1mOf(row);
-      const prev = key ? map.get(key) : null;
-      const priceChanged = prev ? prev.price !== price : false;
-      const pctChanged = prev ? prev.pct !== pct : false;
-      if (key) {
-        map.set(key, { price, pct });
-      }
-      return { row, priceChanged, pctChanged };
-    });
   }, [displayRows]);
-  const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
-  const skeletonSingle = filteredRows.length <= MAX_ROWS_PER_COLUMN;
 
+  const rowsWithPulse = useMemo(
+    () =>
+      displayRows.map((row) => {
+        const id = getRowIdentity(row);
+        return {
+          row,
+          priceChanged: id ? Boolean(pulsePriceById?.[id]) : false,
+          pctChanged: id ? Boolean(pulsePctById?.[id]) : false,
+        };
+      }),
+    [displayRows, pulsePriceById, pulsePctById]
+  );
+
+  const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
   const hasData = displayRows.length > 0;
 
   // Loading skeleton state
@@ -503,15 +414,15 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                 const absoluteIndex = leftLimit + index;
                 const rowKey = buildRowKey(token);
                 return (
-                <motion.div
-                  key={rowKey}
-                  layout
-                  layoutId={rowKey}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={SPRING_CONFIG}
-                >
+                  <motion.div
+                    key={rowKey}
+                    layout
+                    layoutId={rowKey}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={SPRING_CONFIG}
+                  >
                     <TokenRowUnified
                       token={token}
                       rank={absoluteIndex + 1}
