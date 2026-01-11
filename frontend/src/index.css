@@ -4236,44 +4236,70 @@ body {
 }
 
 /* =========================================================
-   Rabbit: nearly invisible until row hover spotlight
+   Rabbit hover emit/bloom (restored from 6f6777)
    Requires JS setting --emit-x/--emit-y and data-row-hover
    ========================================================= */
 
-.board-core{
+.board-core {
   position: relative;
-  isolation: isolate;
-  --emit-x: 50%;
-  --emit-y: 50%;
+  --bh-emitter-x: var(--emit-x, 50%);
+  --bh-emitter-y: var(--emit-y, 45%);
 }
 
-.board-core .rabbit-bg{
-  position:absolute;
-  inset: 60px 0 60px 0;
-  pointer-events:none;
-  z-index: 1;
-  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010;
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: url("/purple-rabbit-bg.png") 50% 20% / min(1100px, 88vw) auto no-repeat;
+  opacity: 0.003;
   mix-blend-mode: screen;
-  filter: brightness(0.78) contrast(1.05) saturate(0.95);
-  transition: opacity 160ms ease, filter 180ms ease;
+  transition: opacity 180ms ease, filter 180ms ease;
   -webkit-mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
+    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.9) 30%,
+    rgba(0,0,0,0.4) 55%,
+    rgba(0,0,0,0) 82%
   );
   mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
+    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.9) 30%,
+    rgba(0,0,0,0.4) 55%,
+    rgba(0,0,0,0) 82%
   );
 }
 
-.board-core[data-row-hover="1"] .rabbit-bg{
+.board-core[data-row-hover="1"] .rabbit-bg,
+.board-core[data-row-hover="1"] .bh-bunny-layer {
   opacity: 0.045;
-  filter: brightness(0.92) contrast(1.06) saturate(1.02);
+  filter:
+    brightness(1.5)
+    contrast(1.1)
+    saturate(1.05)
+    drop-shadow(0 0 12px rgba(255, 179, 77, 0.28))
+    drop-shadow(0 0 26px rgba(192, 129, 255, 0.22));
+}
+
+/* Optional: tiny gold bloom that’s independent of the rabbit art */
+.board-core .rabbit-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
+    rgba(245, 178, 58, 0.20),
+    rgba(245, 178, 58, 0.10) 18%,
+    rgba(0, 0, 0, 0) 52%
+  );
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg::before {
+  opacity: 1;
 }
 
 /* =========================================================
@@ -4299,85 +4325,6 @@ body {
 .bh-row[data-side="gainer"],
 .bh-row[data-side="loser"] {
   --bh-side-presence: 1;
-}
-
-/* =========================================================
-   RABBIT SPOTLIGHT — TIGHT ROW-LOCAL + SILHOUETTE ONLY
-   Paste at END of index.css so it overrides earlier rabbit-bg rules.
-   ========================================================= */
-
-/* Base rabbit: almost invisible, darkened, no color-pop */
-.board-core .rabbit-bg {
-  opacity: 0.04;                 /* near-black-on-black, but violet */
-  filter: saturate(0.48) brightness(0.50) contrast(1.10);
-  mix-blend-mode: soft-light;    /* keeps it “in the fabric” */
-  pointer-events: none;
-}
-
-/* Tight mask centered on JS-provided emit coords */
-.board-core .rabbit-bg {
-  -webkit-mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-  mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-
-/* When a row is hovered, reveal slightly — still subtle */
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.08;
-  filter:
-    saturate(0.56)
-    brightness(0.58)
-    contrast(1.12);
-}
-
-/* Optional: if you want it even tighter (almost row height),
-   replace 160px 58px above with 140px 46px */
-
-/* =========================================================
-   RABBIT SPOTLIGHT — EXTRA SMALL FOOTPRINT (ROW-TIGHT)
-   ========================================================= */
-
-/* Smaller mask = smaller lit bunny area */
-.board-core .rabbit-bg {
-  -webkit-mask-image: radial-gradient(
-    ellipse 220px 18px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.55) 40%,
-    rgba(255,255,255,0.10) 56%,
-    rgba(255,255,255,0.00) 64%
-  );
-  mask-image: radial-gradient(
-    ellipse 220px 18px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.55) 40%,
-    rgba(255,255,255,0.10) 56%,
-    rgba(255,255,255,0.00) 64%
-  );
-}
-
-/* Keep hover reveal subtle so it doesn't "wash" the whole bunny */
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.08;
-  filter:
-    saturate(0.52)
-    brightness(0.56)
-    contrast(1.10);
 }
 
 /* =========================================================
