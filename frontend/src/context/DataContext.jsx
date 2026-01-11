@@ -24,6 +24,7 @@ const readCachedPayload = () => {
 // Environment-driven cadence knobs (defaults optimized for N100)
 const PUBLISH_3M_MS = Number(import.meta.env.VITE_PUBLISH_3M_MS || 12000);
 const PUBLISH_BANNER_MS = Number(import.meta.env.VITE_PUBLISH_BANNER_MS || 120000);
+// NOTE: row-level staggering moved into the 1m table layer; keep env var reserved for future use.
 const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 
 // Normalize backend response to canonical shape
@@ -107,40 +108,12 @@ export function DataProvider({ children }) {
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
 
-  // Staggered commit for 1m rows (creates "live feel")
-  const staggerCommit1m = useCallback((nextRows) => {
-    // Cancel any in-flight stagger cycle
-    const token = Symbol("stagger");
-    staggerTokenRef.current = token;
-
-    if (!Array.isArray(nextRows) || nextRows.length === 0) {
-      setOneMinRows([]);
-      return;
-    }
-
-    // For drastic count changes, commit immediately
-    if (nextRows.length <= 1) {
-      setOneMinRows(nextRows);
-      return;
-    }
-
-    // Start with current rows to avoid jarring "teleport"
-    setOneMinRows(prev => {
-      const base = Array.isArray(prev) && prev.length ? [...prev] : [...nextRows];
-      return base;
-    });
-
-    // Stagger individual row updates for smooth animation
-    nextRows.forEach((row, i) => {
-      setTimeout(() => {
-        if (staggerTokenRef.current !== token) return; // Stale stagger, abort
-        setOneMinRows(prev => {
-          const arr = Array.isArray(prev) ? [...prev] : [];
-          arr[i] = row;
-          return arr;
-        });
-      }, i * STAGGER_MS);
-    });
+  // Commit 1m rows as a whole snapshot.
+  // Row liveliness is handled in the table layer (value-only pulses + staggering),
+  // and avoiding index-based partial commits prevents "jerky" mismatched row updates.
+  const commit1m = useCallback((nextRows) => {
+    staggerTokenRef.current = null;
+    setOneMinRows(Array.isArray(nextRows) ? nextRows : []);
   }, []);
 
   const applySnapshot = useCallback((norm, now = Date.now()) => {
@@ -198,8 +171,8 @@ export function DataProvider({ children }) {
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
 
-      // 1m: every fetch, but stagger the row commits for "live feel"
-      staggerCommit1m(norm.gainers_1m);
+      // 1m: every fetch (table layer handles "live feel" without partial commits)
+      commit1m(norm.gainers_1m);
 
       // 3m: publish every PUBLISH_3M_MS (default 12s)
       if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
@@ -222,7 +195,7 @@ export function DataProvider({ children }) {
     heartbeatTimerRef.current = setTimeout(() => {
       setHeartbeatPulse(false);
     }, 420);
-  }, [staggerCommit1m]);
+  }, [commit1m]);
 
   const fetchData = useCallback(async () => {
     if (inFlightRef.current) return;

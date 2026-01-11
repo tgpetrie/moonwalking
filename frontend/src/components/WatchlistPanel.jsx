@@ -5,6 +5,17 @@ import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { baselineOrNull, toFiniteNumber } from "../utils/num.js";
 
+const parseLooseNumber = (v) => {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    const s = v.trim().replace(/,/g, "").replace(/[$]/g, "");
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+  return Number.isFinite(v) ? v : null;
+};
+
 const pickPrice = (source = {}) => {
   if (!source) return null;
   return (
@@ -35,6 +46,9 @@ export default function WatchlistPanel({ onInfo }) {
     const latest = payload.latest_by_symbol || {};
     const merged = {};
     Object.entries(latest).forEach(([k, v]) => {
+      const canon = canonize(v?.symbol ?? k);
+      if (canon) merged[canon] = v;
+      // keep raw key as a fallback for debugging / legacy callers
       merged[String(k).toUpperCase()] = v;
     });
     return merged;
@@ -59,12 +73,12 @@ export default function WatchlistPanel({ onInfo }) {
     Object.entries(liveBySymbol).forEach(([rawSymbol, details]) => {
       const symbol = canonize(rawSymbol);
       if (!symbol) return;
-      const livePrice = toFiniteNumber(pickPrice(details));
+      const livePrice = baselineOrNull(parseLooseNumber(pickPrice(details)));
       pool.push({
         symbol,
         display: symbol,
         price: livePrice,
-        hasPrice: Number.isFinite(livePrice),
+        hasPrice: Number.isFinite(livePrice) && livePrice > 0,
       });
     });
     return pool;
@@ -93,7 +107,7 @@ export default function WatchlistPanel({ onInfo }) {
       const live = liveBySymbol[canonSymbol] || {};
 
       // Get current price from live feed
-      const currentPrice = toFiniteNumber(pickPrice(live));
+      const currentPrice = baselineOrNull(parseLooseNumber(pickPrice(live)));
 
       // Get baseline (price when added) - this NEVER changes unless user removes + re-adds
       const addedPrice = baselineOrNull(entry.addedPrice);
@@ -105,11 +119,11 @@ export default function WatchlistPanel({ onInfo }) {
         key: `${canonSymbol}-${index}`,
         rank: index + 1,
         symbol: canonSymbol,
+        ...live, // spread live data for badges, base name, etc.
         current_price: currentPrice,
         previous_price: addedPrice,        // baseline for "previous price" line
         change_watch: changeWatch,         // % change since added
         watch_added_at: entry.addedAt,
-        ...live, // spread live data for badges, base name, etc.
       };
     });
   }, [items, liveBySymbol]);
@@ -119,7 +133,7 @@ export default function WatchlistPanel({ onInfo }) {
       const canon = canonize(sym);
       if (!canon) return null;
       const live = liveBySymbol[canon];
-      return toFiniteNumber(pickPrice(live));
+      return baselineOrNull(parseLooseNumber(pickPrice(live)));
     },
     [liveBySymbol]
   );
@@ -129,7 +143,7 @@ export default function WatchlistPanel({ onInfo }) {
       if (!entry?.display) return;
       const sym = canonize(entry.display);
       if (!sym || watchlistSet.has(sym)) return;
-      const livePrice = livePriceForSymbol(sym);
+      const livePrice = Number.isFinite(entry?.price) ? entry.price : livePriceForSymbol(sym);
       if (!Number.isFinite(livePrice)) {
         console.warn("[watchlist] add aborted: missing price", sym);
         return;
