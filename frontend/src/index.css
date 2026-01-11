@@ -472,10 +472,27 @@ body {
   margin-bottom: 28px;
 }
 
+/* One full-width strip */
+.bh-board-row-full {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 0;
+  margin-bottom: 24px;
+}
+
+/* Two equal panels side-by-side */
+.bh-board-row-halves {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 28px;
+  margin-bottom: 24px;
+}
+
 .bh-board-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 /* ===== BOARD WRAPPER & RABBIT LAYER (panel-scoped) ===== */
