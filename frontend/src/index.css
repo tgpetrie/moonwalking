@@ -4451,3 +4451,11 @@ body {
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
+
+/* Banners already live inside the board; prevent double max-width/padding wrappers. */
+.bh-board .bh-banner-block,
+.bh-board .bh-banner-wrap {
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+}
