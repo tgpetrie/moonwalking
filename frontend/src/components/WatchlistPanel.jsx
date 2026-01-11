@@ -59,10 +59,12 @@ export default function WatchlistPanel({ onInfo }) {
     Object.entries(liveBySymbol).forEach(([rawSymbol, details]) => {
       const symbol = canonize(rawSymbol);
       if (!symbol) return;
+      const livePrice = toFiniteNumber(pickPrice(details));
       pool.push({
         symbol,
         display: symbol,
-        price: toFiniteNumber(pickPrice(details)),
+        price: livePrice,
+        hasPrice: Number.isFinite(livePrice),
       });
     });
     return pool;
@@ -112,16 +114,33 @@ export default function WatchlistPanel({ onInfo }) {
     });
   }, [items, liveBySymbol]);
 
+  const livePriceForSymbol = useCallback(
+    (sym) => {
+      const canon = canonize(sym);
+      if (!canon) return null;
+      const live = liveBySymbol[canon];
+      return toFiniteNumber(pickPrice(live));
+    },
+    [liveBySymbol]
+  );
+
   const addProduct = useCallback(
     (entry) => {
       if (!entry?.display) return;
       const sym = canonize(entry.display);
       if (!sym || watchlistSet.has(sym)) return;
-      add({ symbol: sym, price: entry.price });
+      const livePrice = livePriceForSymbol(sym);
+      if (!Number.isFinite(livePrice)) {
+        console.warn("[watchlist] add aborted: missing price", sym);
+        return;
+      }
+      add({ symbol: sym, price: livePrice });
+      // Dev-only sanity check that clicks flow through even with overlays
+      console.debug("[watchlist] add", sym, livePrice);
       setQuery("");
       setIsOpen(false);
     },
-    [add, watchlistSet]
+    [add, livePriceForSymbol, watchlistSet]
   );
 
   const handleSubmit = useCallback(
@@ -187,7 +206,7 @@ export default function WatchlistPanel({ onInfo }) {
           {isOpen && suggestions.length > 0 && (
             <div className="bh-watchlist__dropdown">
               {suggestions.map((entry) => {
-                const disabled = isPinned(entry.symbol);
+                const disabled = isPinned(entry.symbol) || !entry.hasPrice;
                 return (
                   <button
                     type="button"
@@ -203,7 +222,11 @@ export default function WatchlistPanel({ onInfo }) {
                       {entry.display}
                     </span>
                     <span className="bh-watchlist__optHint">
-                      {disabled ? "Pinned" : "Add"}
+                      {isPinned(entry.symbol)
+                        ? "Pinned"
+                        : entry.hasPrice
+                        ? "Add"
+                        : "No price"}
                     </span>
                   </button>
                 );
