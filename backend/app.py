@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as
 import logging
 from datetime import datetime, timedelta, timezone
 import asyncio
+from pathlib import Path
 
 try:
     from volume_1h_store import ensure_db as ensure_volume_db
@@ -1193,6 +1194,14 @@ _SENTIMENT_TIMEOUT_SLOW_S = float(os.getenv("SENTIMENT_TIMEOUT_SLOW_S", "25"))
 # Legacy env still supported; falls back to slow timeout if provided
 _SENTIMENT_TIMEOUT_S = float(os.getenv("SENTIMENT_TIMEOUT_S", str(_SENTIMENT_TIMEOUT_SLOW_S)))
 
+# Sentiment proxy cache settings
+STATE_DIR = Path(__file__).resolve().parent / "state"
+STATE_DIR.mkdir(exist_ok=True)
+FNG_CACHE_PATH = STATE_DIR / "fng_cache.json"
+CG_CACHE_PATH = STATE_DIR / "cg_global_cache.json"
+SENTIMENT_TTL_SHORT = 300  # 5 minutes
+SENTIMENT_TTL_STALE = 6 * 60 * 60  # 6 hours
+
 def _sentiment_cache_lookup(symbol):
     now = time.time()
     with _SENTIMENT_CACHE_LOCK:
@@ -1205,6 +1214,139 @@ def _sentiment_cache_lookup(symbol):
 def _sentiment_cache_set(symbol, data):
     with _SENTIMENT_CACHE_LOCK:
         _SENTIMENT_CACHE[symbol] = {"ts": time.time(), "data": data}
+
+
+def _load_cache(path: Path):
+    try:
+        with path.open("r") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _save_cache(path: Path, payload: dict):
+    try:
+        path.parent.mkdir(exist_ok=True, parents=True)
+        with path.open("w") as f:
+            json.dump(payload, f)
+    except Exception:
+        pass
+
+
+def _now_iso():
+    return datetime.utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_fng(raw):
+    try:
+        data = (raw or {}).get("data")
+        if isinstance(data, list) and data:
+            item = data[0]
+            value = int(item.get("value"))
+            label = str(item.get("value_classification") or item.get("classification") or "")
+            ts = item.get("timestamp")
+            # alternative.me sends unix seconds
+            try:
+                ts_iso = datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat().replace("+00:00", "Z")
+            except Exception:
+                ts_iso = _now_iso()
+            return {
+                "ok": True,
+                "value": value,
+                "label": label,
+                "updated_at": ts_iso,
+                "source": "alternative_me",
+                "source_url": "https://alternative.me/crypto/fear-and-greed-index/",
+                "stale": False,
+            }
+    except Exception:
+        return None
+    return None
+
+
+def _normalize_cg_global(raw):
+    try:
+        data = (raw or {}).get("data") or {}
+        mcap = data.get("total_market_cap", {}).get("usd")
+        vol = data.get("total_volume", {}).get("usd")
+        btc_dom = data.get("market_cap_percentage", {}).get("btc")
+        mcap_change = data.get("market_cap_change_percentage_24h_usd")
+        return {
+          "ok": True,
+          "total_market_cap_usd": float(mcap) if mcap is not None else None,
+          "total_volume_usd": float(vol) if vol is not None else None,
+          "btc_dominance": float(btc_dom) if btc_dom is not None else None,
+          "mcap_change_24h_pct": float(mcap_change) if mcap_change is not None else None,
+          "updated_at": _now_iso(),
+          "source": "coingecko_global",
+          "source_url": "https://www.coingecko.com/",
+          "stale": False,
+        }
+    except Exception:
+        return None
+
+
+def _fetch_with_cache(cache_path: Path, url: str, normalizer, ttl=SENTIMENT_TTL_SHORT):
+    now = time.time()
+    cached = _load_cache(cache_path)
+    if cached:
+        expires_at = cached.get("expires_at") or 0
+        if now < expires_at and cached.get("payload"):
+            return cached.get("payload"), False
+
+    try:
+        resp = requests.get(url, timeout=3)
+        resp.raise_for_status()
+        raw = resp.json()
+        payload = normalizer(raw)
+        if payload:
+            record = {
+                "fetched_at": _now_iso(),
+                "expires_at": now + ttl,
+                "payload": payload,
+            }
+            _save_cache(cache_path, record)
+            return payload, False
+    except Exception as exc:
+        try:
+            logging.warning("sentiment proxy fetch failed %s: %s", url, exc)
+        except Exception:
+            pass
+
+    if cached and cached.get("payload"):
+        stale_payload = dict(cached.get("payload", {}))
+        stale_payload["stale"] = True
+        return stale_payload, True
+
+    return None, False
+
+
+@app.route("/api/sentiment/fng")
+def api_sentiment_fng():
+    """Fear & Greed proxy with TTL cache."""
+    payload, _ = _fetch_with_cache(
+        FNG_CACHE_PATH,
+        "https://api.alternative.me/fng/?limit=1&format=json",
+        _normalize_fng,
+        ttl=SENTIMENT_TTL_SHORT,
+    )
+    if payload:
+        return jsonify(payload)
+    return jsonify({"ok": False, "unavailable": True, "source": "alternative_me"}), 503
+
+
+@app.route("/api/sentiment/market")
+def api_sentiment_market():
+    """CoinGecko global market pulse proxy with TTL cache."""
+    payload, _ = _fetch_with_cache(
+        CG_CACHE_PATH,
+        "https://api.coingecko.com/api/v3/global",
+        _normalize_cg_global,
+        ttl=SENTIMENT_TTL_SHORT,
+    )
+    if payload:
+        return jsonify(payload)
+    return jsonify({"ok": False, "unavailable": True, "source": "coingecko_global"}), 503
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
