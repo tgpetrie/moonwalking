@@ -42,6 +42,11 @@ export default function WatchlistPanel({ onInfo }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
+  function canonize(value) {
+    const canon = tickerFromSymbol(value) || value;
+    return typeof canon === "string" ? canon.toUpperCase() : null;
+  }
+
   const liveBySymbol = useMemo(() => {
     const latest = payload.latest_by_symbol || {};
     const merged = {};
@@ -53,11 +58,6 @@ export default function WatchlistPanel({ onInfo }) {
     });
     return merged;
   }, [payload]);
-
-  const canonize = (value) => {
-    const canon = tickerFromSymbol(value) || value;
-    return typeof canon === "string" ? canon.toUpperCase() : null;
-  };
 
   const watchlistSet = useMemo(() => {
     const set = new Set();
