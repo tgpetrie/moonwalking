@@ -13,6 +13,16 @@ The goal:
 
 ---
 
+## 0. Data & Endpoints (dev)
+
+- Dev base: `http://127.0.0.1:5003` (dashboard fetches `/data` here).
+- `/data` keys expected: `banner_1h_price`, `banner_1h_volume`, `gainers_1m`, `gainers_3m`, `losers_3m`, `latest_by_symbol`, `volume1h`, `updated_at`.
+- Banners: price = `banner_1h_price`; volume = `banner_1h_volume`.
+- Links: always use Advanced Trade spot: `https://www.coinbase.com/advanced-trade/spot/${product_id}`. If no `product_id`, fallback to `${SYMBOL}-USD` (uppercase).
+- Poll cadence: 3–5s with light jitter; do not stack overlapping requests.
+
+---
+
 ## 1. Files Covered
 
 These rules apply to:

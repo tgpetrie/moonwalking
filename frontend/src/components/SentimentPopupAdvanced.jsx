@@ -661,9 +661,29 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     : 0;
   const sourceCount = pipelineSources?.length || fallbackSourceCount;
 
-  const lastUpdate = sentimentData?.pipelineTimestamp
-    ? new Date(sentimentData.pipelineTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const lastUpdatedMsRaw =
+    sentimentData?.pipelineTimestamp ??
+    sentimentData?.timestamp ??
+    sentimentData?.updatedAt ??
+    null;
+  const lastUpdatedMs = Number.isFinite(Date.parse(lastUpdatedMsRaw || "")) ? Date.parse(lastUpdatedMsRaw) : Date.now();
+  const lastUpdate = Number.isFinite(lastUpdatedMs)
+    ? new Date(lastUpdatedMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '--:--';
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isOpen || !sentimentData) return;
+    if (window.__MW_SENTIMENT_LOGGED__) return;
+    window.__MW_SENTIMENT_LOGGED__ = true;
+    console.debug("[sentiment] sample payload", {
+      pipelineTimestamp: sentimentData.pipelineTimestamp,
+      overallSentiment: sentimentData.overallSentiment,
+      fearGreedIndex: sentimentData.fearGreedIndex,
+      tierScores: sentimentData.tierScores,
+      sourceBreakdown,
+      firstSource: sortedSources?.[0] || null,
+    });
+  }, [isOpen, sentimentData, sourceBreakdown, sortedSources]);
 
   return (
     <div
@@ -1045,7 +1065,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   How to Read the Tea Leaves
                 </h3>
                 <div className="explainer-box">
-                  <p>This analysis scans <strong>{sourceCount}+</strong> live sources from Whales to Anons. <strong>Smart money</strong> gets more weight than <strong>Retail sentiment</strong>. When whales buy while apes panic = accumulation zone. When retail FOMOs while whales sell = possible top. Click <strong>Live Sources</strong> to verify - trust, but verify anon.</p>
+                  <p><strong>Tiers:</strong> T1 (whales/institutions), T2 (pro desks/media), T3 (retail/social), FX (fringe). Tier scores map directly to <code>tierScores</code> from the API.</p>
+                  <p><strong>Charts:</strong> The gauge and trend line use <code>overallSentiment</code>; Fear &amp; Greed comes from <code>fearGreedIndex</code>. Flat, tight bands = confirmation; wide swings vs price = noise/volatility.</p>
+                  <p><strong>Refresh:</strong> Pipeline timestamp {lastUpdate}; auto-refresh every {Math.round(REFRESH_MS / 1000)}s.</p>
+                  <p className="disclaimer">If I were giving financial advice, I would say to treat this as context only, size small, and verify the linked sources before moving any capital.</p>
                 </div>
               </div>
             </section>
@@ -1096,6 +1119,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       ? source.trust_weight.toFixed(2)
                       : '--';
                     const scoreLabel = getSourceScoreLabel(source.sentiment_score);
+                    const sourceUrl = source.url || source.href || source.link;
 
                     return (
                       <div key={source.name} className={`source-card ${tierClass}`}>
@@ -1103,7 +1127,19 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                           <div className="source-header">
                             <span className="source-icon" aria-hidden="true">{TIER_ICONS[tierKey] || 'SRC'}</span>
                             <div>
-                              <div className="source-name">{source.name}</div>
+                              {sourceUrl ? (
+                                <a
+                                  className="source-name"
+                                  href={sourceUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ color: 'inherit' }}
+                                >
+                                  {source.name}
+                                </a>
+                              ) : (
+                                <div className="source-name">{source.name}</div>
+                              )}
                               <span className="source-status">{statusLabel}</span>
                             </div>
                           </div>

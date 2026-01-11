@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPct } from "../utils/format";
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -12,6 +13,15 @@ const toNum = (value) => {
   if (typeof value === "number") return value;
   const normalized = Number(String(value).replace(/[%+]/g, ""));
   return Number.isFinite(normalized) ? normalized : NaN;
+};
+
+const spotUrl = (token, symbol) => {
+  const productId =
+    token?.product_id ||
+    token?.symbol ||
+    token?.ticker ||
+    (symbol ? `${symbol}-USD` : null);
+  return coinbaseSpotUrl({ product_id: productId, symbol });
 };
 
 export default function AnomalyStream({ data = {}, volumeData = [] }) {
@@ -58,10 +68,14 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const key = `G-1m-${symbol}-${pct.toFixed(4)}`;
       if (seenRef.current.has(key)) continue;
       if (pct > 1.5) {
+        const url = spotUrl(token, symbol);
         newLogs.push({
           id: `g-${Date.now()}-${Math.random()}`,
           time: timeStr,
-          msg: `>>> ${symbol} SPIKE DETECTED [${formatPct(pct, { sign: true })}]`,
+          symbol,
+          url,
+          prefix: ">>>",
+          body: `SPIKE DETECTED [${formatPct(pct, { sign: true })}]`,
           tone: "gold",
         });
         seenRef.current.add(key);
@@ -75,10 +89,14 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const key = `L-3m-${symbol}-${pct.toFixed(4)}`;
       if (seenRef.current.has(key)) continue;
       if (pct < -2.0) {
+        const url = spotUrl(token, symbol);
         newLogs.push({
           id: `l-${Date.now()}-${Math.random()}`,
           time: timeStr,
-          msg: `<<< ${symbol} RAPID DROP [${formatPct(pct, { sign: true })}]`,
+          symbol,
+          url,
+          prefix: "<<<",
+          body: `RAPID DROP [${formatPct(pct, { sign: true })}]`,
           tone: "purple",
         });
         seenRef.current.add(key);
@@ -92,10 +110,14 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const key = `V-1h-${symbol}-${pct}`;
       if (seenRef.current.has(key)) continue;
       if (pct > 80) {
+        const url = spotUrl(token, symbol);
         newLogs.push({
           id: `v-${Date.now()}-${Math.random()}`,
           time: timeStr,
-          msg: `||| ${symbol} VOLUME SHOCK [+${pct}%]`,
+          symbol,
+          url,
+          prefix: "|||",
+          body: `VOLUME SHOCK [+${pct}%]`,
           tone: "cyan",
         });
         seenRef.current.add(key);
@@ -140,7 +162,25 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         {logs.map((log) => (
           <div key={log.id} className={`bh-anom-line bh-row tone-${log.tone}`} data-side="flat">
             <span className="bh-anom-time">[{log.time}]</span>
-            <span className="bh-anom-msg">{log.msg}</span>
+            <span className="bh-anom-msg">
+              {log.prefix ? <span className="bh-anom-prefix">{log.prefix}</span> : null}{" "}
+              {log.symbol ? (
+                log.url ? (
+                  <a
+                    className="bh-anom-link"
+                    href={log.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "inherit" }}
+                  >
+                    {log.symbol}
+                  </a>
+                ) : (
+                  <span className="bh-anom-sym">{log.symbol}</span>
+                )
+              ) : null}{" "}
+              <span className="bh-anom-text">{log.body || log.msg}</span>
+            </span>
           </div>
         ))}
         <div className="bh-anom-cursor">_</div>
