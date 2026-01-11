@@ -1,15 +1,39 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 function toNum(v) {
-  const n = typeof v === "string" ? Number(v) : v;
-  return Number.isFinite(n) ? n : null;
+  if (v == null) return null;
+
+  if (typeof v === "string") {
+    let s = v.trim();
+    if (!s) return null;
+    s = s.replace(/,/g, "");
+    s = s.replace(/%/g, "");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  return Number.isFinite(v) ? v : null;
+}
+
+function pickNumber(obj, fields = []) {
+  if (!obj) return null;
+  for (const key of fields) {
+    const n = toNum(obj[key]);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 function fmtPct(n) {
   if (!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
-  const d = abs >= 10 ? 2 : abs >= 1 ? 2 : 3;
-  return `${n.toFixed(d)}%`;
+  const d = abs >= 100 ? 0 : abs >= 10 ? 1 : abs >= 1 ? 2 : abs >= 0.1 ? 3 : 4;
+  const trimmed = n
+    .toFixed(d)
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*[1-9])0+$/, "$1");
+  return `${trimmed}%`;
 }
 
 function fmtPrice(n) {
@@ -30,21 +54,44 @@ function normalizeItem(raw, idx) {
 
   const productId = raw.product_id || (symbol ? `${symbol}-USD` : null);
 
-  const pct =
-    toNum(raw.price_change_1h) ??
-    toNum(raw.pct_change_1h) ??
-    toNum(raw.pct_change) ??
-    toNum(raw.changePct) ??
-    toNum(raw.change_pct) ??
-    toNum(raw.percent_change) ??
-    null;
+  const current =
+    pickNumber(raw, ["current_price", "price", "last", "latest_price", "close_price"]) ?? null;
 
-  const price =
-    toNum(raw.price) ??
-    toNum(raw.current_price) ??
-    toNum(raw.last) ??
-    toNum(raw.latest_price) ??
-    null;
+  const baseline = pickNumber(raw, [
+    "initial_price_1h",
+    "initial_price_1min",
+    "price_1h_ago",
+    "price_1m_ago",
+    "baseline_price",
+    "open_price",
+  ]);
+
+  let pct = pickNumber(raw, [
+    "pct_change",
+    "percent_change",
+    "change_pct",
+    "change_percent",
+    "pct_change_1h",
+    "price_change_1h",
+    "price_change_pct_1h",
+    "price_change_percentage_1h",
+    "price_change_percentage",
+    "change_1h",
+    "change1h",
+  ]);
+
+  const fallbackPct =
+    baseline && current && baseline !== 0 ? ((current - baseline) / baseline) * 100 : null;
+
+  if (pct != null && Math.abs(pct) < 1 && fallbackPct != null && Math.abs(fallbackPct) > 1) {
+    pct = pct * 100; // backend sent ratio, convert to percent
+  }
+
+  if (pct == null && fallbackPct != null) {
+    pct = fallbackPct;
+  }
+
+  const price = current ?? baseline ?? null;
 
   const rank = toNum(raw.rank) ?? idx + 1;
 
@@ -217,9 +264,11 @@ export default function TopBannerScroll(props) {
           ) : (
             doubled.map((it, i) => {
               const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
-              const href = it.productId
-                ? `https://www.coinbase.com/advanced-trade/spot/${String(it.productId).toUpperCase()}`
-                : "#";
+              const href =
+                coinbaseSpotUrl({
+                  product_id: it.productId,
+                  symbol: it.symbol,
+                }) || "#";
 
               return (
                 <a
