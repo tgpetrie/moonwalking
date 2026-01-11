@@ -11,7 +11,7 @@ import "./ui/skeleton.css";
 const PRESETS = {
   smooth: {
     alpha: 0.30,         // EMA smoothing coefficient (lower = smoother, less reactive to spikes)
-    commitMs: 650,       // How often we allow UI reorders (ms)
+    commitMs: 420,       // How often we allow UI reorders (ms)
     minStayMs: 2200,     // Min time a row stays visible once shown (prevents rapid churn)
     swapMargin: 0.18,    // Challenger must beat incumbent by this % to swap positions
     bubblePasses: 2,     // Number of bubble sort passes for hysteresis reordering
@@ -21,7 +21,7 @@ const PRESETS = {
   },
   predator: {
     alpha: 0.55,         // More reactive to raw changes
-    commitMs: 280,       // Much faster commits
+    commitMs: 320,       // Much faster commits
     minStayMs: 900,      // Shorter locks
     swapMargin: 0.08,    // Easier to swap positions
     bubblePasses: 4,     // More aggressive bubble passes

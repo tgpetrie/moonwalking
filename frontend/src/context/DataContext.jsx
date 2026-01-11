@@ -5,9 +5,10 @@ const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
 
 const LS_KEY = "bh_last_payload_v1";
-const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 2400);
+const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3800);
 const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
 const BACKOFF_WINDOW_MS = 30_000;
+const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
 
 const readCachedPayload = () => {
   if (typeof window === "undefined") return null;
@@ -273,7 +274,12 @@ export function DataProvider({ children }) {
 
     const scheduleNext = (delayMs) => {
       if (cancelled) return;
-      pollTimerRef.current = setTimeout(run, delayMs);
+      const jitter =
+        POLL_JITTER_MS > 0
+          ? Math.max(-POLL_JITTER_MS, Math.min(POLL_JITTER_MS, (Math.random() * 2 - 1) * POLL_JITTER_MS))
+          : 0;
+      const ms = Math.max(1200, delayMs + jitter);
+      pollTimerRef.current = setTimeout(run, ms);
     };
 
     const run = async () => {
