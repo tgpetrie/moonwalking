@@ -797,6 +797,11 @@ def _get_gainers_table_1min_swr():
             'momentum': momentum,
             'alert_level': alert_level
         })
+        try:
+            if isinstance(gain_pct, (int, float)) and abs(gain_pct) >= ALERT_IMPULSE_1M_THRESH:
+                _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
+        except Exception:
+            pass
     return {
         'component': 'gainers_table_1min',
         'data': gainers_table_data,
@@ -836,6 +841,11 @@ def _get_gainers_table_3min_swr():
             'momentum': 'strong' if coin['gain'] > 5 else 'moderate',
             'alert_level': 'high' if coin['gain'] > 10 else 'normal'
         })
+        try:
+            if isinstance(coin.get('gain'), (int, float)) and abs(float(coin.get('gain') or 0)) >= ALERT_IMPULSE_3M_THRESH:
+                _emit_impulse_alert(sym, float(coin.get('gain') or 0), coin.get('current'), window="3m")
+        except Exception:
+            pass
     return {
         'component': 'gainers_table',
         'data': gainers_table_data,
@@ -2661,6 +2671,90 @@ alerts_state = {
     '1h_volume': {},
 }
 alerts_log = deque(maxlen=200)
+ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+
+ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.25))
+ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 2.0))
+ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 90))
+ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.35))
+ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
+
+MW_SEED_ALERTS = os.getenv("MW_SEED_ALERTS", "0") == "1"
+_ALERT_EMIT_TS = {}
+_ALERT_EMIT_VAL = {}
+
+def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
+    """Emit an alert with per-key cooldown and magnitude dedupe."""
+    if not alert or not isinstance(alert, dict):
+        return False
+
+    key = f"{alert.get('type')}::{alert.get('symbol')}"
+    now = time.time()
+    last_ts = _ALERT_EMIT_TS.get(key, 0)
+    if now - last_ts < cooldown_s:
+        return False
+
+    magnitude = float(alert.get("meta", {}).get("magnitude", 0) or 0)
+    prev = float(_ALERT_EMIT_VAL.get(key, 0) or 0)
+    if magnitude <= prev + dedupe_delta:
+        return False
+
+    alerts_log.append(alert)
+    _ALERT_EMIT_TS[key] = now
+    _ALERT_EMIT_VAL[key] = magnitude
+    return True
+
+
+def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: str = "1m") -> None:
+    """Emit a lightweight impulse alert for short-window moves (1m/3m)."""
+    try:
+        if symbol is None or change_pct is None:
+            return
+        mag = abs(float(change_pct))
+        sym_clean = str(symbol).upper()
+        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        now = datetime.now(timezone.utc)
+        direction = "up" if change_pct >= 0 else "down"
+        severity = "high" if mag >= max(ALERT_IMPULSE_3M_THRESH, ALERT_IMPULSE_1M_THRESH) else "medium"
+        alert = {
+          "id": f"impulse_{window}_{product_id}_{int(time.time())}",
+          "ts": now.isoformat(),
+          "symbol": product_id,
+          "type": f"impulse_{window}",
+          "severity": severity,
+          "title": f"{window} impulse {direction}",
+          "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
+          "price": float(price or 0),
+          "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
+          "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+          "meta": {"magnitude": mag, "direction": direction, "window": window},
+        }
+        _emit_alert(alert)
+    except Exception:
+        # never block tables
+        pass
+
+
+def _seed_alerts_once():
+    """Optional wiring check: seed exactly one alert when MW_SEED_ALERTS=1."""
+    if not MW_SEED_ALERTS:
+        return
+    if getattr(_seed_alerts_once, "_done", False):
+        return
+    _seed_alerts_once._done = True
+    now = datetime.now(timezone.utc)
+    alerts_log.append({
+        "id": f"seed_{int(time.time())}",
+        "ts": now.isoformat(),
+        "symbol": "BTC-USD",
+        "type": "seed",
+        "severity": "info",
+        "title": "Seed alert (wiring check)",
+        "message": "If you can read this, alerts are flowing end-to-end.",
+        "expires_at": (now + timedelta(seconds=90)).isoformat(),
+        "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
+        "meta": {"source": "seed", "ttl_s": 90},
+    })
 
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
@@ -2751,7 +2845,7 @@ def _normalize_alerts(alerts: list[dict]) -> list[dict]:
 def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
     """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
     try:
-        thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [3, 5])
+        thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [2, 3])
         if direction == 'flat' or not thresholds:
             return
         # Highest threshold reached (if any)
@@ -2760,7 +2854,7 @@ def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int
             return
         now = time.time()
         last = alerts_state.get(scope, {}).get(symbol, 0)
-        if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 300):
+        if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 120):
             msg = f"{scope} trend {direction} x{streak} on {symbol} (>= {reached}; score {float(score or 0.0):.2f})"
             alerts_log.append({
                 'ts': datetime.now().isoformat(),
@@ -4125,6 +4219,7 @@ def data_aggregate():
     Always returns HTTP 200 JSON and never raises in local dev.
     """
     try:
+        _seed_alerts_once()
         logger = getattr(app, "logger", logging.getLogger(__name__))
         meta: dict[str, dict] = {}
         errors: dict[str, str] = {}
