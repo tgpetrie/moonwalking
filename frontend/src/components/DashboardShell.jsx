@@ -12,6 +12,7 @@ import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useIntelligence } from "../context/IntelligenceContext.jsx";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
+import BoardWrapper from "./BoardWrapper.jsx";
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
@@ -60,14 +61,8 @@ export default function DashboardShell({ onInfo }) {
         if (active) setEmitter(e.clientX, e.clientY, false);
         return;
       }
-
-      // Lock Y to the hovered row center so the spotlight doesn't bleed
-      // vertically across neighboring rows. X still follows the pointer.
-      const rowRect = row.getBoundingClientRect();
-      const centerY = rowRect.top + rowRect.height / 2;
-
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setEmitter(e.clientX, centerY, true));
+      raf = requestAnimationFrame(() => setEmitter(e.clientX, e.clientY, true));
     };
 
     const onLeaveBoard = (e) => {
@@ -202,98 +197,96 @@ export default function DashboardShell({ onInfo }) {
             heartbeatPulse={combinedPulse}
             lastFetchTs={lastFetchTs}
           />
-	        </div>
-	      </header>
+        </div>
+      </header>
 
-	      <main ref={boardRef} className="bh-board board-core">
-	        <div className="rabbit-bg" aria-hidden="true" />
+      {/* 1 Hour Price Change Banner - Full Width */}
+      <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
 
-	        {/* 1 Hour Price Change Banner */}
-	        <section className="bh-board-row-full">
-	          <div className="bh-board-panel">
-	            <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
-	          </div>
-	        </section>
+      <main className="bh-main">
+        <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
+          <div ref={boardRef} className="bh-board board-core">
+            <div className="rabbit-bg" aria-hidden="true" />
 
-	        {/* 1-min Gainers */}
-	        <section className="bh-board-row-full">
-	          <div className="bh-board-panel">
-	            <div className="board-section">
-	              <div className="board-section-header board-section-header--center">
-	                <div className="board-section-title board-section-title--center">TOP GAINERS (1M)</div>
-	              </div>
-	              <GainersTable1Min
-	                tokens={gainers1m}
-	                loading={uiLoading}
-	                onInfo={onInfoProp}
-	                onToggleWatchlist={handleToggleWatchlist}
-	                watchlist={watchlistSymbols}
-	              />
-	            </div>
-	          </div>
-	        </section>
+            {/* 1m and 3m Rail */}
+            <div className="bh-rail">
+              {/* 1-min Gainers */}
+              <div className="board-section">
+                <div className="board-section-header board-section-header--center">
+                  <div className="board-section-title board-section-title--center">TOP GAINERS (1M)</div>
+                </div>
+                <GainersTable1Min
+                  tokens={gainers1m}
+                  loading={uiLoading}
+                  onInfo={onInfoProp}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  watchlist={watchlistSymbols}
+                />
+              </div>
 
-	        {/* 3m Gainers / Losers */}
-	        <section className="bh-board-row-halves">
-	          <div className="bh-board-panel">
-	            <div className="table-title">TOP GAINERS (3M)</div>
-	            <GainersTable3Min
-	              tokens={gainers3m}
-	              loading={uiLoading}
-	              warming3m={warming3m}
-	              onInfo={onInfoProp}
-	              onToggleWatchlist={handleToggleWatchlist}
-	              watchlist={watchlistSymbols}
-	            />
-	          </div>
-	          <div className="bh-board-panel">
-	            <div className="table-title">TOP LOSERS (3M)</div>
-	            <LosersTable3Min
-	              tokens={losers3m}
-	              loading={uiLoading}
-	              warming3m={warming3m}
-	              onInfo={onInfoProp}
-	              onToggleWatchlist={handleToggleWatchlist}
-	              watchlist={watchlistSymbols}
-	            />
-	          </div>
-	        </section>
+              {/* 3m Gainers / Losers */}
+              <div className="board-section">
+                <section className="panel-row--3m">
+                  <div className="bh-panel bh-panel-half">
+                    <div className="table-title">TOP GAINERS (3M)</div>
+                    <GainersTable3Min
+                      tokens={gainers3m}
+                      loading={uiLoading}
+                      warming3m={warming3m}
+                      onInfo={onInfoProp}
+                      onToggleWatchlist={handleToggleWatchlist}
+                      watchlist={watchlistSymbols}
+                    />
+                  </div>
+                  <div className="bh-panel bh-panel-half">
+                    <div className="table-title">TOP LOSERS (3M)</div>
+                    <LosersTable3Min
+                      tokens={losers3m}
+                      loading={uiLoading}
+                      warming3m={warming3m}
+                      onInfo={onInfoProp}
+                      onToggleWatchlist={handleToggleWatchlist}
+                      watchlist={watchlistSymbols}
+                    />
+                  </div>
+                </section>
+              </div>
+            </div>
 
-	        {/* Anomaly Stream - Intelligence Log */}
-	        <section className="bh-board-row-full">
-	          <div className="bh-board-panel bh-panel bh-panel--rail">
-	            <AnomalyStream
-	              data={{ gainers_1m: gainers1m, losers_3m: losers3m, updated_at: lastUpdated }}
-	              volumeData={bannerVolume1h || []}
-	            />
-	          </div>
-	        </section>
+            {/* Anomaly Stream - Intelligence Log */}
+            <section className="bh-board-row-full">
+              <div className="bh-panel bh-panel--rail">
+                <AnomalyStream
+                  data={{ gainers_1m: gainers1m, losers_3m: losers3m, updated_at: lastUpdated }}
+                  volumeData={bannerVolume1h || []}
+                />
+              </div>
+            </section>
 
-	        {/* Watchlist */}
-	        <section className="bh-board-row-full bh-row-watchlist">
-	          <div className="bh-board-panel bh-panel bh-panel--rail">
-	            <div className="board-section">
-	              <div className="board-section-header">
-	                <div className="board-section-title">Watchlist</div>
-	              </div>
-	              <div className="bh-row-block">
-	                <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
-	              </div>
-	            </div>
-	          </div>
-	        </section>
+            {/* Watchlist (full-width) */}
+            <section className="bh-board-row-full bh-row-watchlist">
+              <div className="bh-panel bh-panel--rail">
+                <div className="board-section">
+                  <div className="board-section-header">
+                    <div className="board-section-title">Watchlist</div>
+                  </div>
+                  <div className="bh-row-block">
+                    <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                  </div>
+                </div>
+              </div>
+            </section>
 
-	        {/* 1 Hour Volume Banner */}
-	        <section className="bh-board-row-full">
-	          <div className="bh-board-panel">
-	            <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
-	          </div>
-	        </section>
-	      </main>
+          </div>
+        </BoardWrapper>
+      </main>
 
-	      {/* Insights floating card aligned to board rails */}
-	      <SentimentPopupAdvanced
-	        key={sentimentSymbol || "GLOBAL"}
+      {/* 1 Hour Volume Banner - Full Width */}
+      <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+
+      {/* Insights floating card aligned to board rails */}
+      <SentimentPopupAdvanced
+        key={sentimentSymbol || "GLOBAL"}
         isOpen={sentimentOpen}
         symbol={sentimentSymbol || undefined}
         onClose={() => {
