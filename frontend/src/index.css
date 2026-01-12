@@ -3717,6 +3717,28 @@ a.bh-row {
   opacity: 0.85;
 }
 
+.bh-banner-chip--alert {
+  color: var(--bh-gain);
+  border-left: 2px solid rgba(255, 196, 61, 0.55);
+  padding-left: 10px;
+}
+
+.bh-banner-chip__badge {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--bh-text-muted);
+  margin-right: 6px;
+}
+
+.bh-banner-chip__msg {
+  max-width: 260px;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--bh-text);
+}
+
 /* Optional: extremely faint always-on glow */
 /* Uncomment below if you want barely-there halo at rest */
 /*

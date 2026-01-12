@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useData } from "../context/DataContext";
 
 const COINBASE_ORIGIN = "https://www.coinbase.com";
 
@@ -119,6 +120,7 @@ export default function TopBannerScroll(props) {
   const [localItems, setLocalItems] = useState([]);
   const [fetchErr, setFetchErr] = useState(null);
   const [paused, setPaused] = useState(false);
+  const { alerts: ctxAlerts } = useData() || {};
 
   const trackRef = useRef(null);
   const rafRef = useRef(null);
@@ -131,14 +133,62 @@ export default function TopBannerScroll(props) {
     return Array.isArray(candidate) ? candidate : [];
   }, [itemsProp, data, banner, tokens, topBanner, localItems]);
 
+  const alertItems = useMemo(() => {
+    const priorityTypes = new Set(["moonshot", "crater", "fomo"]);
+    const prioritySev = new Set(["critical", "high"]);
+    const list = Array.isArray(ctxAlerts) ? ctxAlerts : [];
+    const severityRank = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+
+    return list
+      .filter((a) => {
+        if (!a) return false;
+        const type = (a.type || "").toString().toLowerCase();
+        const sev = (a.severity || "").toString().toLowerCase();
+        return priorityTypes.has(type) || prioritySev.has(sev);
+      })
+      .map((a, idx) => {
+        const productId = a.symbol || a.product_id || a.pair || a.base || null;
+        const displaySym = productId ? String(productId).replace(/-USD$/i, "") : a.symbol || "ALERT";
+        const badge = (a.type || "alert").toString().toUpperCase();
+        const severity = (a.severity || "high").toString().toLowerCase();
+        const href =
+          a.trade_url ||
+          toAdvancedTradeUrl({ product_id: productId, symbol: displaySym }) ||
+          "#";
+        return {
+          key: `alert-${a.id || idx}`,
+          symbol: displaySym,
+          productId: productId || displaySym,
+          pct: null,
+          price: null,
+          rank: badge,
+          badge,
+          severity,
+          message: a.message || a.title || badge,
+          href,
+          ts: a.ts || null,
+          kind: "alert",
+        };
+      })
+      .sort((a, b) => {
+        const sa = severityRank[a.severity] || 0;
+        const sb = severityRank[b.severity] || 0;
+        if (sa !== sb) return sb - sa;
+        const ta = Date.parse(a.ts || "") || 0;
+        const tb = Date.parse(b.ts || "") || 0;
+        return tb - ta;
+      });
+  }, [ctxAlerts]);
+
   const items = useMemo(() => {
     const out = [];
+    alertItems.forEach((it) => out.push(it));
     for (let i = 0; i < rawList.length; i += 1) {
       const n = normalizeItem(rawList[i], i);
       if (n) out.push(n);
     }
     return out;
-  }, [rawList]);
+  }, [rawList, alertItems]);
 
   useEffect(() => {
     const hasExternalList =
@@ -260,12 +310,16 @@ export default function TopBannerScroll(props) {
           ) : (
             doubled.map((it, i) => {
               const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
-              const href = toAdvancedTradeUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
+              const isAlert = it.kind === "alert";
+              const href =
+                isAlert && it.href
+                  ? it.href
+                  : toAdvancedTradeUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
 
               return (
                 <a
                   key={`${it.key}-${i}`}
-                  className={`bh-banner-chip ${isUp ? "is-up" : "is-down"}`}
+                  className={`bh-banner-chip ${isUp ? "is-up" : "is-down"} ${isAlert ? "bh-banner-chip--alert" : ""}`}
                   href={href}
                   target="_blank"
                   rel="noreferrer"
@@ -273,11 +327,23 @@ export default function TopBannerScroll(props) {
                     if (href === "#") e.preventDefault();
                   }}
                 >
-                  <span className="bh-banner-chip__rank">{it.rank}</span>
+                  <span className="bh-banner-chip__rank">{isAlert ? "ALERT" : it.rank}</span>
                   <span className="bh-banner-chip__sym">{it.symbol}</span>
                   <span className="bh-banner-right">
-                    <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
-                    <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                    {isAlert ? (
+                      <>
+                        <span className="bh-banner-chip__badge">{it.badge}</span>
+                        <span className="bh-banner-chip__msg" title={it.message}>
+                          {String(it.message || "").slice(0, 48)}
+                          {String(it.message || "").length > 48 ? "…" : ""}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
+                        <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                      </>
+                    )}
                   </span>
                 </a>
               );
