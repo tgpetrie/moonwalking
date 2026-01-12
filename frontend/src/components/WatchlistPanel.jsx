@@ -37,7 +37,7 @@ function deltaPct(baseline, current) {
 
 export default function WatchlistPanel({ onInfo }) {
   const { items, add, toggle } = useWatchlist();
-  const { data, lastGoodLatestBySymbol } = useDataFeed();
+  const { data, lastGoodLatestBySymbol, getActiveAlert } = useDataFeed();
   const payload = data?.data ?? data ?? {};
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -277,6 +277,7 @@ export default function WatchlistPanel({ onInfo }) {
               onToggleWatchlist={handleToggle}
               onInfo={onInfo}
               isWatchlisted
+              activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
             />
           ))}
         </>

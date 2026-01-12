@@ -61,6 +61,7 @@ export function TokenRowUnified({
   pulsePrice,
   pulsePct,
   pulseDelayMs = 0,
+  activeAlert = null,
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -78,12 +79,15 @@ export function TokenRowUnified({
 
   const RowTag = renderAs === "tr" ? "tr" : "div";
   const CellTag = renderAs === "tr" ? "td" : "div";
+  const alertType = activeAlert?.type ? String(activeAlert.type).toLowerCase() : null;
   const rowClass = [
     "bh-row",
     "bh-row-grid",
     density === "tight" ? "bh-row--tight" : "",
     pctInfo.state === "negative" ? "bh-row--loss" : "",
     pctInfo.state === "positive" ? "is-gain" : pctInfo.state === "negative" ? "is-loss" : "is-flat",
+    activeAlert ? "bh-row--alert" : "",
+    alertType ? `bh-row--alert-${alertType}` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -147,7 +151,10 @@ export function TokenRowUnified({
     <>
       {/* 1. Rank circle */}
       <CellTag className="bh-cell bh-cell-rank">
-        <div className="bh-rank">{rank}</div>
+        <div className="bh-rank">
+          {rank}
+          {activeAlert ? <span className="bh-alert-dot" title={activeAlert.message || activeAlert.title || "Alert"} /> : null}
+        </div>
       </CellTag>
 
       {/* 2. Token name */}

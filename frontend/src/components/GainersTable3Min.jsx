@@ -16,7 +16,7 @@ const buildRowKey = (row) => {
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
-  const { data, isLoading: hookLoading } = useDataFeed();
+  const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
   const lastValueRef = useRef(new Map());
 
@@ -143,6 +143,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
                     pulseDelayMs={index * 18}
+                    activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                   />
                 </motion.div>
               );

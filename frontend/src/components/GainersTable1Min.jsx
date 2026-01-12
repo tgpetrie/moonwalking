@@ -180,7 +180,7 @@ function useReorderCadence(rows, sortFn, ms = 420) {
 }
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
-  const { data, isLoading: hookLoading } = useDataFeed();
+  const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -400,6 +400,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
                     pulseDelayMs={Math.min(240, index * 24)}
+                    activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                   />
                 </motion.div>
               );
@@ -436,6 +437,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       pulsePrice={priceChanged}
                       pulsePct={pctChanged}
                       pulseDelayMs={Math.min(240, absoluteIndex * 24)}
+                      activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                     />
                   </motion.div>
                 );

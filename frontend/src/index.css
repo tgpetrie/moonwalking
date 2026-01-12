@@ -735,6 +735,44 @@ a.bh-row {
   transform: translateY(-1px) scale(1.012);
 }
 
+.bh-row--alert {
+  position: relative;
+}
+
+.bh-row--alert::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 196, 61, 0.7), rgba(176, 96, 255, 0.6));
+}
+
+.bh-row--alert-crater::before {
+  background: linear-gradient(180deg, rgba(213, 86, 255, 0.8), rgba(255, 124, 182, 0.6));
+}
+
+.bh-row--alert-breakout::before,
+.bh-row--alert-moonshot::before {
+  background: linear-gradient(180deg, rgba(255, 196, 61, 0.85), rgba(69, 255, 179, 0.65));
+}
+
+.bh-alert-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: rgba(255, 196, 61, 0.8);
+  box-shadow: 0 0 10px rgba(255, 196, 61, 0.6);
+  vertical-align: middle;
+}
+
+.bh-row--alert-crater .bh-alert-dot {
+  background: rgba(213, 86, 255, 0.85);
+  box-shadow: 0 0 10px rgba(213, 86, 255, 0.55);
+}
+
 /* Keep text/icons above the glow */
 .bh-row > .bh-cell {
   position: relative;

@@ -29,7 +29,7 @@ export default function Losers3m({
   watchlist = [],
 }) {
   const { has, add, remove } = useWatchlist();
-  const { data, isLoading: hookLoading } = useDataFeed();
+  const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
   const lastValueRef = useRef(new Map());
 
   // Legacy live feed hook kept for wiring parity (data feed used by default)
@@ -191,6 +191,7 @@ export default function Losers3m({
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
                     pulseDelayMs={idx * 18}
+                    activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(row.symbol) : null}
                   />
                 </motion.div>
               );
