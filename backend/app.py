@@ -35,6 +35,19 @@ except ImportError as e:
     def compute_volume_1h():
         return []
 
+try:
+    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before
+except ImportError as e:
+    logging.warning(f"Price DB imports failed: {e}")
+    def ensure_price_db():
+        pass
+    def insert_price_snapshot(ts, rows):
+        pass
+    def prune_old(ts_cutoff):
+        pass
+    def get_price_at_or_before(product_id, target_ts):
+        return None
+
 from watchlist import watchlist_bp, watchlist_db
 try:
     from reliability import stale_while_revalidate
@@ -6382,7 +6395,19 @@ def _fetch_prices_and_update_history():
         current_prices = get_current_prices() or {}
         if current_prices:
             last_current_prices['data'] = current_prices
-            last_current_prices['timestamp'] = time.time()
+            now_ts = int(time.time())
+            last_current_prices['timestamp'] = now_ts
+
+            # Persist price snapshot to SQLite for interval calculations
+            try:
+                rows = [(product_id, float(price)) for product_id, price in current_prices.items()]
+                insert_price_snapshot(now_ts, rows)
+
+                # Prune snapshots older than retention window (default 2 hours)
+                retention = int(os.environ.get('PRICE_DB_RETENTION_SECONDS', 7200))
+                prune_old(now_ts - retention)
+            except Exception as e:
+                logging.error(f"SQLite price snapshot persistence failed: {e}")
 
             # Update 3m data cache with fresh prices (force refresh to append history)
             data_3min = get_crypto_data(current_prices=current_prices, force_refresh=True)
@@ -6660,7 +6685,14 @@ if __name__ == '__main__':
             exit(1)
     
     logging.info("Starting CBMo4ers Crypto Dashboard Backend...")
-    
+
+    # Initialize SQLite price snapshot database
+    try:
+        ensure_price_db()
+        logging.info("SQLite price snapshot database initialized")
+    except Exception as e:
+        logging.error(f"Failed to initialize price database: {e}")
+
     # DEV: seed volume history if requested (helps banner 1h display during dev)
     try:
         seed_volume_history_if_dev()
