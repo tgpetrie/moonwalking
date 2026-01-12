@@ -2662,6 +2662,92 @@ alerts_state = {
 }
 alerts_log = deque(maxlen=200)
 
+ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+
+def _normalize_alert(raw: dict) -> dict:
+    """Normalize an alert dict to the canonical schema used by /data."""
+    if not isinstance(raw, dict):
+        return {}
+
+    symbol_raw = raw.get("symbol") or raw.get("product_id") or raw.get("pair")
+    product_id = resolve_product_id_from_row(symbol_raw) or (str(symbol_raw).upper() if symbol_raw else None)
+    symbol = product_id or (str(symbol_raw).upper() if symbol_raw else None)
+
+    direction = (raw.get("direction") or "").lower()
+    scope = str(raw.get("scope") or "").lower()
+    streak = raw.get("streak") or 0
+
+    # Map direction to a coarse alert type
+    alert_type = raw.get("type") or None
+    if not alert_type:
+        if direction == "up":
+            alert_type = "breakout"
+        elif direction == "down":
+            alert_type = "crater"
+        else:
+            alert_type = "divergence"
+
+    # Derive severity: longer streak => higher severity
+    severity = (raw.get("severity") or "").lower()
+    if severity not in ALERT_SEVERITY_ORDER:
+        severity = "high" if streak and streak >= 5 else "medium" if streak and streak >= 3 else "info"
+
+    # Timestamp normalization
+    ts = raw.get("ts") or datetime.now(timezone.utc).isoformat()
+    expires_at = raw.get("expires_at")
+
+    score = None
+    try:
+        if raw.get("score") is not None:
+            score = float(raw.get("score"))
+    except Exception:
+        score = None
+
+    trade_url = None
+    if symbol:
+        trade_url = f"https://www.coinbase.com/advanced-trade/spot/{symbol}"
+
+    norm = {
+        "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
+        "symbol": symbol,
+        "type": alert_type,
+        "severity": severity,
+        "title": raw.get("title") or raw.get("message") or f"{scope.upper()} alert",
+        "message": raw.get("message") or raw.get("title") or "",
+        "ts": ts,
+        "expires_at": expires_at,
+        "score": score,
+        "sources": raw.get("sources") or [],
+        "trade_url": trade_url,
+    }
+    return {k: v for k, v in norm.items() if v is not None}
+
+
+def _normalize_alerts(alerts: list[dict]) -> list[dict]:
+    """Normalize and filter alerts, preferring unique IDs and non-expired ones."""
+    now = datetime.now(timezone.utc)
+    seen = set()
+    normalized = []
+    for raw in alerts:
+        norm = _normalize_alert(raw)
+        if not norm:
+            continue
+        alert_id = norm.get("id")
+        if alert_id in seen:
+            continue
+        seen.add(alert_id)
+        expires = norm.get("expires_at")
+        try:
+            if expires:
+                exp_dt = datetime.fromisoformat(str(expires).replace("Z", "+00:00"))
+                if exp_dt < now:
+                    continue
+        except Exception:
+            # If expiration is malformed, keep the alert rather than drop silently.
+            pass
+        normalized.append(norm)
+    return normalized
+
 def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
     """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
     try:
@@ -4101,6 +4187,8 @@ def data_aggregate():
             # Get last-good metadata
             last_good_ts, stale_seconds, warming, warming_3m_meta, baseline_ts_3m_meta, baseline_age_3m_meta = _mw_get_last_good_metadata()
 
+            alerts_normalized = _normalize_alerts(list(alerts_log))
+
             payload = {
                 "gainers_1m": snap_g1 or [],
                 "gainers_3m": snap_g3 or [],
@@ -4109,6 +4197,7 @@ def data_aggregate():
                 "banner_1h_volume": snap_bv or [],
                 "volume_1h_candles": snap_v1h or [],
                 "volume1h": [],
+                "alerts": alerts_normalized,
                 "latest_by_symbol": latest_by_symbol,
                 "updated_at": snap_updated_at,
                 "meta": {
@@ -4131,6 +4220,7 @@ def data_aggregate():
                     "gainers_1m": len(snap_g1 or []),
                     "gainers_3m": len(snap_g3 or []),
                     "losers_3m": len(snap_l3 or []),
+                    "alerts": len(alerts_normalized),
                 },
             }
             payload["data"] = {
@@ -4141,6 +4231,7 @@ def data_aggregate():
                 "banner_1h_volume": payload["banner_1h_volume"],
                 "volume_1h_candles": payload["volume_1h_candles"],
                 "volume1h": [],
+                "alerts": alerts_normalized,
                 "latest_by_symbol": payload["latest_by_symbol"],
                 "updated_at": payload["updated_at"],
             }
@@ -4167,6 +4258,7 @@ def data_aggregate():
             "banner_1h_volume": [],
             "volume_1h_candles": [],
             "volume1h": [],
+            "alerts": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
             "meta": {
@@ -4189,6 +4281,7 @@ def data_aggregate():
                 "gainers_1m": 0,
                 "gainers_3m": 0,
                 "losers_3m": 0,
+                "alerts": 0,
             },
         }
         payload["data"] = {
@@ -4198,6 +4291,7 @@ def data_aggregate():
             "banner_1h_price": [],
             "banner_1h_volume": [],
             "volume1h": [],
+            "alerts": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
         }
