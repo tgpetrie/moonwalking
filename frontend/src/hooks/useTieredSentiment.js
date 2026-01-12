@@ -39,6 +39,20 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
   const base = rawLatest || {};
   const tiered = rawTiered || {};
 
+  const fgBlock = pick(base, "fear_greed", "fearGreed") || {};
+  const fgValueRaw = pick(fgBlock, "value", "index", "score", "fear_greed_index");
+  const fgValue = toNum(fgValueRaw, null);
+  const fgLabel =
+    pick(fgBlock, "label", "classification", "status", "value_classification") ||
+    pick(base, "fear_greed_label", "fearGreedLabel") ||
+    null;
+  const fgUpdated =
+    pick(fgBlock, "updated_at", "timestamp", "ts") ||
+    pick(base, "fear_greed_timestamp", "fearGreedTimestamp") ||
+    pick(base, "updated_at", "updatedAt") ||
+    null;
+  const fgStale = Boolean(pick(fgBlock, "stale"));
+
   const sentimentHistoryRaw =
     pick(base, "sentiment_history", "sentimentHistory") || [];
   const sentimentHistory = Array.isArray(sentimentHistoryRaw)
@@ -92,6 +106,34 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
     Boolean(pick(tiered, "tier_scores", "tierScores")) ||
     Boolean(pick(tiered, "overall_metrics", "overallMetrics"));
 
+  const marketPulseRaw = pick(base, "market_pulse", "marketPulse", "market") || {};
+  const marketPulse = {
+    totalMarketCap: toNum(
+      pick(marketPulseRaw, "total_market_cap_usd", "market_cap_usd", "total_market_cap"),
+      null
+    ),
+    totalVolume: toNum(
+      pick(marketPulseRaw, "total_volume_usd", "volume_usd", "total_volume"),
+      null
+    ),
+    btcDominance: toNum(
+      pick(marketPulseRaw, "btc_dominance", "btc_dominance_pct", "btc_dominance_usd"),
+      null
+    ),
+    mcapChange24hPct: toNum(
+      pick(
+        marketPulseRaw,
+        "mcap_change_24h_pct",
+        "market_cap_change_percentage_24h_usd",
+        "mcap_change_pct"
+      ),
+      null
+    ),
+    updatedAt: pick(marketPulseRaw, "updated_at", "timestamp", "ts") || null,
+    sourceUrl: pick(marketPulseRaw, "source_url", "sourceUrl") || null,
+    stale: Boolean(pick(marketPulseRaw, "stale")),
+  };
+
   return {
     normalized: true,
     schemaVersion: 1,
@@ -102,10 +144,26 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
       base.sentiment_score ??
       0.5,
     fearGreedIndex:
+      (fgValue !== null ? fgValue : undefined) ??
       base.fear_greed_index ??
       base.fearGreedIndex ??
       overallMetrics.fear_greed_index ??
-      50,
+      null,
+    fearGreedLabel: fgLabel,
+    fearGreedUpdatedAt: fgUpdated,
+    fearGreedStatus:
+      (fgValue !== null || base.fear_greed_index !== undefined || base.fearGreedIndex !== undefined)
+        ? fgStale
+          ? "STALE"
+          : "LIVE"
+        : "UNAVAILABLE",
+    marketPulse,
+    marketPulseStatus:
+      marketPulse.totalMarketCap !== null || marketPulse.totalVolume !== null
+        ? marketPulse.stale
+          ? "STALE"
+          : "LIVE"
+        : "UNAVAILABLE",
     sentimentHistory,
     socialHistory,
     socialBreakdown,
@@ -143,6 +201,7 @@ export function useTieredSentiment(
   const sourcesRef = useRef([]);
   const lastTieredFetchRef = useRef(0);
   const lastSourcesFetchRef = useRef(0);
+  const proxyCacheRef = useRef({ ts: 0, data: null });
   const [raw, setRaw] = useState(null);
   const [data, setData] = useState(() => emptyNormalized);
   const [tieredData, setTieredData] = useState(null);
@@ -246,6 +305,42 @@ export function useTieredSentiment(
     [buildLatestUrl, symbol]
   );
 
+  const fetchProxySentiment = useCallback(async () => {
+    const now = Date.now();
+    if (proxyCacheRef.current.data && now - proxyCacheRef.current.ts < 120000) {
+      return proxyCacheRef.current.data;
+    }
+
+    const base = (apiBase || "http://127.0.0.1:5003").replace(/\/$/, "");
+    const fetchOne = async (path) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      try {
+        const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    try {
+      const [fngRes, marketRes] = await Promise.allSettled([
+        fetchOne("/api/sentiment/fng"),
+        fetchOne("/api/sentiment/market"),
+      ]);
+      const payload = {
+        fng: fngRes.status === "fulfilled" ? fngRes.value : null,
+        market: marketRes.status === "fulfilled" ? marketRes.value : null,
+      };
+      proxyCacheRef.current = { ts: now, data: payload };
+      return payload;
+    } catch (err) {
+      console.warn("[useTieredSentiment] proxy sentiment fetch failed", err?.message || err);
+      return proxyCacheRef.current.data;
+    }
+  }, [apiBase]);
+
   const fetchAll = useCallback(
     async (options = {}) => {
       const freshLatest = options?.freshLatest === true;
@@ -261,6 +356,8 @@ export function useTieredSentiment(
       setError(null);
       setStale(false);
 
+      const proxyPromise = fetchProxySentiment();
+
       try {
         const now = Date.now();
         const auxTieredStale = now - lastTieredFetchRef.current > SLOW_AUX_MS;
@@ -271,15 +368,21 @@ export function useTieredSentiment(
 
         // 1) LATEST FIRST (await)
         const symbolJson = await fetchSymbolSentiment(freshLatest);
+        const proxies = await proxyPromise.catch(() => null);
+        const latestWithProxy = {
+          ...symbolJson,
+          fear_greed: symbolJson?.fear_greed ?? symbolJson?.fearGreed ?? proxies?.fng,
+          market_pulse: symbolJson?.market_pulse ?? symbolJson?.marketPulse ?? proxies?.market,
+        };
 
         // If a newer fetch started, drop this result on the floor.
         if (fetchSeqRef.current !== seq || !enabled || (symbol || "") !== sym) return;
 
-        latestRef.current = symbolJson;
+        latestRef.current = latestWithProxy;
 
         // Merge using whatever aux we already have (cached)
         const mergedImmediate = normalizeTieredSentiment(
-          symbolJson,
+          latestWithProxy,
           tieredRef.current,
           sourcesRef.current
         );
@@ -341,10 +444,22 @@ export function useTieredSentiment(
           error: err?.message,
         }));
 
+        const proxies = await proxyPromise.catch(() => null);
         const fallback = lastGoodRef.current;
         const fallbackSymbol = lastGoodSymbolRef.current;
 
-        if (fallback && fallbackSymbol === (symbol || "")) {
+        if (proxies && (proxies.fng || proxies.market)) {
+          const merged = normalizeTieredSentiment(
+            { fear_greed: proxies.fng, market_pulse: proxies.market },
+            tieredRef.current,
+            sourcesRef.current
+          );
+          lastGoodRef.current = merged;
+          lastGoodSymbolRef.current = sym;
+          setData(merged);
+          setError(null);
+          setStale(Boolean(proxies.fng?.stale || proxies.market?.stale));
+        } else if (fallback && fallbackSymbol === (symbol || "")) {
           setData(fallback);
           setError(null);
           setStale(true);
@@ -358,7 +473,7 @@ export function useTieredSentiment(
         setValidating(false);
       }
     },
-    [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, fetchSources]
+    [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, fetchSources, fetchProxySentiment]
   );
 
   useEffect(() => {

@@ -1,84 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchAllData } from "../api";
+import { useMemo } from "react";
+import { useData } from "../context/DataContext";
 
+// Compatibility wrapper: legacy consumers expect useDataFeed to provide
+// { data, error, isLoading, isValidating, mutate }.
+// We now source everything from DataContext so all consumers share the same
+// resilience (base auto-detect, last-good cache, stale freeze).
 export function useDataFeed() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
+  const ctx = useData();
 
-  const last3mRef = useRef(0);
-  const lastBannersRef = useRef(0);
-  const cacheRef = useRef({ three: null, banners: null });
-  const aliveRef = useRef(true);
-
-  const fetchOnce = useCallback(async () => {
-    if (!aliveRef.current) return null;
-    setIsValidating(true);
-    try {
-      const json = await fetchAllData();
-      if (!aliveRef.current) return null;
-
-      const now = Date.now();
-      const next = { ...json };
-
-      if (now - last3mRef.current >= 30_000 || !cacheRef.current.three) {
-        cacheRef.current.three = {
-          gainers_3m: json?.gainers_3m || [],
-          losers_3m: json?.losers_3m || [],
-        };
-        last3mRef.current = now;
-      } else {
-        next.gainers_3m = cacheRef.current.three.gainers_3m;
-        next.losers_3m = cacheRef.current.three.losers_3m;
-      }
-
-      if (now - lastBannersRef.current >= 120_000 || !cacheRef.current.banners) {
-        cacheRef.current.banners = {
-          banner_1h_price: json?.banner_1h_price || [],
-          banner_1h_volume: json?.banner_1h_volume || [],
-        };
-        lastBannersRef.current = now;
-      } else {
-        next.banner_1h_price = cacheRef.current.banners.banner_1h_price;
-        next.banner_1h_volume = cacheRef.current.banners.banner_1h_volume;
-      }
-
-      setData(next);
-      setError(null);
-      return next;
-    } catch (err) {
-      if (!aliveRef.current) return null;
-      setError(err);
-      return null;
-    } finally {
-      if (!aliveRef.current) return null;
-      setIsLoading(false);
-      setIsValidating(false);
+  const value = useMemo(() => {
+    if (!ctx) {
+      return {
+        data: null,
+        error: null,
+        isLoading: true,
+        isValidating: false,
+        isError: false,
+        mutate: null,
+        status: "DOWN",
+      };
     }
-  }, []);
-
-  useEffect(() => {
-    aliveRef.current = true;
-    let timer = null;
-    fetchOnce();
-    timer = setInterval(fetchOnce, 8000);
-    return () => {
-      aliveRef.current = false;
-      if (timer) clearInterval(timer);
+    const { data, error, loading, refetch, connectionStatus, lastGoodLatestBySymbol } = ctx;
+    return {
+      data,
+      error,
+      isLoading: loading,
+      isValidating: connectionStatus === "LIVE" ? false : Boolean(loading),
+      isError: Boolean(error),
+      mutate: refetch,
+      status: connectionStatus,
+      backendBase: ctx.backendBase,
+      lastGoodLatestBySymbol,
     };
-  }, [fetchOnce]);
+  }, [ctx]);
 
-  const mutate = useCallback(() => fetchOnce(), [fetchOnce]);
-
-  return {
-    data,
-    error,
-    isLoading,
-    isValidating,
-    isError: Boolean(error),
-    mutate,
-  };
+  return value;
 }
 
 export default useDataFeed;

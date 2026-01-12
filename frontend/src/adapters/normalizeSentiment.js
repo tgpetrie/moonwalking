@@ -27,10 +27,49 @@ export function normalizeSentiment(raw = {}) {
     pick(raw, "overall_sentiment", "overallSentiment")
   );
 
-  const fearGreedIndex = toNum(
-    pick(raw, "fear_greed_index", "fearGreedIndex"),
-    null
-  );
+  const fgBlock = pick(raw, "fear_greed", "fearGreed") || {};
+  const fgValue = toNum(pick(fgBlock, "value", "index", "score", "fear_greed_index"), null);
+  const fearGreedIndex = fgValue !== null
+    ? fgValue
+    : toNum(pick(raw, "fear_greed_index", "fearGreedIndex"), null);
+  const fearGreedLabel =
+    pick(fgBlock, "label", "classification", "status", "value_classification") ||
+    pick(raw, "fear_greed_label", "fearGreedLabel") ||
+    null;
+  const fearGreedUpdatedAt =
+    pick(fgBlock, "updated_at", "timestamp", "ts") ||
+    pick(raw, "fear_greed_timestamp", "fearGreedTimestamp") ||
+    pick(raw, "updated_at", "updatedAt") ||
+    null;
+  const fearGreedStatus =
+    fearGreedIndex !== null
+      ? (fgBlock?.stale ? "STALE" : "LIVE")
+      : "UNAVAILABLE";
+
+  const marketPulseRaw = pick(raw, "market_pulse", "marketPulse", "market") || {};
+  const marketPulse = {
+    totalMarketCap: toNum(pick(marketPulseRaw, "total_market_cap_usd", "market_cap_usd", "total_market_cap"), null),
+    totalVolume: toNum(pick(marketPulseRaw, "total_volume_usd", "volume_usd", "total_volume"), null),
+    btcDominance: toNum(pick(marketPulseRaw, "btc_dominance", "btc_dominance_pct", "btc_dominance_usd"), null),
+    mcapChange24hPct: toNum(
+      pick(
+        marketPulseRaw,
+        "mcap_change_24h_pct",
+        "market_cap_change_percentage_24h_usd",
+        "mcap_change_pct"
+      ),
+      null
+    ),
+    updatedAt: pick(marketPulseRaw, "updated_at", "timestamp", "ts") || null,
+    sourceUrl: pick(marketPulseRaw, "source_url", "sourceUrl") || null,
+    stale: Boolean(pick(marketPulseRaw, "stale")),
+  };
+  const marketPulseStatus =
+    marketPulse.totalMarketCap !== null || marketPulse.totalVolume !== null
+      ? marketPulse.stale
+        ? "STALE"
+        : "LIVE"
+      : "UNAVAILABLE";
 
   const socialMetricsRaw = pick(raw, "social_metrics", "socialMetrics") || {};
   const socialMetrics = {
@@ -128,6 +167,11 @@ export function normalizeSentiment(raw = {}) {
     confidence,
     pipelineTimestamp,
     updatedAt,
+    fearGreedLabel,
+    fearGreedUpdatedAt,
+    fearGreedStatus,
+    marketPulse,
+    marketPulseStatus,
     raw,
   };
 }

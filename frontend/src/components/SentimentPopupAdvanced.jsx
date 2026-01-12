@@ -238,7 +238,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     return 'neutral';
   };
 
+  const formatNumberShort = (num) => {
+    if (!Number.isFinite(num)) return 'N/A';
+    const abs = Math.abs(num);
+    if (abs >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
+    if (abs >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+    if (abs >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    if (abs >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+    return num.toFixed(2);
+  };
+
   const getFearGreedLabel = (fg) => {
+    if (!Number.isFinite(fg)) return 'Missing';
     if (fg >= 90) return 'Extreme Greed';
     if (fg >= 75) return 'Greed';
     if (fg >= 55) return 'Mild Greed';
@@ -248,6 +259,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   };
 
   const getFearGreedClass = (fg) => {
+    if (!Number.isFinite(fg)) return 'neutral';
     if (fg >= 55) return 'positive';
     if (fg <= 45) return 'negative';
     return 'neutral';
@@ -649,8 +661,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   if (!isOpen) return null;
 
   const score = sentimentData ? Math.round((sentimentData.overallSentiment ?? 0.5) * 100) : 0;
-  const fg = Number.isFinite(sentimentData?.fearGreedIndex) ? sentimentData.fearGreedIndex : 50;
-  const insight = generateTopInsight(score, fg);
+  const fg = Number.isFinite(sentimentData?.fearGreedIndex) ? Number(sentimentData.fearGreedIndex) : null;
+  const fgStatus = sentimentData?.fearGreedStatus || (Number.isFinite(fg) ? "LIVE" : "UNAVAILABLE");
+  const fgUpdatedLabel = formatTimestamp(sentimentData?.fearGreedUpdatedAt);
+  const insight = generateTopInsight(score, Number.isFinite(fg) ? fg : score);
   const gaugePos = updateGaugePosition(score);
 
   const tvResolved = resolveTvSymbol(symbol, chartExchange);
@@ -660,6 +674,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     ? Object.values(sourceBreakdown).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0)
     : 0;
   const sourceCount = pipelineSources?.length || fallbackSourceCount;
+
+  const marketPulse = sentimentData?.marketPulse || {};
+  const marketCapDisplay = formatNumberShort(marketPulse.totalMarketCap);
+  const marketVolDisplay = formatNumberShort(marketPulse.totalVolume);
+  const marketDomDisplay = Number.isFinite(marketPulse.btcDominance)
+    ? `${marketPulse.btcDominance.toFixed(2)}%`
+    : "N/A";
+  const marketStatus =
+    sentimentData?.marketPulseStatus || (marketCapDisplay !== "N/A" ? "LIVE" : "UNAVAILABLE");
+  const marketUpdatedLabel = formatTimestamp(marketPulse.updatedAt);
 
   const lastUpdatedMsRaw =
     sentimentData?.pipelineTimestamp ??
@@ -850,8 +874,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   </div>
                   <div className="stat-content">
                     <span className="stat-label">Fear & Greed</span>
-                    <span className={`stat-value ${getFearGreedClass(fg)}`}>{fg}</span>
-                    <span className="stat-sublabel">{getFearGreedLabel(fg)}</span>
+                    <span className={`stat-value ${getFearGreedClass(fg)}`}>{Number.isFinite(fg) ? fg : "N/A"}</span>
+                    <span className="stat-sublabel">
+                      {getFearGreedLabel(fg)}
+                      {" · "}
+                      {fgStatus}
+                      {fgUpdatedLabel ? ` · ${fgUpdatedLabel}` : ""}
+                    </span>
                   </div>
                 </div>
 
@@ -863,12 +892,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <span className="stat-label">Active Sources</span>
-                    <span className="stat-value">{sourceCount}</span>
+                    <span className="stat-label">Market Pulse</span>
+                    <span className="stat-value">{marketCapDisplay}</span>
                     <span className="stat-sublabel">
-                      T1: {sourceBreakdown?.tier1 || 0} |
-                      T2: {sourceBreakdown?.tier2 || 0} |
-                      T3: {sourceBreakdown?.tier3 || 0}
+                      BTC Dom {marketDomDisplay} · Vol {marketVolDisplay} · {marketStatus}
+                      {marketUpdatedLabel ? ` · ${marketUpdatedLabel}` : ""}
                     </span>
                   </div>
                 </div>

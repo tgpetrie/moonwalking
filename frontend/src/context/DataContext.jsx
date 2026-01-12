@@ -1,5 +1,4 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
-import { fetchAllData } from "../api";
 
 const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
@@ -9,13 +8,29 @@ const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3800);
 const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
 const BACKOFF_WINDOW_MS = 30_000;
 const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
+const MW_BACKEND_KEY = "mw_backend_base";
+const MW_LAST_GOOD_DATA = "mw_last_good_data";
+const MW_LAST_GOOD_AT = "mw_last_good_at";
 
 const readCachedPayload = () => {
   if (typeof window === "undefined") return null;
+  // Prefer new last-good cache; fall back to legacy key
   try {
-    const raw = window.localStorage.getItem(LS_KEY);
+    const raw = window.localStorage.getItem(MW_LAST_GOOD_DATA) || window.localStorage.getItem(LS_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const readCachedTimestamp = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const t = window.localStorage.getItem(MW_LAST_GOOD_AT);
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
   } catch {
     return null;
   }
@@ -29,32 +44,30 @@ const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 
 // Normalize backend response to canonical shape
 function normalizeApiData(payload) {
-  const p = payload || {};
+  const root = payload?.data && typeof payload.data === "object" ? payload.data : payload || {};
+  const gainers_1m = root.gainers_1m ?? root.gainers1m ?? [];
+  const gainers_3m = root.gainers_3m ?? root.gainers3m ?? [];
+  const losers_3m  = root.losers_3m  ?? root.losers3m  ?? [];
 
-  // Support both top-level and nested .data structures
-  const gainers_1m = p.gainers_1m ?? p.data?.gainers_1m ?? p.gainers1m ?? [];
-  const gainers_3m = p.gainers_3m ?? p.data?.gainers_3m ?? p.gainers3m ?? [];
-  const losers_3m  = p.losers_3m  ?? p.data?.losers_3m  ?? p.losers3m  ?? [];
+  const banner_1h_price  = root.banner_1h_price  ?? root.banner_1h ?? root.top_banner_1h ?? [];
+  const banner_1h_volume = root.banner_1h_volume ?? root.volume_banner_1h ?? [];
+  const volume1h = root.volume1h ?? [];
 
-  const banner_1h_price  = p.banner_1h_price  ?? p.data?.banner_1h_price  ?? p.banner_1h ?? p.top_banner_1h ?? [];
-  const banner_1h_volume = p.banner_1h_volume ?? p.data?.banner_1h_volume ?? p.volume_banner_1h ?? [];
-  const volume1h = p.volume1h ?? p.data?.volume1h ?? [];
-
-  const latest_by_symbol = p.latest_by_symbol ?? p.data?.latest_by_symbol ?? {};
-  const updated_at       = p.updated_at       ?? p.data?.updated_at       ?? Date.now();
+  const latest_by_symbol = root.latest_by_symbol ?? {};
+  const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
 
   return {
-    gainers_1m,
-    gainers_3m,
-    losers_3m,
-    banner_1h_price,
-    banner_1h_volume,
-    volume1h,
-    latest_by_symbol,
+    gainers_1m: Array.isArray(gainers_1m) ? gainers_1m : [],
+    gainers_3m: Array.isArray(gainers_3m) ? gainers_3m : [],
+    losers_3m: Array.isArray(losers_3m) ? losers_3m : [],
+    banner_1h_price: Array.isArray(banner_1h_price) ? banner_1h_price : [],
+    banner_1h_volume: Array.isArray(banner_1h_volume) ? banner_1h_volume : [],
+    volume1h: Array.isArray(volume1h) ? volume1h : [],
+    latest_by_symbol: typeof latest_by_symbol === "object" && latest_by_symbol ? latest_by_symbol : {},
     updated_at,
-    meta: p.meta ?? p.data?.meta ?? {},
-    errors: p.errors ?? p.data?.errors ?? [],
-    coverage: p.coverage ?? p.data?.coverage ?? null,
+    meta: root.meta ?? payload?.meta ?? {},
+    errors: root.errors ?? payload?.errors ?? [],
+    coverage: root.coverage ?? payload?.coverage ?? null,
   };
 }
 
@@ -74,6 +87,7 @@ export function DataProvider({ children }) {
     const cached = readCachedPayload();
     return cached ? normalizeApiData(cached) : null;
   }, []);
+  const cachedLastGoodAt = useMemo(() => readCachedTimestamp(), []);
 
   // "Published" slices that drive the UI at different cadences
   const [oneMinRows, setOneMinRows] = useState(() => cachedNormalized?.gainers_1m ?? []);
@@ -95,7 +109,21 @@ export function DataProvider({ children }) {
   const [warming, setWarming] = useState(() => !cachedNormalized);
   const [warming3m, setWarming3m] = useState(false);
   const [staleSeconds, setStaleSeconds] = useState(null);
-  const [lastGoodTs, setLastGoodTs] = useState(null);
+  const [lastGoodTs, setLastGoodTs] = useState(cachedLastGoodAt || null);
+  const [backendBase, setBackendBase] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return (
+        window.localStorage.getItem(MW_BACKEND_KEY) ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  });
+  const [connectionStatus, setConnectionStatus] = useState(() => (cachedNormalized ? "STALE" : "LIVE")); // LIVE | STALE | DOWN
+  const lastGoodRef = useRef(cachedNormalized);
+  const lastGoodAtRef = useRef(cachedLastGoodAt || (cachedNormalized ? Date.now() : null));
 
   // Timing refs for gated publishing
   const last3mPublishRef = useRef(0);
@@ -107,6 +135,7 @@ export function DataProvider({ children }) {
   const inFlightRef = useRef(false);
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
+  const failCountRef = useRef(0);
 
   // Commit 1m rows as a whole snapshot.
   // Row liveliness is handled in the table layer (value-only pulses + staggering),
@@ -116,7 +145,30 @@ export function DataProvider({ children }) {
     setOneMinRows(Array.isArray(nextRows) ? nextRows : []);
   }, []);
 
-  const applySnapshot = useCallback((norm, now = Date.now()) => {
+  const persistLastGood = useCallback((norm, baseUrl) => {
+    lastGoodRef.current = norm;
+    lastGoodAtRef.current = Date.now();
+    setLastGoodTs(lastGoodAtRef.current);
+    try {
+      const minimal = {
+        gainers_1m: norm.gainers_1m,
+        gainers_3m: norm.gainers_3m,
+        losers_3m: norm.losers_3m,
+        banner_1h_price: norm.banner_1h_price,
+        banner_1h_volume: norm.banner_1h_volume,
+        latest_by_symbol: norm.latest_by_symbol,
+        volume1h: norm.volume1h,
+        updated_at: norm.updated_at,
+        meta: norm.meta,
+        coverage: norm.coverage,
+      };
+      localStorage.setItem(MW_LAST_GOOD_DATA, JSON.stringify(minimal));
+      localStorage.setItem(MW_LAST_GOOD_AT, String(lastGoodAtRef.current));
+      if (baseUrl) localStorage.setItem(MW_BACKEND_KEY, baseUrl);
+    } catch {}
+  }, []);
+
+  const applySnapshot = useCallback((norm, now = Date.now(), baseUrl = null) => {
     // DEV-only one-time payload shape log for diagnostics
     if (
       import.meta?.env?.DEV &&
@@ -162,12 +214,13 @@ export function DataProvider({ children }) {
     setWarming(backendWarming);
     setWarming3m(Boolean(backendWarming3m));
     setStaleSeconds(backendStaleSeconds);
-    setLastGoodTs(backendLastGoodTs);
+    setLastGoodTs(backendLastGoodTs ?? lastGoodAtRef.current ?? null);
 
     if (!hasAny && cacheHasAny) {
       // Keep warming state from backend
     } else {
       latestNormalizedRef.current = norm;
+      persistLastGood(norm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
 
@@ -195,51 +248,81 @@ export function DataProvider({ children }) {
     heartbeatTimerRef.current = setTimeout(() => {
       setHeartbeatPulse(false);
     }, 420);
-  }, [commit1m]);
+  }, [commit1m, persistLastGood]);
 
   const fetchData = useCallback(async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
-    if (abortRef.current) {
-      try { abortRef.current.abort(); } catch {}
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const timeoutMs = 6500;
-    const timeoutId = setTimeout(() => {
-      try {
-        controller.abort("timeout");
-      } catch {}
-    }, timeoutMs);
-
+    const candidates = [];
+    if (backendBase) candidates.push(backendBase);
     try {
-      const json = await fetchAllData({ signal: controller.signal });
-      const norm = normalizeApiData(json);
-      applySnapshot(norm, Date.now());
-      backoffUntilRef.current = 0;
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        const timedOut = controller?.signal?.reason === "timeout";
-        if (timedOut) {
-          console.warn("[DataContext] Fetch timed out after", timeoutMs, "ms");
-          backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
-        }
-        return;
+      const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(MW_BACKEND_KEY) : null;
+      if (cachedBase && !candidates.includes(cachedBase)) candidates.push(cachedBase);
+    } catch {}
+    ["http://127.0.0.1:5003", "http://127.0.0.1:5002"].forEach((b) => {
+      if (!candidates.includes(b)) candidates.push(b);
+    });
+
+    const tryOnce = async (base) => {
+      if (abortRef.current) {
+        try { abortRef.current.abort(); } catch {}
       }
-      console.warn('[DataContext] Fetch failed:', e.message);
-      setError(e);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const timeoutMs = 4000;
+      const timeoutId = setTimeout(() => {
+        try { controller.abort("timeout"); } catch {}
+      }, timeoutMs);
+      try {
+        const url = `${base.replace(/\\/$/, "")}/data`;
+        const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" }, cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        clearTimeout(timeoutId);
+        return { json, base };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    };
+
+    let succeeded = false;
+    let lastError = null;
+    for (const base of candidates) {
+      try {
+        const { json, base: okBase } = await tryOnce(base);
+        const norm = normalizeApiData(json);
+        setBackendBase(okBase);
+        setConnectionStatus("LIVE");
+        failCountRef.current = 0;
+        applySnapshot(norm, Date.now(), okBase);
+        backoffUntilRef.current = 0;
+        succeeded = true;
+        break;
+      } catch (err) {
+        lastError = err;
+        failCountRef.current += 1;
+        continue;
+      }
+    }
+
+    if (!succeeded) {
       setLoading(false);
-      const status = parseStatus(e);
-      if (status === 429 || (status >= 500 && status < 600) || status === null) {
+      setError(lastError || new Error("fetch failed"));
+      if (lastGoodRef.current) {
+        setConnectionStatus("STALE");
+      } else {
+        setConnectionStatus("DOWN");
+      }
+      const status = parseStatus(new Error("fetch failed"));
+      if (status === 429 || (status && status >= 500)) {
         backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
       }
-      // On error, don't override warming state - keep backend's last state
-    } finally {
-      clearTimeout(timeoutId);
-      inFlightRef.current = false;
     }
-  }, [applySnapshot]);
+
+    inFlightRef.current = false;
+  }, [applySnapshot, backendBase]);
 
   useEffect(() => {
     if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
@@ -291,7 +374,7 @@ export function DataProvider({ children }) {
     volume_banner_1h: banners.volume, // Legacy alias
     latest_by_symbol: latestBySymbol,
     volume1h,
-    updated_at: latestNormalizedRef.current?.updated_at ?? Date.now(),
+    updated_at: latestNormalizedRef.current?.updated_at ?? lastGoodAtRef.current ?? Date.now(),
   }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h]);
 
   const value = useMemo(() => ({
@@ -310,7 +393,12 @@ export function DataProvider({ children }) {
     staleSeconds,
     lastGoodTs,
     volume1h,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h]);
+    connectionStatus,
+    backendBase,
+    lastGood: lastGoodRef.current,
+    lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
+    backendFailCount: failCountRef.current,
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h, connectionStatus, backendBase]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

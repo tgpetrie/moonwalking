@@ -37,7 +37,7 @@ function deltaPct(baseline, current) {
 
 export default function WatchlistPanel({ onInfo }) {
   const { items, add, toggle } = useWatchlist();
-  const { data } = useDataFeed();
+  const { data, lastGoodLatestBySymbol } = useDataFeed();
   const payload = data?.data ?? data ?? {};
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -49,15 +49,20 @@ export default function WatchlistPanel({ onInfo }) {
 
   const liveBySymbol = useMemo(() => {
     const latest = payload.latest_by_symbol || {};
+    const fallback = lastGoodLatestBySymbol || {};
     const merged = {};
-    Object.entries(latest).forEach(([k, v]) => {
-      const canon = canonize(v?.symbol ?? k);
-      if (canon) merged[canon] = v;
-      // keep raw key as a fallback for debugging / legacy callers
-      merged[String(k).toUpperCase()] = v;
-    });
+    const ingest = (source) => {
+      Object.entries(source || {}).forEach(([k, v]) => {
+        const canon = canonize(v?.symbol ?? k);
+        if (canon) merged[canon] = v;
+        merged[String(k).toUpperCase()] = v;
+      });
+    };
+    // Cached baseline first, live data wins on overlap
+    ingest(fallback);
+    ingest(latest);
     return merged;
-  }, [payload]);
+  }, [payload, lastGoodLatestBySymbol]);
 
   const watchlistSet = useMemo(() => {
     const set = new Set();
@@ -145,12 +150,16 @@ export default function WatchlistPanel({ onInfo }) {
       if (!sym || watchlistSet.has(sym)) return;
       const livePrice = Number.isFinite(entry?.price) ? entry.price : livePriceForSymbol(sym);
       if (!Number.isFinite(livePrice)) {
-        console.warn("[watchlist] add aborted: missing price", sym);
+        if (import.meta.env.DEV) {
+          console.warn("[watchlist] add aborted: missing price", sym);
+        }
         return;
       }
       add({ symbol: sym, price: livePrice });
       // Dev-only sanity check that clicks flow through even with overlays
-      console.debug("[watchlist] add", sym, livePrice);
+      if (import.meta.env.DEV) {
+        console.debug("[watchlist] add", sym, livePrice);
+      }
       setQuery("");
       setIsOpen(false);
     },
