@@ -52,6 +52,7 @@ function normalizeApiData(payload) {
   const banner_1h_price  = root.banner_1h_price  ?? root.banner_1h ?? root.top_banner_1h ?? [];
   const banner_1h_volume = root.banner_1h_volume ?? root.volume_banner_1h ?? [];
   const volume1h = root.volume1h ?? [];
+  const alerts = root.alerts ?? [];
 
   const latest_by_symbol = root.latest_by_symbol ?? {};
   const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
@@ -63,6 +64,7 @@ function normalizeApiData(payload) {
     banner_1h_price: Array.isArray(banner_1h_price) ? banner_1h_price : [],
     banner_1h_volume: Array.isArray(banner_1h_volume) ? banner_1h_volume : [],
     volume1h: Array.isArray(volume1h) ? volume1h : [],
+    alerts: Array.isArray(alerts) ? alerts : [],
     latest_by_symbol: typeof latest_by_symbol === "object" && latest_by_symbol ? latest_by_symbol : {},
     updated_at,
     meta: root.meta ?? payload?.meta ?? {},
@@ -101,6 +103,7 @@ export function DataProvider({ children }) {
   }));
   const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
   const [volume1h, setVolume1h] = useState(() => cachedNormalized?.volume1h ?? []);
+  const [alerts, setAlerts] = useState(() => cachedNormalized?.alerts ?? []);
 
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
@@ -158,6 +161,7 @@ export function DataProvider({ children }) {
         banner_1h_volume: norm.banner_1h_volume,
         latest_by_symbol: norm.latest_by_symbol,
         volume1h: norm.volume1h,
+        alerts: norm.alerts,
         updated_at: norm.updated_at,
         meta: norm.meta,
         coverage: norm.coverage,
@@ -223,6 +227,7 @@ export function DataProvider({ children }) {
       persistLastGood(norm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
+      setAlerts(Array.isArray(norm.alerts) ? norm.alerts : []);
 
       // 1m: every fetch (table layer handles "live feel" without partial commits)
       commit1m(norm.gainers_1m);
@@ -374,8 +379,51 @@ export function DataProvider({ children }) {
     volume_banner_1h: banners.volume, // Legacy alias
     latest_by_symbol: latestBySymbol,
     volume1h,
+    alerts,
     updated_at: latestNormalizedRef.current?.updated_at ?? lastGoodAtRef.current ?? Date.now(),
-  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h]);
+  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h, alerts]);
+
+  const alertsBySymbol = useMemo(() => {
+    const map = {};
+    (alerts || []).forEach((a) => {
+      if (!a) return;
+      const sym = (a.symbol || "").toString().toUpperCase();
+      if (!sym) return;
+      map[sym] = map[sym] || [];
+      map[sym].push(a);
+    });
+    return map;
+  }, [alerts]);
+
+  const getActiveAlert = useCallback(
+    (sym) => {
+      if (!sym) return null;
+      const key = sym.toString().toUpperCase();
+      const list = alertsBySymbol[key];
+      if (!list || !list.length) return null;
+      const severityRank = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+      const now = Date.now();
+      const active = list
+        .filter((a) => {
+          if (!a) return false;
+          if (a.expires_at) {
+            const exp = Date.parse(a.expires_at);
+            if (Number.isFinite(exp) && exp < now) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const sa = severityRank[(a.severity || "").toLowerCase()] || 0;
+          const sb = severityRank[(b.severity || "").toLowerCase()] || 0;
+          if (sa !== sb) return sb - sa;
+          const ta = Date.parse(a.ts || "") || 0;
+          const tb = Date.parse(b.ts || "") || 0;
+          return tb - ta;
+        });
+      return active[0] || null;
+    },
+    [alertsBySymbol]
+  );
 
   const value = useMemo(() => ({
     data: combinedData,
@@ -383,6 +431,9 @@ export function DataProvider({ children }) {
     threeMin,
     banners,
     latestBySymbol,
+    alerts,
+    alertsBySymbol,
+    getActiveAlert,
     error,
     loading,
     refetch: fetchData,
@@ -398,7 +449,7 @@ export function DataProvider({ children }) {
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h, connectionStatus, backendBase]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h, connectionStatus, backendBase]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
