@@ -20,7 +20,7 @@ export default function IndicatorLegend({ onClose }) {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-blue font-bold">+3.2%</span>
-            <span className="text-white/80">Blue = up moves; Pink = down moves. Prices use teal monospace.</span>
+            <span className="text-white/80">Blue = up moves; Pink = down moves. Prices in teal.</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-white/80">Vol: +4.1% <sup title="Estimated from price when 1h volume history is incomplete">≈</sup></span>

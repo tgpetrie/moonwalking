@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useData } from "../context/DataContext";
 
 const COINBASE_ORIGIN = "https://www.coinbase.com";
 
@@ -61,6 +60,13 @@ function fmtPrice(n) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: d });
 }
 
+function toTsMs(value) {
+  if (value == null) return 0;
+  if (typeof value === "number") return value > 1e12 ? value : value * 1000;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function normalizeItem(raw, idx) {
   if (!raw) return null;
 
@@ -120,7 +126,6 @@ export default function TopBannerScroll(props) {
   const [localItems, setLocalItems] = useState([]);
   const [fetchErr, setFetchErr] = useState(null);
   const [paused, setPaused] = useState(false);
-  const { alerts: ctxAlerts } = useData() || {};
 
   const trackRef = useRef(null);
   const rafRef = useRef(null);
@@ -133,62 +138,30 @@ export default function TopBannerScroll(props) {
     return Array.isArray(candidate) ? candidate : [];
   }, [itemsProp, data, banner, tokens, topBanner, localItems]);
 
-  const alertItems = useMemo(() => {
-    const priorityTypes = new Set(["moonshot", "crater", "fomo"]);
-    const prioritySev = new Set(["critical", "high"]);
-    const list = Array.isArray(ctxAlerts) ? ctxAlerts : [];
-    const severityRank = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
-
-    return list
-      .filter((a) => {
-        if (!a) return false;
-        const type = (a.type || "").toString().toLowerCase();
-        const sev = (a.severity || "").toString().toLowerCase();
-        return priorityTypes.has(type) || prioritySev.has(sev);
-      })
-      .map((a, idx) => {
-        const productId = a.symbol || a.product_id || a.pair || a.base || null;
-        const displaySym = productId ? String(productId).replace(/-USD$/i, "") : a.symbol || "ALERT";
-        const badge = (a.type || "alert").toString().toUpperCase();
-        const severity = (a.severity || "high").toString().toLowerCase();
-        const href =
-          a.trade_url ||
-          toAdvancedTradeUrl({ product_id: productId, symbol: displaySym }) ||
-          "#";
-        return {
-          key: `alert-${a.id || idx}`,
-          symbol: displaySym,
-          productId: productId || displaySym,
-          pct: null,
-          price: null,
-          rank: badge,
-          badge,
-          severity,
-          message: a.message || a.title || badge,
-          href,
-          ts: a.ts || null,
-          kind: "alert",
-        };
-      })
-      .sort((a, b) => {
-        const sa = severityRank[a.severity] || 0;
-        const sb = severityRank[b.severity] || 0;
-        if (sa !== sb) return sb - sa;
-        const ta = Date.parse(a.ts || "") || 0;
-        const tb = Date.parse(b.ts || "") || 0;
-        return tb - ta;
-      });
-  }, [ctxAlerts]);
-
-  const items = useMemo(() => {
+  const { items, invalidBanner } = useMemo(() => {
     const out = [];
-    alertItems.forEach((it) => out.push(it));
+    let invalid = false;
     for (let i = 0; i < rawList.length; i += 1) {
-      const n = normalizeItem(rawList[i], i);
-      if (n) out.push(n);
+      const raw = rawList[i];
+      if (raw && (raw.alert_type || raw.severity || raw.type === "alert")) {
+        invalid = true;
+        continue;
+      }
+      const n = normalizeItem(raw, i);
+      if (n && Number.isFinite(n.pct)) {
+        out.push(n);
+      } else if (raw != null) {
+        invalid = true;
+      }
     }
-    return out;
-  }, [rawList, alertItems]);
+    return { items: out, invalidBanner: invalid };
+  }, [rawList]);
+
+  useEffect(() => {
+    if (import.meta?.env?.DEV && invalidBanner) {
+      console.error("[mw] banner data invalid: expected 1h price rows with pct_1h");
+    }
+  }, [invalidBanner]);
 
   useEffect(() => {
     const hasExternalList =
@@ -292,7 +265,7 @@ export default function TopBannerScroll(props) {
   const onLeave = useCallback(() => setPaused(false), []);
 
   const doubled = useMemo(() => (items.length ? [...items, ...items] : []), [items]);
-  const showFallback = items.length === 0;
+  const showFallback = invalidBanner || items.length === 0;
 
   return (
     <div className={`bh-topbanner ${className}`.trim()}>
@@ -303,7 +276,9 @@ export default function TopBannerScroll(props) {
           {showFallback ? (
             <div className="bh-banner-chip bh-banner-chip--muted">
               <span className="bh-banner-chip__rank">LIVE</span>
-              <span className="bh-banner-chip__sym">Waiting for banner data</span>
+              <span className="bh-banner-chip__sym">
+                {invalidBanner ? "Banner data invalid" : "Waiting for banner data"}
+              </span>
               <span className="bh-banner-chip__pct">—</span>
               <span className="bh-banner-chip__price">{fetchErr ? "fetch failed" : ""}</span>
             </div>

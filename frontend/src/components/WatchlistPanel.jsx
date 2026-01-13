@@ -150,15 +150,19 @@ export default function WatchlistPanel({ onInfo }) {
       if (!sym || watchlistSet.has(sym)) return;
       const livePrice = Number.isFinite(entry?.price) ? entry.price : livePriceForSymbol(sym);
       if (!Number.isFinite(livePrice)) {
-        if (import.meta.env.DEV) {
+        if (import.meta.env.VITE_MW_DEBUG) {
           console.warn("[watchlist] add aborted: missing price", sym);
         }
-        return;
-      }
-      add({ symbol: sym, price: livePrice });
-      // Dev-only sanity check that clicks flow through even with overlays
-      if (import.meta.env.DEV) {
-        console.debug("[watchlist] add", sym, livePrice);
+        // Add anyway with pending baseline so UI can show it and fill price next tick
+        add({ symbol: sym, price: null });
+        if (import.meta.env.VITE_MW_DEBUG) {
+          console.debug("[watchlist] add (pending price)", sym);
+        }
+      } else {
+        add({ symbol: sym, price: livePrice });
+        if (import.meta.env.VITE_MW_DEBUG) {
+          console.debug("[watchlist] add", sym, livePrice);
+        }
       }
       setQuery("");
       setIsOpen(false);

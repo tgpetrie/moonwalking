@@ -7,15 +7,30 @@ function formatTime(dt) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function LiveStatusBar({ loading, error, lastUpdated, isValidating, heartbeatPulse, lastFetchTs }) {
+export function LiveStatusBar({
+  loading,
+  error,
+  lastUpdated,
+  isValidating,
+  heartbeatPulse,
+  lastFetchTs,
+  staleSeconds = null,
+  staleThreshold = 20,
+}) {
   let status = "LIVE";
   let statusClass = "live-pill live-pill--ok";
   let label = "Streaming";
+
+  const isStale = staleSeconds !== null && staleSeconds > staleThreshold;
 
   if (error) {
     status = "RETRYING";
     statusClass = "live-pill live-pill--error";
     label = "Error fetching data";
+  } else if (isStale) {
+    status = "STALE";
+    statusClass = "live-pill live-pill--stale";
+    label = `Stale ${Math.round(staleSeconds)}s`;
   } else if (loading && !lastUpdated) {
     status = "CONNECTING";
     statusClass = "live-pill live-pill--connecting";

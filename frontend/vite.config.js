@@ -2,10 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 
-const target =
-  process.env.VITE_PROXY_TARGET ||
-  process.env.VITE_API_BASE_URL ||
-  'http://127.0.0.1:5003'
+// PROXY-FIRST ARCHITECTURE: Single canonical backend
+// Vite dev proxy forwards /data and /api to Flask backend on port 5003
+const target = process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5003'
 
 const vitePort = Number(process.env.VITE_PORT || 5173)
 

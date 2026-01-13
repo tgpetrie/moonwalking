@@ -12,8 +12,7 @@ export default function AskCodexPanel({ onClose }) {
     if (!query.trim()) return;
     setLoading(true); setError(''); setReply('');
     try {
-      const endpoint = `${API_ENDPOINTS.serverInfo.replace('/api/server-info', '')}/api/ask-codex`;
-      const data = await fetchData(endpoint, {
+      const data = await fetchData(API_ENDPOINTS.askCodex, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })

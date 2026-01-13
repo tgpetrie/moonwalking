@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { baselineOrNull } from "../utils/num.js";
+import { sigTop } from "../utils/rowSignatures";
 import "./ui/skeleton.css";
 
 // Reordering mode presets for 1-minute gainers table
@@ -75,6 +76,8 @@ const buildRowKey = (row) => {
   return alt ? String(alt) : undefined;
 };
 
+const computeSig = (rows, topN) => sigTop(rows, topN, pct1mOf, buildRowKey);
+
 const sortByPct1mThenSymbol = (a, b) => {
   const ap = Number(a?.change_1m);
   const bp = Number(b?.change_1m);
@@ -111,72 +114,95 @@ const priceOf = (row) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-function useReorderCadence(rows, sortFn, ms = 420) {
-  const latestRowsRef = useRef(rows);
-  const timerRef = useRef(null);
-  const prevLenRef = useRef(Array.isArray(rows) ? rows.length : 0);
-  const [displayOrder, setDisplayOrder] = useState(() => {
-    const list = Array.isArray(rows) ? [...rows] : [];
-    list.sort(sortFn);
-    return list.map(getRowIdentity).filter(Boolean);
-  });
+function useReorderCadence(inRows, {
+  minIntervalMs = 550,
+  stableSamples = 2,
+  topN = 12,
+  pctGate = 0.12,
+} = {}) {
+  const [rows, setRows] = useState(() => (Array.isArray(inRows) ? [...inRows] : []));
+  const pending = useRef(Array.isArray(inRows) ? [...inRows] : []);
+  const lastApplyAt = useRef(0);
+  const timer = useRef(null);
+  const pendingSig = useRef(computeSig(inRows ?? [], topN));
+  const lastAppliedSig = useRef(pendingSig.current);
+  const stableCount = useRef(0);
 
-  const rowsById = useMemo(() => {
-    const map = new Map();
-    (Array.isArray(rows) ? rows : []).forEach((row) => {
-      const id = getRowIdentity(row);
-      if (!id) return;
-      if (!map.has(id)) map.set(id, row);
-    });
-    return map;
-  }, [rows]);
+  const perfNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
-  // Always keep the latest snapshot available for the cadence commit.
-  latestRowsRef.current = Array.isArray(rows) ? rows : [];
+  const scheduleApply = () => {
+    if (timer.current) return;
+    const now = perfNow();
+    const wait = Math.max(0, minIntervalMs - (now - lastApplyAt.current));
+    timer.current = globalThis.setTimeout(() => {
+      timer.current = null;
+      const next = Array.isArray(pending.current) ? pending.current : [];
+      const nextSig = pendingSig.current;
+      const currentTopIds = lastAppliedSig.current
+        .split("|")
+        .map((segment) => segment.split(":")[0])
+        .join("|");
+      const nextTopIds = nextSig
+        .split("|")
+        .map((segment) => segment.split(":")[0])
+        .join("|");
+      const isStableEnough = stableCount.current >= stableSamples;
+      const isNewTopSet = nextTopIds !== currentTopIds;
+      if (isStableEnough || isNewTopSet) {
+        lastApplyAt.current = perfNow();
+        lastAppliedSig.current = nextSig;
+        stableCount.current = 0;
+        setRows(next);
+      }
+    }, wait);
+  };
 
   useEffect(() => {
-    const nextRows = Array.isArray(rows) ? rows : [];
-    const nextLen = nextRows.length;
-    const prevLen = prevLenRef.current;
-    prevLenRef.current = nextLen;
+    const next = Array.isArray(inRows) ? inRows : [];
+    const nextSig = computeSig(next, topN);
+    const prevTop = rows.slice(0, topN);
+    const prevMap = new Map(prevTop.map((row) => [buildRowKey(row), pct1mOf(row)]));
+    let maxDelta = 0;
+    for (const row of next.slice(0, topN)) {
+      const key = buildRowKey(row);
+      const pct = pct1mOf(row);
+      const prevPct = prevMap.get(key);
+      const delta = prevPct !== undefined ? Math.abs(pct - prevPct) : Math.abs(pct);
+      if (delta > maxDelta) maxDelta = delta;
+    }
+    const passesPctGate = maxDelta >= pctGate;
 
-    const commit = () => {
-      const snapshot = Array.isArray(latestRowsRef.current) ? latestRowsRef.current : [];
-      const sorted = [...snapshot];
-      sorted.sort(sortFn);
-      setDisplayOrder(sorted.map(getRowIdentity).filter(Boolean));
-    };
-
-    // If membership changes (enter/exit), commit immediately so new coins appear quickly.
-    if (nextLen !== prevLen) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      commit();
-      return;
+    if (nextSig === pendingSig.current) {
+      stableCount.current += 1;
+    } else {
+      pending.current = next;
+      pendingSig.current = nextSig;
+      stableCount.current = 1;
     }
 
-    if (timerRef.current) return;
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      commit();
-    }, ms);
-  }, [rows, sortFn, ms]);
+    if (stableCount.current >= stableSamples || passesPctGate) {
+      scheduleApply();
+    }
+
+    return () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inRows, minIntervalMs, stableSamples, topN, pctGate, rows]);
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
       }
     };
   }, []);
 
-  return useMemo(
-    () => displayOrder.map((id) => rowsById.get(id)).filter(Boolean),
-    [displayOrder, rowsById]
-  );
+  return rows;
 }
 export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -262,7 +288,12 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   );
   const maxVisible = expanded ? MAX_VISIBLE_EXPANDED : MAX_VISIBLE_COLLAPSED;
 
-  const orderedRows = useReorderCadence(filteredRows, sortByPct1mThenSymbol, COMMIT_MS);
+  const orderedRows = useReorderCadence(filteredRows, {
+    minIntervalMs: Math.max(COMMIT_MS, 550),
+    stableSamples: 2,
+    topN: 12,
+    pctGate: 0.12,
+  });
   const displayRows = useMemo(() => orderedRows.slice(0, maxVisible), [orderedRows, maxVisible]);
 
   useEffect(() => {

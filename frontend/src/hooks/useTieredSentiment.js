@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBaseUrl, getSentimentBaseUrl } from "../api";
 
+// Coerce anything → number (or fallback)
+function toNum(v, fallback = 0) {
+  if (v === null || v === undefined) return fallback;
+  if (typeof v === "number") return Number.isFinite(v) ? v : fallback;
+  if (typeof v === "boolean") return v ? 1 : 0;
+
+  const s = String(v).trim();
+  if (!s) return fallback;
+
+  // allow "12.3%", "$1,234.56", "1 234", etc.
+  const cleaned = s
+    .replace(/[%$,]/g, "")
+    .replace(/\s+/g, "");
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 const FAIL_COOLDOWN_MS = 8000;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
 const FRESH_REQUEST_TIMEOUT_MS = Number(

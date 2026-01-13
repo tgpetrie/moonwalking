@@ -1,11 +1,14 @@
 
 
-// API configuration for BHABIT CB4 with dynamic base URL and fallback
-const DEFAULT_API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://127.0.0.1:5003' // sane local default; avoid random/stale ports
-).replace(/\/$/, '');
+// API configuration for BHABIT CB4 with a single, proxy-safe base URL
+const resolveBase = () => {
+  const raw =
+    import.meta.env.VITE_API_BASE ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    "";
+  return String(raw).replace(/\/$/, "");
+};
 
 const joinUrl = (base, path) => {
   const b = String(base || '').replace(/\/+$/, '');
@@ -14,13 +17,15 @@ const joinUrl = (base, path) => {
   return `${b}${normalized}`;
 };
 
-let API_BASE_URL = DEFAULT_API_BASE;
-let SENTIMENT_BASE_URL = DEFAULT_API_BASE;
+let API_BASE_URL = resolveBase();
+let SENTIMENT_BASE_URL = API_BASE_URL;
 const joinEndpoint = (path) => joinUrl(API_BASE_URL, path);
 
 const buildEndpoints = () => ({
+  data: joinEndpoint('/data'),
   topBanner: joinEndpoint('/api/banner-top'),
   bottomBanner: joinEndpoint('/api/banner-bottom'),
+  askCodex: joinEndpoint('/api/ask-codex'),
   gainersTable: joinEndpoint('/api/component/gainers-table'),
   gainersTable1Min: joinEndpoint('/api/component/gainers-table-1min'),
   losersTable: joinEndpoint('/api/component/losers-table'),
@@ -29,6 +34,7 @@ const buildEndpoints = () => ({
   crypto: joinEndpoint('/api/crypto'),
   health: joinEndpoint('/api/health'),
   serverInfo: joinEndpoint('/api/server-info'),
+  watchlistInsightsLatest: joinEndpoint('/api/watchlist/insights/latest'),
   marketOverview: joinEndpoint('/api/market-overview'),
   watchlistInsights: joinEndpoint('/api/watchlist/insights'),
   watchlistInsightsLog: joinEndpoint('/api/watchlist/insights/log'),
@@ -52,7 +58,7 @@ export const setApiBaseUrl = (url) => {
 export async function fetchLatestAlerts(symbols = []) {
   if (!Array.isArray(symbols) || symbols.length === 0) return {};
   try {
-    const res = await fetch(joinEndpoint('/api/watchlist/insights/latest'), {
+    const res = await fetch(API_ENDPOINTS.watchlistInsightsLatest, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbols })
@@ -70,26 +76,6 @@ export async function fetchLatestAlerts(symbols = []) {
 const requestCache = new Map();
 const CACHE_DURATION = 10000; // 10 seconds
 
-// Internal: probe a candidate base URL via /api/health with a short timeout
-const probeBase = async (baseUrl, timeoutMs = 1500) => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-  // Prefer server-info which should return 200 regardless of external API status
-  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/server-info`, { signal: controller.signal });
-    return res.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
-const CANDIDATE_BASES = [
-  // Keep this tight: avoid “port rot” to old dev ports.
-  'http://localhost:5003', 'http://127.0.0.1:5003'
-];
-
 // Fetch data from API with throttling and automatic base fallback
 export const fetchData = async (endpoint, fetchOptions = {}) => {
   try {
@@ -105,43 +91,9 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
       requestCache.set(endpoint, { data, timestamp: now });
       return data;
     }
-    // Non-OK response: attempt fallback only for likely wrong-host cases (404/502/503)
     const status = response.status;
-    if ([404, 502, 503, 504].includes(status)) {
-      throw new Error(`HTTP error! status: ${status}`);
-    }
     throw new Error(`HTTP error! status: ${status}`);
   } catch (error) {
-    // Attempt dynamic base fallback on network errors or wrong-host statuses
-    try {
-      const oldBase = API_BASE_URL;
-      const altBases = CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
-      for (const base of altBases) {
-        const ok = await probeBase(base);
-        if (!ok) continue;
-        // Rebuild the endpoint using the probed base (don't switch global base until confirmed OK)
-        let path = endpoint;
-        if (endpoint.startsWith(oldBase)) {
-          path = endpoint.substring(oldBase.length);
-        } else {
-          try {
-            const u = new URL(endpoint);
-            path = u.pathname + (u.search || '');
-          } catch (_) {}
-        }
-        const newEndpoint = `${base.replace(/\/$/, '')}${path}`;
-        const retryRes = await fetch(newEndpoint, fetchOptions);
-        if (retryRes.ok) {
-          // Commit base change only after endpoint success
-          setApiBaseUrl(base);
-          const data = await retryRes.json();
-          requestCache.set(newEndpoint, { data, timestamp: Date.now() });
-          return data;
-        }
-      }
-    } catch (fallbackErr) {
-      // swallow to rethrow original error below
-    }
     console.error('API fetch error:', error);
     throw error;
   }
@@ -149,12 +101,7 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
 
 // Fetch consolidated dataset for dashboard consumers (fixed base + /data)
 export async function fetchAllData({ signal } = {}) {
-  const apiBase = (
-    import.meta?.env?.VITE_API_BASE_URL ||
-    API_BASE_URL
-  );
-
-  const url = joinUrl(apiBase, '/data');
+  const url = API_ENDPOINTS.data;
   const res = await fetch(url, {
     signal,
     headers: { Accept: 'application/json' },

@@ -1,9 +1,12 @@
 // src/components/TokenRowUnified.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { getAlertConfig, getAlertColor } from "../config/alertConfig";
+import "../styles/alerts.css";
+import displaySymbol from "../utils/symbolFmt.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -14,7 +17,7 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
  * - Watchlist
  */
 
-export function TokenRowUnified({
+function TokenRowUnifiedComponent({
   token,
   rank,
   changeField, // "change_1m" or "change_3m"
@@ -26,6 +29,7 @@ export function TokenRowUnified({
   density = "normal", // "normal" | "tight"
   pulse = false,
   pulseDelayMs = 0,
+  activeAlert = null, // Alert object from DataContext.getActiveAlert(symbol)
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -55,8 +59,10 @@ export function TokenRowUnified({
 
   const [priceFlash, setPriceFlash] = useState(false);
   const [pctFlash, setPctFlash] = useState(false);
+  const [rankFlash, setRankFlash] = useState(false);
   const prevPriceRef = useRef(currentPrice);
   const prevPctRef = useRef(changeNum);
+  const prevRankRef = useRef(rank);
 
   useEffect(() => {
     let cleanup;
@@ -82,6 +88,18 @@ export function TokenRowUnified({
     return cleanup;
   }, [changeNum]);
 
+  useEffect(() => {
+    let timer;
+    if (prevRankRef.current !== undefined && prevRankRef.current !== rank) {
+      setRankFlash(true);
+      timer = setTimeout(() => setRankFlash(false), 220);
+    }
+    prevRankRef.current = rank;
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [rank]);
+
   const handleToggleStar = () => {
     if (!symbol || typeof onToggleWatchlist !== "function") return;
     const activePrice = currentPrice ?? token?.price ?? null;
@@ -103,13 +121,13 @@ export function TokenRowUnified({
     <>
       {/* 1. Rank circle */}
       <CellTag className="bh-cell bh-cell-rank">
-        <div className="bh-rank">{rank}</div>
+        <div className={rankClassName}>{rank}</div>
       </CellTag>
 
       {/* 2. Token name */}
       <CellTag className="bh-cell bh-cell-symbol">
-        <div className="bh-symbol">{token.symbol}</div>
-        {token.base && <div className="bh-name">{token.base}</div>}
+        <div className="bh-symbol mw-token-name">{displaySymbol(token.symbol || token.product_id || token.base)}</div>
+        {token.base && <div className="bh-name">{displaySymbol(token.base)}</div>}
       </CellTag>
 
       {/* 3. Price stack (current / previous) */}
@@ -138,6 +156,7 @@ export function TokenRowUnified({
 
   const url = coinbaseSpotUrl(token || {});
   const rowClassName = [rowClass, url ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
+  const showDebug = Boolean(import.meta?.env?.VITE_MW_DEBUG);
   const [infoOpen, setInfoOpen] = useState(false);
   const toggleInfo = (e) => {
     if (e?.preventDefault) e.preventDefault();
@@ -171,40 +190,103 @@ export function TokenRowUnified({
 
   const setRabbitHover = (on) => (e) => {
     const row = e.currentTarget;
+    if (on) {
+      // per-row bloom follow
+      const r = row.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width) * 100;
+      const y = ((e.clientY - r.top) / r.height) * 100;
+      row.style.setProperty("--bh-mx", `${x}%`);
+      row.style.setProperty("--bh-my", `${y}%`);
+    }
     const board = row.closest(".board-core");
     if (!board) return;
-
     if (on) {
       board.setAttribute("data-row-hover", "1");
-      const r = row.getBoundingClientRect();
-      const b = board.getBoundingClientRect();
-
-      // Calculate position relative to board-core container
-      const x = ((r.left + r.width / 2 - b.left) / b.width) * 100;
-      const y = ((r.top + r.height / 2 - b.top) / b.height) * 100;
-
-      board.style.setProperty("--emit-x", `${x}%`);
-      board.style.setProperty("--emit-y", `${y}%`);
     } else {
       board.removeAttribute("data-row-hover");
     }
   };
 
+  // Alert processing
+  const [showAlertDetails, setShowAlertDetails] = useState(false);
+  const alertType = activeAlert?.alert_type || activeAlert?.type;
+  const alertSeverity = (activeAlert?.severity || activeAlert?.severity_lc || "info").toLowerCase();
+  const alertConfig = getAlertConfig(alertType);
+  const pulseColor = activeAlert ? getAlertColor(activeAlert) : null;
+  const [alertFlash, setAlertFlash] = useState(false);
+  const prevAlertIdRef = useRef(activeAlert?.id || null);
+
+  useEffect(() => {
+    let timer;
+    const alertId = activeAlert?.id || null;
+    if (alertId && prevAlertIdRef.current !== alertId) {
+      setAlertFlash(true);
+      timer = setTimeout(() => setAlertFlash(false), 360);
+    } else if (!alertId) {
+      setAlertFlash(false);
+    }
+    prevAlertIdRef.current = alertId;
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeAlert]);
+
+  // Build dynamic styles for alert pulse
+  const rowStyles = {
+    ...(pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : {}),
+    ...(pulseColor ? { "--alert-pulse-color": pulseColor } : {}),
+  };
+
+  const rankClassName = ["bh-rank", rankFlash ? "is-updating" : ""].filter(Boolean).join(" ");
+  const alertBadgeClass = ["alert-badge", alertFlash ? "is-fresh" : ""].filter(Boolean).join(" ");
+
   return (
     <>
       <RowTag
-        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
-        style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""} ${activeAlert ? "has-alert" : ""}`}
+        style={Object.keys(rowStyles).length > 0 ? rowStyles : undefined}
         data-side={dataSide}
+        data-symbol={symbol ? symbol.toUpperCase() : undefined}
+        data-alert-severity={activeAlert ? alertSeverity : undefined}
         role={url ? "link" : undefined}
         tabIndex={url ? 0 : undefined}
         onClick={handleClick}
         onKeyDown={onKeyDown}
-        onPointerEnter={setRabbitHover(true)}
-        onPointerLeave={setRabbitHover(false)}
+        onPointerEnter={(e) => {
+          setRabbitHover(true)(e);
+          if (activeAlert) setShowAlertDetails(true);
+        }}
+        onPointerLeave={(e) => {
+          setRabbitHover(false)(e);
+          if (activeAlert) setShowAlertDetails(false);
+        }}
+        onMouseMove={setRabbitHover(true)}
         aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
       >
         {renderCells()}
+
+        {/* Alert Badge */}
+        {activeAlert && alertConfig && (
+          <div className={alertBadgeClass} title={activeAlert.message || activeAlert.title}>
+            <span className="alert-badge__icon">{alertConfig.icon}</span>
+            <span className="alert-badge__label">{alertConfig.label}</span>
+          </div>
+        )}
+
+        {showDebug && (
+          <div className="token-row-debug">
+            <span className="dbg-label">base1m:</span>
+            <span className="dbg-val">{prevPrice != null ? formatPrice(prevPrice) : "—"}</span>
+            <span className="dbg-label">age:</span>
+            <span className="dbg-val">
+              {Number.isFinite(token?.baseline_age_s) ? `${token.baseline_age_s}s` : "n/a"}
+            </span>
+            <span className="dbg-label">pct:</span>
+            <span className="dbg-val">
+              {Number.isFinite(changeNum) ? formatPct(changeNum, { sign: true }) : "—"}
+            </span>
+          </div>
+        )}
       </RowTag>
 
       {infoOpen && (renderAs === "tr" ? (
@@ -225,3 +307,37 @@ export function TokenRowUnified({
     </>
   );
 }
+
+const areEqual = (prev, next) => {
+  const fields = ["rank", "changeField", "side", "renderAs", "density", "pulse", "pulseDelayMs"];
+  for (const key of fields) {
+    if (prev[key] !== next[key]) return false;
+  }
+  if (prev.isWatchlisted !== next.isWatchlisted) return false;
+  if (prev.activeAlert?.id !== next.activeAlert?.id) return false;
+  if (prev.activeAlert?.severity !== next.activeAlert?.severity) return false;
+  if (prev.activeAlert?.alert_type !== next.activeAlert?.alert_type) return false;
+  const prevToken = prev.token || {};
+  const nextToken = next.token || {};
+  const tokenKeys = [
+    "symbol",
+    "product_id",
+    "current_price",
+    "price",
+    "current",
+    "previous_price_1m",
+    "previous_price_3m",
+    "initial_price_1min",
+    "initial_price_3min",
+    "price_1m_ago",
+    "price_3m_ago",
+    prev.changeField || "change_1m",
+    next.changeField || "change_1m",
+  ];
+  for (const key of tokenKeys) {
+    if (prevToken[key] !== nextToken[key]) return false;
+  }
+  return true;
+};
+
+export const TokenRowUnified = memo(TokenRowUnifiedComponent, areEqual);

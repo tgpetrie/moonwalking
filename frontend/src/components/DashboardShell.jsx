@@ -85,7 +85,7 @@ export default function DashboardShell({ onInfo }) {
   const handleInfo = (symbol) => {
     const sym = symbol?.toString()?.toUpperCase();
     if (sym) {
-      console.log("INFO_CLICK", sym);
+      if (import.meta?.env?.VITE_MW_DEBUG) console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
       setSentimentOpen(true);
     }
@@ -125,7 +125,7 @@ export default function DashboardShell({ onInfo }) {
     const handler = (e) => {
       if (!e.detail) return;
       const sym = String(e.detail).toUpperCase();
-      console.log("INFO_CLICK", sym);
+      if (import.meta?.env?.VITE_MW_DEBUG) console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
       setSentimentOpen(true);
     };
@@ -196,6 +196,8 @@ export default function DashboardShell({ onInfo }) {
             isValidating={isValidating}
             heartbeatPulse={combinedPulse}
             lastFetchTs={lastFetchTs}
+            staleSeconds={staleSeconds}
+            staleThreshold={STALE_THRESHOLD}
           />
         </div>
       </header>

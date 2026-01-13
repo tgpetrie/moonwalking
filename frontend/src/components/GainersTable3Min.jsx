@@ -5,6 +5,7 @@ import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { baselineOrNull } from "../utils/num.js";
+import { sigTop } from "../utils/rowSignatures";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
@@ -13,6 +14,20 @@ const buildRowKey = (row) => {
   const base = row?.product_id ?? row?.symbol;
   return base ? String(base) : undefined;
 };
+
+const pct3m = (row) => {
+  const raw =
+    row?.change_3m ??
+    row?._pct ??
+    row?.price_change_percentage_3min ??
+    row?.pct ??
+    row?.gain ??
+    0;
+  const value = typeof raw === "string" ? Number(raw) : Number(raw);
+  return Number.isFinite(value) ? value : 0;
+};
+
+const computeSig3m = (rows, topN = 8) => sigTop(rows, topN, pct3m, buildRowKey);
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -30,7 +45,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
   // hook present preserves wiring expectations and makes future migrations
   // easier.
   const { data: _hybridPayload = {} } = useHybridLiveNamed();
-  const gainers3m = useMemo(() => {
+  const ranked3m = useMemo(() => {
     if (tokensProp) return tokensProp; // Use prop if provided
 
     const list = data?.gainers_3m;
@@ -56,12 +71,15 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
           current_price: row.price ?? row.current_price,
         };
       })
-      .filter((r) => r.symbol || r.product_id)
-      .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
-      .sort((a, b) => b._pct - a._pct);
+        .filter((r) => r.symbol || r.product_id)
+        .filter((r) => Number.isFinite(r._pct) && r._pct > 0)
+        .sort((a, b) => b._pct - a._pct);
   }, [data, tokensProp]);
-
-  const visibleRows = isExpanded ? gainers3m.slice(0, MAX_EXPANDED) : gainers3m.slice(0, MAX_BASE);
+  const visibleRows = useMemo(
+    () => (isExpanded ? ranked3m.slice(0, MAX_EXPANDED) : ranked3m.slice(0, MAX_BASE)),
+    [ranked3m, isExpanded]
+  );
+  const visibleSignature = useMemo(() => computeSig3m(visibleRows, 8), [visibleRows]);
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
     return visibleRows.map((row) => {
@@ -76,8 +94,8 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
       }
       return { row, priceChanged, pctChanged };
     });
-  }, [visibleRows]);
-  const count = gainers3m.length;
+  }, [visibleRows, visibleSignature]);
+  const count = ranked3m.length;
   const hasData = count > 0;
 
   // Loading skeleton state

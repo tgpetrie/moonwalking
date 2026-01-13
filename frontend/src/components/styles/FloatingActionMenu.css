@@ -1,0 +1,258 @@
+/* ===== FLOATING ACTION MENU (FAB) ===== */
+/* Material Design Speed Dial with Glass Morphism */
+
+.fab-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9998;
+  font-family: 'Raleway', sans-serif;
+}
+
+/* Main FAB Button */
+.fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(16, 174, 155, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 174, 155, 0.2) 0%,
+    rgba(16, 174, 155, 0.1) 100%
+  );
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(16, 174, 155, 0.3),
+    inset 0 0 20px rgba(16, 174, 155, 0.05);
+  color: var(--bh-mint, #10ae9b);
+  font-size: 28px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 9999;
+}
+
+.fab:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 174, 155, 0.3) 0%,
+    rgba(16, 174, 155, 0.15) 100%
+  );
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(16, 174, 155, 0.5),
+    inset 0 0 30px rgba(16, 174, 155, 0.1);
+  transform: translateY(-2px);
+}
+
+.fab:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.fab:focus-visible {
+  outline: 2px solid var(--bh-mint);
+  outline-offset: 4px;
+}
+
+/* FAB icon rotation when active */
+.fab-icon {
+  display: block;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-icon.is-rotated {
+  transform: rotate(45deg);
+}
+
+.fab.is-active {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 174, 155, 0.35) 0%,
+    rgba(16, 174, 155, 0.2) 100%
+  );
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(16, 174, 155, 0.6),
+    inset 0 0 40px rgba(16, 174, 155, 0.15);
+}
+
+/* Backdrop overlay */
+.fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
+  z-index: 9997;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Action buttons container (speed dial) */
+.fab-actions {
+  position: absolute;
+  bottom: 72px;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-actions.is-open {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Individual action wrapper */
+.fab-action-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  animation: slideInAction 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+  animation-delay: calc(var(--action-index) * 50ms);
+}
+
+@keyframes slideInAction {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Action label (tooltip) */
+.fab-action-label {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fab-action-wrapper:hover .fab-action-label {
+  opacity: 1;
+}
+
+/* Mini FAB buttons */
+.fab-mini {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(16, 174, 155, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 174, 155, 0.15) 0%,
+    rgba(16, 174, 155, 0.08) 100%
+  );
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(16, 174, 155, 0.2),
+    inset 0 0 12px rgba(16, 174, 155, 0.05);
+  color: var(--bh-mint, #10ae9b);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fab-mini:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 174, 155, 0.25) 0%,
+    rgba(16, 174, 155, 0.12) 100%
+  );
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(16, 174, 155, 0.4),
+    inset 0 0 20px rgba(16, 174, 155, 0.1);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.fab-mini:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.fab-mini:focus-visible {
+  outline: 2px solid var(--bh-mint);
+  outline-offset: 3px;
+}
+
+.fab-mini-icon {
+  display: block;
+  filter: drop-shadow(0 0 6px var(--bh-mint));
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .fab-container {
+    bottom: 16px;
+    right: 16px;
+  }
+
+  .fab {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+
+  .fab-actions {
+    bottom: 64px;
+    gap: 10px;
+  }
+
+  .fab-mini {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .fab-action-label {
+    font-size: 0.7rem;
+    padding: 5px 10px;
+  }
+}
+
+/* Ensure FAB doesn't obscure content */
+/* Add bottom padding to main content equal to FAB height + margin */
+body {
+  padding-bottom: 96px; /* 56px FAB + 24px margin + 16px buffer */
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 80px; /* 48px FAB + 16px margin + 16px buffer */
+  }
+}

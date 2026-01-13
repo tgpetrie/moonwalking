@@ -12,8 +12,7 @@ export default function AskCodexPanel({ onClose }) {
     if (!query.trim()) return;
     setLoading(true); setError(''); setReply('');
     try {
-      const endpoint = `${API_ENDPOINTS.serverInfo.replace('/api/server-info', '')}/api/ask-codex`;
-      const data = await fetchData(endpoint, {
+      const data = await fetchData(API_ENDPOINTS.askCodex, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
@@ -35,7 +34,7 @@ export default function AskCodexPanel({ onClose }) {
         </div>
         <form onSubmit={submit} className="p-4 flex flex-col gap-3 overflow-auto">
           <textarea
-            className="w-full h-28 text-xs bg-black/40 border border-purple-700 rounded p-2 font-mono text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full h-28 text-xs bg-black/40 border border-purple-700 rounded p-2 text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Ask about the dashboard, data flow, trends..." />
@@ -44,7 +43,7 @@ export default function AskCodexPanel({ onClose }) {
             <button type="button" onClick={() => { setReply(''); setQuery(''); }} className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs border border-gray-600">Clear</button>
           </div>
           {error && <div className="text-xs text-red-400">{error}</div>}
-          {reply && <div className="mt-2 p-3 rounded bg-black/40 border border-purple-800 text-xs whitespace-pre-wrap leading-relaxed text-purple-100 font-mono max-h-64 overflow-auto">{reply}</div>}
+          {reply && <div className="mt-2 p-3 rounded bg-black/40 border border-purple-800 text-xs whitespace-pre-wrap leading-relaxed text-purple-100 max-h-64 overflow-auto">{reply}</div>}
         </form>
       </div>
     </div>

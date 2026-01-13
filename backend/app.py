@@ -955,7 +955,7 @@ def _update_3m_trend(sym: str, gain_val):
     streak = prev['streak'] + 1 if direction != 'flat' and direction == prev['last_dir'] else (1 if direction != 'flat' else prev['streak'])
     score = round(prev['score'] * 0.8 + g * 0.2, 3)
     three_minute_trends[sym] = {'last': g, 'streak': streak, 'last_dir': direction, 'score': score}
-    _maybe_fire_trend_alert('3m', sym, direction, streak, score)
+    _maybe_fire_trend_alert('3m', sym, direction, streak, score, change_pct=g)
     return direction, streak, score
 
 @app.route('/api/health')
@@ -2159,7 +2159,7 @@ CONFIG = {
     'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 35)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
     'TOP_MOVERS_SAMPLE_SIZE': int(os.environ.get('TOP_MOVERS_SAMPLE_SIZE', 120)),  # 24h movers sample size
-    'ONE_MIN_DEFAULT_SEED_COUNT': int(os.environ.get('ONE_MIN_DEFAULT_SEED_COUNT', 10)),  # seed count for 1m list
+    'ONE_MIN_DEFAULT_SEED_COUNT': int(os.environ.get('ONE_MIN_DEFAULT_SEED_COUNT', 35)),  # seed count for 1m list
     'PRICE_UNIVERSE_SAMPLE_SIZE': int(os.environ.get('PRICE_UNIVERSE_SAMPLE_SIZE', 120)),  # USD products sample size
     'PRICE_UNIVERSE_MAX': int(os.environ.get('PRICE_UNIVERSE_MAX', 250)),  # Hard cap on sample size
     'PRICE_MIN_SUCCESS_RATIO': float(os.environ.get('PRICE_MIN_SUCCESS_RATIO', 0.70)),  # coverage guard
@@ -2686,35 +2686,126 @@ alerts_state = {
 alerts_log = deque(maxlen=200)
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
-ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.25))
-ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 2.0))
-ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 90))
-ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.35))
+ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.4))
+ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 2.2))
+ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 120))
+ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.5))
 ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
+ALERT_IMPULSE_REARM_DELTA = float(CONFIG.get("ALERT_IMPULSE_REARM_DELTA", 0.10))
 
 MW_SEED_ALERTS = os.getenv("MW_SEED_ALERTS", "0") == "1"
 _ALERT_EMIT_TS = {}
 _ALERT_EMIT_VAL = {}
 
+def _coerce_float(value):
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+def _to_epoch_seconds(ts):
+    if ts is None:
+        return None
+    if isinstance(ts, (int, float)):
+        return int(ts)
+    s = str(ts).strip()
+    if not s:
+        return None
+    try:
+        if s.isdigit():
+            return int(s)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return int(dt.timestamp())
+    except Exception:
+        return None
+
+def _severity_from_changes(change_1h, change_3m, change_1m):
+    """Derive severity from percent deltas (values already in % units)."""
+    chosen = change_1h if change_1h is not None else change_3m if change_3m is not None else change_1m
+    if chosen is None:
+        return "INFO"
+    mag = abs(float(chosen))
+    if mag >= 30:
+        return "CRITICAL"
+    if mag >= 20:
+        return "HIGH"
+    if mag >= 12:
+        return "MEDIUM"
+    if mag >= 5:
+        return "LOW"
+    return "INFO"
+
+def _alert_type_from_signals(change_1h, change_3m, volume_spike, sentiment_score, sentiment_change, trend_direction, trend_streak):
+    """Map signal values to alert_type enum (values use % units for price changes)."""
+    ch_1h = _coerce_float(change_1h)
+    ch_3m = _coerce_float(change_3m)
+    vol = _coerce_float(volume_spike)
+    sent = _coerce_float(sentiment_score)
+    sent_delta = _coerce_float(sentiment_change)
+
+    if ch_1h is not None and ch_1h >= 15:
+        return "MOONSHOT"
+    if ch_1h is not None and ch_1h <= -12:
+        return "CRATER"
+    if ch_3m is not None and vol is not None:
+        if ch_3m >= 8 and vol >= 2.5:
+            return "MOONSHOT"
+        if ch_3m <= -7 and vol >= 2.5:
+            return "CRATER"
+    if ch_3m is not None and (trend_direction == "up") and (trend_streak or 0) >= 3 and ch_3m >= 5:
+        return "BREAKOUT"
+    if vol is not None:
+        if (ch_1h is None or abs(ch_1h) < 5) and (ch_3m is None or abs(ch_3m) < 5) and vol >= 2.0:
+            return "STEALTH_MOVE"
+    if sent is not None and ch_1h is not None and sent >= 0.8 and ch_1h >= 5:
+        return "FOMO_ALERT"
+    if sent is not None and ch_1h is not None:
+        if (sent >= 0.75 and ch_1h <= -3) or (sent <= 0.35 and ch_1h >= 3):
+            return "DIVERGENCE"
+    if sent_delta is not None and abs(sent_delta) >= 0.25:
+        return "SENTIMENT_SPIKE"
+    return None
+
+SEVERITY_COOLDOWN = {
+    "critical": 120,
+    "high": 180,
+    "medium": 300,
+    "low": 360,
+    "info": 420,
+}
+
 def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
-    """Emit an alert with per-key cooldown and magnitude dedupe."""
+    """Emit an alert with per-key cooldown, severity-aware throttle, and magnitude re-arm."""
     if not alert or not isinstance(alert, dict):
         return False
 
-    key = f"{alert.get('type')}::{alert.get('symbol')}"
+    key_type = alert.get("alert_type") or alert.get("type")
+    key = f"{key_type}::{alert.get('symbol')}"
     now = time.time()
-    last_ts = _ALERT_EMIT_TS.get(key, 0)
-    if now - last_ts < cooldown_s:
-        return False
+    severity = str(alert.get("severity") or alert.get("severity_lc") or "").lower()
+    sev_cooldown = SEVERITY_COOLDOWN.get(severity, cooldown_s)
 
-    magnitude = float(alert.get("meta", {}).get("magnitude", 0) or 0)
-    prev = float(_ALERT_EMIT_VAL.get(key, 0) or 0)
-    if magnitude <= prev + dedupe_delta:
+    last_ts = _ALERT_EMIT_TS.get(key, 0)
+    last_val = float(_ALERT_EMIT_VAL.get(key, 0) or 0)
+
+    # prefer score for re-arm, fall back to magnitude
+    magnitude = _coerce_float(alert.get("score")) or _coerce_float(alert.get("meta", {}).get("magnitude")) or 0.0
+
+    # Cooldown gate
+    if now - last_ts < sev_cooldown:
+        # allow early re-arm only if the score/magnitude improved meaningfully
+        if magnitude is None or magnitude <= last_val + ALERT_IMPULSE_REARM_DELTA:
+            return False
+
+    # Dedupe gate
+    if magnitude is not None and magnitude <= last_val + dedupe_delta:
         return False
 
     alerts_log.append(alert)
     _ALERT_EMIT_TS[key] = now
-    _ALERT_EMIT_VAL[key] = magnitude
+    _ALERT_EMIT_VAL[key] = magnitude if magnitude is not None else 0.0
     return True
 
 
@@ -2726,20 +2817,74 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         mag = abs(float(change_pct))
         sym_clean = str(symbol).upper()
         product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
-        now = datetime.now(timezone.utc)
         direction = "up" if change_pct >= 0 else "down"
-        severity = "high" if mag >= max(ALERT_IMPULSE_3M_THRESH, ALERT_IMPULSE_1M_THRESH) else "medium"
+        now_ts = int(time.time())
+        base_type = "MOONSHOT" if change_pct >= 0 else "CRATER"
+        change_1m = float(change_pct) if window == "1m" else None
+        change_3m = float(change_pct) if window == "3m" else None
+
+        # CANONICAL SENTIMENT INTEGRATION: Compute severity using tier + confidence + price
+        try:
+            from sentiment_source_mapper import compute_token_sentiment, tier_to_severity
+
+            # Get sentiment data (try cache first, then fetch)
+            sentiment_data = _sentiment_cache_lookup(sym_clean)
+            if sentiment_data is None or sentiment_data[1]:  # If stale or missing
+                # Fetch from pipeline
+                try:
+                    sentiment_resp = requests.get(
+                        _pipeline_url(f'/sentiment/latest?symbol={sym_clean}'),
+                        timeout=2.0
+                    )
+                    if sentiment_resp.ok:
+                        sentiment_data = (sentiment_resp.json(), False, time.time())
+                        _sentiment_cache_set(sym_clean, sentiment_data[0])
+                except:
+                    sentiment_data = ({}, True, time.time())
+
+            # Build price data for mapper
+            price_data = {
+                'price': float(price),
+                'change_1m': change_1m or 0,
+                'change_3m': change_3m or 0,
+                'change_15m': 0,  # Not available in impulse alerts
+                'change_1h': 0,
+                'timestamp': now_ts,
+                'streak': 0  # Could be computed from recent candles
+            }
+
+            # Compute canonical sentiment score
+            result = compute_token_sentiment(
+                symbol=sym_clean,
+                sentiment_data=sentiment_data[0],
+                price_data=price_data
+            )
+
+            # Use tier + confidence for severity
+            severity = tier_to_severity(result['tier'], result['confidence_0_1'])
+
+        except Exception as e:
+            # Fallback to price-only severity if sentiment integration fails
+            logging.debug(f"Sentiment integration failed for {sym_clean}, using price-only: {e}")
+            severity = _severity_from_changes(None, change_3m, change_1m)
         alert = {
-          "id": f"impulse_{window}_{product_id}_{int(time.time())}",
-          "ts": now.isoformat(),
+          "id": f"impulse_{window}_{product_id}_{now_ts}",
+          "ts": now_ts,
           "symbol": product_id,
-          "type": f"impulse_{window}",
+          "product_id": product_id,
+          "alert_type": base_type,
           "severity": severity,
-          "title": f"{window} impulse {direction}",
+          "title": base_type,
           "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
-          "price": float(price or 0),
-          "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
+          "current_price": float(price or 0),
+          "price_change_1m": change_1m,
+          "price_change_3m": change_3m,
+          "action": "WATCH",
+          "time_horizon": window,
           "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+          "sources": ["price"],
+          "triggers": [f"change_{window}>={mag:.2f}"],
+          "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
           "meta": {"magnitude": mag, "direction": direction, "window": window},
         }
         _emit_alert(alert)
@@ -2755,17 +2900,22 @@ def _seed_alerts_once():
     if getattr(_seed_alerts_once, "_done", False):
         return
     _seed_alerts_once._done = True
-    now = datetime.now(timezone.utc)
+    now_ts = int(time.time())
     alerts_log.append({
-        "id": f"seed_{int(time.time())}",
-        "ts": now.isoformat(),
+        "id": f"seed_{now_ts}",
+        "ts": now_ts,
         "symbol": "BTC-USD",
-        "type": "seed",
-        "severity": "info",
-        "title": "Seed alert (wiring check)",
+        "product_id": "BTC-USD",
+        "alert_type": "INFO",
+        "severity": "INFO",
+        "title": "SEED",
         "message": "If you can read this, alerts are flowing end-to-end.",
-        "expires_at": (now + timedelta(seconds=90)).isoformat(),
+        "time_horizon": "1m",
+        "action": "WATCH",
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat(),
         "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
+        "sources": ["seed"],
+        "triggers": ["mw_seed_alerts"],
         "meta": {"source": "seed", "ttl_s": 90},
     })
 
@@ -2780,53 +2930,115 @@ def _normalize_alert(raw: dict) -> dict:
     product_id = resolve_product_id_from_row(symbol_raw) or (str(symbol_raw).upper() if symbol_raw else None)
     symbol = product_id or (str(symbol_raw).upper() if symbol_raw else None)
 
-    direction = (raw.get("direction") or "").lower()
-    scope = str(raw.get("scope") or "").lower()
-    streak = raw.get("streak") or 0
+    direction = (raw.get("direction") or raw.get("meta", {}).get("direction") or "").lower()
+    scope = str(raw.get("scope") or raw.get("meta", {}).get("window") or raw.get("meta", {}).get("scope") or "").lower()
+    streak = raw.get("streak") or raw.get("meta", {}).get("streak") or 0
 
-    # Map direction to a coarse alert type
-    alert_type = raw.get("type") or None
-    if not alert_type:
-        if direction == "up":
-            alert_type = "breakout"
-        elif direction == "down":
-            alert_type = "crater"
-        else:
-            alert_type = "divergence"
+    change_1m = _coerce_float(raw.get("price_change_1m") or raw.get("price_change_percentage_1min"))
+    change_3m = _coerce_float(raw.get("price_change_3m") or raw.get("price_change_percentage_3min"))
+    change_1h = _coerce_float(raw.get("price_change_1h") or raw.get("price_change_percentage_1h"))
+    volume_spike = _coerce_float(raw.get("volume_spike") or raw.get("volume_ratio"))
+    sentiment_score = _coerce_float(raw.get("sentiment_score"))
+    sentiment_change = _coerce_float(raw.get("sentiment_change"))
 
-    # Derive severity: longer streak => higher severity
-    severity = (raw.get("severity") or "").lower()
-    if severity not in ALERT_SEVERITY_ORDER:
-        severity = "high" if streak and streak >= 5 else "medium" if streak and streak >= 3 else "info"
+    # Map direction to a coarse alert type when no explicit enum exists
+    alert_type_raw = raw.get("alert_type") or raw.get("type")
+    if alert_type_raw:
+        alert_type = str(alert_type_raw).upper()
+    else:
+        alert_type = _alert_type_from_signals(
+            change_1h,
+            change_3m,
+            volume_spike,
+            sentiment_score,
+            sentiment_change,
+            direction,
+            streak,
+        )
+        if not alert_type:
+            if direction == "up":
+                alert_type = "BREAKOUT"
+            elif direction == "down":
+                alert_type = "CRATER"
+            else:
+                alert_type = "DIVERGENCE"
 
-    # Timestamp normalization
-    ts = raw.get("ts") or datetime.now(timezone.utc).isoformat()
+    severity_raw = raw.get("severity")
+    severity = str(severity_raw).upper() if severity_raw else None
+    confidence = _coerce_float(raw.get("confidence"))
+    score = None
+
+    # Sentiment-aware severity/score/confidence if available
+    try:
+        from sentiment_source_mapper import compute_token_sentiment, tier_to_severity
+        sentiment_payload = raw.get("sentiment") or {}
+        price_payload = {
+            "price": _coerce_float(raw.get("current_price") or raw.get("price") or raw.get("current")) or 0,
+            "change_1m": change_1m or 0,
+            "change_3m": change_3m or 0,
+            "change_1h": change_1h or 0,
+            "timestamp": _to_epoch_seconds(raw.get("ts")) or int(time.time()),
+            "streak": streak or 0,
+        }
+        result = compute_token_sentiment(symbol or "", sentiment_payload, price_payload)
+        severity = tier_to_severity(result.get("tier"), result.get("confidence_0_1"))
+        confidence = _coerce_float(result.get("confidence_0_1")) or confidence
+        score = _coerce_float(result.get("score_total_0_100")) or score
+    except Exception:
+        if severity not in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
+            severity = _severity_from_changes(change_1h, change_3m, change_1m)
+
+    ts = _to_epoch_seconds(raw.get("ts")) or int(time.time())
     expires_at = raw.get("expires_at")
 
-    score = None
-    try:
-        if raw.get("score") is not None:
-            score = float(raw.get("score"))
-    except Exception:
-        score = None
+    if confidence is not None:
+        confidence = max(0.0, min(1.0, confidence))
 
-    trade_url = None
-    if symbol:
+    trade_url = raw.get("trade_url")
+    if not trade_url and symbol:
         trade_url = f"https://www.coinbase.com/advanced-trade/spot/{symbol}"
+
+    title = raw.get("title") or alert_type
+    message = raw.get("message") or raw.get("title") or ""
+    if not message and symbol:
+        horizon = raw.get("time_horizon") or scope or None
+        if change_1h is not None:
+            message = f"{symbol} moved {change_1h:+.2f}% (1h)"
+        elif change_3m is not None:
+            message = f"{symbol} moved {change_3m:+.2f}% (3m)"
+        elif change_1m is not None:
+            message = f"{symbol} moved {change_1m:+.2f}% (1m)"
+        elif horizon:
+            message = f"{symbol} alert ({horizon})"
 
     norm = {
         "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
-        "symbol": symbol,
-        "type": alert_type,
-        "severity": severity,
-        "title": raw.get("title") or raw.get("message") or f"{scope.upper()} alert",
-        "message": raw.get("message") or raw.get("title") or "",
         "ts": ts,
-        "expires_at": expires_at,
-        "score": score,
-        "sources": raw.get("sources") or [],
+        "product_id": product_id,
+        "symbol": symbol,
+        "alert_type": alert_type,
+        "severity": severity,
+        "title": title,
+        "message": message,
+        "confidence": confidence,
+        "current_price": _coerce_float(raw.get("current_price") or raw.get("price") or raw.get("current")),
+        "price_change_1m": change_1m,
+        "price_change_3m": change_3m,
+        "price_change_1h": change_1h,
+        "volume_spike": volume_spike,
+        "sentiment_score": sentiment_score,
+        "sentiment_change": sentiment_change,
+        "action": raw.get("action"),
+        "time_horizon": raw.get("time_horizon") or scope or None,
         "trade_url": trade_url,
+        "sources": raw.get("sources") or [],
+        "triggers": raw.get("triggers") or [],
+        "type": alert_type,  # legacy alias for existing UI components
     }
+    if score is not None:
+        norm["score"] = score
+    if expires_at:
+        norm["expires_at"] = expires_at
     return {k: v for k, v in norm.items() if v is not None}
 
 
@@ -2855,7 +3067,7 @@ def _normalize_alerts(alerts: list[dict]) -> list[dict]:
         normalized.append(norm)
     return normalized
 
-def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
+def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float, change_pct: float | None = None) -> None:
     """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
     try:
         thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [2, 3])
@@ -2868,15 +3080,36 @@ def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int
         now = time.time()
         last = alerts_state.get(scope, {}).get(symbol, 0)
         if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 120):
+            change_val = _coerce_float(change_pct)
             msg = f"{scope} trend {direction} x{streak} on {symbol} (>= {reached}; score {float(score or 0.0):.2f})"
+            alert_type = "BREAKOUT" if direction == "up" else "CRATER" if direction == "down" else "DIVERGENCE"
+            product_id = resolve_product_id_from_row(symbol) or (f"{symbol}-USD" if symbol and "-" not in symbol else symbol)
+            now_ts = int(time.time())
             alerts_log.append({
-                'ts': datetime.now().isoformat(),
-                'scope': scope,
-                'symbol': symbol,
-                'direction': direction,
-                'streak': int(streak),
-                'score': round(float(score or 0.0), 3),
-                'message': msg
+                "id": f"trend_{scope}_{product_id}_{now_ts}",
+                "ts": now_ts,
+                "scope": scope,
+                "symbol": product_id,
+                "product_id": product_id,
+                "direction": direction,
+                "streak": int(streak),
+                "score": round(float(score or 0.0), 3),
+                "alert_type": alert_type,
+                "severity": _severity_from_changes(
+                    change_val if scope in ("1h", "1h_price") else None,
+                    change_val if scope == "3m" else None,
+                    change_val if scope == "1m" else None,
+                ),
+                "title": alert_type,
+                "message": msg,
+                "action": "WATCH",
+                "time_horizon": scope,
+                "sources": ["trend"],
+                "triggers": [f"streak>={reached}"],
+                "meta": {"direction": direction, "streak": int(streak), "score": round(float(score or 0.0), 3)},
+                "price_change_1m": change_val if scope == "1m" else None,
+                "price_change_3m": change_val if scope == "3m" else None,
+                "price_change_1h": change_val if scope in ("1h", "1h_price") else None,
             })
             alerts_state.setdefault(scope, {})[symbol] = now
             # Mirror into insights log if available (best-effort)
@@ -5101,7 +5334,7 @@ def get_bottom_banner_scroll():
             streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
             score = round(prev["score"] * 0.9 + abs(ch_metric) * 0.1, 3)
             one_hour_volume_trends[sym] = {"last": ch_metric, "streak": streak, "last_dir": direction, "score": score}
-            _maybe_fire_trend_alert('1h_volume', sym, direction, streak, score)
+            _maybe_fire_trend_alert('1h_volume', sym, direction, streak, score, change_pct=ch_metric)
 
             bottom_scroll_data.append({
                 "symbol": sym,
@@ -5184,7 +5417,7 @@ def get_gainers_table():
             streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
             score = round(prev["score"] * 0.8 + g * 0.2, 3)
             three_minute_trends[sym] = {"last": g, "streak": streak, "last_dir": direction, "score": score}
-            _maybe_fire_trend_alert('3m', sym, direction, streak, score)
+            _maybe_fire_trend_alert('3m', sym, direction, streak, score, change_pct=g)
             gainers_table_data.append({
                 "rank": i + 1,
                 "symbol": coin["symbol"],
@@ -5408,7 +5641,7 @@ def get_crypto_data_1min(current_prices=None):
                 'updated_at': now_ts,
                 'delta': round(delta, 3),
             }
-            _maybe_fire_trend_alert('1m', sym, direction, streak, score)
+            _maybe_fire_trend_alert('1m', sym, direction, streak, score, change_pct=eff)
 
         # Update existing entries & drop those that lost momentum AND exceeded dwell time below stay threshold
         to_delete = []

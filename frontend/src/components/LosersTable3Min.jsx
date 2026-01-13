@@ -6,6 +6,7 @@ import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { baselineOrNull } from "../utils/num.js";
+import { sigTop } from "../utils/rowSignatures";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
@@ -14,6 +15,19 @@ const buildRowKey = (row) => {
   const base = row?.product_id ?? row?.symbol;
   return base ? String(base) : undefined;
 };
+
+const pct3m = (row) => {
+  const raw =
+    row?.change_3m ??
+    row?.price_change_percentage_3min ??
+    row?._pct ??
+    row?.pct ??
+    0;
+  const value = typeof raw === "string" ? Number(raw) : Number(raw);
+  return Number.isFinite(value) ? value : 0;
+};
+
+const computeSig3m = (rows, topN = 8) => sigTop(rows, topN, pct3m, buildRowKey);
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
@@ -59,7 +73,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
   }, [tokensProp, payload]);
 
   const [expanded, setExpanded] = useState(false);
-  const filtered = useMemo(
+  const ranked3m = useMemo(
     () =>
       mapped
         .map((row) => ({
@@ -72,9 +86,10 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     [mapped]
   );
   const visible = useMemo(
-    () => (expanded ? filtered.slice(0, MAX_EXPANDED) : filtered.slice(0, MAX_BASE)),
-    [filtered, expanded]
+    () => (expanded ? ranked3m.slice(0, MAX_EXPANDED) : ranked3m.slice(0, MAX_BASE)),
+    [ranked3m, expanded]
   );
+  const visibleSignature = useMemo(() => computeSig3m(visible, 8), [visible]);
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
     return visible.map((row) => {
@@ -89,9 +104,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
       }
       return { row, priceChanged, pctChanged };
     });
-  }, [visible]);
+  }, [visible, visibleSignature]);
 
-  const hasData = filtered.length > 0;
+  const hasData = ranked3m.length > 0;
 
   const isStarred = (symbol) => {
     if (!symbol) return false;
