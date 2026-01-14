@@ -8,6 +8,7 @@ const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3800);
 const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
 const BACKOFF_WINDOW_MS = 30_000;
 const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
+const PUBLISH_UI_MS = Number(import.meta.env.VITE_PUBLISH_UI_MS || 4000);
 const MW_BACKEND_KEY = "mw_backend_base";
 const MW_LAST_GOOD_DATA = "mw_last_good_data";
 const MW_LAST_GOOD_AT = "mw_last_good_at";
@@ -132,6 +133,8 @@ export function DataProvider({ children }) {
   const last3mPublishRef = useRef(0);
   const lastBannerPublishRef = useRef(0);
   const latestNormalizedRef = useRef(cachedNormalized);
+  const pendingNormalizedRef = useRef(null);
+  const pendingBaseRef = useRef(null);
   const abortRef = useRef(null);
   const pollTimerRef = useRef(null);
   const backoffUntilRef = useRef(0);
@@ -301,7 +304,9 @@ export function DataProvider({ children }) {
         setBackendBase(okBase);
         setConnectionStatus("LIVE");
         failCountRef.current = 0;
-        applySnapshot(norm, Date.now(), okBase);
+        // Fetch fast: store latest payload in a ref; publish on a steady cadence.
+        pendingNormalizedRef.current = norm;
+        pendingBaseRef.current = okBase;
         backoffUntilRef.current = 0;
         succeeded = true;
         break;
@@ -328,6 +333,19 @@ export function DataProvider({ children }) {
 
     inFlightRef.current = false;
   }, [applySnapshot, backendBase]);
+
+  // Publish pending snapshots on a steady cadence to avoid spamming React state.
+  useEffect(() => {
+    if (!PUBLISH_UI_MS || PUBLISH_UI_MS <= 0) return undefined;
+    const id = setInterval(() => {
+      const pending = pendingNormalizedRef.current;
+      if (!pending) return;
+      pendingNormalizedRef.current = null;
+      const baseUrl = pendingBaseRef.current;
+      applySnapshot(pending, Date.now(), baseUrl);
+    }, PUBLISH_UI_MS);
+    return () => clearInterval(id);
+  }, [applySnapshot]);
 
   useEffect(() => {
     if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
