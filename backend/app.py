@@ -2139,7 +2139,7 @@ CONFIG = {
     # Keep enough points for 1h-style calculations. At 60s update interval,
     # 90 gives ~90 minutes of history.
     'MAX_PRICE_HISTORY': int(os.environ.get('MAX_PRICE_HISTORY', 90)),
-    'PORT': int(os.environ.get('PORT', 5001)),  # Default port
+    'PORT': int(os.environ.get('PORT', 5003)),  # Default port
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Legacy: Background update interval in seconds (deprecated)

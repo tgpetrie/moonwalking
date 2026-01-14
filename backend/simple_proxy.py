@@ -10,7 +10,13 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app, origins=["http://127.0.0.1:5173", "http://localhost:5173"])
 
-SENTIMENT_API_URL = os.getenv("SENTIMENT_PIPELINE_URL", "http://127.0.0.1:8002")
+SENTIMENT_API_URL = os.getenv("SENTIMENT_PIPELINE_URL")
+
+
+def _require_sentiment_url():
+    if not SENTIMENT_API_URL:
+        return None, (jsonify({"error": "SENTIMENT_PIPELINE_URL not set"}), 503)
+    return SENTIMENT_API_URL.rstrip("/"), None
 
 @app.route('/api/health')
 def health():
@@ -23,8 +29,11 @@ def sentiment_latest():
     fresh = request.args.get('fresh', '0')
 
     try:
+        base, err = _require_sentiment_url()
+        if err:
+            return err
         # Forward to sentiment API
-        url = f"{SENTIMENT_API_URL}/sentiment/latest"
+        url = f"{base}/sentiment/latest"
         params = {'symbol': symbol}
         if fresh == '1':
             params['fresh'] = '1'
@@ -40,7 +49,10 @@ def sentiment_tiered():
     """Proxy tiered sentiment"""
     symbol = request.args.get('symbol', 'BTC')
     try:
-        url = f"{SENTIMENT_API_URL}/sentiment/tiered"
+        base, err = _require_sentiment_url()
+        if err:
+            return err
+        url = f"{base}/sentiment/tiered"
         response = requests.get(url, params={'symbol': symbol}, timeout=10)
         response.raise_for_status()
         return jsonify(response.json())
@@ -51,7 +63,10 @@ def sentiment_tiered():
 def sentiment_sources():
     """Proxy sentiment sources"""
     try:
-        url = f"{SENTIMENT_API_URL}/sentiment/sources"
+        base, err = _require_sentiment_url()
+        if err:
+            return err
+        url = f"{base}/sentiment/sources"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         return jsonify(response.json())
@@ -62,7 +77,10 @@ def sentiment_sources():
 def sentiment_health():
     """Proxy sentiment health"""
     try:
-        url = f"{SENTIMENT_API_URL}/health"
+        base, err = _require_sentiment_url()
+        if err:
+            return err
+        url = f"{base}/health"
         response = requests.get(url, timeout=5)
         response.raise_for_status()
         return jsonify(response.json())

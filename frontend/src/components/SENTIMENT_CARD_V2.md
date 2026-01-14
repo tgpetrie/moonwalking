@@ -23,7 +23,7 @@ Ship a stable, never‑crashing insights popup that:
 ### 1.1 Raw API
 Endpoint:
 - `GET {VITE_SENTIMENT_API_BASE}/sentiment/latest?symbol=UNI`
-- Dev base: `http://127.0.0.1:5001`
+- Dev base: `http://127.0.0.1:5003`
 
 Current raw shape:
 ```json

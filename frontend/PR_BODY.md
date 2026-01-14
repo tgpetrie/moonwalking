@@ -38,7 +38,7 @@ Tests
 
 One-liner Debug
 ```bash
-curl -sS -m 15 http://127.0.0.1:5001/data \
+curl -sS -m 15 http://127.0.0.1:5003/data \
   | jq '{fatal:(.errors.fatal // null), coverage:(.coverage // {}), b1p:((.banner_1h_price // [])|length), b1v:((.banner_1h_volume // [])|length)}'
 ```
 
@@ -46,12 +46,12 @@ Next Steps (real host, Coinbase reachable)
 1. Start backend and confirm the actual port in logs (this workspace commonly uses **`:5001`**).
 2. Verify aggregate returns and no fatal errors:
    ```bash
-   curl -sS -m 15 http://127.0.0.1:5001/data | jq -r '.errors.fatal'
-   curl -sS -m 15 http://127.0.0.1:5001/data | jq '{banner_1h_price: (.banner_1h_price|length), banner_1h_volume: (.banner_1h_volume|length), gainers_1m: (.gainers_1m|length), gainers_3m: (.gainers_3m|length), losers_3m: (.losers_3m|length)}'
+  curl -sS -m 15 http://127.0.0.1:5003/data | jq -r '.errors.fatal'
+  curl -sS -m 15 http://127.0.0.1:5003/data | jq '{banner_1h_price: (.banner_1h_price|length), banner_1h_volume: (.banner_1h_volume|length), gainers_1m: (.gainers_1m|length), gainers_3m: (.gainers_3m|length), losers_3m: (.losers_3m|length)}'
    ```
 3. Run gates (use **`/data`** as canonical; `/api/data` is legacy/optional and may be absent in this workspace):
    ```bash
-   bash scripts/verify_no_zero_baselines.sh http://127.0.0.1:5001/data
+  bash scripts/verify_no_zero_baselines.sh http://127.0.0.1:5003/data
    BASELINE_PATH=/data PYTHONPATH=. backend/.venv/bin/python -m unittest -q backend.test_baselines_unittest
    ```
 

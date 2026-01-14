@@ -20,7 +20,7 @@ from dataclasses import asdict
 from moonwalking_alert_system import MoonwalkingAlert, AlertType, AlertSeverity
 
 
-MOONWALKING_API_BASE = os.getenv("MOONWALKING_API_BASE", "http://127.0.0.1:5002").rstrip("/")
+MOONWALKING_API_BASE = os.getenv("MOONWALKING_API_BASE", "http://127.0.0.1:5003").rstrip("/")
 
 class DiscordNotifier:
     """Discord bot for Moonwalking alerts"""

@@ -41,6 +41,6 @@ else
     echo ""
     echo "📄 The frontend is currently running with fallback demo data"
     echo "🌐 Frontend is available at: http://localhost:5173"
-    echo "🔌 Backend should run on: http://localhost:5001"
+    echo "🔌 Backend should run on: http://localhost:5003"
     exit 1
 fi

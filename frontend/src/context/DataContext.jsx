@@ -268,7 +268,7 @@ export function DataProvider({ children }) {
       const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(MW_BACKEND_KEY) : null;
       if (cachedBase && !candidates.includes(cachedBase)) candidates.push(cachedBase);
     } catch {}
-    ["http://127.0.0.1:5003", "http://127.0.0.1:5002"].forEach((b) => {
+    ["http://127.0.0.1:5003"].forEach((b) => {
       if (!candidates.includes(b)) candidates.push(b);
     });
 
