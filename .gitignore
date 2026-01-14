@@ -130,3 +130,9 @@ frontend/vite*.err
 
 # Local reference copies (do not track)
 moonwalkings_UI_GOOD/
+
+# SQLite runtime artifacts (never commit)
+backend/**/*.db
+backend/**/*.db-*
+backend/**/*.sqlite
+backend/**/*.sqlite-*
