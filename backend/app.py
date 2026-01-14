@@ -3247,14 +3247,49 @@ def get_coinbase_prices():
         logging.error(f"Error fetching current prices from Coinbase: {e}")
         return {}
 
-def calculate_interval_changes(current_prices):
-    """Calculate price changes over configured interval (default 3 minutes) using the nearest *older* snapshot.
 
-    - Requires a baseline timestamp that is at least `interval_seconds` old; otherwise marks 3m as warming.
-    - Chooses the latest history point older than the target (no interpolation) to avoid premature deltas.
+# Strict baseline windows (seconds) for DB-based deltas
+BASELINE_WINDOWS = {
+    "1m": {"target_s": 60, "min_s": 55, "max_s": 75},
+    "3m": {"target_s": 180, "min_s": 165, "max_s": 210},
+    "1h": {"target_s": 3600, "min_s": 3300, "max_s": 3900},
+}
+
+
+def _db_baseline_for_window(product_id: str, now_ts_s: int, key: str):
+    """Return (baseline_ts_s, baseline_price, age_s) if within tolerance, else None.
+
+    Uses SQLite via get_price_at_or_before(product_id, target_ts_s).
     """
+    win = BASELINE_WINDOWS[key]
+    target_ts = now_ts_s - win["target_s"]
+
+    try:
+        got = get_price_at_or_before(product_id, target_ts)
+    except Exception:
+        got = None
+
+    if not got:
+        return None
+
+    # tolerate either (ts, price) tuple or just price
+    if isinstance(got, (tuple, list)) and len(got) >= 2:
+        baseline_ts_s = int(got[0])
+        baseline_price = float(got[1])
+    else:
+        baseline_ts_s = int(target_ts)
+        baseline_price = float(got)
+
+    age_s = now_ts_s - baseline_ts_s
+    if age_s < win["min_s"] or age_s > win["max_s"]:
+        return None
+
+    return (baseline_ts_s, baseline_price, age_s)
+
+def calculate_interval_changes(current_prices):
+    """Calculate 3m price deltas using SQLite baselines (strict tolerance window)."""
     current_time = time.time()
-    interval_seconds = CONFIG['INTERVAL_MINUTES'] * 60
+    now_ts_s = int(current_time)
 
     # Update price history with current prices
     for symbol, price in current_prices.items():
@@ -3263,7 +3298,6 @@ def calculate_interval_changes(current_prices):
             price_history_1hour[symbol].append((current_time, price))  # Track 1h history
 
     formatted_data = []
-    target_ts = current_time - interval_seconds
     baseline_ready_any = False
     earliest_baseline_ts = None
 
@@ -3275,48 +3309,41 @@ def calculate_interval_changes(current_prices):
         if len(history) < 2:
             continue
 
-        # Ensure chronological list (deque preserves order)
-        hist_list = list(history)
-
-        # Find the latest point that is at or older than the 3m target.
-        baseline_pair = None
-        for t, p in reversed(hist_list):
-            if t <= target_ts:
-                baseline_pair = (t, p)
-                break
-
-        if baseline_pair is None:
-            # No baseline yet that's >= interval_seconds old — warming state.
+        baseline = _db_baseline_for_window(symbol, now_ts_s, "3m")
+        if not baseline:
             continue
 
-        interval_time, interval_price = baseline_pair
-        try:
-            interval_price = float(interval_price)
-        except (TypeError, ValueError):
-            interval_price = None
-
-        if interval_price is None or interval_price <= 0:
+        baseline_ts_s, baseline_price, baseline_age_s = baseline
+        if baseline_price <= 0:
             continue
 
         baseline_ready_any = True
-        if earliest_baseline_ts is None or interval_time < earliest_baseline_ts:
-            earliest_baseline_ts = interval_time
+        if earliest_baseline_ts is None or baseline_ts_s < earliest_baseline_ts:
+            earliest_baseline_ts = baseline_ts_s
 
-        price_change = pct_change(price, interval_price)
-        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
+        price_change = pct_change(price, baseline_price)
+        actual_interval_minutes = baseline_age_s / 60.0
 
         formatted_data.append({
             "symbol": symbol,
             "current_price": price,
-            "initial_price_3min": interval_price,
-            "previous_price_3m": interval_price,
+            "initial_price_3min": baseline_price,
+            "previous_price_3m": baseline_price,
             "price_change_percentage_3min": price_change,
             "actual_interval_minutes": actual_interval_minutes,
-            "baseline_ts": interval_time,
+            "baseline_ts": float(baseline_ts_s),
+            "baseline_ts_ms_3m": int(baseline_ts_s * 1000),
+            "baseline_age_ms_3m": int(baseline_age_s * 1000),
+            "warming_3m": False,
+            "latest_ts_ms": int(now_ts_s * 1000),
         })
 
-    age_seconds = (current_time - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
-    _set_baseline_meta_3m(ready=baseline_ready_any, baseline_ts=earliest_baseline_ts, age_seconds=age_seconds)
+    age_seconds = (now_ts_s - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    _set_baseline_meta_3m(
+        ready=baseline_ready_any,
+        baseline_ts=float(earliest_baseline_ts) if earliest_baseline_ts is not None else None,
+        age_seconds=float(age_seconds) if age_seconds is not None else None,
+    )
 
     if not formatted_data:
         logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices))
@@ -3326,7 +3353,7 @@ def calculate_interval_changes(current_prices):
 def calculate_1min_changes(current_prices):
     """Calculate price changes over 1 minute"""
     current_time = time.time()
-    interval_seconds = 60 # 1 minute
+    now_ts_s = int(current_time)
 
     # Update price history with current prices
     for symbol, price in current_prices.items():
@@ -3340,40 +3367,30 @@ def calculate_1min_changes(current_prices):
         if price <= 0:
             continue
             
-        history = price_history_1min[symbol]
-        if len(history) < 2:
+        baseline = _db_baseline_for_window(symbol, now_ts_s, "1m")
+        if not baseline:
             continue
-            
-        # Find price from interval ago (or earliest available)
-        interval_price = None
-        interval_time = None
-        
-        for timestamp, historical_price in history:
-            if current_time - timestamp >= interval_seconds:
-                interval_price = historical_price
-                interval_time = timestamp
-                break
-        
-        # If no interval data, use oldest available
-        if interval_price is None and len(history) >= 2:
-            interval_price = history[0][1]
-            interval_time = history[0][0]
-        
-        if interval_price is None or interval_price <= 0:
+
+        baseline_ts_s, baseline_price, baseline_age_s = baseline
+        if baseline_price <= 0:
             continue
 
         # Calculate percentage change
-        price_change = pct_change(price, interval_price)
-        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
+        price_change = pct_change(price, baseline_price)
+        actual_interval_minutes = baseline_age_s / 60.0
         
         # Only include significant changes (configurable threshold)
         if abs(price_change) >= 0.01: # Reverted to original threshold
             formatted_data.append({
                 "symbol": symbol,
                 "current_price": price,
-                "initial_price_1min": interval_price,
+                "initial_price_1min": baseline_price,
                 "price_change_percentage_1min": price_change,
-                "actual_interval_minutes": actual_interval_minutes
+                "actual_interval_minutes": actual_interval_minutes,
+                "baseline_ts_ms_1m": int(baseline_ts_s * 1000),
+                "baseline_age_ms_1m": int(baseline_age_s * 1000),
+                "warming_1m": False,
+                "latest_ts_ms": int(now_ts_s * 1000),
             })
     
     return formatted_data
@@ -3384,12 +3401,11 @@ def calculate_1hour_price_changes(current_prices):
     Returns list of dicts with symbol, current_price, price_1h_ago, price_change_1h.
     """
     current_time = time.time()
-    interval_seconds = 3600  # 1 hour
+    now_ts_s = int(current_time)
 
     formatted_data = []
     baseline_ready_any = False
     earliest_baseline_ts = None
-    target_ts = current_time - interval_seconds
 
     for symbol, price in current_prices.items():
         if price <= 0:
@@ -3399,46 +3415,37 @@ def calculate_1hour_price_changes(current_prices):
         if len(history) < 2:
             continue
 
-        # Find the latest point that is at or older than 1h ago
-        hist_list = list(history)
-        baseline_pair = None
-        for t, p in reversed(hist_list):
-            if t <= target_ts:
-                baseline_pair = (t, p)
-                break
-
-        if baseline_pair is None:
-            # No baseline yet that's >= 1h old — warming state
+        baseline = _db_baseline_for_window(symbol, now_ts_s, "1h")
+        if not baseline:
             continue
 
-        interval_time, interval_price = baseline_pair
-        try:
-            interval_price = float(interval_price)
-        except (TypeError, ValueError):
-            interval_price = None
-
-        if interval_price is None or interval_price <= 0:
+        baseline_ts_s, baseline_price, baseline_age_s = baseline
+        if baseline_price <= 0:
             continue
 
         baseline_ready_any = True
-        if earliest_baseline_ts is None or interval_time < earliest_baseline_ts:
-            earliest_baseline_ts = interval_time
+        if earliest_baseline_ts is None or baseline_ts_s < earliest_baseline_ts:
+            earliest_baseline_ts = baseline_ts_s
 
-        price_change = pct_change(price, interval_price)
-        actual_interval_minutes = (current_time - interval_time) / 60 if interval_time else 0
+        price_change = pct_change(price, baseline_price)
+        actual_interval_minutes = baseline_age_s / 60.0
 
         formatted_data.append({
             "symbol": symbol,
             "current_price": price,
-            "price_1h_ago": interval_price,
+            "price_1h_ago": baseline_price,
             "price_change_1h": price_change,
-            "actual_interval_minutes": actual_interval_minutes
+            "actual_interval_minutes": actual_interval_minutes,
+            "baseline_ts_ms_1h_price": int(baseline_ts_s * 1000),
+            "baseline_age_ms_1h_price": int(baseline_age_s * 1000),
+            "warming_1h_price": False,
+            "latest_ts_ms": int(now_ts_s * 1000),
         })
 
     # Update baseline meta
     if baseline_ready_any and earliest_baseline_ts is not None:
-        baseline_age = current_time - earliest_baseline_ts
-        _set_baseline_meta_1h(ready=True, baseline_ts=earliest_baseline_ts, age_seconds=baseline_age)
+        baseline_age = now_ts_s - earliest_baseline_ts
+        _set_baseline_meta_1h(ready=True, baseline_ts=float(earliest_baseline_ts), age_seconds=float(baseline_age))
     else:
         _set_baseline_meta_1h(ready=False, baseline_ts=None, age_seconds=None)
 
