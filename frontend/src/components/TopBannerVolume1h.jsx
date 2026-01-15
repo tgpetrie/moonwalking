@@ -37,7 +37,7 @@ export default function TopBannerVolume1h({ rows = [], items: propItems = [] }) 
         </div>
         <div className="bh-top-banner bh-banner--volume">
           <div className="bh-banner-wrap">
-            <span className="banner-empty">No 1h volume activity yet.</span>
+            <span className="banner-warming text-yellow-300 font-semibold">WARMING — collecting 1-minute candle buckets (will appear shortly)</span>
           </div>
         </div>
       </section>

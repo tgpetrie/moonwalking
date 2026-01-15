@@ -16,15 +16,49 @@ cache:
   key_prefix: "sentiment:"
 
 sources:
+  # ============================================
+  # Tier 1: High-trust institutional/authoritative
+  # ============================================
+
   fear_greed:
     enabled: true
     tier: tier1
     weight: 0.90
+    description: "Alternative.me Fear & Greed Index (daily updates)"
+
+  coinybubble_fng:
+    enabled: true
+    tier: tier1
+    weight: 0.85
+    description: "CoinyBubble F&G - more frequent updates (~1 min), Binance methodology"
+
+  cfgi:
+    enabled: true
+    tier: tier1
+    weight: 0.80
+    description: "CFGI.io - multi-currency F&G with 10 AI algorithms"
 
   coingecko:
     enabled: true
     tier: tier1
     weight: 0.85
+
+  coingecko_global:
+    enabled: true
+    tier: tier1
+    weight: 0.75
+    description: "CoinGecko global market metrics (MCap change, BTC dominance)"
+
+  # ============================================
+  # Tier 2: Established community/social aggregators
+  # ============================================
+
+  lunarcrush:
+    enabled: true
+    tier: tier2
+    weight: 0.75
+    description: "LunarCrush social sentiment (Galaxy Score, social volume)"
+    # Optional: Set LUNARCRUSH_API_KEY env var for full access
 
   rss:
     enabled: true

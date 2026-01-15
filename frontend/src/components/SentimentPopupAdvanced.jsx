@@ -128,9 +128,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     ? sentimentData.trendingTopics
     : [];
   const tierScores = sentimentData?.tierScores || {};
+  // Don't forge 50 when missing - keep null
   const fearGreedIndex = Number.isFinite(sentimentData?.fearGreedIndex)
     ? sentimentData.fearGreedIndex
-    : 50;
+    : null;
   const hasTieredData = Boolean(sentimentData?.hasTieredData);
 
   const safeAlerts = useMemo(() => {
@@ -266,6 +267,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   };
 
   const generateTopInsight = (score, fg) => {
+    // Handle missing data
+    if (score === null && !Number.isFinite(fg)) {
+      return {
+        type: 'neutral',
+        icon: <Activity size={16} />,
+        title: 'Sentiment Unavailable',
+        message: 'Pipeline warming up or offline. No sentiment data to analyze yet.'
+      };
+    }
+
     if (fg > 80) {
       return {
         type: 'alert',
@@ -284,7 +295,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       };
     }
 
-    if (score > 75) {
+    if (score !== null && score > 75) {
       return {
         type: 'bullish',
         icon: <TrendingUp size={16} />,
@@ -293,7 +304,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       };
     }
 
-    if (score < 35) {
+    if (score !== null && score < 35) {
       return {
         type: 'bearish',
         icon: <Activity size={16} />,
@@ -302,24 +313,28 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       };
     }
 
+    const scoreText = score !== null ? `${score}/100` : 'unavailable';
+    const fgText = Number.isFinite(fg) ? `F&G at ${fg}` : 'F&G unavailable';
     return {
       type: 'neutral',
       icon: <Activity size={16} />,
       title: 'Market in Equilibrium',
-      message: `Sentiment at ${score}/100 with F&G at ${fg} shows balanced market conditions. Good time to research and build positions gradually.`
+      message: `Sentiment ${scoreText} with ${fgText} shows balanced market conditions. Good time to research and build positions gradually.`
     };
   };
 
   const updateGaugePosition = (score) => {
-    // Calculate needle position (180° to 0°)
-    const angle = 180 - (score / 100 * 180);
+    // If score is null, hide needle at center with full offset (empty gauge)
+    const s = score ?? 50; // visual fallback only
+    const angle = 180 - (s / 100 * 180);
     const radians = angle * Math.PI / 180;
     const cx = 100 + 80 * Math.cos(radians);
     const cy = 100 - 80 * Math.sin(radians);
 
-    const offset = 251.2 - (251.2 * score / 100);
+    // If null, show empty gauge (full offset)
+    const offset = score === null ? 251.2 : 251.2 - (251.2 * score / 100);
 
-    return { cx, cy, offset };
+    return { cx, cy, offset, isNull: score === null };
   };
 
   const initCharts = () => {
@@ -660,7 +675,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   if (!isOpen) return null;
 
-  const score = sentimentData ? Math.round((sentimentData.overallSentiment ?? 0.5) * 100) : 0;
+  // null when missing - don't forge 50
+  const score = sentimentData?.overallSentiment != null
+    ? Math.round(sentimentData.overallSentiment * 100)
+    : null;
   const fg = Number.isFinite(sentimentData?.fearGreedIndex) ? Number(sentimentData.fearGreedIndex) : null;
   const fgStatus = sentimentData?.fearGreedStatus || (Number.isFinite(fg) ? "LIVE" : "UNAVAILABLE");
   const fgUpdatedLabel = formatTimestamp(sentimentData?.fearGreedUpdatedAt);
@@ -855,7 +873,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   </div>
                   <div className="stat-content">
                     <span className="stat-label">Overall Sentiment</span>
-                    <span className={`stat-value ${getSentimentClass(score)}`}>{score}</span>
+                    <span className={`stat-value ${score !== null ? getSentimentClass(score) : 'muted'}`}>{score !== null ? score : '—'}</span>
                     <span className="stat-change">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M12 19V5M5 12l7-7 7 7"/>
@@ -963,12 +981,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Whales & Institutions</span>
                       </div>
                       <div className="tier-score">
-                        {((tierScores.tier1 ?? 0.5) * 100).toFixed(0)}%
+                        {tierScores.tier1 != null ? `${(tierScores.tier1 * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-1-fill"
-                          style={{ width: `${(tierScores.tier1 ?? 0.5) * 100}%` }}
+                          style={{ width: tierScores.tier1 != null ? `${tierScores.tier1 * 100}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">Smart Money: CoinGecko, Fear & Greed, Binance</div>
@@ -980,12 +998,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Mainstream Normies</span>
                       </div>
                       <div className="tier-score">
-                        {((tierScores.tier2 ?? 0.5) * 100).toFixed(0)}%
+                        {tierScores.tier2 != null ? `${(tierScores.tier2 * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-2-fill"
-                          style={{ width: `${(tierScores.tier2 ?? 0.5) * 100}%` }}
+                          style={{ width: tierScores.tier2 != null ? `${tierScores.tier2 * 100}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">News & Big Reddit: CoinDesk, r/CC</div>
@@ -997,12 +1015,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Diamond Hands & Degens</span>
                       </div>
                       <div className="tier-score">
-                        {((tierScores.tier3 ?? 0.5) * 100).toFixed(0)}%
+                        {tierScores.tier3 != null ? `${(tierScores.tier3 * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-3-fill"
-                          style={{ width: `${(tierScores.tier3 ?? 0.5) * 100}%` }}
+                          style={{ width: tierScores.tier3 != null ? `${tierScores.tier3 * 100}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">Apes Strong Together: r/SSB, CT, Telegram</div>
@@ -1014,12 +1032,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         <span className="tier-label">Moonboys & Schizos</span>
                       </div>
                       <div className="tier-score">
-                        {((tierScores.fringe ?? 0.5) * 100).toFixed(0)}%
+                        {tierScores.fringe != null ? `${(tierScores.fringe * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-fringe-fill"
-                          style={{ width: `${(tierScores.fringe ?? 0.5) * 100}%` }}
+                          style={{ width: tierScores.fringe != null ? `${tierScores.fringe * 100}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">Anon Intel: /biz/, BitcoinTalk, Weibo</div>

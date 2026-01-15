@@ -1,9 +1,9 @@
 export const EMPTY_SENTIMENT = {
-  overall_sentiment: 0,
+  overall_sentiment: null, // null = missing, not 0 = neutral
   fear_greed_index: null,
-  social_metrics: { volume_change: 0, engagement_rate: 0, mentions_24h: 0 },
-  social_breakdown: { reddit: 0, twitter: 0, telegram: 0, chan: 0 },
-  source_breakdown: { tier1: 0, tier2: 0, tier3: 0, fringe: 0 },
+  social_metrics: { volume_change: null, engagement_rate: null, mentions_24h: null },
+  social_breakdown: { reddit: null, twitter: null, telegram: null, chan: null },
+  source_breakdown: { tier1: null, tier2: null, tier3: null, fringe: null },
   sentiment_history: [],
   social_history: [],
   trending_topics: [],
@@ -33,8 +33,9 @@ export function normalizeSentiment(raw) {
     divergence_alerts: Array.isArray(base.divergence_alerts) ? base.divergence_alerts : [],
   };
 
+  // Keep null as null - don't forge 0 when data is missing
   sentiment.overall_sentiment =
-    base.overall_sentiment == null ? 0 : Number(base.overall_sentiment);
+    base.overall_sentiment == null ? null : Number(base.overall_sentiment);
   sentiment.fear_greed_index =
     base.fear_greed_index == null ? null : Number(base.fear_greed_index);
 

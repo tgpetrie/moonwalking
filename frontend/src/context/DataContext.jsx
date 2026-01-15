@@ -283,7 +283,7 @@ export function DataProvider({ children }) {
         try { controller.abort("timeout"); } catch {}
       }, timeoutMs);
       try {
-        const url = `${base.replace(/\\/$/, "")}/data`;
+        const url = `${base.replace(/\/$/, "")}/data`;
         const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" }, cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();

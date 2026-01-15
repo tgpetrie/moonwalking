@@ -2295,32 +2295,43 @@ def _compute_1h_volume_from_candles(product_id):
     """Compute 1h volume by summing recent 1-minute candles.
 
     Returns:
-        (vol1h, vol1h_pct_change) or (None, None) on error
+        (vol1h, vol1h_prev, vol1h_pct_change) or (None, None, None) on error
     """
-    candles = _fetch_coinbase_candles(product_id, granularity=60, count=70)
+    # Need 120+ candles: 60 for current hour, 60 for previous hour (pct change)
+    candles = _fetch_coinbase_candles(product_id, granularity=60, count=130)
 
     if not candles or len(candles) < 60:
-        return None, None
+        return None, None, None
 
     try:
         # Candles are [[timestamp, low, high, open, close, volume], ...]
+        # Align to full minutes: exclude partial current minute if present
+        # Candles come in desc order by timestamp
+        now_ts = int(time.time())
+        floor_ts = now_ts - (now_ts % 60)
+
+        # Filter to only complete minute candles (exclude in-progress minute)
+        complete_candles = [c for c in candles if len(c) > 5 and int(c[0]) < floor_ts]
+
+        if len(complete_candles) < 60:
+            # Fall back to all candles if filtering removes too many
+            complete_candles = candles
+
         # Sum last 60 candles for 1h volume
-        vol1h = sum(float(c[5]) for c in candles[:60] if len(c) > 5)
+        vol1h = sum(float(c[5]) for c in complete_candles[:60] if len(c) > 5)
+        vol1h_prev = None
+        vol1h_pct = None
 
         # Compute 1h volume change % (compare to previous hour)
-        if len(candles) >= 120:
-            vol_prev_1h = sum(float(c[5]) for c in candles[60:120] if len(c) > 5)
-            if vol_prev_1h > 0:
-                vol1h_pct = ((vol1h - vol_prev_1h) / vol_prev_1h) * 100.0
-            else:
-                vol1h_pct = None
-        else:
-            vol1h_pct = None
+        if len(complete_candles) >= 120:
+            vol1h_prev = sum(float(c[5]) for c in complete_candles[60:120] if len(c) > 5)
+            if vol1h_prev > 0:
+                vol1h_pct = ((vol1h - vol1h_prev) / vol1h_prev) * 100.0
 
-        return vol1h, vol1h_pct
+        return vol1h, vol1h_prev, vol1h_pct
     except Exception as e:
         logging.debug(f"[Candles] Volume compute error for {product_id}: {e}")
-        return None, None
+        return None, None, None
 
 def _update_candle_volume_cache(product_ids):
     """Background worker: update candle volume cache for display-set symbols.
@@ -2343,11 +2354,12 @@ def _update_candle_volume_cache(product_ids):
             if now - ts_computed < 30:
                 continue  # Skip, too recent
 
-            vol1h, vol1h_pct = _compute_1h_volume_from_candles(product_id)
+            vol1h, vol1h_prev, vol1h_pct = _compute_1h_volume_from_candles(product_id)
 
             if vol1h is not None:
                 _CANDLE_VOLUME_CACHE[product_id] = {
                     'vol1h': vol1h,
+                    'vol1h_prev': vol1h_prev,
                     'vol1h_pct_change': vol1h_pct,
                     'ts_computed': now,
                     'last_error': None,
@@ -2357,6 +2369,7 @@ def _update_candle_volume_cache(product_ids):
                 if product_id not in _CANDLE_VOLUME_CACHE:
                     _CANDLE_VOLUME_CACHE[product_id] = {
                         'vol1h': None,
+                        'vol1h_prev': None,
                         'vol1h_pct_change': None,
                         'ts_computed': now,
                         'last_error': 'fetch_failed',
@@ -2370,8 +2383,11 @@ def _get_candle_volume_for_symbols(symbols):
     """Get cached candle volumes for given symbols.
 
     Returns:
-        List of dicts with {symbol, product_id, vol1h, vol1h_pct_change, stale}
+        List of dicts with {symbol, product_id, vol1h, vol1h_prev, vol1h_pct_change, stale}
     """
+    # Minimum prev volume to trust pct change (avoid tiny-denominator drama)
+    MIN_PREV_VOLUME = 100  # base units - if prev < this, pct is unreliable
+
     results = []
     with _CANDLE_VOLUME_CACHE_LOCK:
         for sym in symbols:
@@ -2384,6 +2400,18 @@ def _get_candle_volume_for_symbols(symbols):
             if vol1h is None:
                 continue
 
+            vol1h_prev = cached.get('vol1h_prev')
+            vol1h_pct = cached.get('vol1h_pct_change')
+
+            # Suppress pct if prev is too small (unreliable denominator)
+            baseline_missing_reason = None
+            if vol1h_prev is None:
+                baseline_missing_reason = 'prev_window_missing'
+                vol1h_pct = None
+            elif vol1h_prev < MIN_PREV_VOLUME:
+                baseline_missing_reason = 'prev_too_small'
+                vol1h_pct = None
+
             now = time.time()
             ts_computed = cached.get('ts_computed', 0)
             stale = (now - ts_computed) > 60  # Stale if > 1 min old
@@ -2392,7 +2420,9 @@ def _get_candle_volume_for_symbols(symbols):
                 'symbol': sym,
                 'product_id': product_id,
                 'vol1h': vol1h,
-                'vol1h_pct_change': cached.get('vol1h_pct_change'),
+                'vol1h_prev': vol1h_prev,
+                'vol1h_pct_change': vol1h_pct,
+                'baseline_missing_reason': baseline_missing_reason,
                 'stale': stale,
             })
 
@@ -3286,16 +3316,18 @@ def _db_baseline_for_window(product_id: str, now_ts_s: int, key: str):
 
     return (baseline_ts_s, baseline_price, age_s)
 
-def calculate_interval_changes(current_prices):
+def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None):
     """Calculate 3m price deltas using SQLite baselines (strict tolerance window)."""
     current_time = time.time()
-    now_ts_s = int(current_time)
+    # Use the snapshot timestamp (when prices were sampled) as "now"
+    now_ts_s = int(snapshot_ts_s) if snapshot_ts_s is not None else int(current_time)
+    sample_ts = float(snapshot_ts_s) if snapshot_ts_s is not None else current_time
 
     # Update price history with current prices
     for symbol, price in current_prices.items():
         if price > 0:
-            price_history[symbol].append((current_time, price))
-            price_history_1hour[symbol].append((current_time, price))  # Track 1h history
+            price_history[symbol].append((sample_ts, price))
+            price_history_1hour[symbol].append((sample_ts, price))  # Track 1h history
 
     formatted_data = []
     baseline_ready_any = False
@@ -3350,16 +3382,17 @@ def calculate_interval_changes(current_prices):
 
     return formatted_data
 
-def calculate_1min_changes(current_prices):
+def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
     """Calculate price changes over 1 minute"""
     current_time = time.time()
-    now_ts_s = int(current_time)
+    now_ts_s = int(snapshot_ts_s) if snapshot_ts_s is not None else int(current_time)
+    sample_ts = float(snapshot_ts_s) if snapshot_ts_s is not None else current_time
 
     # Update price history with current prices
     for symbol, price in current_prices.items():
         if price > 0:
-            price_history_1min[symbol].append((current_time, price))
-            price_history_1hour[symbol].append((current_time, price))  # Track 1h history
+            price_history_1min[symbol].append((sample_ts, price))
+            price_history_1hour[symbol].append((sample_ts, price))  # Track 1h history
 
     # Calculate changes for each symbol
     formatted_data = []
@@ -3395,13 +3428,13 @@ def calculate_1min_changes(current_prices):
     
     return formatted_data
 
-def calculate_1hour_price_changes(current_prices):
+def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = None):
     """Calculate real-time 1-hour price changes using price_history_1hour.
 
     Returns list of dicts with symbol, current_price, price_1h_ago, price_change_1h.
     """
     current_time = time.time()
-    now_ts_s = int(current_time)
+    now_ts_s = int(snapshot_ts_s) if snapshot_ts_s is not None else int(current_time)
 
     formatted_data = []
     baseline_ready_any = False
@@ -3636,6 +3669,7 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
           updater can append to history every tick.
     """
     current_time = time.time()
+    snapshot_ts_s = None
     
     # Check cache first
     if (not force_refresh) and cache["data"] and (current_time - cache["timestamp"]) < cache["ttl"]:
@@ -3649,17 +3683,24 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
             prices_age_limit = 10
             if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
                 current_prices = last_current_prices['data']
+                snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
             else:
                 current_prices = get_current_prices()
                 if current_prices:
                     last_current_prices['data'] = current_prices
                     last_current_prices['timestamp'] = current_time
+                    snapshot_ts_s = int(current_time)
+        else:
+            snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
         if not current_prices:
             logging.warning("No current prices available")
             return None
+
+        if snapshot_ts_s is None:
+            snapshot_ts_s = int(current_time)
             
         # Calculate 3-minute interval changes (unique feature)
-        crypto_data = calculate_interval_changes(current_prices)
+        crypto_data = calculate_interval_changes(current_prices, snapshot_ts_s)
         baseline_meta = _get_baseline_meta_3m()
         
         if not crypto_data:
@@ -3859,9 +3900,15 @@ def get_top_banner():
     try:
         # Get current prices from live feed
         current_prices = get_current_prices()
+        snapshot_ts_s = None
+        if current_prices:
+            now_ts = time.time()
+            last_current_prices['data'] = current_prices
+            last_current_prices['timestamp'] = now_ts
+            snapshot_ts_s = int(now_ts)
 
         # Calculate REAL 1h price changes from price_history_1hour
-        hour_changes = calculate_1hour_price_changes(current_prices)
+        hour_changes = calculate_1hour_price_changes(current_prices, snapshot_ts_s)
 
         # Get baseline metadata
         baseline_meta = _get_baseline_meta_1h()
@@ -4116,119 +4163,107 @@ def get_banner_1h():
 def get_banner_1h_volume(banner_data=None):
     """Return (rows, ts) for 1h volume banner.
 
-    Prefer the background snapshot to avoid on-demand Coinbase calls.
-    If `banner_data` is provided, use it as the 24h banner source instead
-    of fetching.
+    Source-of-truth: candle / minute-bucket volume via the SQLite-backed volume_1h pipeline.
+
+    No rolling-stat fallback: we do NOT derive “1h volume” from 24h rolling stats.
+    If candle baseline is not ready, return [] so the UI can show WARMING / not-ready.
     """
+
+    # 1) If we already have a precomputed snapshot for the banner, use it.
     snap = _mw_get_component_snapshot('banner_1h_volume')
     if isinstance(snap, dict):
         return _wrap_rows_and_ts(snap)
 
+    # 2) Prefer candle/SQLite snapshot for 1h volume.
     try:
-        # Prefer detailed banner data when available, but fall back to the
-        # collected `volume_history_24h` snapshots to produce a top-by-volume
-        # view so the volume banner (`bV`) can populate even if price filters
-        # exclude some coins from the standard movers list.
-        banner_data = banner_data or (get_24h_top_movers() or [])
-        now_ts = time.time()
-        rows = []
+        snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
+        # Accept either dict snapshots or raw lists (defensive):
+        if isinstance(snap_v1h_obj, dict):
+            vrows, vts = _wrap_rows_and_ts(snap_v1h_obj)
+        elif isinstance(snap_v1h_obj, list):
+            vrows, vts = snap_v1h_obj, None
+        else:
+            vrows, vts = [], None
+        if isinstance(vrows, list) and vrows:
+            out = []
+            for it in vrows:
+                pid = it.get('product_id') or it.get('id')
+                sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
 
-        # Helper to compute vol change from history
-        def _vol_change_for(sym, vol_now):
-            baseline_ready = False
-            vol_change = None
-            vol_change_pct = None
-            baseline_vol = None
-            baseline_ts = None
-            baseline_missing_reason = None
-            try:
-                hist = volume_history_24h.get(sym, deque())
-                if hist:
-                    for ts, vol in reversed(hist):
-                        if now_ts - ts >= 3500:
-                            baseline_ts = ts
-                            baseline_vol = vol
-                            break
-                    if baseline_ts is None:
-                        baseline_missing_reason = "needs_60m_history"
-                    else:
-                        baseline_ready = True
-                        if baseline_vol is not None:
-                            vol_change = (vol_now or 0) - baseline_vol
-                            vol_change_pct = pct_change(vol_now, baseline_vol)
-                else:
-                    baseline_missing_reason = "no_snapshot"
-            except Exception:
-                if baseline_missing_reason is None:
-                    baseline_missing_reason = "needs_60m_history"
-            baseline_age = (now_ts - baseline_ts) if baseline_ready and baseline_ts else None
-            return vol_change, vol_change_pct, baseline_vol, baseline_ready, baseline_age, baseline_missing_reason
+                # Accept both shapes:
+                # - SQLite compute: volume_1h_now / volume_1h_prev / volume_change_1h_pct
+                # - Candle cache:  vol1h / vol1h_prev / vol1h_pct_change
+                vol_now = it.get('volume_1h_now') or it.get('vol1h')
+                vol_prev = it.get('volume_1h_prev') or it.get('vol1h_prev')
+                pct = it.get('volume_change_1h_pct') or it.get('vol1h_pct_change')
+                missing_reason = it.get('baseline_missing_reason')
 
-        # If banner_data provides volume_24h, use it; otherwise derive from
-        # `volume_history_24h` latest snapshot per symbol.
-        candidates = []
-        for coin in banner_data:
-            sym = coin.get("symbol")
-            if not sym:
-                continue
-            vol = float(coin.get("volume_24h", 0) or 0)
-            candidates.append((sym, vol, coin))
+                # baseline_ready requires both prev and pct to be truly computed (not derived)
+                baseline_ready = (pct is not None) and (vol_prev is not None)
 
-        # Add any symbols present in volume_history_24h but missing from banner_data
-        for sym, hist in volume_history_24h.items():
-            if not hist:
-                continue
-            # skip if already present
-            if any(sym == c[0] for c in candidates):
-                continue
-            last_vol = hist[-1][1] if hist else 0
-            candidates.append((sym, float(last_vol or 0), None))
+                out.append({
+                    'symbol': sym,
+                    'product_id': pid or (f"{sym}-USD" if sym else None),
+                    'volume_1h_now': float(vol_now) if vol_now is not None else None,
+                    'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
+                    'volume_change_1h_pct': float(pct) if pct is not None else None,
 
-        # Sort by volume desc and take top 20
-        candidates.sort(key=lambda t: t[1], reverse=True)
+                    # aliases some frontend normalizers may read
+                    'change_1h_volume': float(pct) if pct is not None else None,
+                    'volume_change_percentage_1h': float(pct) if pct is not None else None,
 
-        for sym, vol_now, coin in candidates[:20]:
-            current_price = None
-            price_change_1h = 0.0
-            if coin:
-                current_price = float(coin.get("current_price", 0) or 0)
-                price_change_1h = float(coin.get("price_change_1h", 0) or 0)
-            else:
-                # Try to find a current price from last_current_prices
-                try:
-                    cp = last_current_prices.get('data') or {}
-                    current_price = float(cp.get(sym, cp.get(sym.replace('-', ''), 0)) or 0)
-                except Exception:
-                    current_price = 0.0
+                    'baseline_ready': bool(baseline_ready),
+                    'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
+                    'source': 'volume_1h_candles',
+                })
 
-            (
-                vol_change_1h,
-                vol_change_1h_pct,
-                baseline_vol,
-                baseline_ready,
-                baseline_age,
-                baseline_missing_reason,
-            ) = _vol_change_for(sym, vol_now)
+            # Stable ordering: prefer abs(pct) when available, else volume desc
+            def _abs_pct(r):
+                v = r.get('volume_change_1h_pct')
+                return abs(v) if isinstance(v, (int, float)) else -1
 
-            rows.append({
-                "symbol": sym,
-                "current_price": float(current_price or 0),
-                "volume_24h": float(vol_now or 0),
-                "volume_1h_now": float(vol_now or 0),
-                "volume_1h_prev": float(baseline_vol or 0),
-                "price_change_1h": float(price_change_1h or 0),
-                "volume_change_1h": _safe_float(vol_change_1h),
-                "volume_change_1h_pct": baseline_ready
-                    and _safe_float(vol_change_1h_pct)
-                    or None,
-                "baseline_ready": bool(baseline_ready),
-                "baseline_age_sec": baseline_age,
-                "baseline_missing_reason": None if baseline_ready else baseline_missing_reason,
-            })
+            def _vol_now(r):
+                v = r.get('volume_1h_now')
+                return v if isinstance(v, (int, float)) else 0
 
-        return rows, datetime.now().isoformat()
+            out.sort(key=lambda r: (_abs_pct(r), _vol_now(r)), reverse=True)
+            return out[:20], (vts or datetime.now().isoformat())
     except Exception:
-        return [], None
+        pass
+
+    # 3) If no snapshot yet, compute from SQLite minute-window.
+    try:
+        payload = _volume1h_build_payload_snapshot()
+        computed = _volume1h_compute_ranked(payload)
+        if isinstance(computed, list) and computed:
+            out = []
+            for it in computed:
+                pid = it.get('product_id') or it.get('id')
+                sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
+                vol_now = it.get('volume_1h_now')
+                vol_prev = it.get('volume_1h_prev')
+                pct = it.get('volume_change_1h_pct')
+                baseline_ready = (pct is not None) and (vol_prev is not None)
+
+                out.append({
+                    'symbol': sym,
+                    'product_id': pid or (f"{sym}-USD" if sym else None),
+                    'volume_1h_now': float(vol_now) if vol_now is not None else None,
+                    'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
+                    'volume_change_1h_pct': float(pct) if pct is not None else None,
+                    'change_1h_volume': float(pct) if pct is not None else None,
+                    'volume_change_percentage_1h': float(pct) if pct is not None else None,
+                    'baseline_ready': bool(baseline_ready),
+                    'baseline_missing_reason': None if baseline_ready else 'warming_candles',
+                    'source': 'volume1h_sqlite',
+                })
+
+            return out[:20], datetime.now().isoformat()
+    except Exception:
+        pass
+
+    # 4) Not ready yet: no rolling-stat fallback.
+    return [], None
 
 @app.route('/data')
 def data_aggregate():
@@ -5310,6 +5345,7 @@ def get_crypto_data_1min(current_prices=None):
     if not CONFIG.get('ENABLE_1MIN', True):
         return None
     current_time = time.time()
+    snapshot_ts_s = None
     # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot
     refresh_window = CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)
     if one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
@@ -5319,16 +5355,21 @@ def get_crypto_data_1min(current_prices=None):
         prices_age_limit = 10
         if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
             current_prices = last_current_prices['data']
+            snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
         else:
             current_prices = get_current_prices()
             if current_prices:
                 last_current_prices['data'] = current_prices
                 last_current_prices['timestamp'] = current_time
+                snapshot_ts_s = int(current_time)
         if not current_prices:
             logging.warning("No current prices available for 1-min data")
             return None
 
-        crypto_data = calculate_1min_changes(current_prices)
+        if snapshot_ts_s is None:
+            snapshot_ts_s = int(current_time)
+
+        crypto_data = calculate_1min_changes(current_prices, snapshot_ts_s)
         if not crypto_data:
             # On cold start we may have <2 samples per symbol; return an empty, cacheable payload instead of None (prevents 503s)
             logging.warning(f"No 1-min crypto data available after calculation - {len(current_prices)} current prices, {len(price_history_1min)} symbols with history")
@@ -6379,6 +6420,38 @@ def _compute_snapshots_from_cache():
             logging.debug(f"Candle snapshot skip: {e}")
             volume_1h_candles = None
 
+            # Fallback: if banner snapshot is empty but we have candle rows, build
+            # a banner-compatible snapshot so the UI can show seeded rows during dev.
+        try:
+            if (not banner_1h_volume or (isinstance(banner_1h_volume, dict) and len(banner_1h_volume.get('data') or []) == 0)) and volume_1h_candles and isinstance(volume_1h_candles, dict):
+                rows = []
+                for it in (volume_1h_candles.get('data') or [])[:20]:
+                    pid = it.get('product_id') or it.get('id')
+                    sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
+                    vol_now = it.get('volume_1h_now') or it.get('vol1h')
+                    vol_prev = it.get('volume_1h_prev') or it.get('vol1h_prev')
+                    pct = it.get('volume_change_1h_pct') or it.get('vol1h_pct_change')
+                    missing_reason = it.get('baseline_missing_reason')
+                    # baseline_ready: both prev and pct must be truly computed (no backsolve)
+                    baseline_ready = (pct is not None) and (vol_prev is not None)
+                    rows.append({
+                        'symbol': sym,
+                        'product_id': pid or (f"{sym}-USD" if sym else None),
+                        'volume_1h_now': float(vol_now) if vol_now is not None else None,
+                        'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
+                        'volume_change_1h_pct': float(pct) if pct is not None else None,
+                        'baseline_ready': bool(baseline_ready),
+                        'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
+                        'source': 'volume_1h_candles',
+                    })
+                banner_1h_volume = {
+                    'component': 'banner_1h_volume',
+                    'data': rows,
+                    'last_updated': datetime.now().isoformat(),
+                }
+        except Exception:
+            pass
+
         # Update snapshots
         _mw_set_component_snapshots(
             gainers_1m=g1m,
@@ -6624,6 +6697,62 @@ def _mw_ensure_background_started():
 @app.before_request
 def _mw_bootstrap_background_once():
     _mw_ensure_background_started()
+
+
+# ---------------------------------------------------------------------------
+# Dev-only helper: force a snapshot recompute (guarded by env)
+# Set DEV_ALLOW_RECOMPUTE=1 to enable this endpoint in local dev only.
+# ---------------------------------------------------------------------------
+@app.route('/__dev/recompute_snapshots', methods=['POST', 'GET'])
+def __dev_recompute_snapshots():
+    # Dev-only: allow recompute unconditionally in local dev. If you need
+    # stricter controls, set DEV_ALLOW_RECOMPUTE and update this guard.
+    try:
+        # Clear banner snapshot so recompute will prefer fresh candle/cache path
+        try:
+            with _MW_COMPONENT_SNAPSHOTS_LOCK:
+                _MW_COMPONENT_SNAPSHOTS.pop('banner_1h_volume', None)
+        except Exception:
+            pass
+
+        _compute_snapshots_from_cache()
+        # If banner still empty, compute directly from SQLite-backed compute
+        snap = _mw_get_component_snapshot('banner_1h_volume')
+        rows, ts = _wrap_rows_and_ts(snap)
+        if not (rows and len(rows) > 0):
+            try:
+                payload = _volume1h_build_payload_snapshot()
+                computed = _volume1h_compute_ranked(payload)
+                if isinstance(computed, list) and computed:
+                    out_rows = []
+                    for it in computed:
+                        pid = it.get('product_id') or it.get('id')
+                        sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
+                        vol_now = it.get('volume_1h_now')
+                        vol_prev = it.get('volume_1h_prev')
+                        pct = it.get('volume_change_1h_pct')
+                        baseline_ready = (pct is not None) and (vol_prev is not None)
+                        out_rows.append({
+                            'symbol': sym,
+                            'product_id': pid or (f"{sym}-USD" if sym else None),
+                            'volume_1h_now': float(vol_now) if vol_now is not None else None,
+                            'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
+                            'volume_change_1h_pct': float(pct) if pct is not None else None,
+                            'baseline_ready': bool(baseline_ready),
+                            'baseline_missing_reason': None if baseline_ready else 'warming_candles',
+                            'source': 'volume1h_sqlite',
+                        })
+                    banner_1h_volume = {'component': 'banner_1h_volume', 'data': out_rows[:20], 'last_updated': datetime.now().isoformat()}
+                    # Persist snapshot immediately
+                    _mw_set_component_snapshots(banner_1h_volume=banner_1h_volume)
+                    rows = out_rows
+                    ts = banner_1h_volume['last_updated']
+            except Exception:
+                pass
+
+        return jsonify({'ok': True, 'rows': len(rows or []), 'last_updated': ts}), 200
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 # =============================================================================
 # COMMAND LINE ARGUMENTS

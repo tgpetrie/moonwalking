@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useData } from "../context/DataContext";
 
 const COINBASE_ORIGIN = "https://www.coinbase.com";
 
@@ -120,6 +119,7 @@ export default function TopBannerScroll(props) {
   const [localItems, setLocalItems] = useState([]);
   const [fetchErr, setFetchErr] = useState(null);
   const [paused, setPaused] = useState(false);
+  // Banner shows 1h price movers only; alerts are handled by the floating indicator/log.
   const { alerts: ctxAlerts } = useData() || {};
 
   const trackRef = useRef(null);
@@ -133,62 +133,14 @@ export default function TopBannerScroll(props) {
     return Array.isArray(candidate) ? candidate : [];
   }, [itemsProp, data, banner, tokens, topBanner, localItems]);
 
-  const alertItems = useMemo(() => {
-    const priorityTypes = new Set(["moonshot", "crater", "fomo"]);
-    const prioritySev = new Set(["critical", "high"]);
-    const list = Array.isArray(ctxAlerts) ? ctxAlerts : [];
-    const severityRank = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
-
-    return list
-      .filter((a) => {
-        if (!a) return false;
-        const type = (a.type || "").toString().toLowerCase();
-        const sev = (a.severity || "").toString().toLowerCase();
-        return priorityTypes.has(type) || prioritySev.has(sev);
-      })
-      .map((a, idx) => {
-        const productId = a.symbol || a.product_id || a.pair || a.base || null;
-        const displaySym = productId ? String(productId).replace(/-USD$/i, "") : a.symbol || "ALERT";
-        const badge = (a.type || "alert").toString().toUpperCase();
-        const severity = (a.severity || "high").toString().toLowerCase();
-        const href =
-          a.trade_url ||
-          toAdvancedTradeUrl({ product_id: productId, symbol: displaySym }) ||
-          "#";
-        return {
-          key: `alert-${a.id || idx}`,
-          symbol: displaySym,
-          productId: productId || displaySym,
-          pct: null,
-          price: null,
-          rank: badge,
-          badge,
-          severity,
-          message: a.message || a.title || badge,
-          href,
-          ts: a.ts || null,
-          kind: "alert",
-        };
-      })
-      .sort((a, b) => {
-        const sa = severityRank[a.severity] || 0;
-        const sb = severityRank[b.severity] || 0;
-        if (sa !== sb) return sb - sa;
-        const ta = Date.parse(a.ts || "") || 0;
-        const tb = Date.parse(b.ts || "") || 0;
-        return tb - ta;
-      });
-  }, [ctxAlerts]);
-
   const items = useMemo(() => {
     const out = [];
-    alertItems.forEach((it) => out.push(it));
     for (let i = 0; i < rawList.length; i += 1) {
       const n = normalizeItem(rawList[i], i);
       if (n) out.push(n);
     }
     return out;
-  }, [rawList, alertItems]);
+  }, [rawList]);
 
   useEffect(() => {
     const hasExternalList =

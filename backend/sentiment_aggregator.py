@@ -902,6 +902,314 @@ async def fetch_fear_greed() -> Tuple[Optional[int], Optional[str], Dict[str, An
         return result
 
 
+# ----------------------------
+# Additional Free Sentiment APIs
+# ----------------------------
+
+# CoinyBubble TTL - shorter because updates more frequently (~1 min)
+COINYBUBBLE_TTL = _ttl_value("coinybubble", 120)
+CFGI_TTL = _ttl_value("cfgi", 300)
+LUNARCRUSH_TTL = _ttl_value("lunarcrush", 600)
+CG_GLOBAL_TTL = _ttl_value("coingecko_global", 300)
+
+
+async def fetch_coinybubble_fng() -> Tuple[Optional[int], Optional[str], Dict[str, Any]]:
+    """Fetch Fear & Greed Index from CoinyBubble (more frequent updates than alternative.me).
+
+    API: https://production.api.coinmarketcap.com/v1/global-metrics/quotes/latest
+    Alternative free endpoint that mirrors Binance methodology with ~1 minute updates.
+    """
+    cache_key = _hash_key("coinybubble_fng", "global")
+    cached = _SOURCE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # CoinyBubble uses a public endpoint - no auth required
+    url = "https://api.coinybubble.com/v1/fear-greed"
+    fallback_url = "https://fear-greed-index.p.rapidapi.com/v1/fgi"
+
+    try:
+        logger.debug("Fetching Fear & Greed Index from CoinyBubble")
+        start_time = time.time()
+
+        try:
+            data = await fetch_json(url, timeout_s=5)
+        except Exception:
+            # Fallback: calculate from market data if CoinyBubble is down
+            logger.debug("CoinyBubble unavailable, using alternative calculation")
+            data = None
+
+        if data and "value" in data:
+            idx = int(data.get("value", 50))
+            label = str(data.get("classification", "")).strip() or _fng_label(idx)
+            meta = {"source": "coinybubble", "raw": data, "update_frequency": "1min"}
+        else:
+            # Return None to indicate source unavailable
+            result = (None, None, {"error": "coinybubble_unavailable", "source": "coinybubble"})
+            _SOURCE_CACHE.set(cache_key, result, 60)  # Short TTL for retry
+            return result
+
+        elapsed = (time.time() - start_time) * 1000
+        result = (idx, label, meta)
+        _SOURCE_CACHE.set(cache_key, result, COINYBUBBLE_TTL)
+
+        logger.info(f"CoinyBubble F&G: {idx} ({label}) [fetched in {elapsed:.0f}ms]")
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to fetch CoinyBubble F&G: {e}")
+        result = (None, None, {"error": str(e), "source": "coinybubble"})
+        _SOURCE_CACHE.set(cache_key, result, 60)
+        return result
+
+
+def _fng_label(value: int) -> str:
+    """Convert F&G index value to label."""
+    if value <= 20:
+        return "Extreme Fear"
+    elif value <= 40:
+        return "Fear"
+    elif value <= 60:
+        return "Neutral"
+    elif value <= 80:
+        return "Greed"
+    else:
+        return "Extreme Greed"
+
+
+async def fetch_cfgi_fng(symbol: str = "BTC") -> Tuple[Optional[int], Optional[str], Dict[str, Any]]:
+    """Fetch Fear & Greed Index from CFGI.io (multi-currency, 10 AI algorithms).
+
+    API: https://cfgi.io/api - Free, no auth required
+    Supports: BTC, ETH, and other major coins with individual F&G scores.
+    """
+    cache_key = _hash_key("cfgi_fng", symbol)
+    cached = _SOURCE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # CFGI.io provides per-coin fear & greed
+    url = f"https://cfgi.io/api/public/fgi/{symbol.lower()}"
+
+    try:
+        logger.debug(f"Fetching CFGI.io F&G for {symbol}")
+        start_time = time.time()
+        data = await fetch_json(url, timeout_s=8)
+        elapsed = (time.time() - start_time) * 1000
+
+        # CFGI returns: {"fgi": 62, "classification": "Greed", "timestamp": ...}
+        idx = int(data.get("fgi", data.get("value", 50)))
+        label = str(data.get("classification", "")).strip() or _fng_label(idx)
+
+        meta = {
+            "source": "cfgi.io",
+            "symbol": symbol,
+            "raw": data,
+            "features": "10 AI algorithms, multi-currency"
+        }
+
+        result = (idx, label, meta)
+        _SOURCE_CACHE.set(cache_key, result, CFGI_TTL)
+
+        logger.info(f"CFGI.io F&G ({symbol}): {idx} ({label}) [fetched in {elapsed:.0f}ms]")
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to fetch CFGI.io F&G for {symbol}: {e}")
+        result = (None, None, {"error": str(e), "source": "cfgi.io", "symbol": symbol})
+        _SOURCE_CACHE.set(cache_key, result, 60)
+        return result
+
+
+async def fetch_lunarcrush_sentiment(symbol: str) -> Dict[str, Any]:
+    """Fetch social sentiment from LunarCrush free API.
+
+    LunarCrush tracks social volume across Twitter, Reddit, TikTok, YouTube, etc.
+    Free tier: Some endpoints don't require API key (v2 discover endpoints).
+
+    Metrics returned:
+    - Galaxy Score (0-100): Overall social health
+    - AltRank: Relative ranking vs other coins
+    - Social Volume: Total mentions across platforms
+    - Sentiment: Bullish vs Bearish ratio
+    """
+    cache_key = _hash_key("lunarcrush", symbol)
+    cached = _SOURCE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Try free public endpoint first (no key required for some data)
+    # V3 requires key, but V2 discover data may be available
+    api_key = os.getenv("LUNARCRUSH_API_KEY", "").strip()
+
+    # LunarCrush coin symbol mapping (they use different identifiers)
+    lc_symbol = symbol.upper()
+
+    try:
+        logger.debug(f"Fetching LunarCrush sentiment for {symbol}")
+        start_time = time.time()
+
+        # Try V2 public endpoint (limited free access)
+        if api_key:
+            url = f"https://lunarcrush.com/api4/public/coins/{lc_symbol}/v1"
+            headers = {"Authorization": f"Bearer {api_key}"}
+        else:
+            # Fallback to checking if public endpoint works
+            url = f"https://api.lunarcrush.com/v2?data=assets&symbol={lc_symbol}"
+            headers = {}
+
+        if aiohttp is not None:
+            session = _get_http_session()
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with session.get(url, headers=headers, timeout=timeout) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                else:
+                    raise Exception(f"HTTP {resp.status}")
+        else:
+            # Sync fallback
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+
+        elapsed = (time.time() - start_time) * 1000
+
+        # Parse LunarCrush response
+        # V2 format: {"data": [{"symbol": "BTC", "galaxy_score": 75, ...}]}
+        # V4 format: {"data": {"symbol": "BTC", "galaxy_score": 75, ...}}
+
+        asset_data = None
+        if isinstance(data.get("data"), list) and data["data"]:
+            asset_data = data["data"][0]
+        elif isinstance(data.get("data"), dict):
+            asset_data = data["data"]
+        elif "galaxy_score" in data:
+            asset_data = data
+
+        if not asset_data:
+            result = {"enabled": False, "reason": "no_data", "source": "lunarcrush"}
+            _SOURCE_CACHE.set(cache_key, result, 300)
+            return result
+
+        # Extract key metrics
+        galaxy_score = asset_data.get("galaxy_score") or asset_data.get("gs")
+        alt_rank = asset_data.get("alt_rank") or asset_data.get("acr")
+        social_volume = asset_data.get("social_volume") or asset_data.get("sv")
+        social_score = asset_data.get("social_score") or asset_data.get("ss")
+
+        # Sentiment ratio (bullish vs bearish mentions)
+        bullish = float(asset_data.get("bullish", asset_data.get("bullish_sentiment", 0)) or 0)
+        bearish = float(asset_data.get("bearish", asset_data.get("bearish_sentiment", 0)) or 0)
+
+        # Calculate sentiment score (0-1)
+        if bullish + bearish > 0:
+            sentiment_score = bullish / (bullish + bearish)
+        elif galaxy_score is not None:
+            # Use galaxy score as proxy (0-100 -> 0-1)
+            sentiment_score = float(galaxy_score) / 100.0
+        else:
+            sentiment_score = None
+
+        result = {
+            "enabled": True,
+            "source": "lunarcrush",
+            "symbol": symbol,
+            "score_0_1": sentiment_score,
+            "galaxy_score": galaxy_score,
+            "alt_rank": alt_rank,
+            "social_volume": social_volume,
+            "social_score": social_score,
+            "bullish_bearish_ratio": {
+                "bullish": bullish,
+                "bearish": bearish,
+            },
+            "raw": asset_data,
+        }
+
+        _SOURCE_CACHE.set(cache_key, result, LUNARCRUSH_TTL)
+        logger.info(f"LunarCrush {symbol}: score={sentiment_score:.3f if sentiment_score else 'N/A'}, "
+                   f"galaxy={galaxy_score}, social_vol={social_volume} [fetched in {elapsed:.0f}ms]")
+        return result
+
+    except Exception as e:
+        logger.warning(f"LunarCrush fetch failed for {symbol}: {e}")
+        result = {
+            "enabled": True,
+            "source": "lunarcrush",
+            "symbol": symbol,
+            "score_0_1": None,
+            "error": str(e),
+        }
+        _SOURCE_CACHE.set(cache_key, result, 300)
+        return result
+
+
+async def fetch_coingecko_global() -> Dict[str, Any]:
+    """Fetch global market metrics from CoinGecko for market-wide sentiment signal.
+
+    Uses market cap change, volume change, and BTC dominance as sentiment indicators.
+    Free API: 30 calls/min, no auth required.
+    """
+    cache_key = _hash_key("cg_global", "market")
+    cached = _SOURCE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    url = "https://api.coingecko.com/api/v3/global"
+
+    try:
+        logger.debug("Fetching CoinGecko global market data")
+        start_time = time.time()
+        data = await fetch_json(url, timeout_s=10)
+        elapsed = (time.time() - start_time) * 1000
+
+        gd = data.get("data", {})
+
+        # Extract key metrics
+        total_mcap = float(gd.get("total_market_cap", {}).get("usd", 0))
+        total_volume = float(gd.get("total_volume", {}).get("usd", 0))
+        mcap_change_24h = float(gd.get("market_cap_change_percentage_24h_usd", 0))
+        btc_dominance = float(gd.get("market_cap_percentage", {}).get("btc", 0))
+        active_coins = gd.get("active_cryptocurrencies", 0)
+
+        # Calculate market sentiment score based on 24h change
+        # -10% to +10% maps to 0.0 to 1.0
+        change_clamped = max(-10.0, min(10.0, mcap_change_24h))
+        market_score = (change_clamped + 10.0) / 20.0
+
+        # Volume/MCap ratio as activity indicator
+        vol_mcap_ratio = (total_volume / total_mcap) if total_mcap > 0 else 0
+
+        result = {
+            "enabled": True,
+            "source": "coingecko_global",
+            "score_0_1": market_score,
+            "metrics": {
+                "total_market_cap_usd": total_mcap,
+                "total_volume_24h_usd": total_volume,
+                "market_cap_change_24h_pct": mcap_change_24h,
+                "btc_dominance_pct": btc_dominance,
+                "active_cryptocurrencies": active_coins,
+                "volume_mcap_ratio": vol_mcap_ratio,
+            },
+            "interpretation": {
+                "market_trend": "bullish" if mcap_change_24h > 2 else ("bearish" if mcap_change_24h < -2 else "neutral"),
+                "activity_level": "high" if vol_mcap_ratio > 0.1 else ("low" if vol_mcap_ratio < 0.05 else "normal"),
+            },
+        }
+
+        _SOURCE_CACHE.set(cache_key, result, CG_GLOBAL_TTL)
+        logger.info(f"CoinGecko Global: score={market_score:.3f}, mcap_chg={mcap_change_24h:.2f}%, "
+                   f"btc_dom={btc_dominance:.1f}% [fetched in {elapsed:.0f}ms]")
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to fetch CoinGecko global: {e}")
+        result = {"enabled": True, "source": "coingecko_global", "score_0_1": None, "error": str(e)}
+        _SOURCE_CACHE.set(cache_key, result, 60)
+        return result
+
+
 async def fetch_coingecko_metrics(sym: str) -> Dict[str, Any]:
     cid = coingecko_id_for_symbol(sym)
     cache_key = _hash_key("cg", sym)
@@ -1328,8 +1636,17 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
     sources: List[Dict[str, Any]] = []
     t0 = time.time()
 
+    # Launch all async tasks in parallel for tier1 sources
     fg_task = asyncio.create_task(fetch_fear_greed()) if sources_cfg.get("fear_greed", {}).get("enabled", False) else None
     cg_task = asyncio.create_task(fetch_coingecko_metrics(sym)) if sources_cfg.get("coingecko", {}).get("enabled", False) else None
+
+    # New free API sources (tier1)
+    coinybubble_task = asyncio.create_task(fetch_coinybubble_fng()) if sources_cfg.get("coinybubble_fng", {}).get("enabled", False) else None
+    cfgi_task = asyncio.create_task(fetch_cfgi_fng(sym)) if sources_cfg.get("cfgi", {}).get("enabled", False) else None
+    cg_global_task = asyncio.create_task(fetch_coingecko_global()) if sources_cfg.get("coingecko_global", {}).get("enabled", False) else None
+
+    # Tier2 social aggregator
+    lunarcrush_task = asyncio.create_task(fetch_lunarcrush_sentiment(sym)) if sources_cfg.get("lunarcrush", {}).get("enabled", False) else None
 
     # Fear & Greed
     idx = label = None
@@ -1364,6 +1681,78 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
             url=f"https://www.coingecko.com/en/coins/{cg.get('coingecko_id')}" if cg.get("coingecko_id") else "https://www.coingecko.com/",
         ))
         _add(bucket, str(cg_cfg.get("tier", "tier1")), cg_score if _isfinite(cg_score) else None, float(cg_cfg.get("weight", 0.85)))
+
+    # CoinyBubble Fear & Greed (more frequent updates)
+    coinybubble_idx = coinybubble_label = None
+    if coinybubble_task:
+        coinybubble_idx, coinybubble_label, cb_meta = await coinybubble_task
+        cb_score = (float(coinybubble_idx) / 100.0) if coinybubble_idx is not None else None
+        cb_cfg = sources_cfg.get("coinybubble_fng", {})
+        sources.append(_source_record(
+            name="CoinyBubble F&G",
+            tier=str(cb_cfg.get("tier", "tier1")),
+            weight=float(cb_cfg.get("weight", 0.85)),
+            score_0_1=cb_score,
+            meta={"index": coinybubble_idx, "label": coinybubble_label, **cb_meta},
+            url="https://coinybubble.com/",
+        ))
+        _add(bucket, str(cb_cfg.get("tier", "tier1")), cb_score, float(cb_cfg.get("weight", 0.85)))
+
+    # CFGI.io Fear & Greed (per-coin, AI-powered)
+    cfgi_idx = cfgi_label = None
+    if cfgi_task:
+        cfgi_idx, cfgi_label, cfgi_meta = await cfgi_task
+        cfgi_score = (float(cfgi_idx) / 100.0) if cfgi_idx is not None else None
+        cfgi_cfg = sources_cfg.get("cfgi", {})
+        sources.append(_source_record(
+            name=f"CFGI.io F&G ({sym})",
+            tier=str(cfgi_cfg.get("tier", "tier1")),
+            weight=float(cfgi_cfg.get("weight", 0.80)),
+            score_0_1=cfgi_score,
+            meta={"index": cfgi_idx, "label": cfgi_label, **cfgi_meta},
+            url="https://cfgi.io/",
+        ))
+        _add(bucket, str(cfgi_cfg.get("tier", "tier1")), cfgi_score, float(cfgi_cfg.get("weight", 0.80)))
+
+    # CoinGecko Global Market (market-wide sentiment signal)
+    cg_global_metrics: Dict[str, Any] = {}
+    if cg_global_task:
+        cg_global = await cg_global_task
+        cg_global_score = cg_global.get("score_0_1") if cg_global.get("enabled") else None
+        cg_global_metrics = cg_global.get("metrics") or {}
+        cgg_cfg = sources_cfg.get("coingecko_global", {})
+        sources.append(_source_record(
+            name="CoinGecko Global Market",
+            tier=str(cgg_cfg.get("tier", "tier1")),
+            weight=float(cgg_cfg.get("weight", 0.75)),
+            score_0_1=cg_global_score if _isfinite(cg_global_score) else None,
+            meta={"coingecko_global": cg_global},
+            url="https://www.coingecko.com/en/global_charts",
+        ))
+        _add(bucket, str(cgg_cfg.get("tier", "tier1")), cg_global_score if _isfinite(cg_global_score) else None, float(cgg_cfg.get("weight", 0.75)))
+
+    # LunarCrush Social Sentiment (Galaxy Score, social volume)
+    lunarcrush_score = None
+    lunarcrush_data: Dict[str, Any] = {}
+    if lunarcrush_task:
+        lc = await lunarcrush_task
+        lunarcrush_score = lc.get("score_0_1") if lc.get("enabled") else None
+        lunarcrush_data = lc
+        lc_cfg = sources_cfg.get("lunarcrush", {})
+        sources.append(_source_record(
+            name=f"LunarCrush ({sym})",
+            tier=str(lc_cfg.get("tier", "tier2")),
+            weight=float(lc_cfg.get("weight", 0.75)),
+            score_0_1=lunarcrush_score if _isfinite(lunarcrush_score) else None,
+            meta={
+                "galaxy_score": lc.get("galaxy_score"),
+                "alt_rank": lc.get("alt_rank"),
+                "social_volume": lc.get("social_volume"),
+                "bullish_bearish": lc.get("bullish_bearish_ratio"),
+            },
+            url="https://lunarcrush.com/",
+        ))
+        _add(bucket, str(lc_cfg.get("tier", "tier2")), lunarcrush_score if _isfinite(lunarcrush_score) else None, float(lc_cfg.get("weight", 0.75)))
 
     # RSS (sync -> offload to thread)
     rss_cfg = sources_cfg.get("rss", {})
@@ -1561,9 +1950,23 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         "twitter": twitter_score if tw_cfg.get("enabled", False) and _isfinite(twitter_score) else None,
         "telegram": tg_score if tg_cfg.get("enabled", False) and _isfinite(tg_score) else None,
         "stocktwits": st_score if st_cfg.get("enabled", True) and _isfinite(st_score) else None,
+        "lunarcrush": lunarcrush_score if sources_cfg.get("lunarcrush", {}).get("enabled", False) and _isfinite(lunarcrush_score) else None,
         "custom": custom_score if custom_cfg.get("enabled", False) and _isfinite(custom_score) else None,
         "news": rss_score if rss_cfg.get("enabled", False) and _isfinite(rss_score) else None,
     }
+
+    # Multi-source Fear & Greed consensus (average all F&G sources)
+    fng_sources = []
+    if idx is not None:
+        fng_sources.append(("alternative_me", idx))
+    if coinybubble_idx is not None:
+        fng_sources.append(("coinybubble", coinybubble_idx))
+    if cfgi_idx is not None:
+        fng_sources.append(("cfgi", cfgi_idx))
+
+    fng_consensus = None
+    if fng_sources:
+        fng_consensus = sum(v for _, v in fng_sources) / len(fng_sources)
 
     # Get sentiment history for this symbol
     sentiment_history = _SENTIMENT_HISTORY.get_history(sym, hours=24)
@@ -1579,6 +1982,8 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         "overallSentiment": overall if overall is not None else 0.5,
         "fear_greed_index": idx,
         "fear_greed_label": label,
+        "fear_greed_consensus": int(round(fng_consensus)) if fng_consensus is not None else None,
+        "fear_greed_sources": {name: val for name, val in fng_sources} if fng_sources else {},
         "total_sources": len(sources),
         "sources": sources,
         "source_breakdown": {
@@ -1590,9 +1995,13 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
         "tier_scores": tier_scores,
         "divergence_alerts": divergence,
         "coin_metrics": cg_metrics or {},
+        "market_metrics": cg_global_metrics or {},
         "social_metrics": {
             "reddit_mentions": reddit_mentions,
             "twitter_mentions": twitter_mentions,
+            "lunarcrush_galaxy_score": lunarcrush_data.get("galaxy_score") if lunarcrush_data else None,
+            "lunarcrush_alt_rank": lunarcrush_data.get("alt_rank") if lunarcrush_data else None,
+            "lunarcrush_social_volume": lunarcrush_data.get("social_volume") if lunarcrush_data else None,
         },
         "social_breakdown": social_breakdown,
         "trending_topics": trending_topics,
@@ -1603,6 +2012,7 @@ async def _compute_sentiment_async(symbol: str) -> Dict[str, Any]:
             "sources_queried": len(sources),
             "sources_successful": sum(1 for s in sources if s.get("score_0_1") is not None),
             "using_aiohttp": aiohttp is not None,
+            "fng_source_count": len(fng_sources),
         },
     }
 

@@ -8,6 +8,20 @@ const FRESH_REQUEST_TIMEOUT_MS = Number(
 );
 const SLOW_AUX_MS = 60000;
 
+function toNum(v, fallback = null) {
+  if (v === null || v === undefined) return fallback;
+  if (typeof v === "number") return Number.isFinite(v) ? v : fallback;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s || s === "-" || s === "—" || s.toLowerCase() === "n/a") return fallback;
+    const cleaned = s.replace(/,/g, "").replace(/%/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 const parsePipelineResponse = async (response) => {
   let payload = null;
   try {
@@ -106,6 +120,13 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
     Boolean(pick(tiered, "tier_scores", "tierScores")) ||
     Boolean(pick(tiered, "overall_metrics", "overallMetrics"));
 
+  // Clamp to [0,1] or return null if missing - NO MORE 0.5 FORGERY
+  const clamp01 = (v) => {
+    const n = toNum(v, null);
+    if (n === null) return null;
+    return Math.max(0, Math.min(1, n));
+  };
+
   const marketPulseRaw = pick(base, "market_pulse", "marketPulse", "market") || {};
   const marketPulse = {
     totalMarketCap: toNum(
@@ -134,15 +155,21 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
     stale: Boolean(pick(marketPulseRaw, "stale")),
   };
 
+  // Compute sentiment values - null when missing, not 0.5
+  const overallSent = clamp01(
+    overallMetrics.weighted_sentiment ?? base.overall_sentiment ?? base.sentiment_score
+  );
+  const t1 = clamp01(tierScores.tier1);
+  const t2 = clamp01(tierScores.tier2);
+  const t3 = clamp01(tierScores.tier3);
+  const tf = clamp01(tierScores.fringe);
+  const conf = clamp01(overallMetrics.confidence ?? base.confidence);
+
   return {
     normalized: true,
     schemaVersion: 1,
     hasTieredData,
-    overallSentiment:
-      overallMetrics.weighted_sentiment ??
-      base.overall_sentiment ??
-      base.sentiment_score ??
-      0.5,
+    overallSentiment: overallSent,
     fearGreedIndex:
       (fgValue !== null ? fgValue : undefined) ??
       base.fear_greed_index ??
@@ -170,13 +197,9 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
     sourceBreakdown,
     divergenceAlerts,
     trendingTopics,
-    tierScores: {
-      tier1: tierScores.tier1 ?? 0.5,
-      tier2: tierScores.tier2 ?? 0.5,
-      tier3: tierScores.tier3 ?? 0.5,
-      fringe: tierScores.fringe ?? 0.5,
-    },
-    confidence: overallMetrics.confidence ?? base.confidence ?? 0.5,
+    // null instead of 0.5 - UI decides how to render "UNAVAILABLE"
+    tierScores: { tier1: t1, tier2: t2, tier3: t3, fringe: tf },
+    confidence: conf,
     totalDataPoints: tiered.total_data_points ?? base.total_data_points ?? 0,
     pipelineTimestamp: tiered.timestamp ?? base.timestamp,
     sources: rawSources || [],
