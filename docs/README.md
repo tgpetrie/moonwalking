@@ -13,6 +13,7 @@ Welcome to the Moonwalkings documentation hub. This directory contains all techn
 Documentation for end-users and getting started quickly.
 
 - **[Quick Start Guide](user-guides/README-QUICK-START.md)** - 5-minute setup guide for the sentiment popup feature
+- **[Alerts – 2-minute verification](user-guides/ALERTS_USE_GUIDE.md)** - Prove alerts are alive (or localize the break) in ~2 minutes
 
 ### 👨‍💻 Developer Documentation
 Technical guides for developers working on the platform.

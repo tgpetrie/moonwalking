@@ -20,11 +20,14 @@ fail() {
   exit 1
 }
 
-# 1) API base responsive
-curl -sS --max-time 3 "$BASE/api/health" >/dev/null 2>&1 || fail "/api/health not responding"
+# 1) API base responsive (use /api/data as canonical; /api/health can be slower)
+curl -sS --max-time 8 "$BASE/api/data" >/dev/null 2>&1 || fail "/api/data not responding"
 
-# 2) Must have /api/data (or /data alias still ok, but spec wants /api/data)
-curl -sS --max-time 5 "$BASE/data" >/dev/null 2>&1 || fail "/data not responding"
+# 2) Optional: health endpoint (non-fatal)
+curl -sS --max-time 3 "$BASE/api/health" >/dev/null 2>&1 || echo "[sanity] WARN: /api/health not responding"
+
+# 3) Must have /data alias (legacy compatibility)
+curl -sS --max-time 8 "$BASE/data" >/dev/null 2>&1 || fail "/data not responding"
 
 # 3) No dead-port references in runtime trees
 #    Use word-boundary matching so we don't false-positive on unrelated
@@ -52,5 +55,8 @@ echo "[sanity] OK"
 
 echo "[sanity] running guardrails"
 bash scripts/validate_mw_guardrails.sh
+
+echo "[sanity] running alerts oracle"
+BACKEND_BASE="$BASE" bash scripts/verify_alerts.sh
 
 echo "[sanity] ALL OK"

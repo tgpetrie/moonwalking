@@ -88,6 +88,9 @@ Keep secrets out of the repository and prefer a per-project `.env` + a launcher 
         PY
         ```
 
+    - Alerts “2-minute verification” battle card:
+        - See `docs/user-guides/ALERTS_USE_GUIDE.md`
+
 These small steps keep your local dev fast, safe, and predictable.
 ```
 

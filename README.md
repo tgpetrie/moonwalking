@@ -13,6 +13,9 @@ Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price
 - 👨‍💻 **[Developer Documentation](docs/developer/)** - Architecture, API integration, React components
 - 🧪 **[Testing Documentation](docs/testing/)** - Verification and testing procedures
 
+Operational runbooks:
+- [Alerts – Operational Use Guide](docs/user-guides/ALERTS_USE_GUIDE.md)
+
 **Before modifying the UI**, read the canonical specification:
 - **[`docs/UI_HOME_DASHBOARD.md`](docs/UI_HOME_DASHBOARD.md)** – Authoritative UI layout, data contracts, and implementation paths
 
