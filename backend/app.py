@@ -20,8 +20,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 import asyncio
 from pathlib import Path
-
 try:
+    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before, get_price_at_or_after
     from volume_1h_store import ensure_db as ensure_volume_db
     from volume_1h_candles import refresh_product_minutes, RateLimitError
     from volume_1h_compute import compute_volume_1h
@@ -32,11 +32,13 @@ except ImportError as e:
     refresh_product_minutes = None
     class RateLimitError(Exception):
         pass
+    def get_price_at_or_after(product_id, target_ts):
+        return None
     def compute_volume_1h():
         return []
 
 try:
-    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before
+    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before, get_price_at_or_after
 except ImportError as e:
     logging.warning(f"Price DB imports failed: {e}")
     def ensure_price_db():
@@ -46,6 +48,8 @@ except ImportError as e:
     def prune_old(ts_cutoff):
         pass
     def get_price_at_or_before(product_id, target_ts):
+        return None
+    def get_price_at_or_after(product_id, target_ts):
         return None
 
 from watchlist import watchlist_bp, watchlist_db
@@ -828,6 +832,19 @@ def _get_gainers_table_1min_swr():
                 _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
         except Exception:
             pass
+
+    # Also emit impulse alerts for strong 1m losers, even though this component
+    # only renders the gainers table. This keeps the main alerts stream
+    # directionally complete without needing a dedicated 1m losers component.
+    try:
+        losers = data.get('losers', []) or []
+        for coin in losers[:max(10, min(20, limit))]:
+            current_price = coin.get('current') or coin.get('current_price') or 0
+            gain_pct = coin.get('gain') or coin.get('price_change_percentage_1min') or 0
+            if isinstance(gain_pct, (int, float)) and abs(gain_pct) >= ALERT_IMPULSE_1M_THRESH:
+                _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
+    except Exception:
+        pass
     return {
         'component': 'gainers_table_1min',
         'data': gainers_table_data,
@@ -913,6 +930,11 @@ def _get_losers_table_3min_swr():
             'momentum': 'strong' if coin['gain'] < -5 else 'moderate',
             'alert_level': 'high' if coin['gain'] < -10 else 'normal'
         })
+        try:
+            if isinstance(coin.get('gain'), (int, float)) and abs(float(coin.get('gain') or 0)) >= ALERT_IMPULSE_3M_THRESH:
+                _emit_impulse_alert(sym, float(coin.get('gain') or 0), coin.get('current'), window="3m")
+        except Exception:
+            pass
     return {
         'component': 'losers_table',
         'data': losers_table_data,
@@ -2180,6 +2202,10 @@ CONFIG = {
     'PRICE_MIN_SUCCESS_RATIO': float(os.environ.get('PRICE_MIN_SUCCESS_RATIO', 0.70)),  # coverage guard
     # Alert hygiene (streak-triggered alerts with cooldown)
     'ALERTS_COOLDOWN_SECONDS': int(os.environ.get('ALERTS_COOLDOWN_SECONDS', 300)),  # 5 minutes
+    # Impulse alert thresholds (percentage points). Keep defaults conservative;
+    # allow env overrides for local verification.
+    'ALERT_IMPULSE_1M_PCT': float(os.environ.get('ALERT_IMPULSE_1M_PCT', 1.25)),
+    'ALERT_IMPULSE_3M_PCT': float(os.environ.get('ALERT_IMPULSE_3M_PCT', 2.0)),
     # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
     'ALERTS_STREAK_THRESHOLDS': [
         int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
@@ -2227,13 +2253,13 @@ def _set_baseline_meta_3m(*, ready: bool, baseline_ts: float | None, age_seconds
 
 
 def _get_baseline_meta_3m():
-    """Get 3m baseline meta using direct price_history check."""
-    warming_3m, baseline_ts, baseline_age = _mw_check_3m_baseline_ready()
-    return {
-        "ready": not warming_3m,
-        "baseline_ts": baseline_ts,
-        "age_seconds": baseline_age
-    }
+    """Get 3m baseline meta.
+
+    Source of truth is `_BASELINE_3M_META`, which is updated by the same
+    baseline selection logic used to compute 3m movers.
+    """
+    with _BASELINE_3M_LOCK:
+        return dict(_BASELINE_3M_META)
 
 
 def _set_baseline_meta_1m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
@@ -2505,6 +2531,7 @@ _MW_COMPONENT_SNAPSHOTS = {
     'banner_1h_price': None,
     'banner_1h_volume': None,
     'volume_1h_candles': None,
+    'alerts': None,
     'updated_at': None,
 }
 _MW_COMPONENT_SNAPSHOTS_LOCK = threading.Lock()
@@ -2694,7 +2721,10 @@ def _mw_get_last_good_metadata():
     """Return (last_good_ts, stale_seconds, warming, warming_3m, baseline_ts_3m, baseline_age_3m) for /data meta field."""
     global _MW_LAST_GOOD_TS
     with _MW_COMPONENT_SNAPSHOTS_LOCK:
-        warming_3m, baseline_ts_3m, baseline_age_3m = _mw_check_3m_baseline_ready()
+        baseline_meta_3m = _get_baseline_meta_3m() or {}
+        warming_3m = not bool(baseline_meta_3m.get("ready"))
+        baseline_ts_3m = baseline_meta_3m.get("baseline_ts")
+        baseline_age_3m = baseline_meta_3m.get("age_seconds")
 
         if _MW_LAST_GOOD_TS is None:
             return None, None, True, warming_3m, baseline_ts_3m, baseline_age_3m
@@ -2744,7 +2774,10 @@ alerts_state = {
     '1h_price': {},
     '1h_volume': {},
 }
-alerts_log = deque(maxlen=200)
+alerts_log_main = deque(maxlen=2000)
+alerts_log_trend = deque(maxlen=2000)
+# Back-compat alias for legacy callers (treated as main).
+alerts_log = alerts_log_main
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
 ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.25))
@@ -2756,6 +2789,44 @@ ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
 MW_SEED_ALERTS = os.getenv("MW_SEED_ALERTS", "0") == "1"
 _ALERT_EMIT_TS = {}
 _ALERT_EMIT_VAL = {}
+
+_MW_LAST_GOOD_ALERTS = []
+_MW_LAST_GOOD_ALERTS_TS = None
+
+
+def _mw_get_alerts_normalized_with_sticky():
+    """Return (alerts, meta) where alerts may be a short sticky last-good list.
+
+    Motivation: avoid transient empty alert cycles wiping the UI when baselines
+    or snapshots temporarily produce 0.
+    """
+    global _MW_LAST_GOOD_ALERTS, _MW_LAST_GOOD_ALERTS_TS
+
+    alerts = _normalize_alerts(list(alerts_log_main))
+    now = time.time()
+    sticky_window_s = int(CONFIG.get("ALERTS_STICKY_SECONDS", 60) or 60)
+    sticky = False
+    last_good_age_s = None
+
+    if alerts:
+        _MW_LAST_GOOD_ALERTS = alerts
+        _MW_LAST_GOOD_ALERTS_TS = now
+    else:
+        if _MW_LAST_GOOD_ALERTS and _MW_LAST_GOOD_ALERTS_TS is not None:
+            try:
+                last_good_age_s = float(now - float(_MW_LAST_GOOD_ALERTS_TS))
+            except Exception:
+                last_good_age_s = None
+            if last_good_age_s is not None and last_good_age_s <= sticky_window_s:
+                alerts = list(_MW_LAST_GOOD_ALERTS)
+                sticky = True
+
+    meta = {
+        "sticky": sticky,
+        "sticky_window_s": sticky_window_s,
+        "last_good_age_s": int(last_good_age_s) if last_good_age_s is not None else None,
+    }
+    return alerts, meta
 
 def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
     """Emit an alert with per-key cooldown and magnitude dedupe."""
@@ -2773,7 +2844,7 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
     if magnitude <= prev + dedupe_delta:
         return False
 
-    alerts_log.append(alert)
+    alerts_log_main.append(alert)
     _ALERT_EMIT_TS[key] = now
     _ALERT_EMIT_VAL[key] = magnitude
     return True
@@ -2817,7 +2888,7 @@ def _seed_alerts_once():
         return
     _seed_alerts_once._done = True
     now = datetime.now(timezone.utc)
-    alerts_log.append({
+    alerts_log_main.append({
         "id": f"seed_{int(time.time())}",
         "ts": now.isoformat(),
         "symbol": "BTC-USD",
@@ -2934,7 +3005,7 @@ def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int
         last = alerts_state.get(scope, {}).get(symbol, 0)
         if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 120):
             msg = f"{scope} trend {direction} x{streak} on {symbol} (>= {reached}; score {float(score or 0.0):.2f})"
-            alerts_log.append({
+            alerts_log_trend.append({
                 'ts': datetime.now().isoformat(),
                 'scope': scope,
                 'symbol': symbol,
@@ -3019,7 +3090,7 @@ def kill_process_on_port(port):
 
 def update_config(new_config):
     """Update configuration at runtime"""
-    global CONFIG
+    global CONFIG, ALERT_IMPULSE_1M_THRESH, ALERT_IMPULSE_3M_THRESH
     old_config = CONFIG.copy()
     
     for key, value in new_config.items():
@@ -3035,6 +3106,18 @@ def update_config(new_config):
                 CONFIG[key] = value
             
             logging.info(f"Config updated: {key} = {old_config[key]} -> {CONFIG[key]}")
+
+    # Keep module-level impulse threshold globals in sync so updates take
+    # effect immediately (no restart required).
+    try:
+        if 'ALERT_IMPULSE_1M_PCT' in new_config:
+            ALERT_IMPULSE_1M_THRESH = float(CONFIG.get('ALERT_IMPULSE_1M_PCT', ALERT_IMPULSE_1M_THRESH))
+            logging.info(f"Impulse threshold updated: ALERT_IMPULSE_1M_THRESH={ALERT_IMPULSE_1M_THRESH}")
+        if 'ALERT_IMPULSE_3M_PCT' in new_config:
+            ALERT_IMPULSE_3M_THRESH = float(CONFIG.get('ALERT_IMPULSE_3M_PCT', ALERT_IMPULSE_3M_THRESH))
+            logging.info(f"Impulse threshold updated: ALERT_IMPULSE_3M_THRESH={ALERT_IMPULSE_3M_THRESH}")
+    except Exception:
+        pass
     
     # Update cache TTL if changed
     if 'CACHE_TTL' in new_config:
@@ -3060,6 +3143,9 @@ VALIDATABLE_CONFIG = {
     'MIN_CHANGE_THRESHOLD': {'type': float, 'min': 0.0, 'max': 1000.0},
     'API_TIMEOUT': {'type': int, 'min': 1, 'max': 60},
     'CHART_DAYS_LIMIT': {'type': int, 'min': 1, 'max': 365},
+    # Impulse alert thresholds (percentage points)
+    'ALERT_IMPULSE_1M_PCT': {'type': float, 'min': 0.0, 'max': 100.0},
+    'ALERT_IMPULSE_3M_PCT': {'type': float, 'min': 0.0, 'max': 100.0},
 }
 
 def validate_config_patch(patch: dict):
@@ -3085,6 +3171,14 @@ def validate_config_patch(patch: dict):
         except (TypeError, ValueError):
             errors[k] = 'invalid_type'
             continue
+        if typ is float:
+            try:
+                if not math.isfinite(cv):
+                    errors[k] = 'invalid_value'
+                    continue
+            except Exception:
+                errors[k] = 'invalid_value'
+                continue
         if 'min' in meta and cv < meta['min']:
             errors[k] = f"below_min_{meta['min']}"
             continue
@@ -3125,13 +3219,35 @@ def api_config():
                             m[mk] = str(mv)
                 out[k] = m
             return out
-        return jsonify({'config': _serialize_config(CONFIG), 'limits': _serialize_limits(VALIDATABLE_CONFIG)})
+        serialized_config = _serialize_config(CONFIG)
+        # Backward compatible response:
+        # - keep { config: {...}, limits: {...} }
+        # - ALSO flatten a small set of commonly-tuned keys at the top-level so
+        #   simple scripts can do `d.get(KEY)` without needing `d["config"]`.
+        flattened = {}
+        for k in ('ALERT_IMPULSE_1M_PCT', 'ALERT_IMPULSE_3M_PCT'):
+            if k in serialized_config:
+                flattened[k] = serialized_config.get(k)
+
+        return jsonify({
+            'config': serialized_config,
+            'limits': _serialize_limits(VALIDATABLE_CONFIG),
+            **flattened,
+        })
     data = request.get_json(silent=True) or {}
     to_apply, errors = validate_config_patch(data)
     status = 200 if not errors else 400 if not to_apply else 207
     if to_apply:
         update_config(to_apply)
-    return jsonify({'applied': to_apply, 'errors': errors, 'config': CONFIG}), status
+    flattened = {}
+    try:
+        for k in ('ALERT_IMPULSE_1M_PCT', 'ALERT_IMPULSE_3M_PCT'):
+            if k in CONFIG:
+                flattened[k] = CONFIG.get(k)
+    except Exception:
+        flattened = {}
+
+    return jsonify({'applied': to_apply, 'errors': errors, 'config': CONFIG, **flattened}), status
 
 # =============================================================================
 # EXISTING FUNCTIONS (Updated with dynamic config)
@@ -3314,10 +3430,13 @@ def get_coinbase_prices():
         return {}
 
 
-# Strict baseline windows (seconds) for DB-based deltas
+# Baseline windows (seconds) for DB-based deltas.
+# Use tolerant defaults so snapshot cadence drift doesn't zero whole tables.
 BASELINE_WINDOWS = {
-    "1m": {"target_s": 60, "min_s": 55, "max_s": 75},
-    "3m": {"target_s": 180, "min_s": 165, "max_s": 210},
+    # Target ~60s ago; accept ~35s..105s.
+    "1m": {"target_s": 60, "min_s": 35, "max_s": 105},
+    # Target ~180s ago; accept ~120s..300s.
+    "3m": {"target_s": 180, "min_s": 120, "max_s": 300},
     "1h": {"target_s": 3600, "min_s": 3300, "max_s": 3900},
 }
 
@@ -3328,56 +3447,101 @@ def _db_baseline_for_window(product_id: str, now_ts_s: int, key: str):
     Uses SQLite via get_price_at_or_before(product_id, target_ts_s).
     """
     win = BASELINE_WINDOWS[key]
-    target_ts = now_ts_s - win["target_s"]
+    target_s = int(win["target_s"])
+    target_ts = int(now_ts_s) - target_s
 
+    candidates: list[tuple[int, float]] = []
     try:
         got = get_price_at_or_before(product_id, target_ts)
+        if isinstance(got, (tuple, list)) and len(got) >= 2:
+            candidates.append((int(got[0]), float(got[1])))
     except Exception:
-        got = None
+        pass
+    try:
+        got = get_price_at_or_after(product_id, target_ts)
+        if isinstance(got, (tuple, list)) and len(got) >= 2:
+            candidates.append((int(got[0]), float(got[1])))
+    except Exception:
+        pass
 
-    if not got:
+    if not candidates:
         return None
 
-    # tolerate either (ts, price) tuple or just price
-    if isinstance(got, (tuple, list)) and len(got) >= 2:
-        baseline_ts_s = int(got[0])
-        baseline_price = float(got[1])
-    else:
-        baseline_ts_s = int(target_ts)
-        baseline_price = float(got)
+    target_age = int(win["target_s"])
+    best = None
+    best_diff = None
+    for ts_i, price_f in candidates:
+        age_s = int(now_ts_s - int(ts_i))
+        if age_s < int(win["min_s"]) or age_s > int(win["max_s"]):
+            continue
+        diff = abs(age_s - target_age)
+        if best is None or best_diff is None or diff < best_diff:
+            best = (int(ts_i), float(price_f), int(age_s))
+            best_diff = diff
+    return best
 
-    age_s = now_ts_s - baseline_ts_s
-    if age_s < win["min_s"] or age_s > win["max_s"]:
-        return None
-
-    return (baseline_ts_s, baseline_price, age_s)
 
 def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None):
-    """Calculate 3m price deltas using SQLite baselines (strict tolerance window)."""
+    """Calculate real-time 3-minute changes using DB baselines with in-memory fallback."""
     current_time = time.time()
-    # Use the snapshot timestamp (when prices were sampled) as "now"
     now_ts_s = int(snapshot_ts_s) if snapshot_ts_s is not None else int(current_time)
     sample_ts = float(snapshot_ts_s) if snapshot_ts_s is not None else current_time
 
+    def _history_baseline_3m(symbol: str):
+        """Fallback 3m baseline from in-memory history when DB doesn't have a usable point."""
+        try:
+            history = price_history[symbol]
+        except Exception:
+            return None
+        if not history or len(history) < 2:
+            return None
+
+        w = BASELINE_WINDOWS.get("3m") or {}
+        target_s = int(w.get("target_s", 180))
+        min_s = int(w.get("min_s", 120))
+        max_s = int(w.get("max_s", 300))
+
+        best = None
+        best_err = None
+        for ts, p in history:
+            try:
+                ts_i = int(ts)
+                p_f = float(p)
+            except Exception:
+                continue
+            age_s = now_ts_s - ts_i
+            if age_s < min_s or age_s > max_s:
+                continue
+            err = abs(float(age_s) - float(target_s))
+            if best is None or best_err is None or err < best_err:
+                best = (ts_i, p_f, age_s)
+                best_err = err
+        return best
+
     # Update price history with current prices
-    for symbol, price in current_prices.items():
-        if price > 0:
-            price_history[symbol].append((sample_ts, price))
-            price_history_1hour[symbol].append((sample_ts, price))  # Track 1h history
+    for symbol, price in (current_prices or {}).items():
+        try:
+            if float(price or 0) > 0:
+                price_history[symbol].append((sample_ts, float(price)))
+                price_history_1hour[symbol].append((sample_ts, float(price)))
+        except Exception:
+            continue
 
     formatted_data = []
     baseline_ready_any = False
     earliest_baseline_ts = None
 
-    for symbol, price in current_prices.items():
-        if price <= 0:
+    for symbol, price in (current_prices or {}).items():
+        try:
+            price_f = float(price or 0)
+        except Exception:
             continue
-
-        history = price_history[symbol]
-        if len(history) < 2:
+        if price_f <= 0:
             continue
 
         baseline = _db_baseline_for_window(symbol, now_ts_s, "3m")
+        if not baseline:
+            baseline = _history_baseline_3m(symbol)
         if not baseline:
             continue
 
@@ -3389,12 +3553,12 @@ def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None)
         if earliest_baseline_ts is None or baseline_ts_s < earliest_baseline_ts:
             earliest_baseline_ts = baseline_ts_s
 
-        price_change = pct_change(price, baseline_price)
+        price_change = pct_change(price_f, baseline_price)
         actual_interval_minutes = baseline_age_s / 60.0
 
         formatted_data.append({
             "symbol": symbol,
-            "current_price": price,
+            "current_price": price_f,
             "initial_price_3min": baseline_price,
             "previous_price_3m": baseline_price,
             "price_change_percentage_3min": price_change,
@@ -3414,7 +3578,7 @@ def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None)
     )
 
     if not formatted_data:
-        logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices))
+        logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices or {}))
 
     return formatted_data
 
@@ -3444,23 +3608,22 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         min_s = int(w.get("min_s", 55))
         max_s = int(w.get("max_s", 75))
 
-        target_ts_s = now_ts_s - target_s
-
-        # Iterate newest->oldest: pick the first point at/before target.
-        for ts, p in reversed(history):
+        best = None
+        best_err = None
+        for ts, p in history:
             try:
                 ts_i = int(ts)
                 p_f = float(p)
             except Exception:
                 continue
-            if ts_i > target_ts_s:
-                continue
             age_s = now_ts_s - ts_i
             if age_s < min_s or age_s > max_s:
-                return None
-            return ts_i, p_f, age_s
-
-        return None
+                continue
+            err = abs(float(age_s) - float(target_s))
+            if best is None or err < best_err:
+                best = (ts_i, p_f, age_s)
+                best_err = err
+        return best
 
     # Calculate changes for each symbol
     formatted_data = []
@@ -4380,6 +4543,7 @@ def data_aggregate():
         snap_bv_obj = _mw_get_component_snapshot('banner_1h_volume')
         snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
         snap_volume1h_obj = _mw_get_component_snapshot('volume1h')
+        snap_alerts_obj = _mw_get_component_snapshot('alerts')
 
         snap_g1, _g1_ts = _wrap_rows_and_ts(snap_g1_obj)
         snap_g3, _g3_ts = _wrap_rows_and_ts(snap_g3_obj)
@@ -4388,6 +4552,7 @@ def data_aggregate():
         snap_bv, _bv_ts = _wrap_rows_and_ts(snap_bv_obj)
         snap_v1h, _v1h_ts = _wrap_rows_and_ts(snap_v1h_obj)
         snap_volume1h, _vol1h_ts = _wrap_rows_and_ts(snap_volume1h_obj)
+        snap_alerts, _alerts_ts = _wrap_rows_and_ts(snap_alerts_obj)
 
         if snap_updated_at:
             # Best-effort latest_by_symbol map from snapshot rows.
@@ -4448,7 +4613,11 @@ def data_aggregate():
             # Get last-good metadata
             last_good_ts, stale_seconds, warming, warming_3m_meta, baseline_ts_3m_meta, baseline_age_3m_meta = _mw_get_last_good_metadata()
 
-            alerts_normalized = _normalize_alerts(list(alerts_log))
+            if isinstance(snap_alerts, list) and len(snap_alerts) > 0:
+                alerts_normalized = list(snap_alerts)
+                alerts_meta = {"sticky": False, "last_good_age_s": None}
+            else:
+                alerts_normalized, alerts_meta = _mw_get_alerts_normalized_with_sticky()
 
             payload = {
                 "gainers_1m": snap_g1 or [],
@@ -4473,6 +4642,8 @@ def data_aggregate():
                     "baselineTs3m": baseline_ts_3m,
                     "baselineAgeSeconds1m": baseline_meta_1m.get("age_seconds"),
                     "baselineAgeSeconds3m": baseline_meta_3m.get("age_seconds"),
+                    "alerts_sticky": bool(alerts_meta.get("sticky")),
+                    "alerts_last_good_age_s": alerts_meta.get("last_good_age_s"),
                     "partial": False,
                 },
                 "errors": {},
@@ -5414,18 +5585,24 @@ def get_recent_alerts():
         limit = int(request.args.get('limit', 50))
         if limit <= 0:
             limit = 50
-        # Return the same normalized objects the dashboard uses via /data
-        items = _normalize_alerts(list(alerts_log))[-limit:]
+
+        snap = _mw_get_component_snapshot('alerts')
+        items, _ts = _wrap_rows_and_ts(snap)
+        if isinstance(items, list) and items:
+            alerts_meta = {"sticky": False, "last_good_age_s": None}
+        else:
+            items, alerts_meta = _mw_get_alerts_normalized_with_sticky()
+
+        items = (items or [])[-limit:]
         return jsonify({
             'count': len(items),
             'limit': limit,
-            'alerts': items
+            'alerts': items,
+            'meta': alerts_meta,
         })
     except Exception as e:
         logging.error(f"Error in recent alerts endpoint: {e}")
         return jsonify({'error': str(e)}), 500
-
-# =============================================================================
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
 
 def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
@@ -6629,6 +6806,18 @@ def _compute_snapshots_from_cache():
             updates["volume_1h_candles"] = volume_1h_candles
         if do_heavy and isinstance(volume1h_snapshot, dict):
             updates["volume1h"] = volume1h_snapshot
+
+        # Alerts snapshot (main only). Trend alerts are debug-only and do not
+        # mix into the main UI stream.
+        try:
+            alerts_items, _alerts_meta = _mw_get_alerts_normalized_with_sticky()
+            updates["alerts"] = {
+                'component': 'alerts',
+                'data': (alerts_items or [])[-400:],
+                'last_updated': datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception:
+            pass
 
         _mw_set_component_snapshots(**updates)
         if do_heavy:

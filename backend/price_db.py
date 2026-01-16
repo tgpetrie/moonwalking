@@ -88,3 +88,21 @@ def get_price_at_or_before(product_id: str, target_ts: int) -> Optional[Tuple[in
         return None
     finally:
         conn.close()
+
+
+def get_price_at_or_after(product_id: str, target_ts: int) -> Optional[Tuple[int, float]]:
+    """Return (ts, price) for the nearest snapshot >= target_ts, or None."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT ts, price FROM price_snapshots
+            WHERE product_id = ? AND ts >= ?
+            ORDER BY ts ASC LIMIT 1
+        ''', (product_id, int(target_ts)))
+        row = cur.fetchone()
+        if row:
+            return int(row['ts']), float(row['price'])
+        return None
+    finally:
+        conn.close()
