@@ -43,6 +43,12 @@ const PUBLISH_BANNER_MS = Number(import.meta.env.VITE_PUBLISH_BANNER_MS || 12000
 // NOTE: row-level staggering moved into the 1m table layer; keep env var reserved for future use.
 const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 
+// Prevent UI "dropouts" when a later poll briefly returns an empty slice.
+// Keep the last non-empty slice for a short grace window.
+const KEEP_NONEMPTY_1M_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_1M_MS || 60_000);
+const KEEP_NONEMPTY_3M_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_3M_MS || 120_000);
+const KEEP_NONEMPTY_BANNER_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_BANNER_MS || 180_000);
+
 // Normalize backend response to canonical shape
 function normalizeApiData(payload) {
   const root = payload?.data && typeof payload.data === "object" ? payload.data : payload || {};
@@ -129,6 +135,26 @@ export function DataProvider({ children }) {
   const lastGoodRef = useRef(cachedNormalized);
   const lastGoodAtRef = useRef(cachedLastGoodAt || (cachedNormalized ? Date.now() : null));
 
+  const lastNonEmpty1mAtRef = useRef(
+    cachedNormalized && Array.isArray(cachedNormalized.gainers_1m) && cachedNormalized.gainers_1m.length
+      ? Date.now()
+      : 0
+  );
+  const lastNonEmpty3mAtRef = useRef(
+    cachedNormalized &&
+      ((Array.isArray(cachedNormalized.gainers_3m) && cachedNormalized.gainers_3m.length) ||
+        (Array.isArray(cachedNormalized.losers_3m) && cachedNormalized.losers_3m.length))
+      ? Date.now()
+      : 0
+  );
+  const lastNonEmptyBannerAtRef = useRef(
+    cachedNormalized &&
+      ((Array.isArray(cachedNormalized.banner_1h_price) && cachedNormalized.banner_1h_price.length) ||
+        (Array.isArray(cachedNormalized.banner_1h_volume) && cachedNormalized.banner_1h_volume.length))
+      ? Date.now()
+      : 0
+  );
+
   // Timing refs for gated publishing
   const last3mPublishRef = useRef(0);
   const lastBannerPublishRef = useRef(0);
@@ -214,37 +240,111 @@ export function DataProvider({ children }) {
         (Array.isArray(cached.banner_1h_price) && cached.banner_1h_price.length) ||
         (Array.isArray(cached.banner_1h_volume) && cached.banner_1h_volume.length));
 
+    const cached3mEmpty =
+      !cached ||
+      ((Array.isArray(cached.gainers_3m) ? cached.gainers_3m.length : 0) === 0 &&
+        (Array.isArray(cached.losers_3m) ? cached.losers_3m.length : 0) === 0);
+    const next3mHasAny =
+      (Array.isArray(norm.gainers_3m) ? norm.gainers_3m.length : 0) > 0 ||
+      (Array.isArray(norm.losers_3m) ? norm.losers_3m.length : 0) > 0;
+
+    const cachedBannersEmpty =
+      !cached ||
+      ((Array.isArray(cached.banner_1h_price) ? cached.banner_1h_price.length : 0) === 0 &&
+        (Array.isArray(cached.banner_1h_volume) ? cached.banner_1h_volume.length : 0) === 0);
+    const nextBannersHasAny =
+      (Array.isArray(norm.banner_1h_price) ? norm.banner_1h_price.length : 0) > 0 ||
+      (Array.isArray(norm.banner_1h_volume) ? norm.banner_1h_volume.length : 0) > 0;
+
     setError(null);
     setLoading(false);
 
-    // Use backend meta.warming as source of truth
-    setWarming(backendWarming);
-    setWarming3m(Boolean(backendWarming3m));
+    // Warming and staleness:
+    // If the backend temporarily returns an empty payload but we still have
+    // cached rows, avoid showing "warming" overlays on top of cached tables.
+    const cachedHas3m = !cached3mEmpty;
+    const effectiveWarming3m = next3mHasAny ? Boolean(backendWarming3m) : cachedHas3m ? false : Boolean(backendWarming3m);
+    const effectiveWarming = hasAny ? Boolean(backendWarming) : cacheHasAny ? warming : Boolean(backendWarming);
+
+    setWarming(effectiveWarming);
+    setWarming3m(effectiveWarming3m);
     setStaleSeconds(backendStaleSeconds);
     setLastGoodTs(backendLastGoodTs ?? lastGoodAtRef.current ?? null);
 
     if (!hasAny && cacheHasAny) {
-      // Keep warming state from backend
+      // Keep cached rows; do not replace snapshots
     } else {
-      latestNormalizedRef.current = norm;
-      persistLastGood(norm, baseUrl);
+      const cached1mLen = Array.isArray(cached?.gainers_1m) ? cached.gainers_1m.length : 0;
+      const next1mLen = Array.isArray(norm.gainers_1m) ? norm.gainers_1m.length : 0;
+      if (next1mLen > 0) lastNonEmpty1mAtRef.current = now;
+      const useCached1m =
+        next1mLen === 0 &&
+        cached1mLen > 0 &&
+        now - (lastNonEmpty1mAtRef.current || 0) < KEEP_NONEMPTY_1M_MS;
+      const merged1m = useCached1m ? cached.gainers_1m : norm.gainers_1m;
+
+      const cached3mLen =
+        (Array.isArray(cached?.gainers_3m) ? cached.gainers_3m.length : 0) +
+        (Array.isArray(cached?.losers_3m) ? cached.losers_3m.length : 0);
+      const next3mLen =
+        (Array.isArray(norm.gainers_3m) ? norm.gainers_3m.length : 0) +
+        (Array.isArray(norm.losers_3m) ? norm.losers_3m.length : 0);
+      if (next3mLen > 0) lastNonEmpty3mAtRef.current = now;
+      const useCached3m =
+        next3mLen === 0 &&
+        cached3mLen > 0 &&
+        now - (lastNonEmpty3mAtRef.current || 0) < KEEP_NONEMPTY_3M_MS;
+      const merged3mGainers = useCached3m ? cached.gainers_3m : norm.gainers_3m;
+      const merged3mLosers = useCached3m ? cached.losers_3m : norm.losers_3m;
+
+      const cachedBannerLen =
+        (Array.isArray(cached?.banner_1h_price) ? cached.banner_1h_price.length : 0) +
+        (Array.isArray(cached?.banner_1h_volume) ? cached.banner_1h_volume.length : 0);
+      const nextBannerLen =
+        (Array.isArray(norm.banner_1h_price) ? norm.banner_1h_price.length : 0) +
+        (Array.isArray(norm.banner_1h_volume) ? norm.banner_1h_volume.length : 0);
+      if (nextBannerLen > 0) lastNonEmptyBannerAtRef.current = now;
+      const useCachedBanners =
+        nextBannerLen === 0 &&
+        cachedBannerLen > 0 &&
+        now - (lastNonEmptyBannerAtRef.current || 0) < KEEP_NONEMPTY_BANNER_MS;
+      const mergedBannerPrice = useCachedBanners ? cached.banner_1h_price : norm.banner_1h_price;
+      const mergedBannerVolume = useCachedBanners ? cached.banner_1h_volume : norm.banner_1h_volume;
+
+      const mergedNorm = {
+        ...norm,
+        gainers_1m: merged1m,
+        gainers_3m: merged3mGainers,
+        losers_3m: merged3mLosers,
+        banner_1h_price: mergedBannerPrice,
+        banner_1h_volume: mergedBannerVolume,
+      };
+
+      latestNormalizedRef.current = mergedNorm;
+      persistLastGood(mergedNorm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
       setAlerts(Array.isArray(norm.alerts) ? norm.alerts : []);
 
       // 1m: every fetch (table layer handles "live feel" without partial commits)
-      commit1m(norm.gainers_1m);
+      commit1m(mergedNorm.gainers_1m);
 
       // 3m: publish every PUBLISH_3M_MS (default 12s)
-      if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
+      if (cached3mEmpty && next3mHasAny) {
         last3mPublishRef.current = now;
-        setThreeMin({ gainers: norm.gainers_3m, losers: norm.losers_3m });
+        setThreeMin({ gainers: mergedNorm.gainers_3m, losers: mergedNorm.losers_3m });
+      } else if (now - last3mPublishRef.current >= PUBLISH_3M_MS) {
+        last3mPublishRef.current = now;
+        setThreeMin({ gainers: mergedNorm.gainers_3m, losers: mergedNorm.losers_3m });
       }
 
       // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
-      if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
+      if (cachedBannersEmpty && nextBannersHasAny) {
         lastBannerPublishRef.current = now;
-        setBanners({ price: norm.banner_1h_price, volume: norm.banner_1h_volume });
+        setBanners({ price: mergedNorm.banner_1h_price, volume: mergedNorm.banner_1h_volume });
+      } else if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
+        lastBannerPublishRef.current = now;
+        setBanners({ price: mergedNorm.banner_1h_price, volume: mergedNorm.banner_1h_volume });
       }
     }
 
@@ -263,6 +363,14 @@ export function DataProvider({ children }) {
     inFlightRef.current = true;
 
     const candidates = [];
+
+    // In local dev, prefer the canonical backend port (:5003) even if a
+    // previous session cached a different localhost port.
+    const isLocalBase = (base) =>
+      typeof base === "string" &&
+      /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base.replace(/\/$/, ""));
+    const preferredLocal = "http://127.0.0.1:5003";
+    if (!backendBase || isLocalBase(backendBase)) candidates.push(preferredLocal);
     if (backendBase) candidates.push(backendBase);
     try {
       const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(MW_BACKEND_KEY) : null;

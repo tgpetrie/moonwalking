@@ -46,6 +46,8 @@ function getModePreset() {
 const PRESET = getModePreset();
 const COMMIT_MS = Math.max(420, Number(PRESET.commitMs) || 420);
 const SPRING_CONFIG = PRESET.spring;
+const RANK_STAGGER_STEP_MS = 32;
+const RANK_STAGGER_MAX_MS = 360;
 
 const SkeletonGrid1m = ({ rows = 4 }) => {
   return (
@@ -195,6 +197,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           return [];
         })();
 
+
     const sorted = list
       .map((row) => {
         const symbol = row?.symbol ?? row?.ticker ?? row?.base ?? row?.product_id ?? "";
@@ -223,9 +226,13 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           current_price: row?.current_price ?? row?.price ?? row?.current,
         };
       })
-      .filter((r) => Number(r.change_1m) > 0)
-      .sort((a, b) => Number(b.change_1m) - Number(a.change_1m));
-
+      .filter((r) => Math.abs(Number(r.change_1m)) > 0)
+      .sort((a, b) => {
+        const av = Math.abs(Number(a.change_1m));
+        const bv = Math.abs(Number(b.change_1m));
+        if (bv !== av) return bv - av;
+        return sortByPct1mThenSymbol(a, b);
+      });
     const seen = new Set();
     const deduped = [];
     sorted.forEach((row) => {
@@ -244,14 +251,15 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   }, [data, tokensProp]);
 
   const MAX_ROWS_PER_COLUMN = 4;
-  const MAX_VISIBLE_COLLAPSED = 8;
-  const MAX_VISIBLE_EXPANDED = 16;
+  const MAX_VISIBLE_COLLAPSED = 10;
+  const MAX_VISIBLE_EXPANDED = 20;
 
   const [expanded, setExpanded] = useState(false);
   const prevByIdRef = useRef(new Map());
   const pulseTimersRef = useRef(new Map());
   const [pulsePriceById, setPulsePriceById] = useState({});
   const [pulsePctById, setPulsePctById] = useState({});
+  const [rankById, setRankById] = useState({});
 
   const filteredRows = useMemo(
     () =>
@@ -264,6 +272,11 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
 
   const orderedRows = useReorderCadence(filteredRows, sortByPct1mThenSymbol, COMMIT_MS);
   const displayRows = useMemo(() => orderedRows.slice(0, maxVisible), [orderedRows, maxVisible]);
+  const displayOrderSignature = useMemo(
+    () => displayRows.map((row) => getRowIdentity(row) || "").join("|"),
+    [displayRows]
+  );
+  const rankedRows = useMemo(() => displayRows, [displayOrderSignature]);
 
   useEffect(() => {
     return () => {
@@ -320,17 +333,56 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     }
   }, [displayRows]);
 
+  useEffect(() => {
+    // Stagger rank updates so reorders ripple row-by-row instead of snapping all at once.
+    const timers = [];
+    const activeIds = [];
+
+    rankedRows.forEach((row, index) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      activeIds.push(id);
+      const delay = Math.min(RANK_STAGGER_MAX_MS, index * RANK_STAGGER_STEP_MS);
+      const t = setTimeout(() => {
+        setRankById((prev) => {
+          if (prev[id] === index + 1) return prev;
+          return { ...prev, [id]: index + 1 };
+        });
+      }, delay);
+      timers.push(t);
+    });
+
+    setRankById((prev) => {
+      if (!activeIds.length) return {};
+      let changed = prev ? Object.keys(prev).length !== activeIds.length : true;
+      const next = {};
+      for (const id of activeIds) {
+        if (prev && prev[id] !== undefined) {
+          next[id] = prev[id];
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [rankedRows]);
+
   const rowsWithPulse = useMemo(
     () =>
       displayRows.map((row) => {
         const id = getRowIdentity(row);
         return {
           row,
+          rank: id && rankById?.[id] ? rankById[id] : undefined,
           priceChanged: id ? Boolean(pulsePriceById?.[id]) : false,
           pctChanged: id ? Boolean(pulsePctById?.[id]) : false,
         };
       }),
-    [displayRows, pulsePriceById, pulsePctById]
+    [displayRows, pulsePriceById, pulsePctById, rankById]
   );
 
   const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
@@ -364,9 +416,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     );
   }
 
-  const leftLimit = displayRows.length > MAX_VISIBLE_COLLAPSED ? 8 : 4;
+  const useTwoColumns = displayRows.length > MAX_ROWS_PER_COLUMN;
+  const leftLimit = useTwoColumns ? Math.ceil(displayRows.length / 2) : displayRows.length;
   const leftColumn = rowsWithPulse.slice(0, leftLimit);
-  const rightColumn = rowsWithPulse.slice(leftLimit, leftLimit * 2);
+  const rightColumn = useTwoColumns ? rowsWithPulse.slice(leftLimit) : [];
   const hasSecondColumn = rightColumn.length > 0;
   const density = hasSecondColumn ? "normal" : "tight";
 
@@ -375,8 +428,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
       <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
         <div className="bh-table">
           <AnimatePresence initial={false} mode="popLayout">
-            {leftColumn.map(({ row: token, priceChanged, pctChanged }, index) => {
+            {leftColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
+              const displayRank = rank ?? index + 1;
               const rowKey = buildRowKey(token);
+              const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
               return (
                 <motion.div
                   key={rowKey}
@@ -385,11 +440,11 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={SPRING_CONFIG}
+                  transition={rowTransition}
                 >
                   <TokenRowUnified
                     token={token}
-                    rank={index + 1}
+                    rank={displayRank}
                     changeField="change_1m"
                     side="gainer"
                     renderAs="div"
@@ -399,7 +454,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     density={density}
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
-                    pulseDelayMs={Math.min(240, index * 24)}
+                    pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                     activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                   />
                 </motion.div>
@@ -411,9 +466,11 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         {hasSecondColumn && (
           <div className="bh-table">
             <AnimatePresence initial={false} mode="popLayout">
-              {rightColumn.map(({ row: token, priceChanged, pctChanged }, index) => {
+              {rightColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
                 const absoluteIndex = leftLimit + index;
+                const displayRank = rank ?? absoluteIndex + 1;
                 const rowKey = buildRowKey(token);
+                const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
                 return (
                   <motion.div
                     key={rowKey}
@@ -422,11 +479,11 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    transition={SPRING_CONFIG}
+                    transition={rowTransition}
                   >
                     <TokenRowUnified
                       token={token}
-                      rank={absoluteIndex + 1}
+                      rank={displayRank}
                       changeField="change_1m"
                       side="gainer"
                       renderAs="div"
@@ -436,7 +493,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       density={density}
                       pulsePrice={priceChanged}
                       pulsePct={pctChanged}
-                      pulseDelayMs={Math.min(240, absoluteIndex * 24)}
+                      pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                       activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                     />
                   </motion.div>

@@ -213,7 +213,7 @@ export default function DashboardShell({ onInfo }) {
               {/* 1-min Gainers */}
               <div className="board-section">
                 <div className="board-section-header board-section-header--center">
-                  <div className="board-section-title board-section-title--center">TOP GAINERS (1M)</div>
+                  <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
                 </div>
                 <GainersTable1Min
                   tokens={gainers1m}

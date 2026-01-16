@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useData } from "../context/DataContext";
 
 const COINBASE_ORIGIN = "https://www.coinbase.com";
 

@@ -777,8 +777,21 @@ _TOP_MOVERS_BAR_SWR_STALE = float(os.environ.get('TOP_MOVERS_BAR_SWR_STALE', str
 @ttl_cache(ttl=int(_GAINERS_1M_SWR_TTL))
 def _get_gainers_table_1min_swr():
     data = get_crypto_data_1min()
+    baseline_meta_1m = _get_baseline_meta_1m()
+    warming_1m = not bool(baseline_meta_1m.get("ready"))
+    baseline_ts_1m = baseline_meta_1m.get("baseline_ts")
     if not data:
-        return None
+        return {
+            'component': 'gainers_table_1min',
+            'data': [],
+            'count': 0,
+            'table_type': 'gainers',
+            'time_frame': '1_minute',
+            'update_interval': 10000,
+            'last_updated': datetime.now().isoformat(),
+            'warming': warming_1m,
+            'baseline_ts': baseline_ts_1m,
+        }
     gainers = data.get('gainers', [])
     limit = int(CONFIG.get("ONE_MIN_MAX_COINS", 35))
     gainers_table_data = []
@@ -823,6 +836,8 @@ def _get_gainers_table_1min_swr():
         'time_frame': '1_minute',
         'update_interval': 10000,
         'last_updated': datetime.now().isoformat(),
+        'warming': warming_1m,
+        'baseline_ts': baseline_ts_1m,
         **({'source': data.get('source')} if isinstance(data, dict) and data.get('source') else {}),
         **({'seed': True} if isinstance(data, dict) and data.get('seed') else {})
     }
@@ -2195,6 +2210,10 @@ price_history_1hour = defaultdict(lambda: deque(maxlen=80))  # 1h tracking: 80 s
 _BASELINE_3M_LOCK = threading.Lock()
 _BASELINE_3M_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
 
+# Track readiness of the 1m baseline
+_BASELINE_1M_LOCK = threading.Lock()
+_BASELINE_1M_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
+
 # Track readiness of 1h baseline
 _BASELINE_1H_LOCK = threading.Lock()
 _BASELINE_1H_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
@@ -2215,6 +2234,18 @@ def _get_baseline_meta_3m():
         "baseline_ts": baseline_ts,
         "age_seconds": baseline_age
     }
+
+
+def _set_baseline_meta_1m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+    with _BASELINE_1M_LOCK:
+        _BASELINE_1M_META["ready"] = bool(ready)
+        _BASELINE_1M_META["baseline_ts"] = baseline_ts
+        _BASELINE_1M_META["age_seconds"] = age_seconds
+
+
+def _get_baseline_meta_1m():
+    with _BASELINE_1M_LOCK:
+        return dict(_BASELINE_1M_META)
 
 def _set_baseline_meta_1h(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
     with _BASELINE_1H_LOCK:
@@ -3394,13 +3425,50 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
             price_history_1min[symbol].append((sample_ts, price))
             price_history_1hour[symbol].append((sample_ts, price))  # Track 1h history
 
+    def _history_baseline_1m(symbol: str):
+        """Fallback baseline from in-memory 1m history when DB doesn't have a usable point."""
+        try:
+            history = price_history_1min[symbol]
+        except Exception:
+            return None
+        if not history or len(history) < 2:
+            return None
+
+        w = BASELINE_WINDOWS.get("1m") or {}
+        target_s = int(w.get("target_s", 60))
+        min_s = int(w.get("min_s", 55))
+        max_s = int(w.get("max_s", 75))
+
+        target_ts_s = now_ts_s - target_s
+
+        # Iterate newest->oldest: pick the first point at/before target.
+        for ts, p in reversed(history):
+            try:
+                ts_i = int(ts)
+                p_f = float(p)
+            except Exception:
+                continue
+            if ts_i > target_ts_s:
+                continue
+            age_s = now_ts_s - ts_i
+            if age_s < min_s or age_s > max_s:
+                return None
+            return ts_i, p_f, age_s
+
+        return None
+
     # Calculate changes for each symbol
     formatted_data = []
+    baseline_ready_any = False
+    earliest_baseline_ts = None
+
     for symbol, price in current_prices.items():
         if price <= 0:
             continue
-            
+
         baseline = _db_baseline_for_window(symbol, now_ts_s, "1m")
+        if not baseline:
+            baseline = _history_baseline_1m(symbol)
         if not baseline:
             continue
 
@@ -3408,12 +3476,16 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         if baseline_price <= 0:
             continue
 
+        baseline_ready_any = True
+        if earliest_baseline_ts is None or baseline_ts_s < earliest_baseline_ts:
+            earliest_baseline_ts = baseline_ts_s
+
         # Calculate percentage change
         price_change = pct_change(price, baseline_price)
         actual_interval_minutes = baseline_age_s / 60.0
-        
+
         # Only include significant changes (configurable threshold)
-        if abs(price_change) >= 0.01: # Reverted to original threshold
+        if abs(price_change) >= 0.01:  # Reverted to original threshold
             formatted_data.append({
                 "symbol": symbol,
                 "current_price": price,
@@ -3425,7 +3497,17 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
                 "warming_1m": False,
                 "latest_ts_ms": int(now_ts_s * 1000),
             })
-    
+
+    age_seconds = (now_ts_s - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    _set_baseline_meta_1m(
+        ready=baseline_ready_any,
+        baseline_ts=float(earliest_baseline_ts) if earliest_baseline_ts is not None else None,
+        age_seconds=float(age_seconds) if age_seconds is not None else None,
+    )
+
+    if not formatted_data:
+        logging.warning("1m_eligibility_empty: total_prices=%d", len(current_prices))
+
     return formatted_data
 
 def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = None):
@@ -4280,6 +4362,7 @@ def data_aggregate():
         errors: dict[str, str] = {}
         rows_by_symbol: dict[str, dict] = {}
         baseline_meta_3m = _get_baseline_meta_3m()
+        baseline_meta_1m = _get_baseline_meta_1m()
 
         # ------------------------------------------------------------------
         # Cache-only fast path: do NOT call any SWR helpers here.
@@ -4291,6 +4374,7 @@ def data_aggregate():
         snap_b1h_obj = _mw_get_component_snapshot('banner_1h_price')
         snap_bv_obj = _mw_get_component_snapshot('banner_1h_volume')
         snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
+        snap_volume1h_obj = _mw_get_component_snapshot('volume1h')
 
         snap_g1, _g1_ts = _wrap_rows_and_ts(snap_g1_obj)
         snap_g3, _g3_ts = _wrap_rows_and_ts(snap_g3_obj)
@@ -4298,6 +4382,7 @@ def data_aggregate():
         snap_b1h, _b1h_ts = _wrap_rows_and_ts(snap_b1h_obj)
         snap_bv, _bv_ts = _wrap_rows_and_ts(snap_bv_obj)
         snap_v1h, _v1h_ts = _wrap_rows_and_ts(snap_v1h_obj)
+        snap_volume1h, _vol1h_ts = _wrap_rows_and_ts(snap_volume1h_obj)
 
         if snap_updated_at:
             # Best-effort latest_by_symbol map from snapshot rows.
@@ -4321,6 +4406,27 @@ def data_aggregate():
 
             warming_3m = not bool(baseline_meta_3m.get("ready"))
             baseline_ts_3m = baseline_meta_3m.get("baseline_ts")
+
+            warming_1m = not bool(baseline_meta_1m.get("ready"))
+            baseline_ts_1m = baseline_meta_1m.get("baseline_ts")
+            try:
+                if isinstance(snap_g1_obj, dict) and snap_g1_obj.get("warming") is not None:
+                    warming_1m = bool(snap_g1_obj.get("warming"))
+                if baseline_ts_1m is None and isinstance(snap_g1_obj, dict):
+                    baseline_ts_1m = snap_g1_obj.get("baseline_ts") or baseline_ts_1m
+            except Exception:
+                pass
+
+            # If we already have rendered table rows in the snapshot, treat that
+            # window as "ready" for UI purposes (avoids showing WARMING overlays
+            # alongside populated tables).
+            try:
+                if isinstance(snap_g1, list) and len(snap_g1) > 0:
+                    warming_1m = False
+                if (isinstance(snap_g3, list) and len(snap_g3) > 0) or (isinstance(snap_l3, list) and len(snap_l3) > 0):
+                    warming_3m = False
+            except Exception:
+                pass
             try:
                 if isinstance(snap_g3_obj, dict) and snap_g3_obj.get("warming") is not None:
                     warming_3m = bool(snap_g3_obj.get("warming"))
@@ -4346,7 +4452,7 @@ def data_aggregate():
                 "banner_1h_price": snap_b1h or [],
                 "banner_1h_volume": snap_bv or [],
                 "volume_1h_candles": snap_v1h or [],
-                "volume1h": [],
+                "volume1h": snap_volume1h or [],
                 "alerts": alerts_normalized,
                 "latest_by_symbol": latest_by_symbol,
                 "updated_at": snap_updated_at,
@@ -4356,8 +4462,11 @@ def data_aggregate():
                     "lastGoodTs": last_good_ts,
                     "staleSeconds": stale_seconds,
                     "warming": warming,
+                    "warming_1m": warming_1m,
                     "warming_3m": warming_3m,
+                    "baselineTs1m": baseline_ts_1m,
                     "baselineTs3m": baseline_ts_3m,
+                    "baselineAgeSeconds1m": baseline_meta_1m.get("age_seconds"),
                     "baselineAgeSeconds3m": baseline_meta_3m.get("age_seconds"),
                     "partial": False,
                 },
@@ -4380,18 +4489,12 @@ def data_aggregate():
                 "banner_1h_price": payload["banner_1h_price"],
                 "banner_1h_volume": payload["banner_1h_volume"],
                 "volume_1h_candles": payload["volume_1h_candles"],
-                "volume1h": [],
+                "volume1h": payload["volume1h"],
                 "alerts": alerts_normalized,
                 "latest_by_symbol": payload["latest_by_symbol"],
                 "updated_at": payload["updated_at"],
             }
-            try:
-                volume1h_rows = _volume1h_compute_ranked(payload)
-                payload["volume1h"] = volume1h_rows
-                payload["data"]["volume1h"] = volume1h_rows
-                payload["coverage"]["volume1h"] = len(volume1h_rows)
-            except Exception as e:
-                logging.debug(f"volume1h compute skip: {e}")
+            payload["coverage"]["volume1h"] = len(payload["volume1h"] or [])
 
             resp = jsonify(payload)
             resp.headers["Cache-Control"] = "no-store, max-age=0"
@@ -4414,11 +4517,14 @@ def data_aggregate():
             "meta": {
                 "snapshot_only": True,
                 "warming": warming,
+                "warming_1m": True,
                 "warming_3m": warming_3m_empty if warming_3m_empty is not None else True,
                 "ts": warming_ts,
                 "lastGoodTs": last_good_ts,
                 "staleSeconds": stale_seconds,
+                "baselineTs1m": None,
                 "baselineTs3m": baseline_ts_3m_empty,
+                "baselineAgeSeconds1m": None,
                 "baselineAgeSeconds3m": baseline_age_3m_empty,
                 "partial": False,
             },
@@ -5316,7 +5422,7 @@ def get_recent_alerts():
 # =============================================================================
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
 
-def get_crypto_data_1min(current_prices=None):
+def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
     """Main function to fetch and process 1-minute crypto data.
 
     Accepts optional `current_prices` snapshot to avoid refetching when the
@@ -5346,22 +5452,29 @@ def get_crypto_data_1min(current_prices=None):
         return None
     current_time = time.time()
     snapshot_ts_s = None
-    # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot
+    # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot.
+    # Callers that are responsible for appending new history (e.g., the background
+    # price fetch loop) should pass force_refresh=True.
     refresh_window = CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)
-    if one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
+    if (not force_refresh) and one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
         return one_minute_cache['data']
     try:
-        # Reuse prices from background thread if fetched recently (<10s) to avoid parallel bursts
-        prices_age_limit = 10
-        if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
-            current_prices = last_current_prices['data']
-            snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
+        # If callers provided a price snapshot, prefer it (cache-only path).
+        # Otherwise reuse the freshest cached price set or fetch.
+        if isinstance(current_prices, dict) and current_prices:
+            snapshot_ts_s = int(current_time)
         else:
-            current_prices = get_current_prices()
-            if current_prices:
-                last_current_prices['data'] = current_prices
-                last_current_prices['timestamp'] = current_time
-                snapshot_ts_s = int(current_time)
+            # Reuse prices from background thread if fetched recently (<10s) to avoid parallel bursts
+            prices_age_limit = 10
+            if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
+                current_prices = last_current_prices['data']
+                snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
+            else:
+                current_prices = get_current_prices()
+                if current_prices:
+                    last_current_prices['data'] = current_prices
+                    last_current_prices['timestamp'] = current_time
+                    snapshot_ts_s = int(current_time)
         if not current_prices:
             logging.warning("No current prices available for 1-min data")
             return None
@@ -5371,8 +5484,17 @@ def get_crypto_data_1min(current_prices=None):
 
         crypto_data = calculate_1min_changes(current_prices, snapshot_ts_s)
         if not crypto_data:
-            # On cold start we may have <2 samples per symbol; return an empty, cacheable payload instead of None (prevents 503s)
-            logging.warning(f"No 1-min crypto data available after calculation - {len(current_prices)} current prices, {len(price_history_1min)} symbols with history")
+            # On cold start we may have <2 samples per symbol.
+            # IMPORTANT: don't clobber a previously-good cache with empty output
+            # during transient warmups/timeouts; return the last good data instead.
+            logging.warning(
+                "No 1-min crypto data available after calculation - %s current prices, %s symbols with history",
+                len(current_prices),
+                len(price_history_1min),
+            )
+            prior = one_minute_cache.get('data')
+            if isinstance(prior, dict) and ((prior.get('gainers') or []) or (prior.get('losers') or [])):
+                return prior
             empty_result = {
                 "gainers": [],
                 "losers": [],
@@ -5381,7 +5503,7 @@ def get_crypto_data_1min(current_prices=None):
                 "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
                 "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
                 "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
-                "retained": 0
+                "retained": 0,
             }
             one_minute_cache['data'] = empty_result
             one_minute_cache['timestamp'] = current_time
@@ -6319,9 +6441,21 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
         logging.debug(f"Auto logging skipped: {e}")
 
 
+# Throttle heavier snapshot computations (volume banners/candles).
+_MW_LAST_HEAVY_SNAPSHOT_AT = 0.0
+
+
 def _compute_snapshots_from_cache():
     """Recompute snapshots using existing cached prices (fast, no network calls)."""
     try:
+        # Throttle heavy snapshot work (volume banners/candles). The compute loop
+        # runs frequently (e.g. every ~8s); keeping this function lightweight is
+        # critical for a "live" UI.
+        global _MW_LAST_HEAVY_SNAPSHOT_AT
+        heavy_interval_s = float(os.environ.get('MW_HEAVY_SNAPSHOT_INTERVAL_S', '30'))
+        now_s = time.time()
+        do_heavy = (now_s - _MW_LAST_HEAVY_SNAPSHOT_AT) >= heavy_interval_s
+
         # Get cached prices (no network fetch)
         cached_prices = last_current_prices.get('data') or {}
 
@@ -6349,7 +6483,7 @@ def _compute_snapshots_from_cache():
         except Exception:
             l3m = None
 
-        # Banner snapshots
+        # Banner snapshots (lightweight)
         try:
             banner_rows = (data_3min or {}).get('banner') or []
             b1h_price_rows = []
@@ -6372,17 +6506,19 @@ def _compute_snapshots_from_cache():
         except Exception:
             banner_1h_price = None
 
-        try:
-            vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
-            banner_1h_volume = {
-                'component': 'banner_1h_volume',
-                'data': vb_rows or [],
-                'last_updated': vb_ts or datetime.now().isoformat(),
-            }
-        except Exception:
-            banner_1h_volume = None
+        banner_1h_volume = None
+        if do_heavy:
+            try:
+                vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
+                banner_1h_volume = {
+                    'component': 'banner_1h_volume',
+                    'data': vb_rows or [],
+                    'last_updated': vb_ts or datetime.now().isoformat(),
+                }
+            except Exception:
+                banner_1h_volume = None
 
-        # Candle volume snapshot (uses existing cache, no fetches)
+        # Candle volume snapshot (heaviest: involves per-symbol volume cache reads)
         display_symbols = set()
         try:
             for coin in (banner_rows or [])[:20]:
@@ -6408,17 +6544,34 @@ def _compute_snapshots_from_cache():
                     if sym:
                         display_symbols.add(sym)
 
-            vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
-            vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
+            volume_1h_candles = None
+            if do_heavy and display_symbols:
+                vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
+                vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
 
-            volume_1h_candles = {
-                'component': 'volume_1h_candles',
-                'data': vol1h_results[:20],
-                'last_updated': datetime.now().isoformat(),
-            }
+                volume_1h_candles = {
+                    'component': 'volume_1h_candles',
+                    'data': vol1h_results[:20],
+                    'last_updated': datetime.now().isoformat(),
+                }
         except Exception as e:
             logging.debug(f"Candle snapshot skip: {e}")
             volume_1h_candles = None
+
+        # 1h volume movers snapshot (SQLite-backed): compute in background only
+        volume1h_snapshot = None
+        if do_heavy:
+            try:
+                payload = _volume1h_build_payload_snapshot()
+                rows = _volume1h_compute_ranked(payload) or []
+                volume1h_snapshot = {
+                    'component': 'volume1h',
+                    'data': rows,
+                    'last_updated': datetime.now().isoformat(),
+                }
+            except Exception as e:
+                logging.debug(f"volume1h snapshot skip: {e}")
+                volume1h_snapshot = None
 
             # Fallback: if banner snapshot is empty but we have candle rows, build
             # a banner-compatible snapshot so the UI can show seeded rows during dev.
@@ -6452,16 +6605,28 @@ def _compute_snapshots_from_cache():
         except Exception:
             pass
 
-        # Update snapshots
-        _mw_set_component_snapshots(
-            gainers_1m=g1m,
-            gainers_3m=g3m,
-            losers_3m=l3m,
-            banner_1h_price=banner_1h_price,
-            banner_1h_volume=banner_1h_volume,
-            volume_1h_candles=volume_1h_candles,
-            updated_at=datetime.now().isoformat(),
-        )
+        # Update snapshots.
+        # IMPORTANT: avoid overwriting existing snapshots with None because that
+        # can cause the UI to flap to "STALE" even though prior data exists.
+        updates = {"updated_at": datetime.now().isoformat()}
+        if isinstance(g1m, dict):
+            updates["gainers_1m"] = g1m
+        if isinstance(g3m, dict):
+            updates["gainers_3m"] = g3m
+        if isinstance(l3m, dict):
+            updates["losers_3m"] = l3m
+        if isinstance(banner_1h_price, dict):
+            updates["banner_1h_price"] = banner_1h_price
+        if do_heavy and isinstance(banner_1h_volume, dict):
+            updates["banner_1h_volume"] = banner_1h_volume
+        if do_heavy and isinstance(volume_1h_candles, dict):
+            updates["volume_1h_candles"] = volume_1h_candles
+        if do_heavy and isinstance(volume1h_snapshot, dict):
+            updates["volume1h"] = volume1h_snapshot
+
+        _mw_set_component_snapshots(**updates)
+        if do_heavy:
+            _MW_LAST_HEAVY_SNAPSHOT_AT = now_s
         logging.debug("Snapshot recomputed from cached prices")
 
     except Exception as e:
@@ -6499,7 +6664,7 @@ def _fetch_prices_and_update_history():
             # Update 1m history with fresh prices
             if CONFIG.get('ENABLE_1MIN', True):
                 try:
-                    _ = get_crypto_data_1min(current_prices=current_prices)
+                    _ = get_crypto_data_1min(current_prices=current_prices, force_refresh=True)
                     logging.debug("1m history updated with fresh prices")
                 except Exception as e:
                     logging.error(f"1m history update failed: {e}")

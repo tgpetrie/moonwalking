@@ -124,6 +124,11 @@ html, body {
   position: relative;
 }
 
+/* 1m: when only a single column is rendered (≤4 rows), use the full width */
+.panel-row--1m.panel-row--single {
+  grid-template-columns: 1fr;
+}
+
 /* Ensure both panels occupy their full grid cell (prevents "hugging"/collapsed width) */
 .panel-row--1m > *,
 .panel-row--3m > * {
@@ -154,7 +159,8 @@ html, body {
 .price-now,
 .price-current,
 .token-price-current {
-  /* legacy price selector hooks (intentionally empty) */
+  /* legacy price selector hooks */
+  --bh-legacy-price-hook: 0;
 }
 
 html,
@@ -4154,7 +4160,10 @@ body {
 
 /* Base rabbit: almost invisible, darkened, no color-pop */
 .board-core .rabbit-bg {
-  opacity: 0.06;                 /* near-black-on-black, but violet */
+  /* IMPORTANT: keep this fully transparent unless active.
+     Otherwise it behaves like a second page background and can create a hard seam
+     when stacking contexts/containers clip differently. */
+  opacity: 0;
   filter: saturate(0.55) brightness(0.55) contrast(1.15);
   mix-blend-mode: soft-light;    /* keeps it “in the fabric” */
   pointer-events: none;
@@ -4195,3 +4204,88 @@ body {
 
 /* Optional: if you want it even tighter (almost row height),
    replace 160px 58px above with 140px 46px */
+
+/* =========================================================
+   SINGLE BACKGROUND PAINTER (BODY ONLY)
+   Prevent "two canvases stacked" seams by ensuring inner wrappers never
+   paint their own page-sized gradients/overlays.
+   ========================================================= */
+
+html,
+body {
+  background: var(--bh-bg, #05050a);
+  background-image: url("/background-linear.svg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-attachment: fixed;
+}
+
+/* Everything inside is forced transparent (no second canvas) */
+#root,
+.bh-shell,
+.bh-app,
+.bh-main,
+.dashboard-main,
+.bh-board,
+.dashboard-shell,
+.dashboard,
+.bh-board-shell,
+.board-shell,
+.board-wrapper,
+.board-core,
+.panel,
+.bh-panel,
+.panel-shell,
+.panel-inner,
+.bh-rows,
+.bh-table,
+.bh-topbanner,
+.bh-banner-scroll,
+.bh-banner-track {
+  background: transparent !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Kill pseudo overlays that can paint “invisible” gradients */
+#root::before,
+#root::after,
+.bh-shell::before,
+.bh-shell::after,
+.bh-app::before,
+.bh-app::after,
+.bh-main::before,
+.bh-main::after,
+.dashboard-main::before,
+.dashboard-main::after,
+.bh-board::before,
+.bh-board::after,
+.dashboard-shell::before,
+.dashboard-shell::after,
+.bh-board-shell::before,
+.bh-board-shell::after,
+.board-shell::before,
+.board-shell::after,
+.board-wrapper::before,
+.board-wrapper::after,
+.board-core::before,
+.board-core::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Prevent accidental stacking contexts that clip overlays differently */
+.bh-board,
+.board-wrapper,
+.board-core {
+  isolation: auto !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  transform: none !important;
+  overflow: visible !important;
+}
