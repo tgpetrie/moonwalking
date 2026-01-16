@@ -13,11 +13,12 @@ import { useDashboardData } from "../hooks/useDashboardData";
 import { useIntelligence } from "../context/IntelligenceContext.jsx";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
+import AlertsDock from "./AlertsDock.jsx";
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useDashboardData();
   const { heartbeatPulse: intelPulse } = useIntelligence();
   const combinedPulse = Boolean(heartbeatPulse || intelPulse);
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
@@ -257,7 +258,7 @@ export default function DashboardShell({ onInfo }) {
             <section className="bh-board-row-full">
               <div className="bh-panel bh-panel--rail">
                 <AnomalyStream
-                  data={{ gainers_1m: gainers1m, losers_3m: losers3m, updated_at: lastUpdated }}
+                  data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
                   volumeData={bannerVolume1h || []}
                 />
               </div>
@@ -294,6 +295,8 @@ export default function DashboardShell({ onInfo }) {
           setSentimentSymbol(null);
         }}
       />
+
+      <AlertsDock />
     </div>
   );
 }

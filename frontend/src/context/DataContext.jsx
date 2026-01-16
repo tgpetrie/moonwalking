@@ -59,10 +59,27 @@ function normalizeApiData(payload) {
   const banner_1h_price  = root.banner_1h_price  ?? root.banner_1h ?? root.top_banner_1h ?? [];
   const banner_1h_volume = root.banner_1h_volume ?? root.volume_banner_1h ?? [];
   const volume1h = root.volume1h ?? [];
-  const alerts = root.alerts ?? [];
+  const alertsRaw = root.alerts ?? [];
 
   const latest_by_symbol = root.latest_by_symbol ?? {};
   const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
+
+  const normalizeAlert = (a) => {
+    if (!a || typeof a !== "object") return null;
+    const symRaw = a.symbol ?? a.product_id ?? a.pair ?? a.ticker ?? "";
+    const product_id = String(symRaw || "").toUpperCase();
+    const display = product_id.replace(/-USD$|-USDT$|-PERP$/i, "");
+    return {
+      ...a,
+      // UI display symbol must never include -USD; keep product_id for links.
+      symbol: display,
+      product_id,
+    };
+  };
+
+  const alerts = Array.isArray(alertsRaw)
+    ? alertsRaw.map(normalizeAlert).filter(Boolean)
+    : [];
 
   return {
     gainers_1m: Array.isArray(gainers_1m) ? gainers_1m : [],
@@ -71,7 +88,7 @@ function normalizeApiData(payload) {
     banner_1h_price: Array.isArray(banner_1h_price) ? banner_1h_price : [],
     banner_1h_volume: Array.isArray(banner_1h_volume) ? banner_1h_volume : [],
     volume1h: Array.isArray(volume1h) ? volume1h : [],
-    alerts: Array.isArray(alerts) ? alerts : [],
+    alerts,
     latest_by_symbol: typeof latest_by_symbol === "object" && latest_by_symbol ? latest_by_symbol : {},
     updated_at,
     meta: root.meta ?? payload?.meta ?? {},

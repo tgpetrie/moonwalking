@@ -30,9 +30,10 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, loading, oneMinRows, threeMin, banners, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useData();
+  const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useData();
 
   const payload = data || {};
+  const alertsList = Array.isArray(alerts) && alerts.length ? alerts : Array.isArray(payload.alerts) ? payload.alerts : [];
 
   // Use the granular slices from DataContext (which have independent publish cadences)
   const g1 = Array.isArray(oneMinRows) && oneMinRows.length > 0 ? oneMinRows : Array.isArray(payload.gainers_1m) ? payload.gainers_1m : [];
@@ -85,6 +86,7 @@ export function useDashboardData() {
 
   return {
     raw: data,
+    alerts: alertsList,
     gainers1m,
     gainers3m,
     losers3m,

@@ -2919,6 +2919,10 @@ def _normalize_alerts(alerts: list[dict]) -> list[dict]:
 def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
     """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
     try:
+        # MW_SPEC: alerts must not be polluted by generic trend/score feeds.
+        # Keep this logic behind an explicit flag for debugging only.
+        if not bool(CONFIG.get('ALERTS_ENABLE_TREND_ALERTS', False)):
+            return
         thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [2, 3])
         if direction == 'flat' or not thresholds:
             return
@@ -2937,7 +2941,8 @@ def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int
                 'direction': direction,
                 'streak': int(streak),
                 'score': round(float(score or 0.0), 3),
-                'message': msg
+                'message': msg,
+                'source': 'trend_streak',
             })
             alerts_state.setdefault(scope, {})[symbol] = now
             # Mirror into insights log if available (best-effort)
@@ -5401,7 +5406,7 @@ def get_top_movers_bar():
         return jsonify({"error": str(e)}), 500
 
 # -----------------------------------------------------------------------------
-# Alerts API: expose recent trend alerts with cooldown-based hygiene
+# Alerts API: expose recent Moonwalking alerts (normalized)
 # -----------------------------------------------------------------------------
 @app.route('/api/alerts/recent')
 def get_recent_alerts():
@@ -5409,7 +5414,8 @@ def get_recent_alerts():
         limit = int(request.args.get('limit', 50))
         if limit <= 0:
             limit = 50
-        items = list(alerts_log)[-limit:]
+        # Return the same normalized objects the dashboard uses via /data
+        items = _normalize_alerts(list(alerts_log))[-limit:]
         return jsonify({
             'count': len(items),
             'limit': limit,
@@ -7222,7 +7228,7 @@ def _dev_alerts_recent():
         limit = 25
     return jsonify({
         "ok": True,
-        "alerts": [],
+        "alerts": _normalize_alerts(list(alerts_log))[-limit:],
         "limit": limit,
     })
 

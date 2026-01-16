@@ -44,6 +44,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
   const gainers1m = useMemo(() => (Array.isArray(data?.gainers_1m) ? data.gainers_1m : []), [data]);
   const losers3m = useMemo(() => (Array.isArray(data?.losers_3m) ? data.losers_3m : []), [data]);
   const vol1h = useMemo(() => (Array.isArray(volumeData) ? volumeData : []), [volumeData]);
+  const alerts = useMemo(() => (Array.isArray(data?.alerts) ? data.alerts : []), [data]);
 
   useEffect(() => {
     const hasAnything = gainers1m.length || losers3m.length || vol1h.length;
@@ -142,6 +143,50 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       setLogs((prev) => [...prev, ...newLogs].slice(-30));
     }
   }, [gainers1m, losers3m, vol1h]);
+
+  useEffect(() => {
+    if (!Array.isArray(alerts) || alerts.length === 0) return;
+
+    const now = new Date();
+    const timeStr = now
+      .toLocaleTimeString([], {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+      .replace(/\u200E/g, "");
+
+    const newLogs = [];
+    for (const a of alerts) {
+      if (!a) continue;
+      const id = a.id || `${a.ts || ""}-${a.symbol || ""}-${a.type || ""}`;
+      const key = `A-${id}`;
+      if (seenRef.current.has(key)) continue;
+
+      const symbol = safeSymbol(a.symbol || a.product_id || a.pair);
+      const url = a.trade_url || spotUrl({ product_id: a.product_id || (symbol ? `${symbol}-USD` : null) }, symbol);
+      const sev = String(a.severity || "info").toLowerCase();
+      const tone = sev === "critical" ? "purple" : sev === "high" ? "gold" : sev === "medium" ? "cyan" : "mint-dim";
+      const type = String(a.type || "alert").toUpperCase();
+      const msg = a.message || a.title || "";
+
+      newLogs.push({
+        id: `a-${Date.now()}-${Math.random()}`,
+        time: timeStr,
+        symbol,
+        url,
+        prefix: "!!!",
+        body: `${type} — ${msg}`,
+        tone,
+      });
+      seenRef.current.add(key);
+    }
+
+    if (newLogs.length) {
+      setLogs((prev) => [...prev, ...newLogs].slice(-40));
+    }
+  }, [alerts]);
 
   return (
     <div className="bh-anom" style={{ height: isCollapsed ? "38px" : "160px" }} data-collapsed={isCollapsed ? "1" : "0"}>
