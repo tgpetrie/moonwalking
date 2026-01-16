@@ -108,10 +108,10 @@ sleep 10
 
 # Step 6: Test backend endpoints
 print_status "Testing backend endpoints..."
-BACKEND_PORT=5001
+BACKEND_PORT=5003
 
 # Find the actual port the backend is using
-for port in 5001 5002 5003 5004 5005; do
+for port in 5001 5003 5004 5005; do
     if curl -s "http://localhost:$port/health" >/dev/null 2>&1; then
         BACKEND_PORT=$port
         print_success "Backend found running on port $port"

@@ -20,7 +20,7 @@ The goal:
 - Banners: price = `banner_1h_price`; volume = `banner_1h_volume`.
 - Links: always use Advanced Trade spot: `https://www.coinbase.com/advanced-trade/spot/${product_id}`. If no `product_id`, fallback to `${SYMBOL}-USD` (uppercase).
 - Poll cadence: 3–5s with light jitter; do not stack overlapping requests.
-- Resilience: the frontend auto-detects 5003→5002, caches the last-good `/data` snapshot in localStorage, and serves cached `latest_by_symbol` to watchlist adds when live fetches blip. Connection status drives LIVE/STALE/DOWN; no reorders/pulses when stale. Sentiment falls back to backend proxies (`/api/sentiment/fng`, `/api/sentiment/market`) and marks STALE when cache is served.
+- Resilience: cache the last-good `/data` snapshot in localStorage and serve cached `latest_by_symbol` to watchlist adds when live fetches blip. Connection status drives LIVE/STALE/DOWN; no reorders/pulses when stale. Sentiment falls back to backend proxies (`/api/sentiment/fng`, `/api/sentiment/market`) and marks STALE when cache is served.
 
 ---
 

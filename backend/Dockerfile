@@ -36,7 +36,7 @@ RUN chown -R cbmo4ers:cbmo4ers /app
 USER cbmo4ers
 
 # Expose the port the application will run on
-EXPOSE 5001
+EXPOSE 5003
 
 # Health check for container orchestration platforms
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

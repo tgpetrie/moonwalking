@@ -7056,7 +7056,7 @@ if __name__ == '__main__':
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")
             logging.error("1. python3 app.py --kill-port")
             logging.error("2. python3 app.py --auto-port")
-            logging.error("3. python3 app.py --port 5002")
+            logging.error("3. python3 app.py --port 5003")
         else:
             logging.error(f"Error starting server: {e}")
         exit(1)

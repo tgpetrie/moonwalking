@@ -25,9 +25,8 @@ if [[ $# -ge 1 ]]; then
   try_urls+=("$base/api/data" "$base/data" "$base/")
 else
   try_urls+=(
-    "http://127.0.0.1:5002/api/data"
-    "http://127.0.0.1:5002/data"
-    "http://127.0.0.1:5002/"
+    "http://127.0.0.1:5003/data"
+    "http://127.0.0.1:5003/"
   )
 fi
 
@@ -102,4 +101,4 @@ if [[ -n "$hit" ]]; then
 fi
 
 echo "OK: No non-positive baselines found."
-#!/usr/bin/env bash
+echo "OK: No non-positive baselines found."

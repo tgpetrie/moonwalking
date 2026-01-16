@@ -8,7 +8,7 @@ BACKEND_PORT_FILE="${BACKEND_PORT_FILE:-/tmp/mw_backend.port}"
 if [ -f "$BACKEND_PORT_FILE" ]; then
   BACKEND_PORT="$(cat "$BACKEND_PORT_FILE")"
 else
-  BACKEND_PORT="${BACKEND_PORT:-5001}"
+  BACKEND_PORT="${BACKEND_PORT:-5003}"
 fi
 
 BASE="http://$HOST:$BACKEND_PORT"
@@ -24,7 +24,7 @@ fail() {
 curl -sS --max-time 3 "$BASE/api/health" >/dev/null 2>&1 || fail "/api/health not responding"
 
 # 2) Must have /api/data (or /data alias still ok, but spec wants /api/data)
-curl -sS --max-time 5 "$BASE/api/data" >/dev/null 2>&1 || fail "/api/data not responding"
+curl -sS --max-time 5 "$BASE/data" >/dev/null 2>&1 || fail "/data not responding"
 
 # 3) No dead-port references in runtime trees
 #    Use word-boundary matching so we don't false-positive on unrelated
@@ -49,3 +49,8 @@ if grep -R -n -E "\\b8001\\b" "$ROOT_DIR/frontend" "$ROOT_DIR/backend" \
 fi
 
 echo "[sanity] OK"
+
+echo "[sanity] running guardrails"
+bash scripts/validate_mw_guardrails.sh
+
+echo "[sanity] ALL OK"

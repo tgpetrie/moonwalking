@@ -92,6 +92,10 @@ const parseStatus = (err) => {
 };
 
 export function DataProvider({ children }) {
+  const CANONICAL_LOCAL_BASE = "http://127.0.0.1:5003";
+  const normalizeBase = (base) => String(base || "").trim().replace(/\/+$/, "");
+  const isCanonicalLocalBase = (base) => normalizeBase(base) === CANONICAL_LOCAL_BASE;
+
   const cachedNormalized = useMemo(() => {
     const cached = readCachedPayload();
     return cached ? normalizeApiData(cached) : null;
@@ -123,10 +127,8 @@ export function DataProvider({ children }) {
   const [backendBase, setBackendBase] = useState(() => {
     if (typeof window === "undefined") return null;
     try {
-      return (
-        window.localStorage.getItem(MW_BACKEND_KEY) ||
-        null
-      );
+      const cached = window.localStorage.getItem(MW_BACKEND_KEY);
+      return cached && isCanonicalLocalBase(cached) ? normalizeBase(cached) : null;
     } catch {
       return null;
     }
@@ -197,7 +199,12 @@ export function DataProvider({ children }) {
       };
       localStorage.setItem(MW_LAST_GOOD_DATA, JSON.stringify(minimal));
       localStorage.setItem(MW_LAST_GOOD_AT, String(lastGoodAtRef.current));
-      if (baseUrl) localStorage.setItem(MW_BACKEND_KEY, baseUrl);
+      const normalizedBase = normalizeBase(baseUrl);
+      if (isCanonicalLocalBase(normalizedBase)) {
+        localStorage.setItem(MW_BACKEND_KEY, CANONICAL_LOCAL_BASE);
+      } else {
+        localStorage.removeItem(MW_BACKEND_KEY);
+      }
     } catch {}
   }, []);
 
@@ -364,21 +371,27 @@ export function DataProvider({ children }) {
 
     const candidates = [];
 
-    // In local dev, prefer the canonical backend port (:5003) even if a
-    // previous session cached a different localhost port.
-    const isLocalBase = (base) =>
-      typeof base === "string" &&
-      /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(base.replace(/\/$/, ""));
-    const preferredLocal = "http://127.0.0.1:5003";
-    if (!backendBase || isLocalBase(backendBase)) candidates.push(preferredLocal);
-    if (backendBase) candidates.push(backendBase);
+    // MW_SPEC: do not silently try random ports.
+    // - If VITE_API_BASE_URL is set, use it.
+    // - Otherwise, in local dev, use the canonical base only.
+    const envCandidate = normalizeBase(import.meta?.env?.VITE_API_BASE_URL || "");
+    const envBase = envCandidate.startsWith("http") ? envCandidate : "";
+    if (envBase) {
+      candidates.push(envBase);
+    } else {
+      candidates.push(CANONICAL_LOCAL_BASE);
+    }
+
+    // Only honor cached base if it is canonical local.
     try {
       const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(MW_BACKEND_KEY) : null;
-      if (cachedBase && !candidates.includes(cachedBase)) candidates.push(cachedBase);
+      if (cachedBase && isCanonicalLocalBase(cachedBase) && !candidates.includes(CANONICAL_LOCAL_BASE)) {
+        candidates.push(CANONICAL_LOCAL_BASE);
+      }
+      if (cachedBase && !isCanonicalLocalBase(cachedBase)) {
+        window.localStorage.removeItem(MW_BACKEND_KEY);
+      }
     } catch {}
-    ["http://127.0.0.1:5003"].forEach((b) => {
-      if (!candidates.includes(b)) candidates.push(b);
-    });
 
     const tryOnce = async (base) => {
       if (abortRef.current) {
@@ -409,7 +422,7 @@ export function DataProvider({ children }) {
       try {
         const { json, base: okBase } = await tryOnce(base);
         const norm = normalizeApiData(json);
-        setBackendBase(okBase);
+        setBackendBase(isCanonicalLocalBase(okBase) ? CANONICAL_LOCAL_BASE : null);
         setConnectionStatus("LIVE");
         failCountRef.current = 0;
         // Fetch fast: store latest payload in a ref; publish on a steady cadence.
@@ -440,7 +453,7 @@ export function DataProvider({ children }) {
     }
 
     inFlightRef.current = false;
-  }, [applySnapshot, backendBase]);
+  }, [applySnapshot]);
 
   // Publish pending snapshots on a steady cadence to avoid spamming React state.
   useEffect(() => {

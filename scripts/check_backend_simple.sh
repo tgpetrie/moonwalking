@@ -1,33 +1,36 @@
 #!/usr/bin/env bash
 
-# Simple, NON-fatal backend check for 5001 + /api/health + /api/data
+# Simple, NON-fatal backend check for :5003 + /api/health + /data
 
 cd "$(dirname "$0")/.." || exit 1
 
-echo '--- listener on 5001 ---'
-lsof -iTCP:5001 -sTCP:LISTEN -n 2>/dev/null || echo 'no listener on 5001'
+echo '--- listener on 5003 ---'
+lsof -iTCP:5003 -sTCP:LISTEN -n 2>/dev/null || echo 'no listener on 5003'
 
 echo
 echo '--- /api/health ---'
-if ! curl -sS -D - http://127.0.0.1:5001/api/health | sed -n '1,8p'; then
+if ! curl -sS -D - http://127.0.0.1:5003/api/health | sed -n '1,8p'; then
   echo 'health request failed'
 fi
 
 echo
-echo '--- /api/data summary ---'
-if ! curl -sS http://127.0.0.1:5001/api/data \
+echo '--- /data summary ---'
+if ! curl -sS http://127.0.0.1:5003/data \
   | jq '{g1m: (.gainers_1m // [] | length),
          g3m: (.gainers_3m // [] | length),
-         l3m: (.losers_3m  // [] | length)}'; then
+         l3m: (.losers_3m  // [] | length),
+         bprice: (.banner_1h_price // [] | length),
+         bvol: (.banner_1h_volume // [] | length)}'; then
   echo 'data request failed'
 fi
 
+
 echo
 echo '--- first items (if any) ---'
-for K in gainers_1m gainers_3m losers_3m; do
+for K in gainers_1m gainers_3m losers_3m banner_1h_price banner_1h_volume; do
   echo
   echo "-- ${K}[0] --"
-  if ! curl -sS http://127.0.0.1:5001/api/data \
+  if ! curl -sS http://127.0.0.1:5003/data \
     | jq ".${K} | .[0] // \"<no item>\""; then
     echo "request failed for ${K}"
   fi

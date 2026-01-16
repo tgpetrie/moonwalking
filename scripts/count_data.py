@@ -3,7 +3,7 @@
 Quick endpoint inspector.
 
 Usage:
-    ./scripts/count_data.py http://127.0.0.1:5001/api/component/bottom-banner-scroll
+    ./scripts/count_data.py http://127.0.0.1:5003/api/component/bottom-banner-scroll
     ./scripts/count_data.py /api/component/gainers-table-1min
     ./scripts/count_data.py                   # defaults to local health
 
@@ -18,7 +18,7 @@ import json
 import sys
 import urllib.request
 
-BASE = "http://127.0.0.1:5001"
+BASE = "http://127.0.0.1:5003"
 
 
 def fetch_json(url: str):

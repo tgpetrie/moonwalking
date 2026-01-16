@@ -129,6 +129,13 @@ BHABIT CBMOONERS/
 
 ## Running the Application
 
+## Repo Workflow (MW_SPEC)
+
+- Rules: see `MW_SPEC.md` (ports, contracts, UI rules, truth rules).
+- Tasks: see `MW_BACKLOG.md` (living queue).
+- Any change proposal must cite which `MW_SPEC` rules it satisfies.
+- Any completed change must update `MW_BACKLOG` status and record Verification.
+
 ### Recommended (All-in-One Setup)
 
 **First-time setup:**
@@ -160,7 +167,7 @@ BHABIT CBMOONERS/
    python app.py
    ```
 
-   Runs on: `http://localhost:5001`
+   Runs on: `http://127.0.0.1:5003`
 
 2. **Start the frontend server**
 
@@ -242,9 +249,9 @@ SENTRY_DSN=
 Frontend `frontend/.env`:
 
 ```env
-VITE_API_URL=http://localhost:5001
+VITE_API_URL=http://127.0.0.1:5003
 # Optional WS override; when omitted, components auto‑detect
-# VITE_WS_URL=ws://localhost:5001
+# VITE_WS_URL=ws://127.0.0.1:5003
 # 1‑min WS render throttle (ms). Defaults to 7000 when omitted.
 VITE_ONE_MIN_WS_THROTTLE_MS=7000
 # Alerts poll cadence (ms). Defaults to 30000; min 5000.
@@ -336,7 +343,7 @@ pytest -q
 ### Smoke Test (Backend)
 
 ```bash
-SMOKE_BASE_URL="http://127.0.0.1:5001" \
+SMOKE_BASE_URL="http://127.0.0.1:5003" \
    ".venv/bin/python" backend/smoke_test.py
 ```
 

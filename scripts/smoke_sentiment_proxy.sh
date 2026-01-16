@@ -3,7 +3,7 @@ set -euo pipefail
 
 SYMBOL="${1:-BTC}"
 HOST="${HOST:-127.0.0.1}"
-BACKEND_PORT="${BACKEND_PORT:-5001}"
+BACKEND_PORT="${BACKEND_PORT:-5003}"
 
 BASE="http://${HOST}:${BACKEND_PORT}/api/sentiment"
 

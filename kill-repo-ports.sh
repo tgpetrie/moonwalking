@@ -19,7 +19,7 @@ set -euo pipefail
 #   ./kill-repo-ports.sh --dry-run
 #   ./kill-repo-ports.sh --yes
 #   ./kill-repo-ports.sh --yes --hard
-#   ./kill-repo-ports.sh --ports 5002,5174,8787
+#   ./kill-repo-ports.sh --ports 5003,5174,8787
 
 DRY_RUN=0
 ASSUME_YES=0
@@ -35,7 +35,7 @@ Options:
   --dry-run            Print matches, do not kill
   --yes                Do not prompt
   --hard               Skip SIGTERM, go straight to SIGKILL
-  --ports <csv>        Only consider these ports (e.g. 5002,5174,8787)
+  --ports <csv>        Only consider these ports (e.g. 5003,5174,8787)
   --keywords <csv>     Extra keywords to match against process command (e.g. "cbmo4ers,moonwalkings")
   -h, --help           Show help
 EOF

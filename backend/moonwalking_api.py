@@ -704,10 +704,15 @@ app = moonwalking_api.app
 
 # Run the server
 if __name__ == "__main__":
+    port_raw = os.environ.get("MOONWALKING_API_PORT")
+    if not port_raw:
+        raise SystemExit(
+            "MOONWALKING_API_PORT is required to run moonwalking_api (legacy service; not used by the board backend)."
+        )
     uvicorn.run(
         "moonwalking_api:app",
         host="0.0.0.0",
-        port=int(os.environ.get("MOONWALKING_API_PORT", "5002")),
+        port=int(port_raw),
         reload=True,
         log_level="info"
     )

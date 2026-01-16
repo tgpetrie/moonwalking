@@ -19,9 +19,9 @@ if [ -x "$ROOT_DIR/backend/kill_and_start_backend.sh" ]; then
 else
   echo "[all] backend starter script missing; attempting inline start"
   cd "$ROOT_DIR/backend"
-  echo "[backend] killing app.py and listeners on 5001"
+  echo "[backend] killing app.py and listeners on 5003"
   pkill -f "app.py" 2>/dev/null || true
-  kill -9 $(lsof -tiTCP:5001 -sTCP:LISTEN 2>/dev/null) 2>/dev/null || true
+  kill -9 $(lsof -tiTCP:5003 -sTCP:LISTEN 2>/dev/null) 2>/dev/null || true
 
   # Ensure venv and deps
   [ -d .venv ] || python3 -m venv .venv
@@ -31,8 +31,8 @@ else
     pip install -q -r requirements.txt
   fi
 
-  echo "[backend] starting Flask dev server on 127.0.0.1:5001 -> /tmp/mw_backend.log"
-  nohup python app.py --host "127.0.0.1" --port "5001" > /tmp/mw_backend.log 2>&1 &
+  echo "[backend] starting Flask dev server on 127.0.0.1:5003 -> /tmp/mw_backend.log"
+  nohup python app.py --host "127.0.0.1" --port "5003" > /tmp/mw_backend.log 2>&1 &
   sleep 1
   tail -n 30 /tmp/mw_backend.log || true
 fi
@@ -61,4 +61,4 @@ else
   tail -n 30 /tmp/mw_vite.log || true
 fi
 
-echo "[all] done — backend on :5001, frontend on :5173 (logs: /tmp/mw_backend.log, /tmp/mw_vite.log)"
+echo "[all] done — backend on :5003, frontend on :5173 (logs: /tmp/mw_backend.log, /tmp/mw_vite.log)"
