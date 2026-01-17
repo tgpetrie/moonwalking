@@ -2560,9 +2560,15 @@ last_current_prices = {
     "ok": 0,
     "submitted": 0,
     "ok_ratio": None,
+    "http429": 0,
+    "http5xx": 0,
+    "other": 0,
+    "exceptions": 0,
     "deadline_hit": False,
     "last_fetch_ts": 0,
 }
+# Track last-seen timestamps for symbols to bias 1m universe toward fresh baselines.
+_PRICE_LAST_SEEN_TS = {}
 # Persistence state for 1-min display logic
 one_minute_persistence = {
     'entries': {},  # symbol -> {'entered_at': ts, 'enter_gain': pct}
@@ -2574,6 +2580,8 @@ one_minute_persistence = {
 one_minute_peaks = {}
 # Track simple trending stats for 1‑minute gains per symbol
 one_minute_trends = {}
+# Track diagnostics for the 1-minute funnel (latest snapshot only)
+one_minute_diag = {}
 # New trend caches for other intervals/metrics
 three_minute_trends = {}
 one_hour_price_trends = {}
@@ -3569,10 +3577,51 @@ def get_coinbase_prices():
             sample = max(30, min(sample, sample_max))
 
             usd_ids = [p.get("id") for p in usd_products if p.get("id")]
-            chosen = [pid for pid in major_coins if pid in usd_ids]
-            chosen_set = set(chosen)
-            rest = [pid for pid in usd_ids if pid not in chosen_set]
-            final_ids = (chosen + rest)[:sample]
+
+            core_ids = [pid for pid in major_coins if pid in usd_ids]
+            core_max = int(os.environ.get("PRICE_UNIVERSE_CORE_MAX", len(core_ids)))
+            core_ids = core_ids[: max(0, min(core_max, sample))]
+
+            core_set = set(core_ids)
+            rest = [pid for pid in usd_ids if pid not in core_set]
+            remaining = max(0, sample - len(core_ids))
+
+            rotate_seconds = int(os.environ.get("PRICE_UNIVERSE_ROTATE_SECONDS", 60))
+            rotate_seconds = max(1, rotate_seconds)
+            rotate_step = int(os.environ.get("PRICE_UNIVERSE_ROTATE_STEP", max(1, remaining)))
+            rotate_step = max(1, rotate_step)
+
+            # Prefer symbols recently seen to preserve 1m baselines.
+            fresh_window = int(os.environ.get("PRICE_UNIVERSE_FRESH_SECONDS", 180))
+            now_ts = time.time()
+            fresh_rest = []
+            stale_rest = []
+            for pid in rest:
+                sym = pid.split("-", 1)[0].upper() if isinstance(pid, str) else None
+                last_ts = _PRICE_LAST_SEEN_TS.get(sym) if sym else None
+                if last_ts and (now_ts - float(last_ts)) <= fresh_window:
+                    fresh_rest.append(pid)
+                else:
+                    stale_rest.append(pid)
+
+            def _rotate(lst):
+                if not lst:
+                    return []
+                offset = (int(now_ts / rotate_seconds) * rotate_step) % len(lst)
+                return lst[offset:] + lst[:offset]
+
+            chosen_rest = []
+            if remaining > 0:
+                rotated_fresh = _rotate(fresh_rest)
+                chosen_rest.extend(rotated_fresh[:remaining])
+                if len(chosen_rest) < remaining:
+                    rotated_stale = _rotate(stale_rest)
+                    need = remaining - len(chosen_rest)
+                    chosen_rest.extend(rotated_stale[:need])
+
+            final_ids = core_ids + chosen_rest
+            if remaining and len(chosen_rest) < remaining:
+                final_ids = (core_ids + rest)[:sample]
             product_by_id = {p["id"]: p for p in usd_products if p.get("id")}
             final_products = [product_by_id[pid] for pid in final_ids if pid in product_by_id]
             
@@ -3673,6 +3722,10 @@ def get_coinbase_prices():
                         if symbol and price:
                             current_prices[symbol] = price
                             ok += 1
+                            try:
+                                _PRICE_LAST_SEEN_TS[symbol] = time.time()
+                            except Exception:
+                                pass
                             continue
 
                         if code == 429:
@@ -3713,6 +3766,10 @@ def get_coinbase_prices():
                 last_current_prices["ok"] = int(ok)
                 last_current_prices["submitted"] = int(submitted)
                 last_current_prices["ok_ratio"] = float(ok_ratio)
+                last_current_prices["http429"] = int(http429)
+                last_current_prices["http5xx"] = int(http5xx)
+                last_current_prices["other"] = int(other)
+                last_current_prices["exceptions"] = int(exceptions)
                 last_current_prices["deadline_hit"] = bool(deadline_hit)
                 last_current_prices["last_fetch_ts"] = time.time()
             except Exception:
@@ -3726,6 +3783,10 @@ def get_coinbase_prices():
                 last_current_prices["ok"] = 0
                 last_current_prices["submitted"] = 0
                 last_current_prices["ok_ratio"] = 0.0
+                last_current_prices["http429"] = 0
+                last_current_prices["http5xx"] = 0
+                last_current_prices["other"] = 0
+                last_current_prices["exceptions"] = 0
                 last_current_prices["deadline_hit"] = False
                 last_current_prices["last_fetch_ts"] = time.time()
             except Exception:
@@ -3737,6 +3798,10 @@ def get_coinbase_prices():
             last_current_prices["partial"] = True
             last_current_prices["partial_reason"] = "exception"
             last_current_prices["deadline_hit"] = False
+            last_current_prices["http429"] = 0
+            last_current_prices["http5xx"] = 0
+            last_current_prices["other"] = 0
+            last_current_prices["exceptions"] = 0
             last_current_prices["last_fetch_ts"] = time.time()
         except Exception:
             pass
@@ -3946,20 +4011,58 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
     formatted_data = []
     baseline_ready_any = False
     earliest_baseline_ts = None
+    baseline_ages = []
+
+    threshold_pct = 0.01
+    diag = {
+        "timestamp": now_ts_s,
+        "total_prices": len(current_prices or {}),
+        "price_non_positive": 0,
+        "baseline_db_missing": 0,
+        "baseline_history_missing": 0,
+        "baseline_missing": 0,
+        "baseline_price_invalid": 0,
+        "baseline_used_db": 0,
+        "baseline_used_history": 0,
+        "below_threshold": 0,
+        "included": 0,
+        "filtered_min_volume": 0,
+        "threshold_pct": threshold_pct,
+        "baseline_window": dict(BASELINE_WINDOWS.get("1m") or {}),
+        "partial": bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False,
+        "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
+    }
 
     for symbol, price in current_prices.items():
         if price <= 0:
+            diag["price_non_positive"] += 1
             continue
 
-        baseline = _db_baseline_for_window(symbol, now_ts_s, "1m")
+        baseline_db = _db_baseline_for_window(symbol, now_ts_s, "1m")
+        if not baseline_db:
+            diag["baseline_db_missing"] += 1
+
+        baseline_hist = None
+        if not baseline_db:
+            baseline_hist = _history_baseline_1m(symbol)
+            if not baseline_hist:
+                diag["baseline_history_missing"] += 1
+
+        baseline = baseline_db or baseline_hist
         if not baseline:
-            baseline = _history_baseline_1m(symbol)
-        if not baseline:
+            diag["baseline_missing"] += 1
             continue
 
         baseline_ts_s, baseline_price, baseline_age_s = baseline
         if baseline_price <= 0:
+            diag["baseline_price_invalid"] += 1
             continue
+
+        if baseline_db:
+            diag["baseline_used_db"] += 1
+        else:
+            diag["baseline_used_history"] += 1
+        baseline_ages.append(float(baseline_age_s))
 
         baseline_ready_any = True
         if earliest_baseline_ts is None or baseline_ts_s < earliest_baseline_ts:
@@ -3970,7 +4073,7 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         actual_interval_minutes = baseline_age_s / 60.0
 
         # Only include significant changes (configurable threshold)
-        if abs(price_change) >= 0.01:  # Reverted to original threshold
+        if abs(price_change) >= threshold_pct:  # Reverted to original threshold
             formatted_data.append({
                 "symbol": symbol,
                 "current_price": price,
@@ -3982,13 +4085,37 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
                 "warming_1m": False,
                 "latest_ts_ms": int(now_ts_s * 1000),
             })
+            diag["included"] += 1
+        else:
+            diag["below_threshold"] += 1
 
     age_seconds = (now_ts_s - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    try:
+        diag["eligible_products"] = max(0, int(diag.get("total_prices") or 0) - int(diag.get("price_non_positive") or 0))
+        diag["have_baseline"] = int(diag.get("baseline_used_db") or 0) + int(diag.get("baseline_used_history") or 0)
+        diag["missing_baseline"] = int(diag.get("baseline_missing") or 0)
+        diag["stale_price"] = int(diag.get("baseline_history_missing") or 0)
+    except Exception:
+        pass
     _set_baseline_meta_1m(
         ready=baseline_ready_any,
         baseline_ts=float(earliest_baseline_ts) if earliest_baseline_ts is not None else None,
         age_seconds=float(age_seconds) if age_seconds is not None else None,
     )
+
+    if baseline_ages:
+        try:
+            diag["baseline_age_s_min"] = round(min(baseline_ages), 2)
+            diag["baseline_age_s_max"] = round(max(baseline_ages), 2)
+            diag["baseline_age_s_avg"] = round(sum(baseline_ages) / len(baseline_ages), 2)
+        except Exception:
+            pass
+
+    try:
+        global one_minute_diag
+        one_minute_diag = dict(diag)
+    except Exception:
+        pass
 
     if not formatted_data:
         partial = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
@@ -4836,6 +4963,33 @@ def get_banner_1h_volume(banner_data=None):
     # 4) Not ready yet: no rolling-stat fallback.
     return [], None
 
+def _build_one_min_funnel():
+    """Build a compact 1m funnel breakdown for UI/debugging."""
+    diag = dict(one_minute_diag) if isinstance(one_minute_diag, dict) else {}
+    total_prices = int(diag.get("total_prices") or 0)
+    price_non_positive = int(diag.get("price_non_positive") or 0)
+    eligible_products = int(diag.get("eligible_products") or max(0, total_prices - price_non_positive))
+    have_baseline = int(diag.get("have_baseline") or (int(diag.get("baseline_used_db") or 0) + int(diag.get("baseline_used_history") or 0)))
+    missing_baseline = int(diag.get("missing_baseline") or diag.get("baseline_missing") or 0)
+    stale_price = int(diag.get("stale_price") or diag.get("baseline_history_missing") or 0)
+    filtered_min_volume = int(diag.get("filtered_min_volume") or 0)
+    final_kept = int(diag.get("final_kept") or diag.get("included") or 0)
+    rate_limited = 0
+    if isinstance(last_current_prices, dict):
+        try:
+            rate_limited = int(last_current_prices.get("http429") or 0)
+        except Exception:
+            rate_limited = 0
+    return {
+        "eligible_products": eligible_products,
+        "have_baseline": have_baseline,
+        "missing_baseline": missing_baseline,
+        "stale_price": stale_price,
+        "filtered_min_volume": filtered_min_volume,
+        "rate_limited": rate_limited,
+        "final_kept": final_kept,
+    }
+
 @app.route('/data')
 def data_aggregate():
     """Unified aggregate data endpoint used by the dashboard SPA.
@@ -4917,13 +5071,13 @@ def data_aggregate():
                     if pid:
                         present_pids.add(pid)
 
-            missing_must = [pid for pid in must_include if pid and pid not in present_pids]
+            missing_must_before = [pid for pid in must_include if pid and pid not in present_pids]
             must_added = []
-            if missing_must:
+            if missing_must_before:
                 price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else None
                 if not isinstance(price_map, dict):
                     price_map = {}
-                for pid in missing_must:
+                for pid in missing_must_before:
                     sym = pid.split("-", 1)[0].upper()
                     price = None
                     for key in (pid, sym, sym.upper()):
@@ -4944,6 +5098,9 @@ def data_aggregate():
                     snap_g1.append(row)
                     must_added.append(pid)
                     present_pids.add(pid)
+
+                    missing_must_after = [pid for pid in must_include if pid and pid not in present_pids]
+                    missing_must = missing_must_after
 
             warming_3m = not bool(baseline_meta_3m.get("ready"))
             baseline_ts_3m = baseline_meta_3m.get("baseline_ts")
@@ -5024,6 +5181,8 @@ def data_aggregate():
                     "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
                     "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
                     "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
+                    "one_min_diagnostics": dict(one_minute_diag) if isinstance(one_minute_diag, dict) else None,
+                    "one_min_funnel": _build_one_min_funnel(),
                 },
                 "errors": {},
                 "coverage": {
@@ -5037,7 +5196,9 @@ def data_aggregate():
                     "alerts": len(alerts_normalized),
                     "dedupe_dropped": dedupe_dropped,
                     "must_include_missing": missing_must,
+                    "must_include_missing_before": missing_must_before,
                     "must_include_added": must_added,
+                    "one_min_funnel": _build_one_min_funnel(),
                 },
             }
             payload["data"] = {
@@ -5093,6 +5254,8 @@ def data_aggregate():
                 "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
                 "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
                 "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
+                "one_min_diagnostics": dict(one_minute_diag) if isinstance(one_minute_diag, dict) else None,
+                "one_min_funnel": _build_one_min_funnel(),
             },
             "errors": {"warming": "no_snapshot_yet"},
             "coverage": {
@@ -5106,7 +5269,9 @@ def data_aggregate():
                 "alerts": 0,
                 "dedupe_dropped": {},
                 "must_include_missing": list(_MW_MUST_INCLUDE_PRODUCTS),
+                "must_include_missing_before": list(_MW_MUST_INCLUDE_PRODUCTS),
                 "must_include_added": [],
+                "one_min_funnel": _build_one_min_funnel(),
             },
         }
         payload["data"] = {
@@ -6185,6 +6350,11 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
 
         # Build separate gainers/losers lists from persistence set
         retained_symbols = set(pers.keys())
+        try:
+            if isinstance(one_minute_diag, dict):
+                one_minute_diag["final_kept"] = len(retained_symbols)
+        except Exception:
+            pass
         retained_coins = [data_by_symbol[s] for s in retained_symbols if s in data_by_symbol]
         gainers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) > 0]
         losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
