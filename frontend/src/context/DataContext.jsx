@@ -140,6 +140,7 @@ export function DataProvider({ children }) {
   const [warming, setWarming] = useState(() => !cachedNormalized);
   const [warming3m, setWarming3m] = useState(false);
   const [staleSeconds, setStaleSeconds] = useState(null);
+  const [partial, setPartial] = useState(false);
   const [lastGoodTs, setLastGoodTs] = useState(cachedLastGoodAt || null);
   const [backendBase, setBackendBase] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -247,6 +248,7 @@ export function DataProvider({ children }) {
     const backendWarming3m = meta.warming_3m ?? meta.warming3m ?? false;
     const backendStaleSeconds = meta.staleSeconds ?? null;
     const backendLastGoodTs = meta.lastGoodTs ?? null;
+    const backendPartial = Boolean(meta.partial);
 
     const hasAny =
       (Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||
@@ -293,6 +295,7 @@ export function DataProvider({ children }) {
     setWarming(effectiveWarming);
     setWarming3m(effectiveWarming3m);
     setStaleSeconds(backendStaleSeconds);
+    setPartial(backendPartial);
     setLastGoodTs(backendLastGoodTs ?? lastGoodAtRef.current ?? null);
 
     if (!hasAny && cacheHasAny) {
@@ -598,6 +601,7 @@ export function DataProvider({ children }) {
     warming,
     warming3m,
     staleSeconds,
+    partial,
     lastGoodTs,
     volume1h,
     connectionStatus,
@@ -605,7 +609,7 @@ export function DataProvider({ children }) {
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs, volume1h, connectionStatus, backendBase]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

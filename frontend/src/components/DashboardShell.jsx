@@ -18,7 +18,7 @@ import AlertsDock from "./AlertsDock.jsx";
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs } = useDashboardData();
   const { heartbeatPulse: intelPulse } = useIntelligence();
   const combinedPulse = Boolean(heartbeatPulse || intelPulse);
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
@@ -144,7 +144,7 @@ export default function DashboardShell({ onInfo }) {
   const STALE_THRESHOLD = 20; // seconds
 
   const status = useMemo(() => {
-    if (fatal) return "DEGRADED";
+    if (fatal || partial) return "DEGRADED";
 
     // Use backend warming flag: only true before first snapshot exists
     if (warming) return "WARMING";
@@ -159,7 +159,7 @@ export default function DashboardShell({ onInfo }) {
     if (!isLive && partialStreak >= 2) return "PARTIAL";
 
     return "LIVE";
-  }, [fatal, warming, staleSeconds, isPartial, partialStreak]);
+  }, [fatal, partial, warming, staleSeconds, isPartial, partialStreak]);
 
   const tickerItems = useMemo(() => {
     if (!gainers1m?.length) return ["Waiting for live data…"];
@@ -183,7 +183,9 @@ export default function DashboardShell({ onInfo }) {
           <span className={`bh-warming-pill ${warming ? "is-warming" : "is-live"}`}>
             {warming
               ? "Warming up data…"
-              : staleSeconds !== null && staleSeconds > STALE_THRESHOLD
+              : partial
+                ? "Partial feed — holding last data"
+                : staleSeconds !== null && staleSeconds > STALE_THRESHOLD
                 ? `Stale (${staleSeconds}s ago)`
                 : `Last data ${formatTempTime(lastUpdated)}`
             }

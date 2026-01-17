@@ -30,7 +30,7 @@ function mapRowWithInitial(x = {}) {
 }
 
 export function useDashboardData() {
-  const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, lastGoodTs } = useData();
+  const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs } = useData();
 
   const payload = data || {};
   const alertsList = Array.isArray(alerts) && alerts.length ? alerts : Array.isArray(payload.alerts) ? payload.alerts : [];
@@ -109,6 +109,7 @@ export function useDashboardData() {
     warming,
     warming3m,
     staleSeconds,
+    partial,
     lastGoodTs,
   };
 }

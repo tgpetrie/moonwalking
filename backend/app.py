@@ -1540,10 +1540,183 @@ def api_sentiment_latest_legacy():
 SENTIMENT_HOST = os.getenv('SENTIMENT_HOST', '127.0.0.1')
 SENTIMENT_PORT = os.getenv('SENTIMENT_PORT', '8002')
 SENTIMENT_PIPELINE_URL = f"http://{SENTIMENT_HOST}:{SENTIMENT_PORT}"
+SENTIMENT_PIPELINE_TIMEOUT_S = float(os.getenv("SENTIMENT_PIPELINE_TIMEOUT_S", "0.75"))
+SENTIMENT_PIPELINE_POLL_S = float(os.getenv("SENTIMENT_PIPELINE_POLL_S", "20"))
+
+_SENTIMENT_LAST_GOOD = None
+_SENTIMENT_LAST_OK_TS = None
+_SENTIMENT_LAST_TRY_TS = None
+_SENTIMENT_LAST_ERROR = None
+_SENTIMENT_LAST_SOURCES = None
+_SENTIMENT_LOCK = threading.Lock()
 
 def _pipeline_url(path: str) -> str:
     clean_path = path if path.startswith('/') else f'/{path}'
     return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
+
+
+def _sentiment_iso(ts: float | None) -> str | None:
+    if ts is None:
+        return None
+    try:
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return None
+
+
+def _sentiment_is_finite(x) -> bool:
+    try:
+        return math.isfinite(float(x))
+    except Exception:
+        return False
+
+
+def _sentiment_num_in_range(x, lo, hi) -> bool:
+    if not _sentiment_is_finite(x):
+        return False
+    v = float(x)
+    return lo <= v <= hi
+
+
+def _validate_sentiment_payload(payload: dict) -> tuple[bool, str | None, dict | None]:
+    if not isinstance(payload, dict):
+        return False, "payload_not_object", None
+
+    required_top = [
+        "overall_sentiment",
+        "fear_greed_index",
+        "social_metrics",
+        "social_breakdown",
+        "source_breakdown",
+        "sentiment_history",
+        "social_history",
+        "trending_topics",
+        "divergence_alerts",
+    ]
+    missing = [k for k in required_top if k not in payload]
+    if missing:
+        return False, f"missing_keys:{','.join(missing)}", None
+
+    overall = payload.get("overall_sentiment")
+    fgi = payload.get("fear_greed_index")
+    if not _sentiment_num_in_range(overall, 0.0, 1.0):
+        return False, "overall_sentiment_range", None
+    if not _sentiment_num_in_range(fgi, 0.0, 100.0):
+        return False, "fear_greed_index_range", None
+
+    sm = payload.get("social_metrics")
+    if not isinstance(sm, dict):
+        return False, "social_metrics_not_object", None
+    for k in ("volume_change", "engagement_rate", "mentions_24h"):
+        if k not in sm:
+            return False, f"social_metrics_missing:{k}", None
+    if not _sentiment_num_in_range(sm.get("volume_change"), -1000.0, 1000.0):
+        return False, "social_metrics.volume_change_range", None
+    if not _sentiment_num_in_range(sm.get("engagement_rate"), 0.0, 1.0):
+        return False, "social_metrics.engagement_rate_range", None
+    if not _sentiment_num_in_range(sm.get("mentions_24h"), 0.0, 100000000.0):
+        return False, "social_metrics.mentions_24h_range", None
+
+    sb = payload.get("social_breakdown")
+    if not isinstance(sb, dict):
+        return False, "social_breakdown_not_object", None
+    for k in ("reddit", "twitter", "telegram", "chan"):
+        if k not in sb:
+            return False, f"social_breakdown_missing:{k}", None
+        if not _sentiment_num_in_range(sb.get(k), 0.0, 1.0):
+            return False, f"social_breakdown.{k}_range", None
+
+    src = payload.get("source_breakdown")
+    if not isinstance(src, dict):
+        return False, "source_breakdown_not_object", None
+    for k in ("tier1", "tier2", "tier3", "fringe"):
+        if k not in src:
+            return False, f"source_breakdown_missing:{k}", None
+        if not _sentiment_num_in_range(src.get(k), 0.0, 100000.0):
+            return False, f"source_breakdown.{k}_range", None
+
+    for k in ("sentiment_history", "social_history", "trending_topics", "divergence_alerts"):
+        if not isinstance(payload.get(k), list):
+            return False, f"{k}_not_list", None
+
+    cleaned = {k: payload.get(k) for k in required_top}
+    if "timestamp" in payload:
+        cleaned["timestamp"] = payload.get("timestamp")
+    if isinstance(payload.get("sources"), list):
+        cleaned["sources"] = payload.get("sources")
+    return True, None, cleaned
+
+
+def _sentiment_poll_once():
+    global _SENTIMENT_LAST_GOOD, _SENTIMENT_LAST_OK_TS, _SENTIMENT_LAST_TRY_TS
+    global _SENTIMENT_LAST_ERROR, _SENTIMENT_LAST_SOURCES
+
+    now = time.time()
+    with _SENTIMENT_LOCK:
+        _SENTIMENT_LAST_TRY_TS = now
+
+    errors = []
+    try:
+        health_url = _pipeline_url("/health")
+        r = requests.get(health_url, timeout=SENTIMENT_PIPELINE_TIMEOUT_S)
+        r.raise_for_status()
+    except Exception as exc:
+        errors.append(f"health:{exc}")
+
+    try:
+        latest_url = _pipeline_url("/sentiment/latest")
+        r = requests.get(latest_url, timeout=SENTIMENT_PIPELINE_TIMEOUT_S)
+        r.raise_for_status()
+        payload = r.json()
+        ok, err, cleaned = _validate_sentiment_payload(payload)
+        if not ok:
+            errors.append(err or "invalid_payload")
+        else:
+            with _SENTIMENT_LOCK:
+                _SENTIMENT_LAST_GOOD = cleaned
+                _SENTIMENT_LAST_OK_TS = time.time()
+                _SENTIMENT_LAST_ERROR = None
+                _SENTIMENT_LAST_SOURCES = cleaned.get("sources") if isinstance(cleaned.get("sources"), list) else None
+            return
+    except Exception as exc:
+        errors.append(f"latest:{exc}")
+
+    if errors:
+        with _SENTIMENT_LOCK:
+            _SENTIMENT_LAST_ERROR = "; ".join([e for e in errors if e])
+
+
+def _sentiment_polling_loop():
+    while True:
+        try:
+            _sentiment_poll_once()
+        except Exception:
+            pass
+        time.sleep(max(5.0, SENTIMENT_PIPELINE_POLL_S))
+
+
+def _get_sentiment_snapshot():
+    with _SENTIMENT_LOCK:
+        sentiment = dict(_SENTIMENT_LAST_GOOD) if isinstance(_SENTIMENT_LAST_GOOD, dict) else None
+        last_ok = _SENTIMENT_LAST_OK_TS
+        last_try = _SENTIMENT_LAST_TRY_TS
+        err = _SENTIMENT_LAST_ERROR
+        sources = _SENTIMENT_LAST_SOURCES
+
+    now = time.time()
+    stale_seconds = int(now - last_ok) if last_ok is not None else None
+    meta = {
+        "ok": bool(sentiment) and (err is None),
+        "staleSeconds": stale_seconds,
+        "lastOkTs": _sentiment_iso(last_ok),
+        "lastTryTs": _sentiment_iso(last_try),
+    }
+    if err:
+        meta["error"] = err
+    if sources:
+        meta["sources"] = sources
+
+    return sentiment or {}, meta
 
 
 def _proxy_pipeline_request(path: str, params: dict | None = None, timeout: float = 5.0):
@@ -2286,7 +2459,17 @@ def _get_baseline_meta_1h():
 
 # Cache / state for 1-min data to prevent hammering APIs
 one_minute_cache = {"data": None, "timestamp": 0}
-last_current_prices = {"data": None, "timestamp": 0}
+last_current_prices = {
+    "data": None,
+    "timestamp": 0,
+    "partial": False,
+    "partial_reason": None,
+    "ok": 0,
+    "submitted": 0,
+    "ok_ratio": None,
+    "deadline_hit": False,
+    "last_fetch_ts": 0,
+}
 # Persistence state for 1-min display logic
 one_minute_persistence = {
     'entries': {},  # symbol -> {'entered_at': ts, 'enter_gain': pct}
@@ -3372,6 +3555,7 @@ def get_coinbase_prices():
             )
 
             # Use ThreadPoolExecutor for faster concurrent API calls
+            deadline_hit = False
             with ThreadPoolExecutor(max_workers=8) as executor:
                 future_to_product = {executor.submit(fetch_ticker, product): product 
                                    for product in final_products}
@@ -3408,6 +3592,7 @@ def get_coinbase_prices():
                             other += 1
                 except Exception as e:
                     # TimeoutError or unexpected iterator issue: best-effort partial return.
+                    deadline_hit = True
                     logging.warning(f"price_fetch_deadline_reached: returning_partial ok={ok} submitted={submitted} err={type(e).__name__}")
                 finally:
                     # Cancel any futures that haven't started yet.
@@ -3421,12 +3606,47 @@ def get_coinbase_prices():
                 "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
                 submitted, ok, http429, http5xx, other, exceptions, sample, deadline_seconds
             )
+            try:
+                ok_ratio = (float(ok) / float(submitted)) if submitted else 0.0
+                min_ratio = float(CONFIG.get("PRICE_MIN_SUCCESS_RATIO", 0.7) or 0.7)
+                partial = bool(deadline_hit or (submitted > 0 and ok_ratio < min_ratio))
+                partial_reason = None
+                if deadline_hit:
+                    partial_reason = "deadline"
+                elif submitted > 0 and ok_ratio < min_ratio:
+                    partial_reason = "low_coverage"
+                last_current_prices["partial"] = partial
+                last_current_prices["partial_reason"] = partial_reason
+                last_current_prices["ok"] = int(ok)
+                last_current_prices["submitted"] = int(submitted)
+                last_current_prices["ok_ratio"] = float(ok_ratio)
+                last_current_prices["deadline_hit"] = bool(deadline_hit)
+                last_current_prices["last_fetch_ts"] = time.time()
+            except Exception:
+                pass
             return current_prices
         else:
             logging.error(f"Coinbase products API Error: {products_response.status_code}")
+            try:
+                last_current_prices["partial"] = True
+                last_current_prices["partial_reason"] = "products_api_error"
+                last_current_prices["ok"] = 0
+                last_current_prices["submitted"] = 0
+                last_current_prices["ok_ratio"] = 0.0
+                last_current_prices["deadline_hit"] = False
+                last_current_prices["last_fetch_ts"] = time.time()
+            except Exception:
+                pass
             return {}
     except Exception as e:
         logging.error(f"Error fetching current prices from Coinbase: {e}")
+        try:
+            last_current_prices["partial"] = True
+            last_current_prices["partial_reason"] = "exception"
+            last_current_prices["deadline_hit"] = False
+            last_current_prices["last_fetch_ts"] = time.time()
+        except Exception:
+            pass
         return {}
 
 
@@ -3578,7 +3798,11 @@ def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None)
     )
 
     if not formatted_data:
-        logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices or {}))
+        partial = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        if partial:
+            logging.info("3m_eligibility_empty_partial: total_prices=%d", len(current_prices or {}))
+        else:
+            logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices or {}))
 
     return formatted_data
 
@@ -3674,7 +3898,11 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
     )
 
     if not formatted_data:
-        logging.warning("1m_eligibility_empty: total_prices=%d", len(current_prices))
+        partial = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        if partial:
+            logging.info("1m_eligibility_empty_partial: total_prices=%d", len(current_prices))
+        else:
+            logging.warning("1m_eligibility_empty: total_prices=%d", len(current_prices))
 
     return formatted_data
 
@@ -4619,6 +4847,8 @@ def data_aggregate():
             else:
                 alerts_normalized, alerts_meta = _mw_get_alerts_normalized_with_sticky()
 
+            partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+            sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
             payload = {
                 "gainers_1m": snap_g1 or [],
                 "gainers_3m": snap_g3 or [],
@@ -4628,6 +4858,8 @@ def data_aggregate():
                 "volume_1h_candles": snap_v1h or [],
                 "volume1h": snap_volume1h or [],
                 "alerts": alerts_normalized,
+                "sentiment": sentiment_payload,
+                "sentiment_meta": sentiment_meta,
                 "latest_by_symbol": latest_by_symbol,
                 "updated_at": snap_updated_at,
                 "meta": {
@@ -4644,7 +4876,11 @@ def data_aggregate():
                     "baselineAgeSeconds3m": baseline_meta_3m.get("age_seconds"),
                     "alerts_sticky": bool(alerts_meta.get("sticky")),
                     "alerts_last_good_age_s": alerts_meta.get("last_good_age_s"),
-                    "partial": False,
+                    "partial": partial_tick,
+                    "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
+                    "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
+                    "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
+                    "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
                 },
                 "errors": {},
                 "coverage": {
@@ -4679,6 +4915,8 @@ def data_aggregate():
         # No snapshot yet: return a fast warming payload.
         warming_ts = datetime.now().isoformat()
         last_good_ts, stale_seconds, warming, warming_3m_empty, baseline_ts_3m_empty, baseline_age_3m_empty = _mw_get_last_good_metadata()
+        partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
         payload = {
             "gainers_1m": [],
             "gainers_3m": [],
@@ -4688,6 +4926,8 @@ def data_aggregate():
             "volume_1h_candles": [],
             "volume1h": [],
             "alerts": [],
+            "sentiment": sentiment_payload,
+            "sentiment_meta": sentiment_meta,
             "latest_by_symbol": {},
             "updated_at": warming_ts,
             "meta": {
@@ -4702,7 +4942,11 @@ def data_aggregate():
                 "baselineTs3m": baseline_ts_3m_empty,
                 "baselineAgeSeconds1m": None,
                 "baselineAgeSeconds3m": baseline_age_3m_empty,
-                "partial": False,
+                "partial": partial_tick,
+                "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
+                "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
+                "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
+                "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
             },
             "errors": {"warming": "no_snapshot_yet"},
             "coverage": {
@@ -6641,6 +6885,11 @@ def _compute_snapshots_from_cache():
 
         # Get cached prices (no network fetch)
         cached_prices = last_current_prices.get('data') or {}
+        partial_tick = bool(last_current_prices.get('partial'))
+        partial_reason = last_current_prices.get('partial_reason')
+        partial_ok_ratio = last_current_prices.get('ok_ratio')
+        partial_ok = last_current_prices.get('ok')
+        partial_submitted = last_current_prices.get('submitted')
 
         # Recompute 3m data using cached prices
         data_3min = get_crypto_data(current_prices=cached_prices, force_refresh=False) if cached_prices else None
@@ -6665,6 +6914,21 @@ def _compute_snapshots_from_cache():
             l3m = _get_losers_table_3min_swr()
         except Exception:
             l3m = None
+
+        def _mark_partial(payload):
+            if not partial_tick or not isinstance(payload, dict):
+                return payload
+            out = dict(payload)
+            out['partial'] = True
+            out['partial_reason'] = partial_reason
+            out['partial_ok_ratio'] = partial_ok_ratio
+            out['partial_ok'] = partial_ok
+            out['partial_submitted'] = partial_submitted
+            return out
+
+        g1m = _mark_partial(g1m)
+        g3m = _mark_partial(g3m)
+        l3m = _mark_partial(l3m)
 
         # Banner snapshots (lightweight)
         try:
@@ -6793,11 +7057,35 @@ def _compute_snapshots_from_cache():
         # can cause the UI to flap to "STALE" even though prior data exists.
         updates = {"updated_at": datetime.now().isoformat()}
         if isinstance(g1m, dict):
-            updates["gainers_1m"] = g1m
+            rows = g1m.get('data') or []
+            if partial_tick and not rows:
+                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_1m'))
+                if isinstance(prev_rows, list) and prev_rows:
+                    logging.info("partial_tick: keep gainers_1m snapshot (%d rows)", len(prev_rows))
+                else:
+                    updates["gainers_1m"] = g1m
+            else:
+                updates["gainers_1m"] = g1m
         if isinstance(g3m, dict):
-            updates["gainers_3m"] = g3m
+            rows = g3m.get('data') or []
+            if partial_tick and not rows:
+                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_3m'))
+                if isinstance(prev_rows, list) and prev_rows:
+                    logging.info("partial_tick: keep gainers_3m snapshot (%d rows)", len(prev_rows))
+                else:
+                    updates["gainers_3m"] = g3m
+            else:
+                updates["gainers_3m"] = g3m
         if isinstance(l3m, dict):
-            updates["losers_3m"] = l3m
+            rows = l3m.get('data') or []
+            if partial_tick and not rows:
+                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('losers_3m'))
+                if isinstance(prev_rows, list) and prev_rows:
+                    logging.info("partial_tick: keep losers_3m snapshot (%d rows)", len(prev_rows))
+                else:
+                    updates["losers_3m"] = l3m
+            else:
+                updates["losers_3m"] = l3m
         if isinstance(banner_1h_price, dict):
             updates["banner_1h_price"] = banner_1h_price
         if do_heavy and isinstance(banner_1h_volume, dict):
@@ -7001,6 +7289,8 @@ _MW_BG_THREAD = None
 _MW_BG_LOCK = threading.Lock()
 _MW_VOLUME_THREAD = None
 _MW_VOLUME_LOCK = threading.Lock()
+_MW_SENTIMENT_THREAD = None
+_MW_SENTIMENT_LOCK = threading.Lock()
 
 
 def _mw_ensure_background_started():
@@ -7050,6 +7340,23 @@ def _mw_ensure_background_started():
             except Exception as e:
                 try:
                     app.logger.warning(f"Failed to start volume updater thread: {e}")
+                except Exception:
+                    pass
+
+    with _MW_SENTIMENT_LOCK:
+        if _MW_SENTIMENT_THREAD is None or not _MW_SENTIMENT_THREAD.is_alive():
+            try:
+                st = threading.Thread(target=_sentiment_polling_loop)
+                st.daemon = True
+                st.start()
+                _MW_SENTIMENT_THREAD = st
+                try:
+                    app.logger.info("Sentiment polling thread started (flask-run bootstrap)")
+                except Exception:
+                    pass
+            except Exception as e:
+                try:
+                    app.logger.warning(f"Failed to start sentiment poller thread: {e}")
                 except Exception:
                     pass
 
@@ -7239,6 +7546,15 @@ if __name__ == '__main__':
     background_thread.start()
     
     logging.info("Background update thread started")
+
+    # Start sentiment polling thread
+    try:
+        sentiment_thread = threading.Thread(target=_sentiment_polling_loop)
+        sentiment_thread.daemon = True
+        sentiment_thread.start()
+        logging.info("Sentiment polling thread started")
+    except Exception as e:
+        logging.warning(f"Failed to start sentiment poller thread: {e}")
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
     
     try:
