@@ -58,6 +58,8 @@ export default function SymbolPanel({ symbol, onClose, initialTab = 'overview' }
     return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
   }, [sym]);
 
+  if (!sym) return null;
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
       {/* backdrop */}

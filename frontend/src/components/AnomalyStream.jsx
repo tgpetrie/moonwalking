@@ -24,6 +24,16 @@ const spotUrl = (token, symbol) => {
   return coinbaseSpotUrl({ product_id: productId, symbol });
 };
 
+const getAlertTradeUrl = (log) => {
+  const u = log?.url;
+  if (typeof u === "string" && u.startsWith("http")) return u;
+
+  const pid = (log?.product_id || log?.symbol || "").toString().trim().toUpperCase();
+  if (!pid) return null;
+  const productId = pid.includes("-") ? pid : `${pid}-USD`;
+  return `https://www.coinbase.com/advanced-trade/spot/${encodeURIComponent(productId)}`;
+};
+
 export default function AnomalyStream({ data = {}, volumeData = [] }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [logs, setLogs] = useState([
@@ -204,16 +214,38 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       </button>
 
       <div ref={scrollRef} className={`bh-anom-body ${isCollapsed ? "is-hidden" : ""}`}>
-        {logs.map((log) => (
-          <div key={log.id} className={`bh-anom-line bh-row tone-${log.tone}`} data-side="flat">
+        {logs.map((log) => {
+          const tradeUrl = getAlertTradeUrl(log);
+          const isClickable = Boolean(tradeUrl);
+          return (
+            <div
+              key={log.id}
+              className={`bh-anom-line bh-row tone-${log.tone} ${isClickable ? "bh-anom-clickable" : ""}`}
+              data-side="flat"
+              role={isClickable ? "link" : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              onClick={(e) => {
+                if (!isClickable) return;
+                const target = e.target;
+                if (target && target.closest && target.closest("a")) return;
+                window.open(tradeUrl, "_blank", "noreferrer");
+              }}
+              onKeyDown={(e) => {
+                if (!isClickable) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  window.open(tradeUrl, "_blank", "noreferrer");
+                }
+              }}
+            >
             <span className="bh-anom-time">[{log.time}]</span>
             <span className="bh-anom-msg">
               {log.prefix ? <span className="bh-anom-prefix">{log.prefix}</span> : null}{" "}
               {log.symbol ? (
-                log.url ? (
+                tradeUrl ? (
                   <a
                     className="bh-anom-link"
-                    href={log.url}
+                    href={tradeUrl}
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: "inherit" }}
@@ -226,8 +258,9 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
               ) : null}{" "}
               <span className="bh-anom-text">{log.body || log.msg}</span>
             </span>
-          </div>
-        ))}
+            </div>
+          );
+        })}
         <div className="bh-anom-cursor">_</div>
       </div>
     </div>

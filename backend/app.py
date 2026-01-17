@@ -1696,6 +1696,22 @@ def _sentiment_polling_loop():
 
 
 def _get_sentiment_snapshot():
+    # If poller hasn't started yet, kick it off in background (non-blocking).
+    try:
+        thread_ref = globals().get("_MW_SENTIMENT_THREAD")
+        lock_ref = globals().get("_MW_SENTIMENT_LOCK")
+        if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+            if lock_ref is not None:
+                with lock_ref:
+                    thread_ref = globals().get("_MW_SENTIMENT_THREAD")
+                    if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+                        st = threading.Thread(target=_sentiment_polling_loop)
+                        st.daemon = True
+                        st.start()
+                        globals()["_MW_SENTIMENT_THREAD"] = st
+    except Exception:
+        pass
+
     with _SENTIMENT_LOCK:
         sentiment = dict(_SENTIMENT_LAST_GOOD) if isinstance(_SENTIMENT_LAST_GOOD, dict) else None
         last_ok = _SENTIMENT_LAST_OK_TS
@@ -7300,7 +7316,7 @@ def _mw_ensure_background_started():
     executed, so the background updater thread would never start and SWR
     snapshots remain empty (dashboard shows no data).
     """
-    global _MW_BG_THREAD, _MW_VOLUME_THREAD
+    global _MW_BG_THREAD, _MW_VOLUME_THREAD, _MW_SENTIMENT_THREAD
 
     # Avoid starting the thread in the Werkzeug reloader parent process.
     # Only the child process sets WERKZEUG_RUN_MAIN=true.

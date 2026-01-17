@@ -143,7 +143,6 @@ kill_process_on_port() {
 
 kill_process_on_port "$BACKEND_START"
 kill_process_on_port "$FRONTEND_START"
-kill_process_on_port "$SENTIMENT_PORT"
 
 BACKEND_PORT="$BACKEND_START"
 FRONTEND_PORT="$FRONTEND_START"
@@ -245,7 +244,7 @@ for c in \
   "$ROOT_DIR/backend/start_pipeline.sh" \
   "$ROOT_DIR/start_pipeline.sh"
 do
-  if [ -x "$c" ]; then
+  if [ -f "$c" ]; then
     PIPELINE="$c"
     break
   fi
@@ -263,14 +262,14 @@ if [ -n "$PIPELINE" ]; then
   if [ "$DETACH" = "1" ]; then
     pipeline_cmd=$(cat <<EOF
 cd "$ROOT_DIR"
-SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" exec "$PIPELINE"
+SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" exec bash "$PIPELINE"
 EOF
 )
     start_detached /tmp/mw_pipeline.log bash -c "$pipeline_cmd" > "$PIPELINE_PID_FILE"
   else
     (
       cd "$ROOT_DIR"
-      SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" "$PIPELINE"
+      SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" bash "$PIPELINE"
     ) > /tmp/mw_pipeline.log 2>&1 &
     echo $! > "$PIPELINE_PID_FILE"
   fi

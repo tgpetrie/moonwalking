@@ -31,9 +31,6 @@ export default function TokenRow({ row, token, item, index = 0, rank, changeKey 
   }
 
   const url = coinbaseSpotUrl(data || {});
-  // TEMP debug: show which rows have a coinbase URL (remove after verification)
-  // eslint-disable-next-line no-console
-  console.log("ROW_URL", symbol, data?.product_id ?? null, url);
   const open = () => {
     if (!url) return;
     if (window.getSelection?.().toString()) return;

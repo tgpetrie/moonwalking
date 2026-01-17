@@ -4082,6 +4082,8 @@ a.bh-row {
 .bh-anom-body.is-hidden{ opacity: 0; pointer-events: none; }
 
 .bh-anom-line{ display: flex; gap: 10px; align-items: baseline; line-height: 1.2; margin: 0 0 8px; }
+.bh-anom-clickable{ cursor: pointer; }
+.bh-anom-clickable:focus{ outline: 2px solid rgba(255,255,255,0.18); outline-offset: 2px; }
 .bh-anom-time{ opacity: 0.45; color: rgba(245,246,250,0.92); white-space: nowrap; font-size: 11px; }
 .bh-anom-msg{ text-transform: uppercase; font-weight: 700; }
 .tone-mint .bh-anom-msg{ color: #10ae9bf2; }
