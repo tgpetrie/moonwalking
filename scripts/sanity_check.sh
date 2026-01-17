@@ -59,4 +59,7 @@ bash scripts/validate_mw_guardrails.sh
 echo "[sanity] running alerts oracle"
 BACKEND_BASE="$BASE" bash scripts/verify_alerts.sh
 
+echo "[sanity] running coverage oracle"
+BACKEND_BASE="$BASE" bash scripts/verify_coverage.sh
+
 echo "[sanity] ALL OK"

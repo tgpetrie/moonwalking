@@ -225,6 +225,83 @@ def _norm_base(x: str) -> str | None:
 
 QUOTE_PREF = ("USD", "USDC", "USDT", "EUR", "GBP")
 
+# Must-include staples (can override via env MW_MUST_INCLUDE_PRODUCTS)
+_MW_MUST_INCLUDE_PRODUCTS = [
+    p.strip().upper()
+    for p in os.getenv("MW_MUST_INCLUDE_PRODUCTS", "BTC-USD,ETH-USD,SOL-USD,AMP-USD").split(",")
+    if p.strip()
+]
+
+
+def _normalize_product_id_from_row(row: dict | None) -> str | None:
+    if not isinstance(row, dict):
+        return None
+    pid = row.get("product_id") or row.get("productId") or row.get("product") or row.get("id")
+    if isinstance(pid, str) and pid.strip():
+        p = pid.strip().upper()
+        if "-" not in p:
+            p = f"{p}-USD"
+        return p
+    sym = row.get("symbol") or row.get("ticker") or row.get("base") or row.get("asset")
+    if not sym:
+        return None
+    s = str(sym).strip().upper()
+    if not s:
+        return None
+    if "-" not in s:
+        s = f"{s}-USD"
+    return s
+
+
+def _row_quality_score(row: dict | None) -> int:
+    if not isinstance(row, dict):
+        return 0
+    score = 0
+    price = row.get("current_price") if row.get("current_price") is not None else row.get("price")
+    if _safe_float(price) is not None:
+        score += 2
+    for k in (
+        "change_1m",
+        "price_change_percentage_1min",
+        "price_change_1m",
+        "change_3m",
+        "price_change_percentage_3min",
+        "price_change_3m",
+    ):
+        if _safe_float(row.get(k)) is not None:
+            score += 2
+            break
+    if _safe_float(row.get("volume_1h_now")) is not None or _safe_float(row.get("volume_1h_prev")) is not None:
+        score += 1
+    if row.get("ts") or row.get("timestamp") or row.get("last_updated"):
+        score += 1
+    return score
+
+
+def _dedupe_rows_by_product_id(rows: list[dict]) -> tuple[list[dict], int]:
+    if not rows:
+        return [], 0
+    out = []
+    index_by_pid = {}
+    dropped = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        pid = _normalize_product_id_from_row(row)
+        if not pid:
+            out.append(row)
+            continue
+        if pid in index_by_pid:
+            existing_idx = index_by_pid[pid]
+            existing = out[existing_idx]
+            if _row_quality_score(row) > _row_quality_score(existing):
+                out[existing_idx] = row
+            dropped += 1
+        else:
+            index_by_pid[pid] = len(out)
+            out.append(row)
+    return out, dropped
+
 
 def resolve_product_id_from_row(row) -> str | None:
     """Resolve a product id for a given row or symbol using Coinbase products.
@@ -4818,6 +4895,56 @@ def data_aggregate():
                         continue
                     latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
 
+            # Dedupe movers by product_id and inject must-include staples
+            dedupe_dropped = {}
+            try:
+                snap_g1, dropped_g1 = _dedupe_rows_by_product_id(list(snap_g1 or []))
+                snap_g3, dropped_g3 = _dedupe_rows_by_product_id(list(snap_g3 or []))
+                snap_l3, dropped_l3 = _dedupe_rows_by_product_id(list(snap_l3 or []))
+                dedupe_dropped = {
+                    "gainers_1m": dropped_g1,
+                    "gainers_3m": dropped_g3,
+                    "losers_3m": dropped_l3,
+                }
+            except Exception:
+                dedupe_dropped = {}
+
+            must_include = list(_MW_MUST_INCLUDE_PRODUCTS)
+            present_pids = set()
+            for rows in (snap_g1, snap_g3, snap_l3):
+                for row in (rows or []):
+                    pid = _normalize_product_id_from_row(row)
+                    if pid:
+                        present_pids.add(pid)
+
+            missing_must = [pid for pid in must_include if pid and pid not in present_pids]
+            must_added = []
+            if missing_must:
+                price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else None
+                if not isinstance(price_map, dict):
+                    price_map = {}
+                for pid in missing_must:
+                    sym = pid.split("-", 1)[0].upper()
+                    price = None
+                    for key in (pid, sym, sym.upper()):
+                        if key in price_map:
+                            price = price_map.get(key)
+                            break
+                    if price is None and sym in latest_by_symbol:
+                        price = latest_by_symbol.get(sym, {}).get("price")
+                    row = {
+                        "symbol": sym,
+                        "product_id": pid,
+                        "current_price": price,
+                        "price": price,
+                        "change_1m": None,
+                        "change_3m": None,
+                        "source": "must_include",
+                    }
+                    snap_g1.append(row)
+                    must_added.append(pid)
+                    present_pids.add(pid)
+
             warming_3m = not bool(baseline_meta_3m.get("ready"))
             baseline_ts_3m = baseline_meta_3m.get("baseline_ts")
 
@@ -4908,6 +5035,9 @@ def data_aggregate():
                     "gainers_3m": len(snap_g3 or []),
                     "losers_3m": len(snap_l3 or []),
                     "alerts": len(alerts_normalized),
+                    "dedupe_dropped": dedupe_dropped,
+                    "must_include_missing": missing_must,
+                    "must_include_added": must_added,
                 },
             }
             payload["data"] = {
@@ -4974,6 +5104,9 @@ def data_aggregate():
                 "gainers_3m": 0,
                 "losers_3m": 0,
                 "alerts": 0,
+                "dedupe_dropped": {},
+                "must_include_missing": list(_MW_MUST_INCLUDE_PRODUCTS),
+                "must_include_added": [],
             },
         }
         payload["data"] = {
