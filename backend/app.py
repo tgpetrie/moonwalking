@@ -402,7 +402,7 @@ def _load_products(timeout=10):
 
 
 def _null_if_nonpositive(x):
-    """Treat missing or non-positive values as null for baseline fields."""
+    """Treat missing or non-positive values as empty for baseline fields."""
     try:
         v = float(x)
     except (TypeError, ValueError):
