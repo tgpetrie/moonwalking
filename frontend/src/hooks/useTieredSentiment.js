@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getApiBaseUrl, getSentimentBaseUrl } from "../api";
+import { getSentimentBaseUrl } from "../api";
 
 const FAIL_COOLDOWN_MS = 8000;
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_SENTIMENT_TIMEOUT_MS || 7000);
@@ -212,7 +212,6 @@ export function useTieredSentiment(
   symbol,
   { enabled = true, refreshMs = 15000 } = {}
 ) {
-  const apiBase = (getApiBaseUrl() || "").replace(/\/$/, "");
   const sentimentBase = (getSentimentBaseUrl() || "").replace(/\/$/, "");
 
   const lastGoodRef = useRef(null);
@@ -224,7 +223,6 @@ export function useTieredSentiment(
   const sourcesRef = useRef([]);
   const lastTieredFetchRef = useRef(0);
   const lastSourcesFetchRef = useRef(0);
-  const proxyCacheRef = useRef({ ts: 0, data: null });
   const [raw, setRaw] = useState(null);
   const [data, setData] = useState(() => emptyNormalized);
   const [tieredData, setTieredData] = useState(null);
@@ -328,42 +326,6 @@ export function useTieredSentiment(
     [buildLatestUrl, symbol]
   );
 
-  const fetchProxySentiment = useCallback(async () => {
-    const now = Date.now();
-    if (proxyCacheRef.current.data && now - proxyCacheRef.current.ts < 120000) {
-      return proxyCacheRef.current.data;
-    }
-
-    const base = (apiBase || "http://127.0.0.1:5003").replace(/\/$/, "");
-    const fetchOne = async (path) => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2500);
-      try {
-        const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      } finally {
-        clearTimeout(timeout);
-      }
-    };
-
-    try {
-      const [fngRes, marketRes] = await Promise.allSettled([
-        fetchOne("/api/sentiment/fng"),
-        fetchOne("/api/sentiment/market"),
-      ]);
-      const payload = {
-        fng: fngRes.status === "fulfilled" ? fngRes.value : null,
-        market: marketRes.status === "fulfilled" ? marketRes.value : null,
-      };
-      proxyCacheRef.current = { ts: now, data: payload };
-      return payload;
-    } catch (err) {
-      console.warn("[useTieredSentiment] proxy sentiment fetch failed", err?.message || err);
-      return proxyCacheRef.current.data;
-    }
-  }, [apiBase]);
-
   const fetchAll = useCallback(
     async (options = {}) => {
       const freshLatest = options?.freshLatest === true;
@@ -379,8 +341,6 @@ export function useTieredSentiment(
       setError(null);
       setStale(false);
 
-      const proxyPromise = fetchProxySentiment();
-
       try {
         const now = Date.now();
         const auxTieredStale = now - lastTieredFetchRef.current > SLOW_AUX_MS;
@@ -391,12 +351,7 @@ export function useTieredSentiment(
 
         // 1) LATEST FIRST (await)
         const symbolJson = await fetchSymbolSentiment(freshLatest);
-        const proxies = await proxyPromise.catch(() => null);
-        const latestWithProxy = {
-          ...symbolJson,
-          fear_greed: symbolJson?.fear_greed ?? symbolJson?.fearGreed ?? proxies?.fng,
-          market_pulse: symbolJson?.market_pulse ?? symbolJson?.marketPulse ?? proxies?.market,
-        };
+        const latestWithProxy = symbolJson;
 
         // If a newer fetch started, drop this result on the floor.
         if (fetchSeqRef.current !== seq || !enabled || (symbol || "") !== sym) return;
@@ -467,22 +422,9 @@ export function useTieredSentiment(
           error: err?.message,
         }));
 
-        const proxies = await proxyPromise.catch(() => null);
         const fallback = lastGoodRef.current;
         const fallbackSymbol = lastGoodSymbolRef.current;
-
-        if (proxies && (proxies.fng || proxies.market)) {
-          const merged = normalizeTieredSentiment(
-            { fear_greed: proxies.fng, market_pulse: proxies.market },
-            tieredRef.current,
-            sourcesRef.current
-          );
-          lastGoodRef.current = merged;
-          lastGoodSymbolRef.current = sym;
-          setData(merged);
-          setError(null);
-          setStale(Boolean(proxies.fng?.stale || proxies.market?.stale));
-        } else if (fallback && fallbackSymbol === (symbol || "")) {
+        if (fallback && fallbackSymbol === (symbol || "")) {
           setData(fallback);
           setError(null);
           setStale(true);
@@ -496,7 +438,7 @@ export function useTieredSentiment(
         setValidating(false);
       }
     },
-    [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, fetchSources, fetchProxySentiment]
+    [enabled, cooldownUntil, symbol, fetchSymbolSentiment, fetchTieredData, fetchSources]
   );
 
   useEffect(() => {

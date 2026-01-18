@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import normalizeSentiment from "../adapters/normalizeSentiment";
-import { getSentimentBaseUrl, getApiBaseUrl } from "../api";
+import { getSentimentBaseUrl } from "../api";
 
 /*
  * Stability fence: every consumer relies on this hook returning the same shape.
@@ -63,8 +63,6 @@ export function useSentimentLatest(
   { enabled = true, refreshMs = 30000 } = {}
 ) {
   const base = (getSentimentBaseUrl() || "").replace(/\/$/, "");
-  const apiBase = (getApiBaseUrl() || "").replace(/\/$/, "");
-
   const cached = readCached();
   const cachedNorm = normalizeSentiment(cached);
 
@@ -85,36 +83,6 @@ export function useSentimentLatest(
     return base ? `${base}${path}` : path;
   }, [base, symbol]);
 
-  const fetchProxySentiment = useCallback(async () => {
-    const resolvedBase = (apiBase || base || "http://127.0.0.1:5003").replace(/\/$/, "");
-    const fetchOne = async (path) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      try {
-        const res = await fetch(`${resolvedBase}${path}`, { cache: "no-store", signal: controller.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    };
-    try {
-      const [fngRes, marketRes] = await Promise.allSettled([
-        fetchOne("/api/sentiment/fng"),
-        fetchOne("/api/sentiment/market"),
-      ]);
-      return {
-        fng: fngRes.status === "fulfilled" ? fngRes.value : null,
-        market: marketRes.status === "fulfilled" ? marketRes.value : null,
-      };
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.warn("[useSentimentLatest] proxy sentiment failed", err?.message || err);
-      }
-      return null;
-    }
-  }, [apiBase, base]);
-
   const fetchOnce = useCallback(async () => {
     if (!enabled) return;
 
@@ -126,42 +94,23 @@ export function useSentimentLatest(
     setError(null);
     setStale(false);
 
-    const proxyPromise = fetchProxySentiment();
     const ac = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(buildUrl(), { cache: "no-store", signal: ac.signal });
       const json = await parsePipelineResponse(res);
-      const proxies = await proxyPromise.catch(() => null);
-      const mergedRaw = {
-        ...json,
-        fear_greed: json?.fear_greed ?? json?.fearGreed ?? proxies?.fng,
-        market_pulse: json?.market_pulse ?? json?.marketPulse ?? proxies?.market,
-      };
-      lastGoodRef.current = mergedRaw;
+      lastGoodRef.current = json;
       lastGoodSymbolRef.current = symbol || "";
-      writeCached(mergedRaw);
-      setRaw(mergedRaw);
-      setData(normalizeSentiment(mergedRaw));
+      writeCached(json);
+      setRaw(json);
+      setData(normalizeSentiment(json));
       setLoading(false);
       setStale(false);
     } catch (err) {
       setCooldownUntil(Date.now() + FAIL_COOLDOWN_MS);
-
-      const proxies = await proxyPromise.catch(() => null);
       const fallback = lastGoodRef.current;
       const fallbackSymbol = lastGoodSymbolRef.current;
-
-      if (proxies && (proxies.fng || proxies.market)) {
-        const mergedRaw = { fear_greed: proxies.fng, market_pulse: proxies.market };
-        lastGoodRef.current = mergedRaw;
-        lastGoodSymbolRef.current = symbol || "";
-        writeCached(mergedRaw);
-        setRaw(mergedRaw);
-        setData(normalizeSentiment(mergedRaw));
-        setError(null);
-        setStale(Boolean(proxies.fng?.stale || proxies.market?.stale));
-      } else if (fallback && fallbackSymbol === (symbol || "")) {
+      if (fallback && fallbackSymbol === (symbol || "")) {
         setRaw(fallback);
         setData(normalizeSentiment(fallback));
         setError(null);
@@ -174,7 +123,7 @@ export function useSentimentLatest(
       clearTimeout(timeoutId);
       setValidating(false);
     }
-  }, [buildUrl, enabled, cooldownUntil, symbol, fetchProxySentiment]);
+  }, [buildUrl, enabled, cooldownUntil, symbol]);
 
   useEffect(() => {
     if (!enabled) {
