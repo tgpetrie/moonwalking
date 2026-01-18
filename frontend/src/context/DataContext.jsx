@@ -12,6 +12,7 @@ const PUBLISH_UI_MS = Number(import.meta.env.VITE_PUBLISH_UI_MS || 4000);
 const MW_BACKEND_KEY = "mw_backend_base";
 const MW_LAST_GOOD_DATA = "mw_last_good_data";
 const MW_LAST_GOOD_AT = "mw_last_good_at";
+const MW_DEBUG = import.meta.env.VITE_MW_DEBUG === "1";
 
 const readCachedPayload = () => {
   if (typeof window === "undefined") return null;
@@ -230,6 +231,7 @@ export function DataProvider({ children }) {
     // DEV-only one-time payload shape log for diagnostics
     if (
       import.meta?.env?.DEV &&
+      MW_DEBUG &&
       typeof window !== "undefined" &&
       !window.__MW_DEBUG_LOGGED__ &&
       ((Array.isArray(norm.gainers_1m) && norm.gainers_1m.length) ||

@@ -4624,14 +4624,27 @@ def get_top_banner():
                 return jsonify({"error": "No banner data available"}), 503
 
             items = []
-            for coin in banner_data[:20]:
+            for coin in banner_data:
+                try:
+                    pct = float(coin.get("price_change_1h", 0) or 0)
+                except Exception:
+                    pct = 0.0
+                if pct < 0:
+                    continue
+                symbol = coin["symbol"]
                 items.append({
-                    "symbol": coin["symbol"],
+                    "symbol": symbol,
+                    "product_id": coin.get("product_id") or symbol,
                     "current_price": coin.get("current_price") or coin.get('current') or 0,
-                    "price_change_1h": coin.get("price_change_1h", 0),  # estimated
+                    "price_change_1h": pct,  # estimated
+                    "pct_1h": pct,
+                    "pct_change_1h": pct,
                     "market_cap": coin.get("market_cap", 0),
                     "_source": "24h_fallback"
                 })
+
+            items.sort(key=lambda r: r.get("price_change_1h", 0), reverse=True)
+            items = items[:20]
 
             return jsonify({
                 "items": items,
@@ -4643,16 +4656,25 @@ def get_top_banner():
                 "ts": int(time.time())
             })
 
-        # Sort by absolute 1h change (biggest movers first)
-        sorted_changes = sorted(hour_changes, key=lambda x: abs(x.get("price_change_1h", 0)), reverse=True)
+        # Gainers only, sorted by 1h % change descending
+        sorted_changes = sorted(
+            [c for c in hour_changes if (c.get("price_change_1h") or 0) >= 0],
+            key=lambda x: x.get("price_change_1h", 0),
+            reverse=True,
+        )
 
         # Format for top banner
         items = []
         for change in sorted_changes[:20]:  # Top 20 biggest 1h movers
+            symbol = change["symbol"]
+            pct = change["price_change_1h"]
             items.append({
-                "symbol": change["symbol"],
+                "symbol": symbol,
+                "product_id": change.get("product_id") or symbol,
                 "current_price": change["current_price"],
-                "price_change_1h": change["price_change_1h"],
+                "price_change_1h": pct,
+                "pct_1h": pct,
+                "pct_change_1h": pct,
                 "price_1h_ago": change.get("price_1h_ago", 0),
                 "_source": "realtime_1h"
             })
@@ -4712,7 +4734,7 @@ def get_bottom_banner():
                 "ts": int(time.time())
             })
 
-        # Sort by absolute 1h volume change (biggest movers first)
+        # Sort by 1h volume percent change (descending)
         # Filter out stale or None changes
         valid_changes = [v for v in volume_changes if v.get('vol1h_pct_change') is not None and not v.get('stale', False)]
 
@@ -4720,7 +4742,7 @@ def get_bottom_banner():
             # All stale, use whatever we have
             valid_changes = volume_changes
 
-        sorted_changes = sorted(valid_changes, key=lambda x: abs(x.get("vol1h_pct_change") or 0), reverse=True)
+        sorted_changes = sorted(valid_changes, key=lambda x: x.get("vol1h_pct_change") or float("-inf"), reverse=True)
 
         # Format for bottom banner
         items = []
@@ -4797,17 +4819,26 @@ def _compute_top_banner_data_safe():
         rows = []
 
     out = []
-    for coin in rows[:20]:
+    for coin in rows:
         try:
+            pct = float(coin.get("price_change_1h", 0) or 0)
+            if pct < 0:
+                continue
+            sym = coin.get("symbol")
             out.append({
-                "symbol": coin.get("symbol"),
+                "symbol": sym,
+                "product_id": coin.get("product_id") or sym,
                 "current_price": float(coin.get("current_price", 0) or 0),
                 "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
-                "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                "price_change_1h": pct,
+                "pct_1h": pct,
+                "pct_change_1h": pct,
                 "market_cap": float(coin.get("market_cap", 0) or 0),
             })
         except Exception:
             continue
+    out.sort(key=lambda r: r.get("price_change_1h", 0), reverse=True)
+    out = out[:20]
     return out
 
 # ---------------- Simple snapshot helpers for /data -----------------
@@ -4904,32 +4935,27 @@ def get_banner_1h_volume(banner_data=None):
                 # baseline_ready requires both prev and pct to be truly computed (not derived)
                 baseline_ready = (pct is not None) and (vol_prev is not None)
 
+                pct_val = float(pct) if pct is not None else None
                 out.append({
                     'symbol': sym,
                     'product_id': pid or (f"{sym}-USD" if sym else None),
                     'volume_1h_now': float(vol_now) if vol_now is not None else None,
                     'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                    'volume_change_1h_pct': float(pct) if pct is not None else None,
+                    'volume_change_1h_pct': pct_val,
+                    'vol_pct_1h': pct_val,
 
                     # aliases some frontend normalizers may read
-                    'change_1h_volume': float(pct) if pct is not None else None,
-                    'volume_change_percentage_1h': float(pct) if pct is not None else None,
+                    'change_1h_volume': pct_val,
+                    'volume_change_percentage_1h': pct_val,
 
                     'baseline_ready': bool(baseline_ready),
                     'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
                     'source': 'volume_1h_candles',
                 })
 
-            # Stable ordering: prefer abs(pct) when available, else volume desc
-            def _abs_pct(r):
-                v = r.get('volume_change_1h_pct')
-                return abs(v) if isinstance(v, (int, float)) else -1
-
-            def _vol_now(r):
-                v = r.get('volume_1h_now')
-                return v if isinstance(v, (int, float)) else 0
-
-            out.sort(key=lambda r: (_abs_pct(r), _vol_now(r)), reverse=True)
+            # Stable ordering: volume pct change descending (no abs, no volume sort)
+            out = [r for r in out if isinstance(r.get('vol_pct_1h'), (int, float))]
+            out.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
             return out[:20], (vts or datetime.now().isoformat())
     except Exception:
         pass
@@ -4948,19 +4974,23 @@ def get_banner_1h_volume(banner_data=None):
                 pct = it.get('volume_change_1h_pct')
                 baseline_ready = (pct is not None) and (vol_prev is not None)
 
+                pct_val = float(pct) if pct is not None else None
                 out.append({
                     'symbol': sym,
                     'product_id': pid or (f"{sym}-USD" if sym else None),
                     'volume_1h_now': float(vol_now) if vol_now is not None else None,
                     'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                    'volume_change_1h_pct': float(pct) if pct is not None else None,
-                    'change_1h_volume': float(pct) if pct is not None else None,
-                    'volume_change_percentage_1h': float(pct) if pct is not None else None,
+                    'volume_change_1h_pct': pct_val,
+                    'vol_pct_1h': pct_val,
+                    'change_1h_volume': pct_val,
+                    'volume_change_percentage_1h': pct_val,
                     'baseline_ready': bool(baseline_ready),
                     'baseline_missing_reason': None if baseline_ready else 'warming_candles',
                     'source': 'volume1h_sqlite',
                 })
 
+            out = [r for r in out if isinstance(r.get('vol_pct_1h'), (int, float))]
+            out.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
             return out[:20], datetime.now().isoformat()
     except Exception:
         pass
@@ -5154,6 +5184,48 @@ def data_aggregate():
 
             partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
             sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
+
+            def _to_float(val):
+                try:
+                    if val is None:
+                        return None
+                    if isinstance(val, (int, float)):
+                        return float(val)
+                    s = str(val).strip().replace("%", "")
+                    return float(s)
+                except Exception:
+                    return None
+
+            if isinstance(snap_b1h, list):
+                norm_b1h = []
+                for row in snap_b1h:
+                    if not isinstance(row, dict):
+                        continue
+                    pct = _to_float(row.get("pct_1h"))
+                    if pct is None:
+                        pct = _to_float(row.get("price_change_1h"))
+                    rr = dict(row)
+                    rr["pct_1h"] = pct
+                    rr["pct_change_1h"] = rr.get("pct_change_1h") if rr.get("pct_change_1h") is not None else pct
+                    rr["product_id"] = rr.get("product_id") or rr.get("symbol")
+                    norm_b1h.append(rr)
+                snap_b1h = norm_b1h
+
+            if isinstance(snap_bv, list):
+                norm_bv = []
+                for row in snap_bv:
+                    if not isinstance(row, dict):
+                        continue
+                    pct = _to_float(row.get("vol_pct_1h"))
+                    if pct is None:
+                        pct = _to_float(row.get("volume_change_1h"))
+                    if pct is None:
+                        pct = _to_float(row.get("volume_change_1h_pct"))
+                    rr = dict(row)
+                    rr["vol_pct_1h"] = pct
+                    rr["product_id"] = rr.get("product_id") or rr.get("symbol")
+                    norm_bv.append(rr)
+                snap_bv = norm_bv
             payload = {
                 "gainers_1m": snap_g1 or [],
                 "gainers_3m": snap_g3 or [],
@@ -7322,17 +7394,75 @@ def _compute_snapshots_from_cache():
         try:
             banner_rows = (data_3min or {}).get('banner') or []
             b1h_price_rows = []
-            for coin in banner_rows[:20]:
+
+            def _to_float(val):
                 try:
+                    if val is None:
+                        return None
+                    if isinstance(val, (int, float)):
+                        return float(val)
+                    s = str(val).strip().replace("%", "")
+                    return float(s)
+                except Exception:
+                    return None
+
+            for coin in banner_rows:
+                try:
+                    pct = _to_float(coin.get("pct_1h"))
+                    if pct is None:
+                        pct = _to_float(coin.get("price_change_1h"))
+                    if pct is None or not math.isfinite(pct):
+                        continue
+                    symbol = coin.get("symbol")
                     b1h_price_rows.append({
-                        "symbol": coin.get("symbol"),
+                        "symbol": symbol,
+                        "product_id": coin.get("product_id") or symbol,
                         "current_price": float(coin.get("current_price", 0) or 0),
                         "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
-                        "price_change_1h": float(coin.get("price_change_1h", 0) or 0),
+                        "price_change_1h": pct,
+                        "pct_1h": pct,
+                        "pct_change_1h": pct,
                         "market_cap": float(coin.get("market_cap", 0) or 0),
                     })
                 except Exception:
                     continue
+            b1h_price_rows.sort(key=lambda r: r.get("pct_1h", 0), reverse=True)
+            # If underfilled, widen the candidate pool using cached 1h changes
+            if len(b1h_price_rows) < 20:
+                try:
+                    current_prices = last_current_prices.get('data') if isinstance(last_current_prices, dict) else None
+                    if isinstance(current_prices, dict) and current_prices:
+                        snapshot_ts_s = int(last_current_prices.get('timestamp') or time.time())
+                        hour_changes = calculate_1hour_price_changes(current_prices, snapshot_ts_s)
+                        existing = {r.get('symbol') for r in b1h_price_rows if r.get('symbol')}
+                        extra = []
+                        for change in (hour_changes or []):
+                            try:
+                                pct = float(change.get('price_change_1h', 0) or 0)
+                            except Exception:
+                                pct = 0.0
+                            if not math.isfinite(pct):
+                                continue
+                            sym = change.get('symbol')
+                            if not sym or sym in existing:
+                                continue
+                            extra.append({
+                                'symbol': sym,
+                                'product_id': change.get('product_id') or sym,
+                                'current_price': float(change.get('current_price', 0) or 0),
+                                'initial_price_1h': float(change.get('price_1h_ago', 0) or 0),
+                                'price_change_1h': pct,
+                                'pct_1h': pct,
+                                'pct_change_1h': pct,
+                                'market_cap': 0.0,
+                            })
+                        extra.sort(key=lambda r: r.get('pct_1h', 0), reverse=True)
+                        if extra:
+                            b1h_price_rows.extend(extra)
+                except Exception:
+                    pass
+
+            b1h_price_rows = b1h_price_rows[:20]
             banner_1h_price = {
                 'component': 'banner_1h_price',
                 'data': b1h_price_rows,
@@ -7422,19 +7552,23 @@ def _compute_snapshots_from_cache():
                     missing_reason = it.get('baseline_missing_reason')
                     # baseline_ready: both prev and pct must be truly computed (no backsolve)
                     baseline_ready = (pct is not None) and (vol_prev is not None)
+                    pct_val = float(pct) if pct is not None else None
                     rows.append({
                         'symbol': sym,
                         'product_id': pid or (f"{sym}-USD" if sym else None),
                         'volume_1h_now': float(vol_now) if vol_now is not None else None,
                         'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                        'volume_change_1h_pct': float(pct) if pct is not None else None,
+                        'volume_change_1h_pct': pct_val,
+                        'vol_pct_1h': pct_val,
                         'baseline_ready': bool(baseline_ready),
                         'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
                         'source': 'volume_1h_candles',
                     })
+                rows = [r for r in rows if isinstance(r.get('vol_pct_1h'), (int, float))]
+                rows.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
                 banner_1h_volume = {
                     'component': 'banner_1h_volume',
-                    'data': rows,
+                    'data': rows[:20],
                     'last_updated': datetime.now().isoformat(),
                 }
         except Exception:

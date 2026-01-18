@@ -7,10 +7,8 @@ import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
-import { LiveStatusBar } from "./LiveStatusBar.jsx";
 import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
-import { useIntelligence } from "../context/IntelligenceContext.jsx";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
 import AlertsDock from "./AlertsDock.jsx";
@@ -18,9 +16,7 @@ import AlertsDock from "./AlertsDock.jsx";
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, isValidating, fatal, coverage, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs } = useDashboardData();
-  const { heartbeatPulse: intelPulse } = useIntelligence();
-  const combinedPulse = Boolean(heartbeatPulse || intelPulse);
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs } = useDashboardData();
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
@@ -136,7 +132,7 @@ export default function DashboardShell({ onInfo }) {
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const formatTempTime = (value) => {
-    if (!value) return "—";
+    if (!value) return "—";                                                                        
     const date = value instanceof Date ? value : new Date(value);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
@@ -144,22 +140,22 @@ export default function DashboardShell({ onInfo }) {
   const STALE_THRESHOLD = 20; // seconds
 
   const status = useMemo(() => {
-    if (fatal || partial) return "DEGRADED";
-
-    // Use backend warming flag: only true before first snapshot exists
-    if (warming) return "WARMING";
-
-    // Once we have data, never show WARMING again
-    // Instead show STALE if data is old
+    const coreReady = (gainers1m?.length || 0) > 0 || (gainers3m?.length || 0) > 0 || (losers3m?.length || 0) > 0;
     const isStale = staleSeconds !== null && staleSeconds > STALE_THRESHOLD;
-    if (isStale) return "STALE";
 
-    // Check if partial (some tables empty)
-    const isLive = !isPartial;
-    if (!isLive && partialStreak >= 2) return "PARTIAL";
+    if (fatal) return "DEGRADED";
+    if (error && !coreReady) return "OFFLINE";
+    if (warming) return "WARMING";
+    if (isStale) return "STALE";
+    if (!coreReady && partialStreak >= 2) return "DEGRADED";
 
     return "LIVE";
-  }, [fatal, partial, warming, staleSeconds, isPartial, partialStreak]);
+  }, [fatal, error, warming, staleSeconds, partialStreak, gainers1m, gainers3m, losers3m]);
+
+  const lastUpdatedLabel = useMemo(
+    () => formatTempTime(lastUpdated || lastGoodTs),
+    [lastUpdated, lastGoodTs]
+  );
 
   const tickerItems = useMemo(() => {
     if (!gainers1m?.length) return ["Waiting for live data…"];
@@ -179,32 +175,23 @@ export default function DashboardShell({ onInfo }) {
         <div className="bh-logo">
           <span className="bh-logo-icon">🐇</span>
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
-          <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
-          <span className={`bh-warming-pill ${warming ? "is-warming" : "is-live"}`}>
-            {warming
-              ? "Warming up data…"
-              : partial
-                ? "Partial feed — holding last data"
-                : staleSeconds !== null && staleSeconds > STALE_THRESHOLD
-                ? `Stale (${staleSeconds}s ago)`
-                : `Last data ${formatTempTime(lastUpdated)}`
-            }
-          </span>
-        </div>
-        <div className="bh-topbar-right">
-          <LiveStatusBar
-            loading={loading}
-            error={error}
-            lastUpdated={lastUpdated}
-            isValidating={isValidating}
-            heartbeatPulse={combinedPulse}
-            lastFetchTs={lastFetchTs}
-          />
+          <div className="live-status">
+            <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
+            <span className="live-updated">
+              <span className="live-updated-time">{lastUpdatedLabel}</span>
+            </span>
+            {status === "WARMING" ? (
+              <span className="live-warming">Warming up data…</span>
+            ) : null}
+          </div>
         </div>
       </header>
 
       {/* 1 Hour Price Change Banner - Full Width */}
-      <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
+      <div className="bh-banner-block">
+        <div className="bh-banner-label">1H PRICE</div>
+        <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
+      </div>
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
@@ -213,79 +200,84 @@ export default function DashboardShell({ onInfo }) {
 
             {/* 1m and 3m Rail */}
             <div className="bh-rail">
-              {/* 1-min Gainers */}
-              <div className="board-section">
-                <div className="board-section-header board-section-header--center">
-                  <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+              <div className="bh-rail-stack">
+                {/* 1-min Gainers */}
+                <div className="board-section">
+                  <div className="board-section-header board-section-header--center">
+                    <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                  </div>
+                  <GainersTable1Min
+                    tokens={gainers1m}
+                    loading={uiLoading}
+                    onInfo={onInfoProp}
+                    onToggleWatchlist={handleToggleWatchlist}
+                    watchlist={watchlistSymbols}
+                  />
                 </div>
-                <GainersTable1Min
-                  tokens={gainers1m}
-                  loading={uiLoading}
-                  onInfo={onInfoProp}
-                  onToggleWatchlist={handleToggleWatchlist}
-                  watchlist={watchlistSymbols}
-                />
-              </div>
 
-              {/* 3m Gainers / Losers */}
-              <div className="board-section">
-                <section className="panel-row--3m">
-                  <div className="bh-panel bh-panel-half">
-                    <div className="table-title">TOP GAINERS (3M)</div>
-                    <GainersTable3Min
-                      tokens={gainers3m}
-                      loading={uiLoading}
-                      warming3m={warming3m}
-                      onInfo={onInfoProp}
-                      onToggleWatchlist={handleToggleWatchlist}
-                      watchlist={watchlistSymbols}
+                {/* 3m Gainers / Losers */}
+                <div className="board-section">
+                  <section className="bh-3m-grid">
+                    <div className="bh-panel bh-panel-half">
+                      <div className="table-title">TOP GAINERS (3M)</div>
+                      <GainersTable3Min
+                        tokens={gainers3m}
+                        loading={uiLoading}
+                        warming3m={warming3m}
+                        onInfo={onInfoProp}
+                        onToggleWatchlist={handleToggleWatchlist}
+                        watchlist={watchlistSymbols}
+                      />
+                    </div>
+                    <div className="bh-panel bh-panel-half">
+                      <div className="table-title">TOP LOSERS (3M)</div>
+                      <LosersTable3Min
+                        tokens={losers3m}
+                        loading={uiLoading}
+                        warming3m={warming3m}
+                        onInfo={onInfoProp}
+                        onToggleWatchlist={handleToggleWatchlist}
+                        watchlist={watchlistSymbols}
+                      />
+                    </div>
+                  </section>
+                </div>
+
+                {/* Anomaly Stream - Intelligence Log */}
+                <section className="bh-board-row-full">
+                  <div className="bh-panel bh-panel--rail">
+                    <AnomalyStream
+                      data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
+                      volumeData={bannerVolume1h || []}
                     />
                   </div>
-                  <div className="bh-panel bh-panel-half">
-                    <div className="table-title">TOP LOSERS (3M)</div>
-                    <LosersTable3Min
-                      tokens={losers3m}
-                      loading={uiLoading}
-                      warming3m={warming3m}
-                      onInfo={onInfoProp}
-                      onToggleWatchlist={handleToggleWatchlist}
-                      watchlist={watchlistSymbols}
-                    />
+                </section>
+
+                {/* Watchlist (full-width) */}
+                <section className="bh-board-row-full bh-row-watchlist">
+                  <div className="bh-panel bh-panel--rail">
+                    <div className="board-section">
+                      <div className="board-section-header">
+                        <div className="board-section-title">Watchlist</div>
+                      </div>
+                      <div className="bh-row-block">
+                        <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                      </div>
+                    </div>
                   </div>
                 </section>
               </div>
             </div>
-
-            {/* Anomaly Stream - Intelligence Log */}
-            <section className="bh-board-row-full">
-              <div className="bh-panel bh-panel--rail">
-                <AnomalyStream
-                  data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
-                  volumeData={bannerVolume1h || []}
-                />
-              </div>
-            </section>
-
-            {/* Watchlist (full-width) */}
-            <section className="bh-board-row-full bh-row-watchlist">
-              <div className="bh-panel bh-panel--rail">
-                <div className="board-section">
-                  <div className="board-section-header">
-                    <div className="board-section-title">Watchlist</div>
-                  </div>
-                  <div className="bh-row-block">
-                    <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
-                  </div>
-                </div>
-              </div>
-            </section>
 
           </div>
         </BoardWrapper>
       </main>
 
       {/* 1 Hour Volume Banner - Full Width */}
-      <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+      <div className="bh-banner-block">
+        <div className="bh-banner-label">1H VOLUME</div>
+        <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+      </div>
 
       {/* Insights floating card aligned to board rails */}
       <SentimentPopupAdvanced

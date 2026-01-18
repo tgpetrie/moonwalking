@@ -251,8 +251,8 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   }, [data, tokensProp]);
 
   const MAX_ROWS_PER_COLUMN = 4;
-  const MAX_VISIBLE_COLLAPSED = 10;
-  const MAX_VISIBLE_EXPANDED = 20;
+  const MAX_VISIBLE_COLLAPSED = 8;
+  const MAX_VISIBLE_EXPANDED = 16;
 
   const [expanded, setExpanded] = useState(false);
   const prevByIdRef = useRef(new Map());
@@ -385,7 +385,8 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     [displayRows, pulsePriceById, pulsePctById, rankById]
   );
 
-  const isSingleColumn = displayRows.length > 0 && displayRows.length <= MAX_ROWS_PER_COLUMN;
+  const totalRows = filteredRows.length;
+  const isSingleColumn = totalRows > 0 && totalRows <= MAX_ROWS_PER_COLUMN;
   const hasData = displayRows.length > 0;
 
   // Loading skeleton state
@@ -416,16 +417,16 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     );
   }
 
-  const useTwoColumns = displayRows.length > MAX_ROWS_PER_COLUMN;
-  const leftLimit = useTwoColumns ? Math.ceil(displayRows.length / 2) : displayRows.length;
+  const useTwoColumns = totalRows > MAX_ROWS_PER_COLUMN;
+  const leftLimit = useTwoColumns ? Math.floor(maxVisible / 2) : displayRows.length;
   const leftColumn = rowsWithPulse.slice(0, leftLimit);
-  const rightColumn = useTwoColumns ? rowsWithPulse.slice(leftLimit) : [];
+  const rightColumn = useTwoColumns ? rowsWithPulse.slice(leftLimit, maxVisible) : [];
   const hasSecondColumn = rightColumn.length > 0;
   const density = hasSecondColumn ? "normal" : "tight";
 
   return (
     <div className="gainers-table">
-      <div className={`panel-row--1m ${isSingleColumn ? "panel-row--single" : ""}`}>
+      <div className={`bh-1m-grid ${isSingleColumn ? "bh-1m-grid--single" : "bh-1m-grid--two"}`}>
         <div className="bh-table">
           <AnimatePresence initial={false} mode="popLayout">
             {leftColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {

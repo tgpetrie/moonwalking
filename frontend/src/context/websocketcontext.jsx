@@ -3,6 +3,7 @@ import wsManager, { connectWebSocket, disconnectWebSocket, subscribeToWebSocket 
 import { API_ENDPOINTS, fetchData } from '../api.js';
 
 const WebSocketContext = createContext(null);
+const MW_DEBUG = import.meta?.env?.VITE_MW_DEBUG === "1";
 
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
@@ -43,7 +44,7 @@ export const WebSocketProvider = ({ children }) => {
   const startPolling = () => {
     if (isPolling) return;
 
-    console.log('🔄 Starting REST API polling fallback');
+    if (MW_DEBUG) console.log('🔄 Starting REST API polling fallback');
     setIsPolling(true);
 
   let inFlight = false;
@@ -119,7 +120,7 @@ export const WebSocketProvider = ({ children }) => {
       pollingIntervalRef.current = null;
     }
     setIsPolling(false);
-    console.log('⏹️ Stopped REST API polling');
+    if (MW_DEBUG) console.log('⏹️ Stopped REST API polling');
   };
 
   // Fetch real-time prices for specific symbols from cached data
@@ -162,7 +163,7 @@ export const WebSocketProvider = ({ children }) => {
       setConnectionStatus(data.status);
       
       if (data.status === 'connected') {
-        console.log('✅ WebSocket connected successfully');
+        if (MW_DEBUG) console.log('✅ WebSocket connected successfully');
         stopPolling(); // Stop polling if WebSocket connects
       } else if (data.status === 'error') {
         console.warn('⚠️ WebSocket connection error:', data.error);
@@ -174,12 +175,12 @@ export const WebSocketProvider = ({ children }) => {
 
     // Subscribe to real-time data updates
     const unsubscribeCrypto = subscribeToWebSocket('crypto_update', (data) => {
-      console.log('📈 Received crypto update via WebSocket:', data);
+      if (MW_DEBUG) console.log('📈 Received crypto update via WebSocket:', data);
       setLatestData(prev => ({ ...prev, crypto: data }));
     });
 
     const unsubscribePrices = subscribeToWebSocket('price_update', (data) => {
-      console.log('💰 Received price update via WebSocket:', data);
+      if (MW_DEBUG) console.log('💰 Received price update via WebSocket:', data);
       setLatestData(prev => ({ 
         ...prev, 
         prices: { ...prev.prices, ...data } 
@@ -187,7 +188,7 @@ export const WebSocketProvider = ({ children }) => {
     });
 
     const unsubscribeWatchlist = subscribeToWebSocket('watchlist_update', (data) => {
-      console.log('⭐ Received watchlist update via WebSocket:', data);
+      if (MW_DEBUG) console.log('⭐ Received watchlist update via WebSocket:', data);
       setLatestData(prev => ({ ...prev, watchlist: data }));
     });
 

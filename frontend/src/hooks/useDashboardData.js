@@ -35,6 +35,12 @@ export function useDashboardData() {
   const payload = data || {};
   const alertsList = Array.isArray(alerts) && alerts.length ? alerts : Array.isArray(payload.alerts) ? payload.alerts : [];
 
+  const lastGood1mRef = useRef([]);
+  const lastGood3mGRef = useRef([]);
+  const lastGood3mLRef = useRef([]);
+  const lastGoodBpRef = useRef([]);
+  const lastGoodBvRef = useRef([]);
+
   // Use the granular slices from DataContext (which have independent publish cadences)
   const g1 = Array.isArray(oneMinRows) && oneMinRows.length > 0 ? oneMinRows : Array.isArray(payload.gainers_1m) ? payload.gainers_1m : [];
   const g3 = Array.isArray(threeMin?.gainers) && threeMin.gainers.length > 0 ? threeMin.gainers : Array.isArray(payload.gainers_3m) ? payload.gainers_3m : [];
@@ -43,12 +49,38 @@ export function useDashboardData() {
   const bp = Array.isArray(banners?.price) && banners.price.length > 0 ? banners.price : Array.isArray(payload.banner_1h_price) ? payload.banner_1h_price : [];
   const v1hRaw = Array.isArray(payload.volume1h) ? payload.volume1h : [];
 
-  const gainers1m = g1.map(mapRowWithInitial);
-  const gainers3m = g3.map(mapRowWithInitial);
-  const losers3m = l3.map(mapRowWithInitial);
-  const bannerPrice1h = bp.map(mapRowWithInitial);
+  useEffect(() => {
+    if (Array.isArray(g1) && g1.length) lastGood1mRef.current = g1;
+  }, [g1]);
+
+  useEffect(() => {
+    if (Array.isArray(g3) && g3.length) lastGood3mGRef.current = g3;
+  }, [g3]);
+
+  useEffect(() => {
+    if (Array.isArray(l3) && l3.length) lastGood3mLRef.current = l3;
+  }, [l3]);
+
+  useEffect(() => {
+    if (Array.isArray(bp) && bp.length) lastGoodBpRef.current = bp;
+  }, [bp]);
+
+  useEffect(() => {
+    if (Array.isArray(bv) && bv.length) lastGoodBvRef.current = bv;
+  }, [bv]);
+
+  const g1Safe = g1.length ? g1 : lastGood1mRef.current;
+  const g3Safe = g3.length ? g3 : lastGood3mGRef.current;
+  const l3Safe = l3.length ? l3 : lastGood3mLRef.current;
+  const bpSafe = bp.length ? bp : lastGoodBpRef.current;
+  const bvSafe = bv.length ? bv : lastGoodBvRef.current;
+
+  const gainers1m = g1Safe.map(mapRowWithInitial);
+  const gainers3m = g3Safe.map(mapRowWithInitial);
+  const losers3m = l3Safe.map(mapRowWithInitial);
+  const bannerPrice1h = bpSafe.map(mapRowWithInitial);
   const volume1h = v1hRaw.map(mapRowWithInitial);
-  const bannerVolume1h = bv.map(mapRowWithInitial);
+  const bannerVolume1h = bvSafe.map(mapRowWithInitial);
   const finalVolume1h = volume1h.length ? volume1h : bannerVolume1h;
 
   // build a quick symbol → current price map for watchlist reconciliation
