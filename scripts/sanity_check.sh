@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "=== BACKEND PY SANITY: block JS/React/null leakage ==="
+
+PATTERN='\bnull\b|from\s+react|import\s+React|export\s+default|useState\(|useEffect\(|=>|\}\s+from\s+|;\s*$'
+
+# Allow one known demo file to contain embedded JS/HTML if you keep it:
+EXCLUDE='(cbmo4ers_quick_demo\.py)$'
+
+if rg -n --hidden --glob '!**/node_modules/**' --glob '!**/.venv/**' --glob 'backend/**/*.py' "$PATTERN" backend \
+  | rg -v "$EXCLUDE" >/dev/null; then
+  echo "FAIL: JS/React/null tokens found in backend python files."
+  rg -n --hidden --glob '!**/node_modules/**' --glob '!**/.venv/**' --glob 'backend/**/*.py' "$PATTERN" backend \
+    | rg -v "$EXCLUDE"
+  exit 1
+else
+  echo "OK: backend python looks clean."
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="${HOST:-127.0.0.1}"
 BACKEND_PORT_FILE="${BACKEND_PORT_FILE:-/tmp/mw_backend.port}"
