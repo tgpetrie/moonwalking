@@ -2580,6 +2580,11 @@ one_minute_persistence = {
 one_minute_peaks = {}
 # Track simple trending stats for 1‑minute gains per symbol
 one_minute_trends = {}
+# Track rank stabilization for 1-minute tables
+one_minute_rank_state = {
+    "gainers": {"ranks": {}, "last_change": {}},
+    "losers": {"ranks": {}, "last_change": {}},
+}
 # Track diagnostics for the 1-minute funnel (latest snapshot only)
 one_minute_diag = {}
 # New trend caches for other intervals/metrics
@@ -6361,6 +6366,66 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
         gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
         losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
 
+        # --- Rank jitter dampening ---
+        rank_cooldown_s = float(CONFIG.get("ONE_MIN_RANK_COOLDOWN_S", 10))
+        min_rank_delta = int(CONFIG.get("ONE_MIN_RANK_MIN_DELTA", 2))
+
+        def _dampen_rank(rows, bucket, reverse=False):
+            if not rows:
+                return rows
+            state = one_minute_rank_state.get(bucket)
+            if not isinstance(state, dict):
+                return rows
+            prev_ranks = state.get("ranks") or {}
+            last_change = state.get("last_change") or {}
+            pct_key = "price_change_percentage_1min_peak"
+
+            new_ranks = {}
+            for idx, row in enumerate(rows):
+                sym = row.get("symbol")
+                if sym:
+                    new_ranks[sym] = idx + 1
+
+            # prune removed symbols
+            for sym in list(prev_ranks.keys()):
+                if sym not in new_ranks:
+                    prev_ranks.pop(sym, None)
+                    last_change.pop(sym, None)
+
+            dampened = []
+            for idx, row in enumerate(rows):
+                sym = row.get("symbol")
+                new_rank = idx + 1
+                if not sym:
+                    dampened.append((new_rank, row))
+                    continue
+                prev_rank = prev_ranks.get(sym)
+                last_ts = float(last_change.get(sym) or 0)
+                delta = abs((prev_rank or new_rank) - new_rank)
+                allow_move = (prev_rank is None) or (delta >= min_rank_delta) or ((now_ts - last_ts) >= rank_cooldown_s)
+                if allow_move:
+                    prev_ranks[sym] = new_rank
+                    if prev_rank != new_rank:
+                        last_change[sym] = now_ts
+                    effective_rank = new_rank
+                else:
+                    effective_rank = prev_rank if prev_rank is not None else new_rank
+                dampened.append((effective_rank, row))
+
+            state["ranks"] = prev_ranks
+            state["last_change"] = last_change
+
+            def _pct(row):
+                return row.get(pct_key, row.get("price_change_percentage_1min", 0))
+
+            dampened.sort(
+                key=lambda it: (it[0], -_pct(it[1]) if reverse else _pct(it[1]))
+            )
+            return [row for _, row in dampened]
+
+        gainers = _dampen_rank(gainers, "gainers", reverse=True)
+        losers = _dampen_rank(losers, "losers", reverse=False)
+
         # --- Market breadth & pump/dump signal metrics ---
         universe = [c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) or 0.0 for c in data_by_symbol.values()]
         abs_universe = [abs(x) for x in universe]
@@ -6573,6 +6638,10 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                 losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
                 gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
                 losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+
+            # Re-apply dampening after any seed fallback updates
+            gainers = _dampen_rank(gainers, "gainers", reverse=True)
+            losers = _dampen_rank(losers, "losers", reverse=False)
 
         # Attach peak values into formatted output
         def attach_peak(list_):
