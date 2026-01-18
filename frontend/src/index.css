@@ -4526,3 +4526,18 @@ body {
   transform: none !important;
   overflow: visible !important;
 }
+
+/* Sentiment meta line */
+.sentiment-meta-line {
+  opacity: 0.9;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.sentiment-reason {
+  opacity: 0.8;
+  font-size: 12px;
+  margin-top: 4px;
+}

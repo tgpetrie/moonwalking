@@ -714,6 +714,7 @@ def _compute_confidence(payload: Dict[str, Any]) -> float:
 
 
 def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: float) -> str:
+    allowed = {"steady", "mixed", "heated", "stressed", "offline", "unknown"}
     overall = payload.get("overall_sentiment")
     fg = payload.get("fear_greed")
     fg_value = None
@@ -721,7 +722,8 @@ def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: 
         fg_value = int(fg.get("value")) if isinstance(fg, dict) and fg.get("value") is not None else None
     except Exception:
         fg_value = None
-    div_count = len(payload.get("divergence_alerts") or []) if isinstance(payload.get("divergence_alerts"), list) else 0
+    divs = payload.get("divergence_alerts")
+    div_count = len(divs) if isinstance(divs, list) else 0
 
     overall_f = None
     try:
@@ -731,24 +733,45 @@ def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: 
     except Exception:
         overall_f = None
 
-    if (fg_value is None and overall_f is None and payload.get("market_pulse") is None) or confidence <= 0.40:
-        return "offline"
+    volatility_high = False
+    if stability_gate is not None:
+        volatility_high = stability_gate <= 0.70
+    else:
+        sentiments = []
+        for p in payload.get("sentiment_history") or []:
+            try:
+                v = p.get("sentiment") if isinstance(p, dict) else getattr(p, "sentiment", None)
+                if v is None:
+                    continue
+                f = float(v)
+                if math.isfinite(f):
+                    sentiments.append(f)
+            except Exception:
+                continue
+        if len(sentiments) >= 5:
+            sd = _stddev(sentiments) or 0.0
+            volatility_high = sd > 0.10
 
-    if fg_value is not None and fg_value <= 25:
-        return "panic"
-    if div_count >= 3 and (overall_f is not None and overall_f <= 0.35):
-        return "panic"
+    # a) offline
+    if (not isinstance(confidence, (int, float)) or not math.isfinite(confidence) or confidence <= 0.40
+        or (overall_f is None and fg_value is None and payload.get("market_pulse") is None)):
+        regime = "offline"
+    # b) stressed
+    elif (fg_value is not None and fg_value <= 25) or div_count >= 3 or (div_count >= 1 and confidence < 0.60 and volatility_high):
+        regime = "stressed"
+    # c) heated
+    elif (fg_value is not None and fg_value >= 75) or (confidence >= 0.55 and volatility_high and div_count <= 1):
+        regime = "heated"
+    # d) steady
+    elif confidence >= 0.75 and not volatility_high and div_count == 0:
+        regime = "steady"
+    # e) mixed
+    elif confidence >= 0.50 and (div_count >= 1 or volatility_high):
+        regime = "mixed"
+    else:
+        regime = "unknown"
 
-    if fg_value is not None and fg_value >= 75 and (overall_f is not None and overall_f >= 0.70) and stability_gate <= 0.70:
-        return "mania"
-
-    if stability_gate >= 0.85 and confidence >= 0.70 and (overall_f is not None and overall_f >= 0.55):
-        return "trend"
-
-    if stability_gate <= 0.70 and confidence >= 0.55 and div_count >= 1:
-        return "chop"
-
-    return "unknown"
+    return regime if regime in allowed else "unknown"
 
 
 def _build_reasons(payload: Dict[str, Any], confidence: float, stability_gate: float, breadth_gate: float) -> List[str]:

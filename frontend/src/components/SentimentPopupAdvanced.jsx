@@ -702,6 +702,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const marketStatus =
     sentimentData?.marketPulseStatus || (marketCapDisplay !== "N/A" ? "LIVE" : "UNAVAILABLE");
   const marketUpdatedLabel = formatTimestamp(marketPulse.updatedAt);
+  const regimeRaw = (sentimentData?.regime || "unknown").toString();
+  const regimeDisplay = regimeRaw.toUpperCase();
+  const confidenceDisplay = Number.isFinite(sentimentData?.confidence)
+    ? Number(sentimentData.confidence).toFixed(2)
+    : "--";
+  const reasonLines = Array.isArray(sentimentData?.reasons)
+    ? sentimentData.reasons.slice(0, 2)
+    : [];
 
   const lastUpdatedMsRaw =
     sentimentData?.pipelineTimestamp ??
@@ -864,6 +872,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {/* OVERVIEW TAB */}
           {!loading && activeTab === 'overview' && (
             <section className="tab-panel active" role="tabpanel">
+              <div className="sentiment-meta-line">
+                REGIME: {regimeDisplay} | CONFIDENCE: {confidenceDisplay}
+              </div>
+              {reasonLines.map((r, idx) => (
+                <div key={`reason-${idx}`} className="sentiment-reason">{r}</div>
+              ))}
               <div className="stats-grid">
                 <div className="stat-card primary">
                   <div className="stat-icon">
