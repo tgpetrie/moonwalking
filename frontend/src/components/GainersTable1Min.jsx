@@ -426,7 +426,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
 
   return (
     <div className="gainers-table">
-      <div className={`bh-1m-grid ${isSingleColumn ? "bh-1m-grid--single" : "bh-1m-grid--two"}`}>
+      <div className={`bh-1m-grid ${isSingleColumn ? "bh-1m-grid--single-col" : "bh-1m-grid--two-col"}`}>
         <div className="bh-table">
           <AnimatePresence initial={false} mode="popLayout">
             {leftColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
