@@ -202,18 +202,22 @@ export default function DashboardShell({ onInfo }) {
             <div className="bh-rail">
               <div className="bh-rail-stack">
                 {/* 1-min Gainers */}
-                <div className="board-section">
-                  <div className="board-section-header board-section-header--center">
-                    <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                <section className="bh-board-row-full">
+                  <div className="bh-panel bh-panel--rail">
+                    <div className="board-section">
+                      <div className="board-section-header board-section-header--center">
+                        <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                      </div>
+                      <GainersTable1Min
+                        tokens={gainers1m}
+                        loading={uiLoading}
+                        onInfo={onInfoProp}
+                        onToggleWatchlist={handleToggleWatchlist}
+                        watchlist={watchlistSymbols}
+                      />
+                    </div>
                   </div>
-                  <GainersTable1Min
-                    tokens={gainers1m}
-                    loading={uiLoading}
-                    onInfo={onInfoProp}
-                    onToggleWatchlist={handleToggleWatchlist}
-                    watchlist={watchlistSymbols}
-                  />
-                </div>
+                </section>
 
                 {/* 3m Gainers / Losers */}
                 <div className="board-section">

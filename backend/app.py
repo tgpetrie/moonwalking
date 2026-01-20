@@ -2375,6 +2375,10 @@ CONFIG = {
     # allow env overrides for local verification.
     'ALERT_IMPULSE_1M_PCT': float(os.environ.get('ALERT_IMPULSE_1M_PCT', 1.25)),
     'ALERT_IMPULSE_3M_PCT': float(os.environ.get('ALERT_IMPULSE_3M_PCT', 2.0)),
+    'ALERT_IMPULSE_COOLDOWN_SECONDS': int(os.environ.get('ALERT_IMPULSE_COOLDOWN_SECONDS', 90)),
+    'ALERT_IMPULSE_DEDUPE_DELTA': float(os.environ.get('ALERT_IMPULSE_DEDUPE_DELTA', 0.35)),
+    'ALERT_IMPULSE_TTL_MINUTES': int(os.environ.get('ALERT_IMPULSE_TTL_MINUTES', 5)),
+    'ALERTS_STICKY_SECONDS': int(os.environ.get('ALERTS_STICKY_SECONDS', 60)),
     # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
     'ALERTS_STREAK_THRESHOLDS': [
         int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
