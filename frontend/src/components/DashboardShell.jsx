@@ -171,126 +171,128 @@ export default function DashboardShell({ onInfo }) {
 
   return (
     <div className="bh-app">
-      <header className="bh-topbar">
-        <div className="bh-logo">
-          <span className="bh-logo-icon">🐇</span>
-          <span className="bh-logo-text">BHABIT CB INSIGHT</span>
-          <div className="live-status">
-            <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
-            <span className="live-updated">
-              <span className="live-updated-time">{lastUpdatedLabel}</span>
-            </span>
-            {status === "WARMING" ? (
-              <span className="live-warming">Warming up data…</span>
-            ) : null}
+      <div className="bh-ambient">
+        <header className="bh-topbar">
+          <div className="bh-logo">
+            <span className="bh-logo-icon">🐇</span>
+            <span className="bh-logo-text">BHABIT CB INSIGHT</span>
+            <div className="live-status">
+              <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
+              <span className="live-updated">
+                <span className="live-updated-time">{lastUpdatedLabel}</span>
+              </span>
+              {status === "WARMING" ? (
+                <span className="live-warming">Warming up data…</span>
+              ) : null}
+            </div>
           </div>
+        </header>
+
+        {/* 1 Hour Price Change Banner - Full Width */}
+        <div className="bh-banner-block bh-mod-ban">
+          <div className="bh-banner-label">1H PRICE</div>
+          <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
         </div>
-      </header>
 
-      {/* 1 Hour Price Change Banner - Full Width */}
-      <div className="bh-banner-block">
-        <div className="bh-banner-label">1H PRICE</div>
-        <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
-      </div>
+        <main className="bh-main">
+          <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
+            <div ref={boardRef} className="bh-board board-core">
+              <div className="rabbit-bg" aria-hidden="true" />
 
-      <main className="bh-main">
-        <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div ref={boardRef} className="bh-board board-core">
-            <div className="rabbit-bg" aria-hidden="true" />
-
-            {/* 1m and 3m Rail */}
-            <div className="bh-rail">
-              <div className="bh-rail-stack">
-                {/* 1-min Gainers */}
-                <div className="board-section">
-                  <div className="board-section-header board-section-header--center">
-                    <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
-                  </div>
-                  <GainersTable1Min
-                    tokens={gainers1m}
-                    loading={uiLoading}
-                    onInfo={onInfoProp}
-                    onToggleWatchlist={handleToggleWatchlist}
-                    watchlist={watchlistSymbols}
-                  />
-                </div>
-
-                {/* 3m Gainers / Losers */}
-                <div className="board-section">
-                  <section className="bh-3m-grid">
-                    <div className="bh-panel bh-panel-half">
-                      <div className="table-title">TOP GAINERS (3M)</div>
-                      <GainersTable3Min
-                        tokens={gainers3m}
-                        loading={uiLoading}
-                        warming3m={warming3m}
-                        onInfo={onInfoProp}
-                        onToggleWatchlist={handleToggleWatchlist}
-                        watchlist={watchlistSymbols}
-                      />
+              {/* 1m and 3m Rail */}
+              <div className="bh-rail">
+                <div className="bh-rail-stack">
+                  {/* 1-min Gainers */}
+                  <div className="board-section bh-mod-1m">
+                    <div className="board-section-header board-section-header--center">
+                      <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
                     </div>
-                    <div className="bh-panel bh-panel-half">
-                      <div className="table-title">TOP LOSERS (3M)</div>
-                      <LosersTable3Min
-                        tokens={losers3m}
-                        loading={uiLoading}
-                        warming3m={warming3m}
-                        onInfo={onInfoProp}
-                        onToggleWatchlist={handleToggleWatchlist}
-                        watchlist={watchlistSymbols}
+                    <GainersTable1Min
+                      tokens={gainers1m}
+                      loading={uiLoading}
+                      onInfo={onInfoProp}
+                      onToggleWatchlist={handleToggleWatchlist}
+                      watchlist={watchlistSymbols}
+                    />
+                  </div>
+
+                  {/* 3m Gainers / Losers */}
+                  <div className="board-section">
+                    <section className="bh-3m-grid bh-mod-3m">
+                      <div className="bh-panel bh-panel-half">
+                        <div className="table-title">TOP GAINERS (3M)</div>
+                        <GainersTable3Min
+                          tokens={gainers3m}
+                          loading={uiLoading}
+                          warming3m={warming3m}
+                          onInfo={onInfoProp}
+                          onToggleWatchlist={handleToggleWatchlist}
+                          watchlist={watchlistSymbols}
+                        />
+                      </div>
+                      <div className="bh-panel bh-panel-half">
+                        <div className="table-title">TOP LOSERS (3M)</div>
+                        <LosersTable3Min
+                          tokens={losers3m}
+                          loading={uiLoading}
+                          warming3m={warming3m}
+                          onInfo={onInfoProp}
+                          onToggleWatchlist={handleToggleWatchlist}
+                          watchlist={watchlistSymbols}
+                        />
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Anomaly Stream - Intelligence Log */}
+                  <section className="bh-board-row-full">
+                    <div className="bh-panel bh-panel--rail">
+                      <AnomalyStream
+                        data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
+                        volumeData={bannerVolume1h || []}
                       />
                     </div>
                   </section>
-                </div>
 
-                {/* Anomaly Stream - Intelligence Log */}
-                <section className="bh-board-row-full">
-                  <div className="bh-panel bh-panel--rail">
-                    <AnomalyStream
-                      data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
-                      volumeData={bannerVolume1h || []}
-                    />
-                  </div>
-                </section>
-
-                {/* Watchlist (full-width) */}
-                <section className="bh-board-row-full bh-row-watchlist">
-                  <div className="bh-panel bh-panel--rail">
-                    <div className="board-section">
-                      <div className="board-section-header">
-                        <div className="board-section-title">Watchlist</div>
-                      </div>
-                      <div className="bh-row-block">
-                        <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                  {/* Watchlist (full-width) */}
+                  <section className="bh-board-row-full bh-row-watchlist bh-mod-wl">
+                    <div className="bh-panel bh-panel--rail">
+                      <div className="board-section">
+                        <div className="board-section-header">
+                          <div className="board-section-title">Watchlist</div>
+                        </div>
+                        <div className="bh-row-block">
+                          <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+                </div>
               </div>
+
             </div>
+          </BoardWrapper>
+        </main>
 
-          </div>
-        </BoardWrapper>
-      </main>
+        {/* 1 Hour Volume Banner - Full Width */}
+        <div className="bh-banner-block bh-mod-ban">
+          <div className="bh-banner-label">1H VOLUME</div>
+          <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+        </div>
 
-      {/* 1 Hour Volume Banner - Full Width */}
-      <div className="bh-banner-block">
-        <div className="bh-banner-label">1H VOLUME</div>
-        <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+        {/* Insights floating card aligned to board rails */}
+        <SentimentPopupAdvanced
+          key={sentimentSymbol || "GLOBAL"}
+          isOpen={sentimentOpen}
+          symbol={sentimentSymbol || undefined}
+          onClose={() => {
+            setSentimentOpen(false);
+            setSentimentSymbol(null);
+          }}
+        />
+
+        <AlertsDock />
       </div>
-
-      {/* Insights floating card aligned to board rails */}
-      <SentimentPopupAdvanced
-        key={sentimentSymbol || "GLOBAL"}
-        isOpen={sentimentOpen}
-        symbol={sentimentSymbol || undefined}
-        onClose={() => {
-          setSentimentOpen(false);
-          setSentimentSymbol(null);
-        }}
-      />
-
-      <AlertsDock />
     </div>
   );
 }
