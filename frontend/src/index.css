@@ -4609,3 +4609,126 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
+
+/* =========================================================
+   BUNNY — SINGLE SYSTEM (fixed watermark + single hover flag)
+   ========================================================= */
+
+/* Hard-disable all legacy rabbit systems */
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  display: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Fixed watermark layer */
+.bh-bunny-fixed {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(980px, 82vw);
+  height: min(980px, 82vw);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  background: url("/purple-rabbit-bg.png") center / contain no-repeat;
+  opacity: 0.025;
+  mix-blend-mode: screen;
+  filter: brightness(0.92) contrast(1.02) saturate(0.98);
+  transition: opacity 160ms ease, filter 180ms ease;
+}
+
+/* Row-local reveal overlay (mask-only, no zoom) */
+.bh-bunny-fixed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url("/purple-rabbit-bg.png") center / contain no-repeat;
+  opacity: calc(0.26 * var(--bh-hover-active, 0));
+  mix-blend-mode: screen;
+  filter: brightness(1.12) contrast(1.08) saturate(1.06);
+  transition: opacity 140ms ease, filter 160ms ease;
+  -webkit-mask-image: radial-gradient(
+    circle var(--bh-hover-r, 140px) at var(--bh-hover-x, 50vw) var(--bh-hover-y, 50vh),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 45%,
+    rgba(0,0,0,0.25) 62%,
+    rgba(0,0,0,0) 78%
+  );
+  mask-image: radial-gradient(
+    circle var(--bh-hover-r, 140px) at var(--bh-hover-x, 50vw) var(--bh-hover-y, 50vh),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 45%,
+    rgba(0,0,0,0.25) 62%,
+    rgba(0,0,0,0) 78%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Single hover wake (no masks, no cursor tracking) */
+.bh-board-shell[data-board-hover="1"] .bh-bunny-fixed {
+  opacity: 0.045;
+  filter: brightness(1.06) contrast(1.08) saturate(1.02);
+}
+
+/* =========================================================
+   ROW HOVER GLOW — inner transparent halo only
+   ========================================================= */
+
+.bh-row,
+.token-row.table-row {
+  position: relative !important;
+}
+
+.bh-row::before,
+.token-row.table-row::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transition: opacity 120ms ease !important;
+  background: radial-gradient(
+    120% 220% at 50% 50%,
+    rgba(255,176,46,0.18) 0%,
+    rgba(255,176,46,0.06) 40%,
+    rgba(0,0,0,0) 72%
+  ) !important;
+  mix-blend-mode: screen !important;
+  z-index: 1 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.bh-row[data-side="loser"]::before,
+.token-row.table-row[data-side="loser"]::before {
+  background: radial-gradient(
+    120% 220% at 50% 50%,
+    rgba(160,110,255,0.18) 0%,
+    rgba(160,110,255,0.06) 40%,
+    rgba(0,0,0,0) 72%
+  ) !important;
+}
+
+.bh-row:hover::before,
+.token-row.table-row:hover::before {
+  opacity: 0.22 !important;
+}
+
+.bh-row > *,
+.token-row.table-row > * {
+  position: relative;
+  z-index: 2;
+}
+
+.bh-row::after,
+.token-row.table-row::after {
+  opacity: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}

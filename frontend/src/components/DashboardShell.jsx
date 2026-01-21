@@ -25,57 +25,60 @@ export default function DashboardShell({ onInfo }) {
   const [mountedAt] = useState(() => Date.now());
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
+  const boardShellRef = useRef(null);
 
-  // Rabbit dot-bloom hover emitter (event delegation on the board)
+  // Bunny hover emitter (row-aware, no cursor tracking)
   useEffect(() => {
     const board = boardRef.current;
-    if (!board) return;
+    const shell = boardShellRef.current;
+    if (!board || !shell) return;
 
-    let raf = 0;
     let active = false;
 
     const rowSelector = ".bh-row, .token-row.table-row";
 
-    const setEmitter = (clientX, clientY, on) => {
-      const b = board.getBoundingClientRect();
-      const w = Math.max(1, b.width);
-      const h = Math.max(1, b.height);
-      const xPct = Math.min(100, Math.max(0, ((clientX - b.left) / w) * 100));
-      const yPct = Math.min(100, Math.max(0, ((clientY - b.top) / h) * 100));
+    const setHoverVars = (row) => {
+      if (!row) {
+        shell.setAttribute("data-board-hover", "0");
+        shell.style.setProperty("--bh-hover-active", "0");
+        active = false;
+        return;
+      }
 
-      board.style.setProperty("--emit-x", `${xPct}%`);
-      board.style.setProperty("--emit-y", `${yPct}%`);
+      const r = row.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const radius = Math.max(90, Math.min(220, r.height * 1.15));
 
-      if (on) board.setAttribute("data-row-hover", "1");
-      else board.removeAttribute("data-row-hover");
-
-      active = Boolean(on);
+      shell.style.setProperty("--bh-hover-x", `${cx}px`);
+      shell.style.setProperty("--bh-hover-y", `${cy}px`);
+      shell.style.setProperty("--bh-hover-r", `${radius}px`);
+      shell.style.setProperty("--bh-hover-active", "1");
+      shell.setAttribute("data-board-hover", "1");
+      active = true;
     };
 
     const onMove = (e) => {
       const row = e.target?.closest?.(rowSelector);
       if (!row || !board.contains(row)) {
-        if (active) setEmitter(e.clientX, e.clientY, false);
+        if (active) setHoverVars(null);
         return;
       }
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setEmitter(e.clientX, e.clientY, true));
+      setHoverVars(row);
     };
 
-    const onLeaveBoard = (e) => {
-      setEmitter(e.clientX || 0, e.clientY || 0, false);
+    const onLeaveBoard = () => {
+      setHoverVars(null);
     };
 
     board.addEventListener("pointermove", onMove, { passive: true });
     board.addEventListener("pointerleave", onLeaveBoard);
 
     return () => {
-      cancelAnimationFrame(raf);
       board.removeEventListener("pointermove", onMove);
       board.removeEventListener("pointerleave", onLeaveBoard);
-      board.removeAttribute("data-row-hover");
-      board.style.removeProperty("--emit-x");
-      board.style.removeProperty("--emit-y");
+      shell.setAttribute("data-board-hover", "0");
+      shell.style.setProperty("--bh-hover-active", "0");
     };
   }, []);
 
@@ -195,8 +198,9 @@ export default function DashboardShell({ onInfo }) {
 
       <main className="bh-main">
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div ref={boardRef} className="bh-board board-core">
-            <div className="rabbit-bg" aria-hidden="true" />
+          <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
+            <div className="bh-bunny-fixed" aria-hidden="true" />
+            <div ref={boardRef} className="bh-board board-core">
 
             {/* 1m and 3m Rail */}
             <div className="bh-rail">
@@ -272,7 +276,7 @@ export default function DashboardShell({ onInfo }) {
                 </section>
               </div>
             </div>
-
+          </div>
           </div>
         </BoardWrapper>
       </main>
