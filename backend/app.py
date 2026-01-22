@@ -1406,7 +1406,12 @@ def _build_proxy_meta(used_url: str | None, latency_ms: float, cache_ts=None, st
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
-    """Strict proxy to sentiment pipeline for canonical sentiment payload."""
+    """Strict proxy to sentiment pipeline for canonical sentiment payload.
+
+    sentiment_meta comes ONLY from _get_sentiment_snapshot() (single source of truth).
+    This route NEVER overrides sentiment_meta values - the polling mechanism is
+    authoritative for: ok, pipelineRunning, staleSeconds, lastOkTs, lastTryTs, error.
+    """
     global _LATEST_PROXY_CACHE, _LATEST_PROXY_TS, _LATEST_PROXY_URL
 
     symbol = request.args.get('symbol')
@@ -1418,6 +1423,10 @@ def api_sentiment_latest():
     payload, used_url, err_info = _proxy_pipeline_request("/sentiment/latest", params=params, timeout=1.0)
     latency_ms = (time.time() - start) * 1000
 
+    # Single source of truth: sentiment_meta from the polling snapshot.
+    # DO NOT override any fields here - the poller is authoritative.
+    _, sentiment_meta = _get_sentiment_snapshot()
+
     if payload:
         _LATEST_PROXY_CACHE = payload
         _LATEST_PROXY_TS = time.time()
@@ -1425,17 +1434,25 @@ def api_sentiment_latest():
         proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=False)
         out = dict(payload)
         out["proxy_meta"] = proxy_meta
+        out["sentiment_meta"] = sentiment_meta
         return jsonify(out)
 
     if _LATEST_PROXY_CACHE and _LATEST_PROXY_TS:
         proxy_meta = _build_proxy_meta(_LATEST_PROXY_URL, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=True)
         out = dict(_LATEST_PROXY_CACHE)
         out["proxy_meta"] = proxy_meta
+        out["sentiment_meta"] = sentiment_meta
         return jsonify(out)
 
+    # No cached data available - return minimal response with canonical sentiment_meta
     status_code = err_info.get("status", 503) if err_info else 503
     proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=None, stale=True)
-    return jsonify({"ok": False, "message": "Sentiment pipeline offline", "proxy_meta": proxy_meta}), status_code
+    return jsonify({
+        "ok": False,
+        "message": "Sentiment pipeline offline",
+        "proxy_meta": proxy_meta,
+        "sentiment_meta": sentiment_meta,  # unchanged from snapshot
+    }), status_code
 
 
 # Legacy endpoint - keeping for backward compatibility
@@ -1710,8 +1727,16 @@ def _get_sentiment_snapshot():
 
     now = time.time()
     stale_seconds = int(now - last_ok) if last_ok is not None else None
+    # Pipeline considered running if we had a successful poll within 2x poll interval
+    max_stale_for_running = max(60.0, SENTIMENT_PIPELINE_POLL_S * 2.5)
+    pipeline_running = (
+        last_ok is not None and
+        stale_seconds is not None and
+        stale_seconds < max_stale_for_running
+    )
     meta = {
         "ok": bool(sentiment) and (err is None),
+        "pipelineRunning": pipeline_running,
         "staleSeconds": stale_seconds,
         "lastOkTs": _sentiment_iso(last_ok),
         "lastTryTs": _sentiment_iso(last_try),
