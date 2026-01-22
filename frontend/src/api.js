@@ -1,10 +1,12 @@
 
 
-// API configuration for BHABIT CB4 with dynamic base URL and fallback
+// API configuration for BHABIT CB4 with dynamic base URL.
+// IMPORTANT: Frontend must use relative paths only (/api/...).
+// The Vite proxy handles routing to the backend at build/dev time.
 const DEFAULT_API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_BACKEND_URL ||
-  'http://127.0.0.1:5003' // sane local default; avoid random/stale ports
+  '' // relative paths: Vite proxy handles /api -> backend
 ).replace(/\/$/, '');
 
 const joinUrl = (base, path) => {
@@ -85,10 +87,9 @@ const probeBase = async (baseUrl, timeoutMs = 1500) => {
   }
 };
 
-const CANDIDATE_BASES = [
-  // Keep this tight: avoid “port rot” to old dev ports.
-  'http://localhost:5003', 'http://127.0.0.1:5003'
-];
+// No hardcoded URLs: use relative paths via Vite proxy.
+// Fallback logic disabled to enforce single source of truth.
+const CANDIDATE_BASES = [];
 
 // Fetch data from API with throttling and automatic base fallback
 export const fetchData = async (endpoint, fetchOptions = {}) => {

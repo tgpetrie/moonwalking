@@ -64,6 +64,35 @@
   color: var(--sentiment-subtext);
 }
 
+/* Pipeline status badge */
+.sentiment-status-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 0.5rem;
+}
+
+.sentiment-status-live {
+  background: rgba(69, 255, 179, 0.15);
+  color: var(--sentiment-pos);
+  border: 1px solid rgba(69, 255, 179, 0.3);
+}
+
+.sentiment-status-stale {
+  background: rgba(241, 180, 58, 0.15);
+  color: var(--sentiment-neu);
+  border: 1px solid rgba(241, 180, 58, 0.3);
+}
+
+.sentiment-status-offline {
+  background: rgba(174, 75, 245, 0.15);
+  color: var(--sentiment-neg);
+  border: 1px solid rgba(174, 75, 245, 0.3);
+}
+
 .sentiment-header-right {
   display: flex;
   align-items: center;
@@ -253,6 +282,16 @@
 
 .sentiment-metric-value.neutral {
   color: var(--sentiment-neu);
+}
+
+/* Offline state styling */
+.sentiment-metric-card.sentiment-metric-offline {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.sentiment-bar-container.sentiment-bar-offline {
+  opacity: 0.5;
 }
 
 .sentiment-bar-container {

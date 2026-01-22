@@ -3,7 +3,11 @@
  * Always return arrays instead of null, clamp 0-1 metrics, and keep a copy of
  * the original payload under `raw` for debugging. Any UI component that needs
  * sentiment data must go through this adapter.
+ *
+ * Also extracts sentiment_meta and computes pipelineStatus: "LIVE" | "STALE" | "OFFLINE"
  */
+
+const STALE_THRESHOLD_SECONDS = 120; // Data older than 2min is considered stale
 
 const pick = (obj, ...keys) => {
   for (const k of keys) {
@@ -20,6 +24,22 @@ const toNum = (v, d = 0) => {
 const clamp01 = (v) => Math.max(0, Math.min(1, toNum(v, 0)));
 
 const arr = (v) => (Array.isArray(v) ? v : []);
+
+/**
+ * Compute pipeline status from sentiment_meta
+ * @param {object|null} meta - sentiment_meta from backend
+ * @param {boolean} hasData - whether we have any sentiment data
+ * @returns {"LIVE" | "STALE" | "OFFLINE"}
+ */
+const computePipelineStatus = (meta, hasData) => {
+  if (!meta) return hasData ? "STALE" : "OFFLINE";
+  if (meta.ok && meta.pipelineRunning) return "LIVE";
+  if (meta.pipelineRunning || hasData) {
+    const staleSeconds = meta.staleSeconds ?? Infinity;
+    return staleSeconds < STALE_THRESHOLD_SECONDS ? "LIVE" : "STALE";
+  }
+  return "OFFLINE";
+};
 
 export function normalizeSentiment(raw = {}) {
   // accept both snake_case and camelCase
@@ -150,6 +170,11 @@ export function normalizeSentiment(raw = {}) {
 
   const updatedAt = pick(raw, "updated_at", "updatedAt", "ts", "timestamp") || null;
 
+  // Extract sentiment_meta from backend response
+  const sentimentMeta = pick(raw, "sentiment_meta", "sentimentMeta") || null;
+  const hasData = overallSentiment > 0 || fearGreedIndex !== null;
+  const pipelineStatus = computePipelineStatus(sentimentMeta, hasData);
+
   return {
     overallSentiment,
     fearGreedIndex,
@@ -172,6 +197,9 @@ export function normalizeSentiment(raw = {}) {
     fearGreedStatus,
     marketPulse,
     marketPulseStatus,
+    // Pipeline truth-state contract
+    sentimentMeta,
+    pipelineStatus, // "LIVE" | "STALE" | "OFFLINE"
     raw,
   };
 }

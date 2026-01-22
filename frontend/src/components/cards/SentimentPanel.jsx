@@ -26,8 +26,14 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
     loading: hookLoading,
     error,
     refresh,
+    pipelineStatus,
   } = useSentimentLatest();
   const sentiment = data || {};
+
+  // Pipeline status: LIVE, STALE, or OFFLINE
+  // When OFFLINE, don't show fake placeholder values
+  const isOffline = pipelineStatus === "OFFLINE";
+  const isStale = pipelineStatus === "STALE";
 
   const symbol = normalizeSymbol(row?.symbol);
   const price = row?.current_price ?? null;
@@ -119,6 +125,26 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                 </span>
               ) : null}
             </div>
+            {/* Pipeline status badge */}
+            <span
+              className={
+                "sentiment-status-badge " +
+                (isOffline
+                  ? "sentiment-status-offline"
+                  : isStale
+                  ? "sentiment-status-stale"
+                  : "sentiment-status-live")
+              }
+              title={
+                isOffline
+                  ? "Pipeline offline - no data available"
+                  : isStale
+                  ? "Data may be stale"
+                  : "Live data"
+              }
+            >
+              {isOffline ? "OFFLINE" : isStale ? "STALE" : "LIVE"}
+            </span>
           </div>
 
           <div className="sentiment-header-right">
@@ -187,12 +213,12 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               <div className="sentiment-info-section">
                 <h3>Current Market Sentiment</h3>
                 <div className="sentiment-metric-grid">
-                  <div className="sentiment-metric-card">
+                  <div className={"sentiment-metric-card" + (isOffline ? " sentiment-metric-offline" : "")}>
                     <div className="sentiment-metric-label">Overall Score</div>
                     <div
                       className={
                         "sentiment-metric-value " +
-                        (overallScore == null
+                        (isOffline || overallScore == null
                           ? "neutral"
                           : overallScore >= 55
                           ? "positive"
@@ -201,16 +227,18 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                           : "neutral")
                       }
                     >
-                      {overallScore != null ? overallScore : "--"}
+                      {isOffline ? "--" : overallScore != null ? overallScore : "--"}
                     </div>
                   </div>
 
-                  <div className="sentiment-metric-card">
+                  <div className={"sentiment-metric-card" + (isOffline ? " sentiment-metric-offline" : "")}>
                     <div className="sentiment-metric-label">
                       Social Volume (24h)
                     </div>
                     <div className="sentiment-metric-value neutral">
-                      {socialVolumeChange != null
+                      {isOffline
+                        ? "--"
+                        : socialVolumeChange != null
                         ? `${socialVolumeChange > 0 ? "+" : ""}${Number(
                             socialVolumeChange
                           ).toFixed(1)}%`
@@ -218,12 +246,14 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                     </div>
                   </div>
 
-                  <div className="sentiment-metric-card">
+                  <div className={"sentiment-metric-card" + (isOffline ? " sentiment-metric-offline" : "")}>
                     <div className="sentiment-metric-label">
                       Fear &amp; Greed
                     </div>
                     <div className="sentiment-metric-value positive">
-                      {fearGreedIndex != null
+                      {isOffline
+                        ? "--"
+                        : fearGreedIndex != null
                         ? `${getFearGreedLabel(fearGreedIndex)} (${fearGreedIndex})`
                         : "--"}
                     </div>
@@ -246,19 +276,19 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                   </div>
                 </div>
 
-                <div className="sentiment-bar-container">
+                <div className={"sentiment-bar-container" + (isOffline ? " sentiment-bar-offline" : "")}>
                   <span className="sentiment-bar-label">Sentiment:</span>
                   <div className="sentiment-bar">
                     <div
                       className="sentiment-bar-fill"
                       style={{
                         width:
-                          overallScore != null ? `${overallScore}%` : "0%",
+                          isOffline ? "0%" : overallScore != null ? `${overallScore}%` : "0%",
                       }}
                     />
                   </div>
                   <span className="sentiment-bar-score">
-                    {overallScore != null ? `${overallScore}%` : "--"}
+                    {isOffline ? "--" : overallScore != null ? `${overallScore}%` : "--"}
                   </span>
                 </div>
               </div>

@@ -36,7 +36,7 @@ export default defineConfig({
     },
     proxy: {
       '/data': { target, changeOrigin: true },
-      '/api': { target, changeOrigin: true },
+      '/api': { target, changeOrigin: true, ws: true },
       // Keep legacy sentiment paths working, but route through the main backend proxy target.
       '/api/sentiment': { target, changeOrigin: true },
       '/sentiment': { target, changeOrigin: true },

@@ -110,7 +110,9 @@ const parseStatus = (err) => {
 };
 
 export function DataProvider({ children }) {
-  const CANONICAL_LOCAL_BASE = "http://127.0.0.1:5003";
+  // Use relative paths - Vite proxy handles routing to backend
+  // Empty string means requests go to /data, /api/... which Vite proxies
+  const CANONICAL_LOCAL_BASE = "";
   const normalizeBase = (base) => String(base || "").trim().replace(/\/+$/, "");
   const isCanonicalLocalBase = (base) => normalizeBase(base) === CANONICAL_LOCAL_BASE;
 

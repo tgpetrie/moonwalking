@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useCal
 
 const IntelligenceContext = createContext(null);
 
+// Use relative paths - Vite proxy handles routing to backend
 const API_BASE =
-    import.meta.env.VITE_API_BASE_URL ||
-    "http://127.0.0.1:5003";
+    import.meta.env.VITE_API_BASE_URL || "";
 const apiBase = API_BASE.replace(/\/$/, "");
 const POLL_MS = Number(import.meta.env.VITE_INTEL_POLL_MS || 300000); // 5 minutes default
 const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || "false") === "true";
