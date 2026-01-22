@@ -720,6 +720,20 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const lastUpdate = Number.isFinite(lastUpdatedMs)
     ? new Date(lastUpdatedMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '--:--';
+  const status =
+    sentimentData?.pipelineStatus ??
+    (pipelineHealth?.running ? "LIVE" : "OFFLINE");
+  const statusLower = String(status).toLowerCase();
+  const staleSeconds =
+    sentimentData?.sentimentMeta?.staleSeconds ??
+    sentimentData?.sentimentMeta?.stale_seconds ??
+    null;
+  const statusTitle =
+    status === "STALE" && typeof staleSeconds === "number"
+      ? `STALE — ${Math.round(staleSeconds)}s stale`
+      : status === "OFFLINE"
+        ? "OFFLINE — pipeline not reachable"
+        : "LIVE";
 
   useEffect(() => {
     if (!import.meta.env.DEV || !isOpen || !sentimentData) return;
@@ -760,9 +774,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
             </div>
           </div>
           <div className="header-right">
-            <div className="live-indicator" role="status" aria-live="polite">
-              <span className="pulse" aria-hidden="true"></span>
-              <span className="live-text">LIVE</span>
+            <div
+              className={`live-indicator ${statusLower}`}
+              title={statusTitle}
+              role="status"
+              aria-live="polite"
+            >
+              <span className={`pulse ${statusLower}`} aria-hidden="true"></span>
+              <span className="live-text">{status}</span>
             </div>
             <button className="close-btn" onClick={onClose} aria-label="Close sentiment analysis">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

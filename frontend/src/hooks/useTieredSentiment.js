@@ -7,6 +7,10 @@ const FRESH_REQUEST_TIMEOUT_MS = Number(
   import.meta.env.VITE_SENTIMENT_FRESH_TIMEOUT_MS || 32000
 );
 const SLOW_AUX_MS = 60000;
+// Pipeline truth-state (LIVE/STALE/OFFLINE)
+const PIPELINE_STALE_SECONDS = Number(
+  import.meta.env.VITE_SENTIMENT_STALE_SECONDS || 120
+);
 
 function toNum(v, fallback = null) {
   if (v === null || v === undefined) return fallback;
@@ -49,9 +53,59 @@ const pick = (obj, ...keys) => {
   return undefined;
 };
 
+const normalizeIso = (v) => {
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  const n = typeof v === "number" ? v : toNum(v, null);
+  if (n === null) return null;
+  const ms = n > 1e12 ? n : n * 1000;
+  const d = new Date(ms);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+};
+
+const derivePipelineStatus = (sentimentMeta) => {
+  if (!sentimentMeta) return null;
+
+  const okRaw = pick(
+    sentimentMeta,
+    "ok",
+    "healthy",
+    "running",
+    "pipeline_running",
+    "pipelineRunning"
+  );
+  const ok = okRaw === undefined ? null : Boolean(okRaw);
+
+  const staleSeconds = toNum(
+    pick(
+      sentimentMeta,
+      "staleSeconds",
+      "stale_seconds",
+      "staleSec",
+      "stale_sec",
+      "ageSeconds",
+      "age_seconds"
+    ),
+    null
+  );
+
+  if (ok === false) return "OFFLINE";
+
+  if (staleSeconds !== null) {
+    return staleSeconds >= PIPELINE_STALE_SECONDS ? "STALE" : "LIVE";
+  }
+
+  return ok === true ? "LIVE" : "STALE";
+};
+
 export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
   const base = rawLatest || {};
   const tiered = rawTiered || {};
+  const sentimentMeta =
+    pick(base, "sentiment_meta", "sentimentMeta") ||
+    pick(tiered, "sentiment_meta", "sentimentMeta") ||
+    null;
+  const pipelineStatusFromMeta = derivePipelineStatus(sentimentMeta);
 
   const fgBlock = pick(base, "fear_greed", "fearGreed") || {};
   const fgValueRaw = pick(fgBlock, "value", "index", "score", "fear_greed_index");
@@ -202,6 +256,23 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
     confidence: conf,
     totalDataPoints: tiered.total_data_points ?? base.total_data_points ?? 0,
     pipelineTimestamp: tiered.timestamp ?? base.timestamp,
+    sentimentMeta,
+    pipelineStatus:
+      pipelineStatusFromMeta ??
+      (overallSent !== null ||
+      fgValue !== null ||
+      marketPulse.totalMarketCap !== null ||
+      marketPulse.totalVolume !== null
+        ? "STALE"
+        : "OFFLINE"),
+    updatedAt:
+      normalizeIso(tiered.timestamp ?? base.timestamp ?? base.updated_at ?? base.updatedAt) || null,
+    regime: pick(base, "regime") ?? pick(tiered, "regime") ?? null,
+    reasons: Array.isArray(pick(base, "reasons"))
+      ? pick(base, "reasons")
+      : Array.isArray(pick(tiered, "reasons"))
+        ? pick(tiered, "reasons")
+        : [],
     sources: rawSources || [],
   };
 };
