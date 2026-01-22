@@ -158,12 +158,45 @@
     border-radius: var(--radius-sm);
 }
 
+/* Phase 3: pipeline truth-state styling */
+.live-indicator.live {
+    background: rgba(69, 255, 179, 0.10);
+    border-color: rgba(69, 255, 179, 0.20);
+}
+
+.live-indicator.stale {
+    background: rgba(241, 180, 58, 0.10);
+    border-color: rgba(241, 180, 58, 0.22);
+}
+
+.live-indicator.offline {
+    background: rgba(255, 107, 157, 0.10);
+    border-color: rgba(255, 107, 157, 0.22);
+}
+
 .pulse {
     width: 8px;
     height: 8px;
     background: var(--sentiment-pos);
     border-radius: 50%;
     animation: pulse 2s ease-in-out infinite;
+}
+
+.pulse.live {
+    background: var(--sentiment-pos);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.pulse.stale {
+    background: var(--sentiment-neu);
+    animation: none;
+    opacity: 0.9;
+}
+
+.pulse.offline {
+    background: var(--sentiment-pink);
+    animation: none;
+    opacity: 0.9;
 }
 
 @keyframes pulse {
@@ -176,6 +209,14 @@
     font-weight: 600;
     letter-spacing: 1px;
     color: var(--sentiment-pos);
+}
+
+.live-indicator.stale .live-text {
+    color: var(--sentiment-neu);
+}
+
+.live-indicator.offline .live-text {
+    color: var(--sentiment-pink);
 }
 
 .close-btn {
