@@ -23,9 +23,8 @@ export function SentimentProvider({ children }) {
   );
 }
 
-export function useSentiment() {
+export function useSentimentContext() {
   const ctx = useContext(SentimentContext);
-  if (!ctx) throw new Error("useSentiment must be used inside SentimentProvider");
+  if (!ctx) throw new Error("useSentimentContext must be used inside SentimentProvider");
   return ctx;
 }
-
