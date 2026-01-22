@@ -27,48 +27,50 @@ export default function DashboardShell({ onInfo }) {
   const boardRef = useRef(null);
   const boardShellRef = useRef(null);
 
-  // Bunny hover emitter (row-aware, no cursor tracking)
+  // Bunny hover emitter (row-only, no shell vars)
   useEffect(() => {
     const board = boardRef.current;
-    const shell = boardShellRef.current;
-    if (!board || !shell) return;
-
-    let active = false;
+    if (!board) return;
 
     const rowSelector = ".bh-row, .token-row.table-row";
+    let hotRow = null;
 
-    const setHoverVars = (row) => {
-      if (!row) {
-        shell.setAttribute("data-board-hover", "0");
-        shell.style.setProperty("--bh-hover-active", "0");
-        active = false;
-        return;
+    const clearHot = () => {
+      if (hotRow) {
+        hotRow.classList.remove("bh-row--hot");
+        hotRow.style.removeProperty("--bh-row-hover-r");
+        hotRow.style.removeProperty("--bh-row-hover-x");
+        hotRow.style.removeProperty("--bh-row-hover-y");
+        hotRow = null;
+      }
+    };
+
+    const setHot = (row, clientX, clientY) => {
+      if (!row) return clearHot();
+
+      if (row !== hotRow) {
+        clearHot();
+        hotRow = row;
+        row.classList.add("bh-row--hot");
       }
 
       const r = row.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
       const radius = Math.max(90, Math.min(220, r.height * 1.15));
-
-      shell.style.setProperty("--bh-hover-x", `${cx}px`);
-      shell.style.setProperty("--bh-hover-y", `${cy}px`);
-      shell.style.setProperty("--bh-hover-r", `${radius}px`);
-      shell.style.setProperty("--bh-hover-active", "1");
-      shell.setAttribute("data-board-hover", "1");
-      active = true;
+      const x = Math.max(0, Math.min(r.width, clientX - r.left));
+      const y = Math.max(0, Math.min(r.height, clientY - r.top));
+      row.style.setProperty("--bh-row-hover-r", `${radius}px`);
+      row.style.setProperty("--bh-row-hover-x", `${x}px`);
+      row.style.setProperty("--bh-row-hover-y", `${y}px`);
     };
 
     const onMove = (e) => {
       const row = e.target?.closest?.(rowSelector);
-      if (!row || !board.contains(row)) {
-        if (active) setHoverVars(null);
-        return;
-      }
-      setHoverVars(row);
+      if (!row || !board.contains(row)) return clearHot();
+      setHot(row, e.clientX, e.clientY);
     };
 
     const onLeaveBoard = () => {
-      setHoverVars(null);
+      clearHot();
     };
 
     board.addEventListener("pointermove", onMove, { passive: true });
@@ -77,8 +79,7 @@ export default function DashboardShell({ onInfo }) {
     return () => {
       board.removeEventListener("pointermove", onMove);
       board.removeEventListener("pointerleave", onLeaveBoard);
-      shell.setAttribute("data-board-hover", "0");
-      shell.style.setProperty("--bh-hover-active", "0");
+      clearHot();
     };
   }, []);
 
@@ -201,82 +202,83 @@ export default function DashboardShell({ onInfo }) {
           <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
             <div className="bh-bunny-fixed" aria-hidden="true" />
             <div ref={boardRef} className="bh-board board-core">
+              <div className="rabbit-bg" aria-hidden="true" />
 
-            {/* 1m and 3m Rail */}
-            <div className="bh-rail">
-              <div className="bh-rail-stack">
-                {/* 1-min Gainers */}
-                <section className="bh-board-row-full">
-                  <div className="bh-panel bh-panel--rail">
-                    <div className="board-section">
-                      <div className="board-section-header board-section-header--center">
-                        <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+              {/* 1m and 3m Rail */}
+              <div className="bh-rail">
+                <div className="bh-rail-stack">
+                  {/* 1-min Gainers */}
+                  <section className="bh-board-row-full">
+                    <div className="bh-panel bh-panel--rail">
+                      <div className="board-section">
+                        <div className="board-section-header board-section-header--center">
+                          <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                        </div>
+                        <GainersTable1Min
+                          tokens={gainers1m}
+                          loading={uiLoading}
+                          onInfo={onInfoProp}
+                          onToggleWatchlist={handleToggleWatchlist}
+                          watchlist={watchlistSymbols}
+                        />
                       </div>
-                      <GainersTable1Min
-                        tokens={gainers1m}
-                        loading={uiLoading}
-                        onInfo={onInfoProp}
-                        onToggleWatchlist={handleToggleWatchlist}
-                        watchlist={watchlistSymbols}
-                      />
                     </div>
-                  </div>
-                </section>
+                  </section>
 
-                {/* 3m Gainers / Losers */}
-                <div className="board-section">
-                  <section className="bh-3m-grid">
-                    <div className="bh-panel bh-panel-half">
-                      <div className="table-title">TOP GAINERS (3M)</div>
-                      <GainersTable3Min
-                        tokens={gainers3m}
-                        loading={uiLoading}
-                        warming3m={warming3m}
-                        onInfo={onInfoProp}
-                        onToggleWatchlist={handleToggleWatchlist}
-                        watchlist={watchlistSymbols}
-                      />
-                    </div>
-                    <div className="bh-panel bh-panel-half">
-                      <div className="table-title">TOP LOSERS (3M)</div>
-                      <LosersTable3Min
-                        tokens={losers3m}
-                        loading={uiLoading}
-                        warming3m={warming3m}
-                        onInfo={onInfoProp}
-                        onToggleWatchlist={handleToggleWatchlist}
-                        watchlist={watchlistSymbols}
+                  {/* 3m Gainers / Losers */}
+                  <div className="board-section">
+                    <section className="bh-3m-grid">
+                      <div className="bh-panel bh-panel-half">
+                        <div className="table-title">TOP GAINERS (3M)</div>
+                        <GainersTable3Min
+                          tokens={gainers3m}
+                          loading={uiLoading}
+                          warming3m={warming3m}
+                          onInfo={onInfoProp}
+                          onToggleWatchlist={handleToggleWatchlist}
+                          watchlist={watchlistSymbols}
+                        />
+                      </div>
+                      <div className="bh-panel bh-panel-half">
+                        <div className="table-title">TOP LOSERS (3M)</div>
+                        <LosersTable3Min
+                          tokens={losers3m}
+                          loading={uiLoading}
+                          warming3m={warming3m}
+                          onInfo={onInfoProp}
+                          onToggleWatchlist={handleToggleWatchlist}
+                          watchlist={watchlistSymbols}
+                        />
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Anomaly Stream - Intelligence Log */}
+                  <section className="bh-board-row-full">
+                    <div className="bh-panel bh-panel--rail">
+                      <AnomalyStream
+                        data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
+                        volumeData={bannerVolume1h || []}
                       />
                     </div>
                   </section>
-                </div>
 
-                {/* Anomaly Stream - Intelligence Log */}
-                <section className="bh-board-row-full">
-                  <div className="bh-panel bh-panel--rail">
-                    <AnomalyStream
-                      data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
-                      volumeData={bannerVolume1h || []}
-                    />
-                  </div>
-                </section>
-
-                {/* Watchlist (full-width) */}
-                <section className="bh-board-row-full bh-row-watchlist">
-                  <div className="bh-panel bh-panel--rail">
-                    <div className="board-section">
-                      <div className="board-section-header">
-                        <div className="board-section-title">Watchlist</div>
-                      </div>
-                      <div className="bh-row-block">
-                        <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                  {/* Watchlist (full-width) */}
+                  <section className="bh-board-row-full bh-row-watchlist">
+                    <div className="bh-panel bh-panel--rail">
+                      <div className="board-section">
+                        <div className="board-section-header">
+                          <div className="board-section-title">Watchlist</div>
+                        </div>
+                        <div className="bh-row-block">
+                          <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </BoardWrapper>
       </main>

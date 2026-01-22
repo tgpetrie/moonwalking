@@ -6,8 +6,9 @@ PORT=5173
 HOST=127.0.0.1
 
 echo "[vite] killing vite and :$PORT/:5174/:5175 listeners"
-pkill -f "vite" 2>/dev/null || true
-kill -9 $(lsof -tiTCP:5173,5174,5175 -sTCP:LISTEN 2>/dev/null) 2>/dev/null || true
+pkill -f "vite"
+
+
 
 cd "$(dirname "$0")"
 rm -rf node_modules/.vite
