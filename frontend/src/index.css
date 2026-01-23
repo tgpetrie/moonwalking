@@ -751,54 +751,71 @@ body {
 
 /* ===== BOARD WRAPPER & RABBIT LAYER (panel-scoped) ===== */
 
-.board-wrapper {
-  position: relative;
-  width: 100%;
+.board-core .bh-row::after{
+  content: "";
+  position: absolute;
+  inset: 4px 10px !important; /* tight inner glow band */
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transform: scale(0.996);
+  transition: opacity 140ms ease, transform 160ms ease !important;
+  border-radius: 12px;
+
+  /* stronger, clearer inner radial core for a glassy look */
+  background:
+    radial-gradient(110% 160% at 50% 50%,
+      rgba(255,196,61,0.20) 0%,
+      rgba(255,196,61,0.06) 36%,
+      rgba(0,0,0,0) 70%) !important,
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.020) 18%,
+      rgba(255,176,46,0.045) 50%,
+      rgba(255,176,46,0.020) 82%,
+      rgba(255,176,46,0.00) 100%) !important;
+
+  mix-blend-mode: screen;
+  -webkit-backdrop-filter: contrast(5.2) brightness(1.20) saturate(1.12);
+  backdrop-filter: contrast(5.2) brightness(1.20) saturate(1.12);
+
+  /* keep the band feel so it doesn't paint as a slab */
+  -webkit-mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,0.0) 10%,
+    rgba(0,0,0,1.0) 50%,
+    rgba(0,0,0,0.0) 90%,
+    transparent 100%);
+  mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,0.0) 10%,
+    rgba(0,0,0,1.0) 50%,
+    rgba(0,0,0,0.0) 90%,
+    transparent 100%);
+
+  z-index: 1;
 }
 
-/* ===== SECTION HEADERS ===== */
-
-.bh-section-header {
-  display: inline-flex;
-  flex-direction: column;
-  font-family: var(--bh-heading-font, "Raleway", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+.board-core .bh-row[data-side="loser"]::after {
+  background:
+    radial-gradient(110% 160% at 50% 50%,
+      rgba(176,96,255,0.18) 0%,
+      rgba(176,96,255,0.055) 36%,
+      rgba(0,0,0,0) 70%) !important,
+    linear-gradient(90deg,
+      rgba(160,110,255,0.00) 0%,
+      rgba(160,110,255,0.020) 18%,
+      rgba(160,110,255,0.045) 50%,
+      rgba(160,110,255,0.020) 82%,
+      rgba(160,110,255,0.00) 100%) !important;
+  backdrop-filter: contrast(5.0) brightness(1.16) saturate(1.14);
+  -webkit-backdrop-filter: contrast(5.0) brightness(1.16) saturate(1.14);
 }
 
-.bh-section-header::after {
-  content: none !important;
-  display: none !important;
-  margin: 0;
-  width: 0;
-  height: 0;
+.board-core .bh-row:hover::after,
+.board-core .bh-row:focus-visible::after {
+  opacity: 1 !important;
+  transform: scale(1.00);
 }
-
-.bh-section-header--losers {
-  color: var(--bh-loss);
-}
-
-.bh-section-header--losers::after {
-  content: none !important;
-  display: none !important;
-}
-
-.bh-section-header--ghost {
-  visibility: hidden;
-  border-bottom-color: transparent;
-}
-
-/* Legacy section head styles (for compatibility) */
-.section-head {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  font-size: 0.9rem;
   text-transform: uppercase;
 }
 
