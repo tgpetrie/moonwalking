@@ -4809,6 +4809,31 @@ body {
   display: none !important;
 }
 
+/* Make intelligence log slightly larger and prevent inner hover glow */
+.intelligence-log{
+  min-height: 360px;
+  max-height: 480px;
+  width: 100%;
+  overflow: auto;
+  padding: 8px 12px;
+}
+
+.intelligence-log .bh-row::before,
+.intelligence-log .bh-row::after,
+.intelligence-log .token-row::before,
+.intelligence-log .token-row::after{
+  content: none !important;
+  display: none !important;
+}
+
+/* Ensure hover does not reveal inner glass on intelligence rows */
+.intelligence-log .bh-row:hover::after,
+.intelligence-log .bh-row:focus-visible::after,
+.intelligence-log .token-row:hover::after{
+  opacity: 0 !important;
+  transform: none !important;
+}
+
 /* =========================================================
    FINAL OVERRIDES — Sept-8 rabbit + inner hover slab
    (keep at end so it wins)

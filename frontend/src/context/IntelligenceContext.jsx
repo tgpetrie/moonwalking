@@ -7,6 +7,7 @@ const API_BASE =
     import.meta.env.VITE_API_BASE_URL || "";
 const apiBase = API_BASE.replace(/\/$/, "");
 const POLL_MS = Number(import.meta.env.VITE_INTEL_POLL_MS || 300000); // 5 minutes default
+const MIN_FETCH_MS = Number(import.meta.env.VITE_INTEL_MIN_FETCH_MS || 60000); // minimum 1 minute between fetches
 const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || "false") === "true";
 
 export function useIntelligence() {
@@ -29,12 +30,18 @@ export function IntelligenceProvider({ children, watchSymbols }) {
     const abortRef = useRef(null);
     const timerRef = useRef(null);
     const visibleRef = useRef(true);
+    const lastFetchRef = useRef(0);
 
     const fetchBatch = useCallback(async () => {
         if (!symbols.length) return;
 
         // Pause polling when tab is hidden (N100 optimization)
         if (!visibleRef.current) return;
+
+        // Prevent rapid repeated fetches (safeguard against duplicate mounts)
+        const now = Date.now();
+        if (now - lastFetchRef.current < MIN_FETCH_MS) return;
+        lastFetchRef.current = now;
 
         // Abort any in-flight request
         if (abortRef.current) abortRef.current.abort();
