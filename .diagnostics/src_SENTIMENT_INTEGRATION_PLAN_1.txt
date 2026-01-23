@@ -1,0 +1,60 @@
+````markdown
+# Sentiment System Integration Plan
+
+## Current State Analysis
+
+### System 1: Enhanced Aggregator (NEW - Just Added)
+**File:** `backend/sentiment_aggregator_enhanced.py`
+- ✅ Coin-specific data (BTC vs ETH get different results)
+- ✅ Fear & Greed Index
+- ✅ CoinGecko per-coin metrics
+- ✅ Reddit mentions per coin
+- ✅ Simple caching
+- ✅ Deterministic fallbacks
+- ❌ Limited to 3 sources
+- ❌ No VADER sentiment analysis
+- ❌ No RSS feeds
+- ❌ No tier system
+
+### System 2: Comprehensive Multi-Source (OLD - Fully Featured)
+**Files:** `sentiment_data_sources.py`, `sentiment_api_full.py`
+- ✅ VADER sentiment analysis with crypto lexicon
+- ✅ Multiple RSS feeds (CoinDesk, CryptoSlate, Bitcoin Magazine, etc.)
+- ✅ Reddit integration with 5+ subreddits
+- ✅ Tier-based weighting (Tier 1: 0.85, Tier 2: 0.70, Tier 3: 0.50)
+- ✅ Comprehensive configuration (sentiment_config.yaml)
+- ✅ Divergence detection
+- ✅ Trending topics extraction
+- ✅ 50+ data sources capability
+- ❌ Returns same sentiment for all coins
+- ❌ Not integrated with current Flask app
+- ❌ Uses FastAPI (different framework)
+
+## Integration Strategy
+
+### Approach: Hybrid Best-of-Both
+
+Combine the coin-specific approach from System 1 with the comprehensive multi-source collection from System 2.
+
+**Result:**
+- Each coin gets unique sentiment based on coin-specific sources
+- Market-wide sources (Fear & Greed, RSS feeds) shared across all coins
+- VADER sentiment analysis on all text
+- 50+ data sources capability
+- Tier-based weighting
+- Integrated into existing Flask app
+
+## Implementation Plan
+
+### Phase 1: Merge Data Sources (High Priority)
+**Goal:** Create unified sentiment collector with both coin-specific and market-wide sources
+
+**Tasks:**
+1. Merge `sentiment_data_sources.py` into `backend/sentiment_aggregator_enhanced.py`
+2. Add VADER sentiment analysis to all text processing
+3. Add RSS feed collectors (CoinDesk, CryptoSlate, etc.)
+4. Add Reddit collector with multiple subreddits
+5. Implement tier-based weighting system
+6. Add divergence detection
+
+**Output:** `backend/sentiment_aggregator_unified.py`
