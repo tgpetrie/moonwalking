@@ -1,10 +1,25 @@
 from unittest.mock import patch
 import sys
+import os
 import types
 import unittest
 
-# Import missing functions from app.py
-from app import calculate_interval_changes, format_crypto_data, process_product_data, price_history
+# Ensure backend directory is on sys.path so imports like `import watchlist` resolve
+sys.path.insert(0, os.path.dirname(__file__))
+
+# Insert lightweight stubs for sentiment modules to avoid circular imports during test collection
+import types as _types
+if 'sentiment_aggregator' not in sys.modules:
+    _mod = _types.ModuleType('sentiment_aggregator')
+    _mod.get_sentiment_for_symbol = lambda *a, **k: None
+    sys.modules['sentiment_aggregator'] = _mod
+
+if 'sentiment_aggregator_enhanced' not in sys.modules:
+    _mod2 = _types.ModuleType('sentiment_aggregator_enhanced')
+    _mod2.aggregator = None
+    sys.modules['sentiment_aggregator_enhanced'] = _mod2
+
+# Defer importing `backend.app` to test runtime to avoid heavy top-level imports
 
 # Update mocking strategy
 import flask
@@ -18,17 +33,23 @@ class MockSocketIO:
     def __init__(self, *args, **kwargs):
         pass
 
-flask.Flask = MockFlask
-flask_socketio.SocketIO = MockSocketIO
+# Only monkeypatch Flask/socketio if they are missing (keep real implementations when available)
+if not hasattr(flask, 'Flask'):
+    flask.Flask = MockFlask
+if not hasattr(flask_socketio, 'SocketIO'):
+    flask_socketio.SocketIO = MockSocketIO
 
 
 class TestCalculateIntervalChanges(unittest.TestCase):
     def setUp(self):
+        # import price_history lazily to avoid importing app at collection time
+        from backend.app import price_history
         price_history.clear()
 
     @patch('app.time.time')
     def test_calculate_interval_changes(self, mock_time):
-        from app import CONFIG
+        # Import functions and config at runtime to avoid collection-time imports
+        from backend.app import calculate_interval_changes, CONFIG
         CONFIG['INTERVAL_MINUTES'] = 3
         mock_time.side_effect = [1000.0, 1180.0]
 
@@ -60,14 +81,20 @@ class TestFormatCryptoData(unittest.TestCase):
             }
         ]  
          
+        # Import target at runtime
+        from backend.app import format_crypto_data
+        # Import target at runtime
+        from backend.app import format_crypto_data
         result = format_crypto_data(crypto_data)
         expected = [
     {
         'symbol': 'BTC-USD',
         'current': 110.0,
         'initial_3min': 100.0,
+        'previous_price_3m': None,
         'gain': 10.0,
         'interval_minutes': 3.0,
+        'baseline_ts_3m': None,
     }
 ]
         self.assertEqual(result, expected)
@@ -91,6 +118,7 @@ class TestProcessProductData(unittest.TestCase):
             {"symbol": "BTC-USD", "base": "BTC", "quote": "USD", "volume": 1000000, "price": 30000},
             {"symbol": "ETH-USD", "base": "ETH", "quote": "USD", "volume": 500000, "price": 2000},
         ]
+        from backend.app import process_product_data
         result = process_product_data(sample_data, stats_data, ticker_data)
         self.assertEqual(result, expected_output)
 

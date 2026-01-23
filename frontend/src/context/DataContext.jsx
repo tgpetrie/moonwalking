@@ -65,21 +65,59 @@ function normalizeApiData(payload) {
   const latest_by_symbol = root.latest_by_symbol ?? {};
   const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
 
+  const toMs = (v) => {
+    if (v == null) return null;
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+    const t = Date.parse(String(v));
+    return Number.isFinite(t) ? t : null;
+  };
+
   const normalizeAlert = (a) => {
     if (!a || typeof a !== "object") return null;
     const symRaw = a.symbol ?? a.product_id ?? a.pair ?? a.ticker ?? "";
-    const product_id = String(symRaw || "").toUpperCase();
-    const display = product_id.replace(/-USD$|-USDT$|-PERP$/i, "");
+    const rawUpper = String(symRaw || "").trim().toUpperCase();
+    const product_id = rawUpper;
+    const symbol = rawUpper.replace(/-USD$|-USDT$|-PERP$/i, "");
+
+    const emitted_ts = a.ts ?? a.emitted_ts ?? a.emittedTs ?? a.ts_iso ?? a.tsIso ?? null;
+    const emitted_ts_ms = toMs(a.ts_ms ?? a.tsMs ?? a.emitted_ts_ms ?? a.emittedTsMs ?? emitted_ts);
+
+    const event_ts =
+      a.event_ts ??
+      a.eventTs ??
+      a.window_end_ts ??
+      a.windowEndTs ??
+      a.detected_ts ??
+      a.detectedTs ??
+      null;
+    const event_ts_ms = toMs(a.event_ts_ms ?? a.eventTsMs ?? a.event_ms ?? a.eventMs ?? event_ts);
     return {
       ...a,
-      // UI display symbol must never include -USD; keep product_id for links.
-      symbol: display,
+      symbol,
       product_id,
+      ts: emitted_ts || a.ts || null,
+      ts_ms: emitted_ts_ms,
+      emitted_ts: emitted_ts || null,
+      emitted_ts_ms,
+      event_ts: event_ts || null,
+      event_ts_ms,
     };
   };
 
+  const isPingNoise = (a) => {
+    if (!a) return true;
+    const type = String(a.type || a.kind || a.class_key || a.category || a.alert_type || "").toUpperCase();
+    const msg = String(a.message || a.title || a.text || a.raw || "");
+    if (type === "PING" || type === "HEARTBEAT") return true;
+    if (/PING\s*>>/i.test(msg)) return true;
+    if (/HEARTBEAT/i.test(msg)) return true;
+    return false;
+  };
+
   const alerts = Array.isArray(alertsRaw)
-    ? alertsRaw.map(normalizeAlert).filter(Boolean)
+    ? alertsRaw.map(normalizeAlert).filter((a) => a && !isPingNoise(a))
     : [];
 
   return {
@@ -579,8 +617,14 @@ export function DataProvider({ children }) {
           const sa = severityRank[(a.severity || "").toLowerCase()] || 0;
           const sb = severityRank[(b.severity || "").toLowerCase()] || 0;
           if (sa !== sb) return sb - sa;
-          const ta = Date.parse(a.ts || "") || 0;
-          const tb = Date.parse(b.ts || "") || 0;
+          const ta =
+            (typeof a.event_ts_ms === "number" && Number.isFinite(a.event_ts_ms) ? a.event_ts_ms : null) ??
+            (typeof a.ts_ms === "number" && Number.isFinite(a.ts_ms) ? a.ts_ms : null) ??
+            (Date.parse(a.ts || "") || 0);
+          const tb =
+            (typeof b.event_ts_ms === "number" && Number.isFinite(b.event_ts_ms) ? b.event_ts_ms : null) ??
+            (typeof b.ts_ms === "number" && Number.isFinite(b.ts_ms) ? b.ts_ms : null) ??
+            (Date.parse(b.ts || "") || 0);
           return tb - ta;
         });
       return active[0] || null;

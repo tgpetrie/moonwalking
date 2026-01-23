@@ -1,12 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { useData } from "../context/DataContext";
 
 const LS_SEEN_KEY = "mw_alerts_last_seen_id";
 
-const toMs = (ts) => {
-  const t = Date.parse(ts || "");
+const toMs = (v) => {
+  if (v == null) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const n = Number(v);
+  if (Number.isFinite(n) && n > 0) return n;
+  const t = Date.parse(String(v));
   return Number.isFinite(t) ? t : null;
+};
+
+// Strict numeric parse: never turns null/undefined into 0
+const asNumber = (v) => {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+// Parse backend message like: "TROLL-USD moved +10.94% in 1m"
+const parseImpulseMessage = (a) => {
+  const msg = String(a?.message || "");
+  const title = String(a?.title || "");
+
+  const m = msg.match(/moved\s*([+\-]?\d+(?:\.\d+)?)%\s*in\s*(\d+)\s*m/i);
+  const pct = m ? Number(m[1]) : null;
+  const winM = m ? Number(m[2]) : null;
+
+  let direction = null;
+  if (pct !== null && Number.isFinite(pct)) direction = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+  if (!direction) {
+    const t = title.toLowerCase();
+    if (t.includes(" down")) direction = "down";
+    else if (t.includes(" up")) direction = "up";
+    else direction = "flat";
+  }
+
+  return {
+    parsed_pct: pct !== null && Number.isFinite(pct) ? pct : null,
+    parsed_window_label: winM ? `${winM}m` : "",
+    parsed_direction: direction,
+  };
 };
 
 const formatAge = (ms) => {
@@ -101,7 +140,7 @@ export default function AlertsDock() {
   const { alerts = [] } = useData() || {};
   const [open, setOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("ALL");
-  const mountedRef = useRef(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const normalized = useMemo(() => {
     const list = Array.isArray(alerts) ? alerts : [];
@@ -114,13 +153,15 @@ export default function AlertsDock() {
       if (seen.has(id)) continue;
       seen.add(id);
 
-      const tsMs = toMs(a.ts);
+      const tsMs = toMs(a.event_ts_ms ?? a.eventTsMs ?? a.ts_ms ?? a.tsMs ?? a.ts);
       const productId = a.product_id || (a.symbol ? `${a.symbol}-USD` : null);
       const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: a.symbol });
-      const derivedType = uiTypeLabel(a);
+      const parsed = parseImpulseMessage(a);
+      const derivedType = uiTypeLabel({ ...a, pct: a.pct ?? parsed.parsed_pct });
 
       out.push({
         ...a,
+        ...parsed,
         id,
         tsMs,
         productId,
@@ -145,19 +186,18 @@ export default function AlertsDock() {
   const unread = Boolean(latestId && latestId !== lastSeenId);
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!open) return;
     const handler = (e) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, [open]);
 
   useEffect(() => {
@@ -169,7 +209,6 @@ export default function AlertsDock() {
     } catch {}
   }, [open, latestId]);
 
-  const now = Date.now();
   const filtered = useMemo(() => {
     if (typeFilter === "ALL") return normalized;
     return normalized.filter((a) => a.derivedType === typeFilter);
@@ -216,28 +255,36 @@ export default function AlertsDock() {
               <div className="bh-alerts-empty">No active alerts.</div>
             ) : (
               filtered.slice(0, 50).map((a) => {
-                const age = a.tsMs ? formatAge(now - a.tsMs) : "—";
+                const age = a.tsMs ? formatAge(nowMs - a.tsMs) : "—";
                 const sev = String(a.severity || "info").toUpperCase();
-                const direction = formatDirection(a.meta?.direction);
-                const w = windowLabelFromType(a.type);
-                const magnitude = Number.isFinite(Number(a?.pct))
-                  ? Number(a.pct)
-                  : Number.isFinite(Number(a?.meta?.magnitude))
-                    ? (String(a?.meta?.direction || "").toLowerCase() === "down"
-                      ? -Number(a.meta.magnitude)
-                      : Number(a.meta.magnitude))
-                    : null;
+                const direction = formatDirection(a.parsed_direction || a.meta?.direction);
+                const w = windowLabelFromType(a.type) || a.parsed_window_label;
+                const pctDirect = asNumber(a?.pct);
+                const pctParsed = asNumber(a?.parsed_pct);
+                const magnitude = pctDirect !== null
+                  ? pctDirect
+                  : pctParsed !== null
+                    ? pctParsed
+                    : Number.isFinite(Number(a?.meta?.magnitude))
+                      ? (String(a?.meta?.direction || "").toLowerCase() === "down"
+                        ? -Number(a.meta.magnitude)
+                        : Number(a.meta.magnitude))
+                      : null;
                 const pctText = pctForDisplay(magnitude, w);
-                const priceNowRaw = Number(a.price_now ?? a.price ?? null);
-                const priceThenRaw = Number(a.price_then ?? null);
-                const priceNow = priceForDisplay(Number.isFinite(priceNowRaw) ? priceNowRaw : null);
-                const priceThen = priceForDisplay(Number.isFinite(priceThenRaw) ? priceThenRaw : null);
+                // price (only if it actually exists)
+                const priceNowRaw = asNumber(a.price_now ?? a.price ?? a.current_price ?? null);
+                const priceThenRaw = asNumber(a.price_then ?? a.initial_price ?? null);
+                const priceNowNum = priceNowRaw;
+                const priceThenNum = priceThenRaw;
+                const priceNow = priceNowNum != null ? priceForDisplay(priceNowNum) : "–";
+                const priceThen = priceThenNum != null ? priceForDisplay(priceThenNum) : "–";
                 const priceLine = (priceNow !== "–" && priceThen !== "–")
                   ? `$${priceNow} from $${priceThen}`
                   : (priceNow !== "–" ? `$${priceNow}` : "");
-                const volPct = Number(a.vol_change_pct ?? null);
-                const volNow = Number(a.vol_now ?? null);
-                const volThen = Number(a.vol_then ?? null);
+                // volume (only if it actually exists)
+                const volPct = asNumber(a.vol_change_pct ?? a.vol_pct ?? null);
+                const volNow = asNumber(a.vol_now ?? null);
+                const volThen = asNumber(a.vol_then ?? null);
                 let volLine = "";
                 if (Number.isFinite(volPct)) {
                   const sign = volPct > 0 ? "+" : "";
@@ -252,12 +299,13 @@ export default function AlertsDock() {
                   `${a.derivedType} ${symbol}`,
                   pctText !== "–" ? `${pctText}${w ? ` in ${w}` : ""}` : null,
                 ].filter(Boolean);
+                const hasStructured = pctText !== "–" || priceLine || volLine;
                 const lineParts = [
                   headerParts.join(" "),
                   priceLine || null,
                   volLine || null,
                 ].filter(Boolean);
-                const line = lineParts.join(" · ");
+                const line = hasStructured ? lineParts.join(" · ") : (a.message || a.title || "");
                 const url = a.url || coinbaseSpotUrl({ product_id: toProductId(a), symbol: a.symbol });
                 const handleRowClick = () => {
                   if (!url) return;
