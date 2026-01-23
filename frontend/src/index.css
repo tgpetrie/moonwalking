@@ -4746,34 +4746,8 @@ body {
 }
 
 .board-core .bh-row > * { position: relative; z-index: 2; }
-/* ===== Rabbit watermark (single layer) + row glass hover ===== */
-:root{
-  /* update this path to your real bunny asset */
-  --mw-rabbit-url: url("/assets/rabbit.png");
-}
-
-.bh-board.board-core{
-  position: relative;
-}
-
-.bh-board.board-core .mw-rabbit-wm{
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.028;
-  mix-blend-mode: screen;
-  background-image: var(--mw-rabbit-url);
-  background-repeat: no-repeat;
-  background-position: 50% -140px;
-  background-size: min(1200px, 96vw) auto;
-  filter: brightness(0.92) contrast(1.06) saturate(0.92);
-}
-
-.bh-board.board-core > *:not(.mw-rabbit-wm){
-  position: relative;
-  z-index: 2;
-}
+/* ===== Rabbit watermark (wrapper) + row glass hover ===== */
+/* (rabbit handled by .rabbit-bg inside .board-core) */
 
 .token-row{
   position: relative;
@@ -4809,25 +4783,89 @@ body {
   z-index: 2;
 }
 
-/* Fallback watermark if element is missing */
-.bh-board.board-core:not(:has(.mw-rabbit-wm))::before{
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.028;
-  mix-blend-mode: screen;
-  background-image: var(--mw-rabbit-url);
-  background-repeat: no-repeat;
-  background-position: 50% -140px;
-  background-size: min(1200px, 96vw) auto;
-  filter: brightness(0.92) contrast(1.06) saturate(0.92);
-}
+/* (row aura moved to final override below) */
 
 /* Intelligence log should never inherit token-row hover overlays */
 .intelligence-log .token-row::before,
 .intelligence-log .token-row::after{
   content: none !important;
   display: none !important;
+}
+
+/* =========================================================
+   FINAL OVERRIDES — Sept-8 rabbit + inner hover slab
+   (keep at end so it wins)
+   ========================================================= */
+
+/* Rabbit: faint full-board watermark, no mask */
+.board-core .rabbit-bg{
+  position: absolute !important;
+  inset: 40px 0 120px 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  background: url("/purple-rabbit-bg.png") 50% -20px / min(1100px, 92vw) auto no-repeat !important;
+  opacity: 0.045 !important;
+  mix-blend-mode: screen !important;
+  filter: brightness(0.82) contrast(0.92) saturate(0.88) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+.board-core > *{
+  position: relative;
+  z-index: 2;
+}
+
+/* Row: inner hover glow slab (no border, no outer aura) */
+.board-core .bh-row{
+  position: relative !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.board-core .bh-row::after{
+  content: "";
+  position: absolute;
+  inset: 4px 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+  transform: scale(1.0);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.018) 20%,
+      rgba(255,176,46,0.055) 50%,
+      rgba(255,176,46,0.018) 80%,
+      rgba(255,176,46,0.00) 100%),
+    radial-gradient(120% 200% at 52% 50%,
+      rgba(255,176,46,0.095) 0%,
+      rgba(255,176,46,0.028) 45%,
+      rgba(0,0,0,0) 75%);
+  mix-blend-mode: screen;
+  backdrop-filter: contrast(1.9) brightness(1.02) saturate(1.06);
+}
+
+.board-core .bh-row:hover::after,
+.board-core .bh-row:focus-visible::after{
+  opacity: 1;
+  transform: scale(1.008);
+}
+
+/* Losers: purple-tinted inner slab */
+.board-core .bh-row[data-side="loser"]::after,
+.board-core .bh-row[data-side="loss"]::after{
+  background:
+    linear-gradient(90deg,
+      rgba(160,110,255,0.00) 0%,
+      rgba(160,110,255,0.030) 20%,
+      rgba(160,110,255,0.085) 50%,
+      rgba(160,110,255,0.030) 80%,
+      rgba(160,110,255,0.00) 100%),
+    radial-gradient(120% 200% at 52% 50%,
+      rgba(160,110,255,0.20) 0%,
+      rgba(160,110,255,0.06) 45%,
+      rgba(0,0,0,0) 75%);
+  backdrop-filter: contrast(2.5) brightness(1.04) saturate(1.1);
 }

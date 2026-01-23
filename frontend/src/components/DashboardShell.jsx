@@ -201,7 +201,7 @@ export default function DashboardShell({ onInfo }) {
         <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
           <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
             <div ref={boardRef} className="bh-board board-core">
-              <div className="mw-rabbit-wm" aria-hidden="true" />
+              <div className="rabbit-bg" aria-hidden="true" />
 
               {/* 1m and 3m Rail */}
               <div className="bh-rail">

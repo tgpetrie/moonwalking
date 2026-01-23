@@ -71,7 +71,7 @@ const ContinuousScrollingBanner = ({ items }) => {
                   })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
+                  className="mw-row flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
                 >
                   <div className="text-2xl font-extrabold tracking-wide text-gray-300/90">
                     {coin.symbol}
@@ -103,7 +103,7 @@ const ContinuousScrollingBanner = ({ items }) => {
                   })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
+                  className="mw-row flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
                 >
                   <div className="text-sm font-bold tracking-wide text-gray-300/90">
                     {coin.symbol}

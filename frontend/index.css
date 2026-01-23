@@ -118,16 +118,16 @@ body {
 .panel-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 32px;
-  align-items: flex-start;
-}
+  .app-root,
+  .bh-app,
+  .bh-main {
+    position: relative;
+    z-index: 1;
+  }
 
-.panel-row-1m {
-  margin-top: 1.5rem;
-}
-
-.panel-row-1m.panel-row-1m--full {
-  grid-template-columns: minmax(0, 1fr);
+  .app-root::before,
+  .bh-app::before,
+  .bh-main::before {
 }
 
 .panel-row-3m {
@@ -567,6 +567,148 @@ tr.table-row.is-flat::after,
   );
   opacity: 0.12;
 }
+
+/* ------------------------------------------------------------------
+   Sept-8 ambient rabbit + refined row glow (portable transplant)
+   - Adds a subtle page-level rabbit backdrop as a pseudo-element on the
+     primary app wrapper and provides the refined ambient + hover glow
+     styles used on the Sept-8 snapshot. These are additive and do not
+     remove the project's existing hover rules; they provide new
+     selectors/classes you can opt into on specific rows/components.
+   ------------------------------------------------------------------ */
+
+/* Rabbit background as a pseudo-element on the main app shell.
+   Replace `.app-root` with your top-level wrapper selector if needed. */
+.app-root {
+  position: relative;
+  z-index: 1;
+}
+
+.app-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: 0 auto;
+  max-width: 72rem; /* matches Tailwind max-w-6xl */
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  background-image: url("/purple-rabbit-bg.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.025;
+  z-index: 0;
+}
+
+/* Refined ambient aura and hover glow (Sept-8) - additive variants */
+/* Ensure rows using these patterns have position:relative and overflow:visible */
+.table-row,
+.token-row.table-row,
+.crypto-row,
+.mw-row,
+.mw-table-row,
+.mw-tr {
+  position: relative;
+  overflow: visible;
+}
+
+/* Ambient lower aura (soft, always-on slice) */
+.table-row::before,
+.token-row.table-row::before,
+.crypto-row::before,
+.mw-row::before,
+.mw-table-row::before,
+.mw-tr::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -6px;
+  width: 80%;
+  height: 16px;
+  pointer-events: none;
+  border-radius: 9999px;
+  z-index: 0;
+  opacity: 1;
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 72%);
+}
+
+/* Ambient color variants */
+.table-row.is-gain::before,
+.table-row[data-state="gain"]::before,
+.token-row.table-row.is-gain::before,
+.token-row.table-row[data-state="gain"]::before,
+.crypto-row.is-gain::before,
+.mw-table-row.is-gain::before {
+  background: radial-gradient(circle at center,
+    rgba(249,200,107,0.18) 0%,
+    rgba(249,200,107,0.06) 48%,
+    rgba(249,200,107,0) 100%);
+}
+.table-row.is-loss::before,
+.table-row[data-state="loss"]::before,
+.token-row.table-row.is-loss::before,
+.token-row.table-row[data-state="loss"]::before,
+.crypto-row.is-loss::before,
+.mw-table-row.is-loss::before {
+  background: radial-gradient(circle at center,
+    rgba(162,75,255,0.16) 0%,
+    rgba(162,75,255,0.05) 48%,
+    rgba(162,75,255,0) 100%);
+}
+
+/* Hover glow as a child element (preferred) */
+.row-hover-glow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -8px;
+  width: 66%;
+  height: 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.28));
+  border-radius: 9999px;
+  z-index: 1;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+}
+.row-hover-glow-gain { background: radial-gradient(circle at center, rgba(249, 200, 107, 0.50) 0%, rgba(249, 200, 107, 0.16) 60%, rgba(249, 200, 107, 0) 100%); }
+.row-hover-glow-loss { background: radial-gradient(circle at center, rgba(162, 75, 255, 0.50) 0%, rgba(162, 75, 255, 0.16) 60%, rgba(162, 75, 255, 0) 100%); }
+
+/* Reveal on hover when using child element approach */
+.table-row:hover .row-hover-glow,
+.token-row.table-row:hover .row-hover-glow,
+.crypto-row:hover .row-hover-glow {
+  opacity: 1;
+}
+
+/* Alternate pure pseudo-element hover (if you can't inject a child element) */
+.table-row:hover::after,
+.token-row.table-row:hover::after,
+.crypto-row:hover::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -8px;
+  width: 66%;
+  height: 10px;
+  pointer-events: none;
+  border-radius: 9999px;
+  z-index: 1;
+  opacity: 1;
+  background: radial-gradient(circle at center, rgba(249,200,107,0.50) 0%, rgba(249,200,107,0.16) 60%, rgba(249,200,107,0) 100%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+  mask-image: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,1) 42%, rgba(0,0,0,0) 60%);
+  transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+}
+
 
 /* ---------------------------
    ANOMALY STREAM (BHABIT)
