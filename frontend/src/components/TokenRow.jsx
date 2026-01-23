@@ -1,6 +1,6 @@
 import React from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
-import { useSentiment } from "../context/SentimentContext.jsx";
+import { useSentimentContext } from "../context/SentimentContext.jsx";
 import { formatPrice, formatPct, tickerFromSymbol } from "../utils/format.js";
 import { classForDelta } from "../theme/brandTokens.js";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
@@ -22,7 +22,7 @@ export default function TokenRow({ row, token, item, index = 0, rank, changeKey 
   const pct = Number.isFinite(pctNum) ? pctNum : 0;
   // Watchlist / sentiment
   const { has, add, remove } = useWatchlist();
-  const { sentiment } = useSentiment() || {};
+  const { sentiment } = useSentimentContext() || {};
   const starred = has(symbol);
   function toggleStar() {
     if (!symbol || symbol === "—") return;

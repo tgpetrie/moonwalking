@@ -1,10 +1,10 @@
 import React from "react";
-import { useSentiment } from "../context/SentimentContext.jsx";
+import { useSentimentContext } from "../context/SentimentContext.jsx";
 
 const TABS = ["Overview", "Funding", "Sources"];
 
 export default function SentimentCard() {
-  const { sentiment, loading, error } = useSentiment();
+  const { sentiment, loading, error } = useSentimentContext();
   const [active, setActive] = React.useState("Overview");
   const noData = !loading && !error && !sentiment;
 
@@ -80,4 +80,3 @@ function SourcesView({ sentiment }) {
     </div>
   );
 }
-
