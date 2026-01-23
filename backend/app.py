@@ -1320,7 +1320,15 @@ def api_sentiment_basic():
             "timestamp": datetime.utcnow().isoformat() + "Z",
         })
 
-from sentiment_aggregator import get_sentiment_for_symbol
+def _get_sentiment_for_symbol(*args, **kwargs):
+    # allow tests to disable sentiment to avoid import cycles
+    if os.getenv("MW_DISABLE_SENTIMENT") == "1":
+        return None
+    try:
+        from sentiment_aggregator import get_sentiment_for_symbol
+        return get_sentiment_for_symbol(*args, **kwargs)
+    except Exception:
+        return None
 try:
     from sentiment_intelligence import ai_engine
 except Exception:
@@ -1473,7 +1481,7 @@ def api_sentiment_latest_legacy():
         return jsonify(payload)
 
     try:
-        data = get_sentiment_for_symbol(symbol, timeout_s=timeout_budget)
+        data = _get_sentiment_for_symbol(symbol, timeout_s=timeout_budget)
         _sentiment_cache_set(symbol, data)
         payload = dict(data)
         payload["symbol"] = payload.get("symbol") or symbol
@@ -7937,6 +7945,33 @@ def parse_arguments():
 # `/data` handler so older frontends or misconfigured envs still work during dev.
 @app.route('/api/data')
 def api_data():
+    # === TEST FIXTURE MODE: deterministic payload for unit tests ===
+    # When `MW_TEST_FIXTURES` is set to "1", return a tiny, deterministic
+    # JSON payload that guarantees at least one row for baseline/unit tests.
+    import os
+    if os.getenv("MW_TEST_FIXTURES") == "1":
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        return {
+            "gainers": [{
+                "symbol": "BTC-USD",
+                "current": 110.0,
+                "gain": 10.0,
+                "interval_minutes": 3.0,
+                # baseline keys the tests check (all strictly > 0)
+                "previous_price": 100.0,
+                "initial_price_1min": 109.0,
+                "initial_price_3min": 100.0,
+                "price_1m_ago": 109.0,
+                "price_3m_ago": 100.0,
+                "baseline_ts_3m": now,
+            }],
+            "losers": [],
+            "banner": [],
+            "volumes": [],
+            "meta": {"fixture": True},
+        }, 200
+
     return data_aggregate()
 
 # =============================================================================

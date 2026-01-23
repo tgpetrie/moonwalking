@@ -136,3 +136,6 @@ backend/**/*.db
 backend/**/*.db-*
 backend/**/*.sqlite
 backend/**/*.sqlite-*
+
+# local venv
+.venv/

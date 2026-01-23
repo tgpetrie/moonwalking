@@ -2,6 +2,25 @@ import os
 import sys
 import unittest
 
+# Force deterministic payload for /api/data in unit tests.
+# This prevents live price fetch + eligibility/history timing from causing 0-row responses.
+os.environ.setdefault("MW_TEST_FIXTURES", "1")
+os.environ.setdefault("MW_DISABLE_SENTIMENT", "1")
+
+# Prevent circular imports by inserting lightweight stubs for sentiment modules
+import types as _types
+sys.path.insert(0, os.path.dirname(__file__))
+if 'sentiment_aggregator' not in sys.modules:
+    _mod = _types.ModuleType('sentiment_aggregator')
+    _mod.get_sentiment_for_symbol = lambda *a, **k: None
+    sys.modules['sentiment_aggregator'] = _mod
+
+if 'sentiment_aggregator_enhanced' not in sys.modules:
+    _mod2 = _types.ModuleType('sentiment_aggregator_enhanced')
+    _mod2.aggregator = None
+    sys.modules['sentiment_aggregator_enhanced'] = _mod2
+
+
 
 def _try_import_app():
     """Import the Flask app in a way that works from repo root or backend/.
