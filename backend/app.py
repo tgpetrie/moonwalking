@@ -3080,17 +3080,35 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         sym_clean = str(symbol).upper()
         product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
         now = datetime.now(timezone.utc)
+        emitted_ms = int(now.timestamp() * 1000)
         direction = "up" if change_pct >= 0 else "down"
         severity = "high" if mag >= max(ALERT_IMPULSE_3M_THRESH, ALERT_IMPULSE_1M_THRESH) else "medium"
+        window_s = 60 if str(window).lower().startswith("1") else 180 if str(window).lower().startswith("3") else None
+        price_now = float(price) if price is not None else None
+        price_then = None
+        try:
+            denom = 1.0 + (float(change_pct) / 100.0)
+            if price_now is not None and denom and denom != 0:
+                price_then = price_now / denom
+        except Exception:
+            price_then = None
         alert = {
           "id": f"impulse_{window}_{product_id}_{int(time.time())}",
           "ts": now.isoformat(),
+          "ts_ms": emitted_ms,
+          "event_ts": now.isoformat(),
+          "event_ts_ms": emitted_ms,
           "symbol": product_id,
           "type": f"impulse_{window}",
           "severity": severity,
           "title": f"{window} impulse {direction}",
           "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
-          "price": float(price or 0),
+          "window_s": window_s,
+          "pct": float(change_pct),
+          "direction": direction,
+          "price_now": price_now,
+          "price_then": price_then,
+          "price": float(price_now or 0),
           "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
           "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
           "meta": {"magnitude": mag, "direction": direction, "window": window},
@@ -3163,18 +3181,40 @@ def _normalize_alert(raw: dict) -> dict:
     except Exception:
         score = None
 
-    trade_url = None
-    if symbol:
+    trade_url = raw.get("trade_url")
+    if not trade_url and symbol:
         trade_url = f"https://www.coinbase.com/advanced-trade/spot/{symbol}"
+
+    def _num_or_none(v):
+        try:
+            if v is None or v == "":
+                return None
+            n = float(v)
+            return n if (n == n and n != float("inf") and n != float("-inf")) else None
+        except Exception:
+            return None
 
     norm = {
         "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
         "symbol": symbol,
+        "product_id": raw.get("product_id") or symbol,
         "type": alert_type,
         "severity": severity,
         "title": raw.get("title") or raw.get("message") or f"{scope.upper()} alert",
         "message": raw.get("message") or raw.get("title") or "",
         "ts": ts,
+        "ts_ms": raw.get("ts_ms"),
+        "event_ts": raw.get("event_ts"),
+        "event_ts_ms": raw.get("event_ts_ms"),
+        "window_s": raw.get("window_s"),
+        "pct": _num_or_none(raw.get("pct")),
+        "direction": raw.get("direction") or direction,
+        "price_now": _num_or_none(raw.get("price_now")),
+        "price_then": _num_or_none(raw.get("price_then")),
+        "price": _num_or_none(raw.get("price")),
+        "vol_pct": _num_or_none(raw.get("vol_pct") or raw.get("vol_change_pct")),
+        "vol_now": _num_or_none(raw.get("vol_now")),
+        "vol_then": _num_or_none(raw.get("vol_then")),
         "expires_at": expires_at,
         "score": score,
         "sources": raw.get("sources") or [],

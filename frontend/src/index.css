@@ -3439,8 +3439,8 @@ a.bh-row {
 }
 
 /* subtle rail always visible */
-.bh-row::after,
-.token-row.table-row::after {
+.bh-row::before,
+.token-row.table-row::before {
   content: "";
   position: absolute;
   left: var(--bh-row-px, 14px);
@@ -3460,8 +3460,8 @@ a.bh-row {
 }
 
 /* stronger on hover */
-.bh-row:hover::after,
-.token-row.table-row:hover::after {
+.bh-row:hover::before,
+.token-row.table-row:hover::before {
   opacity: 0.95;
 }
 
@@ -4746,3 +4746,88 @@ body {
 }
 
 .board-core .bh-row > * { position: relative; z-index: 2; }
+/* ===== Rabbit watermark (single layer) + row glass hover ===== */
+:root{
+  /* update this path to your real bunny asset */
+  --mw-rabbit-url: url("/assets/rabbit.png");
+}
+
+.bh-board.board-core{
+  position: relative;
+}
+
+.bh-board.board-core .mw-rabbit-wm{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.028;
+  mix-blend-mode: screen;
+  background-image: var(--mw-rabbit-url);
+  background-repeat: no-repeat;
+  background-position: 50% -140px;
+  background-size: min(1200px, 96vw) auto;
+  filter: brightness(0.92) contrast(1.06) saturate(0.92);
+}
+
+.bh-board.board-core > *:not(.mw-rabbit-wm){
+  position: relative;
+  z-index: 2;
+}
+
+.token-row{
+  position: relative;
+  isolation: isolate;
+}
+
+.token-row::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 160ms ease, filter 180ms ease;
+  background-image:
+    radial-gradient(120% 180% at 50% 50%, rgba(255,179,71,0.16), rgba(0,0,0,0) 62%),
+    linear-gradient(90deg, rgba(192,132,252,0.10), rgba(255,179,71,0.08));
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: 100% 100%;
+  mix-blend-mode: screen;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.token-row:not(.token-row--empty):hover::after{
+  opacity: 1;
+}
+
+.token-row > *{
+  position: relative;
+  z-index: 2;
+}
+
+/* Fallback watermark if element is missing */
+.bh-board.board-core:not(:has(.mw-rabbit-wm))::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.028;
+  mix-blend-mode: screen;
+  background-image: var(--mw-rabbit-url);
+  background-repeat: no-repeat;
+  background-position: 50% -140px;
+  background-size: min(1200px, 96vw) auto;
+  filter: brightness(0.92) contrast(1.06) saturate(0.92);
+}
+
+/* Intelligence log should never inherit token-row hover overlays */
+.intelligence-log .token-row::before,
+.intelligence-log .token-row::after{
+  content: none !important;
+  display: none !important;
+}
