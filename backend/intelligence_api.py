@@ -7,11 +7,28 @@ import logging
 from typing import Dict, List
 
 from flask import Blueprint, jsonify, request
-import redis
+try:
+    import redis
+except Exception as _e:
+    redis = None
+    logging.getLogger(__name__).warning(f"redis module not available: {_e}")
 
 from cache import CachePolicy, get_cached_report, building_stub, iso_now
-from sentiment_intelligence import load_engine
-from refresh import Refresher
+try:
+    from sentiment_intelligence import load_engine
+except Exception as _e:
+    # Running in lightweight/dev environments may not have the ML deps
+    # available. Provide a harmless fallback so the blueprint can still
+    # be imported and the app can register routes (they'll return
+    # service_unavailable when invoked).
+    load_engine = None
+    import logging
+    logging.getLogger(__name__).warning(f"sentiment_intelligence.load_engine not available: {_e}")
+try:
+    from refresh import Refresher
+except Exception as _e:
+    Refresher = None
+    logger.warning(f"refresh.Refresher not available: {_e}")
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +44,17 @@ policy = CachePolicy(
 )
 
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-try:
-    rds = redis.Redis.from_url(redis_url, decode_responses=False)
-    rds.ping()
-    logger.info(f"✅ Redis connected: {redis_url}")
-except Exception as e:
-    logger.error(f"❌ Redis connection failed: {e}")
+if redis is None:
     rds = None
+    logger.error("❌ Redis client unavailable; intelligence cache disabled")
+else:
+    try:
+        rds = redis.Redis.from_url(redis_url, decode_responses=False)
+        rds.ping()
+        logger.info(f"✅ Redis connected: {redis_url}")
+    except Exception as e:
+        logger.error(f"❌ Redis connection failed: {e}")
+        rds = None
 
 # Load FinBERT engine once
 try:
@@ -43,7 +64,7 @@ try:
         engine=engine,
         policy=policy,
         max_workers=int(os.getenv("INTEL_REFRESH_WORKERS", "4")),
-    ) if rds else None
+    ) if (rds and Refresher) else None
     logger.info(f"✅ Intelligence engine loaded on {engine.device}")
 except Exception as e:
     logger.error(f"❌ Failed to load intelligence engine: {e}")

@@ -193,7 +193,7 @@ export function TokenRowUnified({
   return (
     <>
       <RowTag
-        className={`${rowClassName} token-row table-row ${pulse ? "is-pulsing" : ""}`}
+        className={`${rowClassName}${pulse ? " is-pulsing" : ""}`}
         style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
         data-side={dataSide}
         role={url ? "link" : undefined}
@@ -204,6 +204,7 @@ export function TokenRowUnified({
         onPointerLeave={setRabbitHover(false)}
         aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
       >
+        <span className="bh-row-breathe" aria-hidden="true" />
         {renderCells()}
       </RowTag>
 

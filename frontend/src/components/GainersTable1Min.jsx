@@ -250,7 +250,6 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     return deduped;
   }, [data, tokensProp]);
 
-  const MAX_ROWS_PER_COLUMN = 4;
   const MAX_VISIBLE_COLLAPSED = 8;
   const MAX_VISIBLE_EXPANDED = 16;
 
@@ -391,7 +390,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   if (isLoading && !hasData) {
     return (
       <div className="gainers-table">
-        <div className="bh-grid-1">
+        <div className="bh-1m-grid bh-1m-grid--single-col">
           <div className="bh-col">
             <SkeletonGrid1m rows={4} cols={4} />
           </div>
@@ -404,7 +403,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   if (!isLoading && !hasData) {
     return (
       <div className="gainers-table">
-        <div className="bh-grid-1">
+        <div className="bh-1m-grid bh-1m-grid--single-col">
           <div className="bh-col">
             <div className="bh-table">
               <div className="token-row token-row--empty">
@@ -420,15 +419,15 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   }
 
   const items = rowsWithPulse;
-  const split = Math.max(filteredRows.length, items.length) > MAX_ROWS_PER_COLUMN;
-  const leftColumn = split ? items.slice(0, MAX_ROWS_PER_COLUMN) : items.slice(0, MAX_ROWS_PER_COLUMN);
-  const rightColumn = split ? items.slice(MAX_ROWS_PER_COLUMN, MAX_ROWS_PER_COLUMN * 2) : [];
-  const extraRows = split ? items.slice(MAX_ROWS_PER_COLUMN * 2, maxVisible) : [];
+  const split = items.length > 4;
+  const rowsPerColumn = expanded ? 8 : 4;
+  const leftColumn = split ? items.slice(0, rowsPerColumn) : items;
+  const rightColumn = split ? items.slice(rowsPerColumn, rowsPerColumn * 2) : [];
   const density = split ? "normal" : "tight";
 
   return (
     <div className="gainers-table">
-      <div className={split ? "bh-grid-2" : "bh-grid-1"}>
+      <div className={`bh-1m-grid ${split ? "bh-1m-grid--two-col" : "bh-1m-grid--single-col"}`}>
         <div className="bh-col">
           <div className="bh-table">
             <AnimatePresence initial={false} mode="popLayout">
@@ -473,7 +472,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
             <div className="bh-table">
               <AnimatePresence initial={false} mode="popLayout">
                 {rightColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
-                  const absoluteIndex = MAX_ROWS_PER_COLUMN + index;
+                  const absoluteIndex = rowsPerColumn + index;
                   const displayRank = rank ?? absoluteIndex + 1;
                   const rowKey = buildRowKey(token);
                   const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
@@ -510,48 +509,6 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           </div>
         )}
       </div>
-
-      {split && extraRows.length > 0 && (
-        <div className="bh-1m-more">
-          <div className="bh-table">
-            <AnimatePresence initial={false} mode="popLayout">
-              {extraRows.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
-                const absoluteIndex = MAX_ROWS_PER_COLUMN * 2 + index;
-                const displayRank = rank ?? absoluteIndex + 1;
-                const rowKey = buildRowKey(token);
-                const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
-                return (
-                  <motion.div
-                    key={rowKey}
-                    layout
-                    layoutId={rowKey}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={rowTransition}
-                  >
-                    <TokenRowUnified
-                      token={token}
-                      rank={displayRank}
-                      changeField="change_1m"
-                      side="gainer"
-                      renderAs="div"
-                      onInfo={onInfo}
-                      onToggleWatchlist={onToggleWatchlist}
-                      isWatchlisted={watchlist.includes(token.symbol)}
-                      density={density}
-                      pulsePrice={priceChanged}
-                      pulsePct={pctChanged}
-                      pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
-                      activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
-                    />
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        </div>
-      )}
       {filteredRows.length > MAX_VISIBLE_COLLAPSED && (
         <div className="panel-footer">
           <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>

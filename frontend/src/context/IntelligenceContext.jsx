@@ -31,16 +31,19 @@ export function IntelligenceProvider({ children, watchSymbols }) {
     const timerRef = useRef(null);
     const visibleRef = useRef(true);
     const lastFetchRef = useRef(0);
+    const failCountRef = useRef(0);
+    const lastFetchOkRef = useRef(true);
+    const pollStartedRef = useRef(false);
 
     const fetchBatch = useCallback(async () => {
-        if (!symbols.length) return;
+        if (!symbols.length) return true;
 
         // Pause polling when tab is hidden (N100 optimization)
-        if (!visibleRef.current) return;
+        if (!visibleRef.current) return true;
 
         // Prevent rapid repeated fetches (safeguard against duplicate mounts)
         const now = Date.now();
-        if (now - lastFetchRef.current < MIN_FETCH_MS) return;
+        if (now - lastFetchRef.current < MIN_FETCH_MS) return true;
         lastFetchRef.current = now;
 
         // Abort any in-flight request
@@ -75,7 +78,12 @@ export function IntelligenceProvider({ children, watchSymbols }) {
             }
             setReports(prev => ({ ...prev, ...mock }));
             setLoading(false);
-            return;
+            failCountRef.current = 0;
+            if (!lastFetchOkRef.current) {
+                console.info("[Intelligence] Batch fetch recovered");
+                lastFetchOkRef.current = true;
+            }
+            return true;
         }
 
         try {
@@ -93,11 +101,22 @@ export function IntelligenceProvider({ children, watchSymbols }) {
             }
 
             setReports(prev => ({ ...prev, ...json.data }));
+            failCountRef.current = 0;
+            if (!lastFetchOkRef.current) {
+                console.info("[Intelligence] Batch fetch recovered");
+                lastFetchOkRef.current = true;
+            }
+            return true;
         } catch (e) {
             if (e.name !== "AbortError") {
                 setLastError(String(e.message || e));
-                console.error("[Intelligence] Batch fetch failed:", e);
+                failCountRef.current += 1;
+                if (lastFetchOkRef.current) {
+                    console.error("[Intelligence] Batch fetch failed:", e);
+                    lastFetchOkRef.current = false;
+                }
             }
+            return false;
         } finally {
             setLoading(false);
         }
@@ -124,13 +143,24 @@ export function IntelligenceProvider({ children, watchSymbols }) {
         if (timerRef.current) clearInterval(timerRef.current);
 
         // Initial fetch
+        if (pollStartedRef.current) return undefined;
+        pollStartedRef.current = true;
         fetchBatch();
 
+        const scheduleNext = (delayMs) => {
+            timerRef.current = setTimeout(async () => {
+                const ok = await fetchBatch();
+                const backoff = Math.min(10_000, 2000 * Math.pow(2, Math.max(0, failCountRef.current - 1)));
+                scheduleNext(ok ? POLL_MS : backoff);
+            }, delayMs);
+        };
+
         // Conservative polling (5 minutes default for N100)
-        timerRef.current = setInterval(fetchBatch, POLL_MS);
+        scheduleNext(POLL_MS);
 
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
+            pollStartedRef.current = false;
+            if (timerRef.current) clearTimeout(timerRef.current);
             if (abortRef.current) abortRef.current.abort();
         };
     }, [fetchBatch]);

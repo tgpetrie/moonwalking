@@ -880,7 +880,11 @@ def _get_gainers_table_1min_swr():
         # accept either the processed shape (current/gain/initial_1min) or the
         # seeded fixture shape (current_price, price_change_percentage_1min)
         current_price = coin.get('current') or coin.get('current_price') or 0
-        gain_pct = coin.get('gain') or coin.get('price_change_percentage_1min') or 0
+        gain_pct = _safe_float(coin.get('gain'))
+        if gain_pct is None:
+            gain_pct = _safe_float(coin.get('price_change_percentage_1min'))
+        if gain_pct is None:
+            gain_pct = 0
         initial_price = coin.get('initial_1min') or coin.get('initial_price_1min') or current_price
         peak_gain = coin.get('peak_gain', gain_pct)
         trend_direction = coin.get('trend_direction', 'flat')
@@ -917,7 +921,11 @@ def _get_gainers_table_1min_swr():
         losers = data.get('losers', []) or []
         for coin in losers[:max(10, min(20, limit))]:
             current_price = coin.get('current') or coin.get('current_price') or 0
-            gain_pct = coin.get('gain') or coin.get('price_change_percentage_1min') or 0
+            gain_pct = _safe_float(coin.get('gain'))
+            if gain_pct is None:
+                gain_pct = _safe_float(coin.get('price_change_percentage_1min'))
+            if gain_pct is None:
+                gain_pct = 0
             if isinstance(gain_pct, (int, float)) and abs(gain_pct) >= ALERT_IMPULSE_1M_THRESH:
                 _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
     except Exception:
@@ -949,23 +957,26 @@ def _get_gainers_table_3min_swr():
     gainers_table_data = []
     for i, coin in enumerate(gainers[:limit]):
         sym = coin['symbol']
-        direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
+        gain = _safe_float(coin.get('gain'))
+        if gain is None:
+            gain = 0
+        direction, streak, score = _update_3m_trend(sym, gain)
         gainers_table_data.append({
             'rank': i + 1,
             'symbol': coin['symbol'],
             'current_price': coin['current'],
-            'price_change_percentage_3min': coin['gain'],
+            'price_change_percentage_3min': gain,
             'initial_price_3min': coin['initial_3min'],
             'actual_interval_minutes': coin.get('interval_minutes', 3),
             'trend_direction': direction,
             'trend_streak': streak,
             'trend_score': score,
-            'momentum': 'strong' if coin['gain'] > 5 else 'moderate',
-            'alert_level': 'high' if coin['gain'] > 10 else 'normal'
+            'momentum': 'strong' if gain > 5 else 'moderate',
+            'alert_level': 'high' if gain > 10 else 'normal'
         })
         try:
-            if isinstance(coin.get('gain'), (int, float)) and abs(float(coin.get('gain') or 0)) >= ALERT_IMPULSE_3M_THRESH:
-                _emit_impulse_alert(sym, float(coin.get('gain') or 0), coin.get('current'), window="3m")
+            if isinstance(gain, (int, float)) and abs(gain) >= ALERT_IMPULSE_3M_THRESH:
+                _emit_impulse_alert(sym, float(gain or 0), coin.get('current'), window="3m")
         except Exception:
             pass
     return {
@@ -993,23 +1004,26 @@ def _get_losers_table_3min_swr():
     losers_table_data = []
     for i, coin in enumerate(losers[:limit]):
         sym = coin['symbol']
-        direction, streak, score = _update_3m_trend(sym, coin.get('gain', 0))
+        gain = _safe_float(coin.get('gain'))
+        if gain is None:
+            gain = 0
+        direction, streak, score = _update_3m_trend(sym, gain)
         losers_table_data.append({
             'rank': i + 1,
             'symbol': coin['symbol'],
             'current_price': coin['current'],
-            'price_change_percentage_3min': coin['gain'],
+            'price_change_percentage_3min': gain,
             'initial_price_3min': coin['initial_3min'],
             'actual_interval_minutes': coin.get('interval_minutes', 3),
             'trend_direction': direction,
             'trend_streak': streak,
             'trend_score': score,
-            'momentum': 'strong' if coin['gain'] < -5 else 'moderate',
-            'alert_level': 'high' if coin['gain'] < -10 else 'normal'
+            'momentum': 'strong' if gain < -5 else 'moderate',
+            'alert_level': 'high' if gain < -10 else 'normal'
         })
         try:
-            if isinstance(coin.get('gain'), (int, float)) and abs(float(coin.get('gain') or 0)) >= ALERT_IMPULSE_3M_THRESH:
-                _emit_impulse_alert(sym, float(coin.get('gain') or 0), coin.get('current'), window="3m")
+            if isinstance(gain, (int, float)) and abs(gain) >= ALERT_IMPULSE_3M_THRESH:
+                _emit_impulse_alert(sym, float(gain or 0), coin.get('current'), window="3m")
         except Exception:
             pass
     return {
@@ -3018,6 +3032,7 @@ ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
 MW_SEED_ALERTS = os.getenv("MW_SEED_ALERTS", "0") == "1"
 _ALERT_EMIT_TS = {}
 _ALERT_EMIT_VAL = {}
+_ALERT_EMIT_DIR = {}
 
 _MW_LAST_GOOD_ALERTS = []
 _MW_LAST_GOOD_ALERTS_TS = None
@@ -3058,24 +3073,36 @@ def _mw_get_alerts_normalized_with_sticky():
     return alerts, meta
 
 def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
-    """Emit an alert with per-key cooldown and magnitude dedupe."""
+    """Emit an alert with per-key cooldown and magnitude/direction dedupe."""
     if not alert or not isinstance(alert, dict):
         return False
 
     key = f"{alert.get('type')}::{alert.get('symbol')}"
     now = time.time()
     last_ts = _ALERT_EMIT_TS.get(key, 0)
-    if now - last_ts < cooldown_s:
-        return False
+    within_cooldown = (now - last_ts) < cooldown_s if last_ts else False
 
     magnitude = float(alert.get("meta", {}).get("magnitude", 0) or 0)
     prev = float(_ALERT_EMIT_VAL.get(key, 0) or 0)
-    if magnitude <= prev + dedupe_delta:
+    direction = (alert.get("meta", {}).get("direction") or alert.get("direction") or "").lower() or None
+    prev_dir = _ALERT_EMIT_DIR.get(key)
+
+    allow = False
+    if not within_cooldown:
+        allow = True
+    else:
+        if magnitude > prev + dedupe_delta:
+            allow = True
+        elif direction and prev_dir and direction != prev_dir:
+            allow = True
+
+    if not allow:
         return False
 
     alerts_log_main.append(alert)
     _ALERT_EMIT_TS[key] = now
     _ALERT_EMIT_VAL[key] = magnitude
+    _ALERT_EMIT_DIR[key] = direction
     return True
 
 

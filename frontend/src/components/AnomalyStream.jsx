@@ -135,19 +135,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       }
     }
 
-    // Show heartbeat only once every 30 seconds when no anomalies
-    const nowMs = Date.now();
-    if (newLogs.length === 0 && nowMs - lastHeartbeatRef.current > 30000) {
-      const systems = ["CACHE_SYNC", "SNAPSHOT_ENGINE", "COINBASE_POLL", "BANNER_LOOP"];
-      const sys = systems[Math.floor(Math.random() * systems.length)];
-      newLogs.push({
-        id: `hb-${nowMs}`,
-        time: timeStr,
-        msg: `PING >> ${sys} heartbeat verified...`,
-        tone: "mint-dim",
-      });
-      lastHeartbeatRef.current = nowMs;
-    }
+    // NOTE: heartbeat/ping entries intentionally suppressed for cleaner intelligence log
+    // (previous behavior inserted lightweight PING messages when no anomalies were present)
 
     if (newLogs.length) {
       setLogs((prev) => [...prev, ...newLogs].slice(-30));
@@ -199,7 +188,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
   }, [alerts]);
 
   return (
-    <div className="bh-anom" style={{ height: isCollapsed ? "38px" : "160px" }} data-collapsed={isCollapsed ? "1" : "0"}>
+    <div className="bh-anom intelligence-log" style={{ height: isCollapsed ? "38px" : "160px" }} data-collapsed={isCollapsed ? "1" : "0"}>
       <button
         type="button"
         className="bh-anom-head"

@@ -322,7 +322,7 @@ class MoonwalkingDetector:
                 await asyncio.sleep(10)
     
     async def _get_sentiment_data(self) -> Dict:
-        """Get latest sentiment data from pipeline"""
+        . I need ""Get latest sentiment data from pipeline"""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{self.sentiment_api_base}/sentiment/latest") as response:

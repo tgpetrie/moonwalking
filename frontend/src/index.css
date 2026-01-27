@@ -749,75 +749,6 @@ body {
   gap: 8px;
 }
 
-/* ===== BOARD WRAPPER & RABBIT LAYER (panel-scoped) ===== */
-
-.board-core .bh-row::after{
-  content: "";
-  position: absolute;
-  inset: 4px 10px !important; /* tight inner glow band */
-  pointer-events: none !important;
-  opacity: 0 !important;
-  transform: scale(0.996);
-  transition: opacity 140ms ease, transform 160ms ease !important;
-  border-radius: 12px;
-
-  /* subtle inner radial hue for a clear glassy look */
-  background:
-    radial-gradient(110% 160% at 50% 50%,
-      rgba(255,196,61,0.035) 0%,
-      rgba(255,196,61,0.008) 36%,
-      rgba(0,0,0,0) 70%) !important,
-    linear-gradient(90deg,
-      rgba(255,176,46,0.00) 0%,
-      rgba(255,176,46,0.006) 18%,
-      rgba(255,176,46,0.012) 50%,
-      rgba(255,176,46,0.006) 82%,
-      rgba(255,176,46,0.00) 100%) !important;
-
-  mix-blend-mode: screen;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-
-  /* keep the band feel so it doesn't paint as a slab */
-  -webkit-mask-image: linear-gradient(90deg,
-    transparent 0%,
-    rgba(0,0,0,0.0) 10%,
-    rgba(0,0,0,1.0) 50%,
-    rgba(0,0,0,0.0) 90%,
-    transparent 100%);
-  mask-image: linear-gradient(90deg,
-    transparent 0%,
-    rgba(0,0,0,0.0) 10%,
-    rgba(0,0,0,1.0) 50%,
-    rgba(0,0,0,0.0) 90%,
-    transparent 100%);
-
-  z-index: 1;
-}
-
-.board-core .bh-row[data-side="loser"]::after {
-  background:
-    radial-gradient(110% 160% at 50% 50%,
-      rgba(176,96,255,0.04) 0%,
-      rgba(176,96,255,0.01) 36%,
-      rgba(0,0,0,0) 70%) !important,
-    linear-gradient(90deg,
-      rgba(160,110,255,0.00) 0%,
-      rgba(160,110,255,0.006) 18%,
-      rgba(160,110,255,0.012) 50%,
-      rgba(160,110,255,0.006) 82%,
-      rgba(160,110,255,0.00) 100%) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.board-core .bh-row:hover::after,
-.board-core .bh-row:focus-visible::after {
-  opacity: 0.72 !important;
-  transform: scale(1.00);
-}
-
-
 .section-head--left {
   align-items: flex-start;
   text-align: left;
@@ -876,7 +807,7 @@ body {
 /* 1m movers grid: two columns of stacked rows (default) */
 .bh-1m-grid {
   display: grid;
-  gap: 2.5rem;
+  gap: var(--bh-gap-columns);
   width: 100%;
 }
 
@@ -886,6 +817,13 @@ body {
 
 .bh-1m-grid--single-col {
   grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px){
+  .bh-1m-grid--two-col {
+    grid-template-columns: 1fr;
+    gap: var(--bh-gap-section);
+  }
 }
 
 .bh-1m-col {
@@ -4438,6 +4376,43 @@ body {
 }
 .board-core .bh-row:hover::before{ opacity: 0.85; }
 
+/* Breath layer (non-transform) */
+.bh-row-breathe{
+  position: absolute;
+  inset: 6px 10px;
+  pointer-events: none;
+  opacity: 0.06;
+  filter: blur(12px);
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 180% at 50% 50%,
+      rgba(255,196,61,0.08) 0%,
+      rgba(255,196,61,0.025) 38%,
+      rgba(0,0,0,0) 70%),
+    linear-gradient(90deg,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.05) 50%,
+      rgba(255,176,46,0.00) 100%);
+  animation: bh-row-breathe 9.5s ease-in-out infinite;
+  z-index: 2;
+}
+.bh-row[data-side="loser"] .bh-row-breathe{
+  background:
+    radial-gradient(120% 180% at 50% 50%,
+      rgba(176,96,255,0.08) 0%,
+      rgba(176,96,255,0.025) 38%,
+      rgba(0,0,0,0) 70%),
+    linear-gradient(90deg,
+      rgba(160,110,255,0.00) 0%,
+      rgba(160,110,255,0.05) 50%,
+      rgba(160,110,255,0.00) 100%);
+}
+
+@keyframes bh-row-breathe{
+  0%, 100% { opacity: 0.05; filter: blur(12px); }
+  50% { opacity: 0.11; filter: blur(16px); }
+}
+
 /* Base: NO SLAB */
 .board-core .bh-row,
 .board-core .bh-row:hover{
@@ -4938,22 +4913,37 @@ body {
 }
 
 /* =========================================================
-   FINAL OVERRIDES — Sept-8 rabbit + inner hover slab
+   FINAL OVERRIDES — Rabbit shadow + row glow + breathe
    (keep at end so it wins)
    ========================================================= */
 
-/* Rabbit: faint full-board watermark, no mask */
-.board-core .rabbit-bg{
-  position: absolute !important;
-  inset: 40px 0 120px 0 !important;
-  pointer-events: none !important;
-  z-index: 0 !important;
-  background: url("/purple-rabbit-bg.png") 50% -20px / min(1100px, 92vw) auto no-repeat !important;
-  opacity: 0.045 !important;
-  mix-blend-mode: screen !important;
-  filter: brightness(0.82) contrast(0.92) saturate(0.88) !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+/* ===== RABBIT: fixed, ultra-dark purple watermark (lightable) ===== */
+.board-core {
+  position: relative;
+  isolation: isolate;
+}
+
+.board-core .rabbit-bg {
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  width: min(1100px, 92vw);
+  height: min(1100px, 92vw);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  background: url("/purple-rabbit-bg.png") center / contain no-repeat;
+  opacity: 0.020;
+  filter: brightness(0.55) contrast(1.05) saturate(1.25) hue-rotate(18deg);
+  mix-blend-mode: screen;
+  -webkit-mask-image: none;
+  mask-image: none;
+  transition: opacity 200ms ease, filter 240ms ease;
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg {
+  opacity: 0.060;
+  filter: brightness(0.78) contrast(1.08) saturate(1.35) hue-rotate(18deg);
 }
 
 .board-core > *{
@@ -4961,56 +4951,157 @@ body {
   z-index: 2;
 }
 
-/* Row: inner hover glow slab (no border, no outer aura) */
-.board-core .bh-row{
-  position: relative !important;
+/* ===== ROW HOVER: transparent inner glow (no fill slab) ===== */
+.bh-row.bh-row-grid {
+  position: relative;
+  z-index: 2;
+  border-radius: 14px;
   background: transparent !important;
   box-shadow: none !important;
+  animation: none !important;
 }
 
-.board-core .bh-row::after{
+.bh-row.bh-row-grid::before {
   content: "";
   position: absolute;
-  inset: 4px 10px;
+  inset: -1px;
+  border-radius: inherit;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 140ms ease, transform 140ms ease;
-  transform: scale(1.0);
-  border-radius: 14px;
-  background:
-    linear-gradient(90deg,
-      rgba(255,176,46,0.00) 0%,
-      rgba(255,176,46,0.018) 20%,
-      rgba(255,176,46,0.055) 50%,
-      rgba(255,176,46,0.018) 80%,
-      rgba(255,176,46,0.00) 100%),
-    radial-gradient(120% 200% at 52% 50%,
-      rgba(255,176,46,0.095) 0%,
-      rgba(255,176,46,0.028) 45%,
-      rgba(0,0,0,0) 75%);
-  mix-blend-mode: screen;
-  backdrop-filter: contrast(1.9) brightness(1.02) saturate(1.06);
+  transition: opacity 140ms ease, filter 180ms ease;
 }
 
-.board-core .bh-row:hover::after,
-.board-core .bh-row:focus-visible::after{
+.bh-row.bh-row-grid::after {
+  content: none !important;
+}
+
+.bh-row.bh-row-grid.is-gain:hover::before {
   opacity: 1;
-  transform: scale(1.008);
+  background:
+    radial-gradient(120% 180% at 50% 50%,
+      rgba(255,176,46,0.00) 0%,
+      rgba(255,176,46,0.06) 38%,
+      rgba(255,176,46,0.00) 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.14),
+    inset 0 0 18px rgba(255,176,46,0.10);
+  filter: blur(0.3px);
 }
 
-/* Losers: purple-tinted inner slab */
-.board-core .bh-row[data-side="loser"]::after,
-.board-core .bh-row[data-side="loss"]::after{
+.bh-row.bh-row-grid.is-loss:hover::before {
+  opacity: 1;
   background:
-    linear-gradient(90deg,
+    radial-gradient(120% 180% at 50% 50%,
       rgba(160,110,255,0.00) 0%,
-      rgba(160,110,255,0.030) 20%,
-      rgba(160,110,255,0.085) 50%,
-      rgba(160,110,255,0.030) 80%,
-      rgba(160,110,255,0.00) 100%),
-    radial-gradient(120% 200% at 52% 50%,
-      rgba(160,110,255,0.20) 0%,
-      rgba(160,110,255,0.06) 45%,
-      rgba(0,0,0,0) 75%);
-  backdrop-filter: contrast(2.5) brightness(1.04) saturate(1.1);
+      rgba(160,110,255,0.06) 38%,
+      rgba(160,110,255,0.00) 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(160,110,255,0.14),
+    inset 0 0 18px rgba(160,110,255,0.10);
+  filter: blur(0.3px);
+}
+
+/* ===== Constant breathe (no transform; never fights Motion) ===== */
+@keyframes bh-breathe-soft {
+  0%, 100% { opacity: 0.035; filter: blur(12px); }
+  50% { opacity: 0.060; filter: blur(14px); }
+}
+
+.bh-row-breathe {
+  position: absolute;
+  inset: 6px 10px;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0.045;
+  background:
+    radial-gradient(140% 200% at 50% 50%,
+      rgba(255,255,255,0.03) 0%,
+      rgba(0,0,0,0) 68%);
+  animation: bh-breathe-soft 10s ease-in-out infinite;
+  animation-delay: calc(var(--bh-phase, 0) * -1ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-row-breathe {
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   Intelligence log — terminal density + crisp separators
+   ========================================================= */
+.intelligence-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  background-image: linear-gradient(rgba(255,255,255,0.02) 1px, rgba(0,0,0,0) 1px);
+  background-size: 100% 18px;
+  background-position: 0 6px;
+}
+
+.intelligence-log .bh-anom-body {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.intelligence-log .bh-anom-line {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0;
+  padding: 6px 10px;
+}
+
+.intelligence-log .bh-anom-line + .bh-anom-line {
+  margin-top: 4px;
+}
+
+.intelligence-log .bh-anom-line::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.06),
+    rgba(255,255,255,0.02),
+    rgba(255,255,255,0.00));
+  opacity: 0.9;
+}
+
+.intelligence-log .bh-anom-time {
+  color: rgba(235, 226, 210, 0.55);
+  display: inline-block;
+  width: 72px;
+  font-size: 11px;
+}
+
+.intelligence-log .bh-anom-prefix {
+  display: inline-block;
+  width: 38px;
+  color: rgba(235, 226, 210, 0.72);
+}
+
+.intelligence-log .bh-anom-sym,
+.intelligence-log .bh-anom-link {
+  display: inline-block;
+  width: 64px;
+  color: rgba(235, 226, 210, 0.92);
+  text-decoration: none;
+}
+
+.intelligence-log .bh-anom-text {
+  color: rgba(235, 226, 210, 0.70);
+}
+
+.intelligence-log .bh-anom-msg {
+  text-transform: none;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

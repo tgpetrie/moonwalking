@@ -229,6 +229,8 @@ export function DataProvider({ children }) {
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
   const failCountRef = useRef(0);
+  const lastFetchOkRef = useRef(true);
+  const pollStartedRef = useRef(false);
 
   // Commit 1m rows as a whole snapshot.
   // Row liveliness is handled in the table layer (value-only pulses + staggering),
@@ -487,6 +489,10 @@ export function DataProvider({ children }) {
         setBackendBase(isCanonicalLocalBase(okBase) ? CANONICAL_LOCAL_BASE : null);
         setConnectionStatus("LIVE");
         failCountRef.current = 0;
+        if (!lastFetchOkRef.current) {
+          console.info("[mw] data poll recovered");
+          lastFetchOkRef.current = true;
+        }
         // Fetch fast: store latest payload in a ref; publish on a steady cadence.
         pendingNormalizedRef.current = norm;
         pendingBaseRef.current = okBase;
@@ -512,9 +518,14 @@ export function DataProvider({ children }) {
       if (status === 429 || (status && status >= 500)) {
         backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
       }
+      if (lastFetchOkRef.current) {
+        console.warn("[mw] data poll failed:", lastError || "fetch failed");
+        lastFetchOkRef.current = false;
+      }
     }
 
     inFlightRef.current = false;
+    return succeeded;
   }, [applySnapshot]);
 
   // Publish pending snapshots on a steady cadence to avoid spamming React state.
@@ -532,6 +543,8 @@ export function DataProvider({ children }) {
 
   useEffect(() => {
     if (!FAST_1M_MS || FAST_1M_MS <= 0) return undefined;
+    if (pollStartedRef.current) return undefined;
+    pollStartedRef.current = true;
     let cancelled = false;
 
     const scheduleNext = (delayMs) => {
@@ -546,10 +559,14 @@ export function DataProvider({ children }) {
 
     const run = async () => {
       if (cancelled) return;
-      await fetchData();
+      const ok = await fetchData();
       if (cancelled) return;
       const now = Date.now();
-      const delay = now < backoffUntilRef.current ? BACKOFF_1M_MS : FAST_1M_MS;
+      let delay = now < backoffUntilRef.current ? BACKOFF_1M_MS : FAST_1M_MS;
+      if (!ok && failCountRef.current > 0) {
+        const expo = Math.min(10_000, 2000 * Math.pow(2, failCountRef.current - 1));
+        delay = Math.max(delay, expo);
+      }
       scheduleNext(delay);
     };
 
@@ -557,6 +574,7 @@ export function DataProvider({ children }) {
 
     return () => {
       cancelled = true;
+      pollStartedRef.current = false;
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
       if (abortRef.current) abortRef.current.abort();
