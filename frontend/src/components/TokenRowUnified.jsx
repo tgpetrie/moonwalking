@@ -169,6 +169,14 @@ export function TokenRowUnified({
         ? (changeNum >= 0 ? "gainer" : "loser")
         : "flat";
 
+  const breatheDelayMs = Number.isFinite(rank) ? (rank * 137) % 9200 : 0;
+  const breatheDurationMs = 8800 + (Number.isFinite(rank) ? (rank * 53) % 2400 : 0);
+  const rowStyle = {
+    ...(pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : {}),
+    "--bh-breathe-delay": `${breatheDelayMs}ms`,
+    "--bh-breathe-duration": `${breatheDurationMs}ms`,
+  };
+
   const setRabbitHover = (on) => (e) => {
     const row = e.currentTarget;
     const board = row.closest(".board-core");
@@ -194,7 +202,7 @@ export function TokenRowUnified({
     <>
       <RowTag
         className={`${rowClassName}${pulse ? " is-pulsing" : ""}`}
-        style={pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : undefined}
+        style={rowStyle}
         data-side={dataSide}
         role={url ? "link" : undefined}
         tabIndex={url ? 0 : undefined}
