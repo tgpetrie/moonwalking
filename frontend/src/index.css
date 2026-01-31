@@ -7,6 +7,118 @@ html, body {
   font-family: "Raleway", sans-serif;
 }
 
+/* =========================================================
+   FINAL FIX — ROW RAILS (VISIBLE) + HOVER GLASS (NO SLAB)
+   This block is last so it wins over all earlier resets.
+   ========================================================= */
+
+/* Ensure rows can paint their own separators */
+.board-core .bh-row,
+.board-core .token-row.table-row{
+  position: relative !important;
+  overflow: visible !important; /* prevents the 1px rail from being clipped */
+}
+
+/* 1) The line you’re missing: always-on gradient rail */
+.board-core .bh-row::before,
+.board-core .token-row.table-row::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: 0 !important;
+  height: 1px !important;
+  pointer-events: none !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255,179,71,0),
+    rgba(255,179,71,0.55),
+    rgba(16,174,155,0.55),
+    rgba(192,132,252,0.55),
+    rgba(255,179,71,0)
+  ) !important;
+
+  opacity: 0.42 !important;
+  transform: translateZ(0) !important;
+  filter: none !important;
+}
+
+.board-core .bh-row:hover::before,
+.board-core .token-row.table-row:hover::before{
+  opacity: 0.92 !important;
+  filter:
+    drop-shadow(0 0 6px rgba(255,176,46,0.26))
+    drop-shadow(0 0 10px rgba(140,90,255,0.18)) !important;
+}
+
+/* 2) Keep hover as inner-glass only (no slab fill)
+      Use ::after for glass, leaving ::before as the rail */
+.board-core .bh-row::after,
+.board-core .token-row.table-row::after{
+  content: "" !important;
+  position: absolute !important;
+  inset: 4px !important;            /* makes it feel inner */
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transform: scale(0.995) !important;
+  transition: opacity 160ms ease, transform 160ms ease !important;
+
+  /* no flat paint */
+  background: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  outline: 0 !important;
+
+  /* reveals what’s behind without becoming a rectangle fill */
+  backdrop-filter: brightness(1.10) contrast(1.08) saturate(1.06) !important;
+  -webkit-backdrop-filter: brightness(1.10) contrast(1.08) saturate(1.06) !important;
+
+  /* hard-mask the edges so it can’t read like a slab */
+  -webkit-mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,1) 84%,
+    transparent 100%
+  ) !important;
+  mask-image: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,1) 16%,
+    rgba(0,0,0,1) 84%,
+    transparent 100%
+  ) !important;
+}
+
+.board-core .bh-row:hover::after,
+.board-core .bh-row:focus-visible::after,
+.board-core .token-row.table-row:hover::after,
+.board-core .token-row.table-row:focus-visible::after{
+  opacity: 1 !important;
+  transform: scale(1.0) !important;
+
+  /* ultra-light sheen, center stays empty */
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.045) 50%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+}
+
+/* Side bias: keep it whisper-thin, not a fill */
+.board-core .bh-row[data-side="gainer"]:hover::after,
+.board-core .token-row.table-row[data-side="gainer"]:hover::after{
+  box-shadow:
+    inset 0 0 0 1px rgba(255,176,46,0.18),
+    inset 0 0 18px rgba(255,176,46,0.06) !important;
+}
+
+.board-core .bh-row[data-side="loser"]:hover::after,
+.board-core .token-row.table-row[data-side="loser"]:hover::after{
+  box-shadow:
+    inset 0 0 0 1px rgba(160,110,255,0.18),
+    inset 0 0 18px rgba(160,110,255,0.07) !important;
+}
+
 /* ===== BHABIT DASHBOARD – CANONICAL GRID & LAYOUT ===== */
 
 :root {
@@ -3505,78 +3617,6 @@ a.bh-row {
 .bh-cell-change{ grid-column: 4; justify-self: end; text-align: right; }
 .bh-cell-actions{ grid-column: 5; justify-self: end; }
 
-/* =========================================================
-   FINAL AUTHORITATIVE — Rabbit Glow Emitter on Row Hover
-   Keep this as the LAST block in index.css.
-   ========================================================= */
-
-/* Board positioning */
-.board-core {
-  position: relative;
-}
-
-/* CLEAN NATURAL RABBIT SYSTEM - One stage, one rabbit */
-
-/* Base rabbit: barely visible ink with permanent mask */
-.board-core .rabbit-bg,
-.board-core .bh-bunny-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background: url("/purple-rabbit-bg.png") 50% 20% / min(1100px, 88vw) auto no-repeat;
-  opacity: 0.003;
-  mix-blend-mode: screen;
-  transition: opacity 180ms ease, filter 180ms ease;
-  -webkit-mask-image: radial-gradient(
-    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.9) 30%,
-    rgba(0,0,0,0.4) 55%,
-    rgba(0,0,0,0) 82%
-  );
-  mask-image: radial-gradient(
-    ellipse 280px 110px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.9) 30%,
-    rgba(0,0,0,0.4) 55%,
-    rgba(0,0,0,0) 82%
-  );
-}
-
-/* On hover: very subtle whisper with faint purple/orange glow */
-.board-core[data-row-hover="1"] .rabbit-bg,
-.board-core[data-row-hover="1"] .bh-bunny-layer {
-  opacity: 0.045;
-  filter:
-    brightness(1.5)
-    contrast(1.1)
-    saturate(1.05)
-    drop-shadow(0 0 12px rgba(255, 179, 77, 0.28))
-    drop-shadow(0 0 26px rgba(192, 129, 255, 0.22));
-}
-
-/* DISABLED - using base layer approach instead */
-
-/* Optional: tiny gold bloom that’s independent of the rabbit art */
-.board-core .rabbit-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(
-    circle at var(--bh-emitter-x, 50%) var(--bh-emitter-y, 45%),
-    rgba(245, 178, 58, 0.20),
-    rgba(245, 178, 58, 0.10) 18%,
-    rgba(0, 0, 0, 0) 52%
-  );
-}
-
-.board-core[data-row-hover="1"] .rabbit-bg::before {
-  opacity: 1;
-}
-
 /* ===== BANNERS: clean marquee + borderless glow + strong magnify ===== */
 
 .bh-banner-wrap{
@@ -4487,47 +4527,6 @@ body {
 }
 
 /* =========================================================
-   Rabbit: nearly invisible until row hover spotlight
-   Requires JS setting --emit-x/--emit-y and data-row-hover
-   ========================================================= */
-
-.board-core{
-  position: relative;
-  isolation: isolate;
-  --emit-x: 50%;
-  --emit-y: 50%;
-}
-
-.board-core .rabbit-bg{
-  position:absolute;
-  inset: 60px 0 60px 0;
-  pointer-events:none;
-  z-index: 1;
-  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010;
-  mix-blend-mode: screen;
-  filter: brightness(0.78) contrast(1.05) saturate(0.95);
-  transition: opacity 160ms ease, filter 180ms ease;
-  -webkit-mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
-  );
-  mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
-  );
-}
-
-.board-core[data-row-hover="1"] .rabbit-bg{
-  opacity: 0.045;
-  filter: brightness(0.92) contrast(1.06) saturate(1.02);
-}
-
-/* =========================================================
    WATCHLIST LAYOUT OVERRIDE — Always single-column
    ========================================================= */
 
@@ -4551,58 +4550,6 @@ body {
 .bh-row[data-side="loser"] {
   --bh-side-presence: 1;
 }
-
-/* =========================================================
-   RABBIT SPOTLIGHT — TIGHT ROW-LOCAL + SILHOUETTE ONLY
-   Paste at END of index.css so it overrides earlier rabbit-bg rules.
-   ========================================================= */
-
-/* Base rabbit: almost invisible, darkened, no color-pop */
-.board-core .rabbit-bg {
-  /* IMPORTANT: keep this fully transparent unless active.
-     Otherwise it behaves like a second page background and can create a hard seam
-     when stacking contexts/containers clip differently. */
-  opacity: 0;
-  filter: saturate(0.55) brightness(0.55) contrast(1.15);
-  mix-blend-mode: soft-light;    /* keeps it “in the fabric” */
-  pointer-events: none;
-}
-
-/* Tight mask centered on JS-provided emit coords */
-.board-core .rabbit-bg {
-  -webkit-mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-  mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-
-/* When a row is hovered, reveal slightly — still subtle */
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.14;
-  filter:
-    saturate(0.65)
-    brightness(0.62)
-    contrast(1.18)
-    drop-shadow(0 0 10px rgba(150,110,255,0.22)); /* soft violet glow */
-}
-
-/* Optional: if you want it even tighter (almost row height),
-   replace 160px 58px above with 140px 46px */
 
 /* =========================================================
    SINGLE BACKGROUND PAINTER (BODY ONLY)
@@ -4726,37 +4673,7 @@ body {
   isolation: auto !important;
 }
 
-.board-core .rabbit-bg {
-  position: absolute;
-  inset: 0 0 120px 0 !important; /* lift upward */
-  z-index: 0;
-  pointer-events: none;
-  background: url("/purple-rabbit-bg.png") 50% -32px / min(1100px, 92vw) auto no-repeat !important;
-  opacity: 0.012 !important; /* very faint at rest */
-  mix-blend-mode: screen !important;
-  filter: brightness(0.78) contrast(0.96) saturate(0.90) !important;
-  -webkit-mask-image: radial-gradient(
-    ellipse 150px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.7) 36%,
-    rgba(0,0,0,0.18) 58%,
-    rgba(0,0,0,0) 78%
-  ) !important;
-  mask-image: radial-gradient(
-    ellipse 150px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.7) 36%,
-    rgba(0,0,0,0.18) 58%,
-    rgba(0,0,0,0) 78%
-  ) !important;
-}
-
-/* Only nudge brightness when a row is hovered; no full reveal */
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.028 !important;
-  filter: brightness(0.92) contrast(1.04) saturate(1.02) !important;
-}
-
+ 
 /* Keep content above the glow */
 .board-core > * {
   position: relative;
@@ -4916,42 +4833,6 @@ body {
    FINAL OVERRIDES — Rabbit shadow + row glow + breathe
    (keep at end so it wins)
    ========================================================= */
-
-/* ===== RABBIT: fixed, ultra-dark purple watermark (lightable) ===== */
-.board-core {
-  position: relative;
-  isolation: isolate;
-}
-
-.board-core .rabbit-bg {
-  position: fixed;
-  left: 50%;
-  top: 52%;
-  width: min(1100px, 92vw);
-  height: min(1100px, 92vw);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 0;
-  background: url("/purple-rabbit-bg.png") center / contain no-repeat;
-  /* stronger idle rabbit so the watermark is visible even when not hovered */
-  opacity: 0.08;
-  filter: brightness(0.78) contrast(1.10) saturate(1.28) hue-rotate(18deg);
-  mix-blend-mode: screen;
-  -webkit-mask-image: none;
-  mask-image: none;
-  transition: opacity 200ms ease, filter 240ms ease;
-}
-
-.board-core[data-row-hover="1"] .rabbit-bg {
-  /* make the rabbit more visible on hover */
-  opacity: 0.18;
-  filter: brightness(1.02) contrast(1.14) saturate(1.45) hue-rotate(18deg);
-}
-
-.board-core > *{
-  position: relative;
-  z-index: 2;
-}
 
 /* ===== ROW HOVER: transparent inner glow (no fill slab) ===== */
 .bh-row.bh-row-grid {
@@ -5134,4 +5015,347 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* =========================================================
+   BHABIT — SINGLE RABBIT WATERMARK + ROW-ONLY SPOTLIGHT REVEAL
+   Keep this as the LAST rabbit block in index.css.
+   ========================================================= */
+
+/* Board holds the spotlight coordinates */
+.board-core{
+  position: relative;
+  isolation: isolate;
+  --emit-x: 50%;
+  --emit-y: 50%;
+}
+
+/* Disable any alternate bunny layers */
+.bh-bunny-layer,
+.bh-bunny,
+.bunny-layer,
+.rabbit-layer{
+  display: none !important;
+}
+
+/* Kill any per-row rabbit art (these cause flash / double rabbits) */
+.bh-row::before,
+.bh-row-grid::before{
+  background-image: none !important;
+  background: none !important;
+}
+
+/* Single watermark layer (viewport-anchored) */
+.board-core .rabbit-bg{
+  position: fixed !important;
+  left: 50% !important;
+  top: 52% !important;
+  width: min(1100px, 92vw) !important;
+  height: min(1100px, 92vw) !important;
+  transform: translate(-50%, -50%) !important;
+
+  pointer-events: none !important;
+  z-index: 0 !important;
+
+  background: url("/purple-rabbit-bg.png") center / contain no-repeat !important;
+
+  /* idle: barely there */
+  opacity: 0.02 !important;
+  mix-blend-mode: screen !important;
+  filter: brightness(0.92) contrast(1.05) saturate(1.05) !important;
+
+  /* spotlight mask follows hover coordinates */
+  -webkit-mask-image: radial-gradient(
+    ellipse 240px 96px at var(--emit-x) var(--emit-y),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 34%,
+    rgba(0,0,0,0.25) 56%,
+    rgba(0,0,0,0) 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 240px 96px at var(--emit-x) var(--emit-y),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.75) 34%,
+    rgba(0,0,0,0.25) 56%,
+    rgba(0,0,0,0) 78%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  transition: opacity 140ms ease, filter 160ms ease;
+}
+
+/* When hovering a row, bump intensity slightly (still clipped by the mask) */
+.board-core[data-row-hover="1"] .rabbit-bg{
+  opacity: 0.11 !important;
+  filter: brightness(1.06) contrast(1.10) saturate(1.10) !important;
+}
+
+/* Keep UI above rabbit */
+.board-core > *{
+  position: relative;
+  z-index: 2;
+}
+
+/* Row clips its own glow (not the rabbit) */
+.bh-row,
+.bh-row-grid{
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 14px;
+}
+
+/* Ensure breathe span never covers hover glow */
+.bh-row-breathe{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+/* === BHABIT row underline rail (hover only) === */
+.bh-row {
+  position: relative;
+  isolation: isolate;              /* creates a clean stacking context */
+}
+
+/* keep whatever you currently do with ::before (fills/glows) */
+
+/* the line goes on ::after so it doesn't collide with ::before */
+.bh-row::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 1px;
+
+  /* rainbow rail */
+  background: linear-gradient(
+    90deg,
+    rgba(255,179,71,0),
+    rgba(255,179,71,0.85),
+    rgba(16,174,155,0.85),
+    rgba(192,132,252,0.85),
+    rgba(255,179,71,0)
+  );
+
+  opacity: 0;
+  transform: scaleX(0.88);
+  transform-origin: center;
+
+  z-index: 5;                     /* ABOVE the row content + glow layers */
+  pointer-events: none;
+
+  /* tiny softness without disappearing */
+  filter: blur(0.15px);
+}
+
+.bh-row:hover::after,
+.bh-row:focus-visible::after {
+  opacity: 0.95;
+  transform: scaleX(1);
+  transition: opacity 140ms ease, transform 180ms ease;
+}
+
+/* =========================================================
+   ROW HOVER — "SELECTION BOX" GLASS (NO BACKDROP-FILTER)
+   Clear/translucent, tiny purple/orange tint, no slab feel.
+   Applies to all rows: .bh-row and .bh-row-grid
+   ========================================================= */
+
+.bh-row,
+.bh-row-grid{
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+/* keep your breathe span under everything */
+.bh-row-breathe{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+/* STAINED-GLASS ROW WINDOW (ultra subtle) */
+.bh-row::after,
+.bh-row-grid::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  pointer-events:none;
+  z-index:1;
+
+  /* tiny hue, mostly transparent */
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255,176,46,0.010) 0%,
+      rgba(192,132,252,0.008) 55%,
+      rgba(0,0,0,0.000) 100%
+    ),
+    linear-gradient(180deg,
+      rgba(255,255,255,0.022) 0%,
+      rgba(255,255,255,0.000) 35%);
+
+  /* faint inner rail (no glow/bloom) */
+  box-shadow: inset 0 0 0 1px rgba(255,176,46,0.085);
+
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.bh-row:hover::after,
+.bh-row-grid:hover::after{
+  opacity: 1;
+}
+
+/* keep row content above the hover box */
+.bh-row > *,
+.bh-row-grid > *{
+  position: relative;
+  z-index: 2;
+}
+
+/* =========================================================
+   BHABIT — CLEAN RABBIT + STAINED GLASS ROW HOVER (FINAL)
+   Single rabbit layer + single pseudo-element row hover.
+   No blur, no backdrop-filter, minimal and performant.
+   ========================================================= */
+
+/* Disable any accidental alternate bunny layers */
+.bh-bunny-layer,
+.bh-bunny,
+.bunny-layer,
+.rabbit-layer {
+  display: none !important;
+}
+
+/* Row must clip the glass */
+.bh-row,
+.bh-row-grid {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+/* Keep content above the glass */
+.bh-row > *,
+.bh-row-grid > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Single pseudo-element = the "selection box" stain */
+.bh-row::before,
+.bh-row-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+
+  /* OFF by default */
+  opacity: 0;
+  transition: opacity 140ms ease;
+
+  /* The stained-glass film + inner rail + inner bloom */
+  background:
+    /* near-transparent film */
+    linear-gradient(
+      180deg,
+      rgba(255,196,61,0.030),
+      rgba(176,96,255,0.020)
+    );
+
+  /* 1px inner rail + soft inner bloom without blur */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,196,61,0.14),
+    inset 0 0 0 2px rgba(176,96,255,0.07),
+    /* soft inner bloom without blur */
+    inset 0 0 24px rgba(255,196,61,0.05),
+    inset 0 0 28px rgba(176,96,255,0.04);
+}
+
+/* Hover turns the film on */
+.bh-row:hover::before,
+.bh-row-grid:hover::before {
+  opacity: 1;
+}
+
+/* Optional: side-based tint nudges (still tiny) */
+.bh-row[data-side="gainer"]::before,
+.bh-row-grid[data-side="gainer"]::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,196,61,0.16),
+    inset 0 0 24px rgba(255,196,61,0.06);
+}
+.bh-row[data-side="loser"]::before,
+.bh-row-grid[data-side="loser"]::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(176,96,255,0.16),
+    inset 0 0 24px rgba(176,96,255,0.06);
+}
+
+/* =========================================================
+   RABBIT — single fixed watermark (SVG outline, tinted by CSS)
+   ========================================================= */
+
+.board-core {
+  position: relative;
+  isolation: isolate;
+  --emit-x: 50%;
+  --emit-y: 50%;
+}
+
+/* Rabbit sits behind UI */
+.board-core .rabbit-bg {
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  width: min(1100px, 92vw);
+  height: min(1100px, 92vw);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+
+  /* SVG outline uses currentColor */
+  color: rgba(176,96,255,0.22); /* purple outline tint */
+  background: url("/rabbit.svg") center / contain no-repeat;
+
+  /* faint by default */
+  opacity: 0.06;
+
+  /* spotlight mask (optional) */
+  -webkit-mask-image: radial-gradient(
+    ellipse 240px 110px at var(--emit-x) var(--emit-y),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.55) 38%,
+    rgba(0,0,0,0) 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 240px 110px at var(--emit-x) var(--emit-y),
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,0.55) 38%,
+    rgba(0,0,0,0) 78%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+
+  transition: opacity 140ms ease;
+}
+
+/* UI above rabbit */
+.board-core > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Slight bump while hovering rows (still only reveals via mask) */
+.board-core[data-row-hover="1"] .rabbit-bg {
+  opacity: 0.12;
 }

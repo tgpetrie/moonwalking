@@ -27,59 +27,61 @@ export default function DashboardShell({ onInfo }) {
   const boardRef = useRef(null);
   const boardShellRef = useRef(null);
 
-  // Bunny hover emitter (row-only, no shell vars)
+  // Rabbit spotlight hover logic
   useEffect(() => {
     const board = boardRef.current;
     if (!board) return;
 
-    const rowSelector = ".bh-row, .token-row.table-row";
-    let hotRow = null;
+    let raf = 0;
+    let hovering = false;
 
-    const clearHot = () => {
-      if (hotRow) {
-        hotRow.classList.remove("bh-row--hot");
-        hotRow.style.removeProperty("--bh-row-hover-r");
-        hotRow.style.removeProperty("--bh-row-hover-x");
-        hotRow.style.removeProperty("--bh-row-hover-y");
-        hotRow = null;
-      }
-    };
+    const setHover = (on) => board.setAttribute("data-row-hover", on ? "1" : "0");
 
-    const setHot = (row, clientX, clientY) => {
-      if (!row) return clearHot();
-
-      if (row !== hotRow) {
-        clearHot();
-        hotRow = row;
-        row.classList.add("bh-row--hot");
-      }
-
-      const r = row.getBoundingClientRect();
-      const radius = Math.max(90, Math.min(220, r.height * 1.15));
-      const x = Math.max(0, Math.min(r.width, clientX - r.left));
-      const y = Math.max(0, Math.min(r.height, clientY - r.top));
-      row.style.setProperty("--bh-row-hover-r", `${radius}px`);
-      row.style.setProperty("--bh-row-hover-x", `${x}px`);
-      row.style.setProperty("--bh-row-hover-y", `${y}px`);
+    const setXY = (clientX, clientY) => {
+      // Use viewport coordinates since rabbit is position:fixed
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const x = Math.max(0, Math.min(100, (clientX / vw) * 100));
+      const y = Math.max(0, Math.min(100, (clientY / vh) * 100));
+      board.style.setProperty("--emit-x", `${x}%`);
+      board.style.setProperty("--emit-y", `${y}%`);
     };
 
     const onMove = (e) => {
-      const row = e.target?.closest?.(rowSelector);
-      if (!row || !board.contains(row)) return clearHot();
-      setHot(row, e.clientX, e.clientY);
+      if (!hovering) return;
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setXY(e.clientX, e.clientY));
     };
 
-    const onLeaveBoard = () => {
-      clearHot();
+    const onOver = (e) => {
+      const row = e.target?.closest?.(".bh-row, .bh-row-grid");
+      if (!row) return;
+      hovering = true;
+      setHover(true);
+      setXY(e.clientX, e.clientY);
     };
 
-    board.addEventListener("pointermove", onMove, { passive: true });
-    board.addEventListener("pointerleave", onLeaveBoard);
+    const onOut = (e) => {
+      const row = e.target?.closest?.(".bh-row, .bh-row-grid");
+      if (!row) return;
+
+      // don't shut off if moving inside the same row
+      const to = e.relatedTarget;
+      if (to && row.contains(to)) return;
+
+      hovering = false;
+      setHover(false);
+    };
+
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerover", onOver, true);
+    document.addEventListener("pointerout", onOut, true);
 
     return () => {
-      board.removeEventListener("pointermove", onMove);
-      board.removeEventListener("pointerleave", onLeaveBoard);
-      clearHot();
+      if (raf) cancelAnimationFrame(raf);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerover", onOver, true);
+      document.removeEventListener("pointerout", onOut, true);
     };
   }, []);
 
