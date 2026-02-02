@@ -2474,11 +2474,8 @@ a.bh-row {
     round 12px
   );
 
-  transition:
-    opacity 140ms ease,
-    filter 160ms ease,
-    -webkit-clip-path 160ms ease,
-    clip-path 160ms ease;
+  transition: none;
+  animation: none;
 }
 
 /* Your JS sets these on hover; give safe defaults */
@@ -2511,6 +2508,16 @@ a.bh-row {
 .board-core[data-row-hover="1"]::after{
   opacity: 0.075;
   filter: brightness(1.32) contrast(1.10) saturate(1.05) blur(1px);
+  animation: bh-bunny-glitch 260ms steps(1, end) both;
+}
+
+@keyframes bh-bunny-glitch{
+  0%   { opacity: 0.02; filter: brightness(1.10) contrast(1.06) saturate(1.02) blur(1px); transform: translate3d(0,0,0); }
+  18%  { opacity: 0.09; filter: brightness(1.38) contrast(1.18) saturate(1.06) blur(1px); transform: translate3d(1px,0,0); }
+  28%  { opacity: 0.03; filter: brightness(1.18) contrast(1.08) saturate(1.02) blur(1px); transform: translate3d(-1px,0,0); }
+  46%  { opacity: 0.10; filter: brightness(1.46) contrast(1.20) saturate(1.07) blur(1px); transform: translate3d(0,1px,0); }
+  64%  { opacity: 0.05; filter: brightness(1.22) contrast(1.10) saturate(1.03) blur(1px); transform: translate3d(0,-1px,0); }
+  100% { opacity: 0.075; filter: brightness(1.32) contrast(1.10) saturate(1.05) blur(1px); transform: translate3d(0,0,0); }
 }
 
 /* Ensure all actual content sits above the mural */
