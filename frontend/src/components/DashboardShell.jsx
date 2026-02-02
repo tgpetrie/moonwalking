@@ -27,61 +27,115 @@ export default function DashboardShell({ onInfo }) {
   const boardRef = useRef(null);
   const boardShellRef = useRef(null);
 
-  // Rabbit spotlight hover logic
+  // Rabbit spotlight hover logic (row-rect, no pointer tracking)
   useEffect(() => {
-    const board = boardRef.current;
+    const board = boardRef.current || document.querySelector(".board-core");
     if (!board) return;
 
-    let raf = 0;
-    let hovering = false;
+    const setRowHover = (on, row) => {
+      if (!board) return;
+      if (!on) {
+        board.setAttribute("data-row-hover", "0");
+        return;
+      }
+      if (!row) return;
+      const rect = row.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
 
-    const setHover = (on) => board.setAttribute("data-row-hover", on ? "1" : "0");
+      // These must match the CSS mural bleed values (see index.css)
+      const bleedTop = 90;
+      const bleedBottom = 180;
+      const pad = 6;
 
-    const setXY = (clientX, clientY) => {
-      // Use viewport coordinates since rabbit is position:fixed
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const x = Math.max(0, Math.min(100, (clientX / vw) * 100));
-      const y = Math.max(0, Math.min(100, (clientY / vh) * 100));
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const bw = boardRect.width || 1;
+      const bh = boardRect.height || 1;
+      const x = Math.max(0, Math.min(100, ((cx - boardRect.left) / bw) * 100));
+      const y = Math.max(0, Math.min(100, ((cy - boardRect.top) / bh) * 100));
+
+      // Clip coordinates are in the coordinate space of the mural pseudo-element,
+      // which extends above/below the board by bleedTop/bleedBottom.
+      const top = Math.max(0, rect.top - boardRect.top + bleedTop - pad);
+      const left = Math.max(0, rect.left - boardRect.left - pad);
+      const right = Math.max(0, boardRect.right - rect.right - pad);
+      const bottom = Math.max(0, boardRect.bottom - rect.bottom + bleedBottom - pad);
       board.style.setProperty("--emit-x", `${x}%`);
       board.style.setProperty("--emit-y", `${y}%`);
+      board.style.setProperty("--emit-top", `${top}px`);
+      board.style.setProperty("--emit-right", `${right}px`);
+      board.style.setProperty("--emit-bottom", `${bottom}px`);
+      board.style.setProperty("--emit-left", `${left}px`);
+      board.setAttribute("data-row-hover", "1");
     };
 
-    const onMove = (e) => {
-      if (!hovering) return;
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setXY(e.clientX, e.clientY));
-    };
+    const rowSelector = ".bh-row, .bh-row-grid, .token-row.table-row, .table-row";
 
     const onOver = (e) => {
-      const row = e.target?.closest?.(".bh-row, .bh-row-grid");
+      const row = e.target?.closest?.(rowSelector);
       if (!row) return;
-      hovering = true;
-      setHover(true);
-      setXY(e.clientX, e.clientY);
+      setRowHover(true, row);
     };
 
     const onOut = (e) => {
-      const row = e.target?.closest?.(".bh-row, .bh-row-grid");
-      if (!row) return;
-
-      // don't shut off if moving inside the same row
-      const to = e.relatedTarget;
-      if (to && row.contains(to)) return;
-
-      hovering = false;
-      setHover(false);
+      const fromRow = e.target?.closest?.(rowSelector);
+      if (!fromRow) return;
+      const toRow = e.relatedTarget?.closest?.(rowSelector);
+      if (toRow && fromRow === toRow) return;
+      setRowHover(false, fromRow);
     };
 
-    document.addEventListener("pointermove", onMove, true);
-    document.addEventListener("pointerover", onOver, true);
-    document.addEventListener("pointerout", onOut, true);
+    const onLeaveBoard = () => setRowHover(false, null);
+
+    board.addEventListener("pointerover", onOver, { passive: true });
+    board.addEventListener("pointerout", onOut, { passive: true });
+    board.addEventListener("pointerleave", onLeaveBoard);
 
     return () => {
-      if (raf) cancelAnimationFrame(raf);
-      document.removeEventListener("pointermove", onMove, true);
-      document.removeEventListener("pointerover", onOver, true);
-      document.removeEventListener("pointerout", onOut, true);
+      board.removeEventListener("pointerover", onOver);
+      board.removeEventListener("pointerout", onOut);
+      board.removeEventListener("pointerleave", onLeaveBoard);
+    };
+  }, []);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const target =
+      board.querySelector(".bh-rail") ||
+      board.querySelector(".bh-rail-stack") ||
+      board.querySelector(".bh-board") ||
+      board;
+
+    const updateMuralCenter = () => {
+      const b = board.getBoundingClientRect();
+      const t = target.getBoundingClientRect();
+      const bw = b.width || 1;
+      const bh = b.height || 1;
+      const x = Math.max(0, Math.min(100, ((t.left + t.width / 2 - b.left) / bw) * 100));
+      const y = Math.max(0, Math.min(100, ((t.top + t.height * 0.20 - b.top) / bh) * 100));
+      board.style.setProperty("--mural-pos-x", `${x}%`);
+      board.style.setProperty("--mural-pos-y", `${y}%`);
+    };
+
+    updateMuralCenter();
+
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(updateMuralCenter);
+      ro.observe(board);
+      if (target !== board) {
+        ro.observe(target);
+      }
+    }
+
+    window.addEventListener("resize", updateMuralCenter, { passive: true });
+    window.addEventListener("scroll", updateMuralCenter, { passive: true });
+
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", updateMuralCenter);
+      window.removeEventListener("scroll", updateMuralCenter);
     };
   }, []);
 
@@ -193,101 +247,103 @@ export default function DashboardShell({ onInfo }) {
         </div>
       </header>
 
-      {/* 1 Hour Price Change Banner - Full Width */}
-      <div className="bh-banner-block">
-        <div className="bh-banner-label">1H PRICE</div>
-        <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
-      </div>
+      <div ref={boardRef} className="board-core" data-board="1">
+        <div className="rabbit-bg" aria-hidden="true" />
 
-      <main className="bh-main">
-        <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-          <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
-            <div ref={boardRef} className="bh-board board-core">
-              <div className="rabbit-bg" aria-hidden="true" />
+        {/* 1 Hour Price Change Banner - Full Width */}
+        <div className="bh-banner-block">
+          <div className="bh-banner-label">1H PRICE</div>
+          <TopBannerScroll tokens={bannerPrice1h} loading={uiLoading} speed={BANNER_SPEED} />
+        </div>
 
-              {/* 1m and 3m Rail */}
-              <div className="bh-rail">
-                <div className="bh-rail-stack">
-                  {/* 1-min Gainers */}
-                  <section className="bh-board-row-full">
-                    <div className="bh-panel bh-panel--rail">
-                      <div className="board-section">
-                        <div className="board-section-header board-section-header--center">
-                          <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+        <main className="bh-main">
+          <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
+            <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
+              <div className="bh-board">
+                {/* 1m and 3m Rail */}
+                <div className="bh-rail">
+                  <div className="bh-rail-stack">
+                    {/* 1-min Gainers */}
+                    <section className="bh-board-row-full">
+                    <div className="bh-panel bh-panel--rail" data-hover-origin="center">
+                        <div className="board-section">
+                          <div className="board-section-header board-section-header--center">
+                            <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                          </div>
+                          <GainersTable1Min
+                            tokens={gainers1m}
+                            loading={uiLoading}
+                            onInfo={onInfoProp}
+                            onToggleWatchlist={handleToggleWatchlist}
+                            watchlist={watchlistSymbols}
+                          />
                         </div>
-                        <GainersTable1Min
-                          tokens={gainers1m}
-                          loading={uiLoading}
-                          onInfo={onInfoProp}
-                          onToggleWatchlist={handleToggleWatchlist}
-                          watchlist={watchlistSymbols}
-                        />
                       </div>
-                    </div>
-                  </section>
+                    </section>
 
-                  {/* 3m Gainers / Losers */}
-                  <div className="board-section">
-                    <section className="bh-3m-grid">
-                      <div className="bh-panel bh-panel-half">
-                        <div className="table-title">TOP GAINERS (3M)</div>
-                        <GainersTable3Min
-                          tokens={gainers3m}
-                          loading={uiLoading}
-                          warming3m={warming3m}
-                          onInfo={onInfoProp}
-                          onToggleWatchlist={handleToggleWatchlist}
-                          watchlist={watchlistSymbols}
-                        />
-                      </div>
-                      <div className="bh-panel bh-panel-half">
-                        <div className="table-title">TOP LOSERS (3M)</div>
-                        <LosersTable3Min
-                          tokens={losers3m}
-                          loading={uiLoading}
-                          warming3m={warming3m}
-                          onInfo={onInfoProp}
-                          onToggleWatchlist={handleToggleWatchlist}
-                          watchlist={watchlistSymbols}
+                    {/* 3m Gainers / Losers */}
+                    <div className="board-section">
+                      <section className="bh-3m-grid">
+                      <div className="bh-panel bh-panel-half" data-hover-origin="right">
+                          <div className="table-title">TOP GAINERS (3M)</div>
+                          <GainersTable3Min
+                            tokens={gainers3m}
+                            loading={uiLoading}
+                            warming3m={warming3m}
+                            onInfo={onInfoProp}
+                            onToggleWatchlist={handleToggleWatchlist}
+                            watchlist={watchlistSymbols}
+                          />
+                        </div>
+                      <div className="bh-panel bh-panel-half" data-hover-origin="left">
+                          <div className="table-title">TOP LOSERS (3M)</div>
+                          <LosersTable3Min
+                            tokens={losers3m}
+                            loading={uiLoading}
+                            warming3m={warming3m}
+                            onInfo={onInfoProp}
+                            onToggleWatchlist={handleToggleWatchlist}
+                            watchlist={watchlistSymbols}
+                          />
+                        </div>
+                      </section>
+                    </div>
+
+                    {/* Anomaly Stream - Intelligence Log */}
+                    <section className="bh-board-row-full">
+                      <div className="bh-panel bh-panel--rail">
+                        <AnomalyStream
+                          data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
+                          volumeData={bannerVolume1h || []}
                         />
                       </div>
                     </section>
-                  </div>
 
-                  {/* Anomaly Stream - Intelligence Log */}
-                  <section className="bh-board-row-full">
-                    <div className="bh-panel bh-panel--rail">
-                      <AnomalyStream
-                        data={{ gainers_1m: gainers1m, losers_3m: losers3m, alerts: alerts || [], updated_at: lastUpdated }}
-                        volumeData={bannerVolume1h || []}
-                      />
-                    </div>
-                  </section>
-
-                  {/* Watchlist (full-width) */}
-                  <section className="bh-board-row-full bh-row-watchlist">
-                    <div className="bh-panel bh-panel--rail">
-                      <div className="board-section">
-                        <div className="board-section-header">
-                          <div className="board-section-title">Watchlist</div>
-                        </div>
-                        <div className="bh-row-block">
-                          <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                    {/* Watchlist (full-width) */}
+                    <section className="bh-board-row-full bh-row-watchlist">
+                      <div className="bh-panel bh-panel--rail">
+                        <div className="board-section">
+                          <div className="board-section-header">
+                            <div className="board-section-title">Watchlist</div>
+                          </div>
+                          <div className="bh-row-block">
+                            <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </section>
+                    </section>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </BoardWrapper>
-      </main>
+          </BoardWrapper>
+        </main>
 
-      {/* 1 Hour Volume Banner - Full Width */}
-      <div className="bh-banner-block">
-        <div className="bh-banner-label">1H VOLUME</div>
-        <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+        {/* 1 Hour Volume Banner - Full Width */}
+        <div className="bh-banner-block">
+          <div className="bh-banner-label">1H VOLUME</div>
+          <VolumeBannerScroll tokens={bannerVolume1h} loading={uiLoading} speed={BANNER_SPEED} />
+        </div>
       </div>
 
       {/* Insights floating card aligned to board rails */}

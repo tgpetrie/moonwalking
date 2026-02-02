@@ -84,7 +84,15 @@ function normalizeItem(raw, idx) {
     "open_price",
   ]);
 
-  const directPct = toNum(raw?.price_change_1h);
+  const directPct = pickNumber(raw, [
+    "price_change_percentage_1h",
+    "price_change_1h",
+    "pct_change_1h",
+    "change_1h",
+    "pct_change",
+    "pct",
+    "pctChange",
+  ]);
   const pct =
     Number.isFinite(directPct) ? directPct : baseline && current && baseline !== 0 ? ((current - baseline) / baseline) * 100 : null;
 

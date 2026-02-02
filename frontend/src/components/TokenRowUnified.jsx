@@ -183,18 +183,34 @@ export function TokenRowUnified({
     if (!board) return;
 
     if (on) {
-      board.setAttribute("data-row-hover", "1");
       const r = row.getBoundingClientRect();
       const b = board.getBoundingClientRect();
 
+      // These must match the CSS mural bleed values (see index.css)
+      const bleedTop = 90;
+      const bleedBottom = 180;
+      const pad = 6;
+
       // Calculate position relative to board-core container
-      const x = ((r.left + r.width / 2 - b.left) / b.width) * 100;
-      const y = ((r.top + r.height / 2 - b.top) / b.height) * 100;
+      const x = ((r.left + r.width / 2 - b.left) / (b.width || 1)) * 100;
+      const y = ((r.top + r.height / 2 - b.top) / (b.height || 1)) * 100;
+
+      // Clip coordinates are in the coordinate space of the mural pseudo-element,
+      // which extends above/below the board by bleedTop/bleedBottom.
+      const top = Math.max(0, r.top - b.top + bleedTop - pad);
+      const left = Math.max(0, r.left - b.left - pad);
+      const right = Math.max(0, b.right - r.right - pad);
+      const bottom = Math.max(0, b.bottom - r.bottom + bleedBottom - pad);
 
       board.style.setProperty("--emit-x", `${x}%`);
       board.style.setProperty("--emit-y", `${y}%`);
+      board.style.setProperty("--emit-top", `${top}px`);
+      board.style.setProperty("--emit-right", `${right}px`);
+      board.style.setProperty("--emit-bottom", `${bottom}px`);
+      board.style.setProperty("--emit-left", `${left}px`);
+      board.setAttribute("data-row-hover", "1");
     } else {
-      board.removeAttribute("data-row-hover");
+      board.setAttribute("data-row-hover", "0");
     }
   };
 

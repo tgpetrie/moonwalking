@@ -29,6 +29,33 @@ function mapRowWithInitial(x = {}) {
   };
 }
 
+function toNum(value) {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    const cleaned = value.replace(/[%+,]/g, "").trim();
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pick1hChange(row) {
+  if (!row) return null;
+  return (
+    toNum(row.price_change_percentage_1h) ??
+    toNum(row.price_change_1h) ??
+    toNum(row.change_1h) ??
+    toNum(row.pct_change_1h) ??
+    toNum(row.pct_1h) ??
+    toNum(row.change_1h_price) ??
+    toNum(row.delta_1h) ??
+    toNum(row.pct_change) ??
+    null
+  );
+}
+
 export function useDashboardData() {
   const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs } = useData();
 
@@ -78,7 +105,18 @@ export function useDashboardData() {
   const gainers1m = g1Safe.map(mapRowWithInitial);
   const gainers3m = g3Safe.map(mapRowWithInitial);
   const losers3m = l3Safe.map(mapRowWithInitial);
-  const bannerPrice1h = bpSafe.map(mapRowWithInitial);
+  const bannerPrice1h = bpSafe
+    .map(mapRowWithInitial)
+    .map((row) => {
+      const change1h = pick1hChange(row);
+      return { ...row, change_1h: row.change_1h ?? change1h, _change_1h: change1h };
+    })
+    .filter((row) => Number.isFinite(row._change_1h))
+    .sort((a, b) => b._change_1h - a._change_1h)
+    .map((row, idx) => {
+      const { _change_1h, ...rest } = row;
+      return { ...rest, rank: idx + 1 };
+    });
   const volume1h = v1hRaw.map(mapRowWithInitial);
   const bannerVolume1h = bvSafe.map(mapRowWithInitial);
   const finalVolume1h = volume1h.length ? volume1h : bannerVolume1h;

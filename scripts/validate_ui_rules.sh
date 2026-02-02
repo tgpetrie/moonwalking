@@ -10,6 +10,9 @@ cd "$ROOT"
 CSS="frontend/src/index.css"
 
 test -f "$CSS" || fail "missing $CSS"
+if [ -f "frontend/index.css" ]; then
+  fail "frontend/index.css should not exist; use frontend/src/index.css"
+fi
 
 # Banners must use these classes
 grep -R --line-number "bh-banner-track" frontend/src >/dev/null || fail "banners must use .bh-banner-track"

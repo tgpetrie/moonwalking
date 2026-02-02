@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { useData } from "../context/DataContext";
 
 const LS_SEEN_KEY = "mw_alerts_last_seen_id";
@@ -23,31 +24,6 @@ const asNumber = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Parse backend message like: "TROLL-USD moved +10.94% in 1m"
-const parseImpulseMessage = (a) => {
-  const msg = String(a?.message || "");
-  const title = String(a?.title || "");
-
-  const m = msg.match(/moved\s*([+\-]?\d+(?:\.\d+)?)%\s*in\s*(\d+)\s*m/i);
-  const pct = m ? Number(m[1]) : null;
-  const winM = m ? Number(m[2]) : null;
-
-  let direction = null;
-  if (pct !== null && Number.isFinite(pct)) direction = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
-  if (!direction) {
-    const t = title.toLowerCase();
-    if (t.includes(" down")) direction = "down";
-    else if (t.includes(" up")) direction = "up";
-    else direction = "flat";
-  }
-
-  return {
-    parsed_pct: pct !== null && Number.isFinite(pct) ? pct : null,
-    parsed_window_label: winM ? `${winM}m` : "",
-    parsed_direction: direction,
-  };
-};
-
 const formatAge = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return "—";
   const s = Math.floor(ms / 1000);
@@ -69,15 +45,6 @@ const severityTone = (sev) => {
   return "bh-alert-chip bh-alert-chip--info";
 };
 
-const windowLabelFromType = (raw) => {
-  const t = String(raw || "").toUpperCase();
-  if (t.includes("_1M")) return "1m";
-  if (t.includes("_3M")) return "3m";
-  if (t.includes("_5M")) return "5m";
-  if (t.includes("_15M")) return "15m";
-  return "";
-};
-
 const pctForDisplay = (pct, windowLabel) => {
   if (pct == null || !Number.isFinite(pct)) return "–";
   const abs = Math.abs(pct);
@@ -95,29 +62,6 @@ const priceForDisplay = (p) => {
   if (p >= 1) return p.toFixed(3);
   if (p >= 0.01) return p.toFixed(4);
   return p.toPrecision(3);
-};
-
-const uiTypeLabel = (a) => {
-  const pct = Number(a?.pct);
-  const sev = String(a?.severity || a?.sev || "").toUpperCase();
-  const w = windowLabelFromType(a?.type);
-  const strong = (w === "1m") ? 1.25 : (w === "3m") ? 1.75 : 2.5;
-  const medium = (w === "1m") ? 0.75 : (w === "3m") ? 1.00 : 1.5;
-  const abs = Number.isFinite(pct) ? Math.abs(pct) : 0;
-  const t = String(a?.type || "").toUpperCase();
-
-  if (t.includes("DIVERGENCE")) return "DIVERGENCE";
-  if (t.includes("VOLUME")) return "VOLUME";
-  if (!Number.isFinite(pct)) return "IMPULSE";
-
-  if (pct >= 0) {
-    if (sev === "CRITICAL" || abs >= strong) return "MOONSHOT";
-    if (sev === "HIGH" || abs >= medium) return "BREAKOUT";
-    return "IMPULSE";
-  }
-  if (sev === "CRITICAL" || abs >= strong) return "CRATER";
-  if (sev === "HIGH" || abs >= medium) return "DUMP";
-  return "IMPULSE";
 };
 
 const formatDirection = (raw) => {
@@ -157,7 +101,7 @@ export default function AlertsDock() {
       const productId = a.product_id || (a.symbol ? `${a.symbol}-USD` : null);
       const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: a.symbol });
       const parsed = parseImpulseMessage(a);
-      const derivedType = uiTypeLabel({ ...a, pct: a.pct ?? parsed.parsed_pct });
+      const derivedType = deriveAlertType({ type: a?.type, pct: a.pct ?? parsed.parsed_pct, severity: a?.severity || a?.sev });
 
       out.push({
         ...a,

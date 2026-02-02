@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { tickerFromSymbol } from "../utils/format";
 import { useDataFeed } from "../hooks/useDataFeed";
@@ -41,6 +41,9 @@ export default function WatchlistPanel({ onInfo }) {
   const payload = data?.data ?? data ?? {};
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [spotUniverse, setSpotUniverse] = useState([]);
+  const priceCacheRef = useRef(new Map());
 
   function canonize(value) {
     const canon = tickerFromSymbol(value) || value;
@@ -75,19 +78,24 @@ export default function WatchlistPanel({ onInfo }) {
 
   const searchPool = useMemo(() => {
     const pool = [];
-    Object.entries(liveBySymbol).forEach(([rawSymbol, details]) => {
-      const symbol = canonize(rawSymbol);
-      if (!symbol) return;
-      const livePrice = baselineOrNull(parseLooseNumber(pickPrice(details)));
+    const seen = new Set();
+    const addEntry = (symbol, details = null) => {
+      const canon = canonize(symbol);
+      if (!canon || seen.has(canon)) return;
+      const livePrice = baselineOrNull(parseLooseNumber(pickPrice(details || liveBySymbol[canon])));
       pool.push({
-        symbol,
-        display: symbol,
+        symbol: canon,
+        display: canon,
         price: livePrice,
         hasPrice: Number.isFinite(livePrice) && livePrice > 0,
       });
-    });
+      seen.add(canon);
+    };
+
+    spotUniverse.forEach((sym) => addEntry(sym));
+    Object.entries(liveBySymbol).forEach(([rawSymbol, details]) => addEntry(rawSymbol, details));
     return pool;
-  }, [liveBySymbol]);
+  }, [liveBySymbol, spotUniverse]);
 
   const normalized = query.trim().toUpperCase();
 
@@ -143,16 +151,83 @@ export default function WatchlistPanel({ onInfo }) {
     [liveBySymbol]
   );
 
+  const fetchSpotPrice = useCallback(async (symbol) => {
+    const canon = canonize(symbol);
+    if (!canon) return null;
+    const cached = priceCacheRef.current.get(canon);
+    if (cached && Number.isFinite(cached)) return cached;
+    const quotes = ["USD", "USDC"];
+    for (const quote of quotes) {
+      try {
+        const res = await fetch(`https://api.coinbase.com/v2/prices/${canon}-${quote}/spot`);
+        if (!res.ok) continue;
+        const json = await res.json();
+        const amount = parseLooseNumber(json?.data?.amount);
+        if (Number.isFinite(amount) && amount > 0) {
+          priceCacheRef.current.set(canon, amount);
+          return amount;
+        }
+      } catch {
+        // ignore and try next quote
+      }
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    const CACHE_KEY = "bh_spot_universe_v1";
+    const TS_KEY = "bh_spot_universe_ts_v1";
+    const TTL_MS = 6 * 60 * 60 * 1000;
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      const ts = Number(localStorage.getItem(TS_KEY) || 0);
+      if (Array.isArray(cached) && cached.length && Date.now() - ts < TTL_MS) {
+        setSpotUniverse(cached);
+        return;
+      }
+    } catch {}
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("https://api.exchange.coinbase.com/products");
+        if (!res.ok) return;
+        const data = await res.json();
+        const symbols = Array.isArray(data)
+          ? data
+              .filter((p) => p && p.status === "online" && (p.quote_currency === "USD" || p.quote_currency === "USDC"))
+              .map((p) => String(p.base_currency || "").toUpperCase())
+              .filter(Boolean)
+          : [];
+        const uniq = Array.from(new Set(symbols));
+        if (!cancelled && uniq.length) {
+          setSpotUniverse(uniq);
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(uniq));
+            localStorage.setItem(TS_KEY, String(Date.now()));
+          } catch {}
+        }
+      } catch {
+        // silently ignore; manual add still works
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const addProduct = useCallback(
-    (entry) => {
+    async (entry) => {
       if (!entry?.display) return;
       const sym = canonize(entry.display);
       if (!sym || watchlistSet.has(sym)) return;
-      const livePrice = Number.isFinite(entry?.price) ? entry.price : livePriceForSymbol(sym);
+      let livePrice = Number.isFinite(entry?.price) ? entry.price : livePriceForSymbol(sym);
       if (!Number.isFinite(livePrice)) {
-        if (import.meta.env.DEV) {
-          console.warn("[watchlist] add aborted: missing price", sym);
-        }
+        livePrice = await fetchSpotPrice(sym);
+      }
+      if (!Number.isFinite(livePrice)) {
+        setAddError(`No spot price found for ${sym}.`);
         return;
       }
       add({ symbol: sym, price: livePrice });
@@ -160,22 +235,27 @@ export default function WatchlistPanel({ onInfo }) {
       if (import.meta.env.DEV) {
         console.debug("[watchlist] add", sym, livePrice);
       }
+      setAddError("");
       setQuery("");
       setIsOpen(false);
     },
-    [add, livePriceForSymbol, watchlistSet]
+    [add, fetchSpotPrice, livePriceForSymbol, watchlistSet]
   );
 
   const handleSubmit = useCallback(
-    (event) => {
+    async (event) => {
       event.preventDefault();
       if (suggestions.length) {
-        addProduct(suggestions[0]);
+        await addProduct(suggestions[0]);
         return;
       }
       if (!normalized) return;
       const direct = searchPool.find((p) => p.symbol === normalized);
-      if (direct) addProduct(direct);
+      if (direct) {
+        await addProduct(direct);
+        return;
+      }
+      await addProduct({ display: normalized, symbol: normalized });
     },
     [addProduct, normalized, searchPool, suggestions]
   );
@@ -212,6 +292,7 @@ export default function WatchlistPanel({ onInfo }) {
             onChange={(event) => {
               setQuery(event.target.value);
               setIsOpen(true);
+              setAddError("");
             }}
             aria-label="Search tokens to add to watchlist"
             onFocus={() => setIsOpen(true)}
@@ -229,7 +310,7 @@ export default function WatchlistPanel({ onInfo }) {
           {isOpen && suggestions.length > 0 && (
             <div className="bh-watchlist__dropdown">
               {suggestions.map((entry) => {
-                const disabled = isPinned(entry.symbol) || !entry.hasPrice;
+                const disabled = isPinned(entry.symbol);
                 return (
                   <button
                     type="button"
@@ -249,7 +330,7 @@ export default function WatchlistPanel({ onInfo }) {
                         ? "Pinned"
                         : entry.hasPrice
                         ? "Add"
-                        : "No price"}
+                        : "Lookup"}
                     </span>
                   </button>
                 );
@@ -257,6 +338,7 @@ export default function WatchlistPanel({ onInfo }) {
             </div>
           )}
         </div>
+        {addError ? <div className="bh-watchlist-error">{addError}</div> : null}
       </form>
 
       {!items.length && (
