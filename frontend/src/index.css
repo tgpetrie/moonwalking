@@ -2191,11 +2191,11 @@ a.bh-row {
    No refactors, no grid changes.
 ------------------------------------------------------------ */
 
-/* DISABLED — Old :has() hover boost
+/* Rabbit hover bridge — use board attribute (works without :has()) */
 .board-core { --bh-bunny-hover: 0; }
 
-.board-core:has(.bh-row:hover),
-.board-core:has(.token-row.table-row:hover) {
+/* When any row sets `data-row-hover="1"` the board should brighten the rabbit */
+.board-core[data-row-hover="1"] {
   --bh-bunny-hover: 1;
 }
 
@@ -2204,10 +2204,16 @@ a.bh-row {
 .board-core .bh-bunny-layer {
   opacity: 0.012;
   mix-blend-mode: screen;
-  filter: brightness(1.03) contrast(1.02) saturate(1.01);
+  filter: brightness(0.98) contrast(0.98) saturate(0.95);
   transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
 }
-*/
+
+/* Brighten and boost rabbit when a row is hovered (data attribute set by JS) */
+.board-core[data-row-hover="1"] .bh-bunny-layer,
+.board-core[data-row-hover="1"] .rabbit-bg {
+  opacity: 0.12;
+  filter: brightness(1.08) contrast(1.04) saturate(1.06);
+}
 
 /* ---------------------------------------------------------
    ROW + BANNER “FLASHLIGHT” (screen + mild contrast)
