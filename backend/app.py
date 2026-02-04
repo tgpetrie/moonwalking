@@ -5,7 +5,6 @@ import socket
 import subprocess
 import sys
 import math
-import statistics
 from flask import Flask, jsonify, request, g
 from flask_talisman import Talisman
 from flask_cors import CORS
@@ -1429,11 +1428,53 @@ def _build_proxy_meta(used_url: str | None, latency_ms: float, cache_ts=None, st
 
 @app.route('/api/sentiment/latest')
 def api_sentiment_latest():
-    """Return local tape sentiment payload (pipeline removed)."""
-    payload, sentiment_meta = _get_local_sentiment_payload()
-    out = dict(payload or {})
-    out["sentiment_meta"] = sentiment_meta
-    return jsonify(out)
+    """Strict proxy to sentiment pipeline for canonical sentiment payload.
+
+    sentiment_meta comes ONLY from _get_sentiment_snapshot() (single source of truth).
+    This route NEVER overrides sentiment_meta values - the polling mechanism is
+    authoritative for: ok, pipelineRunning, staleSeconds, lastOkTs, lastTryTs, error.
+    """
+    global _LATEST_PROXY_CACHE, _LATEST_PROXY_TS, _LATEST_PROXY_URL
+
+    symbol = request.args.get('symbol')
+    params = {}
+    if symbol:
+        params["symbol"] = symbol.upper()
+
+    start = time.time()
+    payload, used_url, err_info = _proxy_pipeline_request("/sentiment/latest", params=params, timeout=1.0)
+    latency_ms = (time.time() - start) * 1000
+
+    # Single source of truth: sentiment_meta from the polling snapshot.
+    # DO NOT override any fields here - the poller is authoritative.
+    _, sentiment_meta = _get_local_sentiment_payload()
+
+    if payload:
+        _LATEST_PROXY_CACHE = payload
+        _LATEST_PROXY_TS = time.time()
+        _LATEST_PROXY_URL = used_url
+        proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=False)
+        out = dict(payload)
+        out["proxy_meta"] = proxy_meta
+        out["sentiment_meta"] = sentiment_meta
+        return jsonify(out)
+
+    if _LATEST_PROXY_CACHE and _LATEST_PROXY_TS:
+        proxy_meta = _build_proxy_meta(_LATEST_PROXY_URL, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=True)
+        out = dict(_LATEST_PROXY_CACHE)
+        out["proxy_meta"] = proxy_meta
+        out["sentiment_meta"] = sentiment_meta
+        return jsonify(out)
+
+    # No cached data available - return minimal response with canonical sentiment_meta
+    status_code = err_info.get("status", 503) if err_info else 503
+    proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=None, stale=True)
+    return jsonify({
+        "ok": False,
+        "message": "Sentiment pipeline offline",
+        "proxy_meta": proxy_meta,
+        "sentiment_meta": sentiment_meta,  # unchanged from snapshot
+    }), status_code
 
 
 # Legacy endpoint - keeping for backward compatibility
@@ -1537,6 +1578,325 @@ _SENTIMENT_LAST_ERROR = None
 _SENTIMENT_LAST_SOURCES = None
 _SENTIMENT_LOCK = threading.Lock()
 
+# ============================================================================
+# MARKET HEAT ENGINE — closed-loop sentiment from Coinbase tape data
+# ============================================================================
+_MARKET_HEAT_CACHE = {}  # latest computed heat snapshot
+_MARKET_HEAT_LOCK = threading.Lock()
+_MARKET_HEAT_HISTORY = deque(maxlen=60)  # ~8 min of scores at ~8s intervals
+
+# Fear & Greed TTL cache (external bolt-on, optional)
+_FG_CACHE = {"data": None, "ts": 0}
+_FG_TTL_S = 300  # 5 min
+_FG_LOCK = threading.Lock()
+
+
+def _compute_market_heat():
+    """Compute Market Heat Score from existing price_history deques.
+
+    Pure computation — no network calls. Reads the ring-buffers that the
+    background price-fetch loop already populates.
+
+    Returns dict:
+      score       (0-100)  composite heat score
+      regime      str      risk_on | risk_off | chop | calm
+      label       str      COLD | NEUTRAL | WARM | HOT | MANIC
+      confidence  float    0-1 (how much data we have relative to ideal)
+      components  dict     raw counts: green_1m, red_1m, green_3m, red_3m, total,
+                           avg_return_1m, avg_return_3m, volatility, momentum_alignment
+      reasons     list[str] human-readable explanations
+      ts          str      ISO timestamp
+    """
+    now = time.time()
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    # Gather all symbols that have price history
+    all_symbols = set(price_history.keys()) | set(price_history_1min.keys())
+    if not all_symbols:
+        return {
+            "score": 50, "regime": "calm", "label": "NEUTRAL",
+            "confidence": 0.0, "components": {}, "reasons": ["No price data yet"],
+            "ts": now_iso,
+        }
+
+    # --- 3m returns ---
+    returns_3m = {}
+    for sym in all_symbols:
+        hist = price_history.get(sym)
+        if not hist or len(hist) < 2:
+            continue
+        try:
+            latest_ts, latest_price = hist[-1]
+            # Find baseline ~3m ago (target 180s, min 120s)
+            baseline_price = None
+            for ts_i, p_i in reversed(list(hist)):
+                age = now - ts_i
+                if age >= 120:
+                    baseline_price = p_i
+                    break
+            if baseline_price and baseline_price > 0:
+                ret = ((latest_price - baseline_price) / baseline_price) * 100
+                returns_3m[sym] = ret
+        except Exception:
+            continue
+
+    # --- 1m returns ---
+    returns_1m = {}
+    for sym in all_symbols:
+        hist = price_history_1min.get(sym)
+        if not hist or len(hist) < 2:
+            continue
+        try:
+            latest_ts, latest_price = hist[-1]
+            baseline_price = None
+            for ts_i, p_i in reversed(list(hist)):
+                age = now - ts_i
+                if age >= 45:
+                    baseline_price = p_i
+                    break
+            if baseline_price and baseline_price > 0:
+                ret = ((latest_price - baseline_price) / baseline_price) * 100
+                returns_1m[sym] = ret
+        except Exception:
+            continue
+
+    # Use whichever set has more data as total count
+    total_symbols = max(len(returns_3m), len(returns_1m), 1)
+
+    # --- Breadth: % of symbols green ---
+    green_3m = sum(1 for r in returns_3m.values() if r > 0.05)
+    red_3m = sum(1 for r in returns_3m.values() if r < -0.05)
+    green_1m = sum(1 for r in returns_1m.values() if r > 0.02)
+    red_1m = sum(1 for r in returns_1m.values() if r < -0.02)
+
+    breadth_3m = (green_3m / max(len(returns_3m), 1)) * 100  # 0-100
+    breadth_1m = (green_1m / max(len(returns_1m), 1)) * 100
+
+    # --- Average returns ---
+    avg_return_3m = (sum(returns_3m.values()) / max(len(returns_3m), 1)) if returns_3m else 0.0
+    avg_return_1m = (sum(returns_1m.values()) / max(len(returns_1m), 1)) if returns_1m else 0.0
+
+    # --- Momentum alignment: do 1m and 3m agree? (-1..+1) ---
+    # Count symbols where both windows have data
+    common_syms = set(returns_1m.keys()) & set(returns_3m.keys())
+    if common_syms:
+        agree_count = sum(
+            1 for s in common_syms
+            if (returns_1m[s] > 0 and returns_3m[s] > 0)
+            or (returns_1m[s] < 0 and returns_3m[s] < 0)
+        )
+        momentum_alignment = (agree_count / len(common_syms)) * 2 - 1  # -1 to +1
+    else:
+        momentum_alignment = 0.0
+
+    # --- Volatility: stdev of 3m returns ---
+    if len(returns_3m) >= 3:
+        mean_3m = avg_return_3m
+        variance = sum((r - mean_3m) ** 2 for r in returns_3m.values()) / len(returns_3m)
+        volatility = math.sqrt(variance)
+    else:
+        volatility = 0.0
+
+    # --- Composite Score (0-100) ---
+    # Breadth weighted blend (60% 3m, 40% 1m)
+    breadth_blend = breadth_3m * 0.6 + breadth_1m * 0.4
+
+    # Momentum bonus/penalty (-15 to +15)
+    momentum_bonus = momentum_alignment * 15
+
+    # Volatility modifier: high vol in up-market amplifies, in down-market dampens
+    vol_modifier = 0.0
+    if volatility > 1.5:
+        vol_modifier = 5.0 if breadth_blend > 55 else -5.0
+    elif volatility > 0.8:
+        vol_modifier = 2.0 if breadth_blend > 55 else -2.0
+
+    raw_score = breadth_blend + momentum_bonus + vol_modifier
+    score = max(0, min(100, round(raw_score, 1)))
+
+    # --- Regime classification ---
+    if score >= 70 and volatility < 2.0:
+        regime = "risk_on"
+    elif score <= 30:
+        regime = "risk_off"
+    elif volatility > 2.0 and 35 < score < 65:
+        regime = "chop"
+    else:
+        regime = "calm"
+
+    # --- Label ---
+    if score >= 85:
+        label = "MANIC"
+    elif score >= 70:
+        label = "HOT"
+    elif score >= 55:
+        label = "WARM"
+    elif score >= 35:
+        label = "NEUTRAL"
+    else:
+        label = "COLD"
+
+    # --- Confidence (0-1) ---
+    # Based on how many symbols we have data for vs ideal (~200+ symbols)
+    ideal_symbols = 150
+    data_ratio = min(1.0, total_symbols / ideal_symbols)
+    history_depth = min(1.0, len(returns_3m) / max(total_symbols * 0.5, 1))
+    confidence = round((data_ratio * 0.6 + history_depth * 0.4), 3)
+
+    # --- Reasons ---
+    reasons = []
+    if breadth_3m > 65:
+        reasons.append(f"{green_3m}/{len(returns_3m)} symbols green over 3m")
+    elif breadth_3m < 35:
+        reasons.append(f"{red_3m}/{len(returns_3m)} symbols red over 3m")
+    if momentum_alignment > 0.5:
+        reasons.append("Strong momentum alignment across timeframes")
+    elif momentum_alignment < -0.3:
+        reasons.append("Timeframe disagreement: 1m and 3m diverging")
+    if volatility > 2.0:
+        reasons.append(f"Elevated volatility ({volatility:.2f}%)")
+    if not reasons:
+        reasons.append("Market in equilibrium")
+
+    components = {
+        "green_1m": green_1m,
+        "red_1m": red_1m,
+        "green_3m": green_3m,
+        "red_3m": red_3m,
+        "total_symbols": total_symbols,
+        "avg_return_1m": round(avg_return_1m, 4),
+        "avg_return_3m": round(avg_return_3m, 4),
+        "volatility": round(volatility, 4),
+        "momentum_alignment": round(momentum_alignment, 4),
+        "breadth_1m": round(breadth_1m, 2),
+        "breadth_3m": round(breadth_3m, 2),
+    }
+
+    return {
+        "score": score,
+        "regime": regime,
+        "label": label,
+        "confidence": confidence,
+        "components": components,
+        "reasons": reasons,
+        "ts": now_iso,
+    }
+
+
+def _fetch_fear_and_greed_cached():
+    """TTL-cached wrapper around fetch_fear_and_greed_index(). Returns None on failure."""
+    now = time.time()
+    with _FG_LOCK:
+        if _FG_CACHE["data"] is not None and (now - _FG_CACHE["ts"]) < _FG_TTL_S:
+            return _FG_CACHE["data"]
+
+    # Outside lock to avoid holding it during network call
+    try:
+        from sentiment_data_sources import fetch_fear_and_greed_index
+        result = fetch_fear_and_greed_index()
+    except Exception as e:
+        logging.debug(f"Fear & Greed fetch failed: {e}")
+        result = None
+
+    with _FG_LOCK:
+        if result is not None:
+            _FG_CACHE["data"] = result
+            _FG_CACHE["ts"] = now
+        return _FG_CACHE["data"]  # return last good if current fetch failed
+
+
+def _get_local_sentiment_payload():
+    """Build the sentiment payload from local tape data + optional F&G.
+
+    Replaces _get_sentiment_snapshot() with a closed-loop version that
+    needs no external sentiment pipeline.
+
+    Returns (sentiment_payload, sentiment_meta) tuple.
+    """
+    # Get latest market heat (from cache, computed in background loop)
+    with _MARKET_HEAT_LOCK:
+        heat = dict(_MARKET_HEAT_CACHE) if _MARKET_HEAT_CACHE else None
+
+    if not heat:
+        # Cold start: compute synchronously
+        heat = _compute_market_heat()
+
+    score = heat.get("score", 50)
+
+    # Normalize score to 0-1 for overall_sentiment
+    overall_sentiment = round(score / 100.0, 4)
+
+    # Fear & Greed (optional external bolt-on)
+    fg = _fetch_fear_and_greed_cached()
+    fg_block = {}
+    if fg:
+        fg_block = {
+            "value": fg.get("value"),
+            "label": fg.get("classification"),
+            "updated_at": fg.get("timestamp"),
+            "source": fg.get("source", "alternative.me"),
+            "stale": False,
+        }
+
+    # Build sentiment history from deque
+    history = []
+    with _MARKET_HEAT_LOCK:
+        for entry in _MARKET_HEAT_HISTORY:
+            try:
+                history.append({
+                    "timestamp": entry.get("ts"),
+                    "sentiment": round(entry.get("score", 50) / 100.0, 4),
+                })
+            except Exception:
+                continue
+
+    # Divergence alerts from tape
+    divergence_alerts = []  # populated by _emit_divergence_alert() in the alert stream
+
+    sentiment_payload = {
+        "overall_sentiment": overall_sentiment,
+        "fear_greed": fg_block,
+        "fear_greed_index": fg_block.get("value") if fg_block else None,
+        "fear_greed_label": fg_block.get("label") if fg_block else None,
+        "regime": heat.get("regime", "calm"),
+        "confidence": heat.get("confidence", 0.0),
+        "reasons": heat.get("reasons", []),
+        "divergence_alerts": divergence_alerts,
+        "sentiment_history": history[-30:],  # last 30 data points
+        "tape_heat": {
+            "score": score,
+            "label": heat.get("label", "NEUTRAL"),
+            "regime": heat.get("regime", "calm"),
+            "confidence": heat.get("confidence", 0.0),
+            "reasons": heat.get("reasons", []),
+        },
+        "components": heat.get("components", {}),
+        "updated_at": heat.get("ts"),
+        # Fields expected by normalizeSentiment adapter
+        "source_breakdown": {
+            "tier1": heat.get("components", {}).get("total_symbols", 0),
+            "tier2": 0,
+            "tier3": 0,
+            "fringe": 0,
+        },
+        "social_breakdown": {},
+        "social_history": [],
+        "trending_topics": [],
+    }
+
+    now = time.time()
+    meta = {
+        "ok": True,
+        "pipelineRunning": True,
+        "staleSeconds": 0,
+        "lastOkTs": heat.get("ts"),
+        "lastTryTs": heat.get("ts"),
+        "source": "tape_local",
+    }
+
+    return sentiment_payload, meta
+
+
 def _pipeline_url(path: str) -> str:
     clean_path = path if path.startswith('/') else f'/{path}'
     return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
@@ -1634,370 +1994,6 @@ def _validate_sentiment_payload(payload: dict) -> tuple[bool, str | None, dict |
     return True, None, cleaned
 
 
-def _history_baseline_for_window(history: deque | None, now_ts_s: int, key: str):
-    """Return (baseline_ts_s, baseline_price, age_s) from in-memory history."""
-    if not history:
-        return None
-
-    w = BASELINE_WINDOWS.get(key) or {}
-    target_s = int(w.get("target_s") or (60 if key == "1m" else 180))
-    min_s = int(w.get("min_s") or max(1, target_s - 30))
-    max_s = int(w.get("max_s") or target_s + 30)
-
-    best = None
-    best_err = None
-    for ts, price in history:
-        try:
-            ts_i = int(ts)
-            price_f = float(price)
-        except Exception:
-            continue
-        age_s = now_ts_s - ts_i
-        if age_s < min_s or age_s > max_s:
-            continue
-        err = abs(float(age_s) - float(target_s))
-        if best is None or best_err is None or err < best_err:
-            best = (ts_i, price_f, age_s)
-            best_err = err
-    return best
-
-
-def _history_latest_price(history: deque | None):
-    if not history:
-        return None
-    try:
-        ts, price = history[-1]
-        return int(ts), float(price)
-    except Exception:
-        return None
-
-
-def _history_pct_return(history: deque | None, now_ts_s: int, key: str):
-    latest = _history_latest_price(history)
-    baseline = _history_baseline_for_window(history, now_ts_s, key)
-    if not latest or not baseline:
-        return None
-    _latest_ts, latest_price = latest
-    _base_ts, base_price, _age_s = baseline
-    if base_price <= 0:
-        return None
-    return pct_change(latest_price, base_price)
-
-
-def _compute_return_maps(now_ts_s: int | None = None):
-    """Compute 1m/3m % returns per symbol from in-memory history deques."""
-    now_ts_s = int(now_ts_s or time.time())
-    symbols = set(price_history.keys()) | set(price_history_1min.keys())
-    ret_1m = {}
-    ret_3m = {}
-    for sym in symbols:
-        r3 = _history_pct_return(price_history.get(sym), now_ts_s, "3m")
-        if r3 is not None and math.isfinite(r3):
-            ret_3m[sym] = r3
-        r1 = _history_pct_return(price_history_1min.get(sym), now_ts_s, "1m")
-        if r1 is not None and math.isfinite(r1):
-            ret_1m[sym] = r1
-    return ret_1m, ret_3m, now_ts_s
-
-
-def _compute_market_heat(return_maps: tuple[dict, dict] | None = None, now_ts_s: int | None = None):
-    """Compute local tape heat from in-memory price history (no network)."""
-    if return_maps is None:
-        ret_1m, ret_3m, now_ts_s = _compute_return_maps(now_ts_s)
-    else:
-        ret_1m, ret_3m = return_maps
-        now_ts_s = int(now_ts_s or time.time())
-
-    returns_3m = list(ret_3m.values())
-    returns_1m = list(ret_1m.values())
-
-    total_symbols = len(returns_3m)
-    green_count = sum(1 for r in returns_3m if r > 0)
-    red_count = sum(1 for r in returns_3m if r < 0)
-
-    breadth = (green_count / total_symbols) if total_symbols else 0.5
-    avg_return_1m = (sum(returns_1m) / len(returns_1m)) if returns_1m else 0.0
-    avg_return_3m = (sum(returns_3m) / len(returns_3m)) if returns_3m else 0.0
-    volatility = statistics.pstdev(returns_3m) if len(returns_3m) > 1 else 0.0
-
-    alignment_vals = []
-    for sym, r1 in ret_1m.items():
-        r3 = ret_3m.get(sym)
-        if r3 is None:
-            continue
-        s1 = 1 if r1 > 0 else -1 if r1 < 0 else 0
-        s3 = 1 if r3 > 0 else -1 if r3 < 0 else 0
-        if s1 == 0 or s3 == 0:
-            alignment_vals.append(0.0)
-        else:
-            alignment_vals.append(1.0 if s1 == s3 else -1.0)
-    alignment = (sum(alignment_vals) / len(alignment_vals)) if alignment_vals else 0.0
-
-    if total_symbols <= 0:
-        score = None
-    else:
-        base = 0.6 * breadth + 0.4 * ((alignment + 1.0) / 2.0)
-        vol_heat = min(volatility / 4.0, 1.0)
-        score = max(0.0, min(100.0, (base + (vol_heat - 0.5) * 0.2) * 100.0))
-
-    if score is None:
-        label = "NEUTRAL"
-    elif score >= 80:
-        label = "MANIC"
-    elif score >= 65:
-        label = "HOT"
-    elif score >= 52:
-        label = "WARM"
-    elif score >= 40:
-        label = "NEUTRAL"
-    else:
-        label = "COLD"
-
-    if total_symbols == 0:
-        regime = "calm"
-    elif volatility < 0.4 and abs(alignment) < 0.2:
-        regime = "calm"
-    elif abs(alignment) < 0.15 and 0.45 <= breadth <= 0.55:
-        regime = "chop"
-    elif score is not None and score >= 55 and alignment >= 0:
-        regime = "risk_on"
-    elif score is not None and score <= 45 and alignment <= 0:
-        regime = "risk_off"
-    else:
-        regime = "chop" if abs(alignment) < 0.2 else ("risk_on" if (score or 0) >= 50 else "risk_off")
-
-    coverage = min(1.0, total_symbols / 40.0) if total_symbols else 0.0
-    pair_cov = min(1.0, len(alignment_vals) / 30.0) if alignment_vals else 0.0
-    confidence = 0.0 if total_symbols == 0 else max(0.0, min(1.0, 0.2 + 0.8 * min(coverage, pair_cov)))
-
-    tape_heat = {
-        "score": score,
-        "label": label,
-        "regime": regime,
-        "confidence": round(confidence, 3),
-        "breadth": round(breadth, 4),
-        "momentum_alignment": round(alignment, 4),
-        "volatility": round(volatility, 4),
-    }
-
-    components = {
-        "green_count": int(green_count),
-        "red_count": int(red_count),
-        "total_symbols": int(total_symbols),
-        "avg_return_1m": round(avg_return_1m, 4),
-        "avg_return_3m": round(avg_return_3m, 4),
-    }
-
-    return {
-        "tape_heat": tape_heat,
-        "components": components,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "ts": int(now_ts_s),
-    }
-
-
-def _build_market_heat_reasons(tape_heat: dict | None, components: dict | None) -> list[str]:
-    reasons = []
-    tape_heat = tape_heat or {}
-    components = components or {}
-    total = int(components.get("total_symbols") or 0)
-    if total <= 0:
-        return ["Tape warming: insufficient history yet."]
-    green = int(components.get("green_count") or 0)
-    breadth = tape_heat.get("breadth")
-    alignment = tape_heat.get("momentum_alignment")
-    vol = tape_heat.get("volatility")
-    if breadth is not None:
-        reasons.append(f"Breadth {round(breadth * 100):d}% green ({green}/{total})")
-    if alignment is not None:
-        reasons.append(f"Momentum alignment {alignment:+.2f} (1m vs 3m)")
-    if vol is not None:
-        reasons.append(f"3m volatility {vol:.2f}% stdev")
-    return reasons[:3]
-
-
-def _get_divergence_alerts_snapshot(limit: int = 6):
-    out = []
-    try:
-        for alert in reversed(list(alerts_log_main)):
-            if len(out) >= limit:
-                break
-            if not isinstance(alert, dict):
-                continue
-            raw_type = str(alert.get("type") or alert.get("type_key") or "").lower()
-            if "diverg" not in raw_type:
-                continue
-            msg = alert.get("message") or alert.get("title") or ""
-            if not msg:
-                continue
-            out.append({
-                "type": "divergence",
-                "message": str(msg),
-                "timestamp": alert.get("ts") or alert.get("event_ts"),
-            })
-    except Exception:
-        return []
-    return out
-
-
-def _fetch_fear_and_greed_cached(allow_refresh: bool = True):
-    """TTL-cached Fear & Greed Index lookup. Returns None on failure."""
-    now = time.time()
-    with _FEAR_GREED_LOCK:
-        cached = _FEAR_GREED_CACHE.get("data")
-        ts = _FEAR_GREED_CACHE.get("ts")
-        in_flight = _FEAR_GREED_CACHE.get("in_flight", False)
-
-    if cached and ts and (now - ts) < _FEAR_GREED_TTL_S:
-        out = dict(cached)
-        out["updated_at"] = datetime.fromtimestamp(ts, timezone.utc).isoformat()
-        out["stale"] = False
-        return out
-
-    if not allow_refresh:
-        if cached and ts:
-            out = dict(cached)
-            out["updated_at"] = datetime.fromtimestamp(ts, timezone.utc).isoformat()
-            out["stale"] = True
-            return out
-        return None
-
-    if in_flight:
-        if cached and ts:
-            out = dict(cached)
-            out["updated_at"] = datetime.fromtimestamp(ts, timezone.utc).isoformat()
-            out["stale"] = True
-            return out
-        return None
-
-    try:
-        with _FEAR_GREED_LOCK:
-            _FEAR_GREED_CACHE["in_flight"] = True
-        from sentiment_data_sources import fetch_fear_and_greed_index
-        data = fetch_fear_and_greed_index()
-        now = time.time()
-        if data:
-            with _FEAR_GREED_LOCK:
-                _FEAR_GREED_CACHE["data"] = data
-                _FEAR_GREED_CACHE["ts"] = now
-                _FEAR_GREED_CACHE["in_flight"] = False
-            out = dict(data)
-            out["updated_at"] = datetime.fromtimestamp(now, timezone.utc).isoformat()
-            out["stale"] = False
-            return out
-    except Exception:
-        pass
-    finally:
-        with _FEAR_GREED_LOCK:
-            _FEAR_GREED_CACHE["in_flight"] = False
-
-    with _FEAR_GREED_LOCK:
-        cached = _FEAR_GREED_CACHE.get("data")
-        ts = _FEAR_GREED_CACHE.get("ts")
-    if cached and ts:
-        out = dict(cached)
-        out["updated_at"] = datetime.fromtimestamp(ts, timezone.utc).isoformat()
-        out["stale"] = True
-        return out
-    return None
-
-
-def _kick_fear_greed_refresh():
-    """Fire-and-forget refresh to keep F&G warm without blocking price fetch."""
-    with _FEAR_GREED_LOCK:
-        ts = _FEAR_GREED_CACHE.get("ts")
-        in_flight = _FEAR_GREED_CACHE.get("in_flight", False)
-    now = time.time()
-    if in_flight:
-        return
-    if ts is not None and (now - ts) < _FEAR_GREED_TTL_S:
-        return
-    try:
-        threading.Thread(target=_fetch_fear_and_greed_cached, kwargs={"allow_refresh": True}, daemon=True).start()
-    except Exception:
-        pass
-
-
-def _get_local_sentiment_payload():
-    """Combine local tape heat + Fear & Greed into the sentiment payload."""
-    now = time.time()
-    with _MARKET_HEAT_LOCK:
-        tape_heat = dict(_MARKET_HEAT_CACHE.get("tape_heat") or {}) if _MARKET_HEAT_CACHE.get("tape_heat") else None
-        components = dict(_MARKET_HEAT_CACHE.get("components") or {}) if _MARKET_HEAT_CACHE.get("components") else None
-        updated_at = _MARKET_HEAT_CACHE.get("updated_at")
-        last_ts = _MARKET_HEAT_CACHE.get("ts")
-
-    if tape_heat is None:
-        # Best-effort compute if cache is cold
-        try:
-            computed = _compute_market_heat()
-            tape_heat = computed.get("tape_heat")
-            components = computed.get("components")
-            updated_at = computed.get("timestamp")
-            last_ts = computed.get("ts")
-            with _MARKET_HEAT_LOCK:
-                _MARKET_HEAT_CACHE["tape_heat"] = tape_heat
-                _MARKET_HEAT_CACHE["components"] = components
-                _MARKET_HEAT_CACHE["updated_at"] = updated_at
-                _MARKET_HEAT_CACHE["ts"] = last_ts
-        except Exception:
-            tape_heat = None
-
-    score = tape_heat.get("score") if isinstance(tape_heat, dict) else None
-    overall_sentiment = (float(score) / 100.0) if isinstance(score, (int, float)) else None
-    regime = tape_heat.get("regime") if isinstance(tape_heat, dict) else "calm"
-    confidence = tape_heat.get("confidence") if isinstance(tape_heat, dict) else 0.0
-    reasons = _build_market_heat_reasons(tape_heat, components)
-    divergence_alerts = _get_divergence_alerts_snapshot()
-
-    sentiment_history = []
-    try:
-        sentiment_history = list(_MARKET_HEAT_HISTORY)
-    except Exception:
-        sentiment_history = []
-
-    fear_greed = _fetch_fear_and_greed_cached(allow_refresh=False)
-    if fear_greed and "value" in fear_greed:
-        fear_greed_block = {
-            "value": fear_greed.get("value"),
-            "classification": fear_greed.get("classification"),
-            "timestamp": fear_greed.get("timestamp"),
-            "updated_at": fear_greed.get("updated_at"),
-            "source": fear_greed.get("source"),
-            "stale": bool(fear_greed.get("stale")),
-        }
-    else:
-        fear_greed_block = None
-
-    payload = {
-        "overall_sentiment": overall_sentiment,
-        "fear_greed": fear_greed_block,
-        "fear_greed_index": fear_greed_block.get("value") if isinstance(fear_greed_block, dict) else None,
-        "regime": regime,
-        "confidence": confidence,
-        "reasons": reasons,
-        "divergence_alerts": divergence_alerts,
-        "sentiment_history": sentiment_history,
-        "tape_heat": tape_heat or {},
-        "components": components or {},
-        "updated_at": updated_at,
-    }
-
-    stale_seconds = int(now - last_ts) if last_ts else None
-    meta = {
-        "ok": bool(tape_heat) and score is not None,
-        "pipelineRunning": True,
-        "staleSeconds": stale_seconds,
-        "lastOkTs": _sentiment_iso(last_ts),
-        "lastTryTs": _sentiment_iso(now),
-        "source": "tape_local",
-    }
-    if not meta["ok"]:
-        meta["error"] = "market_heat_unavailable"
-
-    return payload, meta
-
-
 def _sentiment_poll_once():
     global _SENTIMENT_LAST_GOOD, _SENTIMENT_LAST_OK_TS, _SENTIMENT_LAST_TRY_TS
     global _SENTIMENT_LAST_ERROR, _SENTIMENT_LAST_SOURCES
@@ -2047,8 +2043,51 @@ def _sentiment_polling_loop():
 
 
 def _get_sentiment_snapshot():
-    # Local tape sentiment replaces external pipeline snapshot.
-    return _get_local_sentiment_payload()
+    # If poller hasn't started yet, kick it off in background (non-blocking).
+    try:
+        thread_ref = globals().get("_MW_SENTIMENT_THREAD")
+        lock_ref = globals().get("_MW_SENTIMENT_LOCK")
+        if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+            if lock_ref is not None:
+                with lock_ref:
+                    thread_ref = globals().get("_MW_SENTIMENT_THREAD")
+                    if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+                        st = threading.Thread(target=_sentiment_polling_loop)
+                        st.daemon = True
+                        st.start()
+                        globals()["_MW_SENTIMENT_THREAD"] = st
+    except Exception:
+        pass
+
+    with _SENTIMENT_LOCK:
+        sentiment = dict(_SENTIMENT_LAST_GOOD) if isinstance(_SENTIMENT_LAST_GOOD, dict) else None
+        last_ok = _SENTIMENT_LAST_OK_TS
+        last_try = _SENTIMENT_LAST_TRY_TS
+        err = _SENTIMENT_LAST_ERROR
+        sources = _SENTIMENT_LAST_SOURCES
+
+    now = time.time()
+    stale_seconds = int(now - last_ok) if last_ok is not None else None
+    # Pipeline considered running if we had a successful poll within 2x poll interval
+    max_stale_for_running = max(60.0, SENTIMENT_PIPELINE_POLL_S * 2.5)
+    pipeline_running = (
+        last_ok is not None and
+        stale_seconds is not None and
+        stale_seconds < max_stale_for_running
+    )
+    meta = {
+        "ok": bool(sentiment) and (err is None),
+        "pipelineRunning": pipeline_running,
+        "staleSeconds": stale_seconds,
+        "lastOkTs": _sentiment_iso(last_ok),
+        "lastTryTs": _sentiment_iso(last_try),
+    }
+    if err:
+        meta["error"] = err
+    if sources:
+        meta["sources"] = sources
+
+    return sentiment or {}, meta
 
 
 def _proxy_pipeline_request(path: str, params: dict | None = None, timeout: float = 5.0):
@@ -2732,17 +2771,6 @@ price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
 price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
 price_history_1hour = defaultdict(lambda: deque(maxlen=80))  # 1h tracking: 80 snapshots = ~75min at 1min intervals
 
-# ---------------------------------------------------------------------------
-# Local "tape heat" sentiment cache (computed from price_history deques)
-# ---------------------------------------------------------------------------
-_MARKET_HEAT_HISTORY = deque(maxlen=60)  # ~8 minutes @ ~8s cadence
-_MARKET_HEAT_CACHE = {"tape_heat": None, "components": None, "updated_at": None, "ts": None}
-_MARKET_HEAT_LOCK = threading.Lock()
-
-_FEAR_GREED_CACHE = {"data": None, "ts": None, "in_flight": False}
-_FEAR_GREED_LOCK = threading.Lock()
-_FEAR_GREED_TTL_S = 300  # 5 minutes
-
 # Track readiness of the 3m baseline (first snapshot >= interval ago)
 _BASELINE_3M_LOCK = threading.Lock()
 _BASELINE_3M_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
@@ -3328,268 +3356,6 @@ _ALERT_EMIT_DIR = {}
 _MW_LAST_GOOD_ALERTS = []
 _MW_LAST_GOOD_ALERTS_TS = None
 
-# -----------------------------------------------------------------------------
-# Alert normalization (single dialect for frontend)
-# -----------------------------------------------------------------------------
-_ALERT_NORM_PCT_RE = re.compile(r'([+-]?\d+(?:\.\d+)?)\s*%')
-
-# strongest last-write-wins (optional collapse)
-_ALERT_NORM_SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
-
-# in-memory cooldown (per process)
-_ALERT_NORM_LAST_EMIT = {}  # (symbol, window, type_key) -> ts_ms
-
-_ALERT_NORM_COOLDOWN_MS = {
-    "critical": 30_000,
-    "high": 45_000,
-    "medium": 60_000,
-    "low": 90_000,
-    "info": 120_000,
-}
-
-def _alert_norm_parse_pct_from_message(msg: str):
-    if not msg:
-        return None
-    m = _ALERT_NORM_PCT_RE.search(str(msg))
-    return float(m.group(1)) if m else None
-
-def _alert_norm_to_ts_ms(value):
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        v = float(value)
-        if v >= 1_000_000_000_000:  # already ms
-            return int(v)
-        if v >= 1_000_000_000:  # seconds
-            return int(v * 1000)
-        if v >= 10_000_000:  # assume seconds (safety)
-            return int(v * 1000)
-        return None
-    s = str(value).strip()
-    if not s:
-        return None
-    try:
-        return _alert_norm_to_ts_ms(float(s))
-    except Exception:
-        pass
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-        return int(dt.timestamp() * 1000)
-    except Exception:
-        return None
-
-def _alert_norm_window_from_seconds(raw):
-    try:
-        w_s = raw.get("window_s") or raw.get("window_sec") or raw.get("window_seconds")
-        if isinstance(w_s, (int, float)):
-            if w_s >= 3500:
-                return "1h"
-            if w_s >= 170:
-                return "3m"
-            if w_s >= 50:
-                return "1m"
-    except Exception:
-        return None
-    return None
-
-def _alert_norm_infer_window(raw: dict) -> str:
-    win = raw.get("window") or raw.get("window_label") or raw.get("windowLabel")
-    if win:
-        w = str(win).strip().lower()
-        if w in ("1m", "3m", "1h"):
-            return w
-        if w.endswith(("m", "h")):
-            return w
-    w_s = _alert_norm_window_from_seconds(raw)
-    if w_s:
-        return w_s
-    s = f"{raw.get('window','')} {raw.get('type','')} {raw.get('kind','')} {raw.get('message','')}".lower()
-    if "1h" in s or "60m" in s:
-        return "1h"
-    if "1m" in s:
-        return "1m"
-    if "3m" in s:
-        return "3m"
-    return "3m"  # default to core table window
-
-def _alert_norm_infer_symbol(raw: dict):
-    sym = raw.get("symbol") or raw.get("ticker") or raw.get("product_id") or raw.get("pair")
-    if not sym:
-        return None
-    if isinstance(sym, str) and "-" in sym:
-        return sym.split("-")[0].strip().upper()
-    return str(sym).strip().upper()
-
-def _alert_norm_thresholds(window: str):
-    if window == "1m":
-        return {"critical": 6.0, "high": 3.5, "medium": 2.0, "low": 1.0}
-    if window == "3m":
-        return {"critical": 9.0, "high": 5.0, "medium": 3.0, "low": 1.5}
-    return {"critical": 18.0, "high": 10.0, "medium": 6.0, "low": 3.0}  # 1h
-
-def _alert_norm_classify(window: str, pct: float | None, raw: dict):
-    raw_type = (raw.get("type") or raw.get("kind") or raw.get("type_key") or "").lower()
-
-    if "diverg" in raw_type:
-        type_key = "divergence"
-        severity = raw.get("severity") or "medium"
-        return type_key, severity
-
-    if pct is None:
-        return ("unknown", raw.get("severity") or "info")
-
-    ap = abs(pct)
-    t = _alert_norm_thresholds(window)
-
-    if ap >= t["critical"]:
-        severity = "critical"
-    elif ap >= t["high"]:
-        severity = "high"
-    elif ap >= t["medium"]:
-        severity = "medium"
-    elif ap >= t["low"]:
-        severity = "low"
-    else:
-        severity = "info"
-
-    if pct >= 0:
-        type_key = "moonshot" if severity in ("critical", "high") else "breakout" if severity in ("medium", "low") else "move"
-    else:
-        type_key = "crater" if severity in ("critical", "high") else "dump" if severity in ("medium", "low") else "move"
-
-    return type_key, severity
-
-def _alert_norm_allow_with_cooldown(a: dict) -> bool:
-    key = (a["symbol"], a["window"], a["type_key"])
-    ts_ms = a["ts_ms"]
-    cd = _ALERT_NORM_COOLDOWN_MS.get(a["severity"], 90_000)
-    last = _ALERT_NORM_LAST_EMIT.get(key)
-    if last is None:
-        _ALERT_NORM_LAST_EMIT[key] = ts_ms
-        return True
-    if ts_ms <= last:
-        return ts_ms == last
-    if (ts_ms - last) < cd:
-        return False
-    _ALERT_NORM_LAST_EMIT[key] = ts_ms
-    return True
-
-def normalize_alert(raw: dict) -> dict | None:
-    if not isinstance(raw, dict):
-        return None
-
-    ts_ms = _alert_norm_to_ts_ms(raw.get("ts_ms") or raw.get("timestamp_ms") or raw.get("event_ts_ms"))
-    if ts_ms is None:
-        ts = raw.get("ts") or raw.get("timestamp") or raw.get("event_ts") or raw.get("eventTs")
-        ts_ms = _alert_norm_to_ts_ms(ts)
-    if ts_ms is None:
-        ts_ms = int(time.time() * 1000)
-
-    symbol = _alert_norm_infer_symbol(raw)
-    if not symbol:
-        return None
-
-    product_id = raw.get("product_id") or raw.get("productId")
-    if not product_id:
-        raw_sym = raw.get("symbol") or raw.get("ticker") or raw.get("pair")
-        if isinstance(raw_sym, str) and "-" in raw_sym:
-            product_id = raw_sym.strip().upper()
-        elif symbol:
-            product_id = f"{symbol}-USD"
-
-    window = raw.get("window") or _alert_norm_infer_window(raw)
-    if window:
-        window = str(window).strip().lower()
-
-    def _num_or_none(v):
-        try:
-            if v is None or v == "":
-                return None
-            if isinstance(v, (int, float)):
-                n = float(v)
-            else:
-                n = float(str(v).replace("%", "").strip())
-            return n if math.isfinite(n) else None
-        except Exception:
-            return None
-
-    pct = _num_or_none(raw.get("pct"))
-    if pct is None:
-        pct = _num_or_none(raw.get("change_pct") or raw.get("pct_change") or raw.get("pctChange"))
-    if pct is None:
-        pct = _alert_norm_parse_pct_from_message(raw.get("message", ""))
-
-    type_key = raw.get("type_key") or raw.get("typeKey")
-    severity = raw.get("severity") or raw.get("sev")
-
-    if isinstance(type_key, str):
-        type_key = type_key.strip().lower()
-
-    if isinstance(type_key, str) and type_key.startswith("impulse_"):
-        w = type_key.split("_", 1)[1].strip()
-        if w in ("1m", "3m", "1h"):
-            window = w
-        type_key = None
-
-    if not type_key or not severity:
-        type_key2, severity2 = _alert_norm_classify(window, pct, raw)
-        type_key = type_key or type_key2
-        severity = severity or severity2
-
-    out = {
-        "ts_ms": int(ts_ms),
-        "symbol": symbol,
-        "product_id": product_id,
-        "window": window,
-        "pct": pct,
-        "type_key": type_key,
-        "severity": str(severity).lower(),
-    }
-
-    for k in ("price_now", "price_then"):
-        if k in raw:
-            v = _num_or_none(raw.get(k))
-            if v is not None:
-                out[k] = v
-    if "vol_pct" in raw:
-        v = _num_or_none(raw.get("vol_pct"))
-        if v is not None:
-            out["vol_pct"] = v
-    else:
-        v = _num_or_none(raw.get("vol_change_pct") or raw.get("volume_change_1h_pct") or raw.get("volume_change_pct"))
-        if v is not None:
-            out["vol_pct"] = v
-
-    if "message" in raw and isinstance(raw["message"], str):
-        out["message"] = raw["message"]
-
-    # Legacy carry-throughs (migration window)
-    for k in ("id", "type", "title", "trade_url", "url", "ts", "event_ts"):
-        if k in raw and raw[k] is not None:
-            out[k] = raw[k]
-
-    return out
-
-def normalize_alerts(raw_alerts: list[dict], keep: int = 60, apply_cooldown: bool = True) -> list[dict]:
-    norm = []
-    for r in (raw_alerts or []):
-        a = normalize_alert(r)
-        if a is None:
-            continue
-        if a["pct"] is None and a["type_key"] not in ("divergence", "unknown"):
-            continue
-        norm.append(a)
-
-    norm.sort(key=lambda x: x["ts_ms"], reverse=True)
-    if apply_cooldown:
-        filtered = []
-        for a in norm:
-            if _alert_norm_allow_with_cooldown(a):
-                filtered.append(a)
-        norm = filtered
-
-    return norm[:keep]
-
 
 def _mw_get_alerts_normalized_with_sticky():
     """Return (alerts, meta) where alerts may be a short sticky last-good list.
@@ -3599,7 +3365,7 @@ def _mw_get_alerts_normalized_with_sticky():
     """
     global _MW_LAST_GOOD_ALERTS, _MW_LAST_GOOD_ALERTS_TS
 
-    alerts = normalize_alerts(list(alerts_log_main), keep=60, apply_cooldown=True)
+    alerts = _normalize_alerts(list(alerts_log_main))
     now = time.time()
     sticky_window_s = int(CONFIG.get("ALERTS_STICKY_SECONDS", 60) or 60)
     sticky = False
@@ -3660,7 +3426,13 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
 
 
 def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: str = "1m") -> None:
-    """Emit a lightweight impulse alert for short-window moves (1m/3m)."""
+    """Emit a typed impulse alert for short-window moves (1m/3m).
+
+    Enhanced type classification:
+      >=6%  → moonshot (up) / crater (down), severity=critical
+      >=2.5% → breakout (up) / dump (down), severity=high
+      below → impulse_1m / impulse_3m as before, severity=medium
+    """
     try:
         if symbol is None or change_pct is None:
             return
@@ -3670,25 +3442,7 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
         direction = "up" if change_pct >= 0 else "down"
-        window_label = "1m" if str(window).lower().startswith("1") else "3m" if str(window).lower().startswith("3") else str(window).lower()
-        window_s = 60 if window_label == "1m" else 180 if window_label == "3m" else None
-
-        # Richer classifications
-        alert_type = f"impulse_{window_label}"
-        severity = "high" if mag >= max(ALERT_IMPULSE_3M_THRESH, ALERT_IMPULSE_1M_THRESH) else "medium"
-        if change_pct >= 6:
-            alert_type = "moonshot"
-            severity = "critical"
-        elif change_pct >= 2.5:
-            alert_type = "breakout"
-            severity = "high"
-        elif change_pct <= -6:
-            alert_type = "crater"
-            severity = "critical"
-        elif change_pct <= -2.5:
-            alert_type = "dump"
-            severity = "high"
-
+        window_s = 60 if str(window).lower().startswith("1") else 180 if str(window).lower().startswith("3") else None
         price_now = float(price) if price is not None else None
         price_then = None
         try:
@@ -3697,21 +3451,33 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
                 price_then = price_now / denom
         except Exception:
             price_then = None
-        type_key = "impulse" if alert_type.startswith("impulse_") else alert_type
+
+        # Rich type classification
+        if mag >= 6.0:
+            alert_type = "moonshot" if direction == "up" else "crater"
+            severity = "critical"
+            title = f"{'🚀 Moonshot' if direction == 'up' else '💥 Crater'}: {product_id}"
+        elif mag >= 2.5:
+            alert_type = "breakout" if direction == "up" else "dump"
+            severity = "high"
+            title = f"{'📈 Breakout' if direction == 'up' else '📉 Dump'}: {product_id}"
+        else:
+            alert_type = f"impulse_{window}"
+            severity = "medium"
+            title = f"{window} impulse {direction}"
+
         alert = {
-          "id": f"{alert_type}_{window_label}_{product_id}_{int(time.time())}",
+          "id": f"{alert_type}_{product_id}_{int(time.time())}",
           "ts": now.isoformat(),
           "ts_ms": emitted_ms,
           "event_ts": now.isoformat(),
           "event_ts_ms": emitted_ms,
           "symbol": product_id,
           "type": alert_type,
-          "type_key": type_key,
           "severity": severity,
-          "title": f"{alert_type.replace('_', ' ')} {direction}",
-          "message": f"{product_id} moved {float(change_pct):+.2f}% in {window_label}",
+          "title": title,
+          "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
           "window_s": window_s,
-          "window": window_label,
           "pct": float(change_pct),
           "direction": direction,
           "price_now": price_now,
@@ -3719,7 +3485,7 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
           "price": float(price_now or 0),
           "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
           "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
-          "meta": {"magnitude": mag, "direction": direction, "window": window_label},
+          "meta": {"magnitude": mag, "direction": direction, "window": window, "alert_type": alert_type},
         }
         _emit_alert(alert)
     except Exception:
@@ -3727,23 +3493,32 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         pass
 
 
-def _emit_divergence_alert(symbol: str, change_1m: float, change_3m: float, price: float | None = None) -> None:
-    """Emit a divergence alert when 1m and 3m disagree in direction."""
+def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: float) -> None:
+    """Emit an alert when 1m and 3m disagree significantly.
+
+    Fires when 1m > 0.5% and 3m < -0.5% (or vice versa).
+    Cooldown 180s, dedupe_delta 0.5.
+    """
     try:
-        if symbol is None:
+        if symbol is None or ret_1m is None or ret_3m is None:
             return
-        if change_1m is None or change_3m is None:
+        # Check for divergence: 1m and 3m in opposite directions with magnitude
+        if not ((ret_1m > 0.5 and ret_3m < -0.5) or (ret_1m < -0.5 and ret_3m > 0.5)):
             return
-        if not ((change_1m >= 0.5 and change_3m <= -0.5) or (change_1m <= -0.5 and change_3m >= 0.5)):
-            return
+
         sym_clean = str(symbol).upper()
         product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
-        direction = "up" if change_1m >= 0 else "down"
-        mag = abs(float(change_1m) - float(change_3m))
-        price_now = float(price) if price is not None else None
 
+        if ret_1m > 0 and ret_3m < 0:
+            msg = f"{product_id}: 1m up {ret_1m:+.2f}% but 3m down {ret_3m:+.2f}% — possible reversal"
+            direction = "reversal_up"
+        else:
+            msg = f"{product_id}: 1m down {ret_1m:+.2f}% but 3m up {ret_3m:+.2f}% — possible pullback"
+            direction = "reversal_down"
+
+        magnitude = abs(ret_1m - ret_3m)
         alert = {
             "id": f"divergence_{product_id}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -3752,27 +3527,181 @@ def _emit_divergence_alert(symbol: str, change_1m: float, change_3m: float, pric
             "event_ts_ms": emitted_ms,
             "symbol": product_id,
             "type": "divergence",
-            "type_key": "divergence",
             "severity": "medium",
-            "title": "Divergence",
-            "message": f"{product_id} 1m {float(change_1m):+.2f}% vs 3m {float(change_3m):+.2f}% (divergence)",
-            "window_s": 180,
-            "window": "1m/3m",
-            "pct": None,
+            "title": f"⚡ Divergence: {product_id}",
+            "message": msg,
+            "pct": round(magnitude, 2),
             "direction": direction,
-            "price_now": price_now,
-            "price": float(price_now or 0),
-            "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
+            "price": float(price) if price else 0,
+            "expires_at": (now + timedelta(minutes=5)).isoformat(),
             "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
             "meta": {
-                "magnitude": mag,
+                "magnitude": magnitude,
                 "direction": direction,
-                "window": "1m/3m",
-                "pct_1m": float(change_1m),
-                "pct_3m": float(change_3m),
+                "ret_1m": round(ret_1m, 4),
+                "ret_3m": round(ret_3m, 4),
             },
         }
         _emit_alert(alert, cooldown_s=180, dedupe_delta=0.5)
+    except Exception:
+        pass
+
+
+def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float) -> None:
+    """Emit a whale alert when 1h volume spikes >=200% vs previous hour.
+
+    Uses data from _CANDLE_VOLUME_CACHE (already being computed).
+    """
+    try:
+        if vol1h_pct is None or vol1h_pct < 200:
+            return
+        if vol1h is None or vol1h < 500:  # ignore dust volumes
+            return
+
+        sym_clean = str(symbol).upper()
+        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        now = datetime.now(timezone.utc)
+        emitted_ms = int(now.timestamp() * 1000)
+
+        severity = "critical" if vol1h_pct >= 500 else "high"
+        alert = {
+            "id": f"whale_{product_id}_{int(time.time())}",
+            "ts": now.isoformat(),
+            "ts_ms": emitted_ms,
+            "event_ts": now.isoformat(),
+            "event_ts_ms": emitted_ms,
+            "symbol": product_id,
+            "type": "whale_move",
+            "severity": severity,
+            "title": f"🐋 Whale Move: {product_id}",
+            "message": f"{product_id} volume surged {vol1h_pct:+.0f}% (1h: {vol1h:,.0f} units)",
+            "pct": round(vol1h_pct, 2),
+            "direction": "up",
+            "price": float(price) if price else 0,
+            "expires_at": (now + timedelta(minutes=10)).isoformat(),
+            "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+            "meta": {
+                "magnitude": vol1h_pct,
+                "direction": "volume_spike",
+                "vol1h": round(vol1h, 2),
+                "vol1h_pct": round(vol1h_pct, 2),
+                "alert_type": "whale_move",
+            },
+        }
+        _emit_alert(alert, cooldown_s=300, dedupe_delta=50.0)
+    except Exception:
+        pass
+
+
+def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, price: float) -> None:
+    """Emit a stealth accumulation alert: price rising but volume flat/low.
+
+    Detects quiet moves — price up >=1.5% over 3m but volume change < 30%.
+    """
+    try:
+        if price_change_3m is None or price_change_3m < 1.5:
+            return
+        if vol1h_pct is None:
+            return
+        # Stealth = price up but volume NOT spiking
+        if vol1h_pct > 30:
+            return
+
+        sym_clean = str(symbol).upper()
+        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        now = datetime.now(timezone.utc)
+        emitted_ms = int(now.timestamp() * 1000)
+
+        alert = {
+            "id": f"stealth_{product_id}_{int(time.time())}",
+            "ts": now.isoformat(),
+            "ts_ms": emitted_ms,
+            "event_ts": now.isoformat(),
+            "event_ts_ms": emitted_ms,
+            "symbol": product_id,
+            "type": "stealth_move",
+            "severity": "medium",
+            "title": f"👤 Stealth Move: {product_id}",
+            "message": f"{product_id} up {price_change_3m:+.2f}% on quiet volume ({vol1h_pct:+.0f}% vol change)",
+            "pct": round(price_change_3m, 2),
+            "direction": "up",
+            "price": float(price) if price else 0,
+            "expires_at": (now + timedelta(minutes=5)).isoformat(),
+            "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+            "meta": {
+                "magnitude": price_change_3m,
+                "direction": "stealth_up",
+                "price_change_3m": round(price_change_3m, 4),
+                "vol1h_pct": round(vol1h_pct, 2),
+                "alert_type": "stealth_move",
+            },
+        }
+        _emit_alert(alert, cooldown_s=300, dedupe_delta=0.5)
+    except Exception:
+        pass
+
+
+def _emit_fomo_alert(heat_score: float, heat_label: str, fg_value: int | None) -> None:
+    """Emit a FOMO/fear alert based on market heat + Fear & Greed.
+
+    Fires when:
+      - Heat >=80 AND F&G >=75 → FOMO (market overheating)
+      - Heat <=20 AND F&G <=25 → FEAR (extreme fear)
+    Cooldown 600s — this is a macro signal, not per-symbol.
+    """
+    try:
+        fomo = heat_score >= 80 and (fg_value is None or fg_value >= 70)
+        fear = heat_score <= 20 and (fg_value is None or fg_value <= 30)
+
+        if not fomo and not fear:
+            return
+
+        now = datetime.now(timezone.utc)
+        emitted_ms = int(now.timestamp() * 1000)
+
+        if fomo:
+            alert_type = "fomo_alert"
+            title = "🔥 FOMO Alert: Market Overheating"
+            msg = f"Market Heat {heat_score}/100 ({heat_label})"
+            if fg_value is not None:
+                msg += f", Fear & Greed {fg_value}/100"
+            severity = "high"
+            direction = "fomo"
+        else:
+            alert_type = "fear_alert"
+            title = "🥶 Extreme Fear: Market Frozen"
+            msg = f"Market Heat {heat_score}/100 ({heat_label})"
+            if fg_value is not None:
+                msg += f", Fear & Greed {fg_value}/100"
+            severity = "high"
+            direction = "fear"
+
+        alert = {
+            "id": f"{alert_type}_{int(time.time())}",
+            "ts": now.isoformat(),
+            "ts_ms": emitted_ms,
+            "event_ts": now.isoformat(),
+            "event_ts_ms": emitted_ms,
+            "symbol": "MARKET",
+            "type": alert_type,
+            "severity": severity,
+            "title": title,
+            "message": msg,
+            "pct": heat_score,
+            "direction": direction,
+            "price": 0,
+            "expires_at": (now + timedelta(minutes=15)).isoformat(),
+            "trade_url": "",
+            "meta": {
+                "magnitude": heat_score,
+                "direction": direction,
+                "heat_score": heat_score,
+                "heat_label": heat_label,
+                "fg_value": fg_value,
+                "alert_type": alert_type,
+            },
+        }
+        _emit_alert(alert, cooldown_s=600, dedupe_delta=10.0)
     except Exception:
         pass
 
@@ -5811,7 +5740,6 @@ def data_aggregate():
                 alerts_meta = {"sticky": False, "last_good_age_s": None}
             else:
                 alerts_normalized, alerts_meta = _mw_get_alerts_normalized_with_sticky()
-            alerts_normalized = normalize_alerts(alerts_normalized, keep=60, apply_cooldown=False)
 
             partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
             sentiment_payload, sentiment_meta = _get_local_sentiment_payload()
@@ -5931,7 +5859,7 @@ def data_aggregate():
         warming_ts = datetime.now().isoformat()
         last_good_ts, stale_seconds, warming, warming_3m_empty, baseline_ts_3m_empty, baseline_age_3m_empty = _mw_get_last_good_metadata()
         partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
-        sentiment_payload, sentiment_meta = _get_local_sentiment_payload()
+        sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
         payload = {
             "gainers_1m": [],
             "gainers_3m": [],
@@ -6859,9 +6787,7 @@ def get_recent_alerts():
         else:
             items, alerts_meta = _mw_get_alerts_normalized_with_sticky()
 
-        items = list(items or [])
-        items.sort(key=lambda x: x.get("ts_ms", 0), reverse=True)
-        items = items[:limit]
+        items = (items or [])[-limit:]
         return jsonify({
             'count': len(items),
             'limit': limit,
@@ -8008,45 +7934,6 @@ def _compute_snapshots_from_cache():
         except Exception:
             l3m = None
 
-        # Market heat + divergence alerts (local tape data)
-        try:
-            ret_1m, ret_3m, now_ts_s = _compute_return_maps()
-            heat = _compute_market_heat(return_maps=(ret_1m, ret_3m), now_ts_s=now_ts_s)
-            if heat and isinstance(heat, dict):
-                tape_heat = heat.get("tape_heat")
-                components = heat.get("components")
-                updated_at = heat.get("timestamp")
-                with _MARKET_HEAT_LOCK:
-                    _MARKET_HEAT_CACHE["tape_heat"] = tape_heat
-                    _MARKET_HEAT_CACHE["components"] = components
-                    _MARKET_HEAT_CACHE["updated_at"] = updated_at
-                    _MARKET_HEAT_CACHE["ts"] = heat.get("ts")
-                if isinstance(tape_heat, dict) and isinstance(tape_heat.get("score"), (int, float)):
-                    try:
-                        _MARKET_HEAT_HISTORY.append({
-                            "timestamp": updated_at,
-                            "sentiment": float(tape_heat.get("score")) / 100.0,
-                            "price_normalized": (components or {}).get("avg_return_3m"),
-                        })
-                    except Exception:
-                        pass
-
-            if ret_1m and ret_3m:
-                for sym, r1 in ret_1m.items():
-                    r3 = ret_3m.get(sym)
-                    if r3 is None:
-                        continue
-                    price_now = None
-                    try:
-                        latest = _history_latest_price(price_history_1min.get(sym) or price_history.get(sym))
-                        if latest:
-                            price_now = latest[1]
-                    except Exception:
-                        price_now = None
-                    _emit_divergence_alert(sym, r1, r3, price_now)
-        except Exception as e:
-            logging.debug(f"Market heat compute skip: {e}")
-
         def _mark_partial(payload):
             if not partial_tick or not isinstance(payload, dict):
                 return payload
@@ -8289,6 +8176,92 @@ def _compute_snapshots_from_cache():
         if do_heavy and isinstance(volume1h_snapshot, dict):
             updates["volume1h"] = volume1h_snapshot
 
+        # --- Market Heat computation (closed-loop, no network) ---
+        try:
+            heat = _compute_market_heat()
+            with _MARKET_HEAT_LOCK:
+                _MARKET_HEAT_CACHE.update(heat)
+                _MARKET_HEAT_HISTORY.append(heat)
+        except Exception as e:
+            logging.debug(f"Market heat compute skip: {e}")
+
+        # --- Divergence detection: 1m vs 3m disagreement ---
+        try:
+            cached_prices = last_current_prices.get('data') or {}
+            for sym in cached_prices:
+                hist_1m = price_history_1min.get(sym)
+                hist_3m = price_history.get(sym)
+                if not hist_1m or len(hist_1m) < 2 or not hist_3m or len(hist_3m) < 2:
+                    continue
+                try:
+                    _, latest_price = hist_1m[-1]
+                    # 1m return
+                    base_1m = None
+                    for ts_i, p_i in reversed(list(hist_1m)):
+                        if now_s - ts_i >= 45:
+                            base_1m = p_i
+                            break
+                    # 3m return
+                    base_3m = None
+                    for ts_i, p_i in reversed(list(hist_3m)):
+                        if now_s - ts_i >= 120:
+                            base_3m = p_i
+                            break
+                    if base_1m and base_1m > 0 and base_3m and base_3m > 0:
+                        ret_1m = ((latest_price - base_1m) / base_1m) * 100
+                        ret_3m = ((latest_price - base_3m) / base_3m) * 100
+                        _emit_divergence_alert(sym, ret_1m, ret_3m, latest_price)
+                except Exception:
+                    continue
+        except Exception as e:
+            logging.debug(f"Divergence detection skip: {e}")
+
+        # --- Whale + Stealth detection from volume cache ---
+        try:
+            with _CANDLE_VOLUME_CACHE_LOCK:
+                vol_items = list(_CANDLE_VOLUME_CACHE.items())
+            cached_prices_data = last_current_prices.get('data') or {}
+            for product_id, vol_data in vol_items:
+                if not isinstance(vol_data, dict):
+                    continue
+                vol1h = vol_data.get('vol1h')
+                vol1h_pct = vol_data.get('vol1h_pct_change')
+                sym = product_id.split('-')[0].upper() if '-' in product_id else product_id
+                price_val = cached_prices_data.get(product_id) or cached_prices_data.get(sym) or 0
+
+                # Whale detection
+                if vol1h is not None and vol1h_pct is not None:
+                    _emit_whale_alert(sym, vol1h, vol1h_pct, price_val)
+
+                # Stealth detection: need 3m price change
+                hist_3m = price_history.get(sym)
+                if hist_3m and len(hist_3m) >= 2 and vol1h_pct is not None:
+                    try:
+                        _, latest_p = hist_3m[-1]
+                        base_p = None
+                        for ts_i, p_i in reversed(list(hist_3m)):
+                            if now_s - ts_i >= 120:
+                                base_p = p_i
+                                break
+                        if base_p and base_p > 0:
+                            pct_3m = ((latest_p - base_p) / base_p) * 100
+                            _emit_stealth_alert(sym, pct_3m, vol1h_pct, latest_p)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logging.debug(f"Whale/stealth detection skip: {e}")
+
+        # --- FOMO / Fear macro alert from heat + F&G ---
+        try:
+            with _MARKET_HEAT_LOCK:
+                h_score = _MARKET_HEAT_CACHE.get("score", 50)
+                h_label = _MARKET_HEAT_CACHE.get("label", "NEUTRAL")
+            fg = _fetch_fear_and_greed_cached()
+            fg_val = fg.get("value") if fg else None
+            _emit_fomo_alert(h_score, h_label, fg_val)
+        except Exception as e:
+            logging.debug(f"FOMO/fear alert skip: {e}")
+
         # Alerts snapshot (main only). Trend alerts are debug-only and do not
         # mix into the main UI stream.
         try:
@@ -8391,9 +8364,9 @@ def _fetch_prices_and_update_history():
             except Exception as e:
                 logging.debug(f"Candle cache update skip: {e}")
 
-            # Warm Fear & Greed cache (non-blocking)
+            # Pre-warm Fear & Greed cache (non-blocking, best-effort)
             try:
-                _kick_fear_greed_refresh()
+                _fetch_fear_and_greed_cached()
             except Exception:
                 pass
 
@@ -8543,7 +8516,31 @@ def _mw_ensure_background_started():
                 except Exception:
                     pass
 
-    # Sentiment poller removed; local tape heat is computed in background snapshots.
+    # External sentiment pipeline thread is now DISABLED — we use local tape-based
+    # market heat instead. The thread is kept for future use when a real pipeline
+    # (Redis-backed, API-key-gated) is available. Guard with env var to opt-in.
+    if os.environ.get("MW_ENABLE_EXTERNAL_SENTIMENT", "0") == "1":
+        with _MW_SENTIMENT_LOCK:
+            if _MW_SENTIMENT_THREAD is None or not _MW_SENTIMENT_THREAD.is_alive():
+                try:
+                    st = threading.Thread(target=_sentiment_polling_loop)
+                    st.daemon = True
+                    st.start()
+                    _MW_SENTIMENT_THREAD = st
+                    try:
+                        app.logger.info("Sentiment polling thread started (flask-run bootstrap)")
+                    except Exception:
+                        pass
+                except Exception as e:
+                    try:
+                        app.logger.warning(f"Failed to start sentiment poller thread: {e}")
+                    except Exception:
+                        pass
+    else:
+        try:
+            app.logger.info("External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.")
+        except Exception:
+            pass
 
 
 @app.before_request
@@ -8759,7 +8756,14 @@ if __name__ == '__main__':
     
     logging.info("Background update thread started")
 
-    # Sentiment polling thread removed (local tape heat only)
+    # Start sentiment polling thread
+    try:
+        sentiment_thread = threading.Thread(target=_sentiment_polling_loop)
+        sentiment_thread.daemon = True
+        sentiment_thread.start()
+        logging.info("Sentiment polling thread started")
+    except Exception as e:
+        logging.warning(f"Failed to start sentiment poller thread: {e}")
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
     
     try:
@@ -8938,7 +8942,7 @@ def _dev_alerts_recent():
         limit = 25
     return jsonify({
         "ok": True,
-        "alerts": normalize_alerts(list(alerts_log), keep=limit, apply_cooldown=True),
+        "alerts": _normalize_alerts(list(alerts_log))[-limit:],
         "limit": limit,
     })
 

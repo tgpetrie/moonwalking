@@ -46,7 +46,7 @@ const fmtNum = (v, digits = 2) => (Number.isFinite(Number(v)) ? Number(v).toFixe
 
 export default function InsightsTabbed({ symbol = "", onClose }) {
   const [active, setActive] = useState("overview");
-  const { data: d, loading, error } = useMarketHeat();
+  const { data: d, raw, loading, error } = useMarketHeat();
 
   const sentimentSeries = useMemo(() => {
     const series = Array.isArray(d?.sentimentHistory) ? d.sentimentHistory : [];
@@ -65,31 +65,9 @@ export default function InsightsTabbed({ symbol = "", onClose }) {
       .sort((a, b) => a.t - b.t);
   }, [d]);
 
-  const socialSeries = useMemo(() => {
-    const series = Array.isArray(d?.socialHistory) ? d.socialHistory : [];
-    return series
-      .map((p) => {
-        const ts = p?.timestamp ?? null;
-        const t = ts ? new Date(ts).getTime() : null;
-        return {
-          ts,
-          t,
-          reddit: Number.isFinite(Number(p?.reddit)) ? Number(p.reddit) : null,
-          twitter: Number.isFinite(Number(p?.twitter)) ? Number(p.twitter) : null,
-          telegram: Number.isFinite(Number(p?.telegram)) ? Number(p.telegram) : null,
-          chan: Number.isFinite(Number(p?.chan)) ? Number(p.chan) : null,
-        };
-      })
-      .filter(
-        (p) =>
-          p.t && (p.reddit != null || p.twitter != null || p.telegram != null || p.chan != null)
-      )
-      .sort((a, b) => a.t - b.t);
-  }, [d]);
-
-  const trendingTopics = useMemo(() => {
-    return Array.isArray(d?.trendingTopics) ? d.trendingTopics : [];
-  }, [d]);
+  const components = d?.components || {};
+  const heatLabel = d?.heatLabel || "NEUTRAL";
+  const regimeRaw = (d?.regime || "unknown").toString();
 
   const divergenceAlerts = useMemo(() => {
     return Array.isArray(d?.divergenceAlerts) ? d.divergenceAlerts : [];
@@ -103,138 +81,89 @@ export default function InsightsTabbed({ symbol = "", onClose }) {
   );
   const renderEmpty = (msg) => <div className="insights-empty-card">{msg}</div>;
 
-  const renderSocialTab = () => {
+  const renderTapeTab = () => {
     if (loading && !d) return renderLoading();
     if (error) return renderError();
 
-    const volChange = d?.socialMetrics?.volumeChange ?? null;
-    const mentions24h = d?.socialMetrics?.mentions24h ?? null;
-    const engagement = d?.socialMetrics?.engagementRate ?? null;
-    const hasMetrics =
-      Number.isFinite(Number(volChange)) ||
-      Number.isFinite(Number(mentions24h)) ||
-      Number.isFinite(Number(engagement));
-    const hasSeries = socialSeries.length > 1;
-
-    const socialBreakdown = d?.socialBreakdown ?? {};
-    const hasBreakdown = Object.values(socialBreakdown).some((v) => Number.isFinite(Number(v)));
-    const hasTopics = trendingTopics.length > 0;
+    const hasComponents = components.total_symbols > 0;
     const hasDivergences = divergenceAlerts.length > 0;
     const showWidget = Boolean(symbol);
-    const hasAny = hasMetrics || hasBreakdown || hasSeries || hasTopics || hasDivergences || showWidget;
+    const hasAny = hasComponents || hasDivergences || showWidget;
 
     if (!hasAny) {
-      return renderEmpty("No social signals yet. Give it a minute to breathe.");
+      return renderEmpty("Warming up — collecting tape data...");
     }
 
     return (
       <div style={{ display: "grid", gap: 14 }}>
-        {hasMetrics && (
+        {hasComponents && (
           <div className="panel-soft">
-            <div className="section-title">Latest social pulse</div>
-            <div
-              className="social-grid"
-              style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}
-            >
-              <div className="metric-chip">
-                <div className="label">Volume change (24h)</div>
-                <div className="value">{fmtPct(volChange)}</div>
-              </div>
-              <div className="metric-chip">
-                <div className="label">Mentions (24h)</div>
-                <div className="value">
-                  {Number.isFinite(Number(mentions24h)) ? Number(mentions24h).toLocaleString() : "--"}
-                </div>
-              </div>
-              <div className="metric-chip">
-                <div className="label">Engagement rate</div>
-                <div className="value">{fmtNum(engagement, 2)}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {hasBreakdown && (
-          <div className="panel-soft">
-            <div className="section-title">Source breakdown (latest)</div>
+            <div className="section-title">Tape components ({components.total_symbols} symbols)</div>
             <div
               className="social-grid"
               style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}
             >
               <div className="metric-chip">
-                <div className="label">Reddit</div>
-                <div className="value">{fmtNum(socialBreakdown.reddit, 2)}</div>
+                <div className="label">Breadth (3m)</div>
+                <div className="value">{fmtPct(components.breadth_3m)}</div>
               </div>
               <div className="metric-chip">
-                <div className="label">Twitter</div>
-                <div className="value">{fmtNum(socialBreakdown.twitter, 2)}</div>
+                <div className="label">Breadth (1m)</div>
+                <div className="value">{fmtPct(components.breadth_1m)}</div>
               </div>
               <div className="metric-chip">
-                <div className="label">Telegram</div>
-                <div className="value">{fmtNum(socialBreakdown.telegram, 2)}</div>
+                <div className="label">Momentum</div>
+                <div className="value">{components.momentum_alignment != null ? fmtPct(components.momentum_alignment * 100) : "--"}</div>
               </div>
               <div className="metric-chip">
-                <div className="label">Fringe</div>
-                <div className="value">{fmtNum(socialBreakdown.chan, 2)}</div>
+                <div className="label">Volatility</div>
+                <div className="value">{fmtPct(components.volatility)}</div>
               </div>
             </div>
           </div>
         )}
 
-        {hasTopics && (
+        {hasComponents && (
           <div className="panel-soft">
-            <div className="section-title">Trending topics</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {trendingTopics.map((t, i) => (
-                <div key={`${t.tag ?? "topic"}-${i}`} className="topic-row">
-                  <div className="tag">{t.tag ?? "--"}</div>
-                  <div className="sent">{t.sentiment ?? "--"}</div>
-                  <div className="vol">{t.volume ?? "--"}</div>
-                </div>
-              ))}
+            <div className="section-title">Regime: {regimeRaw.replace(/_/g, " ").toUpperCase()} · Heat: {heatLabel}</div>
+            <div
+              className="social-grid"
+              style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}
+            >
+              <div className="metric-chip">
+                <div className="label">Avg Return (3m)</div>
+                <div className="value">{fmtNum(components.avg_return_3m, 3)}%</div>
+              </div>
+              <div className="metric-chip">
+                <div className="label">Avg Return (1m)</div>
+                <div className="value">{fmtNum(components.avg_return_1m, 3)}%</div>
+              </div>
+              <div className="metric-chip">
+                <div className="label">Green/Red (3m)</div>
+                <div className="value">{components.green_3m ?? 0}/{components.red_3m ?? 0}</div>
+              </div>
             </div>
           </div>
         )}
 
-        {hasSeries && (
+        {sentimentSeries.length > 1 && (
           <div className="panel-soft">
-            <div className="section-title">Social trend</div>
+            <div className="section-title">Heat trend</div>
             <div style={{ width: "100%", height: 220 }}>
               <ResponsiveContainer>
-                <LineChart data={socialSeries}>
+                <LineChart data={sentimentSeries}>
                   <CartesianGrid stroke="rgba(255,255,255,0.06)" />
                   <XAxis dataKey="ts" hide />
                   <YAxis hide domain={[0, 1]} />
                   <Tooltip
                     contentStyle={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)" }}
                     labelFormatter={() => ""}
-                    formatter={(val, key) => [fmtNum(val, 2), key]}
+                    formatter={(val) => [fmtNum(val * 100, 0), "Heat"]}
                   />
                   <Line
                     type="monotone"
-                    dataKey="reddit"
-                    stroke="var(--bh-blue, #7dd3fc)"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="twitter"
+                    dataKey="sentiment"
                     stroke="var(--bh-purple, #c084fc)"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="telegram"
-                    stroke="var(--bh-gold, #f5d061)"
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="chan"
-                    stroke="var(--bh-pink, #f9a8d4)"
                     dot={false}
                     strokeWidth={2}
                   />
@@ -287,56 +216,28 @@ export default function InsightsTabbed({ symbol = "", onClose }) {
     if (loading && !raw) return renderLoading();
     if (error) return renderError();
 
-    const sb = {
-      tier1: Number(d?.sourceBreakdown?.tier1) || 0,
-      tier2: Number(d?.sourceBreakdown?.tier2) || 0,
-      tier3: Number(d?.sourceBreakdown?.tier3) || 0,
-      fringe: Number(d?.sourceBreakdown?.fringe) || 0,
-    };
-    const hasSources = Object.values(sb).some((v) => Number.isFinite(Number(v)) && Number(v) !== 0);
+    const fg = d?.fearGreedIndex;
+    const hasFG = Number.isFinite(Number(fg));
 
     return (
       <div style={{ display: "grid", gap: 12 }}>
-        {!hasSources ? (
-          renderEmpty("No source breakdown yet.")
-        ) : (
-          <div className="panel-soft">
-            <div className="section-title">Coverage mix</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
-              <div className="metric-chip">
-                <div className="label">Tier 1</div>
-                <div className="value">{fmtNum(sb.tier1, 0)}</div>
-              </div>
-              <div className="metric-chip">
-                <div className="label">Tier 2</div>
-                <div className="value">{fmtNum(sb.tier2, 0)}</div>
-              </div>
-              <div className="metric-chip">
-                <div className="label">Tier 3</div>
-                <div className="value">{fmtNum(sb.tier3, 0)}</div>
-              </div>
-              <div className="metric-chip">
-                <div className="label">Fringe</div>
-                <div className="value">{fmtNum(sb.fringe, 0)}</div>
-              </div>
+        <div className="panel-soft">
+          <div className="section-title">Data sources</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div className="alert-row">
+              <div className="type" style={{ color: "var(--bh-green, #45ffb3)" }}>PRIMARY</div>
+              <div className="msg">Coinbase Price Tape — {components.total_symbols ?? 0} symbols, ~8s refresh</div>
+            </div>
+            <div className="alert-row">
+              <div className="type" style={{ color: "var(--bh-gold, #f5d061)" }}>VOLUME</div>
+              <div className="msg">Coinbase 1-min Candles — whale &amp; stealth detection</div>
+            </div>
+            <div className="alert-row">
+              <div className="type" style={{ color: hasFG ? "var(--bh-blue, #7dd3fc)" : "#666" }}>{hasFG ? "LIVE" : "N/A"}</div>
+              <div className="msg">Fear &amp; Greed Index — external macro signal{hasFG ? ` (${Number(fg).toFixed(0)})` : ""}</div>
             </div>
           </div>
-        )}
-
-        {trendingTopics.length > 0 && (
-          <div className="panel-soft">
-            <div className="section-title">Trending topics</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {trendingTopics.map((t, i) => (
-                <div key={`${t.tag}-${i}`} className="topic-row">
-                  <div className="tag">{t.tag ?? "--"}</div>
-                  <div className="sent">{t.sentiment ?? "--"}</div>
-                  <div className="vol">{t.volume ?? "--"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
 
         {divergenceAlerts.length > 0 && (
           <div className="panel-soft">

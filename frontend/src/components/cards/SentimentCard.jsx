@@ -1,17 +1,7 @@
 import React, { useMemo } from "react";
 import { useMarketHeat } from "../../hooks/useMarketHeat";
 
-const pct = (x, digits = 0) => (x == null ? "—" : `${(x * 100).toFixed(digits)}%`);
-const num = (x) => (x == null ? "—" : Number(x).toLocaleString());
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
-
-const toPairs = (record = {}) =>
-  Object.entries(record)
-    .filter(([, value]) => value != null)
-    .map(([key, value]) => ({
-      name: key.charAt(0).toUpperCase() + key.slice(1),
-      value,
-    }));
 
 function freshnessLabel(updatedAt) {
   if (!updatedAt) return { label: "unknown", tone: "muted" };
@@ -34,19 +24,6 @@ function confidenceFromSources(sourceBreakdown = {}) {
   return { label: "low", tone: "bad" };
 }
 
-const toneClass = (sentiment = "") => {
-  const s = sentiment.toLowerCase();
-  if (s.includes("bull")) return "bullish";
-  if (s.includes("bear")) return "bearish";
-  return "neutral";
-};
-
-const alertTone = (type = "") => {
-  const t = type.toLowerCase();
-  if (t.includes("warn") || t.includes("risk")) return "warning";
-  return "info";
-};
-
 const formatTime = (ts) => {
   if (!ts) return "--";
   try {
@@ -60,7 +37,6 @@ const formatTime = (ts) => {
 export function SentimentCardBody({ d, symbol }) {
   const fresh = useMemo(() => freshnessLabel(d.updatedAt), [d.updatedAt]);
   const conf = useMemo(() => confidenceFromSources(d.sourceBreakdown), [d.sourceBreakdown]);
-  const socialBreakdownPairs = useMemo(() => toPairs(d.socialBreakdown), [d.socialBreakdown]);
 
   const overallTone =
     d.overallSentiment == null
@@ -70,9 +46,6 @@ export function SentimentCardBody({ d, symbol }) {
       : d.overallSentiment >= 0.45
       ? "mid"
       : "bad";
-
-  const trending = d.trendingTopics ?? [];
-  const alerts = d.divergenceAlerts ?? [];
 
   const fgRaw = d.fearGreedIndex;
   const fearGreedPct = Number.isFinite(Number(fgRaw))
@@ -91,16 +64,6 @@ export function SentimentCardBody({ d, symbol }) {
       value: fearGreedPct == null ? "—" : `${Math.round(fearGreedPct)}`,
       suffix: fearGreedPct == null ? "" : "%",
       tone: "gold",
-    },
-    {
-      label: "Mentions 24h",
-      value: num(d.socialMetrics?.mentions24h),
-      tone: "mint",
-    },
-    {
-      label: "Engagement",
-      value: pct(d.socialMetrics?.engagementRate, 1),
-      tone: "purple",
     },
   ];
 
@@ -143,54 +106,6 @@ export function SentimentCardBody({ d, symbol }) {
         <div className="pct">{fearGreedPct == null ? "--" : `${fearGreedPct.toFixed(0)}%`}</div>
       </div>
 
-      <section>
-        <div className="sentiment-section-title">Social Breakdown</div>
-        <div className="sentiment-section-sub">Share of mentions by channel</div>
-        {socialBreakdownPairs.length > 0 ? (
-          <div className="trending-grid">
-            {socialBreakdownPairs.map((s) => (
-              <div key={s.name} className="trending-pill neutral">
-                <span>{s.name}</span>
-                <span>{pct(s.value)}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="insights-empty-card">No social split yet.</div>
-        )}
-      </section>
-
-      <section>
-        <div className="sentiment-section-title">Trending Topics</div>
-        <div className="sentiment-section-sub">What the street is leaning into</div>
-        {trending.length > 0 ? (
-          <div className="trending-grid">
-            {trending.map((t, i) => (
-              <div key={`${t.tag ?? "topic"}-${i}`} className={`trending-pill ${toneClass(t.sentiment)}`}>
-                <span>{t.tag ?? "--"}</span>
-                <span>{t.sentiment ?? "--"}</span>
-                {t.volume != null && <span>{t.volume}</span>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="insights-empty-card">Quiet right now.</div>
-        )}
-      </section>
-
-      {alerts.length > 0 && (
-        <section>
-          <div className="sentiment-section-title">Divergence Alerts</div>
-          <div className="sentiment-section-sub">Momentum vs chatter</div>
-          <div className="divergence-list">
-            {alerts.map((a, i) => (
-              <div key={`${a.type ?? "alert"}-${i}`} className={`divergence-item ${alertTone(a.type ?? "")}`}>
-                {a.message}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

@@ -63,6 +63,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   // Chart references
   const trendChartRef = useRef(null);
+  const correlationChartRef = useRef(null);
 
   const chartInstancesRef = useRef({});
 
@@ -95,17 +96,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const divergenceAlerts = Array.isArray(sentimentData?.divergenceAlerts)
     ? sentimentData.divergenceAlerts
     : [];
-  const tapeHeat = sentimentData?.tapeHeat || sentimentData?.raw?.tape_heat || sentimentData?.raw?.tapeHeat || {};
-  const tapeComponents = sentimentData?.components || sentimentData?.raw?.components || {};
-
-  const breadthPct = Number.isFinite(tapeHeat?.breadth) ? tapeHeat.breadth * 100 : null;
-  const alignment = Number.isFinite(tapeHeat?.momentum_alignment) ? tapeHeat.momentum_alignment : null;
-  const volatility = Number.isFinite(tapeHeat?.volatility) ? tapeHeat.volatility : null;
-  const avg1m = Number.isFinite(tapeComponents?.avg_return_1m) ? tapeComponents.avg_return_1m : null;
-  const avg3m = Number.isFinite(tapeComponents?.avg_return_3m) ? tapeComponents.avg_return_3m : null;
-  const greenCount = Number.isFinite(tapeComponents?.green_count) ? tapeComponents.green_count : null;
-  const totalSymbols = Number.isFinite(tapeComponents?.total_symbols) ? tapeComponents.total_symbols : null;
-
   // Don't forge 50 when missing - keep null
   const fearGreedIndex = Number.isFinite(sentimentData?.fearGreedIndex)
     ? sentimentData.fearGreedIndex
@@ -128,11 +118,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getSourceScoreLabel = (score) => {
-    if (typeof score !== 'number') return '--';
-    return `${(score * 100).toFixed(1)}%`;
   };
 
   // Close on Escape key
@@ -172,7 +157,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refresh();
+    await refresh({ freshLatest: true });
     setTimeout(() => setIsRefreshing(false), 1000);
   };
 
@@ -186,16 +171,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (score >= 60) return 'positive';
     if (score <= 40) return 'negative';
     return 'neutral';
-  };
-
-  const formatNumberShort = (num) => {
-    if (!Number.isFinite(num)) return 'N/A';
-    const abs = Math.abs(num);
-    if (abs >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
-    if (abs >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-    if (abs >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-    if (abs >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-    return num.toFixed(2);
   };
 
   const getFearGreedLabel = (fg) => {
@@ -291,6 +266,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
     try {
       initTrendChart();
+      initCorrelationChart();
     } catch (error) {
       console.error('Error initializing charts:', error);
     }
@@ -338,7 +314,97 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     updateChart(chart, { labels, datasets });
   };
 
-  // Removed tier/source/correlation/social charts for local tape heat
+  const initCorrelationChart = () => {
+    const canvas = correlationChartRef.current;
+    if (!canvas) return;
+
+    const history = sentimentHistory;
+
+    if (!history.length) {
+      if (chartInstancesRef.current.correlation) {
+        destroyChart('correlation');
+      }
+      return;
+    }
+
+    const labels = history.map(h => {
+      const date = new Date(h.timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const sentimentScores = history.map(h => (typeof h.sentiment === 'number' ? h.sentiment * 100 : null));
+    const priceData = history.map(h => {
+      if (typeof h.price === 'number') return h.price;
+      if (typeof h.priceNormalized === 'number') return h.priceNormalized;
+      return null;
+    });
+
+    const datasets = [
+      {
+        label: 'Price (normalized)',
+        data: priceData,
+        borderColor: '#f1b43a',
+        backgroundColor: 'rgba(241, 180, 58, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Sentiment',
+        data: sentimentScores,
+        borderColor: '#ae4bf5',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 0,
+        yAxisID: 'y1'
+      }
+    ];
+
+    const chart = ensureChart('correlation', canvas, () => new ChartJS(canvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#a3a3a3', font: { family: 'Raleway', size: 11 } }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#f1b43a',
+              callback: v => v
+            }
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            min: 0,
+            max: 100,
+            grid: { display: false },
+            ticks: { color: '#ae4bf5' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#666', maxTicksLimit: 8 }
+          }
+        }
+      }
+    }));
+
+    updateChart(chart, { labels, datasets });
+  };
 
   const getChartOptions = (yLabel) => {
     return {
@@ -407,7 +473,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const tvResolved = resolveTvSymbol(symbol, chartExchange);
   const tvUrl = buildTradingViewEmbedUrl(tvResolved.symbol);
 
-  const sourceCount = Number.isFinite(fg) ? 2 : 1;
   const regimeRaw = (sentimentData?.regime || "unknown").toString();
   const regimeDisplay = regimeRaw.toUpperCase();
   const confidenceDisplay = Number.isFinite(sentimentData?.confidence)
@@ -428,7 +493,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     : '--:--';
   const status =
     sentimentData?.pipelineStatus ??
-    (pipelineHealth?.pipelineRunning ? "LIVE" : "OFFLINE");
+    (pipelineHealth?.running ? "LIVE" : "OFFLINE");
   const statusLower = String(status).toLowerCase();
   const staleSeconds =
     sentimentData?.sentimentMeta?.staleSeconds ??
@@ -437,193 +502,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const statusTitle =
     status === "STALE" && typeof staleSeconds === "number"
       ? `STALE — ${Math.round(staleSeconds)}s stale`
-
-      ++++
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      ------------------++++++++++------------------+++++++++++++++++++++++++++++++++++++      : status === "OFFLINE"
-        ? "OFFLINE — tape engine not ready"
+      : status === "OFFLINE"
+        ? "OFFLINE — pipeline not reachable"
         : "LIVE";
 
   useEffect(() => {
@@ -631,12 +511,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (window.__MW_SENTIMENT_LOGGED__) return;
     window.__MW_SENTIMENT_LOGGED__ = true;
     console.debug("[sentiment] sample payload", {
+      pipelineTimestamp: sentimentData.pipelineTimestamp,
       overallSentiment: sentimentData.overallSentiment,
       fearGreedIndex: sentimentData.fearGreedIndex,
-      tapeHeat,
-      components: tapeComponents,
+      regime: sentimentData.regime,
+      heatLabel: sentimentData.heatLabel,
+      components: sentimentData.components,
     });
-  }, [isOpen, sentimentData, tapeHeat, tapeComponents]);
+  }, [isOpen, sentimentData]);
 
   return (
     <div
@@ -659,7 +541,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
             </div>
             <div className="header-text">
               <h1 id="sentimentTitle">Sentiment Analysis {symbol ? `· ${symbol}` : ''}</h1>
-              <p className="subtitle">Tape + Fear &amp; Greed intelligence</p>
+              <p className="subtitle">Market heat from live tape data</p>
             </div>
           </div>
           <div className="header-right">
@@ -685,11 +567,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           <div className="dev-strip">
             normalized: {String(Boolean(sentimentData?.normalized))} ·
             hist: {sentimentHistory.length} ·
-            breadth: {breadthPct != null ? `${Math.round(breadthPct)}%` : "n/a"} ·
-            vol: {volatility != null ? `${volatility.toFixed(2)}%` : "n/a"} ·
-            sources: {sourceCount} ·
+            symbols: {sentimentData?.components?.total_symbols ?? 0} ·
+            regime: {sentimentData?.regime || 'n/a'} ·
             timestamp: {sentimentData?.pipelineTimestamp || 'n/a'}
-            {!sentimentHistory.length && ' · No history returned yet'}
           </div>
         )}
 
@@ -767,7 +647,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               <SkeletonBlock h={180} radius={20} className="loading-gauge" />
               <SkeletonBlock h={260} radius={16} className="loading-chart" />
               <div className="loading-footer-text">
-                Fetching from {sourceCount ? `${sourceCount} sources` : 'tape sources'}
+                Loading market heat data from Coinbase tape...
               </div>
             </div>
           )}
@@ -828,17 +708,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 <div className="stat-card">
                   <div className="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M2 12h20"/>
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <span className="stat-label">Tape Breadth</span>
-                    <span className="stat-value">{breadthPct != null ? `${Math.round(breadthPct)}%` : "N/A"}</span>
+                    <span className="stat-label">Market Heat</span>
+                    <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
+                      {sentimentData?.heatLabel || 'NEUTRAL'}
+                    </span>
                     <span className="stat-sublabel">
-                      {greenCount != null && totalSymbols != null
-                        ? `${greenCount}/${totalSymbols} green · Avg 1m ${avg1m != null ? `${avg1m.toFixed(2)}%` : "—"}`
-                        : "Coverage warming"}
+                      Breadth {sentimentData?.components?.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '--'}
+                      {' · '}Momentum {sentimentData?.components?.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}
+                      {' · '}Vol {sentimentData?.components?.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '--'}
                     </span>
                   </div>
                 </div>
@@ -889,71 +770,105 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 </div>
               </div>
 
-              {/* Tape Heat Breakdown */}
-              <div className="info-section">
-                <h3>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
-                  </svg>
-                  Tape Heat Breakdown
-                </h3>
-                <div className="tier-breakdown-grid">
-                  <div className="tier-card tier-1">
-                    <div className="tier-header">
-                      <span className="tier-icon">BR</span>
-                      <span className="tier-label">Breadth (3m)</span>
+              {/* Market Heat Components */}
+              {sentimentData?.components && (
+                <div className="info-section">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+                    </svg>
+                    Market Heat Breakdown
+                  </h3>
+                  <div className="tier-breakdown-grid">
+                    <div className="tier-card tier-1">
+                      <div className="tier-header">
+                        <span className="tier-icon">📊</span>
+                        <span className="tier-label">Breadth (3m)</span>
+                      </div>
+                      <div className="tier-score">
+                        {sentimentData.components.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '—'}
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-1-fill"
+                          style={{ width: sentimentData.components.breadth_3m != null ? `${Math.min(100, sentimentData.components.breadth_3m)}%` : '0%' }}
+                        />
+                      </div>
+                      <div className="tier-meta">
+                        {sentimentData.components.green_3m ?? 0} green / {sentimentData.components.red_3m ?? 0} red of {sentimentData.components.total_symbols ?? 0}
+                      </div>
                     </div>
-                    <div className="tier-score">
-                      {breadthPct != null ? `${Math.round(breadthPct)}%` : '—'}
+
+                    <div className="tier-card tier-2">
+                      <div className="tier-header">
+                        <span className="tier-icon">⚡</span>
+                        <span className="tier-label">Breadth (1m)</span>
+                      </div>
+                      <div className="tier-score">
+                        {sentimentData.components.breadth_1m != null ? `${sentimentData.components.breadth_1m.toFixed(0)}%` : '—'}
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-2-fill"
+                          style={{ width: sentimentData.components.breadth_1m != null ? `${Math.min(100, sentimentData.components.breadth_1m)}%` : '0%' }}
+                        />
+                      </div>
+                      <div className="tier-meta">
+                        {sentimentData.components.green_1m ?? 0} green / {sentimentData.components.red_1m ?? 0} red
+                      </div>
                     </div>
-                    <div className="tier-bar">
-                      <div
-                        className="tier-bar-fill tier-1-fill"
-                        style={{ width: breadthPct != null ? `${Math.min(100, Math.max(0, breadthPct))}%` : '0%' }}
-                      />
+
+                    <div className="tier-card tier-3">
+                      <div className="tier-header">
+                        <span className="tier-icon">🔄</span>
+                        <span className="tier-label">Momentum Alignment</span>
+                      </div>
+                      <div className="tier-score">
+                        {sentimentData.components.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '—'}
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-3-fill"
+                          style={{ width: sentimentData.components.momentum_alignment != null ? `${Math.max(0, Math.min(100, (sentimentData.components.momentum_alignment + 1) * 50))}%` : '0%' }}
+                        />
+                      </div>
+                      <div className="tier-meta">
+                        1m vs 3m agreement
+                      </div>
                     </div>
-                    <div className="tier-meta">
-                      {greenCount != null && totalSymbols != null ? `${greenCount}/${totalSymbols} green` : 'Coverage warming'}
+
+                    <div className="tier-card tier-fringe">
+                      <div className="tier-header">
+                        <span className="tier-icon">📈</span>
+                        <span className="tier-label">Volatility</span>
+                      </div>
+                      <div className="tier-score">
+                        {sentimentData.components.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '—'}
+                      </div>
+                      <div className="tier-bar">
+                        <div
+                          className="tier-bar-fill tier-fringe-fill"
+                          style={{ width: sentimentData.components.volatility != null ? `${Math.min(100, sentimentData.components.volatility * 20)}%` : '0%' }}
+                        />
+                      </div>
+                      <div className="tier-meta">
+                        Avg 3m: {sentimentData.components.avg_return_3m != null ? `${sentimentData.components.avg_return_3m.toFixed(3)}%` : '--'}
+                        {' · '}Avg 1m: {sentimentData.components.avg_return_1m != null ? `${sentimentData.components.avg_return_1m.toFixed(3)}%` : '--'}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="tier-card tier-2">
-                    <div className="tier-header">
-                      <span className="tier-icon">MO</span>
-                      <span className="tier-label">Momentum Align</span>
-                    </div>
-                    <div className="tier-score">
-                      {alignment != null ? alignment.toFixed(2) : '—'}
-                    </div>
-                    <div className="tier-bar">
-                      <div
-                        className="tier-bar-fill tier-2-fill"
-                        style={{ width: alignment != null ? `${Math.min(100, Math.max(0, (alignment + 1) * 50))}%` : '0%' }}
-                      />
-                    </div>
-                    <div className="tier-meta">
-                      1m avg {avg1m != null ? `${avg1m.toFixed(2)}%` : '—'} · 3m avg {avg3m != null ? `${avg3m.toFixed(2)}%` : '—'}
-                    </div>
-                  </div>
-
-                  <div className="tier-card tier-3">
-                    <div className="tier-header">
-                      <span className="tier-icon">VO</span>
-                      <span className="tier-label">Volatility</span>
-                    </div>
-                    <div className="tier-score">
-                      {volatility != null ? `${volatility.toFixed(2)}%` : '—'}
-                    </div>
-                    <div className="tier-bar">
-                      <div
-                        className="tier-bar-fill tier-3-fill"
-                        style={{ width: volatility != null ? `${Math.min(100, Math.max(0, volatility * 10))}%` : '0%' }}
-                      />
-                    </div>
-                    <div className="tier-meta">3m return dispersion (stdev)</div>
+                  {/* Pipeline Status */}
+                  <div className={`pipeline-status ${pipelineHealth?.running ? 'success' : 'warning'}`}>
+                    <span className="status-indicator">{pipelineHealth?.running ? 'OK' : '!'}</span>
+                    <span>
+                      {pipelineHealth?.running
+                        ? `LIVE: Tracking ${sentimentData.components.total_symbols ?? 0} symbols from Coinbase tape`
+                        : 'Warming up — collecting price data...'}
+                    </span>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Divergence Alerts */}
               {safeAlerts.length > 0 && (
@@ -1003,13 +918,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                   </svg>
-                  How to Read the Tea Leaves
+                  Data Info
                 </h3>
                 <div className="explainer-box">
-                  <p><strong>Tape Heat:</strong> Breadth = % green (3m), Momentum = 1m vs 3m alignment, Volatility = 3m dispersion. These feed the overall score.</p>
-                  <p><strong>Charts:</strong> The gauge and trend line use <code>overallSentiment</code> from tape heat; Fear &amp; Greed is the only external bolt-on.</p>
-                  <p><strong>Refresh:</strong> Last update {lastUpdate}; auto-refresh every {Math.round(REFRESH_MS / 1000)}s.</p>
-                  <p className="disclaimer">If I were giving financial advice, I would say to treat this as context only, size small, and verify the linked sources before moving any capital.</p>
+                  <p><strong>Refresh:</strong> Pipeline timestamp {lastUpdate}; auto-refresh every {Math.round(REFRESH_MS / 1000)}s.</p>
+                  <p className="disclaimer">This is sentiment analysis, not financial advice. Always do your own research.</p>
                 </div>
               </div>
             </section>
@@ -1027,48 +940,74 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     Data Sources
                   </h3>
-                  <p className="section-desc">Local tape engine + external Fear &amp; Greed.</p>
+                  <p className="section-desc">Market heat is computed from live Coinbase tape data, seasoned with external signals.</p>
                 </div>
-                <div className="sources-list">
-                  <div className="source-card tier-1">
-                    <div className="source-info">
-                      <div className="source-header">
-                        <span className="source-icon" aria-hidden="true">CB</span>
-                        <div>
-                          <div className="source-name">Coinbase Tape Data</div>
-                          <span className="source-status">Live</span>
-                        </div>
-                      </div>
-                      <div className="source-desc">Local price history (1m/3m) computed on-box.</div>
-                      <div className="source-meta">
-                        <span>Scope: Market-wide</span>
-                        <span>Status: {status}</span>
+              </div>
+
+              <div className="sources-list">
+                <div className="source-card tier-1">
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">📡</span>
+                      <div>
+                        <div className="source-name">Coinbase Price Tape</div>
+                        <span className="source-status">{status}</span>
                       </div>
                     </div>
-                    <div className="source-metrics">
-                      <span className="tier-badge tier-1">TAPE</span>
-                      <span className="source-score">Score {getSourceScoreLabel(score != null ? score / 100 : null)}</span>
+                    <div className="source-desc">Real-time price data for {sentimentData?.components?.total_symbols ?? 0} symbols. Breadth, momentum, and volatility computed from 1m &amp; 3m windows.</div>
+                    <div className="source-meta">
+                      <span>Weight: Primary</span>
+                      <span>Refresh: ~8s</span>
+                      <span>Updated: {lastUpdate}</span>
                     </div>
                   </div>
-                  <div className="source-card tier-2">
-                    <div className="source-info">
-                      <div className="source-header">
-                        <span className="source-icon" aria-hidden="true">FG</span>
-                        <div>
-                          <div className="source-name">Fear &amp; Greed Index</div>
-                          <span className="source-status">{fgStatus}</span>
-                        </div>
-                      </div>
-                      <div className="source-desc">Alternative.me index (cached, 5m TTL).</div>
-                      <div className="source-meta">
-                        <span>Value: {Number.isFinite(fg) ? fg : "N/A"}</span>
-                        <span>Updated: {fgUpdatedLabel || "—"}</span>
+                  <div className="source-metrics">
+                    <span className="tier-badge tier-1">PRIMARY</span>
+                    <span className="source-score">Score {score !== null ? `${score}%` : '--'}</span>
+                  </div>
+                </div>
+
+                <div className="source-card tier-2">
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">📊</span>
+                      <div>
+                        <div className="source-name">Coinbase Volume (1h Candles)</div>
+                        <span className="source-status">{status}</span>
                       </div>
                     </div>
-                    <div className="source-metrics">
-                      <span className="tier-badge tier-2">FGI</span>
-                      <span className="source-score">Score {getSourceScoreLabel(Number.isFinite(fg) ? fg / 100 : null)}</span>
+                    <div className="source-desc">Hourly volume from 1-minute candles. Powers whale detection and stealth move alerts.</div>
+                    <div className="source-meta">
+                      <span>Weight: High</span>
+                      <span>Refresh: ~30s</span>
                     </div>
+                  </div>
+                  <div className="source-metrics">
+                    <span className="tier-badge tier-2">VOLUME</span>
+                  </div>
+                </div>
+
+                <div className={`source-card ${Number.isFinite(fg) ? 'tier-3' : 'tier-fringe'}`}>
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">😱</span>
+                      <div>
+                        <div className="source-name">Fear &amp; Greed Index</div>
+                        <span className="source-status">{Number.isFinite(fg) ? 'LIVE' : 'OFFLINE'}</span>
+                      </div>
+                    </div>
+                    <div className="source-desc">External macro signal from alternative.me. Cached with 5-min TTL.</div>
+                    <div className="source-meta">
+                      <span>Weight: Seasoning</span>
+                      <span>TTL: 5 min</span>
+                      {Number.isFinite(fg) && <span>Value: {fg}/100 ({getFearGreedLabel(fg)})</span>}
+                    </div>
+                  </div>
+                  <div className="source-metrics">
+                    <span className={`tier-badge ${Number.isFinite(fg) ? 'tier-3' : 'tier-fringe'}`}>
+                      {Number.isFinite(fg) ? 'EXTERNAL' : 'N/A'}
+                    </span>
+                    {Number.isFinite(fg) && <span className="source-score">Score {fg}%</span>}
                   </div>
                 </div>
               </div>
@@ -1129,8 +1068,156 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   {sentimentHistory.length ? (
                     <canvas ref={trendChartRef} role="img" aria-label="Sentiment trend chart"></canvas>
                   ) : (
-                    <div className="sentiment-muted">No history returned by pipeline.</div>
+                    <div className="sentiment-muted">Warming up — collecting heat history...</div>
                   )}
+                </div>
+              </div>
+
+              <div className="charts-row">
+                <div className="info-section half">
+                  <div className="section-header">
+                    <h3>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                      </svg>
+                      Market Breadth
+                    </h3>
+                  </div>
+                  <div className="chart-container donut">
+                    {sentimentData?.components ? (
+                      <div className="breadth-visual">
+                        <div className="breadth-row">
+                          <span className="breadth-label">3m Window</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar green" style={{width: `${sentimentData.components.breadth_3m ?? 0}%`}}></div>
+                            <div className="breadth-bar red" style={{width: `${100 - (sentimentData.components.breadth_3m ?? 0)}%`}}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.breadth_3m?.toFixed(0) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">1m Window</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar green" style={{width: `${sentimentData.components.breadth_1m ?? 0}%`}}></div>
+                            <div className="breadth-bar red" style={{width: `${100 - (sentimentData.components.breadth_1m ?? 0)}%`}}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.breadth_1m?.toFixed(0) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-legend">
+                          <span className="legend-dot green"></span> Green
+                          <span className="legend-dot red"></span> Red
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sentiment-muted">Warming up...</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="info-section half">
+                  <div className="section-header">
+                    <h3>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M18 20V10M12 20V4M6 20v-6"/>
+                      </svg>
+                      Heat Components
+                    </h3>
+                  </div>
+                  <div className="chart-container donut">
+                    {sentimentData?.components ? (
+                      <div className="breadth-visual">
+                        <div className="breadth-row">
+                          <span className="breadth-label">Momentum</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.max(0, Math.min(100, (( sentimentData.components.momentum_alignment ?? 0) + 1) * 50))}%`,
+                              background: (sentimentData.components.momentum_alignment ?? 0) > 0 ? '#45ffb3' : '#ae4bf5'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">Volatility</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.min(100, (sentimentData.components.volatility ?? 0) * 20)}%`,
+                              background: '#f1b43a'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.volatility?.toFixed(2) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">Avg Return</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.min(100, Math.abs(sentimentData.components.avg_return_3m ?? 0) * 50)}%`,
+                              background: (sentimentData.components.avg_return_3m ?? 0) >= 0 ? '#45ffb3' : '#ff6b6b'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.avg_return_3m?.toFixed(3) ?? '--'}%</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sentiment-muted">Warming up...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    Sentiment vs Price Correlation
+                  </h3>
+                  <p className="section-desc">How sentiment aligns with price movement</p>
+                </div>
+                <div className="chart-container">
+                  {sentimentHistory.length ? (
+                    <canvas ref={correlationChartRef} role="img" aria-label="Correlation chart"></canvas>
+                  ) : (
+                    <div className="sentiment-muted">Warming up — collecting heat history...</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M3 12h18"/>
+                      <path d="M3 6h12"/>
+                      <path d="M3 18h8"/>
+                    </svg>
+                    Momentum snapshot
+                  </h3>
+                  <p className="section-desc">Change across sentiment history (first vs last point)</p>
+                </div>
+                <div className="momentum-grid">
+                  {(() => {
+                    const delta = (arr, key) => {
+                      if (!Array.isArray(arr) || arr.length < 2) return null;
+                      const first = arr[0]?.[key];
+                      const last = arr[arr.length - 1]?.[key];
+                      if (typeof first !== 'number' || typeof last !== 'number') return null;
+                      return ((last - first) * 100).toFixed(1);
+                    };
+                    const sentimentDelta = delta(sentimentHistory, 'sentiment');
+                    const card = (label, val) => (
+                      <div className="momentum-card" key={label}>
+                        <span className="momentum-label">{label}</span>
+                        <span className={`momentum-value ${val === null ? 'muted' : val >= 0 ? 'pos' : 'neg'}`}>
+                          {val === null ? '—' : `${val > 0 ? '+' : ''}${val}`}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <div className="momentum-cards">
+                        {card('Sentiment', sentimentDelta)}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </section>
@@ -1139,6 +1226,50 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {/* INSIGHTS TAB */}
           {!loading && activeTab === 'insights' && (
             <section className="tab-panel active" role="tabpanel">
+              {/* Market Regime Summary */}
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    Market Regime
+                  </h3>
+                  <p className="section-desc">Current tape conditions from {sentimentData?.components?.total_symbols ?? 0} symbols</p>
+                </div>
+                <div className="stats-grid" style={{gridTemplateColumns: 'repeat(3, 1fr)'}}>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Regime</span>
+                      <span className={`stat-value ${regimeRaw === 'risk_on' ? 'positive' : regimeRaw === 'risk_off' ? 'negative' : 'neutral'}`}>
+                        {regimeDisplay}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Heat</span>
+                      <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
+                        {sentimentData?.heatLabel || 'NEUTRAL'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Confidence</span>
+                      <span className="stat-value neutral">{confidenceDisplay}</span>
+                    </div>
+                  </div>
+                </div>
+                {reasonLines.length > 0 && (
+                  <div style={{marginTop: '0.5rem'}}>
+                    {reasonLines.map((r, idx) => (
+                      <div key={`insight-reason-${idx}`} className="sentiment-reason">{r}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Divergence Alerts */}
               {safeAlerts.length > 0 && (
                 <div className="info-section">
@@ -1150,7 +1281,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       </svg>
                       Divergence Alerts
                     </h3>
-                    <p className="section-desc">1m vs 3m tape disagreements</p>
+                    <p className="section-desc">1m vs 3m timeframe disagreements detected on tape</p>
                   </div>
                   <div className="divergence-alerts">
                     {safeAlerts.map((alert, idx) => (
@@ -1177,7 +1308,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     AI Market Analysis
                   </h3>
-                  <p className="section-desc">Generated from tape heat + F&amp;G</p>
+                  <p className="section-desc">Generated from tape heat and macro signals</p>
                 </div>
 
                 <div className="insights-list">
@@ -1207,7 +1338,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         {/* Footer */}
         <footer className="popup-footer">
           <div className="footer-left">
-            <span className="data-source">Powered by tape + Fear &amp; Greed (<span>{sourceCount}</span> sources)</span>
+            <span className="data-source">Powered by Coinbase tape data · <span>{sentimentData?.components?.total_symbols ?? 0}</span> symbols tracked</span>
           </div>
           <div className="footer-right">
             <button

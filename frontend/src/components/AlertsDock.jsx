@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
-import { deriveAlertType, labelFromTypeKey, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { useData } from "../context/DataContext";
 
 const LS_SEEN_KEY = "mw_alerts_last_seen_id";
@@ -71,13 +71,6 @@ const formatDirection = (raw) => {
   return { label: "Flat", arrow: "•", tone: "flat" };
 };
 
-const directionFromPct = (pct, fallback) => {
-  if (Number.isFinite(pct)) {
-    return formatDirection(pct > 0 ? "up" : pct < 0 ? "down" : "flat");
-  }
-  return formatDirection(fallback);
-};
-
 const toProductId = (a) => {
   let p = String(a?.product_id || a?.symbol || "").trim().toUpperCase();
   if (!p) return "";
@@ -85,7 +78,7 @@ const toProductId = (a) => {
   return p;
 };
 
-const TYPE_OPTIONS = ["ALL", "MOONSHOT", "BREAKOUT", "CRATER", "DUMP", "DIVERGENCE", "MOVE", "ALERT"];
+const TYPE_OPTIONS = ["ALL", "MOONSHOT", "CRATER", "BREAKOUT", "DUMP", "WHALE", "STEALTH", "DIVERGENCE", "FOMO", "FEAR", "VOLUME", "IMPULSE"];
 
 export default function AlertsDock() {
   const { alerts = [] } = useData() || {};
@@ -100,26 +93,15 @@ export default function AlertsDock() {
 
     for (const a of list) {
       if (!a || typeof a !== "object") continue;
-      const symbolRaw = a.symbol ?? a.product_id ?? a.ticker ?? "";
-      const symbol = String(symbolRaw).trim().toUpperCase().replace(/-USD$/i, "");
-      const typeKey = a.type_key ?? a.typeKey ?? null;
-      const parsed = parseImpulseMessage(a);
-      const pct = asNumber(a?.pct ?? a?.change_pct ?? a?.pct_change ?? parsed.parsed_pct);
-      const windowLabelRaw = a.window ?? a.window_label ?? parsed.parsed_window_label ?? windowLabelFromType(a?.type) ?? "";
-      const windowLabel = String(windowLabelRaw || "").trim() || "3m";
-      const derivedType = typeKey
-        ? labelFromTypeKey(typeKey)
-        : deriveAlertType({ type: a?.type, pct, severity: a?.severity || a?.sev });
-      const id = a.id || `${symbol || "UNK"}-${typeKey || a.type || "alert"}-${a.ts_ms || a.ts || ""}`;
+      const id = a.id || `${a.symbol || "UNK"}-${a.type || "t"}-${a.ts || ""}`;
       if (seen.has(id)) continue;
       seen.add(id);
 
       const tsMs = toMs(a.event_ts_ms ?? a.eventTsMs ?? a.ts_ms ?? a.tsMs ?? a.ts);
-      const productId = a.product_id || (symbol ? `${symbol}-USD` : null);
-      const url = a.trade_url || a.url || coinbaseSpotUrl({ product_id: productId, symbol });
-      const priceNow = asNumber(a.price_now ?? a.price ?? a.current_price ?? null);
-      const priceThen = asNumber(a.price_then ?? a.initial_price ?? null);
-      const volPct = asNumber(a.vol_pct ?? a.vol_change_pct ?? a.volPct ?? null);
+      const productId = a.product_id || (a.symbol ? `${a.symbol}-USD` : null);
+      const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: a.symbol });
+      const parsed = parseImpulseMessage(a);
+      const derivedType = deriveAlertType({ type: a?.type, pct: a.pct ?? parsed.parsed_pct, severity: a?.severity || a?.sev });
 
       out.push({
         ...a,
@@ -128,13 +110,6 @@ export default function AlertsDock() {
         tsMs,
         productId,
         url,
-        symbol,
-        typeKey,
-        windowLabel,
-        pct,
-        priceNow,
-        priceThen,
-        volPct,
         derivedType,
       });
     }
@@ -226,19 +201,32 @@ export default function AlertsDock() {
               filtered.slice(0, 50).map((a) => {
                 const age = a.tsMs ? formatAge(nowMs - a.tsMs) : "—";
                 const sev = String(a.severity || "info").toUpperCase();
-                const direction = directionFromPct(a.pct, a.parsed_direction || a.meta?.direction || a.direction);
-                const w = a.windowLabel || "3m";
-                const pctText = Number.isFinite(a.pct) ? pctForDisplay(a.pct, w) : "–";
+                const direction = formatDirection(a.parsed_direction || a.meta?.direction);
+                const w = windowLabelFromType(a.type) || a.parsed_window_label;
+                const pctDirect = asNumber(a?.pct);
+                const pctParsed = asNumber(a?.parsed_pct);
+                const magnitude = pctDirect !== null
+                  ? pctDirect
+                  : pctParsed !== null
+                    ? pctParsed
+                    : Number.isFinite(Number(a?.meta?.magnitude))
+                      ? (String(a?.meta?.direction || "").toLowerCase() === "down"
+                        ? -Number(a.meta.magnitude)
+                        : Number(a.meta.magnitude))
+                      : null;
+                const pctText = pctForDisplay(magnitude, w);
                 // price (only if it actually exists)
-                const priceNowNum = asNumber(a.priceNow ?? a.price_now ?? a.price ?? a.current_price ?? null);
-                const priceThenNum = asNumber(a.priceThen ?? a.price_then ?? a.initial_price ?? null);
+                const priceNowRaw = asNumber(a.price_now ?? a.price ?? a.current_price ?? null);
+                const priceThenRaw = asNumber(a.price_then ?? a.initial_price ?? null);
+                const priceNowNum = priceNowRaw;
+                const priceThenNum = priceThenRaw;
                 const priceNow = priceNowNum != null ? priceForDisplay(priceNowNum) : "–";
                 const priceThen = priceThenNum != null ? priceForDisplay(priceThenNum) : "–";
-                const priceLine = (priceNowNum != null && priceThenNum != null)
+                const priceLine = (priceNow !== "–" && priceThen !== "–")
                   ? `$${priceNow} from $${priceThen}`
-                  : (priceNowNum != null ? `$${priceNow}` : "");
+                  : (priceNow !== "–" ? `$${priceNow}` : "");
                 // volume (only if it actually exists)
-                const volPct = asNumber(a.volPct ?? a.vol_pct ?? a.vol_change_pct ?? null);
+                const volPct = asNumber(a.vol_change_pct ?? a.vol_pct ?? null);
                 const volNow = asNumber(a.vol_now ?? null);
                 const volThen = asNumber(a.vol_then ?? null);
                 let volLine = "";
@@ -250,7 +238,7 @@ export default function AlertsDock() {
                   const sign = v > 0 ? "+" : "";
                   volLine = `Vol ${sign}${v.toFixed(0)}%`;
                 }
-                const symbol = String(a.symbol || a.productId || "").replace("-USD", "").toUpperCase();
+                const symbol = String(a.productId || a.symbol || "").replace("-USD", "").toUpperCase();
                 const headerParts = [
                   `${a.derivedType} ${symbol}`,
                   pctText !== "–" ? `${pctText}${w ? ` in ${w}` : ""}` : null,

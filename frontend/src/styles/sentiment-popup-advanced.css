@@ -1072,6 +1072,71 @@
     font-family: 'Raleway', sans-serif;
 }
 
+/* Breadth Visual (Charts tab) */
+.breadth-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+.breadth-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.breadth-label {
+    font-size: 0.8rem;
+    color: var(--sentiment-muted);
+    min-width: 70px;
+    font-family: 'Raleway', sans-serif;
+}
+.breadth-bar-wrap {
+    flex: 1;
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.05);
+}
+.breadth-bar {
+    height: 100%;
+    transition: width 0.4s ease;
+}
+.breadth-bar.green {
+    background: var(--sentiment-pos, #45ffb3);
+}
+.breadth-bar.red {
+    background: var(--sentiment-neg, #ff6b6b);
+}
+.breadth-pct {
+    font-size: 0.8rem;
+    color: var(--sentiment-text, #eaeaea);
+    min-width: 40px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+}
+.breadth-legend {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--sentiment-muted);
+    margin-top: 0.25rem;
+}
+.breadth-legend .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 2px;
+}
+.breadth-legend .legend-dot.green {
+    background: var(--sentiment-pos, #45ffb3);
+}
+.breadth-legend .legend-dot.red {
+    background: var(--sentiment-neg, #ff6b6b);
+}
+
 /* Pipeline Status */
 .pipeline-status {
     margin-top: 1rem;

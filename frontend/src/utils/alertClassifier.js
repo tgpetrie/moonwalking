@@ -50,6 +50,22 @@ export const parseImpulseMessage = (a) => {
   };
 };
 
+// Alert type display labels (emoji + name)
+export const ALERT_TYPE_LABELS = {
+  MOONSHOT:   "🚀 MOONSHOT",
+  CRATER:     "📉 CRATER",
+  BREAKOUT:   "📈 BREAKOUT",
+  DUMP:       "📉 DUMP",
+  WHALE:      "🐋 WHALE",
+  STEALTH:    "👤 STEALTH",
+  DIVERGENCE: "⚖️ DIVERGENCE",
+  FOMO:       "🔥 FOMO",
+  FEAR:       "🥶 FEAR",
+  IMPULSE:    "⚡ IMPULSE",
+  VOLUME:     "📊 VOLUME",
+  SENTIMENT:  "🌊 SENTIMENT",
+};
+
 // Aligns with AlertsDock label logic
 export const deriveAlertType = ({ type, pct, severity, type_key, typeKey } = {}) => {
   const tk = type_key || typeKey;
@@ -62,6 +78,15 @@ export const deriveAlertType = ({ type, pct, severity, type_key, typeKey } = {})
   const pctNum = Number(pct);
   const abs = Number.isFinite(pctNum) ? Math.abs(pctNum) : 0;
 
+  // Exact type matches from backend (new rich types)
+  if (t === "MOONSHOT") return "MOONSHOT";
+  if (t === "CRATER") return "CRATER";
+  if (t === "BREAKOUT") return "BREAKOUT";
+  if (t === "DUMP") return "DUMP";
+  if (t === "WHALE_MOVE" || t.includes("WHALE")) return "WHALE";
+  if (t === "STEALTH_MOVE" || t.includes("STEALTH")) return "STEALTH";
+  if (t === "FOMO_ALERT" || t.includes("FOMO")) return "FOMO";
+  if (t === "FEAR_ALERT" || t.includes("FEAR")) return "FEAR";
   if (t.includes("DIVERGENCE")) return "DIVERGENCE";
   if (t.includes("MOONSHOT")) return "MOONSHOT";
   if (t.includes("BREAKOUT")) return "BREAKOUT";
@@ -71,6 +96,7 @@ export const deriveAlertType = ({ type, pct, severity, type_key, typeKey } = {})
   if (t.includes("SENTIMENT")) return "SENTIMENT";
   if (!Number.isFinite(pctNum)) return "IMPULSE";
 
+  // Fallback: classify by magnitude
   if (pctNum >= 0) {
     if (sev === "CRITICAL" || abs >= strong) return "MOONSHOT";
     if (sev === "HIGH" || abs >= medium) return "BREAKOUT";
@@ -80,4 +106,9 @@ export const deriveAlertType = ({ type, pct, severity, type_key, typeKey } = {})
   if (sev === "CRITICAL" || abs >= strong) return "CRATER";
   if (sev === "HIGH" || abs >= medium) return "DUMP";
   return "IMPULSE";
+};
+
+// Get display label for an alert type
+export const getAlertTypeLabel = (alertType) => {
+  return ALERT_TYPE_LABELS[alertType] || ALERT_TYPE_LABELS.IMPULSE;
 };
