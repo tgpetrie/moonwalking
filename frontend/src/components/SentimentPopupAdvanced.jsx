@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TrendingUp, Activity, AlertTriangle } from 'lucide-react';
-import { useTieredSentiment } from '../hooks/useTieredSentiment';
+import { useMarketHeat } from '../hooks/useMarketHeat';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import '../styles/sentiment-popup-advanced.css';
 import { SkeletonBlock, SkeletonCard, SkeletonText } from './ui/Skeleton';
@@ -8,26 +8,6 @@ import { SkeletonBlock, SkeletonCard, SkeletonText } from './ui/Skeleton';
 // Register Chart.js components
 ChartJS.register(...registerables);
 
-const TIER_ICONS = {
-  tier1: 'T1',
-  tier2: 'T2',
-  tier3: 'T3',
-  fringe: 'FX'
-};
-
-const TIER_ORDER = {
-  tier1: 1,
-  tier2: 2,
-  tier3: 3,
-  fringe: 4
-};
-
-const TIER_LABELS = {
-  tier1: 'Tier 1 · Institutional',
-  tier2: 'Tier 2 · Professional',
-  tier3: 'Tier 3 · Retail',
-  fringe: 'Fringe · Schizo'
-};
 
 /**
  * Advanced Sentiment Analysis Popup
@@ -67,7 +47,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const REFRESH_MS = 15000;
   const [activeTab, setActiveTab] = useState('overview');
   const [chartExchange, setChartExchange] = useState('auto'); // auto | coinbase | binance
-  const { data: sentimentData, loading, error, refresh, pipelineHealth, tieredData, sources: pipelineSources } = useTieredSentiment(symbol, { enabled: isOpen, refreshMs: REFRESH_MS });
+  const { data: sentimentData, loading, error, refresh, pipelineHealth } = useMarketHeat();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Optional debug: Log symbol on open for debugging
@@ -83,10 +63,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
   // Chart references
   const trendChartRef = useRef(null);
-  const pieChartRef = useRef(null);
-  const tierChartRef = useRef(null);
   const correlationChartRef = useRef(null);
-  const socialChartRef = useRef(null);
 
   const chartInstancesRef = useRef({});
 
@@ -116,23 +93,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const sentimentHistory = Array.isArray(sentimentData?.sentimentHistory)
     ? sentimentData.sentimentHistory
     : [];
-  const socialHistory = Array.isArray(sentimentData?.socialHistory)
-    ? sentimentData.socialHistory
-    : [];
-  const socialBreakdown = sentimentData?.socialBreakdown || {};
-  const sourceBreakdown = sentimentData?.sourceBreakdown || {};
   const divergenceAlerts = Array.isArray(sentimentData?.divergenceAlerts)
     ? sentimentData.divergenceAlerts
     : [];
-  const trendingTopics = Array.isArray(sentimentData?.trendingTopics)
-    ? sentimentData.trendingTopics
-    : [];
-  const tierScores = sentimentData?.tierScores || {};
   // Don't forge 50 when missing - keep null
   const fearGreedIndex = Number.isFinite(sentimentData?.fearGreedIndex)
     ? sentimentData.fearGreedIndex
     : null;
-  const hasTieredData = Boolean(sentimentData?.hasTieredData);
 
   const safeAlerts = useMemo(() => {
     return divergenceAlerts
@@ -145,45 +112,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       .filter(Boolean);
   }, [divergenceAlerts]);
 
-  const safeTopics = useMemo(() => {
-    return trendingTopics
-      .map((t) => {
-        const sentiment = (t?.sentiment || 'neutral')?.toString().toLowerCase();
-        const tag = t?.tag || t?.topic || 'Topic';
-        const volume = t?.volume ?? t?.count ?? '';
-        return { sentiment, tag, volume };
-      })
-      .filter(Boolean);
-  }, [trendingTopics]);
-
-  const sortedSources = useMemo(() => {
-    if (!pipelineSources || !pipelineSources.length) return [];
-    return [...pipelineSources].sort((a, b) => {
-      const tierA = TIER_ORDER[a.tier] ?? 99;
-      const tierB = TIER_ORDER[b.tier] ?? 99;
-      if (tierA !== tierB) return tierA - tierB;
-      return (b.trust_weight ?? 0) - (a.trust_weight ?? 0);
-    });
-  }, [pipelineSources]);
 
   const formatTimestamp = (value) => {
     if (!value) return '--:--';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getTierBadgeLabel = (tier) => {
-    if (!tier) return 'UNKNOWN';
-    if (tier === 'fringe') return 'FRINGE';
-    const match = tier.match(/tier(\d)/i);
-    if (match) return `TIER ${match[1]}`;
-    return tier.replace('-', ' ').toUpperCase();
-  };
-
-  const getSourceScoreLabel = (score) => {
-    if (typeof score !== 'number') return '--';
-    return `${(score * 100).toFixed(1)}%`;
   };
 
   // Close on Escape key
@@ -219,7 +153,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         chartInstancesRef.current = {};
       }
     };
-  }, [activeTab, sentimentData, isOpen, sentimentHistory, socialHistory]);
+  }, [activeTab, sentimentData, isOpen, sentimentHistory]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -237,16 +171,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     if (score >= 60) return 'positive';
     if (score <= 40) return 'negative';
     return 'neutral';
-  };
-
-  const formatNumberShort = (num) => {
-    if (!Number.isFinite(num)) return 'N/A';
-    const abs = Math.abs(num);
-    if (abs >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
-    if (abs >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-    if (abs >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-    if (abs >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-    return num.toFixed(2);
   };
 
   const getFearGreedLabel = (fg) => {
@@ -342,10 +266,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
 
     try {
       initTrendChart();
-      initPieChart();
-      initTierChart();
       initCorrelationChart();
-      initSocialHistoryChart();
     } catch (error) {
       console.error('Error initializing charts:', error);
     }
@@ -388,93 +309,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       type: 'line',
       data: { labels, datasets },
       options: getChartOptions('Sentiment (0-100)')
-    }));
-
-    updateChart(chart, { labels, datasets });
-  };
-
-  const initPieChart = () => {
-    const canvas = pieChartRef.current;
-    if (!canvas) return;
-
-    const breakdown = sourceBreakdown || { tier1: 0, tier2: 0, tier3: 0, fringe: 0 };
-
-    const labels = ['Tier 1', 'Tier 2', 'Tier 3', 'Fringe'];
-    const datasets = [{
-      data: [breakdown.tier1 || 0, breakdown.tier2 || 0, breakdown.tier3 || 0, breakdown.fringe || 0],
-      backgroundColor: ['#45ffb3', '#f1b43a', '#ae4bf5', '#6a7cff'],
-      borderColor: '#141414',
-      borderWidth: 2
-    }];
-
-    const chart = ensureChart('pie', canvas, () => new ChartJS(canvas, {
-      type: 'doughnut',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: '#a3a3a3',
-              font: { family: 'Raleway', size: 11 },
-              padding: 15
-            }
-          }
-        },
-        cutout: '60%'
-      }
-    }));
-
-    updateChart(chart, { labels, datasets });
-  };
-
-  const initTierChart = () => {
-    const canvas = tierChartRef.current;
-    if (!canvas) return;
-
-    const redditTwitter = [socialBreakdown.reddit, socialBreakdown.twitter].filter(v => typeof v === 'number');
-    const tgChan = [socialBreakdown.telegram, socialBreakdown.chan].filter(v => typeof v === 'number');
-
-    const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-
-    const buckets = [
-      { label: 'Macro (F&G)', value: fearGreedIndex },
-      { label: 'Reddit/Twitter', value: avg(redditTwitter) * 100 },
-      { label: 'Telegram/Chan', value: avg(tgChan) * 100 },
-    ];
-
-    const labels = buckets.map(b => b.label);
-    const datasets = [{
-      label: 'Avg. Sentiment',
-      data: buckets.map(b => b.value || 0),
-      backgroundColor: ['rgba(69, 255, 179, 0.6)', 'rgba(241, 180, 58, 0.6)', 'rgba(174, 75, 245, 0.6)'],
-      borderColor: ['#45ffb3', '#f1b43a', '#ae4bf5'],
-      borderWidth: 1,
-      borderRadius: 4
-    }];
-
-    const chart = ensureChart('tier', canvas, () => new ChartJS(canvas, {
-      type: 'bar',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#666' }
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#a3a3a3', font: { family: 'Raleway', size: 10 } }
-          }
-        }
-      }
     }));
 
     updateChart(chart, { labels, datasets });
@@ -572,55 +406,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
     updateChart(chart, { labels, datasets });
   };
 
-  const initSocialHistoryChart = () => {
-    const canvas = socialChartRef.current;
-    if (!canvas) return;
-
-    if (chartInstancesRef.current.social) {
-      // keep instance; will update below
-    }
-
-    if (!socialHistory.length) {
-      if (chartInstancesRef.current.social) {
-        destroyChart('social');
-      }
-      return;
-    }
-
-    const labels = socialHistory.map((h) => {
-      const date = new Date(h.timestamp);
-      return Number.isNaN(date.getTime())
-        ? String(h.timestamp || '')
-        : date.toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    });
-
-    const series = (label, key, color) => ({
-      label,
-      data: socialHistory.map((h) => (typeof h[key] === 'number' ? h[key] * 100 : null)),
-      tension: 0.35,
-      pointRadius: 0,
-      pointHoverRadius: 3,
-      borderColor: color,
-      backgroundColor: 'transparent',
-      spanGaps: true,
-    });
-
-    const datasets = [
-      series('Reddit', 'reddit', '#f1b43a'),
-      series('Twitter', 'twitter', '#ae4bf5'),
-      series('Telegram', 'telegram', '#45ffb3'),
-      series('Chan', 'chan', '#6a7cff'),
-    ];
-
-    const chart = ensureChart('social', canvas, () => new ChartJS(canvas, {
-      type: 'line',
-      data: { labels, datasets },
-      options: getChartOptions('Social sentiment (0-100)'),
-    }));
-
-    updateChart(chart, { labels, datasets });
-  };
-
   const getChartOptions = (yLabel) => {
     return {
       responsive: true,
@@ -688,20 +473,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
   const tvResolved = resolveTvSymbol(symbol, chartExchange);
   const tvUrl = buildTradingViewEmbedUrl(tvResolved.symbol);
 
-  const fallbackSourceCount = sourceBreakdown
-    ? Object.values(sourceBreakdown).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0)
-    : 0;
-  const sourceCount = pipelineSources?.length || fallbackSourceCount;
-
-  const marketPulse = sentimentData?.marketPulse || {};
-  const marketCapDisplay = formatNumberShort(marketPulse.totalMarketCap);
-  const marketVolDisplay = formatNumberShort(marketPulse.totalVolume);
-  const marketDomDisplay = Number.isFinite(marketPulse.btcDominance)
-    ? `${marketPulse.btcDominance.toFixed(2)}%`
-    : "N/A";
-  const marketStatus =
-    sentimentData?.marketPulseStatus || (marketCapDisplay !== "N/A" ? "LIVE" : "UNAVAILABLE");
-  const marketUpdatedLabel = formatTimestamp(marketPulse.updatedAt);
   const regimeRaw = (sentimentData?.regime || "unknown").toString();
   const regimeDisplay = regimeRaw.toUpperCase();
   const confidenceDisplay = Number.isFinite(sentimentData?.confidence)
@@ -743,11 +514,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
       pipelineTimestamp: sentimentData.pipelineTimestamp,
       overallSentiment: sentimentData.overallSentiment,
       fearGreedIndex: sentimentData.fearGreedIndex,
-      tierScores: sentimentData.tierScores,
-      sourceBreakdown,
-      firstSource: sortedSources?.[0] || null,
+      regime: sentimentData.regime,
+      heatLabel: sentimentData.heatLabel,
+      components: sentimentData.components,
     });
-  }, [isOpen, sentimentData, sourceBreakdown, sortedSources]);
+  }, [isOpen, sentimentData]);
 
   return (
     <div
@@ -770,7 +541,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
             </div>
             <div className="header-text">
               <h1 id="sentimentTitle">Sentiment Analysis {symbol ? `· ${symbol}` : ''}</h1>
-              <p className="subtitle">Multi-source market intelligence</p>
+              <p className="subtitle">Market heat from live tape data</p>
             </div>
           </div>
           <div className="header-right">
@@ -796,10 +567,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           <div className="dev-strip">
             normalized: {String(Boolean(sentimentData?.normalized))} ·
             hist: {sentimentHistory.length} ·
-            social: {socialHistory.length} ·
-            sources: {Object.values(sourceBreakdown).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0)} ·
+            symbols: {sentimentData?.components?.total_symbols ?? 0} ·
+            regime: {sentimentData?.regime || 'n/a'} ·
             timestamp: {sentimentData?.pipelineTimestamp || 'n/a'}
-            {(!sentimentHistory.length || !socialHistory.length) && ' · No history returned by pipeline yet'}
           </div>
         )}
 
@@ -877,7 +647,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
               <SkeletonBlock h={180} radius={20} className="loading-gauge" />
               <SkeletonBlock h={260} radius={16} className="loading-chart" />
               <div className="loading-footer-text">
-                Fetching from {sourceCount ? `${sourceCount} sources` : 'pipeline sources'}
+                Loading market heat data from Coinbase tape...
               </div>
             </div>
           )}
@@ -938,16 +708,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 <div className="stat-card">
                   <div className="stat-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M2 12h20"/>
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                     </svg>
                   </div>
                   <div className="stat-content">
-                    <span className="stat-label">Market Pulse</span>
-                    <span className="stat-value">{marketCapDisplay}</span>
+                    <span className="stat-label">Market Heat</span>
+                    <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
+                      {sentimentData?.heatLabel || 'NEUTRAL'}
+                    </span>
                     <span className="stat-sublabel">
-                      BTC Dom {marketDomDisplay} · Vol {marketVolDisplay} · {marketStatus}
-                      {marketUpdatedLabel ? ` · ${marketUpdatedLabel}` : ""}
+                      Breadth {sentimentData?.components?.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '--'}
+                      {' · '}Momentum {sentimentData?.components?.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}
+                      {' · '}Vol {sentimentData?.components?.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '--'}
                     </span>
                   </div>
                 </div>
@@ -998,98 +770,103 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 </div>
               </div>
 
-              {/* Tiered Sentiment Breakdown */}
-              {hasTieredData && tierScores && (
+              {/* Market Heat Components */}
+              {sentimentData?.components && (
                 <div className="info-section">
                   <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
                     </svg>
-                    Who's Buying? Whale vs Retail Sentiment
+                    Market Heat Breakdown
                   </h3>
                   <div className="tier-breakdown-grid">
                     <div className="tier-card tier-1">
                       <div className="tier-header">
-                        <span className="tier-icon">T1</span>
-                        <span className="tier-label">Whales & Institutions</span>
+                        <span className="tier-icon">📊</span>
+                        <span className="tier-label">Breadth (3m)</span>
                       </div>
                       <div className="tier-score">
-                        {tierScores.tier1 != null ? `${(tierScores.tier1 * 100).toFixed(0)}%` : '—'}
+                        {sentimentData.components.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-1-fill"
-                          style={{ width: tierScores.tier1 != null ? `${tierScores.tier1 * 100}%` : '0%' }}
+                          style={{ width: sentimentData.components.breadth_3m != null ? `${Math.min(100, sentimentData.components.breadth_3m)}%` : '0%' }}
                         />
                       </div>
-                      <div className="tier-meta">Smart Money: CoinGecko, Fear & Greed, Binance</div>
+                      <div className="tier-meta">
+                        {sentimentData.components.green_3m ?? 0} green / {sentimentData.components.red_3m ?? 0} red of {sentimentData.components.total_symbols ?? 0}
+                      </div>
                     </div>
 
                     <div className="tier-card tier-2">
                       <div className="tier-header">
-                        <span className="tier-icon">T2</span>
-                        <span className="tier-label">Mainstream Normies</span>
+                        <span className="tier-icon">⚡</span>
+                        <span className="tier-label">Breadth (1m)</span>
                       </div>
                       <div className="tier-score">
-                        {tierScores.tier2 != null ? `${(tierScores.tier2 * 100).toFixed(0)}%` : '—'}
+                        {sentimentData.components.breadth_1m != null ? `${sentimentData.components.breadth_1m.toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-2-fill"
-                          style={{ width: tierScores.tier2 != null ? `${tierScores.tier2 * 100}%` : '0%' }}
+                          style={{ width: sentimentData.components.breadth_1m != null ? `${Math.min(100, sentimentData.components.breadth_1m)}%` : '0%' }}
                         />
                       </div>
-                      <div className="tier-meta">News & Big Reddit: CoinDesk, r/CC</div>
+                      <div className="tier-meta">
+                        {sentimentData.components.green_1m ?? 0} green / {sentimentData.components.red_1m ?? 0} red
+                      </div>
                     </div>
 
                     <div className="tier-card tier-3">
                       <div className="tier-header">
-                        <span className="tier-icon">T3</span>
-                        <span className="tier-label">Diamond Hands & Degens</span>
+                        <span className="tier-icon">🔄</span>
+                        <span className="tier-label">Momentum Alignment</span>
                       </div>
                       <div className="tier-score">
-                        {tierScores.tier3 != null ? `${(tierScores.tier3 * 100).toFixed(0)}%` : '—'}
+                        {sentimentData.components.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-3-fill"
-                          style={{ width: tierScores.tier3 != null ? `${tierScores.tier3 * 100}%` : '0%' }}
+                          style={{ width: sentimentData.components.momentum_alignment != null ? `${Math.max(0, Math.min(100, (sentimentData.components.momentum_alignment + 1) * 50))}%` : '0%' }}
                         />
                       </div>
-                      <div className="tier-meta">Apes Strong Together: r/SSB, CT, Telegram</div>
+                      <div className="tier-meta">
+                        1m vs 3m agreement
+                      </div>
                     </div>
 
                     <div className="tier-card tier-fringe">
                       <div className="tier-header">
-                        <span className="tier-icon">FX</span>
-                        <span className="tier-label">Moonboys & Schizos</span>
+                        <span className="tier-icon">📈</span>
+                        <span className="tier-label">Volatility</span>
                       </div>
                       <div className="tier-score">
-                        {tierScores.fringe != null ? `${(tierScores.fringe * 100).toFixed(0)}%` : '—'}
+                        {sentimentData.components.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-fringe-fill"
-                          style={{ width: tierScores.fringe != null ? `${tierScores.fringe * 100}%` : '0%' }}
+                          style={{ width: sentimentData.components.volatility != null ? `${Math.min(100, sentimentData.components.volatility * 20)}%` : '0%' }}
                         />
                       </div>
-                      <div className="tier-meta">Anon Intel: /biz/, BitcoinTalk, Weibo</div>
+                      <div className="tier-meta">
+                        Avg 3m: {sentimentData.components.avg_return_3m != null ? `${sentimentData.components.avg_return_3m.toFixed(3)}%` : '--'}
+                        {' · '}Avg 1m: {sentimentData.components.avg_return_1m != null ? `${sentimentData.components.avg_return_1m.toFixed(3)}%` : '--'}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Pipeline Status Indicator */}
-                  {pipelineHealth?.running && (
-                    <div className="pipeline-status success">
-                      <span className="status-indicator">OK</span>
-                      <span>LIVE: Scanning {sentimentData.totalDataPoints || 0} sources across all tiers - Data is healthy</span>
-                    </div>
-                  )}
-                  {!pipelineHealth?.running && pipelineHealth?.checked && (
-                    <div className="pipeline-status warning">
-                      <span className="status-indicator">!</span>
-                      <span>Pipeline offline - showing cached data. Start: ./start_sentiment_pipeline.sh</span>
-                    </div>
-                  )}
+                  {/* Pipeline Status */}
+                  <div className={`pipeline-status ${pipelineHealth?.running ? 'success' : 'warning'}`}>
+                    <span className="status-indicator">{pipelineHealth?.running ? 'OK' : '!'}</span>
+                    <span>
+                      {pipelineHealth?.running
+                        ? `LIVE: Tracking ${sentimentData.components.total_symbols ?? 0} symbols from Coinbase tape`
+                        : 'Warming up — collecting price data...'}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -1141,13 +918,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                   </svg>
-                  How to Read the Tea Leaves
+                  Data Info
                 </h3>
                 <div className="explainer-box">
-                  <p><strong>Tiers:</strong> T1 (whales/institutions), T2 (pro desks/media), T3 (retail/social), FX (fringe). Tier scores map directly to <code>tierScores</code> from the API.</p>
-                  <p><strong>Charts:</strong> The gauge and trend line use <code>overallSentiment</code>; Fear &amp; Greed comes from <code>fearGreedIndex</code>. Flat, tight bands = confirmation; wide swings vs price = noise/volatility.</p>
                   <p><strong>Refresh:</strong> Pipeline timestamp {lastUpdate}; auto-refresh every {Math.round(REFRESH_MS / 1000)}s.</p>
-                  <p className="disclaimer">If I were giving financial advice, I would say to treat this as context only, size small, and verify the linked sources before moving any capital.</p>
+                  <p className="disclaimer">This is sentiment analysis, not financial advice. Always do your own research.</p>
                 </div>
               </div>
             </section>
@@ -1163,90 +938,78 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <circle cx="12" cy="12" r="10"/>
                       <path d="M2 12h20"/>
                     </svg>
-                    Live Data Sources
+                    Data Sources
                   </h3>
-                  <p className="section-desc">Sources are rendered directly from the pipeline inventory (via /api/sentiment/sources).</p>
-                </div>
-
-                <div className="tier-legend">
-                  <div className="legend-item tier-1">
-                    <span className="legend-dot"></span>
-                    <span className="legend-label">Tier 1: Institutional</span>
-                    <span className="legend-weight">0.85 weight</span>
-                  </div>
-                  <div className="legend-item tier-2">
-                    <span className="legend-dot"></span>
-                    <span className="legend-label">Tier 2: Professional</span>
-                    <span className="legend-weight">0.70 weight</span>
-                  </div>
-                  <div className="legend-item tier-3">
-                    <span className="legend-dot"></span>
-                    <span className="legend-label">Tier 3: Retail/Social</span>
-                    <span className="legend-weight">0.50 weight</span>
-                  </div>
+                  <p className="section-desc">Market heat is computed from live Coinbase tape data, seasoned with external signals.</p>
                 </div>
               </div>
 
               <div className="sources-list">
-                {sortedSources.length > 0 ? (
-                  sortedSources.map((source) => {
-                    const tierKey = source.tier || 'tier3';
-                    const tierClass = tierKey === 'fringe' ? 'tier-fringe' : tierKey.replace(/tier(\d)/i, 'tier-$1');
-                    const badgeLabel = getTierBadgeLabel(tierKey);
-                    const statusLabel = source.status ? `${source.status.charAt(0).toUpperCase()}${source.status.slice(1)}` : 'Unknown';
-                    const weightLabel = typeof source.trust_weight === 'number'
-                      ? source.trust_weight.toFixed(2)
-                      : '--';
-                    const scoreLabel = getSourceScoreLabel(source.sentiment_score);
-                    const sourceUrl = source.url || source.href || source.link;
-
-                    return (
-                      <div key={source.name} className={`source-card ${tierClass}`}>
-                        <div className="source-info">
-                          <div className="source-header">
-                            <span className="source-icon" aria-hidden="true">{TIER_ICONS[tierKey] || 'SRC'}</span>
-                            <div>
-                              {sourceUrl ? (
-                                <a
-                                  className="source-name"
-                                  href={sourceUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{ color: 'inherit' }}
-                                >
-                                  {source.name}
-                                </a>
-                              ) : (
-                                <div className="source-name">{source.name}</div>
-                              )}
-                              <span className="source-status">{statusLabel}</span>
-                            </div>
-                          </div>
-                          <div className="source-desc">
-                            {TIER_LABELS[tierKey] || 'Live pipeline source'}
-                          </div>
-                          <div className="source-meta">
-                            <span>Weight: {weightLabel}</span>
-                            <span>Status: {statusLabel}</span>
-                            <span>Updated: {formatTimestamp(source.last_updated)}</span>
-                          </div>
-                        </div>
-                        <div className="source-metrics">
-                          <span className={`tier-badge ${tierClass}`}>{badgeLabel}</span>
-                          <span className="source-score">Score {scoreLabel}</span>
-                        </div>
+                <div className="source-card tier-1">
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">📡</span>
+                      <div>
+                        <div className="source-name">Coinbase Price Tape</div>
+                        <span className="source-status">{status}</span>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="sources-empty">
-                    <p>
-                      {pipelineHealth.checked && !pipelineHealth.running
-                        ? 'Sentiment pipeline offline. Start the collector to reveal live sources.'
-                        : 'Pipeline did not return source inventory. Enable /api/sentiment/sources to view live sources.'}
-                    </p>
+                    </div>
+                    <div className="source-desc">Real-time price data for {sentimentData?.components?.total_symbols ?? 0} symbols. Breadth, momentum, and volatility computed from 1m &amp; 3m windows.</div>
+                    <div className="source-meta">
+                      <span>Weight: Primary</span>
+                      <span>Refresh: ~8s</span>
+                      <span>Updated: {lastUpdate}</span>
+                    </div>
                   </div>
-                )}
+                  <div className="source-metrics">
+                    <span className="tier-badge tier-1">PRIMARY</span>
+                    <span className="source-score">Score {score !== null ? `${score}%` : '--'}</span>
+                  </div>
+                </div>
+
+                <div className="source-card tier-2">
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">📊</span>
+                      <div>
+                        <div className="source-name">Coinbase Volume (1h Candles)</div>
+                        <span className="source-status">{status}</span>
+                      </div>
+                    </div>
+                    <div className="source-desc">Hourly volume from 1-minute candles. Powers whale detection and stealth move alerts.</div>
+                    <div className="source-meta">
+                      <span>Weight: High</span>
+                      <span>Refresh: ~30s</span>
+                    </div>
+                  </div>
+                  <div className="source-metrics">
+                    <span className="tier-badge tier-2">VOLUME</span>
+                  </div>
+                </div>
+
+                <div className={`source-card ${Number.isFinite(fg) ? 'tier-3' : 'tier-fringe'}`}>
+                  <div className="source-info">
+                    <div className="source-header">
+                      <span className="source-icon" aria-hidden="true">😱</span>
+                      <div>
+                        <div className="source-name">Fear &amp; Greed Index</div>
+                        <span className="source-status">{Number.isFinite(fg) ? 'LIVE' : 'OFFLINE'}</span>
+                      </div>
+                    </div>
+                    <div className="source-desc">External macro signal from alternative.me. Cached with 5-min TTL.</div>
+                    <div className="source-meta">
+                      <span>Weight: Seasoning</span>
+                      <span>TTL: 5 min</span>
+                      {Number.isFinite(fg) && <span>Value: {fg}/100 ({getFearGreedLabel(fg)})</span>}
+                    </div>
+                  </div>
+                  <div className="source-metrics">
+                    <span className={`tier-badge ${Number.isFinite(fg) ? 'tier-3' : 'tier-fringe'}`}>
+                      {Number.isFinite(fg) ? 'EXTERNAL' : 'N/A'}
+                    </span>
+                    {Number.isFinite(fg) && <span className="source-score">Score {fg}%</span>}
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -1305,7 +1068,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   {sentimentHistory.length ? (
                     <canvas ref={trendChartRef} role="img" aria-label="Sentiment trend chart"></canvas>
                   ) : (
-                    <div className="sentiment-muted">No history returned by pipeline.</div>
+                    <div className="sentiment-muted">Warming up — collecting heat history...</div>
                   )}
                 </div>
               </div>
@@ -1317,11 +1080,36 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <circle cx="12" cy="12" r="10"/>
                       </svg>
-                      Source Breakdown
+                      Market Breadth
                     </h3>
                   </div>
                   <div className="chart-container donut">
-                    <canvas ref={pieChartRef} role="img" aria-label="Source breakdown"></canvas>
+                    {sentimentData?.components ? (
+                      <div className="breadth-visual">
+                        <div className="breadth-row">
+                          <span className="breadth-label">3m Window</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar green" style={{width: `${sentimentData.components.breadth_3m ?? 0}%`}}></div>
+                            <div className="breadth-bar red" style={{width: `${100 - (sentimentData.components.breadth_3m ?? 0)}%`}}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.breadth_3m?.toFixed(0) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">1m Window</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar green" style={{width: `${sentimentData.components.breadth_1m ?? 0}%`}}></div>
+                            <div className="breadth-bar red" style={{width: `${100 - (sentimentData.components.breadth_1m ?? 0)}%`}}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.breadth_1m?.toFixed(0) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-legend">
+                          <span className="legend-dot green"></span> Green
+                          <span className="legend-dot red"></span> Red
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sentiment-muted">Warming up...</div>
+                    )}
                   </div>
                 </div>
 
@@ -1331,11 +1119,46 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M18 20V10M12 20V4M6 20v-6"/>
                       </svg>
-                      Tier Comparison
+                      Heat Components
                     </h3>
                   </div>
                   <div className="chart-container donut">
-                    <canvas ref={tierChartRef} role="img" aria-label="Tier comparison"></canvas>
+                    {sentimentData?.components ? (
+                      <div className="breadth-visual">
+                        <div className="breadth-row">
+                          <span className="breadth-label">Momentum</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.max(0, Math.min(100, (( sentimentData.components.momentum_alignment ?? 0) + 1) * 50))}%`,
+                              background: (sentimentData.components.momentum_alignment ?? 0) > 0 ? '#45ffb3' : '#ae4bf5'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">Volatility</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.min(100, (sentimentData.components.volatility ?? 0) * 20)}%`,
+                              background: '#f1b43a'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.volatility?.toFixed(2) ?? '--'}%</span>
+                        </div>
+                        <div className="breadth-row">
+                          <span className="breadth-label">Avg Return</span>
+                          <div className="breadth-bar-wrap">
+                            <div className="breadth-bar" style={{
+                              width: `${Math.min(100, Math.abs(sentimentData.components.avg_return_3m ?? 0) * 50)}%`,
+                              background: (sentimentData.components.avg_return_3m ?? 0) >= 0 ? '#45ffb3' : '#ff6b6b'
+                            }}></div>
+                          </div>
+                          <span className="breadth-pct">{sentimentData.components.avg_return_3m?.toFixed(3) ?? '--'}%</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sentiment-muted">Warming up...</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1354,7 +1177,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   {sentimentHistory.length ? (
                     <canvas ref={correlationChartRef} role="img" aria-label="Correlation chart"></canvas>
                   ) : (
-                    <div className="sentiment-muted">No history returned by pipeline.</div>
+                    <div className="sentiment-muted">Warming up — collecting heat history...</div>
                   )}
                 </div>
               </div>
@@ -1369,7 +1192,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     Momentum snapshot
                   </h3>
-                  <p className="section-desc">24h change across sentiment and socials (first vs last point)</p>
+                  <p className="section-desc">Change across sentiment history (first vs last point)</p>
                 </div>
                 <div className="momentum-grid">
                   {(() => {
@@ -1381,10 +1204,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       return ((last - first) * 100).toFixed(1);
                     };
                     const sentimentDelta = delta(sentimentHistory, 'sentiment');
-                    const redditDelta = delta(socialHistory, 'reddit');
-                    const twitterDelta = delta(socialHistory, 'twitter');
-                    const telegramDelta = delta(socialHistory, 'telegram');
-                    const chanDelta = delta(socialHistory, 'chan');
                     const card = (label, val) => (
                       <div className="momentum-card" key={label}>
                         <span className="momentum-label">{label}</span>
@@ -1396,32 +1215,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     return (
                       <div className="momentum-cards">
                         {card('Sentiment', sentimentDelta)}
-                        {card('Reddit', redditDelta)}
-                        {card('Twitter', twitterDelta)}
-                        {card('Telegram', telegramDelta)}
-                        {card('Chan', chanDelta)}
                       </div>
                     );
                   })()}
-                </div>
-              </div>
-
-              <div className="info-section">
-                <div className="section-header">
-                  <h3>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M3 3v18h18"/>
-                    </svg>
-                    Social Trend
-                  </h3>
-                  <p className="section-desc">Reddit, Twitter, Telegram, Chan trend (normalized)</p>
-                </div>
-                <div className="chart-container">
-                  {socialHistory.length ? (
-                    <canvas ref={socialChartRef} role="img" aria-label="Social trend chart"></canvas>
-                  ) : (
-                    <div className="sentiment-muted">No social history returned by pipeline.</div>
-                  )}
                 </div>
               </div>
             </section>
@@ -1430,6 +1226,50 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
           {/* INSIGHTS TAB */}
           {!loading && activeTab === 'insights' && (
             <section className="tab-panel active" role="tabpanel">
+              {/* Market Regime Summary */}
+              <div className="info-section">
+                <div className="section-header">
+                  <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    Market Regime
+                  </h3>
+                  <p className="section-desc">Current tape conditions from {sentimentData?.components?.total_symbols ?? 0} symbols</p>
+                </div>
+                <div className="stats-grid" style={{gridTemplateColumns: 'repeat(3, 1fr)'}}>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Regime</span>
+                      <span className={`stat-value ${regimeRaw === 'risk_on' ? 'positive' : regimeRaw === 'risk_off' ? 'negative' : 'neutral'}`}>
+                        {regimeDisplay}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Heat</span>
+                      <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
+                        {sentimentData?.heatLabel || 'NEUTRAL'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-content">
+                      <span className="stat-label">Confidence</span>
+                      <span className="stat-value neutral">{confidenceDisplay}</span>
+                    </div>
+                  </div>
+                </div>
+                {reasonLines.length > 0 && (
+                  <div style={{marginTop: '0.5rem'}}>
+                    {reasonLines.map((r, idx) => (
+                      <div key={`insight-reason-${idx}`} className="sentiment-reason">{r}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Divergence Alerts */}
               {safeAlerts.length > 0 && (
                 <div className="info-section">
@@ -1441,7 +1281,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       </svg>
                       Divergence Alerts
                     </h3>
-                    <p className="section-desc">Conflicts between different market tiers</p>
+                    <p className="section-desc">1m vs 3m timeframe disagreements detected on tape</p>
                   </div>
                   <div className="divergence-alerts">
                     {safeAlerts.map((alert, idx) => (
@@ -1451,34 +1291,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                         </span>
                         <div className="alert-content">
                           <p>{alert.message}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Trending Topics */}
-              {safeTopics.length > 0 && (
-                <div className="info-section">
-                  <div className="section-header">
-                    <h3>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                      </svg>
-                      Trending Topics
-                    </h3>
-                    <p className="section-desc">What people are talking about</p>
-                  </div>
-                  <div className="trending-topics">
-                    {safeTopics.slice(0, 5).map((topic, idx) => (
-                      <div key={idx} className={`topic-card ${topic.sentiment}`}>
-                        <div className="topic-tag">{topic.tag}</div>
-                        <div className="topic-meta">
-                          <span className={`sentiment-badge ${topic.sentiment}`}>
-                            {topic.sentiment ? topic.sentiment.toUpperCase() : 'NEUTRAL'}
-                          </span>
-                          <span className="volume-badge">{topic.volume}</span>
                         </div>
                       </div>
                     ))}
@@ -1496,7 +1308,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     </svg>
                     AI Market Analysis
                   </h3>
-                  <p className="section-desc">Generated from multi-source intelligence</p>
+                  <p className="section-desc">Generated from tape heat and macro signals</p>
                 </div>
 
                 <div className="insights-list">
@@ -1507,22 +1319,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                       <p>{insight.message}</p>
                     </div>
                   </div>
-
-                  {/* Social Sentiment Summary */}
-                  {socialBreakdown && (
-                    <div className="insight-box info">
-                      <span className="insight-icon">SOC</span>
-                      <div className="insight-content">
-                        <strong>Social Sentiment Breakdown</strong>
-                        <p>
-                          Reddit: {Math.round((socialBreakdown.reddit || 0) * 100)}% •
-                          Twitter: {Math.round((socialBreakdown.twitter || 0) * 100)}% •
-                          Telegram: {Math.round((socialBreakdown.telegram || 0) * 100)}%
-                          {socialBreakdown.chan && ` • CHAN: ${Math.round(socialBreakdown.chan * 100)}%`}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -1542,7 +1338,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
         {/* Footer */}
         <footer className="popup-footer">
           <div className="footer-left">
-            <span className="data-source">Powered by real-time data from <span>{sourceCount}+</span> sources</span>
+            <span className="data-source">Powered by Coinbase tape data · <span>{sentimentData?.components?.total_symbols ?? 0}</span> symbols tracked</span>
           </div>
           <div className="footer-right">
             <button

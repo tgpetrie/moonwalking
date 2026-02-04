@@ -78,7 +78,7 @@ const toProductId = (a) => {
   return p;
 };
 
-const TYPE_OPTIONS = ["ALL", "MOONSHOT", "CRATER", "BREAKOUT", "DUMP", "DIVERGENCE", "VOLUME", "IMPULSE"];
+const TYPE_OPTIONS = ["ALL", "MOONSHOT", "CRATER", "BREAKOUT", "DUMP", "WHALE", "STEALTH", "DIVERGENCE", "FOMO", "FEAR", "VOLUME", "IMPULSE"];
 
 export default function AlertsDock() {
   const { alerts = [] } = useData() || {};

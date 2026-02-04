@@ -77,9 +77,9 @@ const classifyLog = (log) => {
     severity: log?.severity || log?.sev,
   });
   let chipTone = "info";
-  if (["MOONSHOT", "BREAKOUT", "IMPULSE"].includes(derivedType)) chipTone = "gain";
-  else if (["CRATER", "DUMP"].includes(derivedType)) chipTone = "loss";
-  else if (["SENTIMENT", "DIVERGENCE", "VOLUME"].includes(derivedType)) chipTone = "sent";
+  if (["MOONSHOT", "BREAKOUT", "IMPULSE", "FOMO"].includes(derivedType)) chipTone = "gain";
+  else if (["CRATER", "DUMP", "FEAR"].includes(derivedType)) chipTone = "loss";
+  else if (["SENTIMENT", "DIVERGENCE", "VOLUME", "WHALE", "STEALTH"].includes(derivedType)) chipTone = "sent";
   return { label: derivedType, chipTone };
 };
 

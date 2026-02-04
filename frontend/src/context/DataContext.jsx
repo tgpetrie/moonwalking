@@ -120,6 +120,10 @@ function normalizeApiData(payload) {
     ? alertsRaw.map(normalizeAlert).filter((a) => a && !isPingNoise(a))
     : [];
 
+  // Sentiment / market heat data flows through the main /data payload
+  const sentiment = payload?.sentiment ?? root.sentiment ?? null;
+  const sentiment_meta = payload?.sentiment_meta ?? root.sentiment_meta ?? null;
+
   return {
     gainers_1m: Array.isArray(gainers_1m) ? gainers_1m : [],
     gainers_3m: Array.isArray(gainers_3m) ? gainers_3m : [],
@@ -133,6 +137,8 @@ function normalizeApiData(payload) {
     meta: root.meta ?? payload?.meta ?? {},
     errors: root.errors ?? payload?.errors ?? [],
     coverage: root.coverage ?? payload?.coverage ?? null,
+    sentiment,
+    sentiment_meta,
   };
 }
 
@@ -173,6 +179,8 @@ export function DataProvider({ children }) {
   const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
   const [volume1h, setVolume1h] = useState(() => cachedNormalized?.volume1h ?? []);
   const [alerts, setAlerts] = useState(() => cachedNormalized?.alerts ?? []);
+  const [sentiment, setSentiment] = useState(() => cachedNormalized?.sentiment ?? null);
+  const [sentimentMeta, setSentimentMeta] = useState(() => cachedNormalized?.sentiment_meta ?? null);
 
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
@@ -257,6 +265,8 @@ export function DataProvider({ children }) {
         updated_at: norm.updated_at,
         meta: norm.meta,
         coverage: norm.coverage,
+        sentiment: norm.sentiment,
+        sentiment_meta: norm.sentiment_meta,
       };
       localStorage.setItem(MW_LAST_GOOD_DATA, JSON.stringify(minimal));
       localStorage.setItem(MW_LAST_GOOD_AT, String(lastGoodAtRef.current));
@@ -396,6 +406,8 @@ export function DataProvider({ children }) {
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
       setAlerts(Array.isArray(norm.alerts) ? norm.alerts : []);
+      if (norm.sentiment != null) setSentiment(norm.sentiment);
+      if (norm.sentiment_meta != null) setSentimentMeta(norm.sentiment_meta);
 
       // 1m: every fetch (table layer handles "live feel" without partial commits)
       commit1m(mergedNorm.gainers_1m);
@@ -672,10 +684,12 @@ export function DataProvider({ children }) {
     volume1h,
     connectionStatus,
     backendBase,
+    sentiment,
+    sentimentMeta,
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

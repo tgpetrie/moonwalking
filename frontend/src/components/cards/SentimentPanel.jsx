@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/sentiment-panel.css";
-import { useSentimentLatest } from "../../hooks/useSentimentLatest";
+import { useMarketHeat } from "../../hooks/useMarketHeat";
 import { baselineOrNull, displayOrDash } from "../../utils/num.js";
 
 function normalizeSymbol(symbol) {
@@ -27,7 +27,7 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
     error,
     refresh,
     pipelineStatus,
-  } = useSentimentLatest();
+  } = useMarketHeat();
   const sentiment = data || {};
 
   // Pipeline status: LIVE, STALE, or OFFLINE
@@ -60,26 +60,18 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
       : null;
   const fearGreedIndex =
     sentiment.fearGreedIndex == null ? null : Number(sentiment.fearGreedIndex);
-  const socialVolumeChange =
-    typeof sentiment.socialMetrics?.volumeChange === "number"
-      ? sentiment.socialMetrics.volumeChange
-      : null;
-  const reddit = sentiment.socialBreakdown?.reddit ?? 0;
-  const twitter = sentiment.socialBreakdown?.twitter ?? 0;
-  const telegram = sentiment.socialBreakdown?.telegram ?? 0;
-  const chan = sentiment.socialBreakdown?.chan ?? 0;
-  const trendingTopics = Array.isArray(sentiment.trendingTopics)
-    ? sentiment.trendingTopics
-    : [];
   const divergenceAlerts = Array.isArray(sentiment.divergenceAlerts)
     ? sentiment.divergenceAlerts
     : [];
   const sentimentHistory = Array.isArray(sentiment.sentimentHistory)
     ? sentiment.sentimentHistory
     : [];
-  const socialHistory = Array.isArray(sentiment.socialHistory)
-    ? sentiment.socialHistory
-    : [];
+  const components = sentiment.components || {};
+  const heatLabel = sentiment.heatLabel || "NEUTRAL";
+  const regimeRaw = (sentiment.regime || "unknown").toString();
+  const regimeDisplay = regimeRaw.replace(/_/g, " ").toUpperCase();
+  const confidenceVal = Number.isFinite(sentiment.confidence) ? sentiment.confidence : null;
+  const reasonLines = Array.isArray(sentiment.reasons) ? sentiment.reasons.slice(0, 2) : [];
 
   const loading = hookLoading && !raw;
   const fetchError = error;
@@ -185,8 +177,8 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               onClick={() => setActiveTab(tab)}
             >
               {tab === "overview" && "Overview"}
-              {tab === "social" && "Social Sentiment"}
-              {tab === "charts" && "Charts"}
+              {tab === "social" && "Tape Components"}
+              {tab === "charts" && "History"}
               {tab === "sources" && "Data Sources"}
             </button>
           ))}
@@ -200,13 +192,12 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                   <svg viewBox="0 0 24 24">
                     <path d="M12 2 15.09 8.26 22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z" />
                   </svg>
-                  What is Sentiment Intelligence?
+                  Market Heat
                 </h3>
                 <p>
-                  This panel blends your token’s short-term move with a
-                  multi-tier sentiment feed from news, social, and fringe
-                  communities. It’s built to flag when narrative heat and price
-                  action rhyme – and when they don’t.
+                  Live market heat computed from Coinbase tape data across{" "}
+                  {components.total_symbols ?? 0} symbols. Combines breadth,
+                  momentum alignment, and volatility into a composite score.
                 </p>
               </div>
 
@@ -232,17 +223,9 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                   </div>
 
                   <div className={"sentiment-metric-card" + (isOffline ? " sentiment-metric-offline" : "")}>
-                    <div className="sentiment-metric-label">
-                      Social Volume (24h)
-                    </div>
-                    <div className="sentiment-metric-value neutral">
-                      {isOffline
-                        ? "--"
-                        : socialVolumeChange != null
-                        ? `${socialVolumeChange > 0 ? "+" : ""}${Number(
-                            socialVolumeChange
-                          ).toFixed(1)}%`
-                        : "--"}
+                    <div className="sentiment-metric-label">Heat Label</div>
+                    <div className={"sentiment-metric-value " + (overallScore != null && overallScore >= 55 ? "positive" : overallScore != null && overallScore <= 35 ? "negative" : "neutral")}>
+                      {isOffline ? "--" : heatLabel}
                     </div>
                   </div>
 
@@ -294,13 +277,16 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               </div>
 
               <div className="sentiment-info-section">
-                <h3>How we weigh the crowd</h3>
+                <h3>Regime: {regimeDisplay}</h3>
                 <p>
-                  Tier 1 sources (Fear &amp; Greed, CoinGecko, Binance/major
-                  feeds) anchor the score. Tier 2 (Reddit, mainstream crypto
-                  media) tracks the retail tide. Tier 3 and fringe feeds watch
-                  early-signal chaos for hints of what’s coming next.
+                  Confidence: {confidenceVal != null ? confidenceVal.toFixed(2) : "--"}.{" "}
+                  Breadth (3m): {components.breadth_3m != null ? `${components.breadth_3m.toFixed(0)}%` : "--"},{" "}
+                  Momentum: {components.momentum_alignment != null ? `${(components.momentum_alignment * 100).toFixed(0)}%` : "--"},{" "}
+                  Volatility: {components.volatility != null ? `${components.volatility.toFixed(2)}%` : "--"}.
                 </p>
+                {reasonLines.map((r, idx) => (
+                  <p key={`reason-${idx}`} style={{margin: '0.25rem 0', opacity: 0.8, fontSize: '0.85em'}}>{r}</p>
+                ))}
               </div>
             </div>
           )}
@@ -308,59 +294,50 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
           {activeTab === "social" && (
             <div className="sentiment-tab-panel">
               <div className="sentiment-info-section">
-                <h3>Social Breakdown</h3>
+                <h3>Tape Components</h3>
                 <div className="sentiment-metric-grid">
                   <div className="sentiment-metric-card">
-                    <div className="sentiment-metric-label">Reddit</div>
-                    <div className="sentiment-metric-value positive">
-                      {sentiment.socialBreakdown?.reddit != null
-                        ? `${Math.round(sentiment.socialBreakdown.reddit * 100)}%`
-                        : "--"}
+                    <div className="sentiment-metric-label">Breadth (3m)</div>
+                    <div className={"sentiment-metric-value " + ((components.breadth_3m ?? 50) >= 55 ? "positive" : (components.breadth_3m ?? 50) <= 45 ? "negative" : "neutral")}>
+                      {components.breadth_3m != null ? `${components.breadth_3m.toFixed(0)}%` : "--"}
                     </div>
                   </div>
                   <div className="sentiment-metric-card">
-                    <div className="sentiment-metric-label">Twitter / X</div>
+                    <div className="sentiment-metric-label">Breadth (1m)</div>
+                    <div className={"sentiment-metric-value " + ((components.breadth_1m ?? 50) >= 55 ? "positive" : (components.breadth_1m ?? 50) <= 45 ? "negative" : "neutral")}>
+                      {components.breadth_1m != null ? `${components.breadth_1m.toFixed(0)}%` : "--"}
+                    </div>
+                  </div>
+                  <div className="sentiment-metric-card">
+                    <div className="sentiment-metric-label">Momentum</div>
+                    <div className={"sentiment-metric-value " + ((components.momentum_alignment ?? 0) > 0 ? "positive" : (components.momentum_alignment ?? 0) < 0 ? "negative" : "neutral")}>
+                      {components.momentum_alignment != null ? `${(components.momentum_alignment * 100).toFixed(0)}%` : "--"}
+                    </div>
+                  </div>
+                  <div className="sentiment-metric-card">
+                    <div className="sentiment-metric-label">Volatility</div>
                     <div className="sentiment-metric-value neutral">
-                      {sentiment.socialBreakdown?.twitter != null
-                        ? `${Math.round(sentiment.socialBreakdown.twitter * 100)}%`
-                        : "--"}
-                    </div>
-                  </div>
-                  <div className="sentiment-metric-card">
-                    <div className="sentiment-metric-label">Telegram</div>
-                    <div className="sentiment-metric-value positive">
-                      {sentiment.socialBreakdown?.telegram != null
-                        ? `${Math.round(sentiment.socialBreakdown.telegram * 100)}%`
-                        : "--"}
-                    </div>
-                  </div>
-                  <div className="sentiment-metric-card">
-                    <div className="sentiment-metric-label">Fringe / chan</div>
-                    <div className="sentiment-metric-value negative">
-                      {sentiment.socialBreakdown?.chan != null
-                        ? `${Math.round(sentiment.socialBreakdown.chan * 100)}%`
-                        : "--"}
+                      {components.volatility != null ? `${components.volatility.toFixed(2)}%` : "--"}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="sentiment-info-section">
-                <h3>Trending Topics</h3>
-                <div className="sentiment-tag-container">
-                  {trendingTopics.slice(0, 10).map((topic, idx) => (
-                    <span
-                      key={topic?.tag || topic?.sentiment || `topic-${idx}`}
-                      className="sentiment-tag sentiment-tag-neutral"
-                    >
-                      {topic?.tag || topic?.sentiment || topic || "topic"}
-                    </span>
-                  ))}
-                  {!trendingTopics.length && (
-                    <span className="sentiment-tag sentiment-tag-neutral">
-                      No hot topics detected in the last window.
-                    </span>
-                  )}
+                <h3>Avg Returns</h3>
+                <div className="sentiment-metric-grid">
+                  <div className="sentiment-metric-card">
+                    <div className="sentiment-metric-label">Avg Return (3m)</div>
+                    <div className={"sentiment-metric-value " + ((components.avg_return_3m ?? 0) >= 0 ? "positive" : "negative")}>
+                      {components.avg_return_3m != null ? `${components.avg_return_3m.toFixed(3)}%` : "--"}
+                    </div>
+                  </div>
+                  <div className="sentiment-metric-card">
+                    <div className="sentiment-metric-label">Avg Return (1m)</div>
+                    <div className={"sentiment-metric-value " + ((components.avg_return_1m ?? 0) >= 0 ? "positive" : "negative")}>
+                      {components.avg_return_1m != null ? `${components.avg_return_1m.toFixed(3)}%` : "--"}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -390,90 +367,48 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
               <div className="sentiment-info-section">
                 <h3>Active Data Sources</h3>
                 <p className="sentiment-subcopy">
-                  The score here is not a gut feeling. It’s a weighted blend of
-                  institutional, mainstream, and retail signals pulled from
-                  multiple tiers, updated continuously in the background.
+                  Market heat is computed locally from real-time Coinbase tape
+                  data, supplemented by an external Fear &amp; Greed signal.
                 </p>
 
                 <div className="sentiment-source-list">
                   <div className="sentiment-source-item">
                     <div>
                       <div className="sentiment-source-name">
+                        Coinbase Price Tape
+                      </div>
+                      <div className="sentiment-source-desc">
+                        Real-time prices for {components.total_symbols ?? 0} symbols. Breadth, momentum &amp; volatility.
+                      </div>
+                    </div>
+                    <span className="sentiment-tier-badge tier-1">
+                      PRIMARY
+                    </span>
+                  </div>
+
+                  <div className="sentiment-source-item">
+                    <div>
+                      <div className="sentiment-source-name">Coinbase Volume Candles</div>
+                      <div className="sentiment-source-desc">
+                        1-minute candles for whale &amp; stealth detection
+                      </div>
+                    </div>
+                    <span className="sentiment-tier-badge tier-2">
+                      VOLUME
+                    </span>
+                  </div>
+
+                  <div className="sentiment-source-item">
+                    <div>
+                      <div className="sentiment-source-name">
                         Fear &amp; Greed Index
                       </div>
                       <div className="sentiment-source-desc">
-                        Macro market sentiment gauge
+                        External macro signal (alternative.me), 5-min cache
                       </div>
                     </div>
-                    <span className="sentiment-tier-badge tier-1">
-                      TIER 1
-                    </span>
-                  </div>
-
-                  <div className="sentiment-source-item">
-                    <div>
-                      <div className="sentiment-source-name">CoinGecko</div>
-                      <div className="sentiment-source-desc">
-                        Market data &amp; dominance shifts
-                      </div>
-                    </div>
-                    <span className="sentiment-tier-badge tier-1">
-                      TIER 1
-                    </span>
-                  </div>
-
-                  <div className="sentiment-source-item">
-                    <div>
-                      <div className="sentiment-source-name">Binance RSS</div>
-                      <div className="sentiment-source-desc">
-                        Exchange-driven news &amp; updates
-                      </div>
-                    </div>
-                    <span className="sentiment-tier-badge tier-1">
-                      TIER 1
-                    </span>
-                  </div>
-
-                  <div className="sentiment-source-item">
-                    <div>
-                      <div className="sentiment-source-name">
-                        Reddit r/CryptoCurrency, r/Bitcoin, etc.
-                      </div>
-                      <div className="sentiment-source-desc">
-                        Mainstream retail sentiment
-                      </div>
-                    </div>
-                    <span className="sentiment-tier-badge tier-2">
-                      TIER 2
-                    </span>
-                  </div>
-
-                  <div className="sentiment-source-item">
-                    <div>
-                      <div className="sentiment-source-name">
-                        Crypto media RSS (CoinDesk, CryptoSlate, Bitcoin
-                        Magazine)
-                      </div>
-                      <div className="sentiment-source-desc">
-                        Long-form narratives &amp; coverage
-                      </div>
-                    </div>
-                    <span className="sentiment-tier-badge tier-2">
-                      TIER 2
-                    </span>
-                  </div>
-
-                  <div className="sentiment-source-item">
-                    <div>
-                      <div className="sentiment-source-name">
-                        r/SatoshiStreetBets, r/CryptoMoonShots
-                      </div>
-                      <div className="sentiment-source-desc">
-                        Speculative, early-signal retail chatter
-                      </div>
-                    </div>
-                    <span className="sentiment-tier-badge tier-3">
-                      TIER 3
+                    <span className={"sentiment-tier-badge " + (fearGreedIndex != null ? "tier-1" : "tier-3")}>
+                      {fearGreedIndex != null ? "LIVE" : "N/A"}
                     </span>
                   </div>
                 </div>
@@ -484,54 +419,29 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
           {activeTab === "charts" && (
             <div className="sentiment-tab-panel">
               <div className="sentiment-info-section">
-                <h3>Sentiment History</h3>
-                {!sentimentHistory.length && !socialHistory.length ? (
-                  <div className="sentiment-empty">Sentiment history warming up.</div>
+                <h3>Heat History</h3>
+                {!sentimentHistory.length ? (
+                  <div className="sentiment-empty">Warming up — collecting heat history...</div>
                 ) : (
                   <div className="sentiment-history-list">
                     {sentimentHistory.slice(-10).map((entry, idx) => (
                       <div key={`sent-h-${idx}`} className="sentiment-history-row">
-                        <span>{entry.label || entry.tag || "Composite"}</span>
+                        <span>{entry.label || "Heat"}</span>
                         <span className="tabular-nums">
                           {entry.sentiment != null
-                            ? Math.round(Number(entry.sentiment) * 100) / 100
+                            ? (Number(entry.sentiment) * 100).toFixed(0)
                             : entry.score != null
-                            ? Math.round(Number(entry.score) * 100) / 100
-                            : entry.value ?? "—"}
+                            ? Number(entry.score).toFixed(0)
+                            : "—"}
                         </span>
                         <span className="sentiment-history-ts">
                           {entry.timestamp
                             ? new Date(entry.timestamp).toLocaleTimeString()
-                            : entry.ts
-                            ? new Date(entry.ts).toLocaleTimeString()
                             : "recent"}
                         </span>
                       </div>
                     ))}
-                    {socialHistory.length ? (
-                      <div className="sentiment-history-row muted">
-                        Social sample: {socialHistory.length} points
-                      </div>
-                    ) : null}
                   </div>
-                )}
-              </div>
-
-              <div className="sentiment-info-section">
-                <h3>Trending Topics Snapshot</h3>
-                {trendingTopics.length ? (
-                  <div className="sentiment-tag-container">
-                    {trendingTopics.slice(0, 10).map((topic, idx) => (
-                      <span
-                        key={`chart-topic-${topic?.tag || topic?.sentiment || idx}`}
-                        className="sentiment-tag sentiment-tag-neutral"
-                      >
-                        {topic?.tag || topic?.sentiment || topic || "topic"}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="sentiment-empty">Waiting for trending topics.</div>
                 )}
               </div>
             </div>
@@ -542,8 +452,8 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
           )}
           {fetchError && !data && (
             <div className="sentiment-error">
-              Sentiment API is not responding right now. Panel will fall back
-              gracefully once it’s back online.
+              Market heat data unavailable. Will recover automatically once
+              tape data starts flowing.
             </div>
           )}
         </div>
