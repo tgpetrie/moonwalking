@@ -1,5 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { deriveAlertType, labelFromTypeKey } from '../utils/alertClassifier.js';
+
+const fmtPct = (p) => {
+  if (p == null || Number.isNaN(Number(p))) return null;
+  const n = Number(p);
+  const sign = n > 0 ? '+' : '';
+  return `${sign}${n.toFixed(2)}%`;
+};
+
+const fmtTime = (ms) => {
+  if (!Number.isFinite(ms)) return '—';
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+};
 
 const AlertsIndicator = () => {
   const [count, setCount] = useState(0);
@@ -67,30 +82,39 @@ const AlertsIndicator = () => {
             {items.length === 0 && (
               <li className="p-3 text-xs text-gray-500">No alerts yet.</li>
             )}
-            {items.map((a, i) => (
-              <li key={`${a.ts}-${a.symbol}-${i}`} className="p-2 text-xs text-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-gray-400">{a.ts?.replace('T',' ')?.slice(0,19)}</span>
-                  <span className="ml-2 px-1 py-0.5 rounded bg-gray-700 text-[10px]">{a.scope}</span>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <a
-                    href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol||'').toLowerCase()}-USD`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold hover:text-amber-400"
-                  >
-                    {a.symbol}
-                  </a>
-                  <span className={`${a.direction==='up'?'text-green-300':'text-red-300'}`}>{a.direction === 'up' ? '↑' : a.direction === 'down' ? '↓' : '·'}</span>
-                  {typeof a.streak === 'number' && a.streak > 0 && (
-                    <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none">x{a.streak}</span>
-                  )}
-                  <span className="text-[10px] text-gray-400">score {Number(a.score||0).toFixed(2)}</span>
-                </div>
-                {a.message && <div className="mt-1 text-[11px] text-gray-400">{a.message}</div>}
-              </li>
-            ))}
+            {items.map((a, i) => {
+              const label = a?.type_key
+                ? labelFromTypeKey(a.type_key)
+                : deriveAlertType({ type: a?.type, pct: a?.pct, severity: a?.severity });
+              const pctText = fmtPct(a?.pct);
+              const w = a?.window || '3m';
+              const tsMs = Number(a?.ts_ms ?? a?.tsMs ?? Date.parse(a?.ts || ''));
+              const severity = String(a?.severity || 'info').toUpperCase();
+              const pctTone = Number(a?.pct) >= 0 ? 'text-green-300' : 'text-red-300';
+
+              return (
+                <li key={`${a.ts_ms || a.ts || "ts"}-${a.symbol}-${i}`} className="p-2 text-xs text-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] text-gray-400">{fmtTime(tsMs)}</span>
+                    <span className="ml-2 px-1 py-0.5 rounded bg-gray-700 text-[10px]">{label}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <a
+                      href={`https://www.coinbase.com/advanced-trade/spot/${(a.symbol || '').toLowerCase()}-USD`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold hover:text-amber-400"
+                    >
+                      {a.symbol}
+                    </a>
+                    {pctText && <span className={pctTone}>{pctText}</span>}
+                    <span className="text-[10px] text-gray-400">{w}</span>
+                    <span className="ml-auto px-1 py-0.5 rounded bg-gray-700 text-[10px]">{severity}</span>
+                  </div>
+                  {a.message && <div className="mt-1 text-[11px] text-gray-400">{a.message}</div>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

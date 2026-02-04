@@ -64,6 +64,8 @@ function normalizeApiData(payload) {
 
   const latest_by_symbol = root.latest_by_symbol ?? {};
   const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
+  const sentiment = payload?.sentiment ?? root.sentiment ?? null;
+  const sentimentMeta = payload?.sentiment_meta ?? payload?.sentimentMeta ?? root.sentiment_meta ?? root.sentimentMeta ?? null;
 
   const toMs = (v) => {
     if (v == null) return null;
@@ -76,7 +78,7 @@ function normalizeApiData(payload) {
 
   const normalizeAlert = (a) => {
     if (!a || typeof a !== "object") return null;
-    const symRaw = a.symbol ?? a.product_id ?? a.pair ?? a.ticker ?? "";
+    const symRaw = a.product_id ?? a.symbol ?? a.pair ?? a.ticker ?? "";
     const rawUpper = String(symRaw || "").trim().toUpperCase();
     const product_id = rawUpper;
     const symbol = rawUpper.replace(/-USD$|-USDT$|-PERP$/i, "");
@@ -130,6 +132,8 @@ function normalizeApiData(payload) {
     alerts,
     latest_by_symbol: typeof latest_by_symbol === "object" && latest_by_symbol ? latest_by_symbol : {},
     updated_at,
+    sentiment,
+    sentimentMeta,
     meta: root.meta ?? payload?.meta ?? {},
     errors: root.errors ?? payload?.errors ?? [],
     coverage: root.coverage ?? payload?.coverage ?? null,
@@ -173,6 +177,8 @@ export function DataProvider({ children }) {
   const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
   const [volume1h, setVolume1h] = useState(() => cachedNormalized?.volume1h ?? []);
   const [alerts, setAlerts] = useState(() => cachedNormalized?.alerts ?? []);
+  const [sentiment, setSentiment] = useState(() => cachedNormalized?.sentiment ?? null);
+  const [sentimentMeta, setSentimentMeta] = useState(() => cachedNormalized?.sentimentMeta ?? null);
 
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
@@ -254,6 +260,8 @@ export function DataProvider({ children }) {
         latest_by_symbol: norm.latest_by_symbol,
         volume1h: norm.volume1h,
         alerts: norm.alerts,
+        sentiment: norm.sentiment ?? null,
+        sentiment_meta: norm.sentimentMeta ?? null,
         updated_at: norm.updated_at,
         meta: norm.meta,
         coverage: norm.coverage,
@@ -390,6 +398,8 @@ export function DataProvider({ children }) {
         banner_1h_price: mergedBannerPrice,
         banner_1h_volume: mergedBannerVolume,
       };
+      mergedNorm.sentiment = norm.sentiment ?? cached?.sentiment ?? null;
+      mergedNorm.sentimentMeta = norm.sentimentMeta ?? cached?.sentimentMeta ?? null;
 
       latestNormalizedRef.current = mergedNorm;
       persistLastGood(mergedNorm, baseUrl);
@@ -418,6 +428,9 @@ export function DataProvider({ children }) {
         setBanners({ price: mergedNorm.banner_1h_price, volume: mergedNorm.banner_1h_volume });
       }
     }
+
+    setSentiment(norm.sentiment ?? cached?.sentiment ?? null);
+    setSentimentMeta(norm.sentimentMeta ?? cached?.sentimentMeta ?? null);
 
     setLastFetchTs(now);
     setHeartbeatPulse(true);
@@ -659,6 +672,8 @@ export function DataProvider({ children }) {
     alerts,
     alertsBySymbol,
     getActiveAlert,
+    sentiment,
+    sentimentMeta,
     error,
     loading,
     refetch: fetchData,
@@ -675,7 +690,7 @@ export function DataProvider({ children }) {
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, sentiment, sentimentMeta, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

@@ -1,3 +1,4 @@
+// DEPRECATED: use useMarketHeat instead (local tape heat)
 import { useCallback, useEffect, useRef, useState } from "react";
 import normalizeSentiment from "../adapters/normalizeSentiment";
 

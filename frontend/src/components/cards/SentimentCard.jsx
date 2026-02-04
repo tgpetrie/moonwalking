@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import useSentimentLatest from "../../hooks/useSentimentLatest";
+import { useMarketHeat } from "../../hooks/useMarketHeat";
 
 const pct = (x, digits = 0) => (x == null ? "—" : `${(x * 100).toFixed(digits)}%`);
 const num = (x) => (x == null ? "—" : Number(x).toLocaleString());
@@ -196,7 +196,7 @@ export function SentimentCardBody({ d, symbol }) {
 }
 
 export default function SentimentCard({ symbol }) {
-  const { data, loading, error } = useSentimentLatest(symbol);
+  const { data, loading, error } = useMarketHeat();
 
   if (loading) {
     return <div className="state-copy">Loading sentiment…</div>;

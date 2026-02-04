@@ -1,5 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS, fetchData } from '../api.js';
+import { deriveAlertType, labelFromTypeKey } from '../utils/alertClassifier.js';
+
+const fmtPct = (p) => {
+  if (p == null || Number.isNaN(Number(p))) return null;
+  const n = Number(p);
+  const sign = n > 0 ? '+' : '';
+  return `${sign}${n.toFixed(2)}%`;
+};
+
+const fmtTime = (ms) => {
+  if (!Number.isFinite(ms)) return '—';
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+};
 
 const LastAlertTicker = () => {
   const [last, setLast] = useState(null);
@@ -36,16 +51,23 @@ const LastAlertTicker = () => {
 
   if (!last) return null;
 
+  const label = last?.type_key
+    ? labelFromTypeKey(last.type_key)
+    : deriveAlertType({ type: last?.type, pct: last?.pct, severity: last?.severity });
+  const pctText = fmtPct(last?.pct);
+  const w = last?.window || '3m';
+  const severity = String(last?.severity || 'info').toUpperCase();
+  const tsMs = Number(last?.ts_ms ?? last?.tsMs ?? Date.parse(last?.ts || ''));
+  const pctTone = Number(last?.pct) >= 0 ? 'text-green-300' : 'text-red-300';
+
   return (
     <div className="w-full px-4 py-1 mb-2 rounded border border-gray-800 bg-black/40 text-[11px] text-gray-300 flex items-center gap-2">
-      <span className="px-1 py-0.5 rounded bg-gray-700 text-white text-[10px]">ALERT</span>
+      <span className="px-1 py-0.5 rounded bg-gray-700 text-white text-[10px]">{label}</span>
       <span className="font-bold">{last.symbol}</span>
-      <span className={`${last.direction==='up'?'text-green-300':'text-red-300'}`}>{last.direction==='up'?'↑':last.direction==='down'?'↓':'·'}</span>
-      {typeof last.streak === 'number' && last.streak>0 && (
-        <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none">x{last.streak}</span>
-      )}
-      <span className="text-gray-400">score {Number(last.score||0).toFixed(2)}</span>
-      <span className="ml-auto font-mono text-[10px] text-gray-500">{last.ts?.replace('T',' ')?.slice(0,19)}</span>
+      {pctText && <span className={pctTone}>{pctText}</span>}
+      <span className="text-gray-400">{w}</span>
+      <span className="ml-auto px-1 py-0.5 rounded bg-gray-700 text-[10px]">{severity}</span>
+      <span className="font-mono text-[10px] text-gray-500">{fmtTime(tsMs)}</span>
     </div>
   );
 };

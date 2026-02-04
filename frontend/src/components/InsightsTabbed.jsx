@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import SentimentCard from "./cards/SentimentCard.jsx";
-import { useSentimentLatest } from "../hooks/useSentimentLatest.js";
+import { useMarketHeat } from "../hooks/useMarketHeat.js";
 import {
   ResponsiveContainer,
   LineChart,
@@ -46,7 +46,7 @@ const fmtNum = (v, digits = 2) => (Number.isFinite(Number(v)) ? Number(v).toFixe
 
 export default function InsightsTabbed({ symbol = "", onClose }) {
   const [active, setActive] = useState("overview");
-  const { data: d, raw, loading, error } = useSentimentLatest(symbol);
+  const { data: d, loading, error } = useMarketHeat();
 
   const sentimentSeries = useMemo(() => {
     const series = Array.isArray(d?.sentimentHistory) ? d.sentimentHistory : [];

@@ -1,4 +1,20 @@
 // Shared alert/intel classification helpers (single source of truth)
+export const TYPE_LABELS = {
+  impulse: "IMPULSE",
+  moonshot: "MOONSHOT",
+  breakout: "BREAKOUT",
+  crater: "CRATER",
+  dump: "DUMP",
+  divergence: "DIVERGENCE",
+  move: "MOVE",
+  unknown: "ALERT",
+};
+
+export const labelFromTypeKey = (typeKey) => {
+  const key = String(typeKey || "").toLowerCase();
+  return TYPE_LABELS[key] || "ALERT";
+};
+
 export const windowLabelFromType = (raw) => {
   const t = String(raw || "").toUpperCase();
   if (t.includes("_1M")) return "1m";
@@ -35,7 +51,9 @@ export const parseImpulseMessage = (a) => {
 };
 
 // Aligns with AlertsDock label logic
-export const deriveAlertType = ({ type, pct, severity } = {}) => {
+export const deriveAlertType = ({ type, pct, severity, type_key, typeKey } = {}) => {
+  const tk = type_key || typeKey;
+  if (tk) return labelFromTypeKey(tk);
   const t = String(type || "").toUpperCase();
   const sev = String(severity || "").toUpperCase();
   const w = windowLabelFromType(type);
@@ -45,6 +63,10 @@ export const deriveAlertType = ({ type, pct, severity } = {}) => {
   const abs = Number.isFinite(pctNum) ? Math.abs(pctNum) : 0;
 
   if (t.includes("DIVERGENCE")) return "DIVERGENCE";
+  if (t.includes("MOONSHOT")) return "MOONSHOT";
+  if (t.includes("BREAKOUT")) return "BREAKOUT";
+  if (t.includes("CRATER")) return "CRATER";
+  if (t.includes("DUMP")) return "DUMP";
   if (t.includes("VOLUME")) return "VOLUME";
   if (t.includes("SENTIMENT")) return "SENTIMENT";
   if (!Number.isFinite(pctNum)) return "IMPULSE";

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/sentiment-panel.css";
-import { useSentimentLatest } from "../../hooks/useSentimentLatest";
+import { useMarketHeat } from "../../hooks/useMarketHeat";
 import { baselineOrNull, displayOrDash } from "../../utils/num.js";
 
 function normalizeSymbol(symbol) {
@@ -22,12 +22,13 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
   const [activeTab, setActiveTab] = useState("overview");
   const {
     data,
-    raw,
     loading: hookLoading,
     error,
     refresh,
-    pipelineStatus,
-  } = useSentimentLatest();
+    pipelineHealth,
+  } = useMarketHeat();
+  const raw = data?.raw ?? null;
+  const pipelineStatus = data?.pipelineStatus ?? (pipelineHealth?.pipelineRunning ? "LIVE" : "STALE");
   const sentiment = data || {};
 
   // Pipeline status: LIVE, STALE, or OFFLINE
