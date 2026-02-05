@@ -2291,16 +2291,16 @@ a.bh-row {
     ) !important;
 
   -webkit-mask-image: radial-gradient(
-    200% 260% at var(--bh-hover-origin-x, 50%) var(--bh-hover-origin-y, 50%),
-    rgba(0,0,0,0.85) 0%,
-    rgba(0,0,0,0.30) 66%,
-    rgba(0,0,0,0.00) 96%
+    140% 180% at var(--bh-hover-origin-x, 50%) var(--bh-hover-origin-y, 50%),
+    rgba(0,0,0,0.92) 0%,
+    rgba(0,0,0,0.45) 58%,
+    rgba(0,0,0,0.00) 92%
   );
   mask-image: radial-gradient(
-    200% 260% at var(--bh-hover-origin-x, 50%) var(--bh-hover-origin-y, 50%),
-    rgba(0,0,0,0.85) 0%,
-    rgba(0,0,0,0.30) 66%,
-    rgba(0,0,0,0.00) 96%
+    140% 180% at var(--bh-hover-origin-x, 50%) var(--bh-hover-origin-y, 50%),
+    rgba(0,0,0,0.92) 0%,
+    rgba(0,0,0,0.45) 58%,
+    rgba(0,0,0,0.00) 92%
   );
 }
 
@@ -2388,7 +2388,7 @@ a.bh-row {
   isolation: isolate;          /* keeps blend modes sane */
   --mural-pos-x: 50%;
   --mural-pos-y: 32%;
-  --mural-size: clamp(980px, 78vw, 1200px);
+  --mural-size: clamp(720px, 58vw, 880px);
   --mural-bleed-top: 90px;
   --mural-bleed-bottom: 180px;
 }
