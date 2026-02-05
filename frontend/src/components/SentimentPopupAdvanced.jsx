@@ -43,7 +43,7 @@ const buildTradingViewEmbedUrl = (tvSymbol) => {
   return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
 };
 
-const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
+const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
   const REFRESH_MS = 15000;
   const [activeTab, setActiveTab] = useState('overview');
   const [chartExchange, setChartExchange] = useState('auto'); // auto | coinbase | binance

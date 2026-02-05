@@ -2715,7 +2715,7 @@ CONFIG = {
     'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
     'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
     'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Legacy: Background update interval in seconds (deprecated)
-    'PRICE_FETCH_INTERVAL': int(os.environ.get('PRICE_FETCH_INTERVAL', 25)),  # How often to fetch fresh prices from Coinbase (20-25s recommended)
+    'PRICE_FETCH_INTERVAL': int(os.environ.get('PRICE_FETCH_INTERVAL', 8)),  # How often to fetch fresh prices from Coinbase (8s for live feel)
     'SNAPSHOT_COMPUTE_INTERVAL': int(os.environ.get('SNAPSHOT_COMPUTE_INTERVAL', 8)),  # How often to recompute snapshots using cached prices (8-10s recommended)
     'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 30)),  # Max coins to return
     'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
@@ -2726,8 +2726,8 @@ CONFIG = {
     'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
     'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 25)),  # Throttle 1-min recompute (default 25s)
     # 1-minute retention / hysteresis controls
-    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.03)),   # % change to ENTER list (loosened for dev)
-    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.015)),    # lower % to remain after entering (loosened for dev)
+    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.005)),   # % change to ENTER list (0.5% - much more data)
+    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.0025)),    # lower % to remain after entering (0.25% - keep board full)
     'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 35)),       # cap displayed coins
     'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
     'TOP_MOVERS_SAMPLE_SIZE': int(os.environ.get('TOP_MOVERS_SAMPLE_SIZE', 120)),  # 24h movers sample size
