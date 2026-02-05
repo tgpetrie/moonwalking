@@ -5013,3 +5013,37 @@ body {
     inset 0 0 0 1px rgba(170,120,255,0.22),
     inset 0 0 22px rgba(170,120,255,0.12) !important;
 }
+
+/* =========================================================
+   ABSOLUTE FINAL — Desktop Lasso Hover
+   ========================================================= */
+
+/* Kill the old ::after that was creating blur/haze */
+.board-core .bh-row::after,
+.board-core .bh-row:hover::after,
+.board-core .bh-row:focus-visible::after,
+.bh-row::after,
+.bh-row:hover::after {
+  opacity: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Gainers: warm orange inner glow — soft feathered edges */
+.board-core .bh-row:hover,
+.board-core .bh-row-grid:hover {
+  box-shadow:
+    inset 0 0 60px 0px rgba(255,165,0,0.18),
+    inset 0 0 20px 0px rgba(255,165,0,0.12) !important;
+}
+
+/* Losers: purple inner glow */
+.board-core .bh-row[data-side="loser"]:hover,
+.board-core .bh-row-grid[data-side="loser"]:hover {
+  box-shadow:
+    inset 0 0 60px 0px rgba(170,120,255,0.22),
+    inset 0 0 20px 0px rgba(170,120,255,0.14) !important;
+}
