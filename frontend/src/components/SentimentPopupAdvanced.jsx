@@ -716,11 +716,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                     <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
                       {sentimentData?.heatLabel || 'NEUTRAL'}
                     </span>
-                    <span className="stat-sublabel">
-                      Breadth {sentimentData?.components?.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '--'}
-                      {' · '}Momentum {sentimentData?.components?.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}
-                      {' · '}Vol {sentimentData?.components?.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '--'}
-                    </span>
+                    {!symbol && (
+                      <span className="stat-sublabel">
+                        Breadth {sentimentData?.components?.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '--'}
+                        {' · '}Momentum {sentimentData?.components?.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}
+                        {' · '}Vol {sentimentData?.components?.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '--'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -770,8 +772,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 </div>
               </div>
 
-              {/* Market Heat Components */}
-              {sentimentData?.components && (
+              {/* Market Heat Components - only show in market-wide view, not per-coin */}
+              {sentimentData?.components && !symbol && (
                 <div className="info-section">
                   <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -1073,16 +1075,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                 </div>
               </div>
 
-              <div className="charts-row">
-                <div className="info-section half">
-                  <div className="section-header">
-                    <h3>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <circle cx="12" cy="12" r="10"/>
-                      </svg>
-                      Market Breadth
-                    </h3>
-                  </div>
+              {/* Market-wide breadth and components - hide in per-coin view */}
+              {!symbol && (
+                <div className="charts-row">
+                  <div className="info-section half">
+                    <div className="section-header">
+                      <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <circle cx="12" cy="12" r="10"/>
+                        </svg>
+                        Market Breadth
+                      </h3>
+                    </div>
                   <div className="chart-container donut">
                     {sentimentData?.components ? (
                       <div className="breadth-visual">
@@ -1162,6 +1166,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol = 'BTC' }) => {
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="info-section">
                 <div className="section-header">
