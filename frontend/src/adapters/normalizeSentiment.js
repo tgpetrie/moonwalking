@@ -33,7 +33,7 @@ const arr = (v) => (Array.isArray(v) ? v : []);
  */
 const computePipelineStatus = (meta, hasData) => {
   if (!meta) return hasData ? "STALE" : "OFFLINE";
-  if (meta.ok && meta.pipelineRunning) return "LIVE";
+  if (meta.ok && meta.pipelineRunning) return "LIVE"; 
   if (meta.pipelineRunning || hasData) {
     const staleSeconds = meta.staleSeconds ?? Infinity;
     return staleSeconds < STALE_THRESHOLD_SECONDS ? "LIVE" : "STALE";
