@@ -2387,8 +2387,8 @@ a.bh-row {
   position: relative;
   isolation: isolate;          /* keeps blend modes sane */
   --mural-pos-x: 50%;
-  --mural-pos-y: 32%;
-  --mural-size: clamp(720px, 58vw, 880px);
+  --mural-pos-y: 18%;
+  --mural-size: clamp(900px, 72vw, 1100px);
   --mural-bleed-top: 90px;
   --mural-bleed-bottom: 180px;
 }
