@@ -2396,8 +2396,11 @@ a.bh-row {
 /* mural layer */
 .board-core::before{
   content: "";
-  position: absolute;
-  inset: calc(-1 * var(--mural-bleed-top)) 0 calc(-1 * var(--mural-bleed-bottom)) 0;     /* consistent bleed so it never "shrinks" by section height */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: none;
   z-index: 0;
 
@@ -2434,8 +2437,11 @@ a.bh-row {
 /* hover reveal layer (separate from base to prevent full-size flashes) */
 .board-core::after{
   content: "";
-  position: absolute;
-  inset: calc(-1 * var(--mural-bleed-top)) 0 calc(-1 * var(--mural-bleed-bottom)) 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: none;
   z-index: 0;
 
