@@ -1,46 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" href="/bhabit-logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BHABITS CB INSIGHT</title>
-    <!-- Preload critical shared chunks (react core); names rely on manualChunks config -->
-    <link rel="preload" as="script" href="/assets/react.js" />
-        <!-- Performance: preconnect/dns-prefetch to backend to reduce first API latency -->
-        <!-- Note: Vite doesn't process env in plain HTML links; we provide a minimal inline script to inject hints at runtime. -->
-        <script>
-            (function(){
-                try {
-                    var api = (window.__VITE_API_URL__ || (window.importMeta && window.importMeta.env && window.importMeta.env.VITE_API_URL) || '').trim();
-                    // If Vite exposes import.meta.env on window at runtime, use it; otherwise fall back to build-time replacement via Vite.
-                } catch(e) {}
-            })();
-        </script>
-        <script type="module">
-            // Vite exposes import.meta.env within modules; use that to inject preconnect hints dynamically.
-            const api = (import.meta.env && import.meta.env.VITE_API_URL) ? String(import.meta.env.VITE_API_URL) : '';
-            const url = api ? api.replace(/\/$/, '') : '';
-            const host = url ? new URL(url).origin : '';
-            if (host) {
-                const link1 = document.createElement('link');
-                link1.rel = 'preconnect';
-                link1.href = host;
-                link1.crossOrigin = '';
-                document.head.appendChild(link1);
-                const link2 = document.createElement('link');
-                link2.rel = 'dns-prefetch';
-                link2.href = '//' + new URL(host).host;
-                document.head.appendChild(link2);
-            }
-        </script>
-</head>
+    <!-- Core favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 
-<body>
+    <!-- Apple / iOS -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/site.webmanifest">
+
+    <!-- Windows / theme color -->
+    <meta name="theme-color" content="#050308">
+    <meta name="msapplication-TileColor" content="#050308">
+
+    <!-- Optional app names -->
+    <meta name="application-name" content="BHABIT">
+    <meta name="apple-mobile-web-app-title" content="BHABIT">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BHABIT Crypto Dashboard</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;800&family=Fragment+Mono&display=swap" rel="stylesheet">
+  </head>
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-</body>
-
+  </body>
 </html>

@@ -6,6 +6,37 @@ Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price
 
 ---
 
+## 📋 Documentation
+
+**For comprehensive documentation**, see the **[Documentation Hub](docs/README.md)** with organized guides:
+- 📘 **[User Guides](docs/user-guides/)** - Quick start and setup guides
+- 👨‍💻 **[Developer Documentation](docs/developer/)** - Architecture, API integration, React components
+- 🧪 **[Testing Documentation](docs/testing/)** - Verification and testing procedures
+
+Operational runbooks:
+- [Alerts – Operational Use Guide](docs/user-guides/ALERTS_USE_GUIDE.md)
+
+**Before modifying the UI**, read the canonical specification:
+- **[`docs/UI_HOME_DASHBOARD.md`](docs/UI_HOME_DASHBOARD.md)** – Authoritative UI layout, data contracts, and implementation paths
+
+For AI assistance:
+- **[`docs/ai/AI_INDEX.md`](docs/ai/AI_INDEX.md)** – Quick reference for AI agents
+
+---
+
+## Dev Checklist (top-level)
+
+- `docs/UI_HOME_DASHBOARD.md`: canonical UI spec — read before changing the home dashboard.
+- Layout order: **1-MIN hero (full-width)** → **3-MIN gainers (left)** / **3-MIN losers (right)** → **Watchlist under losers**.
+- Percent formatting: backend provides percentages; use `formatPct` with dynamic decimals (abs < 1 → 3, else 2).
+- Watchlist model: store `{ symbol, baseline, current }` and compute `deltaPct = ((current - baseline)/baseline)*100`.
+- `TokenRow` requirement: parent must pass `changeKey` (`price_change_percentage_1min` or `_3min`) and actions must be stacked (star above info).
+- Insights wiring: clicking the % cell or info button opens `InsightsTabbed` with symbol/row context.
+- CSS invariants: update the authoritative block in `frontend/src/index.css` — `.one-min-grid`, `.bh-token-actions`, `.bh-insight-float`.
+- Data hook: use `useData` (SWR-style) that returns `data` and `bySymbol`; mutate on refresh.
+- Do NOT reintroduce the legacy header or alerts bar ("BHABIT Crypto Dashboard / Alerts 25 NEW").
+- If backend contract or insights change, edit `docs/UI_HOME_DASHBOARD.md` first, then implement code changes.
+
 ## Overview
 
 BHABIT CBMOONERS shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows, plus 1‑hour price and volume trend banners. The React + Vite frontend stays smooth via WebSocket with REST fallback; the Flask backend owns ranking, hysteresis/peak‑hold, and streak‑based alerts.
@@ -92,11 +123,21 @@ BHABIT CBMOONERS/
 
    # Frontend
    [ -f frontend/.env.example ] && cp frontend/.env.example frontend/.env || true
+
+   # Sentiment API base (defaults to the FastAPI dev server)
+   echo "VITE_SENTIMENT_API_BASE=http://127.0.0.1:8001" >> frontend/.env
    ```
 
 ---
 
 ## Running the Application
+
+## Repo Workflow (MW_SPEC)
+
+- Rules: see `MW_SPEC.md` (ports, contracts, UI rules, truth rules).
+- Tasks: see `MW_BACKLOG.md` (living queue).
+- Any change proposal must cite which `MW_SPEC` rules it satisfies.
+- Any completed change must update `MW_BACKLOG` status and record Verification.
 
 ### Recommended (All-in-One Setup)
 
@@ -129,7 +170,7 @@ BHABIT CBMOONERS/
    python app.py
    ```
 
-   Runs on: `http://localhost:5001`
+   Runs on: `http://127.0.0.1:5003`
 
 2. **Start the frontend server**
 
@@ -211,9 +252,9 @@ SENTRY_DSN=
 Frontend `frontend/.env`:
 
 ```env
-VITE_API_URL=http://localhost:5001
+VITE_API_URL=http://127.0.0.1:5003
 # Optional WS override; when omitted, components auto‑detect
-# VITE_WS_URL=ws://localhost:5001
+# VITE_WS_URL=ws://127.0.0.1:5003
 # 1‑min WS render throttle (ms). Defaults to 7000 when omitted.
 VITE_ONE_MIN_WS_THROTTLE_MS=7000
 # Alerts poll cadence (ms). Defaults to 30000; min 5000.
@@ -305,7 +346,7 @@ pytest -q
 ### Smoke Test (Backend)
 
 ```bash
-SMOKE_BASE_URL="http://127.0.0.1:5001" \
+SMOKE_BASE_URL="http://127.0.0.1:5003" \
    ".venv/bin/python" backend/smoke_test.py
 ```
 

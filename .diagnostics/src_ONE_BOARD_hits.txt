@@ -1,0 +1,11 @@
+### ONE BOARD GRID (excerpt)
+
+```text
+1. There is one board grid: `.bh-board` + `.bh-board-row-*` + `.bh-board-panel`.
+2. There is one row grid: `.bh-row`.
+3. All rows (1m, 3m, watchlist) derive from `TokenRow` (or `AnimatedTokenRow`).
+4. Banners use `BannerTicker` and live in `bh-board-row-full`.
+5. Bunny layer is low opacity, scrolls with the board, affected by hover, never affects layout.
+6. Any divergence from these classes or structures is a bug.
+```
+4:- Keep layout rails stable and predictable. Do not change `.bh-row`, `.bh-board-row-*`, or the 1m two-mode layout without approval.

@@ -4,8 +4,52 @@ BHABIT_CBMOONERS_backup_20250710_055654.zip
 # Node modules
 node_modules/
 
+# Node / JS tooling caches & artifacts
+.pnp.cjs
+.pnp.loader.mjs
+.eslintcache
+.stylelintcache
+.parcel-cache
+.turbo/
+.swc/
+.nyc_output/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # Python cache
 __pycache__/
+*.py[cod]
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+pip-wheel-metadata/
+venv/
+.venv/
+env/
+
+# Logs
+backend/*.log
+backend/logs/*.log
+backend/watchlist_insights.log
+*.log
+logs/
+*.pid
+*.pid.lock
 
 # Logs
 backend/*.log
@@ -15,6 +59,88 @@ backend/watchlist_insights.log
 # Environment variables
 .env*
 .vercel
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.envrc
 
 # VS Code
 .vscode/
+.history/
+.idea/
+*.code-workspace
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+._*
+*.swp
+*.swo
+*.orig
+*.tmp
+tmp/
+temp/
+
+# Frontend / build outputs
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+dist/
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
+# Netlify / Render (if generated locally)
+.netlify/
+.render/
+
+# allow the mobile scaffold
+!moonwalking_mobile/
+!moonwalking_mobile/**
+
+# But do not track node_modules inside mobile or nested folders
+moonwalking_mobile/node_modules/
+**/node_modules/
+
+# Dev runtime logs (do not commit)
+# Dev runtime logs (do not commit)
+backend/*.stdout
+bridge.stdout
+frontend/vite.stdout
+backend/*.log
+.devlogs/
+
+# Runtime artifacts
+*.log
+*.pid
+
+# Local logs
+backend/server.log
+backend/server.log.*
+backend/backend/server.log
+backend/backend/server.log.*
+backend/*.stdout
+backend/*.err
+vite*.stdout
+vite*.err
+frontend/vite*.stdout
+frontend/vite*.err
+
+# Editor junk
+.history/
+
+# Local reference copies (do not track)
+moonwalkings_UI_GOOD/
+
+# SQLite runtime artifacts (never commit)
+backend/**/*.db
+backend/**/*.db-*
+backend/**/*.sqlite
+backend/**/*.sqlite-*
+
+# local venv
+.venv/

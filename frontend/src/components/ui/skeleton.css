@@ -1,0 +1,113 @@
+/* Skeleton styles for sentiment popup loading state */
+:root {
+  --sk-bg0: rgba(255, 255, 255, 0.06);
+  --sk-bg1: rgba(255, 255, 255, 0.12);
+  --sk-shine: rgba(174, 75, 245, 0.18);
+  --sk-shine2: rgba(69, 255, 179, 0.12);
+}
+
+.bh-skel {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--sk-bg0), var(--sk-bg1), var(--sk-bg0));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35) inset;
+}
+
+.bh-skel::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: -60%;
+  width: 60%;
+  height: 180%;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0),
+    var(--sk-shine),
+    var(--sk-shine2),
+    rgba(0, 0, 0, 0)
+  );
+  transform: rotate(12deg);
+  animation: bh-skel-shimmer 2.4s ease-in-out infinite;
+  opacity: 0.85;
+}
+
+@keyframes bh-skel-shimmer {
+  0% {
+    transform: translateX(0) rotate(12deg);
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(260%) rotate(12deg);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-skel::after {
+    animation: none;
+  }
+}
+
+.skeleton-text {
+  width: 100%;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.skeleton-row-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.loading-skeleton {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading-skeleton .skeleton-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.loading-skeleton .skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.loading-skeleton .skeleton-stat-card {
+  padding: 12px;
+  border-radius: 16px;
+  gap: 6px;
+}
+
+.loading-gauge,
+.loading-chart {
+  width: 100%;
+}
+
+.loading-footer-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}

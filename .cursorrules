@@ -1,0 +1,7 @@
+# Cursor Rules
+
+- Always read `docs/ai/AI_INDEX.md` first (ground truth).
+- Obey `ai.manifest.json` for ports, entry, and events.
+- Frontend must mount `<Dashboard />` from `frontend/src/main.jsx`.
+- Do not add or suggest loader/token demo screens.
+- Write resilient code: guard arrays, validate numbers, abort long fetches.

@@ -140,3 +140,196 @@
 .stagger-fade-in > *:nth-child(4) { animation-delay: 0.3s; }
 .stagger-fade-in > *:nth-child(5) { animation-delay: 0.4s; }
 .stagger-fade-in > *:nth-child(6) { animation-delay: 0.5s; }
+
+/* ===== DIVERGENCE ENGINE PULSE ANIMATIONS ===== */
+/* GPU-optimized animations using transform and opacity only for N100 compatibility */
+
+@keyframes mini-radar {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3.5);
+    opacity: 0;
+  }
+}
+
+@keyframes mini-dot-breath {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+}
+
+@keyframes mini-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Mini pulse indicator for divergence detection */
+.mini-pulse {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.mini-pulse .dot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  position: relative;
+  z-index: 2;
+  animation: mini-dot-breath 1.4s ease-in-out infinite;
+}
+
+.mini-pulse .ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  z-index: 1;
+  animation: mini-radar 1.5s infinite ease-out, mini-spin 5s linear infinite;
+}
+
+/* Bullish divergence (green) */
+.mini-pulse.bull .dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.mini-pulse.bull .ring {
+  background: #22c55e;
+}
+
+/* Bearish divergence (red) */
+.mini-pulse.bear .dot {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.mini-pulse.bear .ring {
+  background: #ef4444;
+}
+
+/* ===== WATCHLIST ROW STYLES ===== */
+
+.watchlist-row {
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s ease;
+}
+
+.watchlist-row:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.watchlist-row-content {
+  display: grid;
+  grid-template-columns: 48px 120px 140px 1fr 80px;
+  gap: 16px;
+  align-items: center;
+}
+
+.watchlist-rank {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+.watchlist-symbol {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.watchlist-price {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(16, 174, 155);
+  text-align: right;
+}
+
+.watchlist-metrics {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.watchlist-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.watchlist-btn-info,
+.watchlist-btn-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.watchlist-btn-info:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+}
+
+.watchlist-btn-remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.watchlist-narrative {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.watchlist-row:hover .watchlist-narrative {
+  opacity: 1;
+  pointer-events: auto;
+}

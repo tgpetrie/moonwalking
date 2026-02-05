@@ -5,9 +5,13 @@ flask-socketio==5.3.6
 
 # HTTP requests and data handling
 requests==2.32.2
+aiohttp>=3.10.5
 
 # Testing
 pytest==8.3.5
+pytest-asyncio==0.21.0
+pytest-cov==4.1.0
+pytest-mock==3.12.0
 
 # Production server
 gunicorn==21.2.0
@@ -30,3 +34,18 @@ flask-talisman==1.1.0
 # Technical analysis dependencies
 numpy
 pandas
+
+
+# Sentiment + feeds + reddit + twitter
+feedparser==6.0.10
+praw==7.7.1
+tweepy==4.14.0
+vaderSentiment==3.3.2
+PyYAML==6.0.2
+transformers>=4.30.0
+torch>=2.0.0
+google-generativeai>=0.3.0
+beautifulsoup4>=4.12.0
+
+# Distributed caching (Phase 3)
+redis==5.0.1

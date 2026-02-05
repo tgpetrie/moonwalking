@@ -8,7 +8,7 @@ import sys
 import time
 import requests
 
-BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://127.0.0.1:5001")
+BASE_URL = os.environ.get("SMOKE_BASE_URL", "http://127.0.0.1:5003")
 
 ENDPOINTS = [
     ("/api/health", 200, ["status"]),

@@ -1,13 +1,14 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './app.jsx';
-import '../index.css';
-import './styles/animations.css';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
+import "./styles/info-modal.css";
+import App from "./App.jsx";
+import { SentimentProvider } from "./context/SentimentContext.jsx";
 
-// Responsive best practices: index.css already includes Tailwind and responsive settings.
-// No changes needed here, but ensure root element is used for hydration.
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <SentimentProvider>
+      <App />
+    </SentimentProvider>
   </React.StrictMode>
 );

@@ -24,6 +24,13 @@ const buildEndpoints = () => ({
 
 export let API_ENDPOINTS = buildEndpoints();
 export const getApiBaseUrl = () => API_BASE_URL;
+export const getSentimentBaseUrl = () => (
+  import.meta.env.VITE_SENTIMENT_BASE_URL ||
+  import.meta.env.VITE_SENTIMENT_URL ||
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  ""
+);
 export const setApiBaseUrl = (url) => {
   if (!url) return;
   API_BASE_URL = url.replace(/\/$/, '');

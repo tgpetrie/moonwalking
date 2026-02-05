@@ -36,11 +36,11 @@ RUN chown -R cbmo4ers:cbmo4ers /app
 USER cbmo4ers
 
 # Expose the port the application will run on
-EXPOSE 5001
+EXPOSE 5003
 
 # Health check for container orchestration platforms
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5001/api/health', timeout=5)" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:5003/api/health', timeout=5)" || exit 1
 
 # Command to run the application using Gunicorn
-CMD ["gunicorn", "app:app"]
+CMD ["gunicorn", "app:app", "--workers", "1", "--threads", "1"]

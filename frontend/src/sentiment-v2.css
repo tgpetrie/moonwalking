@@ -1,0 +1,295 @@
+/* =============== BHABIT Sentiment Card V2 Skin =============== */
+
+/* Modal shell already exists; this just ensures the feel */
+.sentiment-modal-shell {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(10, 10, 12, 0.92);
+  border: 1px solid rgba(160, 90, 255, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(160, 90, 255, 0.06) inset,
+    0 18px 60px rgba(0, 0, 0, 0.75);
+}
+
+/* Background art is owned globally by `.purple-rabbit-bg` */
+.sentiment-modal-shell::before {
+  content: none;
+}
+
+.sentiment-modal-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Header hierarchy */
+.sentiment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: linear-gradient(
+    to bottom,
+    rgba(18, 16, 24, 0.95),
+    rgba(12, 11, 16, 0.75)
+  );
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.sentiment-header .title {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  font-size: 20px;
+  color: rgba(245,245,248,0.96);
+}
+
+.sentiment-header .subtitle {
+  font-family: "Raleway", sans-serif;
+  font-size: 12px;
+  color: rgba(200,200,210,0.7);
+  margin-top: 2px;
+}
+
+.sentiment-header .right-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(220,220,230,0.9);
+  font-family: "Raleway", sans-serif;
+  font-size: 12px;
+}
+
+/* Tabs line */
+.insights-tabs {
+  display: flex;
+  gap: 28px;
+  padding: 12px 18px 0 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  background: rgba(10,10,12,0.7);
+}
+
+.insights-tab {
+  position: relative;
+  padding: 10px 6px 12px 6px;
+  font-family: "Raleway", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: rgba(210,210,220,0.8);
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  transition: color 140ms ease;
+  background: transparent;
+  border: none;
+}
+
+.insights-tab:hover {
+  color: rgba(230,230,245,0.96);
+}
+
+.insights-tab.active {
+  color: rgba(186, 120, 255, 1);
+}
+
+.insights-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(186,120,255,0.0),
+    rgba(186,120,255,0.9),
+    rgba(186,120,255,0.0)
+  );
+}
+
+/* Card surface */
+.sentiment-card {
+  margin: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(18,18,22,0.75);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.02) inset,
+    0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* Section headings */
+.sentiment-section-title {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(245,245,248,0.98);
+  margin: 8px 0 12px;
+  letter-spacing: 0.2px;
+}
+
+.sentiment-section-sub {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 14px;
+  color: rgba(200,200,210,0.82);
+  margin-top: -6px;
+}
+
+/* Stat tiles row */
+.sentiment-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .sentiment-stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+.sentiment-stat {
+  padding: 14px 12px;
+  border-radius: 14px;
+  background: rgba(20,20,24,0.8);
+  border: 1px solid rgba(255,255,255,0.05);
+  text-align: center;
+}
+
+.sentiment-stat .label {
+  font-family: "Raleway", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  color: rgba(190,190,200,0.75);
+  text-transform: uppercase;
+}
+
+.sentiment-stat .value {
+  margin-top: 6px;
+  font-family: "Raleway", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: 0.2px;
+  color: rgba(245,245,248,0.98);
+}
+
+.sentiment-stat .value.purple { color: rgba(186,120,255,1); }
+.sentiment-stat .value.gold   { color: rgba(245,200,90,1); }
+.sentiment-stat .value.mint   { color: rgba(140,255,210,1); }
+
+/* Meter */
+.sentiment-meter {
+  margin-top: 14px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  background: rgba(13,13,16,0.9);
+  border: 1px solid rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sentiment-meter .meter-label {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 15px;
+  color: rgba(220,220,230,0.9);
+  min-width: 86px;
+}
+
+.sentiment-meter .bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+
+.sentiment-meter .bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(186,120,255,0.9),
+    rgba(120,210,255,0.9),
+    rgba(140,255,210,0.9)
+  );
+  transition: width 320ms ease;
+}
+
+.sentiment-meter .pct {
+  font-family: "Raleway", sans-serif;
+  font-size: 13px;
+  color: rgba(240,240,245,0.95);
+  min-width: 42px;
+  text-align: right;
+}
+
+/* Trending topics pills */
+.trending-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.trending-pill {
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-family: "Raleway", sans-serif;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(16,16,20,0.9);
+  color: rgba(230,230,240,0.96);
+}
+
+.trending-pill.bullish {
+  border-color: rgba(120,210,255,0.45);
+  color: rgba(120,210,255,1);
+}
+
+.trending-pill.bearish {
+  border-color: rgba(255,120,200,0.45);
+  color: rgba(255,120,200,1);
+}
+
+.trending-pill.neutral {
+  border-color: rgba(245,200,90,0.35);
+  color: rgba(245,200,90,1);
+}
+
+/* Divergence alerts */
+.divergence-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.divergence-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(14,14,18,0.9);
+  border: 1px solid rgba(255,255,255,0.05);
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 14px;
+  color: rgba(230,230,240,0.96);
+}
+
+.divergence-item.warning {
+  border-color: rgba(245,200,90,0.38);
+}
+
+.divergence-item.info {
+  border-color: rgba(120,210,255,0.38);
+}
+
+/* Empty / warming cards */
+.insights-empty-card {
+  margin: 18px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(16,16,19,0.75);
+  border: 1px dashed rgba(255,255,255,0.08);
+  font-family: "Raleway", system-ui, sans-serif;
+  color: rgba(200,200,210,0.85);
+  font-size: 15px;
+}

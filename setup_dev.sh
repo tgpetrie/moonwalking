@@ -127,6 +127,14 @@ else
 fi
 cd ..
 
+# Install tracked git hooks into .git/hooks so developers get the pre-push enforcement
+print_status "Installing git hooks (pre-push enforcement)..."
+if [ -f "scripts/install-git-hooks.sh" ]; then
+    bash scripts/install-git-hooks.sh && print_success "Git hooks installed into .git/hooks"
+else
+    print_warning "scripts/install-git-hooks.sh not found; skipping git hooks installation."
+fi
+
 # Create logs directory for backend
 print_status "Setting up logging directory..."
 mkdir -p backend/logs

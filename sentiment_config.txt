@@ -1,0 +1,352 @@
+# Moonwalking Sentiment Analysis Configuration
+
+system:
+  environment: "production"
+  log_level: "INFO"
+  data_dir: "./data"
+  cache_dir: "./cache"
+
+api:
+  host: "0.0.0.0"
+  port: 8001
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "*"
+  
+# Sentiment Analysis Settings
+sentiment:
+  update_interval: 30  # seconds
+  history_days: 30
+  cache_ttl: 300  # 5 minutes
+  
+  # Tier trust weights
+  tier_weights:
+    tier1: 0.85
+    tier2: 0.70
+    tier3: 0.50
+    fringe: 0.30
+  
+  # Time decay (older data gets less weight)
+  time_decay:
+    enabled: true
+    half_life_hours: 6
+  
+  # Divergence alert thresholds
+  divergence:
+    warning_threshold: 0.25  # 25% difference
+    critical_threshold: 0.40  # 40% difference
+
+# Data Sources Configuration
+sources:
+  # === TIER 1: High Trust Sources (0.8-0.9) ===
+  tier1:
+    - name: "Fear & Greed Index"
+      enabled: true
+      url: "https://api.alternative.me/fng/"
+      weight: 0.90
+      update_frequency: 3600  # 1 hour
+      
+    - name: "CoinGecko"
+      enabled: true
+      api_key_required: false
+      weight: 0.85
+      update_frequency: 300  # 5 minutes
+      
+    - name: "Binance News RSS"
+      enabled: true
+      url: "https://www.binance.com/en/feed/profile/Binance"
+      weight: 0.85
+      update_frequency: 600  # 10 minutes
+  
+  # === TIER 2: Medium Trust Sources (0.6-0.8) ===
+  tier2:
+    - name: "Reddit r/CryptoCurrency"
+      enabled: true
+      subreddit: "CryptoCurrency"
+      weight: 0.75
+      post_limit: 100
+      time_filter: "day"
+      update_frequency: 600
+      
+    - name: "Reddit r/Bitcoin"
+      enabled: true
+      subreddit: "Bitcoin"
+      weight: 0.75
+      post_limit: 100
+      time_filter: "day"
+      update_frequency: 600
+      
+    - name: "CoinDesk RSS"
+      enabled: true
+      url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      weight: 0.80
+      update_frequency: 600
+      
+    - name: "CryptoSlate RSS"
+      enabled: true
+      url: "https://cryptoslate.com/feed/"
+      weight: 0.70
+      update_frequency: 900
+      
+    - name: "Bitcoin Magazine RSS"
+      enabled: true
+      url: "https://bitcoinmagazine.com/.rss/full/"
+      weight: 0.75
+      update_frequency: 900
+  
+  # === TIER 3: Lower Trust Sources (0.4-0.6) ===
+  tier3:
+    - name: "Reddit r/SatoshiStreetBets"
+      enabled: true
+      subreddit: "SatoshiStreetBets"
+      weight: 0.55
+      post_limit: 50
+      time_filter: "day"
+      update_frequency: 900
+      
+    - name: "Reddit r/CryptoMoonShots"
+      enabled: true
+      subreddit: "CryptoMoonShots"
+      weight: 0.50
+      post_limit: 50
+      time_filter: "day"
+      update_frequency: 900
+      
+    - name: "NewsBTC RSS"
+      enabled: true
+      url: "https://www.newsbtc.com/feed/"
+      weight: 0.60
+      update_frequency: 1200
+
+# Reddit API Configuration
+reddit:
+  enabled: true
+  client_id: "${REDDIT_CLIENT_ID}"
+  client_secret: "${REDDIT_CLIENT_SECRET}"
+  user_agent: "moonwalking-sentiment/1.0"
+  
+  # Subreddits to monitor
+  subreddits:
+    tier2:
+      - "CryptoCurrency"
+      - "Bitcoin"
+      - "ethereum"
+    tier3:
+      - "SatoshiStreetBets"
+      - "CryptoMoonShots"
+      - "altcoin"
+  
+  # Analysis settings
+  posts_per_subreddit: 100
+  include_comments: true
+  comment_limit: 10
+  time_filter: "day"  # hour, day, week, month
+
+# Twitter/X Configuration (Optional)
+twitter:
+  enabled: false
+  api_key: "${TWITTER_API_KEY}"
+  api_secret: "${TWITTER_API_SECRET}"
+  access_token: "${TWITTER_ACCESS_TOKEN}"
+  access_secret: "${TWITTER_ACCESS_SECRET}"
+  
+  # Search terms
+  search_terms:
+    - "#Bitcoin"
+    - "#Crypto"
+    - "#BTC"
+    - "$BTC"
+  
+  tweets_per_search: 100
+  language: "en"
+
+# Telegram Configuration (Optional)
+telegram:
+  enabled: false
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  
+  # Channels to monitor
+  channels:
+    - "@bitcoin"
+    - "@cryptocurrency"
+
+# LunarCrush API (Optional - Premium)
+lunarcrush:
+  enabled: false
+  api_key: "${LUNARCRUSH_API_KEY}"
+  symbols:
+    - "BTC"
+    - "ETH"
+  
+# CryptoPanic API (Optional)
+cryptopanic:
+  enabled: false
+  api_key: "${CRYPTOPANIC_API_KEY}"
+  filter: "rising"  # rising, hot, bullish, bearish
+
+# Sentiment Analysis Engine
+nlp:
+  # Sentiment analyzer to use
+  engine: "vader"  # vader, textblob, transformers
+  
+  # VADER specific settings
+  vader:
+    compound_threshold: 0.05
+  
+  # Crypto-specific lexicon additions
+  crypto_lexicon:
+    bullish_terms:
+      - "moon": 2.5
+      - "bullish": 2.0
+      - "pump": 1.8
+      - "hodl": 1.5
+      - "diamond hands": 2.0
+      - "to the moon": 2.5
+      - "ath": 1.5
+      - "breakout": 1.8
+      - "rally": 1.5
+      - "surge": 1.8
+    
+    bearish_terms:
+      - "dump": -2.0
+      - "bearish": -2.0
+      - "crash": -2.5
+      - "rekt": -2.0
+      - "paper hands": -1.5
+      - "fud": -1.8
+      - "scam": -2.5
+      - "rug pull": -2.8
+      - "ponzi": -2.5
+      - "collapse": -2.5
+    
+    neutral_terms:
+      - "dyor": 0.0
+      - "nfa": 0.0
+      - "wagmi": 0.5
+      - "gm": 0.2
+
+# Trending Topics Detection
+trending:
+  enabled: true
+  
+  # Topic extraction
+  min_mentions: 10
+  time_window_hours: 24
+  
+  # Hashtag tracking
+  track_hashtags: true
+  min_hashtag_count: 5
+  
+  # Token/Coin mentions
+  track_tickers: true
+  ticker_pattern: "\\$[A-Z]{2,5}\\b"
+
+# Divergence Detection
+divergence:
+  enabled: true
+  
+  # Check for divergence between tiers
+  tier_comparison:
+    - ["tier1", "tier3"]  # Compare institutional vs retail
+    - ["tier2", "tier3"]  # Compare mainstream vs retail
+  
+  # Regional divergence (if multi-language enabled)
+  regional_comparison:
+    enabled: false
+    regions:
+      - "US"
+      - "CN"
+      - "EU"
+
+# Database Configuration
+database:
+  enabled: true
+  type: "sqlite"  # sqlite, postgresql, mysql
+  
+  # SQLite
+  sqlite:
+    path: "./data/sentiment.db"
+  
+  # PostgreSQL (optional)
+  postgresql:
+    host: "${POSTGRES_HOST:localhost}"
+    port: "${POSTGRES_PORT:5432}"
+    database: "${POSTGRES_DB:moonwalking}"
+    user: "${POSTGRES_USER:moonwalking}"
+    password: "${POSTGRES_PASSWORD}"
+
+# Caching
+cache:
+  enabled: true
+  type: "memory"  # memory, redis
+  
+  # Redis (optional)
+  redis:
+    host: "${REDIS_HOST:localhost}"
+    port: "${REDIS_PORT:6379}"
+    db: 0
+    ttl: 300  # 5 minutes
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # File logging
+  file:
+    enabled: true
+    path: "./logs/sentiment.log"
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
+  
+  # Console logging
+  console:
+    enabled: true
+    colorize: true
+
+# Rate Limiting
+rate_limiting:
+  enabled: true
+  
+  # API rate limits (requests per minute)
+  reddit: 60
+  twitter: 450
+  coingecko: 50
+  fear_greed: 60
+  
+  # Retry settings
+  max_retries: 3
+  retry_delay: 5  # seconds
+  backoff_factor: 2
+
+# Alerts
+alerts:
+  enabled: true
+  
+  # Alert thresholds
+  sentiment_spike: 0.3  # 30% change in 1 hour
+  volume_spike: 2.0     # 2x volume increase
+  
+  # Alert channels
+  channels:
+    - "log"
+    - "webhook"  # Optional
+  
+  webhook:
+    enabled: false
+    url: "${ALERT_WEBHOOK_URL}"
+
+# Performance
+performance:
+  # Async processing
+  async_workers: 4
+  
+  # Batch processing
+  batch_size: 100
+  
+  # Connection pooling
+  connection_pool_size: 10
+  
+  # Memory limits
+  max_cache_items: 10000

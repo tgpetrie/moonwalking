@@ -1,0 +1,276 @@
+# Sentiment UI Integration - excerpt
+
+The Moonwalking dashboard now displays tiered sentiment analysis with real data from 50+ sources, showing institutional vs retail divergence in the Sentiment Popup (info button).
+
+Key hook: `useTieredSentiment.js` (frontend/src/hooks/useTieredSentiment.js)
+
+Data structure includes:
+- overall_sentiment
+- fear_greed_index
+- tier_scores (tier1,tier2,tier3,fringe)
+- divergence_alerts
+- pipeline_timestamp
+
+Component: `SentimentPopupAdvanced.jsx` uses the hook and shows the tiered grid, divergence alerts, and pipeline health.
+
+Styles: `sentiment-popup-advanced.css` adds `.tier-breakdown-grid`, `.tier-card`, `.tier-bar` and `.pipeline-status`.
+# Sentiment UI Integration - Complete Guide
+
+## Overview
+
+The Moonwalking dashboard now displays **tiered sentiment analysis** with real data from 50+ sources, showing institutional vs retail divergence in the Sentiment Popup (info button).
+
+---
+
+## What Was Built
+
+### 1. **Enhanced Hook: `useTieredSentiment.js`**
+
+**Location:** [frontend/src/hooks/useTieredSentiment.js](frontend/src/hooks/useTieredSentiment.js)
+
+**What it does:**
+- Fetches from **TWO** APIs simultaneously:
+  - `/api/sentiment/latest` (symbol-specific sentiment)
+  - `/api/sentiment/tiered` (tiered breakdown from pipeline)
+- Merges both data sources into a unified structure
+- Detects divergence between tiers automatically
+- Checks pipeline health status
+- Falls back gracefully if pipeline is offline
+
+**Key Features:**
+```javascript
+const {
+  data,              // Merged sentiment with tier_scores
+  tieredData,        // Raw tiered data from pipeline
+  pipelineHealth,    // { running: true/false, checked: true }
+  loading,           // Initial load state
+  validating,        // Background refresh
+  stale,             // Using cached data
+  error,             // Error state
+  refresh,           // Manual refresh function
+} = useTieredSentiment(symbol);
+```
+
+**Data Structure:**
+```javascript
+data = {
+  overall_sentiment: 0.65,        // Weighted score 0-1
+  fear_greed_index: 65,           // 0-100
+
+  // NEW: Tier breakdown
+  tier_scores: {
+    tier1: 0.70,    // Institutional (CoinGecko, Binance)
+    tier2: 0.65,    // Mainstream (CoinDesk, Reddit r/CC)
+    tier3: 0.58,    // Retail (r/SSB, Telegram, Twitter)
+    fringe: 0.45,   // Fringe (4chan, BitcoinTalk, Weibo)
+  },
+
+  // NEW: Divergence alerts
+  divergence_alerts: [
+    {
+      type: 'warning',  // or 'info'
+      message: 'Institutional sources (70%) more bullish than retail (58%)'
+    }
+  ],
+
+  // Enhanced metadata
+  has_tiered_data: true,
+  total_data_points: 127,
+  confidence: 0.82,
+  pipeline_timestamp: "2025-12-25T...",
+
+  // Original fields (unchanged)
+  social_breakdown: { reddit, twitter, telegram, chan, news },
+  source_breakdown: { tier1, tier2, tier3, fringe },
+  sentiment_history: [...],
+  ...
+}
+```
+
+---
+
+### 2. **Updated Component: `SentimentPopupAdvanced.jsx`**
+
+**Location:** [frontend/src/components/SentimentPopupAdvanced.jsx](frontend/src/components/SentimentPopupAdvanced.jsx)
+
+**Changes:**
+- Uses `useTieredSentiment` instead of `useSentimentLatest`
+- Displays 4-tier breakdown grid in Overview tab
+- Shows divergence alerts when detected
+- Indicates pipeline health status
+
+**New UI Elements:**
+
+#### **Tiered Sentiment Analysis Section**
+Displays when `sentimentData.has_tiered_data === true`:
+
+```
+┌─────────────────────────────────────────────────┐
+│ T1: Institutional               70%             │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░ (green bar)              │
+│ CoinGecko, Fear & Greed, Binance               │
+├─────────────────────────────────────────────────┤
+│ T2: Mainstream                  65%             │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░ (orange bar)             │
+│ CoinDesk, Reddit r/CC, News Feeds              │
+├─────────────────────────────────────────────────┤
+│ T3: Retail                      58%             │
+│ ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ (purple bar)             │
+│ r/SSB, Telegram, Twitter/X                     │
+├─────────────────────────────────────────────────┤
+│ Fringe Sources                  45%             │
+│ ▓▓▓▓▓▓▓░░░░░░░░░░░░░ (pink bar)               │
+│ 4chan /biz/, BitcoinTalk, Weibo                │
+└─────────────────────────────────────────────────┘
+
+Live data from sentiment pipeline (127 data points)
+```
+
+#### **Divergence Alerts Section**
+Shows when `sentimentData.divergence_alerts.length > 0`:
+
+```
+┌─────────────────────────────────────────────────┐
+│ WARNING                                         │
+│ Institutional sources (70%) more bullish than   │
+│ retail (58%) - 12% divergence detected         │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+### 3. **Updated Styles: `sentiment-popup-advanced.css`**
+
+**Location:** [frontend/src/styles/sentiment-popup-advanced.css](frontend/src/styles/sentiment-popup-advanced.css)
+
+**New CSS Classes:**
+- `.tier-breakdown-grid` - Responsive grid for 4 tier cards
+- `.tier-card` - Individual tier display (hover effects)
+- `.tier-bar` / `.tier-bar-fill` - Animated progress bars
+- `.pipeline-status` - Health indicator (green/yellow)
+- `.divergence-alerts` / `.alert-box` - Alert styling
+
+**Color Coding:**
+- **Tier 1:** Green (`#45ffb3`) - Institutional trust
+- **Tier 2:** Orange (`#f1b43a`) - Professional sources
+- **Tier 3:** Purple (`#ae4bf5`) - Retail sentiment
+- **Fringe:** Pink (`#ff6b9d`) - Alternative sources
+
+---
+
+## How It Works
+
+### Data Flow
+
+```
+User clicks info button
+        ↓
+SentimentPopupAdvanced opens
+        ↓
+useTieredSentiment hook fires
+        ↓
+   ┌────────────────┬────────────────┐
+   │                │                │
+   ▼                ▼                ▼
+/api/sentiment/latest  /api/sentiment/tiered  /api/sentiment/pipeline-health
+   │                │                │
+   │                │                │
+   ▼                ▼                ▼
+Symbol-specific   Tiered breakdown   Health check
+   │                │                │
+   └────────────────┴────────────────┘
+                    │
+                    ▼
+            Merged data object
+                    │
+                    ▼
+         UI renders with:
+         - Tier breakdown grid
+         - Divergence alerts
+         - Pipeline status
+```
+
+### Divergence Detection Logic
+
+**In the hook (`useTieredSentiment.js`):**
+
+```javascript
+// Calculate divergence
+const institutionalRetailDivergence = Math.abs(tier1Score - tier3Score);
+
+if (institutionalRetailDivergence > 0.2) {  // 20% threshold
+  divergenceAlerts.push({
+    type: institutionalRetailDivergence > 0.3 ? 'warning' : 'info',
+    message: tier1Score > tier3Score
+      ? `Institutional (${tier1*100}%) more bullish than retail (${tier3*100}%)`
+      : `Retail (${tier3*100}%) more bullish than institutional (${tier1*100}%)`
+  });
+}
+```
+
+**Thresholds:**
+- **> 20% divergence:** Show info alert
+- **> 30% divergence:** Show warning alert
+
+**Interpretations:**
+- **Institutional > Retail:** "Smart money" is more bullish - potential buy signal
+- **Retail > Institutional:** Retail FOMO - potential top warning
+- **Mainstream > Fringe:** Media narrative differs from underground sentiment
+
+---
+
+## Backend Integration
+
+### Endpoints Used
+
+#### 1. `/api/sentiment/latest?symbol=BTC`
+**Original endpoint** - Symbol-specific sentiment
+
+**Response:**
+```json
+{
+  "overall_sentiment": 0.65,
+  "fear_greed_index": 65,
+  "social_breakdown": { "reddit": 0.7, "twitter": 0.6, ... },
+  "sentiment_history": [...],
+  ...
+}
+```
+
+**Fast vs fresh contract:**
+- Default call is cache-first with a tight timeout budget; no `stale` or `hint` fields unless the backend reports a failure.
+- `fresh=1` forces the long-budget compute path while keeping the same clean JSON shape.
+
+#### 2. `/api/sentiment/tiered` (NEW)
+**Proxy to sentiment pipeline** - Tiered breakdown
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "overall_metrics": {
+      "weighted_sentiment": 0.65,
+      "confidence": 0.82
+    },
+    "tier_scores": {
+      "tier1": 0.70,
+      "tier2": 0.65,
+      "tier3": 0.58,
+      "fringe": 0.45
+    },
+    "divergences": [...],
+    "total_data_points": 127,
+    "timestamp": "2025-12-25T..."
+  }
+}
+```
+
+#### 3. `/api/sentiment/pipeline-health` (NEW)
+**Health check** - Pipeline status
+
+**Response (healthy):**
+```json
+{
+  "success": true,
+  "pipeline_running": true,

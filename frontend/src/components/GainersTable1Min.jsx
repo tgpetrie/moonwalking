@@ -1,353 +1,65 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { API_ENDPOINTS, fetchData, getWatchlist, addToWatchlist, removeFromWatchlist } from '../api.js';
-import { formatPrice, formatPercentage } from '../utils/formatters.js';
-import { useWebSocket } from '../context/websocketcontext.jsx';
-import StarIcon from './StarIcon';
+import { useMemo, useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useDataFeed } from "../hooks/useDataFeed";
+import { TokenRowUnified } from "./TokenRowUnified";
+import { baselineOrNull } from "../utils/num.js";
+import "./ui/skeleton.css";
 
-// Accept onWatchlistChange and topWatchlist for proper state sync
-import PropTypes from 'prop-types';
+// Reordering mode presets for 1-minute gainers table
+// smooth: Default, balanced feel — fast enough to catch rockets, stable enough to avoid twitchy noise
+// predator: Optional aggressive mode — tighter timing for traders who want immediate response
+const PRESETS = {
+  smooth: {
+    alpha: 0.30,         // EMA smoothing coefficient (lower = smoother, less reactive to spikes)
+    commitMs: 420,       // How often we allow UI reorders (ms)
+    minStayMs: 2200,     // Min time a row stays visible once shown (prevents rapid churn)
+    swapMargin: 0.18,    // Challenger must beat incumbent by this % to swap positions
+    bubblePasses: 2,     // Number of bubble sort passes for hysteresis reordering
+    vanishGraceMs: 1600, // Keep recently-seen coins briefly if they drop out of feed
+    bufferRows: 8,       // Extra rows beyond visible to reduce cutoff thrashing
+    spring: { type: "spring", stiffness: 520, damping: 40, mass: 0.9 },
+  },
+  predator: {
+    alpha: 0.55,         // More reactive to raw changes
+    commitMs: 320,       // Much faster commits
+    minStayMs: 900,      // Shorter locks
+    swapMargin: 0.08,    // Easier to swap positions
+    bubblePasses: 4,     // More aggressive bubble passes
+    vanishGraceMs: 800,  // Shorter grace period
+    bufferRows: 6,       // Tighter buffer
+    spring: { type: "spring", stiffness: 760, damping: 34, mass: 0.75 },
+  },
+};
 
-const GainersTable1Min = ({ refreshTrigger, onWatchlistChange, topWatchlist, sliceStart, sliceEnd, fixedRows, hideShowMore }) => {
-  const { latestData, isConnected, isPolling, oneMinThrottleMs } = useWebSocket();
-  const lastRenderRef = useRef(0);
-  // Inject animation styles for pop/fade effects
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !document.getElementById('gainers-1min-table-animations')) {
-      const style = document.createElement('style');
-      style.id = 'gainers-1min-table-animations';
-      style.innerHTML = `
-        @keyframes starPop {
-          0% { transform: scale(1); }
-          40% { transform: scale(1.35); }
-          70% { transform: scale(0.92); }
-          100% { transform: scale(1); }
-        }
-        .animate-star-pop {
-          animation: starPop 0.35s cubic-bezier(.4,2,.6,1) both;
-        }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-          10% { opacity: 1; transform: translateY(0) scale(1.05); }
-          80% { opacity: 1; transform: translateY(0) scale(1.05); }
-          100% { opacity: 0; transform: translateY(-8px) scale(0.9); }
-        }
-        .animate-fade-in-out {
-          animation: fadeInOut 1.2s cubic-bezier(.4,2,.6,1) both;
-        }
-        @keyframes breatheCard {
-          0% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
-          50% { transform: scale(1.005); box-shadow: 0 2px 10px 0 rgba(0,176,255,0.08); }
-          100% { transform: scale(1); box-shadow: 0 1px 8px 0 rgba(0,176,255,0.06); }
-        }
-        .animate-breathe-card {
-          animation: breatheCard 5s cubic-bezier(.4,1.6,.6,1) infinite;
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // Only use local watchlist for UI feedback, but display logic uses topWatchlist from parent
-  const [watchlist, setWatchlist] = useState(topWatchlist || []);
-  const [popStar, setPopStar] = useState(null); // symbol for pop animation
-  const [addedBadge, setAddedBadge] = useState(null); // symbol for 'Added!' badge
-  const [showAll, setShowAll] = useState(false); // expand/collapse for gainers list
-
-
-  // Update data from WebSocket context when available
-  useEffect(() => {
-    if (latestData.crypto && Array.isArray(latestData.crypto)) {
-      const now = Date.now();
-  const throttleMs = typeof oneMinThrottleMs === 'number' ? oneMinThrottleMs : 7000;
-  if (now - (lastRenderRef.current || 0) < throttleMs) return; // throttle to reduce churn
-      lastRenderRef.current = now;
-      console.log('📊 Using WebSocket data for 1-min gainers:', latestData.crypto.length, 'items');
-      // Respect backend ordering (already peak-held and sorted there)
-      const mapped = latestData.crypto
-        .slice(0, 10)
-        .map((item, index) => ({
-          rank: item.rank || (index + 1),
-          symbol: item.symbol?.replace('-USD', '') || 'N/A',
-          price: item.current_price ?? item.price ?? 0,
-          change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-          isPeak: typeof item.peak_gain === 'number',
-          trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-          trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-          trendScore: item.trend_score ?? item.trendScore ?? 0
-        }));
-      setData(mapped);
-      setLoading(false);
-      setError(null);
-    }
-  }, [latestData.crypto]);
-
-  // Fallback API fetch when WebSocket data is not available
-  useEffect(() => {
-    let isMounted = true;
-    const fetchGainersData = async () => {
-      // Only fetch if we don't have WebSocket data
-      if (latestData.crypto && latestData.crypto.length > 0) {
-        console.log('⏩ Skipping API fetch - using WebSocket data');
-        return;
-      }
-      
-      try {
-        console.log('🌐 Fetching 1-min gainers data via API');
-        const response = await fetchData(API_ENDPOINTS.gainersTable1Min);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Respect backend ordering; take top 10
-      const mapped = response.data
-            .slice(0, 10)
-      .map((item, index) => ({
-              rank: item.rank || (index + 1),
-              symbol: item.symbol?.replace('-USD', '') || 'N/A',
-              price: item.current_price ?? item.price ?? 0,
-        change: item.peak_gain ?? item.price_change_percentage_1min ?? item.change ?? 0,
-        isPeak: typeof item.peak_gain === 'number',
-    trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-    trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-    trendScore: item.trend_score ?? item.trendScore ?? 0
-            }));
-          if (isMounted) {
-            setData(mapped);
-          }
+// Read mode from localStorage: smooth (default) or predator
+// Set via: localStorage.setItem("mw_1m_mode", "predator"); location.reload();
+function getModePreset() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return { mode: "smooth", ...PRESETS.smooth };
+    const mode = (window.localStorage.getItem("mw_1m_mode") || "smooth").toLowerCase();
+    return PRESETS[mode] ? { mode, ...PRESETS[mode] } : { mode: "smooth", ...PRESETS.smooth };
+  } catch {
+    return { mode: "smooth", ...PRESETS.smooth };
   }
-        if (isMounted) setLoading(false);
-      } catch (err) {
-        console.error('Error fetching gainers data:', err);
-        if (isMounted) {
-          setLoading(false);
-          setError(err.message);
-        }
-      }
-    };
-    
-    // Only start interval if not connected to WebSocket and not already polling
-    if (!isConnected && !isPolling) {
-      fetchGainersData();
-      const interval = setInterval(fetchGainersData, 30000);
-      return () => { isMounted = false; clearInterval(interval); };
-    } else {
-      // Initial fetch if needed
-      if (data.length === 0) fetchGainersData();
-    }
-    
-    return () => { isMounted = false; };
-  }, [refreshTrigger, isConnected, isPolling, latestData.crypto]);
+}
 
-  // Always sync local watchlist to topWatchlist if provided
-  useEffect(() => {
-    if (typeof topWatchlist !== 'undefined') {
-      setWatchlist(topWatchlist);
-    } else {
-      async function fetchWatchlist() {
-        const data = await getWatchlist();
-        setWatchlist(data);
-        if (onWatchlistChange) onWatchlistChange(data);
-      }
-      fetchWatchlist();
-    }
-    // eslint-disable-next-line
-  }, [refreshTrigger, topWatchlist]);
+const PRESET = getModePreset();
+const COMMIT_MS = Math.max(420, Number(PRESET.commitMs) || 420);
+const SPRING_CONFIG = PRESET.spring;
+const RANK_STAGGER_STEP_MS = 32;
+const RANK_STAGGER_MAX_MS = 360;
 
-  const handleToggleWatchlist = async (symbol) => {
-    // Check if symbol exists in watchlist (handle both string and object formats)
-    const existsInWatchlist = watchlist.some(item => 
-      typeof item === 'string' ? item === symbol : item.symbol === symbol
-    );
-    
-    if (!existsInWatchlist) {
-      setPopStar(symbol);
-      setAddedBadge(symbol);
-      setTimeout(() => setPopStar(null), 350);
-      setTimeout(() => setAddedBadge(null), 1200);
-      
-      // Find current price for this symbol from data
-      const coinData = data.find(coin => coin.symbol === symbol);
-      const currentPrice = coinData ? coinData.price : null;
-      
-      console.log('Adding to watchlist:', symbol, 'at price:', currentPrice);
-      const updated = await addToWatchlist(symbol, currentPrice);
-      console.log('Added to watchlist, new list:', updated);
-      setWatchlist(updated);
-      if (onWatchlistChange) onWatchlistChange(updated);
-    } else {
-      console.log('Symbol already in watchlist, not adding:', symbol);
-    }
-  };
-
-  // Apply optional slicing for two-column layouts
-  const visibleData = Array.isArray(data)
-    ? (typeof sliceStart === 'number' || typeof sliceEnd === 'number')
-      ? data.slice(sliceStart ?? 0, sliceEnd ?? data.length)
-      : data
-    : [];
-
-  if (loading && visibleData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-pulse text-blue font-mono">Loading 1-min gainers...</div>
-      </div>
-    );
-  }
-
-  if (error && visibleData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">Backend unavailable (no data)</div>
-      </div>
-    );
-  }
-
-  if (visibleData.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-muted font-mono">No 1-min gainers data available</div>
-      </div>
-    );
-  }
-
-  // Determine if watchlist is present (from topWatchlist)
-  const isWatchlistVisible = topWatchlist && topWatchlist.length > 0;
-  // Show only top 4 gainers by default, expand/collapse for up to 10
-  const desired = typeof fixedRows === 'number' && fixedRows > 0 ? fixedRows : (showAll ? visibleData.length : Math.min(4, visibleData.length));
-  const rowsToShow = Math.min(desired, visibleData.length);
-
+const SkeletonGrid1m = ({ rows = 4 }) => {
   return (
-    <div className="flex flex-col space-y-1 w-full h-full min-h-[420px] px-1 sm:px-3 md:px-0 align-stretch transition-all duration-300">
-  {visibleData.slice(0, rowsToShow).map((item, idx) => {
-        const coinbaseUrl = `https://www.coinbase.com/advanced-trade/spot/${item.symbol.toLowerCase()}-USD`;
-        // Check if symbol is in watchlist (handle both string and object formats)
-        const isInWatchlist = watchlist.some(watchlistItem => 
-          typeof watchlistItem === 'string' ? watchlistItem === item.symbol : watchlistItem.symbol === item.symbol
-        );
-        const isPopping = popStar === item.symbol;
-        const showAdded = addedBadge === item.symbol;
-        return (
-          <React.Fragment key={item.symbol}>
-            <div className={`crypto-row flex items-center px-2 py-1 rounded-lg mb-1 hover:bg-gray-800 transition`}>
-              <a href={coinbaseUrl} target="_blank" rel="noopener noreferrer" className="block flex-1">
-                <div
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer relative overflow-hidden group hover:text-amber-500 hover:scale-[1.035] hover:z-10"
-                  style={{
-                    boxShadow: 'none', // Remove shadow/border
-                    background: 'rgba(10, 10, 18, 0.18)' // Transparent fill
-                  }}
-                >
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                    <span
-                      className="block rounded-2xl transition-all duration-150 opacity-0 group-hover:opacity-100 group-hover:w-[160%] group-hover:h-[160%] w-[120%] h-[120%]"
-                      style={{
-                        background: 'radial-gradient(circle at 50% 50%, rgba(129,9,150,0.28) 0%, rgba(129,9,150,0.18) 35%, rgba(129,9,150,0.10) 60%, rgba(129,9,150,0.04) 80%, transparent 100%)',
-                        top: '-30%',
-                        left: '-30%',
-                        position: 'absolute',
-                        filter: 'blur(1.5px)'
-                      }}
-                    />
-                  </span>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue/40 text-blue font-bold text-sm">{item.rank}</div>
-                    <div className="flex-1 flex items-center gap-3 ml-4">
-                      <span className="font-bold text-white text-lg tracking-wide">{item.symbol}</span>
-                      {showAdded && <span className="ml-2 px-2 py-0.5 rounded bg-blue/80 text-white text-xs font-bold animate-fade-in-out shadow-blue-400/30">Added!</span>}
-                    </div>
-                  </div>
-                  <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto">
-                    <div className="flex flex-col items-end min-w-[72px] sm:min-w-[100px] ml-2 sm:ml-4">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-teal select-text">
-                        {typeof item.price === 'number' && Number.isFinite(item.price)
-                          ? `$${item.price < 1 && item.price > 0 ? item.price.toFixed(4) : item.price.toFixed(2)}`
-                          : 'N/A'}
-                      </span>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400 select-text">
-                        {typeof item.price === 'number' && typeof item.change === 'number' && item.change !== 0
-                          ? `$${(item.price / (1 + item.change / 100)).toFixed(2)}`
-                          : '--'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end min-w-[56px] sm:min-w-[60px]">
-                      <div className={`flex items-center gap-2 font-bold text-base sm:text-lg md:text-xl ${item.change > 0 ? 'text-blue' : 'text-pink'}`}> 
-                        <span>{typeof item.change === 'number' ? formatPercentage(item.change) : 'N/A'}</span>
-                        {/* Trend arrow */}
-                        {item.trendDirection && item.trendDirection !== 'flat' && (() => {
-                          const s = Math.max(0, Math.min(3, Number(item.trendScore) || 0));
-                          let fontSize = '0.85em';
-                          if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
-                          const color = item.trendDirection === 'up'
-                            ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                            : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
-                          return (
-                            <span
-                              className="font-semibold"
-                              style={{ fontSize, color }}
-                              title={`trend: ${item.trendDirection}${item.trendStreak ? ` x${item.trendStreak}` : ''} • score ${Number(item.trendScore||0).toFixed(2)}`}
-                              aria-label={`trend ${item.trendDirection}`}
-                            >
-                              {item.trendDirection === 'up' ? '↑' : '↓'}
-                            </span>
-                          );
-                        })()}
-                        {/* Peak badge */}
-                        {item.isPeak && (
-                          <span className="px-1.5 py-0.5 rounded bg-purple-700/40 text-purple-200 text-[10px] leading-none font-semibold align-middle">
-                            peak
-                          </span>
-                        )}
-                        {/* Streak chip (only if >=2) */}
-                        {typeof item.trendStreak === 'number' && item.trendStreak >= 2 && (
-                          <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle">
-                            x{item.trendStreak}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs sm:text-sm md:text-base font-light text-gray-400">1-Min</span>
-                    </div>
-                    <button
-                      onClick={e => { e.preventDefault(); handleToggleWatchlist(item.symbol); }}
-                      tabIndex={0}
-                      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                      aria-pressed={isInWatchlist}
-                      className="bg-transparent border-none p-0 m-0 cursor-pointer"
-                      style={{ minWidth: '24px', minHeight: '24px' }}
-                    >
-                      <StarIcon
-                        filled={isInWatchlist}
-                        className={(isInWatchlist ? 'opacity-80 hover:opacity-100' : 'opacity-40 hover:opacity-80') + (isPopping ? ' animate-star-pop' : '')}
-                        style={{ minWidth: '20px', minHeight: '20px', maxWidth: '28px', maxHeight: '28px', transition: 'transform 0.2s' }}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                </div>
-              </a>
-            </div>
-            {idx < rowsToShow - 1 && (
-              <div
-                className="mx-auto my-0.5"
-                style={{
-                  height: '2px',
-                  width: '60%',
-                  background: 'linear-gradient(90deg,rgba(0,176,255,0.10) 0%,rgba(10,10,18,0.38) 50%,rgba(0,176,255,0.10) 100%)',
-                  borderRadius: '2px'
-                }}
-              ></div>
-            )}
-          </React.Fragment>
-        );
-      })}
-      {/* Show More/Show Less button if more than 4 items */}
-  {!hideShowMore && Array.isArray(visibleData) && visibleData.length > 4 && (
-        <button
-          className="mt-2 mx-auto px-4 py-1 rounded bg-blue-900 text-white text-xs font-bold hover:bg-blue-700 transition"
-          style={{ width: 'fit-content' }}
-          onClick={() => setShowAll(s => !s)}
-        >
-      {showAll ? 'Show Less' : `Show More (${Math.min(10, visibleData.length) - 4})`}
-        </button>
-      )}
+    <div className="bh-skel-grid bh-skel-grid--1m" role="status" aria-label="Loading 1-minute movers">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="bh-skel-row">
+          <div className="bh-skel bh-skel-chip" />
+          <div className="bh-skel bh-skel-line" />
+          <div className="bh-skel bh-skel-pill" />
+          <div className="bh-skel bh-skel-icon" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -362,4 +74,460 @@ GainersTable1Min.propTypes = {
   hideShowMore: PropTypes.bool
 };
 
-export default GainersTable1Min;
+const getRowIdentity = (row = {}) => {
+  if (row?.product_id) return String(row.product_id);
+  if (row?.symbol) return String(row.symbol);
+  return null;
+};
+
+const buildRowKey = (row) => {
+  const base = getRowIdentity(row);
+  if (base) return String(base);
+  const alt = row?.ticker ?? row?.base ?? row?.rank;
+  return alt ? String(alt) : undefined;
+};
+
+const sortByPct1mThenSymbol = (a, b) => {
+  const ap = Number(a?.change_1m);
+  const bp = Number(b?.change_1m);
+  const aValid = Number.isFinite(ap);
+  const bValid = Number.isFinite(bp);
+
+  if (aValid && bValid && bp !== ap) return bp - ap;
+  if (aValid !== bValid) return aValid ? -1 : 1;
+
+  const aSym = String(a?.symbol ?? a?.ticker ?? a?.base ?? a?.product_id ?? "").toUpperCase();
+  const bSym = String(b?.symbol ?? b?.ticker ?? b?.base ?? b?.product_id ?? "").toUpperCase();
+  if (aSym !== bSym) return aSym.localeCompare(bSym);
+
+  const aId = getRowIdentity(a) ?? "";
+  const bId = getRowIdentity(b) ?? "";
+  return String(aId).localeCompare(String(bId));
+};
+
+const pct1mOf = (row) => {
+  const raw =
+    row?.change_1m ??
+    row?.price_change_percentage_1min ??
+    row?.pct_change ??
+    row?.pct ??
+    row?.changePct ??
+    0;
+
+  const n = typeof raw === "string" ? Number(String(raw).replace(/[%+]/g, "")) : Number(raw);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const priceOf = (row) => {
+  const n = Number(row?.current_price ?? row?.price ?? row?.current ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function useReorderCadence(rows, sortFn, ms = 420) {
+  const latestRowsRef = useRef(rows);
+  const timerRef = useRef(null);
+  const prevLenRef = useRef(Array.isArray(rows) ? rows.length : 0);
+  const [displayOrder, setDisplayOrder] = useState(() => {
+    const list = Array.isArray(rows) ? [...rows] : [];
+    list.sort(sortFn);
+    return list.map(getRowIdentity).filter(Boolean);
+  });
+
+  const rowsById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      if (!map.has(id)) map.set(id, row);
+    });
+    return map;
+  }, [rows]);
+
+  // Always keep the latest snapshot available for the cadence commit.
+  latestRowsRef.current = Array.isArray(rows) ? rows : [];
+
+  useEffect(() => {
+    const nextRows = Array.isArray(rows) ? rows : [];
+    const nextLen = nextRows.length;
+    const prevLen = prevLenRef.current;
+    prevLenRef.current = nextLen;
+
+    const commit = () => {
+      const snapshot = Array.isArray(latestRowsRef.current) ? latestRowsRef.current : [];
+      const sorted = [...snapshot];
+      sorted.sort(sortFn);
+      setDisplayOrder(sorted.map(getRowIdentity).filter(Boolean));
+    };
+
+    // If membership changes (enter/exit), commit immediately so new coins appear quickly.
+    if (nextLen !== prevLen) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      commit();
+      return;
+    }
+
+    if (timerRef.current) return;
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      commit();
+    }, ms);
+  }, [rows, sortFn, ms]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
+
+  return useMemo(
+    () => displayOrder.map((id) => rowsById.get(id)).filter(Boolean),
+    [displayOrder, rowsById]
+  );
+}
+export default function GainersTable1Min({ tokens: tokensProp, loading: loadingProp, onInfo, onToggleWatchlist, watchlist = [] }) {
+  // Support both prop-based (new centralized approach) and hook-based (legacy) usage
+  const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
+
+  // Use props if provided, otherwise fall back to hook data
+  const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
+
+  const gainers1m = useMemo(() => {
+    const list = Array.isArray(tokensProp)
+      ? tokensProp
+      : (() => {
+          const src = data?.gainers_1m;
+          if (Array.isArray(src)) return src;
+          if (src && Array.isArray(src.data)) return src.data;
+          return [];
+        })();
+
+
+    const sorted = list
+      .map((row) => {
+        const symbol = row?.symbol ?? row?.ticker ?? row?.base ?? row?.product_id ?? "";
+        const changeRaw =
+          row?.change_1m ??
+          row?.price_change_percentage_1min ??
+          row?.pct_change ??
+          row?.pct ??
+          row?.changePct ??
+          0;
+        const change = Number(changeRaw);
+        const baselineOrNullPrev = baselineOrNull(
+          row?.previous_price_1m ??
+            row?.price_1m_ago ??
+            row?.previous_price ??
+            row?.prev_price ??
+            row?.initial_price_1min ??
+            null
+        );
+
+        return {
+          ...row,
+          symbol: symbol || row?.symbol,
+          change_1m: Number.isFinite(change) ? change : 0,
+          previous_price_1m: baselineOrNullPrev,
+          current_price: row?.current_price ?? row?.price ?? row?.current,
+        };
+      })
+      .filter((r) => Math.abs(Number(r.change_1m)) > 0)
+      .sort((a, b) => {
+        const av = Math.abs(Number(a.change_1m));
+        const bv = Math.abs(Number(b.change_1m));
+        if (bv !== av) return bv - av;
+        return sortByPct1mThenSymbol(a, b);
+      });
+    const seen = new Set();
+    const deduped = [];
+    sorted.forEach((row) => {
+      const ident = getRowIdentity(row);
+      if (!ident) {
+        deduped.push(row);
+        return;
+      }
+      const key = String(ident).toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(row);
+    });
+
+    return deduped;
+  }, [data, tokensProp]);
+
+  const MAX_VISIBLE_COLLAPSED = 8;
+  const MAX_VISIBLE_EXPANDED = 16;
+
+  const [expanded, setExpanded] = useState(false);
+  const prevByIdRef = useRef(new Map());
+  const pulseTimersRef = useRef(new Map());
+  const [pulsePriceById, setPulsePriceById] = useState({});
+  const [pulsePctById, setPulsePctById] = useState({});
+  const [rankById, setRankById] = useState({});
+
+  const filteredRows = useMemo(
+    () =>
+      (gainers1m || [])
+        .filter(Boolean)
+        .filter((row) => row.symbol || row.product_id),
+    [gainers1m]
+  );
+  const maxVisible = expanded ? MAX_VISIBLE_EXPANDED : MAX_VISIBLE_COLLAPSED;
+
+  const orderedRows = useReorderCadence(filteredRows, sortByPct1mThenSymbol, COMMIT_MS);
+  const displayRows = useMemo(() => orderedRows.slice(0, maxVisible), [orderedRows, maxVisible]);
+  const displayOrderSignature = useMemo(
+    () => displayRows.map((row) => getRowIdentity(row) || "").join("|"),
+    [displayRows]
+  );
+  const rankedRows = useMemo(() => displayRows, [displayOrderSignature]);
+
+  useEffect(() => {
+    return () => {
+      for (const timerId of pulseTimersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      pulseTimersRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = prevByIdRef.current;
+    const activeIds = new Set();
+
+    const trigger = (kind, id) => {
+      const timerKey = `${kind}:${id}`;
+      const existing = pulseTimersRef.current.get(timerKey);
+      if (existing) clearTimeout(existing);
+
+      const setActive = kind === "price" ? setPulsePriceById : setPulsePctById;
+
+      setActive((s) => (s?.[id] ? s : { ...s, [id]: true }));
+      const t = setTimeout(() => {
+        setActive((s) => {
+          if (!s?.[id]) return s;
+          const next = { ...s };
+          delete next[id];
+          return next;
+        });
+      }, 220);
+      pulseTimersRef.current.set(timerKey, t);
+    };
+
+    for (const row of displayRows) {
+      const id = getRowIdentity(row);
+      if (!id) continue;
+      activeIds.add(id);
+
+      const nextPrice = priceOf(row);
+      const nextPct = pct1mOf(row);
+      const p = prev.get(id);
+
+      if (p) {
+        if (p.price !== nextPrice) trigger("price", id);
+        if (p.pct !== nextPct) trigger("pct", id);
+      }
+
+      prev.set(id, { price: nextPrice, pct: nextPct });
+    }
+
+    // Prune prev cache for rows that left the visible set.
+    for (const id of prev.keys()) {
+      if (!activeIds.has(id)) prev.delete(id);
+    }
+  }, [displayRows]);
+
+  useEffect(() => {
+    // Stagger rank updates so reorders ripple row-by-row instead of snapping all at once.
+    const timers = [];
+    const activeIds = [];
+
+    rankedRows.forEach((row, index) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      activeIds.push(id);
+      const delay = Math.min(RANK_STAGGER_MAX_MS, index * RANK_STAGGER_STEP_MS);
+      const t = setTimeout(() => {
+        setRankById((prev) => {
+          if (prev[id] === index + 1) return prev;
+          return { ...prev, [id]: index + 1 };
+        });
+      }, delay);
+      timers.push(t);
+    });
+
+    setRankById((prev) => {
+      if (!activeIds.length) return {};
+      let changed = prev ? Object.keys(prev).length !== activeIds.length : true;
+      const next = {};
+      for (const id of activeIds) {
+        if (prev && prev[id] !== undefined) {
+          next[id] = prev[id];
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [rankedRows]);
+
+  const rowsWithPulse = useMemo(
+    () =>
+      displayRows.map((row) => {
+        const id = getRowIdentity(row);
+        return {
+          row,
+          rank: id && rankById?.[id] ? rankById[id] : undefined,
+          priceChanged: id ? Boolean(pulsePriceById?.[id]) : false,
+          pctChanged: id ? Boolean(pulsePctById?.[id]) : false,
+        };
+      }),
+    [displayRows, pulsePriceById, pulsePctById, rankById]
+  );
+
+  const hasData = displayRows.length > 0;
+
+  // Loading skeleton state
+  if (isLoading && !hasData) {
+    return (
+      <div className="gainers-table">
+        <div className="bh-1m-grid bh-1m-grid--single-col">
+          <div className="bh-col">
+            <SkeletonGrid1m rows={4} cols={4} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!isLoading && !hasData) {
+    return (
+      <div className="gainers-table">
+        <div className="bh-1m-grid bh-1m-grid--single-col">
+          <div className="bh-col">
+            <div className="bh-table">
+              <div className="token-row token-row--empty">
+                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                  No 1-minute movers to show right now.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const items = rowsWithPulse;
+  const split = items.length > 4;
+  const rowsPerColumn = expanded ? 8 : 4;
+  const leftColumn = split ? items.slice(0, rowsPerColumn) : items;
+  const rightColumn = split ? items.slice(rowsPerColumn, rowsPerColumn * 2) : [];
+  const density = split ? "normal" : "tight";
+
+  return (
+    <div className="gainers-table">
+      <div className={`bh-1m-grid ${split ? "bh-1m-grid--two-col" : "bh-1m-grid--single-col"}`}>
+        <div className="bh-col">
+          <div className="bh-table">
+            <AnimatePresence initial={false} mode="popLayout">
+              {leftColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
+                const displayRank = rank ?? index + 1;
+                const rowKey = buildRowKey(token);
+                const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
+                return (
+                  <motion.div
+                    key={rowKey}
+                    layout
+                    layoutId={rowKey}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={rowTransition}
+                  >
+                    <TokenRowUnified
+                      token={token}
+                      rank={displayRank}
+                      changeField="change_1m"
+                      side="gainer"
+                      renderAs="div"
+                      onInfo={onInfo}
+                      onToggleWatchlist={onToggleWatchlist}
+                      isWatchlisted={watchlist.includes(token.symbol)}
+                      density={density}
+                      pulsePrice={priceChanged}
+                      pulsePct={pctChanged}
+                      pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
+                      activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
+                    />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {split && (
+          <div className="bh-col">
+            <div className="bh-table">
+              <AnimatePresence initial={false} mode="popLayout">
+                {rightColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
+                  const absoluteIndex = rowsPerColumn + index;
+                  const displayRank = rank ?? absoluteIndex + 1;
+                  const rowKey = buildRowKey(token);
+                  const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
+                  return (
+                    <motion.div
+                      key={rowKey}
+                      layout
+                      layoutId={rowKey}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={rowTransition}
+                    >
+                      <TokenRowUnified
+                        token={token}
+                        rank={displayRank}
+                        changeField="change_1m"
+                        side="gainer"
+                        renderAs="div"
+                        onInfo={onInfo}
+                        onToggleWatchlist={onToggleWatchlist}
+                        isWatchlisted={watchlist.includes(token.symbol)}
+                        density={density}
+                        pulsePrice={priceChanged}
+                        pulsePct={pctChanged}
+                        pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
+                        activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+      </div>
+      {filteredRows.length > MAX_VISIBLE_COLLAPSED && (
+        <div className="panel-footer">
+          <button className="btn-show-more" onClick={() => setExpanded((s) => !s)}>
+            {expanded
+              ? "Show less"
+              : `Show more (${Math.min(filteredRows.length, MAX_VISIBLE_EXPANDED) - MAX_VISIBLE_COLLAPSED} more)`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

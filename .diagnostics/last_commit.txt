@@ -1,0 +1,8 @@
+dcff9af96645eff3c1a78b2eaccf141e23b4905a docs(sentiment): add one-board spec + deep sentiment roadmap
+.diagnostics/src_FRONTEND_UI_RULES_one_board.txt
+.diagnostics/src_ONE_BOARD_hits.txt
+.diagnostics/src_SENTIMENT_INTEGRATION_PLAN_1.txt
+.diagnostics/src_SENTIMENT_INTEGRATION_PLAN_2.txt
+.diagnostics/src_SENTIMENT_UI_INTEGRATION_1.txt
+docs/developer/SENTIMENT_DEEP_ROADMAP.md
+docs/developer/SENTIMENT_ONE_BOARD.md

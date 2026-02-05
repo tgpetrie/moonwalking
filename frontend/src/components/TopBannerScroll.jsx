@@ -1,183 +1,317 @@
-import React, { useEffect, useState } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useData } from "../context/DataContext";
 
-const TopBannerScroll = ({ refreshTrigger }) => {
-  const [data, setData] = useState([]);
+const COINBASE_ORIGIN = "https://www.coinbase.com";
+
+function toAdvancedTradeUrl(item) {
+  const rawPair = item?.product_id || item?.productId || item?.pair || item?.symbol;
+  if (!rawPair) return null;
+
+  const rawSymbol = item?.symbol ?? null;
+  const symbol = rawSymbol ? String(rawSymbol).replace(/-.*$/, "").toUpperCase().trim() : null;
+
+  let pair = String(rawPair).toUpperCase().trim();
+  if (!pair) return null;
+  if (!pair.includes("-")) pair = `${pair}-USD`;
+  if (!pair.endsWith("-USD") && symbol) pair = `${symbol}-USD`;
+
+  return `${COINBASE_ORIGIN}/advanced-trade/spot/${encodeURIComponent(pair)}`;
+}
+
+function toNum(v) {
+  if (v == null) return null;
+
+  if (typeof v === "string") {
+    let s = v.trim();
+    if (!s) return null;
+    s = s.replace(/,/g, "");
+    s = s.replace(/%/g, "");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  return Number.isFinite(v) ? v : null;
+}
+
+function pickNumber(obj, fields = []) {
+  if (!obj) return null;
+  for (const key of fields) {
+    const n = toNum(obj[key]);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function fmtPct(n) {
+  if (!Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  const d = abs >= 100 ? 0 : abs >= 10 ? 1 : abs >= 1 ? 2 : abs >= 0.1 ? 3 : 4;
+  const sign = n > 0 ? "+" : "";
+  const trimmed = n
+    .toFixed(d)
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*[1-9])0+$/, "$1");
+  return `${sign}${trimmed}%`;
+}
+
+function fmtPrice(n) {
+  if (!Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  const d = abs >= 100 ? 2 : abs >= 1 ? 4 : 6;
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: d });
+}
+
+function normalizeItem(raw, idx) {
+  if (!raw) return null;
+
+  const symbol =
+    raw.symbol ||
+    raw.ticker ||
+    (typeof raw.product_id === "string" ? raw.product_id.split("-")[0] : null) ||
+    null;
+
+  const productId = raw.product_id || (symbol ? `${symbol}-USD` : null);
+
+  const current =
+    pickNumber(raw, ["current_price", "price", "last", "latest_price", "close_price"]) ?? null;
+
+  const baseline = pickNumber(raw, [
+    "initial_price_1h",
+    "initial_price_1min",
+    "price_1h_ago",
+    "price_1m_ago",
+    "baseline_price",
+    "open_price",
+  ]);
+
+  const directPct = pickNumber(raw, [
+    "price_change_percentage_1h",
+    "price_change_1h",
+    "pct_change_1h",
+    "change_1h",
+    "pct_change",
+    "pct",
+    "pctChange",
+  ]);
+  const pct =
+    Number.isFinite(directPct) ? directPct : baseline && current && baseline !== 0 ? ((current - baseline) / baseline) * 100 : null;
+
+  const price = current ?? baseline ?? null;
+
+  const rank = toNum(raw.rank) ?? idx + 1;
+
+  if (!symbol && !productId) return null;
+
+  return {
+    key: String(productId || symbol || idx),
+    symbol: String(symbol || productId),
+    productId: String(productId || symbol),
+    pct,
+    price,
+    rank,
+  };
+}
+
+export default function TopBannerScroll(props) {
+  const {
+    endpoint = null,
+    speed = 36,
+    className = "",
+    title = "",
+    items: itemsProp,
+    data,
+    banner,
+    tokens,
+    topBanner,
+  } = props || {};
+
+  const [localItems, setLocalItems] = useState([]);
+  const [fetchErr, setFetchErr] = useState(null);
+  const [paused, setPaused] = useState(false);
+  // Banner shows 1h price movers only; alerts are handled by the floating indicator/log.
+  const { alerts: ctxAlerts } = useData() || {};
+
+  const trackRef = useRef(null);
+  const rafRef = useRef(null);
+  const lastTsRef = useRef(null);
+  const xRef = useRef(0);
+  const halfWidthRef = useRef(0);
+
+  const rawList = useMemo(() => {
+    const candidate = itemsProp ?? data ?? banner ?? tokens ?? topBanner ?? localItems ?? [];
+    return Array.isArray(candidate) ? candidate : [];
+  }, [itemsProp, data, banner, tokens, topBanner, localItems]);
+
+  const items = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < rawList.length; i += 1) {
+      const n = normalizeItem(rawList[i], i);
+      if (n) out.push(n);
+    }
+    return out;
+  }, [rawList]);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchTopBannerData = async () => {
+    const hasExternalList =
+      Array.isArray(itemsProp) ||
+      Array.isArray(data) ||
+      Array.isArray(banner) ||
+      Array.isArray(tokens) ||
+      Array.isArray(topBanner);
+
+    if (!endpoint || hasExternalList) return;
+
+    const API_BASE = (import.meta?.env?.VITE_API_BASE_URL || "").trim();
+    const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort("signal timed out"), 6500);
+
+    (async () => {
       try {
-        const response = await fetchData(API_ENDPOINTS.topBanner);
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const dataWithRanks = response.data.map((item, index) => ({
-            rank: index + 1,
-            symbol: item.symbol?.replace('-USD', '') || 'N/A',
-            price: item.current_price || 0,
-            change: item.price_change_1h || 0,
-            badge: getBadgeStyle(Math.abs(item.price_change_1h || 0)),
-            trendDirection: item.trend_direction ?? item.trendDirection ?? 'flat',
-            trendStreak: item.trend_streak ?? item.trendStreak ?? 0,
-            trendScore: item.trend_score ?? item.trendScore ?? 0
-          }));
-          if (isMounted) {
-            // Update data with real live data
-            setData(dataWithRanks.slice(0, 20));
-          }
-        } else if (isMounted && data.length === 0) {
-          // Only use fallback if we have no data at all
-          const fallbackData = [
-            { rank: 1, symbol: 'SUKU', price: 0.0295, change: 3.51, badge: 'STRONG' },
-            { rank: 2, symbol: 'HNT', price: 2.30, change: 0.97, badge: 'MODERATE' },
-            { rank: 3, symbol: 'OCEAN', price: 0.3162, change: 0.60, badge: 'MODERATE' },
-            { rank: 4, symbol: 'PENGU', price: 0.01605, change: 0.56, badge: 'MODERATE' },
-            { rank: 5, symbol: 'MUSE', price: 7.586, change: 0.53, badge: 'MODERATE' }
-          ];
-          setData(fallbackData);
-        }
-      } catch (err) {
-        console.error('Error fetching top banner data:', err);
-        if (isMounted && data.length === 0) {
-          // Only use fallback on error if we have no existing data
-          const fallbackData = [
-            { rank: 1, symbol: 'SUKU', price: 0.0295, change: 3.51, badge: 'STRONG' },
-            { rank: 2, symbol: 'HNT', price: 2.30, change: 0.97, badge: 'MODERATE' },
-            { rank: 3, symbol: 'OCEAN', price: 0.3162, change: 0.60, badge: 'MODERATE' },
-            { rank: 4, symbol: 'PENGU', price: 0.01605, change: 0.56, badge: 'MODERATE' },
-            { rank: 5, symbol: 'MUSE', price: 7.586, change: 0.53, badge: 'MODERATE' }
-          ];
-          setData(fallbackData);
+        setFetchErr(null);
+        const res = await fetch(url, { signal: ac.signal, cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const arr = Array.isArray(json) ? json : Array.isArray(json?.items) ? json.items : [];
+        setLocalItems(arr);
+      } catch (e) {
+        setFetchErr(String(e?.message || e));
+      } finally {
+        clearTimeout(t);
+      }
+    })();
+
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [endpoint, itemsProp, data, banner, tokens, topBanner]);
+
+  const computeHalfWidth = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) {
+      halfWidthRef.current = 0;
+      return;
+    }
+    const w = el.scrollWidth;
+    halfWidthRef.current = w > 0 ? w / 2 : 0;
+  }, []);
+
+  useEffect(() => {
+    computeHalfWidth();
+
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => computeHalfWidth()) : null;
+    if (ro && trackRef.current) ro.observe(trackRef.current);
+
+    const onResize = () => computeHalfWidth();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (ro) ro.disconnect();
+    };
+  }, [computeHalfWidth, items.length]);
+
+  const tick = useCallback(
+    (ts) => {
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = Math.max(0, ts - lastTsRef.current);
+      lastTsRef.current = ts;
+
+      const prefersReduce =
+        typeof window !== "undefined" &&
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const half = halfWidthRef.current;
+
+      if (!paused && !prefersReduce && half > 0) {
+        const dx = (Number(speed) || 0) * (dt / 1000);
+        xRef.current -= dx;
+        if (xRef.current <= -half) xRef.current = 0;
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translate3d(${xRef.current}px, 0, 0)`;
         }
       }
+
+      rafRef.current = window.requestAnimationFrame(tick);
+    },
+    [paused, speed]
+  );
+
+  useEffect(() => {
+    rafRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      lastTsRef.current = null;
     };
-    
-    // Fetch data immediately
-    fetchTopBannerData();
-    return () => { isMounted = false; };
-  }, [refreshTrigger]);
+  }, [tick]);
 
-  const getBadgeStyle = (change) => {
-    const absChange = Math.abs(change);
-    if (absChange >= 5) return 'STRONG HIGH';
-    if (absChange >= 2) return 'STRONG';
-    return 'MODERATE';
-  };
+  const onEnter = useCallback(() => setPaused(true), []);
+  const onLeave = useCallback(() => setPaused(false), []);
 
-  // Never show loading or empty states - always render the banner
+  const doubled = useMemo(() => (items.length ? [...items, ...items] : []), [items]);
+  const showFallback = items.length === 0;
+
   return (
-    <div className="relative overflow-hidden rounded-3xl w-full max-w-full" style={{ background: 'transparent' }}>
-      {/* Header */}
-      <div className="px-3 sm:px-6 py-3 sm:py-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <h3 className="text-base font-headline font-bold tracking-wide uppercase" style={{ color: 'rgb(254, 164, 0)' }}>
-            1H Price Change • Live Market Feed
-          </h3>
-        </div>
-      </div>
-      
-      {/* Scrolling Content */}
-      <div className="relative h-16 overflow-hidden">
-        {/* Left fade overlay */}
-        <div className="absolute left-0 top-0 w-16 h-full bg-gradient-to-r from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
-        
-        {/* Right fade overlay */}
-        <div className="absolute right-0 top-0 w-16 h-full bg-gradient-to-l from-dark via-dark/80 to-transparent z-10 pointer-events-none"></div>
-        
-        <div className="absolute inset-0 flex items-center">
-          <div 
-            className="flex whitespace-nowrap animate-scroll"
-          >
-            {/* First set of data */}
-            {data.map((coin) => (
-              <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8 group">
-                <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
-                    <span className="text-sm font-headline font-bold tracking-wide">
-                      {coin.symbol}
-                    </span>
-                    <span className="font-mono text-base font-bold bg-orange/10 px-2 py-1 rounded border border-orange/20 text-teal">
-                      ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
-                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
-                      let fontSize = '0.85em';
-                      if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
-                      const color = coin.trendDirection === 'up'
-                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                        : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
-                      return (
-                        <span
-                          className="font-semibold"
-                          style={{ fontSize, color }}
-                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
-                          aria-label={`trend ${coin.trendDirection}`}
-                        >
-                          {coin.trendDirection === 'up' ? '↑' : '↓'}
+    <div className={`bh-topbanner ${className}`.trim()}>
+      {title ? <div className="bh-topbanner__title">{title}</div> : null}
+
+      <div className="bh-banner-scroll" onMouseEnter={onEnter} onMouseLeave={onLeave} role="region" aria-label="Top banner scroll">
+        <div ref={trackRef} className="bh-banner-track bh-banner-track--manual" style={{ transform: "translate3d(0,0,0)" }}>
+          {showFallback ? (
+            <div className="bh-banner-chip bh-banner-chip--muted">
+              <span className="bh-banner-chip__rank">LIVE</span>
+              <span className="bh-banner-chip__sym">Waiting for banner data</span>
+              <span className="bh-banner-chip__pct">—</span>
+              <span className="bh-banner-chip__price">{fetchErr ? "fetch failed" : ""}</span>
+            </div>
+          ) : (
+            doubled.map((it, i) => {
+              const isUp = Number.isFinite(it.pct) ? it.pct >= 0 : true;
+              const isAlert = it.kind === "alert";
+              const href =
+                isAlert && it.href
+                  ? it.href
+                  : toAdvancedTradeUrl({ product_id: it.productId, symbol: it.symbol }) || "#";
+
+              return (
+                <a
+                  key={`${it.key}-${i}`}
+                  className={`bh-banner-chip ${isUp ? "is-up" : "is-down"} ${isAlert ? "bh-banner-chip--alert" : ""}`}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    if (href === "#") e.preventDefault();
+                  }}
+                >
+                  <span className="bh-banner-chip__rank">{isAlert ? "ALERT" : it.rank}</span>
+                  <span className="bh-banner-chip__sym">{it.symbol}</span>
+                  <span className="bh-banner-right">
+                    {isAlert ? (
+                      <>
+                        <span className="bh-banner-chip__badge">{it.badge}</span>
+                        <span className="bh-banner-chip__msg" title={it.message}>
+                          {String(it.message || "").slice(0, 48)}
+                          {String(it.message || "").length > 48 ? "…" : ""}
                         </span>
-                      );
-                    })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="bh-banner-chip__pct">{fmtPct(it.pct ?? NaN)}</span>
+                        <span className="bh-banner-chip__price">{fmtPrice(it.price ?? NaN)}</span>
+                      </>
                     )}
-                  </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide bg-purple/20 border border-purple/30">
-                    {coin.badge}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {/* Duplicate set for seamless scrolling */}
-            {data.map((coin) => (
-              <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8 group">
-                <div className="flex items-center gap-4 pill-hover px-4 py-2 rounded-full transition-all duration-300 group-hover:text-purple group-hover:text-shadow-purple">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-purple">#{coin.rank}</span>
-                    <span className="text-sm font-headline font-bold tracking-wide">
-                      {coin.symbol}
-                    </span>
-                    <span className="font-mono text-base font-bold bg-orange/10 px-2 py-1 rounded text-teal">
-                      ${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm font-bold">
-                    <span>{coin.change >= 0 ? '+' : ''}{coin.change.toFixed(2)}%</span>
-                    {coin.trendDirection && coin.trendDirection !== 'flat' && (() => {
-                      const s = Math.max(0, Math.min(3, Number(coin.trendScore) || 0));
-                      let fontSize = '0.85em';
-                      if (s >= 1.5) fontSize = '1.2em'; else if (s >= 0.5) fontSize = '1.0em';
-                      const color = coin.trendDirection === 'up'
-                        ? (s >= 1.5 ? '#10B981' : s >= 0.5 ? '#34D399' : '#9AE6B4')
-                        : (s >= 1.5 ? '#EF4444' : s >= 0.5 ? '#F87171' : '#FEB2B2');
-                      return (
-                        <span
-                          className="font-semibold"
-                          style={{ fontSize, color }}
-                          title={`trend: ${coin.trendDirection}${coin.trendStreak ? ` x${coin.trendStreak}` : ''} • score ${Number(coin.trendScore||0).toFixed(2)}`}
-                          aria-label={`trend ${coin.trendDirection}`}
-                        >
-                          {coin.trendDirection === 'up' ? '↑' : '↓'}
-                        </span>
-                      );
-                    })()}
-                    {typeof coin.trendStreak === 'number' && coin.trendStreak >= 2 && (
-                      <span className="px-1 py-0.5 rounded bg-blue-700/30 text-blue-200 text-[10px] leading-none font-semibold align-middle" title="Consecutive ticks in same direction">x{coin.trendStreak}</span>
-                    )}
-                  </div>
-                  <div className="px-2 py-1 rounded-full text-xs font-bold tracking-wide border border-purple/40 text-purple bg-transparent">
-                    {coin.badge}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                  </span>
+                </a>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default TopBannerScroll;
+}

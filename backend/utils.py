@@ -1,12 +1,20 @@
-import socket
+"""Backend utility placeholders.
 
-def find_available_port(start_port=5001, max_attempts=10):
-    """Find an available port starting from start_port"""
-    for port in range(start_port, start_port + max_attempts):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(('0.0.0.0', port))
-                return port
-            except OSError:
-                continue
-    raise RuntimeError("No available ports found")
+This file previously contained a misfiled React component, which caused
+Python import failures (e.g. NameError: undefined name) when
+`backend/app.py` attempted `from utils import ...`.
+
+Keep this module import-safe and lightweight.
+"""
+
+from __future__ import annotations
+
+from typing import List, Dict, Any
+
+
+def get_1h_volume_weighted_data() -> List[Dict[str, Any]]:
+    """Optional helper hook for /api/snapshots/one-hour-volume.
+
+    Return an empty list so callers can fall back safely.
+    """
+    return []

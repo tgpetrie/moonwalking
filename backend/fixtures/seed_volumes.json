@@ -1,0 +1,15 @@
+{
+  "symbols": [
+    "BTC-USD",
+    "ETH-USD",
+    "DOGE-USD",
+    "PEPE-USD"
+  ],
+  "bases": {
+    "BTC-USD": 10000000,
+    "ETH-USD": 6000000,
+    "DOGE-USD": 500000,
+    "PEPE-USD": 2000000
+  },
+  "minutes": 60
+}

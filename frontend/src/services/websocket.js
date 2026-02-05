@@ -8,7 +8,7 @@ class WebSocketManager {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     // Prefer explicit WS url (VITE_WS_URL), else reuse API url (avoids port mismatch 404s)
-    const apiUrl = (import.meta.env?.VITE_API_URL || 'http://localhost:5003').replace(/\/$/, '');
+    const apiUrl = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5003').replace(/\/$/, '');
     const wsUrl = (import.meta.env?.VITE_WS_URL || apiUrl).replace(/\/$/, '');
     this.baseUrl = wsUrl;
     // Allow opting out by default unless explicitly enabled server-side

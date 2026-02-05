@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from "react";
-import '../index.css';
-import logobro from './logobro.png';
+import React from "react";
 
 const formatDecimal = (value, decimals = 2) => {
   if (value === null || value === undefined || isNaN(value) || value === '') {
@@ -22,17 +20,11 @@ const formatCurrency = val => new Intl.NumberFormat('en-US', {
 const StatusBadge = ({ isConnected, lastUpdate }) => (
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-3">
-      <div className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
-        isConnected 
-          ? 'bg-[#FF5E00]/20 text-[#FF5E00] border border-[#FF5E00]/50 shadow-lg shadow-[#FF5E00]/40' 
-          : 'bg-[#FF3B30]/20 text-[#FF3B30] border border-[#FF3B30]/50 shadow-lg shadow-[#FF3B30]/40'
-      }`}>
-        <div className={`w-2.5 h-2.5 rounded-full ${
-          isConnected ? 'bg-[#FF5E00] animate-pulse shadow-lg shadow-[#FF5E00]/60' : 'bg-[#FF3B30]'
-        }`}></div>
-        <span>📡</span>
-        {isConnected ? 'LIVE' : 'OFFLINE'}
-      </div>
+      <div className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isConnected ? 'banner-chip banner-chip-gain' : 'banner-chip banner-chip-loss'}`}>
+            <div className={`w-2.5 h-2.5 rounded-full bg-current ${isConnected ? 'animate-pulse' : ''}`}></div>
+            <span>📡</span>
+            {isConnected ? 'LIVE' : 'OFFLINE'}
+          </div>
       <div className="flex items-center gap-2 text-xs font-medium text-[#E0E0E0] tracking-wide">
         <span>🕐</span>
         UPDATED {lastUpdate.toLocaleTimeString()}
@@ -41,7 +33,17 @@ const StatusBadge = ({ isConnected, lastUpdate }) => (
   </div>
 );
 
-const ContinuousScrollingBanner = ({ data }) => {
+const ContinuousScrollingBanner = ({ items }) => {
+  const list = Array.isArray(items) ? items : [];
+
+  if (!list.length) {
+    return (
+      <div className="bh-1h-empty">
+        <span>1h volume banner: no data</span>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-hidden bg-gradient-to-r from-black/80 via-black/60 to-black/80 rounded-3xl shadow-none border-none backdrop-blur-3xl animate-fade-in-up">
       {/* Glossy overlay effect */}
@@ -58,13 +60,18 @@ const ContinuousScrollingBanner = ({ data }) => {
         <div className="absolute inset-0 flex items-center">
           <div className="flex animate-scroll whitespace-nowrap">
             {/* First set of data */}
-            {data.map((coin, index) => (
+            {list.map((coin) => (
               <div key={`first-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
-                  href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
+                  href={(function buildCoinbaseUrl(sym){
+                    if(!sym) return '#';
+                    let pair = sym;
+                    if(!/-USD$|-USDT$|-PERP$/i.test(pair)) pair = `${pair}-USD`;
+                    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+                  })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
+                  className="mw-row flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
                 >
                   <div className="text-2xl font-extrabold tracking-wide text-gray-300/90">
                     {coin.symbol}
@@ -73,7 +80,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {formatCurrency(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-2 text-2xl font-extrabold ${
-                    (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
+                    (coin.volume_change_1h || 0) >= 0 ? 'gain-text' : 'loss-text'
                   }`}>
                     <span>{(coin.volume_change_1h || 0) >= 0 ? '🚀' : '📉'}</span>
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
@@ -85,13 +92,18 @@ const ContinuousScrollingBanner = ({ data }) => {
               </div>
             ))}
             {/* Duplicate set for seamless scrolling */}
-            {data.map((coin, index) => (
+            {list.map((coin) => (
               <div key={`second-${coin.symbol}`} className="flex-shrink-0 mx-8">
                 <a 
-                  href={`https://www.coinbase.com/price/${coin.symbol.split('-')[0].toLowerCase()}`} 
+                  href={(function buildCoinbaseUrl(sym){
+                    if(!sym) return '#';
+                    let pair = sym;
+                    if(!/-USD$|-USDT$|-PERP$/i.test(pair)) pair = `${pair}-USD`;
+                    return `https://www.coinbase.com/advanced-trade/spot/${pair}`;
+                  })(coin.symbol)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
+                  className="mw-row flex items-center gap-4 transition-all duration-300 hover:scale-105 hover:drop-shadow-lg rounded-lg px-3 py-2 hover:bg-gray-900/40 backdrop-blur-xl"
                 >
                   <div className="text-sm font-bold tracking-wide text-gray-300/90">
                     {coin.symbol}
@@ -100,7 +112,7 @@ const ContinuousScrollingBanner = ({ data }) => {
                     {formatCurrency(coin.current_price)}
                   </div>
                   <div className={`flex items-center gap-1 text-sm font-bold ${
-                    (coin.volume_change_1h || 0) >= 0 ? 'text-[#00CFFF]' : 'text-[#FF5E00]'
+                    (coin.volume_change_1h || 0) >= 0 ? 'gain-text' : 'loss-text'
                   }`}>
                     <span>{(coin.volume_change_1h || 0) >= 0 ? '🚀' : '📉'}</span>
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
@@ -117,5 +129,10 @@ const ContinuousScrollingBanner = ({ data }) => {
     </div>
   );
 };
+
+// Export the banner as the module default so imports that expect a default
+// (e.g. `import OneHourVolumeBanner from './ContinuousScrollingBanner.1hvol.jsx'`)
+// will work correctly.
+export default ContinuousScrollingBanner;
 
 // ...existing code from App.jsx continues...

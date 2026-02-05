@@ -106,7 +106,7 @@ case "${1:-help}" in
         "smoke")
                 print_status "Running backend smoke test..."
                 activate_venv
-                BASE_URL=${2:-"http://127.0.0.1:5001"}
+                BASE_URL=${2:-"http://127.0.0.1:5003"}
                 SMOKE_START_DELAY=${SMOKE_START_DELAY:-0}
                 SMOKE_BASE_URL="$BASE_URL" SMOKE_START_DELAY="$SMOKE_START_DELAY" \
                     python backend/smoke_test.py

@@ -15,7 +15,7 @@ export default function IndicatorLegend({ onClose }) {
             <span className="text-white/80">Peak value used (held at local 1min high while conditions persist).</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold" style={{color:'#10B981'}}>↑</span>
+            <span className="font-semibold text-emerald-custom">↑</span>
             <span className="text-white/80">Arrow size/color ≈ momentum score; green up/red down. Bigger/brighter = stronger.</span>
           </div>
           <div className="flex items-center gap-2">

@@ -1,5 +1,11 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.52.0"
+  "name": "moonwalkings",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "guardrails": "bash scripts/validate_mw_guardrails.sh",
+    "preview": "npm --prefix frontend run preview",
+    "lint": "npm --prefix frontend run lint"
   }
 }

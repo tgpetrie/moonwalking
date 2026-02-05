@@ -1,0 +1,23 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Bhabit Rabbit Orb</title>
+  <desc id="desc">Stylized gradient orb used as a placeholder for the bhabit rabbit artwork.</desc>
+  <defs>
+    <radialGradient id="orb" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#fdf2ff" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#d9b5ff" stop-opacity="0.9" />
+      <stop offset="75%" stop-color="#a16bff" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#5221a8" stop-opacity="0.9" />
+    </radialGradient>
+    <linearGradient id="ears" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff3ff" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#ba7bff" stop-opacity="0.6" />
+    </linearGradient>
+  </defs>
+
+  <circle cx="200" cy="210" r="150" fill="url(#orb)" />
+  <ellipse cx="150" cy="70" rx="38" ry="90" fill="url(#ears)" transform="rotate(-12 150 70)" />
+  <ellipse cx="250" cy="70" rx="38" ry="90" fill="url(#ears)" transform="rotate(12 250 70)" />
+  <circle cx="150" cy="212" r="12" fill="#fff" opacity="0.9" />
+  <circle cx="250" cy="212" r="12" fill="#fff" opacity="0.9" />
+  <path d="M170 250 Q200 270 230 250" stroke="#ffd7ff" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.8" />
+</svg>
