@@ -2872,6 +2872,9 @@ volume_history_24h = defaultdict(lambda: deque(maxlen=180))
 # ----------------------------------------------------------------------------
 _CANDLE_VOLUME_CACHE = {}  # product_id -> {vol1h, vol1h_pct_change, ts_computed, last_error}
 _CANDLE_VOLUME_CACHE_LOCK = threading.Lock()
+# Per-minute volume series for z-score whale detection
+# product_id -> list of (timestamp, volume) tuples, most-recent first, max ~70 entries
+_CANDLE_MINUTE_VOLUMES = {}  # populated alongside _CANDLE_VOLUME_CACHE
 MAX_CANDLE_SYMBOLS = 60  # Cap to avoid rate limits
 
 def _fetch_coinbase_candles(product_id, granularity=60, count=70):
@@ -2913,6 +2916,9 @@ def _fetch_coinbase_candles(product_id, granularity=60, count=70):
 def _compute_1h_volume_from_candles(product_id):
     """Compute 1h volume by summing recent 1-minute candles.
 
+    Also stores per-minute volume+price series in _CANDLE_MINUTE_VOLUMES
+    for z-score whale detection.
+
     Returns:
         (vol1h, vol1h_prev, vol1h_pct_change) or (None, None, None) on error
     """
@@ -2935,6 +2941,21 @@ def _compute_1h_volume_from_candles(product_id):
         if len(complete_candles) < 60:
             # Fall back to all candles if filtering removes too many
             complete_candles = candles
+
+        # Store per-minute volume series for z-score whale detection
+        # Each entry: (timestamp, volume, open, close, high, low)
+        minute_series = []
+        for c in complete_candles[:70]:  # Keep last ~70 minutes
+            if len(c) > 5:
+                minute_series.append({
+                    'ts': int(c[0]),
+                    'vol': float(c[5]),
+                    'open': float(c[3]),
+                    'close': float(c[4]),
+                    'high': float(c[2]),
+                    'low': float(c[1]),
+                })
+        _CANDLE_MINUTE_VOLUMES[product_id] = minute_series
 
         # Sum last 60 candles for 1h volume
         vol1h = sum(float(c[5]) for c in complete_candles[:60] if len(c) > 5)
@@ -3548,47 +3569,192 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
 
 
 def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float) -> None:
-    """Emit a whale alert when 1h volume spikes >=200% vs previous hour.
+    """Emit whale alerts using z-score per-minute volume analysis + price impact.
 
-    Uses data from _CANDLE_VOLUME_CACHE (already being computed).
+    Three detection modes:
+    1. WHALE MOVE: Recent 1-min candle volume is >=3σ above rolling median AND
+       price moved meaningfully (impact). Classic "big money entering."
+    2. WHALE SURGE: Hourly volume spike >=150% vs previous hour with price displacement.
+       Broader window, catches sustained whale activity.
+    3. ABSORPTION: High volume (>=2.5σ) but price barely moved (<0.15%). Someone is
+       soaking liquidity — potential accumulation/distribution.
+
+    Uses _CANDLE_MINUTE_VOLUMES for per-minute z-score (populated by _compute_1h_volume_from_candles).
+    Falls back to hourly comparison if minute data unavailable.
     """
     try:
-        if vol1h_pct is None or vol1h_pct < 200:
-            return
-        if vol1h is None or vol1h < 500:  # ignore dust volumes
-            return
-
         sym_clean = str(symbol).upper()
         product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
-        now = datetime.now(timezone.utc)
-        emitted_ms = int(now.timestamp() * 1000)
 
-        severity = "critical" if vol1h_pct >= 500 else "high"
-        alert = {
-            "id": f"whale_{product_id}_{int(time.time())}",
-            "ts": now.isoformat(),
-            "ts_ms": emitted_ms,
-            "event_ts": now.isoformat(),
-            "event_ts_ms": emitted_ms,
-            "symbol": product_id,
-            "type": "whale_move",
-            "severity": severity,
-            "title": f"🐋 Whale Move: {product_id}",
-            "message": f"{product_id} volume surged {vol1h_pct:+.0f}% (1h: {vol1h:,.0f} units)",
-            "pct": round(vol1h_pct, 2),
-            "direction": "up",
-            "price": float(price) if price else 0,
-            "expires_at": (now + timedelta(minutes=10)).isoformat(),
-            "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
-            "meta": {
-                "magnitude": vol1h_pct,
-                "direction": "volume_spike",
-                "vol1h": round(vol1h, 2),
-                "vol1h_pct": round(vol1h_pct, 2),
-                "alert_type": "whale_move",
-            },
-        }
-        _emit_alert(alert, cooldown_s=300, dedupe_delta=50.0)
+        # --- Per-minute z-score whale detection ---
+        minute_data = _CANDLE_MINUTE_VOLUMES.get(product_id, [])
+
+        if len(minute_data) >= 15:
+            # minute_data is most-recent first
+            # Extract volumes for last 60 minutes (or however many we have)
+            vols = [m['vol'] for m in minute_data if m.get('vol', 0) > 0]
+
+            if len(vols) >= 15:
+                # Latest completed candle
+                latest = minute_data[0]
+                latest_vol = latest['vol']
+                latest_close = latest.get('close', 0)
+                latest_open = latest.get('open', 0)
+                latest_high = latest.get('high', 0)
+                latest_low = latest.get('low', 0)
+
+                # Rolling stats from candles [1:] (exclude latest for unbiased baseline)
+                baseline_vols = vols[1:61]  # Up to 60 prior candles
+                n = len(baseline_vols)
+
+                if n >= 10:
+                    sorted_vols = sorted(baseline_vols)
+                    median_vol = sorted_vols[n // 2]
+                    mean_vol = sum(baseline_vols) / n
+                    variance = sum((v - mean_vol) ** 2 for v in baseline_vols) / n
+                    std_vol = variance ** 0.5 if variance > 0 else 0
+
+                    # Z-score of latest candle vs baseline
+                    z_vol = (latest_vol - mean_vol) / std_vol if std_vol > 0 else 0
+
+                    # Per-candle price change %
+                    candle_pct = ((latest_close - latest_open) / latest_open * 100) if latest_open > 0 else 0
+                    candle_range_pct = ((latest_high - latest_low) / latest_low * 100) if latest_low > 0 else 0
+
+                    # Volume ratio vs median
+                    vol_ratio = (latest_vol / median_vol) if median_vol > 0 else 0
+
+                    # Also check 3-candle cluster (last 3 minutes combined)
+                    cluster_vol = sum(m['vol'] for m in minute_data[:3]) if len(minute_data) >= 3 else latest_vol
+                    cluster_z = (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
+
+                    now = datetime.now(timezone.utc)
+                    emitted_ms = int(now.timestamp() * 1000)
+                    base_price = float(price) if price else (latest_close or 0)
+
+                    # --- Mode 1: WHALE MOVE (z-score spike + price impact) ---
+                    # Single candle: z >= 3.0 AND price moved >= 0.3%
+                    # OR 3-candle cluster: avg z >= 2.5 AND price moved >= 0.4%
+                    if (z_vol >= 3.0 and abs(candle_pct) >= 0.3 and latest_vol > 100) or \
+                       (cluster_z >= 2.5 and abs(candle_pct) >= 0.4 and cluster_vol > 300):
+                        direction = "up" if candle_pct > 0 else "down"
+                        whale_score = z_vol * abs(candle_pct)  # composite magnitude
+                        severity = "critical" if z_vol >= 5.0 or whale_score >= 8 else "high"
+
+                        alert = {
+                            "id": f"whale_{product_id}_{int(time.time())}",
+                            "ts": now.isoformat(),
+                            "ts_ms": emitted_ms,
+                            "event_ts": now.isoformat(),
+                            "event_ts_ms": emitted_ms,
+                            "symbol": product_id,
+                            "type": "whale_move",
+                            "severity": severity,
+                            "title": f"🐋 Whale Move: {product_id}",
+                            "message": (
+                                f"{product_id} {candle_pct:+.2f}% in 1m · "
+                                f"vol {vol_ratio:.1f}x median ({z_vol:.1f}σ) · "
+                                f"${base_price:,.4f}"
+                            ),
+                            "pct": round(candle_pct, 2),
+                            "direction": direction,
+                            "price": base_price,
+                            "expires_at": (now + timedelta(minutes=8)).isoformat(),
+                            "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+                            "meta": {
+                                "magnitude": round(whale_score, 2),
+                                "direction": f"whale_{direction}",
+                                "z_vol": round(z_vol, 2),
+                                "vol_ratio": round(vol_ratio, 2),
+                                "candle_pct": round(candle_pct, 4),
+                                "candle_range_pct": round(candle_range_pct, 4),
+                                "latest_vol": round(latest_vol, 2),
+                                "median_vol": round(median_vol, 2),
+                                "cluster_z": round(cluster_z, 2),
+                                "alert_type": "whale_move",
+                            },
+                        }
+                        _emit_alert(alert, cooldown_s=120, dedupe_delta=2.0)
+                        return  # Don't double-fire
+
+                    # --- Mode 3: ABSORPTION (high vol, flat price) ---
+                    # z >= 2.5 AND price move < 0.15% AND range < 0.3%
+                    # Someone is soaking liquidity without moving price
+                    if z_vol >= 2.5 and abs(candle_pct) < 0.15 and candle_range_pct < 0.3 and latest_vol > 100:
+                        # Check if this pattern repeats (2+ of last 5 candles also high-vol + flat)
+                        absorption_count = 0
+                        for m in minute_data[1:6]:
+                            m_vol = m.get('vol', 0)
+                            m_z = (m_vol - mean_vol) / std_vol if std_vol > 0 else 0
+                            m_pct = ((m.get('close', 0) - m.get('open', 1)) / m.get('open', 1) * 100) if m.get('open', 0) > 0 else 0
+                            if m_z >= 2.0 and abs(m_pct) < 0.2:
+                                absorption_count += 1
+                        if absorption_count >= 1:  # At least 2 total high-vol flat candles
+                            alert = {
+                                "id": f"absorption_{product_id}_{int(time.time())}",
+                                "ts": now.isoformat(),
+                                "ts_ms": emitted_ms,
+                                "event_ts": now.isoformat(),
+                                "event_ts_ms": emitted_ms,
+                                "symbol": product_id,
+                                "type": "whale_move",
+                                "severity": "medium",
+                                "title": f"🐋 Absorption: {product_id}",
+                                "message": (
+                                    f"{product_id} heavy tape · price flat ({candle_pct:+.2f}%) · "
+                                    f"vol {vol_ratio:.1f}x ({z_vol:.1f}σ) · {absorption_count + 1} pulses"
+                                ),
+                                "pct": round(candle_pct, 2),
+                                "direction": "absorption",
+                                "price": base_price,
+                                "expires_at": (now + timedelta(minutes=5)).isoformat(),
+                                "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+                                "meta": {
+                                    "magnitude": round(z_vol, 2),
+                                    "direction": "absorption",
+                                    "z_vol": round(z_vol, 2),
+                                    "vol_ratio": round(vol_ratio, 2),
+                                    "candle_pct": round(candle_pct, 4),
+                                    "absorption_pulses": absorption_count + 1,
+                                    "latest_vol": round(latest_vol, 2),
+                                    "median_vol": round(median_vol, 2),
+                                    "alert_type": "whale_move",
+                                },
+                            }
+                            _emit_alert(alert, cooldown_s=300, dedupe_delta=1.0)
+                            return
+
+        # --- Mode 2: WHALE SURGE fallback (hourly comparison) ---
+        # Lower threshold than before: 150% (was 200%)
+        if vol1h_pct is not None and vol1h_pct >= 150 and vol1h is not None and vol1h >= 500:
+            now = datetime.now(timezone.utc)
+            emitted_ms = int(now.timestamp() * 1000)
+            severity = "critical" if vol1h_pct >= 400 else "high" if vol1h_pct >= 250 else "medium"
+            alert = {
+                "id": f"whale_surge_{product_id}_{int(time.time())}",
+                "ts": now.isoformat(),
+                "ts_ms": emitted_ms,
+                "event_ts": now.isoformat(),
+                "event_ts_ms": emitted_ms,
+                "symbol": product_id,
+                "type": "whale_move",
+                "severity": severity,
+                "title": f"🐋 Whale Surge: {product_id}",
+                "message": f"{product_id} 1h volume {vol1h_pct:+.0f}% vs prev hour ({vol1h:,.0f} units)",
+                "pct": round(vol1h_pct, 2),
+                "direction": "up",
+                "price": float(price) if price else 0,
+                "expires_at": (now + timedelta(minutes=10)).isoformat(),
+                "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+                "meta": {
+                    "magnitude": vol1h_pct,
+                    "direction": "volume_surge",
+                    "vol1h": round(vol1h, 2),
+                    "vol1h_pct": round(vol1h_pct, 2),
+                    "alert_type": "whale_move",
+                },
+            }
+            _emit_alert(alert, cooldown_s=300, dedupe_delta=30.0)
     except Exception:
         pass
 
@@ -8229,9 +8395,8 @@ def _compute_snapshots_from_cache():
                 sym = product_id.split('-')[0].upper() if '-' in product_id else product_id
                 price_val = cached_prices_data.get(product_id) or cached_prices_data.get(sym) or 0
 
-                # Whale detection
-                if vol1h is not None and vol1h_pct is not None:
-                    _emit_whale_alert(sym, vol1h, vol1h_pct, price_val)
+                # Whale detection (always try — z-score can fire even without vol1h_pct)
+                _emit_whale_alert(sym, vol1h, vol1h_pct, price_val)
 
                 # Stealth detection: need 3m price change
                 hist_3m = price_history.get(sym)
