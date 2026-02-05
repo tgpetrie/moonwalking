@@ -3540,6 +3540,7 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
             direction = "reversal_down"
 
         magnitude = abs(ret_1m - ret_3m)
+        div_price_now = float(price) if price else 0
         alert = {
             "id": f"divergence_{product_id}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -3553,7 +3554,10 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
             "message": msg,
             "pct": round(magnitude, 2),
             "direction": direction,
-            "price": float(price) if price else 0,
+            "price": div_price_now,
+            "price_now": div_price_now,
+            "ret_1m": round(ret_1m, 4),
+            "ret_3m": round(ret_3m, 4),
             "expires_at": (now + timedelta(minutes=5)).isoformat(),
             "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
             "meta": {
@@ -3641,6 +3645,10 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                         whale_score = z_vol * abs(candle_pct)  # composite magnitude
                         severity = "critical" if z_vol >= 5.0 or whale_score >= 8 else "high"
 
+                        # Derive price_then from candle open
+                        whale_price_now = base_price
+                        whale_price_then = float(latest_open) if latest_open else None
+
                         alert = {
                             "id": f"whale_{product_id}_{int(time.time())}",
                             "ts": now.isoformat(),
@@ -3659,6 +3667,10 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                             "pct": round(candle_pct, 2),
                             "direction": direction,
                             "price": base_price,
+                            "price_now": whale_price_now,
+                            "price_then": whale_price_then,
+                            "window_s": 60,
+                            "vol_change_pct": round(vol_ratio * 100 - 100, 1),
                             "expires_at": (now + timedelta(minutes=8)).isoformat(),
                             "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
                             "meta": {
@@ -3707,6 +3719,10 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                                 "pct": round(candle_pct, 2),
                                 "direction": "absorption",
                                 "price": base_price,
+                                "price_now": base_price,
+                                "price_then": float(latest_open) if latest_open else None,
+                                "window_s": 60,
+                                "vol_change_pct": round(vol_ratio * 100 - 100, 1),
                                 "expires_at": (now + timedelta(minutes=5)).isoformat(),
                                 "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
                                 "meta": {
@@ -3730,6 +3746,7 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
             now = datetime.now(timezone.utc)
             emitted_ms = int(now.timestamp() * 1000)
             severity = "critical" if vol1h_pct >= 400 else "high" if vol1h_pct >= 250 else "medium"
+            surge_price = float(price) if price else 0
             alert = {
                 "id": f"whale_surge_{product_id}_{int(time.time())}",
                 "ts": now.isoformat(),
@@ -3743,7 +3760,10 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                 "message": f"{product_id} 1h volume {vol1h_pct:+.0f}% vs prev hour ({vol1h:,.0f} units)",
                 "pct": round(vol1h_pct, 2),
                 "direction": "up",
-                "price": float(price) if price else 0,
+                "price": surge_price,
+                "price_now": surge_price,
+                "window_s": 3600,
+                "vol_change_pct": round(vol1h_pct, 1),
                 "expires_at": (now + timedelta(minutes=10)).isoformat(),
                 "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
                 "meta": {
@@ -3778,6 +3798,15 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
 
+        stealth_price_now = float(price) if price else 0
+        stealth_price_then = None
+        try:
+            denom = 1.0 + (float(price_change_3m) / 100.0)
+            if stealth_price_now and denom and denom != 0:
+                stealth_price_then = stealth_price_now / denom
+        except Exception:
+            stealth_price_then = None
+
         alert = {
             "id": f"stealth_{product_id}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -3791,7 +3820,11 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
             "message": f"{product_id} up {price_change_3m:+.2f}% on quiet volume ({vol1h_pct:+.0f}% vol change)",
             "pct": round(price_change_3m, 2),
             "direction": "up",
-            "price": float(price) if price else 0,
+            "price": stealth_price_now,
+            "price_now": stealth_price_now,
+            "price_then": stealth_price_then,
+            "window_s": 180,
+            "vol_change_pct": round(vol1h_pct, 1),
             "expires_at": (now + timedelta(minutes=5)).isoformat(),
             "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
             "meta": {
