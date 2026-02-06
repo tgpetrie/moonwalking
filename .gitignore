@@ -144,3 +144,7 @@ backend/**/*.sqlite-*
 
 # local venv
 .venv/
+
+# logs
+backend/*.log
+backend/server.log
