@@ -70,6 +70,56 @@ wait_for_http() {
   return 1
 }
 
+# Kill anything currently listening on a port (macOS/Linux)
+kill_listeners_on_port() {
+  local port="$1"
+  local pids=""
+
+  if command -v lsof >/dev/null 2>&1; then
+    # PIDs listening on TCP port
+    pids="$(lsof -nP -t -iTCP:"${port}" -sTCP:LISTEN 2>/dev/null | sort -u || true)"
+  else
+    echo "[start_app] ERROR: lsof not found; cannot reclaim port ${port}"
+    return 1
+  fi
+
+  if [ -z "${pids}" ]; then
+    return 0
+  fi
+
+  echo "[start_app] reclaiming port ${port} (killing PIDs: ${pids})"
+
+  # Try graceful first
+  kill ${pids} 2>/dev/null || true
+
+  # Wait briefly for exit
+  local i=0
+  while [ $i -lt 15 ]; do
+    if ! lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.2
+    i=$((i+1))
+  done
+
+  # Force kill if still holding the port
+  echo "[start_app] port ${port} still busy; force killing PIDs: ${pids}"
+  kill -9 ${pids} 2>/dev/null || true
+
+  # Final confirm
+  local j=0
+  while [ $j -lt 10 ]; do
+    if ! lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.2
+    j=$((j+1))
+  done
+
+  echo "[start_app] ERROR: port ${port} still in use after kill attempts"
+  return 1
+}
+
 cleanup() {
   if [ -n "${BACKEND_PID:-}" ]; then
     if [ "${BACKEND_USE_GROUP_KILL:-0}" = "1" ]; then
@@ -94,6 +144,12 @@ REQ_FRONTEND_PORT="${FRONTEND_PORT:-5175}"
 
 BACKEND_PORT="$(find_free_port "$REQ_BACKEND_PORT")"
 FRONTEND_PORT="$(find_free_port "$REQ_FRONTEND_PORT")"
+
+# Always reclaim ports before launching (prevents "stuck" runs)
+kill_listeners_on_port "${BACKEND_PORT}"
+kill_listeners_on_port "${FRONTEND_PORT}"
+# Optional: if you run sentiment locally and want it reclaimed too:
+# kill_listeners_on_port "${SENTIMENT_PORT}"
 
 SENTIMENT_HOST="${SENTIMENT_HOST:-$HOST}"
 SENTIMENT_PORT="${SENTIMENT_PORT:-8002}"
@@ -151,17 +207,13 @@ start_backend_bg() {
 
 start_backend_bg
 
-hBACKEND_URL="http://${HOST}:${BACKEND_PORT}"
+BACKEND_URL="http://${HOST}:${BACKEND_PORT}"
 
-if ! wait_for_http "${BACKEND_URL}/data" 90; then
-  wait_for_http "${BACKEND_URL}/health" 30 || true
-fi
+# Fast readiness: backend process is listening and responding.
+wait_for_http "${BACKEND_URL}/health" 60
 
-# Final verdict: backend must respond before continuing.
-if ! wait_for_http "${BACKEND_URL}/data" 1; then
-  echo "[start_app] backend not responding at ${BACKEND_URL} (warmup may have hung)" >&2
-  exit 1
-fi
+# Warm-up probe: /data can be heavy; don't block startup on it.
+wait_for_http "${BACKEND_URL}/data" 30 || true
 
 # --- start sentiment pipeline (best-effort) ---
 PIPELINE=""
