@@ -232,7 +232,38 @@ export default function Dashboard() {
         </header>
 
         <div className="board-core" ref={boardRef}>
-          <div className="rabbit-bg" aria-hidden />
+          <div className="rabbit-bg" aria-hidden>
+            {/* Decorative rabbit sprites: each animates independently for a lively feel */}
+            {useMemo(() => {
+              const n = 7;
+              const out = [];
+              for (let i = 0; i < n; i++) {
+                const d = (Math.random() * 3 + 2).toFixed(2) + "s"; // 2-5s
+                const delay = (Math.random() * 4).toFixed(2) + "s"; // 0-4s
+                const tx = (Math.random() * 240 - 120).toFixed(0) + "px"; // -120..120
+                const ty = (Math.random() * 120 - 60).toFixed(0) + "px"; // -60..60
+                const scale = (Math.random() * 0.6 + 0.8).toFixed(2); // 0.8-1.4
+                const r = (Math.random() * 18 - 9).toFixed(2) + "deg";
+                out.push(
+                  <div
+                    key={`rb-${i}`}
+                    className="rabbit-sprite"
+                    style={{
+                      // CSS custom props used by `index.css` for per-sprite variance
+                      ["--d"]: d,
+                      ["--delay"]: delay,
+                      ["--tx"]: tx,
+                      ["--ty"]: ty,
+                      ["--scale"]: scale,
+                      ["--r"]: r,
+                    }}
+                    aria-hidden
+                  />
+                );
+              }
+              return out;
+            }, [])}
+          </div>
 
           <section className="bh-banner-section">
             <div className="bh-banner-header">

@@ -33,7 +33,10 @@ export default function TokenRowSimple({ index, row }) {
     null;
 
   return (
-    <div className="token-row">
+    <div
+      className="token-row token-row--live"
+      style={{ "--row-delay": `${(index % 12) * 90}ms` }}
+    >
       <div className="token-rank">{index + 1}</div>
       <div className="token-symbol">{symbol}</div>
       <div className="token-price">

@@ -2208,6 +2208,55 @@ a.bh-row {
   transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
 }
 
+/* ===== RABBIT SPRITES: lively independent motion ===== */
+.rabbit-bg {
+  position: absolute;
+  inset: 90px 0 120px 0;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.rabbit-sprite {
+  --d: 3s;
+  --delay: 0s;
+  --tx: 0px;
+  --ty: 0px;
+  --scale: 1;
+  --r: 0deg;
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(980px, 82vw);
+  max-width: 980px;
+  height: auto;
+  aspect-ratio: 1.6/1;
+  transform-origin: 50% 50%;
+  transform: translate(-50%, -50%) translateX(var(--tx)) translateY(var(--ty)) scale(var(--scale)) rotate(var(--r));
+  background-image: url('/purple-rabbit-bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: var(--bh-bunny-idle, 0.035);
+  mix-blend-mode: screen;
+  filter: brightness(0.98) contrast(0.98) saturate(0.95);
+  animation: rabbitFloat var(--d) ease-in-out var(--delay) infinite alternate;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+@keyframes rabbitFloat {
+  from {
+    transform: translate(-50%, -50%) translateX(var(--tx)) translateY(var(--ty)) scale(var(--scale)) rotate(var(--r));
+    opacity: calc(var(--bh-bunny-idle, 0.035));
+  }
+  to {
+    transform: translate(-50%, -50%) translateX(calc(var(--tx) * -1)) translateY(calc(var(--ty) * -1)) scale(calc(var(--scale) * 1.03)) rotate(calc(var(--r) * -1));
+    opacity: calc(var(--bh-bunny-hover, 0.12));
+  }
+}
+
 /* Brighten and boost rabbit when a row is hovered (data attribute set by JS) */
 .board-core[data-row-hover="1"] .bh-bunny-layer,
 .board-core[data-row-hover="1"] .rabbit-bg {
@@ -4678,11 +4727,13 @@ body {
   ) !important;
 }
 
-/* Only nudge brightness when a row is hovered; no full reveal */
+/* DISABLED - was making rabbit less visible on hover */
+/*
 .board-core[data-row-hover="1"] .rabbit-bg {
   opacity: 0.028 !important;
   filter: brightness(0.92) contrast(1.04) saturate(1.02) !important;
 }
+*/
 
 /* Keep content above the glow */
 .board-core > * {
@@ -5016,34 +5067,406 @@ body {
 
 /* =========================================================
    ABSOLUTE FINAL — Desktop Lasso Hover
+   Uses ROW BACKGROUND directly (no pseudo-elements)
    ========================================================= */
 
-/* Kill the old ::after that was creating blur/haze */
-.board-core .bh-row::after,
-.board-core .bh-row:hover::after,
-.board-core .bh-row:focus-visible::after,
-.bh-row::after,
-.bh-row:hover::after {
-  opacity: 0 !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background: none !important;
+/* KILL old ::after effects on .bh-row (not .bh-row-grid) */
+.board-core .bh-row:not(.bh-row-grid)::after,
+.board-core .bh-row::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Base row style */
+.board-core .bh-row.bh-row-grid {
+  position: relative !important;
+  background-color: transparent !important;
+  transition: background 180ms ease !important;
+  border-bottom: none !important;
+}
+
+/* Gradient line divider - centered, equal fade both ends */
+.board-core .bh-row.bh-row-grid::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 1px !important;
+  z-index: 5 !important;
+  opacity: 1 !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 10%,
+    rgba(255, 165, 0, 0.06) 25%,
+    rgba(255, 165, 0, 0.10) 50%,
+    rgba(255, 165, 0, 0.06) 75%,
+    transparent 90%,
+    transparent 100%
+  ) !important;
+  pointer-events: none !important;
+}
+
+/* Gradient line divider - purple for losers */
+.board-core .bh-row.bh-row-grid[data-side="loser"]::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 10%,
+    rgba(170, 120, 255, 0.07) 25%,
+    rgba(170, 120, 255, 0.11) 50%,
+    rgba(170, 120, 255, 0.07) 75%,
+    transparent 90%,
+    transparent 100%
+  ) !important;
+}
+
+/* LEFT COLUMN GAINERS: glow from RIGHT side (center of page), fading left */
+.board-core .bh-col:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-table:first-child .bh-row.bh-row-grid:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(255, 165, 0, 0.14) 0%,
+    rgba(255, 165, 0, 0.06) 45%,
+    transparent 80%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+/* RIGHT COLUMN GAINERS: glow from LEFT side (center of page), fading right */
+.board-core .bh-col:last-child .bh-row.bh-row-grid:hover,
+.board-core .bh-table:last-child .bh-row.bh-row-grid:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(255, 165, 0, 0.14) 0%,
+    rgba(255, 165, 0, 0.06) 45%,
+    transparent 80%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+/* LEFT COLUMN LOSERS: purple glow from RIGHT side */
+.board-core .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-table:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(170, 120, 255, 0.16) 0%,
+    rgba(170, 120, 255, 0.07) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* RIGHT COLUMN LOSERS: purple glow from center-left */
+.board-core .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-table:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 180% 200% at 15% 50%,
+    rgba(170, 120, 255, 0.28) 0%,
+    rgba(170, 120, 255, 0.14) 40%,
+    transparent 75%
+  ) !important;
+}
+
+/* Fix page width — prevent horizontal overflow */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.bh-shell {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.board-core {
+  overflow-x: hidden !important;
+}
+/* ===== Per-component live feel (TokenRowSimple) ===== */
+@keyframes bh-live-glint {
+  0%, 30% { opacity: 1; filter: none; }
+  40% { opacity: 0.78; }
+  55% { opacity: 1; filter: drop-shadow(0 0 10px rgba(255, 179, 71, 0.38)); }
+  70% { opacity: 0.9; }
+  100% { opacity: 1; filter: none; }
+}
+
+.token-row--live .token-price > div:first-child,
+.token-row--live .token-pct,
+.token-row.table-row .token-price > div:first-child,
+.token-row.table-row .token-pct,
+.bh-row .bh-price,
+.bh-row .bh-pct {
+  animation: bh-live-glint 2.4s ease-in-out infinite;
+  animation-delay: var(--row-delay, 0ms);
+  will-change: filter, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-row--live .token-price > div:first-child,
+  .token-row--live .token-pct,
+  .token-row.table-row .token-price > div:first-child,
+  .token-row.table-row .token-pct,
+  .bh-row .bh-price,
+  .bh-row .bh-pct {
+    animation: none;
+  }
+}
+
+/* Stagger live glint across visible rows */
+.bh-row:nth-child(12n + 1),
+.token-row.table-row:nth-child(12n + 1) { --row-delay: 0ms; }
+.bh-row:nth-child(12n + 2),
+.token-row.table-row:nth-child(12n + 2) { --row-delay: 90ms; }
+.bh-row:nth-child(12n + 3),
+.token-row.table-row:nth-child(12n + 3) { --row-delay: 180ms; }
+.bh-row:nth-child(12n + 4),
+.token-row.table-row:nth-child(12n + 4) { --row-delay: 270ms; }
+.bh-row:nth-child(12n + 5),
+.token-row.table-row:nth-child(12n + 5) { --row-delay: 360ms; }
+.bh-row:nth-child(12n + 6),
+.token-row.table-row:nth-child(12n + 6) { --row-delay: 450ms; }
+.bh-row:nth-child(12n + 7),
+.token-row.table-row:nth-child(12n + 7) { --row-delay: 540ms; }
+.bh-row:nth-child(12n + 8),
+.token-row.table-row:nth-child(12n + 8) { --row-delay: 630ms; }
+.bh-row:nth-child(12n + 9),
+.token-row.table-row:nth-child(12n + 9) { --row-delay: 720ms; }
+.bh-row:nth-child(12n + 10),
+.token-row.table-row:nth-child(12n + 10) { --row-delay: 810ms; }
+.bh-row:nth-child(12n + 11),
+.token-row.table-row:nth-child(12n + 11) { --row-delay: 900ms; }
+.bh-row:nth-child(12n + 12),
+.token-row.table-row:nth-child(12n + 12) { --row-delay: 990ms; }
+
+/* =========================================================
+   INTELLIGENCE LOG (Anomaly Stream) — Restored Styles
+   ========================================================= */
+
+.bh-intel-panel{
+  width: 100%;
+  max-width: 100%;
+  border-radius: 16px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px) contrast(1.12);
+  -webkit-backdrop-filter: blur(10px) contrast(1.12);
+  overflow: hidden;
+}
+
+.bh-intel-head{
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-family: var(--bh-font-sans);
+}
+
+.bh-intel-toggle{
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.bh-intel-title{
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.82);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bh-intel-sub{
+  font-size: 0.68rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+}
+
+.bh-intel-meta{
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+
+.bh-intel-state{
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.7);
+}
+
+.bh-intel-state.is-live{
+  border-color: rgba(16,174,155,0.35);
+  color: rgba(150,255,230,0.9);
+}
+
+.bh-intel-state.is-standby{
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.55);
+}
+
+.bh-intel-log{
+  max-height: min(56vh, 520px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.86);
+}
+
+.bh-intel-log.is-collapsed{
+  max-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bh-intel-line{
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 84px max-content 1fr;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  transition: transform 160ms ease, box-shadow 220ms ease, background-color 200ms ease;
+}
+
+.bh-intel-line:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.012);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,0.35),
+    0 0 24px rgba(150,120,255,0.08),
+    0 0 20px rgba(255,170,90,0.06);
+}
+
+.bh-intel-line:last-child{
+  border-bottom: none;
+}
+
+.bh-intel-clickable{
+  cursor: pointer;
+}
+
+.bh-intel-ts{
+  color: rgba(255,255,255,0.42);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.bh-intel-msg{
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bh-intel-prefix{
+  color: rgba(255,255,255,0.5);
+  margin-right: 6px;
+}
+
+.bh-intel-sym{
+  color: rgba(255,255,255,0.9);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.bh-intel-text{
+  color: rgba(255,255,255,0.78);
+}
+
+.bh-intel-pct{
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bh-intel-pct--pos{
+  color: rgba(255,184,77,0.95);
+}
+
+.bh-intel-pct--neg{
+  color: rgba(192,132,252,0.95);
+}
+
+.bh-intel-chip{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.04);
+  white-space: nowrap;
+}
+
+.bh-intel-chip--gain{
+  border-color: rgba(255,184,77,0.28);
+  color: rgba(255,210,120,0.92);
+  background: rgba(255,184,77,0.06);
+}
+
+.bh-intel-chip--loss{
+  border-color: rgba(192,132,252,0.26);
+  color: rgba(210,170,255,0.92);
+  background: rgba(192,132,252,0.06);
+}
+
+.bh-intel-chip--sent{
+  border-color: rgba(16,174,155,0.26);
+  color: rgba(150,255,230,0.92);
+  background: rgba(16,174,155,0.06);
+}
+
+.bh-intel-chip--info{
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.03);
+}
+
+.bh-intel-cursor{
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: rgba(255,255,255,0.65);
+  margin-left: 2px;
+  animation: bh-intel-blink 1s step-end infinite;
+}
+
+@keyframes bh-intel-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Prevent table-row styles from bleeding into intel module */
+.bh-intel-panel .bh-row,
+.bh-intel-panel .token-row,
+.bh-intel-panel .token-row.table-row{
+  all: unset !important;
+}
+
+.bh-intel-panel *::before,
+.bh-intel-panel *::after{
   box-shadow: none !important;
-  filter: none !important;
-}
-
-/* Gainers: warm orange inner glow — soft feathered edges */
-.board-core .bh-row:hover,
-.board-core .bh-row-grid:hover {
-  box-shadow:
-    inset 0 0 60px 0px rgba(255,165,0,0.18),
-    inset 0 0 20px 0px rgba(255,165,0,0.12) !important;
-}
-
-/* Losers: purple inner glow */
-.board-core .bh-row[data-side="loser"]:hover,
-.board-core .bh-row-grid[data-side="loser"]:hover {
-  box-shadow:
-    inset 0 0 60px 0px rgba(170,120,255,0.22),
-    inset 0 0 20px 0px rgba(170,120,255,0.14) !important;
 }
