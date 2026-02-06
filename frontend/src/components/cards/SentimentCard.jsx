@@ -35,8 +35,13 @@ const formatTime = (ts) => {
 };
 
 export function SentimentCardBody({ d, symbol }) {
-  const fresh = useMemo(() => freshnessLabel(d.updatedAt), [d.updatedAt]);
-  const conf = useMemo(() => confidenceFromSources(d.sourceBreakdown), [d.sourceBreakdown]);
+  const hasUpdatedAt = Boolean(d.updatedAt);
+  const hasSources = (() => {
+    const s = d.sourceBreakdown || {};
+    return [s.tier1, s.tier2, s.tier3, s.fringe].some((v) => Number.isFinite(Number(v)) && Number(v) > 0);
+  })();
+  const fresh = useMemo(() => (hasUpdatedAt ? freshnessLabel(d.updatedAt) : null), [d.updatedAt, hasUpdatedAt]);
+  const conf = useMemo(() => (hasSources ? confidenceFromSources(d.sourceBreakdown) : null), [d.sourceBreakdown, hasSources]);
 
   const overallTone =
     d.overallSentiment == null
@@ -53,19 +58,23 @@ export function SentimentCardBody({ d, symbol }) {
     : null;
 
   const stats = [
-    {
-      label: "Overall",
-      value: d.overallSentiment == null ? "—" : d.overallSentiment.toFixed(2),
-      tone:
-        overallTone === "good" ? "mint" : overallTone === "mid" ? "gold" : "purple",
-    },
-    {
-      label: "Fear & Greed",
-      value: fearGreedPct == null ? "—" : `${Math.round(fearGreedPct)}`,
-      suffix: fearGreedPct == null ? "" : "%",
-      tone: "gold",
-    },
-  ];
+    d.overallSentiment == null
+      ? null
+      : {
+          label: "Overall",
+          value: d.overallSentiment.toFixed(2),
+          tone:
+            overallTone === "good" ? "mint" : overallTone === "mid" ? "gold" : "purple",
+        },
+    fearGreedPct == null
+      ? null
+      : {
+          label: "Fear & Greed",
+          value: `${Math.round(fearGreedPct)}`,
+          suffix: "%",
+          tone: "gold",
+        },
+  ].filter(Boolean);
 
   return (
     <div className="sentiment-card">
@@ -76,35 +85,43 @@ export function SentimentCardBody({ d, symbol }) {
             {symbol ? `${symbol.toUpperCase()} aggregate` : "Market-wide composite"}
           </div>
         </div>
-        <div className="right-meta">
-          <span>freshness: {fresh.label}</span>
-          <span>confidence: {conf.label}</span>
-          <span>{formatTime(d.updatedAt)}</span>
-        </div>
+        {(fresh || conf || hasUpdatedAt) && (
+          <div className="right-meta">
+            {fresh && <span>freshness: {fresh.label}</span>}
+            {conf && <span>confidence: {conf.label}</span>}
+            {hasUpdatedAt && <span>{formatTime(d.updatedAt)}</span>}
+          </div>
+        )}
       </header>
 
-      <div className="sentiment-stats-grid">
-        {stats.map((s) => (
-          <div key={s.label} className="sentiment-stat">
-            <div className="label">{s.label}</div>
-            <div className={`value ${s.tone}`}>
-              {s.value}
-              {s.suffix}
+      {stats.length > 0 ? (
+        <div className="sentiment-stats-grid">
+          {stats.map((s) => (
+            <div key={s.label} className="sentiment-stat">
+              <div className="label">{s.label}</div>
+              <div className={`value ${s.tone}`}>
+                {s.value}
+                {s.suffix}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="sentiment-meter">
-        <div className="meter-label">Fear &amp; Greed</div>
-        <div className="bar">
-          <div
-            className="bar-fill"
-            style={{ width: fearGreedPct == null ? "0%" : `${fearGreedPct}%` }}
-          />
+          ))}
         </div>
-        <div className="pct">{fearGreedPct == null ? "--" : `${fearGreedPct.toFixed(0)}%`}</div>
-      </div>
+      ) : (
+        <div className="state-copy">No actionable sentiment data yet.</div>
+      )}
+
+      {fearGreedPct != null && (
+        <div className="sentiment-meter">
+          <div className="meter-label">Fear &amp; Greed</div>
+          <div className="bar">
+            <div
+              className="bar-fill"
+              style={{ width: `${fearGreedPct}%` }}
+            />
+          </div>
+          <div className="pct">{`${fearGreedPct.toFixed(0)}%`}</div>
+        </div>
+      )}
 
     </div>
   );

@@ -1823,30 +1823,32 @@ a.bh-row {
 
 .btn-show-more,
 .show-more-btn {
-  margin: 0.75rem auto 1rem;
-  padding: 0.25rem 1.4rem;
+  margin: 0.55rem auto 0.9rem;
+  padding: 0.2rem 1.1rem;
   border-radius: 999px;
   /* transparent pill (no fill/no border) by default */
   border: none;
   background: transparent;
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #f6e9ff;
+  color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.95;
-  transition: opacity 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out;
+  opacity: 0.78;
+  transition: opacity 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out, color 140ms ease-out;
 }
 
 .btn-show-more:hover,
 .show-more-btn:hover {
-  opacity: 1;
+  opacity: 0.95;
+  color: rgba(255, 255, 255, 0.86);
   transform: translateY(-1px);
-  box-shadow: 0 0 12px rgba(160, 120, 255, 0.12);
-  background: rgba(255, 255, 255, 0.02);
+  box-shadow: 0 0 10px rgba(160, 120, 255, 0.08);
+  background: rgba(255, 255, 255, 0.015);
 }
 
 /* ===== SKELETONS ===== */
@@ -5181,6 +5183,88 @@ html, body {
 .board-core {
   overflow-x: hidden !important;
 }
+
+/* ===== Table Headers (Centered, Token-Weight) ===== */
+.board-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0 0 0.6rem;
+}
+.board-section-header--center {
+  justify-content: center;
+  text-align: center;
+}
+.board-section-title,
+.table-title {
+  font-family: var(--bh-font-sans);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+.board-section-title--center,
+.table-title {
+  width: 100%;
+  text-align: center;
+}
+.table-title {
+  margin: 0.2rem 0 0.7rem;
+}
+
+/* ===== Micro Animations (Per-Cell + Orchestrated) ===== */
+@keyframes bh-cell-breathe {
+  0%, 100% {
+    opacity: 0.92;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes bh-cell-orchestrate {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+.bh-row > .bh-cell {
+  --bh-cell-index: 0;
+  --bh-cell-cadence-step: 0ms;
+  filter: brightness(1);
+  animation-name: bh-cell-breathe, bh-cell-orchestrate;
+  animation-duration: calc(var(--bh-cell-cadence, 5200ms) + var(--bh-cell-cadence-step, 0ms)), 2400ms;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: calc(var(--bh-cell-cadence-delay, 0ms) + var(--bh-cell-stagger, 120ms) * var(--bh-cell-index)),
+    calc(var(--bh-cell-orch-delay, 0ms) + var(--bh-cell-stagger, 120ms) * var(--bh-cell-index));
+  animation-fill-mode: both;
+}
+
+.bh-row > .bh-cell:nth-of-type(1) { --bh-cell-index: 0; --bh-cell-cadence-step: 0ms; }
+.bh-row > .bh-cell:nth-of-type(2) { --bh-cell-index: 1; --bh-cell-cadence-step: 180ms; }
+.bh-row > .bh-cell:nth-of-type(3) { --bh-cell-index: 2; --bh-cell-cadence-step: 320ms; }
+.bh-row > .bh-cell:nth-of-type(4) { --bh-cell-index: 3; --bh-cell-cadence-step: 240ms; }
+.bh-row > .bh-cell:nth-of-type(5) { --bh-cell-index: 4; --bh-cell-cadence-step: 140ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-row > .bh-cell {
+    animation: none !important;
+    filter: none !important;
+  }
+}
+
+/* ===== Row Divider Placement (Below Only) ===== */
+.bh-row::before {
+  top: auto !important;
+  bottom: 0 !important;
+}
 /* ===== Per-component live feel (TokenRowSimple) ===== */
 @keyframes bh-live-glint {
   0%, 30% { opacity: 1; filter: none; }
@@ -5469,4 +5553,120 @@ html, body {
 .bh-intel-panel *::before,
 .bh-intel-panel *::after{
   box-shadow: none !important;
+}
+
+/* ============================================================
+   HOVER GLOW EFFECT — "Desktop Lasso" / Stained Glass Pattern
+   ============================================================ */
+
+/* KILL old ::after effects on .bh-row (not .bh-row-grid) */
+.board-core .bh-row:not(.bh-row-grid)::after,
+.board-core .bh-row::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Base row style */
+.board-core .bh-row.bh-row-grid {
+  position: relative !important;
+  background-color: transparent !important;
+  transition: background 180ms ease !important;
+  border-bottom: none !important;
+}
+
+/* Gradient line divider - centered, equal fade both ends */
+.board-core .bh-row.bh-row-grid::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 1px !important;
+  z-index: 5 !important;
+  opacity: 1 !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 10%,
+    rgba(255, 165, 0, 0.06) 25%,
+    rgba(255, 165, 0, 0.10) 50%,
+    rgba(255, 165, 0, 0.06) 75%,
+    transparent 90%,
+    transparent 100%
+  ) !important;
+  pointer-events: none !important;
+}
+
+/* Gradient line divider - purple for losers */
+.board-core .bh-row.bh-row-grid[data-side="loser"]::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 10%,
+    rgba(170, 120, 255, 0.07) 25%,
+    rgba(170, 120, 255, 0.11) 50%,
+    rgba(170, 120, 255, 0.07) 75%,
+    transparent 90%,
+    transparent 100%
+  ) !important;
+}
+
+/* LEFT COLUMN GAINERS: glow from RIGHT side (center of page), fading left */
+.board-core .bh-col:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-table:first-child .bh-row.bh-row-grid:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(255, 165, 0, 0.14) 0%,
+    rgba(255, 165, 0, 0.06) 45%,
+    transparent 80%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+/* RIGHT COLUMN GAINERS: glow from LEFT side (center of page), fading right */
+.board-core .bh-col:last-child .bh-row.bh-row-grid:hover,
+.board-core .bh-table:last-child .bh-row.bh-row-grid:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(255, 165, 0, 0.14) 0%,
+    rgba(255, 165, 0, 0.06) 45%,
+    transparent 80%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+/* LEFT COLUMN LOSERS: purple glow from RIGHT side */
+.board-core .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-table:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(170, 120, 255, 0.16) 0%,
+    rgba(170, 120, 255, 0.07) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* RIGHT COLUMN LOSERS: purple glow from center-left */
+.board-core .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-table:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 180% 200% at 15% 50%,
+    rgba(170, 120, 255, 0.28) 0%,
+    rgba(170, 120, 255, 0.14) 40%,
+    transparent 75%
+  ) !important;
+}
+
+/* Fix page width — prevent horizontal overflow */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.bh-shell {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+.board-core {
+  overflow-x: hidden !important;
 }
