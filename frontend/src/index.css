@@ -5126,8 +5126,7 @@ body {
 }
 
 /* LEFT COLUMN GAINERS: glow from RIGHT side (center of page), fading left */
-.board-core .bh-col:first-child .bh-row.bh-row-grid:hover,
-.board-core .bh-table:first-child .bh-row.bh-row-grid:hover {
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:hover {
   background: radial-gradient(
     ellipse 140% 180% at 100% 50%,
     rgba(255, 165, 0, 0.14) 0%,
@@ -5138,8 +5137,7 @@ body {
 }
 
 /* RIGHT COLUMN GAINERS: glow from LEFT side (center of page), fading right */
-.board-core .bh-col:last-child .bh-row.bh-row-grid:hover,
-.board-core .bh-table:last-child .bh-row.bh-row-grid:hover {
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:hover {
   background: radial-gradient(
     ellipse 140% 180% at 0% 50%,
     rgba(255, 165, 0, 0.14) 0%,
@@ -5150,8 +5148,7 @@ body {
 }
 
 /* LEFT COLUMN LOSERS: purple glow from RIGHT side */
-.board-core .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
-.board-core .bh-table:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
   background: radial-gradient(
     ellipse 140% 180% at 100% 50%,
     rgba(170, 120, 255, 0.16) 0%,
@@ -5161,8 +5158,7 @@ body {
 }
 
 /* RIGHT COLUMN LOSERS: purple glow from center-left */
-.board-core .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
-.board-core .bh-table:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
   background: radial-gradient(
     ellipse 180% 200% at 15% 50%,
     rgba(170, 120, 255, 0.28) 0%,
@@ -5613,8 +5609,7 @@ html, body {
 }
 
 /* LEFT COLUMN GAINERS: glow from RIGHT side (center of page), fading left */
-.board-core .bh-col:first-child .bh-row.bh-row-grid:hover,
-.board-core .bh-table:first-child .bh-row.bh-row-grid:hover {
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:hover {
   background: radial-gradient(
     ellipse 140% 180% at 100% 50%,
     rgba(255, 165, 0, 0.14) 0%,
@@ -5625,8 +5620,7 @@ html, body {
 }
 
 /* RIGHT COLUMN GAINERS: glow from LEFT side (center of page), fading right */
-.board-core .bh-col:last-child .bh-row.bh-row-grid:hover,
-.board-core .bh-table:last-child .bh-row.bh-row-grid:hover {
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:hover {
   background: radial-gradient(
     ellipse 140% 180% at 0% 50%,
     rgba(255, 165, 0, 0.14) 0%,
@@ -5637,8 +5631,7 @@ html, body {
 }
 
 /* LEFT COLUMN LOSERS: purple glow from RIGHT side */
-.board-core .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
-.board-core .bh-table:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover {
   background: radial-gradient(
     ellipse 140% 180% at 100% 50%,
     rgba(170, 120, 255, 0.16) 0%,
@@ -5648,8 +5641,7 @@ html, body {
 }
 
 /* RIGHT COLUMN LOSERS: purple glow from center-left */
-.board-core .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
-.board-core .bh-table:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
   background: radial-gradient(
     ellipse 180% 200% at 15% 50%,
     rgba(170, 120, 255, 0.28) 0%,
