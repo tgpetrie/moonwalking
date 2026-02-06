@@ -1097,6 +1097,11 @@ def api_health():
     }
     return jsonify(HealthResponse(**payload).model_dump())
 
+@app.route('/health')
+def health_root():
+    """Root health alias for launcher readiness checks."""
+    return api_health()
+
 
 @app.route("/api/snapshots/one-hour-volume", methods=["GET"])
 def one_hour_volume():
@@ -2666,45 +2671,6 @@ def schema_metrics():
 def schema_gainers_1m():
     return jsonify(Gainers1mComponent.model_json_schema())
 
-# -------------------------------- Codex Assistant ---------------------------------
-@app.route('/api/ask-codex', methods=['POST'])
-def ask_codex():
-    """Proxy user query to OpenAI Chat Completions (server-side to protect API key)."""
-    try:
-        data = request.get_json(silent=True) or {}
-        query = (data.get('query') or '').strip()
-        if not query:
-            return jsonify({'error': 'Missing query'}), 400
-        api_key = os.environ.get('OPENAI_API_KEY')
-        # Stub mode if no key, or explicit stub flag, or clearly fake key
-        if (not api_key) or os.environ.get('OPENAI_STUB') == '1' or str(api_key).lower() in {'fake','test','dummy'}:
-            demo = f"[stub] You asked: '{query}'. This is a local test response. Set OPENAI_API_KEY to use real model."
-            return jsonify({'reply': demo, 'stub': True})
-        payload = {
-            'model': os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
-            'messages': [
-                { 'role': 'system', 'content': 'You are a helpful React/JS/crypto assistant helping debug a WebSocket-based crypto dashboard.' },
-                { 'role': 'user', 'content': query }
-            ],
-            'temperature': 0.2
-        }
-        # Use requests directly (no extra dependency)
-        resp = requests.post('https://api.openai.com/v1/chat/completions',
-                              headers={
-                                  'Authorization': f'Bearer {api_key}',
-                                  'Content-Type': 'application/json'
-                              },
-                              json=payload, timeout=20)
-        if resp.status_code >= 400:
-            logging.warning(f"ask-codex upstream error {resp.status_code}: {resp.text[:200]}")
-            return jsonify({'reply': f'Upstream error {resp.status_code}'}), 502
-        data = resp.json()
-        reply = (data.get('choices') or [{}])[0].get('message', {}).get('content') or 'No reply received.'
-        return jsonify({'reply': reply})
-    except Exception as e:
-        logging.error(f"ask-codex error: {e}")
-        return jsonify({'reply': 'Internal error'}), 500
-
 # Register blueprints after final app creation
 if "watchlist_bp" not in app.blueprints:
     app.register_blueprint(watchlist_bp)
@@ -2724,15 +2690,6 @@ def _after_req_metrics(resp):
     except Exception:
         pass
     return resp
-
-@app.route('/api/health')
-def api_health():
-    """Lightweight health alias (faster than full server-info)."""
-    return jsonify({
-        'status': 'ok',
-        'uptime_seconds': round(time.time() - startup_time, 2),
-        'errors_5xx': _ERROR_STATS['5xx']
-    })
 
 # -------------------------------- Codex Assistant ---------------------------------
 @app.route('/api/ask-codex', methods=['POST'])
