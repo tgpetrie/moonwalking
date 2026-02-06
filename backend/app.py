@@ -653,7 +653,8 @@ else:
 
 # Register blueprints after final app creation
 try:
-    app.register_blueprint(watchlist_bp)
+    if "watchlist_bp" not in app.blueprints:
+        app.register_blueprint(watchlist_bp)
 except Exception:
     logging.exception('Skipping blueprint registration during test or mocked environment')
 
@@ -2705,7 +2706,8 @@ def ask_codex():
         return jsonify({'reply': 'Internal error'}), 500
 
 # Register blueprints after final app creation
-app.register_blueprint(watchlist_bp)
+if "watchlist_bp" not in app.blueprints:
+    app.register_blueprint(watchlist_bp)
 
 # ---------------- Health + Metrics -----------------
 _ERROR_STATS = { '5xx': 0 }
