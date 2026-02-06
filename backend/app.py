@@ -2671,10 +2671,6 @@ def schema_metrics():
 def schema_gainers_1m():
     return jsonify(Gainers1mComponent.model_json_schema())
 
-# Register blueprints after final app creation
-if "watchlist_bp" not in app.blueprints:
-    app.register_blueprint(watchlist_bp)
-
 # ---------------- Health + Metrics -----------------
 _ERROR_STATS = { '5xx': 0 }
 
