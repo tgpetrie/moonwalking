@@ -126,11 +126,16 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
           <AnimatePresence initial={false}>
             {rowsWithPulse.map(({ row: token, priceChanged, pctChanged }, index) => {
               const rowKey = buildRowKey(token) || token?.symbol || token?.product_id;
+              const microDelay = index * 0.06;
               return (
                 <motion.div
                   key={rowKey}
                   layout
-                  transition={{ type: "spring", stiffness: 520, damping: 46 }}
+                  animate={{ y: [0, -2.5, 0] }}
+                  transition={{
+                    layout: { type: "spring", stiffness: 520, damping: 46 },
+                    y: { duration: 4.4, repeat: Infinity, repeatType: "mirror", delay: microDelay },
+                  }}
                 >
                   <TokenRowUnified
                     token={token}
