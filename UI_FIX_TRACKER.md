@@ -24,18 +24,18 @@ Exclude:
 ## Checklist (single source of truth)
 
 ### A) Hover glow parity (glassy “lasso” feel, no slab)
-- [ ] A0: Identify canonical row hook used by the 1m table (class + data attrs).
+- [x] A0: Identify canonical row hook used by the 1m table (class + data attrs).
 	Output needed: exact selector(s) that currently drive the glow for 1m.
-- [ ] A1: Identify row wrapper + class/attrs for 3m gainers and 3m losers.
+- [x] A1: Identify row wrapper + class/attrs for 3m gainers and 3m losers.
 	Goal: confirm whether they use the same row component or different ones.
-- [ ] A2: Identify banner item wrapper + class/attrs for:
+- [x] A2: Identify banner item wrapper + class/attrs for:
 	- top banner
 	- bottom volume banner
-- [ ] A3: Unify eligible rows/items to one canonical hook:
+- [x] A3: Unify eligible rows/items to one canonical hook:
 	- same row class (ex: `.mw-row`) and
 	- same state attr (ex: `[data-state="gain|loss"]` or `[data-side="gain|loss"]`)
 	Only minimal markup edits allowed (add class/attr, do not restructure).
-- [ ] A4: CSS parity: ensure the hover-glow effect triggers from the canonical hook
+- [x] A4: CSS parity: ensure the hover-glow effect triggers from the canonical hook
 	across 3m tables + both banners.
 	Constraints:
 	- No background fill “slab"
@@ -50,7 +50,7 @@ Exclude:
 	- confirm rabbit silhouette brightens naturally through the hover state
 
 ### B) Always-on micro motion parity (FRAMER-FIRST)
-- [ ] B0: Locate where micro motion is defined today (Framer Motion props/variants).
+- [x] B0: Locate where micro motion is defined today (Framer Motion props/variants).
 	Search strings:
 	- `motion.`
 	- `animate=`
@@ -98,13 +98,17 @@ A checkbox is only checked if:
 - it did not violate Non-negotiables.
 
 ## Notes / Findings
-- Row hook (1m): 
-- Row hook (3m gainers):
-- Row hook (3m losers):
-- Banner hook (top):
-- Banner hook (bottom):
-- Motion source file(s):
+- Row hook (1m): `.bh-row.bh-row-grid` with `data-side="gainer|loser"` (set in `frontend/src/components/TokenRowUnified.jsx`), glow selectors in `frontend/src/index.css`:
+  - `.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:hover`
+  - `.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:hover`
+  - `.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover`
+  - `.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover`
+- Row hook (3m gainers): Same `TokenRowUnified` → `.bh-row.bh-row-grid[data-side="gainer"]`. Parent: `.gainers-table > .bh-panel.bh-panel-full > .bh-table`. File: `frontend/src/components/GainersTable3Min.jsx`.
+- Row hook (3m losers): Same `TokenRowUnified` → `.bh-row.bh-row-grid[data-side="loser"]`. Parent: `.losers-table > .bh-panel.bh-panel-half > .bh-table`. File: `frontend/src/components/LosersTable3Min.jsx`.
+- Banner hook (top): `a.bh-banner-chip` (or `div.bh-banner-chip` fallback) with `is-up`/`is-down` class. File: `frontend/src/components/TopBannerScroll.jsx`.
+- Banner hook (bottom): `a.bh-banner-chip` (or `div.bh-banner-chip` fallback) with `is-gain`/`is-loss`/`is-flat` class. File: `frontend/src/components/VolumeBannerScroll.jsx`.
+- Canonical hook (rows + banners): `.mw-hover-hook[data-side="gainer|loser|flat"]`
+- Motion source file(s): `frontend/src/components/GainersTable1Min.jsx`, `frontend/src/components/GainersTable3Min.jsx`, `frontend/src/components/LosersTable3Min.jsx`, `frontend/src/components/ScrollingTicker.jsx`, `frontend/src/components/AnimatedTokenTable.jsx`, `frontend/src/components/AnimatedTokenRow.jsx`, `frontend/src/components/tables/RankCell.jsx`, `frontend/src/components/Watchlist.jsx`
 - Any gotchas discovered:
 
 If you want, I can also give you a second file, AI_WORK_ORDER.md, that’s a strict template you paste into Claude/Codex every time (so they can’t wander).
-

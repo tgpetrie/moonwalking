@@ -314,7 +314,11 @@ export function VolumeBannerScroll({
 
             if (!url) {
               return (
-                <div key={`${it.key}-${i}`} className={`bh-banner-chip ${stateClass}`}>
+                <div
+                  key={`${it.key}-${i}`}
+                  className={`bh-banner-chip mw-hover-hook ${stateClass}`}
+                  data-side={stateClass === "is-gain" ? "gainer" : stateClass === "is-loss" ? "loser" : "flat"}
+                >
                   {chip}
                 </div>
               );
@@ -323,7 +327,8 @@ export function VolumeBannerScroll({
             return (
               <a
                 key={`${it.key}-${i}`}
-                className={`bh-banner-chip ${stateClass}`}
+                className={`bh-banner-chip mw-hover-hook ${stateClass}`}
+                data-side={stateClass === "is-gain" ? "gainer" : stateClass === "is-loss" ? "loser" : "flat"}
                 href={url}
                 target="_blank"
                 rel="noreferrer"
