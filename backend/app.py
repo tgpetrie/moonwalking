@@ -3511,6 +3511,61 @@ _ALERT_EMIT_DIR = {}
 _MW_LAST_GOOD_ALERTS = []
 _MW_LAST_GOOD_ALERTS_TS = None
 
+# --- Window-second mapping (shared across bridge injection + dedupe) ---
+_WINDOW_S_MAP = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "1h": 3600, "1m_vs_3m": 180}
+
+# --- Default cooldowns by window_s ---
+_DEFAULT_COOLDOWN_BY_WS = {60: 90, 180: 240, 300: 360, 900: 900, 3600: 1800}
+_DEFAULT_COOLDOWN_FALLBACK = 120
+
+
+def inject_bridge_fields(alert: dict) -> dict:
+    """Ensure an alert dict has metrics, dedupe_key, cooldown_s, event_count.
+
+    Idempotent: skips fields that already exist.
+    Call from _emit_alert, emit_alert, _normalize_alert, or any raw append.
+    """
+    if not isinstance(alert, dict):
+        return alert
+
+    # --- dedupe_key ---
+    if not alert.get("dedupe_key"):
+        atype = str(alert.get("type") or "alert").upper()
+        sym = str(alert.get("symbol") or "MARKET").upper()
+        ws = alert.get("window_s")
+        if ws is None:
+            w = alert.get("window") or ""
+            ws = _WINDOW_S_MAP.get(w, "")
+        alert["dedupe_key"] = f"{atype}:{sym}:{ws}"
+
+    # --- cooldown_s ---
+    if alert.get("cooldown_s") is None:
+        ws = alert.get("window_s")
+        if ws is None:
+            w = alert.get("window") or ""
+            ws = _WINDOW_S_MAP.get(w)
+        alert["cooldown_s"] = _DEFAULT_COOLDOWN_BY_WS.get(ws, _DEFAULT_COOLDOWN_FALLBACK)
+
+    # --- metrics ---
+    if not alert.get("metrics"):
+        meta = alert.get("meta") if isinstance(alert.get("meta"), dict) else {}
+        extra = alert.get("extra") if isinstance(alert.get("extra"), dict) else {}
+        alert["metrics"] = {
+            "pct": alert.get("pct") or extra.get("pct"),
+            "window_s": alert.get("window_s") or _WINDOW_S_MAP.get(alert.get("window") or "", None),
+            "price": alert.get("price"),
+            "price_now": alert.get("price_now"),
+            "price_then": alert.get("price_then"),
+            "volume": meta.get("latest_vol") or meta.get("vol1h") or extra.get("vol1h"),
+            "vol_change_pct": alert.get("vol_change_pct") or meta.get("vol1h_pct") or extra.get("vol_change_pct"),
+        }
+
+    # --- event_count ---
+    if alert.get("event_count") is None:
+        alert["event_count"] = 1
+
+    return alert
+
 
 def _mw_get_alerts_normalized_with_sticky():
     """Return (alerts, meta) where alerts may be a short sticky last-good list.
@@ -3547,9 +3602,13 @@ def _mw_get_alerts_normalized_with_sticky():
     return alerts, meta
 
 def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
-    """Emit an alert with per-key cooldown and magnitude/direction dedupe."""
+    """Emit an alert into alerts_log_main with per-key cooldown, magnitude/direction dedupe,
+    and update-in-place during cooldown. Bridge fields auto-injected via inject_bridge_fields."""
     if not alert or not isinstance(alert, dict):
         return False
+
+    inject_bridge_fields(alert)
+    alert["cooldown_s"] = cooldown_s  # override with caller's explicit cooldown
 
     key = f"{alert.get('type')}::{alert.get('symbol')}"
     now = time.time()
@@ -3571,8 +3630,21 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
             allow = True
 
     if not allow:
+        # --- Update-in-place: bump metrics if magnitude grew ---
+        if within_cooldown and magnitude > prev:
+            dk = alert.get("dedupe_key")
+            for existing in reversed(alerts_log_main):
+                if existing.get("dedupe_key") == dk:
+                    existing["event_count"] = (existing.get("event_count") or 1) + 1
+                    if alert.get("metrics", {}).get("pct") is not None:
+                        if existing.get("metrics") is None:
+                            existing["metrics"] = {}
+                        existing["metrics"]["pct"] = alert["metrics"]["pct"]
+                    _ALERT_EMIT_VAL[key] = magnitude
+                    break
         return False
 
+    alert["event_count"] = 1
     alerts_log_main.append(alert)
     _ALERT_EMIT_TS[key] = now
     _ALERT_EMIT_VAL[key] = magnitude
@@ -3619,7 +3691,23 @@ def emit_alert(alert_type: str, severity: str, symbol: str | None, message: str,
             elif direction and prev_dir and direction != prev_dir:
                 allow = True
 
+        # Compute dedupe_key early (needed for update-in-place)
+        ws = _WINDOW_S_MAP.get(window or "", "")
+        dk = f"{alert_type.upper()}:{sym}:{ws}"
+
+        # --- Update-in-place during cooldown (before early return) ---
         if not allow:
+            if within_cooldown and mag_val > prev_val:
+                with _BASIC_ALERTS_LOCK:
+                    for existing in reversed(alerts_basic_log):
+                        if existing.get("dedupe_key") == dk:
+                            existing["event_count"] = (existing.get("event_count") or 1) + 1
+                            if isinstance(extra, dict) and extra.get("pct") is not None:
+                                if existing.get("metrics") is None:
+                                    existing["metrics"] = {}
+                                existing["metrics"]["pct"] = extra["pct"]
+                            _BASIC_ALERT_EMIT_VAL[key] = mag_val
+                            break
             return False
 
         ts_iso = datetime.fromtimestamp(now, tz=timezone.utc).isoformat().replace("+00:00", "Z")
@@ -3633,6 +3721,9 @@ def emit_alert(alert_type: str, severity: str, symbol: str | None, message: str,
             "message": message,
             "extra": extra or {},
         }
+        inject_bridge_fields(alert)
+        alert["cooldown_s"] = BASIC_ALERTS_COOLDOWN  # override with basic stream cooldown
+
         with _BASIC_ALERTS_LOCK:
             alerts_basic_log.append(alert)
         _BASIC_ALERT_EMIT_TS[key] = now
@@ -4206,7 +4297,7 @@ def _seed_alerts_once():
     _seed_alerts_once._done = True
     now = datetime.now(timezone.utc)
     msg, title = build_alert_text("seed", symbol="BTC-USD")
-    alerts_log_main.append({
+    seed_alert = {
         "id": f"seed_{int(time.time())}",
         "ts": now.isoformat(),
         "symbol": "BTC-USD",
@@ -4217,7 +4308,9 @@ def _seed_alerts_once():
         "expires_at": (now + timedelta(seconds=90)).isoformat(),
         "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
         "meta": {"source": "seed", "ttl_s": 90},
-    })
+    }
+    inject_bridge_fields(seed_alert)
+    alerts_log_main.append(seed_alert)
 
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
@@ -4298,8 +4391,16 @@ def _normalize_alert(raw: dict) -> dict:
         "score": score,
         "sources": raw.get("sources") or [],
         "trade_url": trade_url,
+        # Bridge fields: metrics, dedupe_key, cooldown_s, event_count
+        "metrics": raw.get("metrics"),
+        "dedupe_key": raw.get("dedupe_key"),
+        "cooldown_s": raw.get("cooldown_s"),
+        "event_count": raw.get("event_count"),
     }
-    return {k: v for k, v in norm.items() if v is not None}
+    norm = {k: v for k, v in norm.items() if v is not None}
+    # Ensure bridge fields exist even for alerts that bypassed _emit_alert
+    inject_bridge_fields(norm)
+    return norm
 
 
 def _normalize_alerts(alerts: list[dict]) -> list[dict]:
