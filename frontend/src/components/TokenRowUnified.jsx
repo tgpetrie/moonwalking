@@ -46,6 +46,8 @@ export function TokenRowUnified({
   const rowClass = [
     "bh-row",
     "bh-row-grid",
+    "mw-row",
+    "mw-hover-hook",
     density === "tight" ? "bh-row--tight" : "",
     pctInfo.state === "negative" ? "bh-row--loss" : "",
     pctInfo.state === "positive" ? "is-gain" : pctInfo.state === "negative" ? "is-loss" : "is-flat",
@@ -168,6 +170,12 @@ export function TokenRowUnified({
       : Number.isFinite(changeNum)
         ? (changeNum >= 0 ? "gainer" : "loser")
         : "flat";
+  const dataState =
+    pctInfo.state === "negative"
+      ? "loss"
+      : pctInfo.state === "positive"
+        ? "gain"
+        : "flat";
 
   const breatheDelayMs = Number.isFinite(rank) ? (rank * 137) % 9200 : 0;
   const breatheDurationMs = 8800 + (Number.isFinite(rank) ? (rank * 53) % 2400 : 0);
@@ -227,6 +235,7 @@ export function TokenRowUnified({
         className={`${rowClassName}${pulse ? " is-pulsing" : ""}`}
         style={rowStyle}
         data-side={dataSide}
+        data-state={dataState}
         role={url ? "link" : undefined}
         tabIndex={url ? 0 : undefined}
         onClick={handleClick}

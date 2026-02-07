@@ -262,7 +262,7 @@ export default function TopBannerScroll(props) {
       <div className="bh-banner-scroll" onMouseEnter={onEnter} onMouseLeave={onLeave} role="region" aria-label="Top banner scroll">
         <div ref={trackRef} className="bh-banner-track bh-banner-track--manual" style={{ transform: "translate3d(0,0,0)" }}>
           {showFallback ? (
-            <div className="bh-banner-chip bh-banner-chip--muted">
+            <div className="bh-banner-chip mw-hover-hook bh-banner-chip--muted" data-side="flat">
               <span className="bh-banner-chip__rank">LIVE</span>
               <span className="bh-banner-chip__sym">Waiting for banner data</span>
               <span className="bh-banner-chip__pct">—</span>
@@ -280,7 +280,8 @@ export default function TopBannerScroll(props) {
               return (
                 <a
                   key={`${it.key}-${i}`}
-                  className={`bh-banner-chip ${isUp ? "is-up" : "is-down"} ${isAlert ? "bh-banner-chip--alert" : ""}`}
+                  className={`bh-banner-chip mw-hover-hook ${isUp ? "is-up" : "is-down"} ${isAlert ? "bh-banner-chip--alert" : ""}`}
+                  data-side={isUp ? "gainer" : "loser"}
                   href={href}
                   target="_blank"
                   rel="noreferrer"

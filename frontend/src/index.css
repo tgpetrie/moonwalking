@@ -5419,11 +5419,12 @@ body {
 }
 
 .board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
-  background: radial-gradient(
-    ellipse 180% 200% at 15% 50%,
-    rgba(170, 120, 255, 0.28) 0%,
-    rgba(170, 120, 255, 0.14) 40%,
-    transparent 75%
+  background: linear-gradient(
+    90deg,
+    rgba(170, 120, 255, 0.12) 0%,
+    rgba(170, 120, 255, 0.05) 46%,
+    rgba(170, 120, 255, 0.00) 87%,
+    transparent 100%
   ) !important;
   border-radius: 4px !important;
 }
@@ -5432,6 +5433,118 @@ body {
 html, body {
   overflow-x: hidden !important;
   max-width: 100vw !important;
+}
+
+/* === A4: Hover glow parity via canonical hook (no blur/filter/shadow) === */
+.board-core .bh-3m-grid .mw-hover-hook:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 50% 50%,
+    rgba(255, 165, 0, 0.0) 0%,
+    rgba(255, 165, 0, 0.0) 58%,
+    rgba(255, 165, 0, 0.12) 72%,
+    rgba(255, 165, 0, 0.0) 90%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+.board-core .bh-3m-grid .mw-hover-hook[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 50% 50%,
+    rgba(170, 120, 255, 0.0) 0%,
+    rgba(170, 120, 255, 0.0) 58%,
+    rgba(170, 120, 255, 0.14) 72%,
+    rgba(170, 120, 255, 0.0) 90%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+.bh-banner .mw-hover-hook:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 50% 50%,
+    rgba(255, 165, 0, 0.0) 0%,
+    rgba(255, 165, 0, 0.0) 60%,
+    rgba(255, 165, 0, 0.10) 74%,
+    rgba(255, 165, 0, 0.0) 90%
+  ) !important;
+}
+
+.bh-banner .mw-hover-hook[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 50% 50%,
+    rgba(170, 120, 255, 0.0) 0%,
+    rgba(170, 120, 255, 0.0) 60%,
+    rgba(170, 120, 255, 0.12) 74%,
+    rgba(170, 120, 255, 0.0) 90%
+  ) !important;
+}
+
+.bh-banner .mw-hover-hook[data-side="flat"]:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 50% 50%,
+    rgba(180, 200, 255, 0.0) 0%,
+    rgba(180, 200, 255, 0.0) 60%,
+    rgba(180, 200, 255, 0.10) 74%,
+    rgba(180, 200, 255, 0.0) 90%
+  ) !important;
+}
+
+/* Hover boost (opacity + transform only) */
+.mw-row:hover::before {
+  opacity: 1;
+  transform: scale(1.02);
+}
+
+/* Safety knob: keep loss glow quieter than gain */
+.mw-row[data-state="loss"]:hover::before {
+  opacity: 0.68;
+}
+
+/* 1) Ensure the ROW itself never paints a purple slab */
+.mw-row,
+.mw-row > * {
+  background: transparent;
+  background-color: transparent;
+}
+
+.mw-row[data-state="loss"],
+.mw-row[data-state="loss"] > * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* 2) Keep the glow only in ::before (already your intent) */
+.mw-row[data-state="loss"]::before {
+  background: radial-gradient(
+    circle at 20% 50%,
+    rgba(160,110,255,0.08) 0%,
+    rgba(160,110,255,0.04) 28%,
+    rgba(160,110,255,0.015) 50%,
+    rgba(160,110,255,0.00) 68%   /* push fade earlier */
+  );
+}
+
+/* Make sure the glow layer can be masked */
+.mw-row::before{
+  will-change: opacity, transform;
+}
+
+/* Right-edge fade for LOSERS hover only */
+.mw-row[data-state="loss"]::before{
+  /* fades out as it approaches the right edge */
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 35%,
+    rgba(0,0,0,0.12) 70%,
+    rgba(0,0,0,0) 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 35%,
+    rgba(0,0,0,0.12) 70%,
+    rgba(0,0,0,0) 100%
+  );
 }
 .bh-shell {
   overflow-x: hidden !important;
