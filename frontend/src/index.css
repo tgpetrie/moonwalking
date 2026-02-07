@@ -876,7 +876,9 @@ body {
 /* 1m movers grid: two columns of stacked rows (default) */
 .bh-1m-grid {
   display: grid;
-  gap: 2.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--bh-gap-columns);
+  align-items: stretch;
   width: 100%;
 }
 
@@ -893,6 +895,16 @@ body {
   flex-direction: column;
   /* ensure rows inside a column stack without gaps */
   gap: 0;
+}
+
+/* Critical: allow grid children to shrink (prevents “one side wider” drift) */
+.bh-col {
+  width: 100%;
+  min-width: 0;
+}
+.bh-panel {
+  width: 100%;
+  min-width: 0;
 }
 
 /* 1m skeleton grid (matches 4x4 layout) */
@@ -5254,8 +5266,16 @@ html, body {
 
 /* Hover boost (opacity + transform only) */
 .mw-row:hover::before {
+  transition: opacity 70ms ease-out, transform 90ms ease-out;
   opacity: 1;
   transform: scale(1.02);
+}
+
+/* When leaving hover, slow it slightly so it doesn’t “pop” off */
+.mw-row:not(:hover)::before{
+  transition: opacity 160ms ease-in, transform 160ms ease-in;
+  opacity: 0;
+  transform: scale(0.98);
 }
 
 /* Safety knob: keep loss glow quieter than gain */
@@ -5289,6 +5309,7 @@ html, body {
 
 /* Make sure the glow layer can be masked */
 .mw-row::before{
+  transition: opacity 90ms ease-out, transform 110ms ease-out;
   will-change: opacity, transform;
 }
 
@@ -5391,6 +5412,82 @@ html, body {
   .bh-row > .bh-cell {
     animation: none !important;
     filter: none !important;
+  }
+}
+
+/* ===== MW Micro Motion: row carrier + desynced key cell cadence (tables only) ===== */
+@keyframes mwRowCarrier {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(calc(var(--mw-row-amp) * -1)); }
+}
+
+@keyframes mwCellBounceA {
+  0%   { transform: translate3d(0, 0, 0); opacity: 1; }
+  18%  { transform: translate3d(0, calc(var(--ampY) * -0.62), 0); opacity: 0.985; }
+  41%  { transform: translate3d(0, calc(var(--ampY) *  0.92), 0); opacity: 0.955; }
+  57%  { transform: translate3d(0, calc(var(--ampY) *  0.22), 0); opacity: 0.975; }
+  73%  { transform: translate3d(0, calc(var(--ampY) * -0.48), 0); opacity: 0.99; }
+  100% { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+
+@keyframes mwCellDriftB {
+  0%   { translate: 0 0; rotate: 0deg; }
+  27%  { translate: calc(var(--ampX) *  0.9) 0; rotate: calc(var(--rot) *  1); }
+  52%  { translate: calc(var(--ampX) * -0.7) 0; rotate: calc(var(--rot) * -1); }
+  84%  { translate: calc(var(--ampX) *  0.4) 0; rotate: calc(var(--rot) *  0.5); }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+
+.mw-board .mw-row {
+  --mw-row-amp: 1.4px;
+  --mw-i: 0;
+  --mw-seed: 0;
+  animation: mwRowCarrier 7.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Keep hover transform authoritative over row drift */
+.mw-row:hover {
+  transform: translateY(-2px) scale(1.016) !important;
+}
+@media (max-width: 520px){
+  .mw-row:hover { transform: translateY(-1px) scale(1.010) !important; }
+}
+
+/* Disable legacy per-cell animation inside mw rows (keep mw-cell alive) */
+.mw-board .mw-row > .bh-cell:not(.mw-cell) {
+  animation: none !important;
+  filter: none !important;
+}
+
+.mw-board .mw-row .mw-cell {
+  --mw-j: 0;
+  --ampY: 2.4px;
+  --ampX: 0.9px;
+  --rot: 0.12deg;
+  --durA: calc(4300ms + (var(--mw-seed) * 21ms) + (var(--mw-j) * 311ms));
+  --durB: calc(6100ms + (var(--mw-seed) * 13ms) + (var(--mw-j) * 227ms));
+  --phA: calc((var(--mw-seed) * -17ms) + (var(--mw-i) * -39ms) + (var(--mw-j) * -151ms));
+  --phB: calc((var(--mw-seed) * -23ms) + (var(--mw-i) * -61ms) + (var(--mw-j) * -97ms));
+  animation:
+    mwCellBounceA var(--durA) cubic-bezier(.45, 0, .25, 1) infinite,
+    mwCellDriftB var(--durB) ease-in-out infinite;
+  animation-delay: var(--phA), var(--phB);
+  translate: 0 0;
+  rotate: 0deg;
+  will-change: transform, opacity;
+  filter: none;
+}
+
+.mw-board .mw-row .mw-cell--rank   { --ampY: 1.2px; --ampX: 0.4px; --rot: 0.06deg; }
+.mw-board .mw-row .mw-cell--symbol { --ampY: 1.9px; --ampX: 0.8px; --rot: 0.10deg; }
+.mw-board .mw-row .mw-cell--price  { --ampY: 2.2px; --ampX: 0.7px; --rot: 0.08deg; }
+.mw-board .mw-row .mw-cell--pct    { --ampY: 2.9px; --ampX: 1.1px; --rot: 0.14deg; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-board .mw-row,
+  .mw-board .mw-row .mw-cell {
+    animation: none !important;
   }
 }
 
@@ -5624,6 +5721,11 @@ html, body {
   color: rgba(192,132,252,0.95);
 }
 
+.bh-intel-price{
+  color: var(--bh-mint);
+  font-weight: 700;
+}
+
 .bh-intel-chip{
   display: inline-flex;
   align-items: center;
@@ -5800,3 +5902,5 @@ html, body {
 .board-core {
   overflow-x: hidden !important;
 }
+
+/* (old mw-breathe / mw-cell-drift block removed — superseded by mwRowCarrier + mwCellBounceA/mwCellDriftB in .mw-board) */

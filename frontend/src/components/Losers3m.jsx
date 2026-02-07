@@ -182,6 +182,7 @@ export default function Losers3m({
                   <TokenRowUnified
                     token={row}
                     rank={idx + 1}
+                    rowIndex={idx}
                     changeField="change_3m"
                     side="loser"
                     onInfo={handleInfo}

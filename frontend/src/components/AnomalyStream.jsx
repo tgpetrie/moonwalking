@@ -143,7 +143,7 @@ const renderIntelMessage = (message) => {
   if (!message) return null;
   const text = String(message);
   const parts = [];
-  const regex = /([+-]\d+(?:\.\d+)?%)/g;
+  const regex = /([+-]\d+(?:\.\d+)?%|\$\d[\d,]*(?:\.\d+)?)/g;
   let lastIndex = 0;
   let match;
   while ((match = regex.exec(text))) {
@@ -151,12 +151,20 @@ const renderIntelMessage = (message) => {
       parts.push(text.slice(lastIndex, match.index));
     }
     const token = match[1];
-    const cls = token.startsWith("-") ? "bh-intel-pct bh-intel-pct--neg" : "bh-intel-pct bh-intel-pct--pos";
-    parts.push(
-      <span key={`pct-${match.index}`} className={cls}>
-        {token}
-      </span>
-    );
+    if (token.startsWith("$")) {
+      parts.push(
+        <span key={`price-${match.index}`} className="bh-intel-price">
+          {token}
+        </span>
+      );
+    } else {
+      const cls = token.startsWith("-") ? "bh-intel-pct bh-intel-pct--neg" : "bh-intel-pct bh-intel-pct--pos";
+      parts.push(
+        <span key={`pct-${match.index}`} className={cls}>
+          {token}
+        </span>
+      );
+    }
     lastIndex = match.index + token.length;
   }
   if (lastIndex < text.length) {

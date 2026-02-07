@@ -58,7 +58,7 @@ Exclude:
 	- `transition`
 	- `repeat`
 	- `repeatType`
-- [ ] B1: Identify which tables/banners currently use micro motion and which do not.
+- [x] B1: Identify which tables/banners currently use micro motion and which do not.
 	Target IN:
 	- 3m gainers rows
 	- 3m losers rows
@@ -66,19 +66,19 @@ Exclude:
 	- bottom volume banner items
 	Exclude:
 	- Intelligence Log
-- [ ] B2: Unify to one canonical micro-motion contract (same variant/transition)
+- [x] B2: Unify to one canonical micro-motion contract (same variant/transition)
 	reused by all eligible rows/items.
 	Constraints:
 	- constant (always-on), not hover-dependent
 	- only opacity + transform
 	- avoid scale on the whole row if it fuzzes rails; prefer tiny y drift + per-cell offsets
-- [ ] B3: Strength pass (make it more visible without becoming jittery):
+- [x] B3: Strength pass (make it more visible without becoming jittery):
 	Tune ONLY these knobs:
 	- translateY amplitude: ~0.6–1.2px (avoid >2px)
 	- opacity pulse range: ~0.92–1.00
 	- duration: ~4.5–6.5s (slower reads cleaner)
 	- stagger: per-cell delay 0.06–0.14s (if per-cell exists)
-- [ ] B4: Reduced motion:
+- [x] B4: Reduced motion:
 	- if `prefers-reduced-motion`, disable motion (Framer + any CSS fallback)
 - [ ] B5: Verify visually:
 	- micro motion is present on 1m + 3m + both banners

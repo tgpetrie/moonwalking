@@ -247,7 +247,7 @@ export default function DashboardShell({ onInfo }) {
         </div>
       </header>
 
-      <div ref={boardRef} className="board-core" data-board="1">
+      <div ref={boardRef} className="board-core mw-board" data-board="1">
         <div className="rabbit-bg" aria-hidden="true" />
 
         {/* 1 Hour Price Change Banner - Full Width */}

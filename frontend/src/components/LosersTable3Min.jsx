@@ -178,20 +178,19 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
           <AnimatePresence initial={false}>
             {rowsWithPulse.map(({ row: tokenProps, priceChanged, pctChanged }, idx) => {
               const rowKey = buildRowKey(tokenProps) || tokenProps.symbol || tokenProps.product_id;
-              const microDelay = idx * 0.06;
               return (
                 <motion.div
                   key={rowKey}
                   layout
-                  animate={{ y: [0, -2.5, 0] }}
                   transition={{
                     layout: { type: "spring", stiffness: 520, damping: 46 },
-                    y: { duration: 4.4, repeat: Infinity, repeatType: "mirror", delay: microDelay },
                   }}
+                  style={{ "--mw-i": idx }}
                 >
                   <TokenRowUnified
                     token={{ ...tokenProps, change_3m: tokenProps.change_3m ?? tokenProps.price_change_percentage_3min ?? tokenProps._pct ?? tokenProps.pct ?? 0 }}
                     rank={idx + 1}
+                    rowIndex={idx}
                     changeField="change_3m"
                     side="loser"
                     onInfo={() => handleInfo(tokenProps.symbol)}
