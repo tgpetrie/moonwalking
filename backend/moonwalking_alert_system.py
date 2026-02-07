@@ -17,6 +17,7 @@ import aiohttp
 import websockets
 import redis
 from collections import defaultdict, deque
+from alert_text import build_alert_text
 
 class AlertSeverity(Enum):
     CRITICAL = "🔴 CRITICAL"
@@ -384,14 +385,20 @@ class MoonwalkingDetector:
             # Calculate confidence based on volume and sentiment
             confidence = min(0.9, 0.5 + (volume_spike / 10) + (sentiment.get('score', 0.5) - 0.5))
             
+            msg, title = build_alert_text(
+                "moonshot_detected",
+                symbol=symbol,
+                change_pct=change_1h,
+                volume_spike=volume_spike,
+            )
             return MoonwalkingAlert(
                 id=f"moonshot_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.MOONSHOT,
                 severity=severity,
-                title=f"🚀 {symbol} MOONSHOT DETECTED",
-                message=f"{symbol} pumping {change_1h*100:.1f}% in 1h with {volume_spike:.1f}x volume!",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=change_1h,
                 price_change_24h=change_24h,
@@ -440,14 +447,20 @@ class MoonwalkingDetector:
             
             confidence = min(0.9, 0.5 + (volume_spike / 10) + abs(sentiment.get('score', 0.5) - 0.5))
             
+            msg, title = build_alert_text(
+                "crater_detected",
+                symbol=symbol,
+                change_pct=change_1h,
+                volume_spike=volume_spike,
+            )
             return MoonwalkingAlert(
                 id=f"crater_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.CRATER,
                 severity=severity,
-                title=f"📉 {symbol} CRATER DETECTED",
-                message=f"{symbol} dumping {abs(change_1h)*100:.1f}% in 1h with {volume_spike:.1f}x volume!",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=change_1h,
                 price_change_24h=change_24h,
@@ -486,14 +499,21 @@ class MoonwalkingDetector:
             
             direction = "🔥 BULLISH" if sentiment_change > 0 else "❄️ BEARISH"
             
+            msg, title = build_alert_text(
+                "sentiment_spike",
+                symbol=symbol,
+                direction=direction,
+                sentiment_change=sentiment_change,
+                social_spike=social_spike,
+            )
             return MoonwalkingAlert(
                 id=f"sentiment_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.SENTIMENT_SPIKE,
                 severity=AlertSeverity.MEDIUM,
-                title=f"🌊 {symbol} SENTIMENT SPIKE",
-                message=f"{symbol} {direction} sentiment spike: {sentiment_change*100:.1f}% change, {social_spike:.1f}x social volume!",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=price_data.get('change_1h', 0),
                 price_change_24h=price_data.get('change_24h', 0),
@@ -529,14 +549,20 @@ class MoonwalkingDetector:
         
         # FOMO condition: very high sentiment + price moving up
         if sentiment_score > self.thresholds['fomo_threshold'] and price_change > 0.05:
+            msg, title = build_alert_text(
+                "fomo_symbol",
+                symbol=symbol,
+                sentiment_score=sentiment_score,
+                price_change=price_change,
+            )
             return MoonwalkingAlert(
                 id=f"fomo_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.FOMO_ALERT,
                 severity=AlertSeverity.HIGH,
-                title=f"🔥 {symbol} FOMO ALERT",
-                message=f"{symbol} hitting FOMO levels: {sentiment_score*100:.0f}% sentiment + {price_change*100:.1f}% price pump!",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=price_change,
                 price_change_24h=price_data.get('change_24h', 0),
@@ -565,14 +591,20 @@ class MoonwalkingDetector:
         
         # Fear condition: very low sentiment + price dropping
         elif sentiment_score < (1 - self.thresholds['fomo_threshold']) and price_change < -0.05:
+            msg, title = build_alert_text(
+                "fear_symbol",
+                symbol=symbol,
+                sentiment_score=sentiment_score,
+                price_change=price_change,
+            )
             return MoonwalkingAlert(
                 id=f"fear_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.FOMO_ALERT,
                 severity=AlertSeverity.MEDIUM,
-                title=f"😱 {symbol} FEAR EXTREME",
-                message=f"{symbol} extreme fear: {sentiment_score*100:.0f}% sentiment + {price_change*100:.1f}% dump!",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=price_change,
                 price_change_24h=price_data.get('change_24h', 0),
@@ -610,14 +642,20 @@ class MoonwalkingDetector:
         if (volume_spike > self.thresholds['stealth_volume'] and 
             price_change < 0.05):  # Less than 5% price change
             
+            msg, title = build_alert_text(
+                "stealth_symbol",
+                symbol=symbol,
+                volume_spike=volume_spike,
+                price_change=price_change,
+            )
             return MoonwalkingAlert(
                 id=f"stealth_{symbol}_{int(time.time())}",
                 timestamp=datetime.now(),
                 symbol=symbol,
                 alert_type=AlertType.STEALTH_MOVE,
                 severity=AlertSeverity.LOW,
-                title=f"👤 {symbol} STEALTH ACCUMULATION",
-                message=f"{symbol} stealth activity: {volume_spike:.1f}x volume but only {price_change*100:.1f}% price change",
+                title=title,
+                message=msg,
                 current_price=price_data['price'],
                 price_change_1h=price_data.get('change_1h', 0),
                 price_change_24h=price_data.get('change_24h', 0),

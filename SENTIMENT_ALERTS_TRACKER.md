@@ -44,7 +44,7 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 - [ ] C1: Define alert types and thresholds registry (single file)
 - [ ] C2: Implement alert ID + dedupe rules (symbol+type+window+bucket)
 - [ ] C3: Cooldown + TTL rules (per type/window)
-- [ ] C4: Alert text generator (consistent, compact, no spam)
+- [x] C4: Alert text generator (consistent, compact, no spam) (Proof: backend/alert_text.py:54, backend/app.py:3683, backend/moonwalking_alert_system.py:388)
 - [ ] C5: Include “why” metadata (the computed features that triggered it)
 
 ### D) UI integration (minimal but honest)

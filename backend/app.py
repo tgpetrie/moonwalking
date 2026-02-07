@@ -106,6 +106,7 @@ except Exception:
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from api_contracts import AlertItem, SentimentBasicPayload
+from alert_text import build_alert_text
 from social_sentiment import get_social_sentiment
 # New insights helpers
 try:
@@ -3673,15 +3674,19 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         if mag >= 6.0:
             alert_type = "moonshot" if direction == "up" else "crater"
             severity = "critical"
-            title = f"{'🚀 Moonshot' if direction == 'up' else '💥 Crater'}: {product_id}"
         elif mag >= 2.5:
             alert_type = "breakout" if direction == "up" else "dump"
             severity = "high"
-            title = f"{'📈 Breakout' if direction == 'up' else '📉 Dump'}: {product_id}"
         else:
             alert_type = f"impulse_{window}"
             severity = "medium"
-            title = f"{window} impulse {direction}"
+        message, title = build_alert_text(
+            alert_type,
+            symbol=product_id,
+            window=window,
+            direction=direction,
+            change_pct=change_pct,
+        )
 
         alert = {
           "id": f"{alert_type}_{product_id}_{int(time.time())}",
@@ -3693,7 +3698,7 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
           "type": alert_type,
           "severity": severity,
           "title": title,
-          "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
+          "message": message,
           "window_s": window_s,
           "pct": float(change_pct),
           "direction": direction,
@@ -3710,7 +3715,7 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
                 f"impulse_{window}",
                 severity,
                 product_id,
-                f"{product_id} moved {float(change_pct):+.2f}% in {window}",
+                message,
                 window=window,
                 extra={
                     "magnitude": mag,
@@ -3746,14 +3751,18 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
         emitted_ms = int(now.timestamp() * 1000)
 
         if ret_1m > 0 and ret_3m < 0:
-            msg = f"{product_id}: 1m up {ret_1m:+.2f}% but 3m down {ret_3m:+.2f}% — possible reversal"
             direction = "reversal_up"
         else:
-            msg = f"{product_id}: 1m down {ret_1m:+.2f}% but 3m up {ret_3m:+.2f}% — possible pullback"
             direction = "reversal_down"
 
         magnitude = abs(ret_1m - ret_3m)
         div_price_now = float(price) if price else 0
+        msg, title = build_alert_text(
+            "divergence",
+            symbol=product_id,
+            ret_1m=ret_1m,
+            ret_3m=ret_3m,
+        )
         alert = {
             "id": f"divergence_{product_id}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -3763,7 +3772,7 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
             "symbol": product_id,
             "type": "divergence",
             "severity": "medium",
-            "title": f"⚡ Divergence: {product_id}",
+            "title": title,
             "message": msg,
             "pct": round(magnitude, 2),
             "direction": direction,
@@ -3815,11 +3824,16 @@ def _emit_volatility_spike_alert(heat: dict | None) -> None:
         if vol_val < ALERT_VOLATILITY_SPIKE:
             return
         severity = "high" if vol_val >= ALERT_VOLATILITY_SPIKE * 1.5 else "medium"
+        msg, _title = build_alert_text(
+            "volatility_spike",
+            symbol="MARKET",
+            vol_change_pct=vol_val,
+        )
         emit_alert(
             "volatility_spike",
             severity,
             "MARKET",
-            f"Market volatility spike ({vol_val:.2f}%)",
+            msg,
             window="3m",
             extra={
                 "volatility": round(vol_val, 4),
@@ -3907,6 +3921,14 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                         whale_price_now = base_price
                         whale_price_then = float(latest_open) if latest_open else None
 
+                        msg, title = build_alert_text(
+                            "whale_move",
+                            symbol=product_id,
+                            candle_pct=candle_pct,
+                            vol_ratio=vol_ratio,
+                            z_vol=z_vol,
+                            base_price=base_price,
+                        )
                         alert = {
                             "id": f"whale_{product_id}_{int(time.time())}",
                             "ts": now.isoformat(),
@@ -3916,12 +3938,8 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                             "symbol": product_id,
                             "type": "whale_move",
                             "severity": severity,
-                            "title": f"🐋 Whale Move: {product_id}",
-                            "message": (
-                                f"{product_id} {candle_pct:+.2f}% in 1m · "
-                                f"vol {vol_ratio:.1f}x median ({z_vol:.1f}σ) · "
-                                f"${base_price:,.4f}"
-                            ),
+                            "title": title,
+                            "message": msg,
                             "pct": round(candle_pct, 2),
                             "direction": direction,
                             "price": base_price,
@@ -3960,6 +3978,14 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                             if m_z >= 2.0 and abs(m_pct) < 0.2:
                                 absorption_count += 1
                         if absorption_count >= 1:  # At least 2 total high-vol flat candles
+                            msg, title = build_alert_text(
+                                "whale_absorption",
+                                symbol=product_id,
+                                candle_pct=candle_pct,
+                                vol_ratio=vol_ratio,
+                                z_vol=z_vol,
+                                pulses=absorption_count + 1,
+                            )
                             alert = {
                                 "id": f"absorption_{product_id}_{int(time.time())}",
                                 "ts": now.isoformat(),
@@ -3969,11 +3995,8 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                                 "symbol": product_id,
                                 "type": "whale_move",
                                 "severity": "medium",
-                                "title": f"🐋 Absorption: {product_id}",
-                                "message": (
-                                    f"{product_id} heavy tape · price flat ({candle_pct:+.2f}%) · "
-                                    f"vol {vol_ratio:.1f}x ({z_vol:.1f}σ) · {absorption_count + 1} pulses"
-                                ),
+                                "title": title,
+                                "message": msg,
                                 "pct": round(candle_pct, 2),
                                 "direction": "absorption",
                                 "price": base_price,
@@ -4005,6 +4028,12 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
             emitted_ms = int(now.timestamp() * 1000)
             severity = "critical" if vol1h_pct >= 400 else "high" if vol1h_pct >= 250 else "medium"
             surge_price = float(price) if price else 0
+            msg, title = build_alert_text(
+                "whale_surge",
+                symbol=product_id,
+                vol1h_pct=vol1h_pct,
+                vol1h=vol1h,
+            )
             alert = {
                 "id": f"whale_surge_{product_id}_{int(time.time())}",
                 "ts": now.isoformat(),
@@ -4014,8 +4043,8 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                 "symbol": product_id,
                 "type": "whale_move",
                 "severity": severity,
-                "title": f"🐋 Whale Surge: {product_id}",
-                "message": f"{product_id} 1h volume {vol1h_pct:+.0f}% vs prev hour ({vol1h:,.0f} units)",
+                "title": title,
+                "message": msg,
                 "pct": round(vol1h_pct, 2),
                 "direction": "up",
                 "price": surge_price,
@@ -4065,6 +4094,12 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
         except Exception:
             stealth_price_then = None
 
+        msg, title = build_alert_text(
+            "stealth_move",
+            symbol=product_id,
+            price_change_3m=price_change_3m,
+            vol1h_pct=vol1h_pct,
+        )
         alert = {
             "id": f"stealth_{product_id}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -4074,8 +4109,8 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
             "symbol": product_id,
             "type": "stealth_move",
             "severity": "medium",
-            "title": f"👤 Stealth Move: {product_id}",
-            "message": f"{product_id} up {price_change_3m:+.2f}% on quiet volume ({vol1h_pct:+.0f}% vol change)",
+            "title": title,
+            "message": msg,
             "pct": round(price_change_3m, 2),
             "direction": "up",
             "price": stealth_price_now,
@@ -4118,21 +4153,20 @@ def _emit_fomo_alert(heat_score: float, heat_label: str, fg_value: int | None) -
 
         if fomo:
             alert_type = "fomo_alert"
-            title = "🔥 FOMO Alert: Market Overheating"
-            msg = f"Market Heat {heat_score}/100 ({heat_label})"
-            if fg_value is not None:
-                msg += f", Fear & Greed {fg_value}/100"
             severity = "high"
             direction = "fomo"
         else:
             alert_type = "fear_alert"
-            title = "🥶 Extreme Fear: Market Frozen"
-            msg = f"Market Heat {heat_score}/100 ({heat_label})"
-            if fg_value is not None:
-                msg += f", Fear & Greed {fg_value}/100"
             severity = "high"
             direction = "fear"
 
+        msg, title = build_alert_text(
+            alert_type,
+            symbol="MARKET",
+            heat_score=heat_score,
+            heat_label=heat_label,
+            fg_value=fg_value,
+        )
         alert = {
             "id": f"{alert_type}_{int(time.time())}",
             "ts": now.isoformat(),
@@ -4171,14 +4205,15 @@ def _seed_alerts_once():
         return
     _seed_alerts_once._done = True
     now = datetime.now(timezone.utc)
+    msg, title = build_alert_text("seed", symbol="BTC-USD")
     alerts_log_main.append({
         "id": f"seed_{int(time.time())}",
         "ts": now.isoformat(),
         "symbol": "BTC-USD",
         "type": "seed",
         "severity": "info",
-        "title": "Seed alert (wiring check)",
-        "message": "If you can read this, alerts are flowing end-to-end.",
+        "title": title,
+        "message": msg,
         "expires_at": (now + timedelta(seconds=90)).isoformat(),
         "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
         "meta": {"source": "seed", "ttl_s": 90},
