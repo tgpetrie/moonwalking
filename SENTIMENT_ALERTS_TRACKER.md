@@ -25,20 +25,20 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
   - `/api/sentiment-basic` (fast local)
   - `/api/sentiment/latest` (pipeline proxy)
   - `/api/alerts` OR alerts included inside `/api/data`
-- [ ] A2: Define JSON schemas for:
+- [x] A2: Define JSON schemas for: (Proof: backend/api_contracts.py:15, backend/api_contracts.py:69, backend/api_contracts.py:82, backend/app.py:1321, backend/app.py:7238)
   - SentimentCard payload (fields, types, null rules)
   - Alert item payload (id, ts, type, severity, symbol, window, pct, price, meta)
   - Meta health payload (pipeline ok, staleSeconds, lastOkTs, error)
-- [ ] A3: Write “null rules”:
+- [x] A3: Write “null rules”: (Proof: backend/docs/null_rules.md:1, backend/app.py:1362, frontend/src/components/DashboardShell.jsx:200, backend/cache.py:38)
   - When to return null vs 0
   - What “stale” means and how it displays
 
 ### B) Real sentiment sources (minimal, free, reliable)
-- [ ] B1: Fear & Greed index source wiring (cached, rate-limited)
-- [ ] B2: Funding proxy (or omit cleanly if not available yet)
-- [ ] B3: Local market heat remains first-class (breadth/volatility/impulse mix)
-- [ ] B4: Source attribution + timestamp surfaced in payload
-- [ ] B5: Hard timeout and fallback behavior (never block bundle)
+- [x] B1: Fear & Greed index source wiring (cached, rate-limited) (Proof: backend/sentiment_data_sources.py:6, backend/sentiment_data_sources.py:18, backend/app.py:1694, backend/app.py:1890)
+- [x] B2: Funding proxy (or omit cleanly if not available yet) (Proof: backend/app.py:1396)
+- [x] B3: Local market heat remains first-class (breadth/volatility/impulse mix) (Proof: backend/app.py:1678, backend/app.py:1698)
+- [x] B4: Source attribution + timestamp surfaced in payload (Proof: backend/app.py:1381, backend/app.py:1386)
+- [x] B5: Hard timeout and fallback behavior (never block bundle) (Proof: backend/sentiment_data_sources.py:24, backend/app.py:1890, backend/app.py:1905)
 
 ### C) Alert engine redesign (deterministic, deduped, useful)
 - [ ] C1: Define alert types and thresholds registry (single file)

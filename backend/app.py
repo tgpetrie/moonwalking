@@ -105,6 +105,7 @@ except Exception:
     REQUEST_ID_CTX = None
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
+from api_contracts import AlertItem, SentimentBasicPayload
 from social_sentiment import get_social_sentiment
 # New insights helpers
 try:
@@ -1352,6 +1353,7 @@ def api_sentiment_basic():
         timestamp = ts or now_iso
 
         stale = not has_data
+        age_s = None
         try:
             if ts:
                 ts_norm = ts.replace("Z", "+00:00")
@@ -1370,7 +1372,16 @@ def api_sentiment_basic():
             fg_value = fg_cached.get("value")
             fg_class = fg_cached.get("classification") or fg_cached.get("label") or ""
 
-        return jsonify({
+        meta_payload = {
+            "ok": bool(has_data),
+            "pipelineRunning": bool(not stale),
+            "staleSeconds": int(age_s) if age_s is not None else None,
+            "lastOkTs": ts if has_data else None,
+            "error": None,
+            "source": "internal",
+            "stale": bool(stale),
+        }
+        payload = {
             "ok": True,
             "timestamp": timestamp,
             "market_heat": {
@@ -1383,13 +1394,15 @@ def api_sentiment_basic():
             },
             "fear_greed": {"value": fg_value, "classification": fg_class or ""},
             "btc_funding": {"rate_percentage": None},
-            "meta": {"source": "internal", "stale": bool(stale)},
-        })
+            "meta": meta_payload,
+        }
+        return jsonify(SentimentBasicPayload(**payload).model_dump())
     except Exception as e:
         logging.debug(f"sentiment-basic error: {e}")
-        return jsonify({
+        ts_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        payload = {
             "ok": True,
-            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "timestamp": ts_iso,
             "market_heat": {
                 "score": None,
                 "regime": None,
@@ -1400,8 +1413,17 @@ def api_sentiment_basic():
             },
             "fear_greed": {"value": None, "classification": ""},
             "btc_funding": {"rate_percentage": None},
-            "meta": {"source": "internal", "stale": True},
-        })
+            "meta": {
+                "ok": False,
+                "pipelineRunning": False,
+                "staleSeconds": None,
+                "lastOkTs": None,
+                "error": "sentiment_basic_exception",
+                "source": "internal",
+                "stale": True,
+            },
+        }
+        return jsonify(SentimentBasicPayload(**payload).model_dump())
 
 def _get_sentiment_for_symbol(*args, **kwargs):
     # allow tests to disable sentiment to avoid import cycles
@@ -7219,7 +7241,16 @@ def get_basic_alerts():
     try:
         with _BASIC_ALERTS_LOCK:
             items = list(alerts_basic_log)
-        return jsonify({"ok": True, "data": items})
+        validated = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                validated.append(AlertItem.model_validate(item).model_dump())
+            except Exception:
+                # Skip malformed items to keep payload clean
+                continue
+        return jsonify({"ok": True, "data": validated})
     except Exception as e:
         logging.error(f"Error in basic alerts endpoint: {e}")
         return jsonify({"ok": True, "data": []})
