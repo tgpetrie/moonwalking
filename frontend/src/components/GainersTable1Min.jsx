@@ -455,10 +455,12 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={rowTransition}
+                    style={{ "--mw-i": index }}
                   >
                     <TokenRowUnified
                       token={token}
                       rank={displayRank}
+                      rowIndex={index}
                       changeField="change_1m"
                       side="gainer"
                       renderAs="div"
@@ -496,13 +498,15 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       transition={rowTransition}
+                      style={{ "--mw-i": absoluteIndex }}
                     >
-                      <TokenRowUnified
-                        token={token}
-                        rank={displayRank}
-                        changeField="change_1m"
-                        side="gainer"
-                        renderAs="div"
+                    <TokenRowUnified
+                      token={token}
+                      rank={displayRank}
+                      rowIndex={absoluteIndex}
+                      changeField="change_1m"
+                      side="gainer"
+                      renderAs="div"
                         onInfo={onInfo}
                         onToggleWatchlist={onToggleWatchlist}
                         isWatchlisted={watchlist.includes(token.symbol)}

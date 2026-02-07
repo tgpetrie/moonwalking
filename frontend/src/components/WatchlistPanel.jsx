@@ -354,6 +354,7 @@ export default function WatchlistPanel({ onInfo }) {
               key={token.key ?? `${token.symbol}-${index}`}
               token={token}
               rank={index + 1}
+              rowIndex={index}
               changeField="change_watch"
               side={token.change_watch != null && token.change_watch < 0 ? "loser" : "gainer"}
               onToggleWatchlist={handleToggle}

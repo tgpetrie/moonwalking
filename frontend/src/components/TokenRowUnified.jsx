@@ -17,6 +17,7 @@ import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 export function TokenRowUnified({
   token,
   rank,
+  rowIndex,
   changeField, // "change_1m" or "change_3m"
   onToggleWatchlist,
   onInfo,
@@ -104,18 +105,18 @@ export function TokenRowUnified({
   const renderCells = () => (
     <>
       {/* 1. Rank circle */}
-      <CellTag className="bh-cell bh-cell-rank">
+      <CellTag className="bh-cell bh-cell-rank mw-cell mw-cell--rank" style={{ "--mw-j": 0 }}>
         <div className="bh-rank">{rank}</div>
       </CellTag>
 
       {/* 2. Token name */}
-      <CellTag className="bh-cell bh-cell-symbol">
+      <CellTag className="bh-cell bh-cell-symbol mw-cell mw-cell--symbol" style={{ "--mw-j": 1 }}>
         <div className="bh-symbol">{token.symbol}</div>
         {token.base && <div className="bh-name">{token.base}</div>}
       </CellTag>
 
       {/* 3. Price stack (current / previous) */}
-      <CellTag className="bh-cell bh-cell-price">
+      <CellTag className="bh-cell bh-cell-price mw-cell mw-cell--price" style={{ "--mw-j": 2 }}>
         <div className={`tr-price-current bh-price-current${priceFlash ? " is-updating" : ""}`}>
           {formatPrice(currentPrice)}
         </div>
@@ -123,7 +124,7 @@ export function TokenRowUnified({
       </CellTag>
 
       {/* 4. Percent change – main focal point */}
-      <CellTag className="bh-cell bh-cell-change">
+      <CellTag className="bh-cell bh-cell-change mw-cell mw-cell--pct" style={{ "--mw-j": 3 }}>
         <span className={`bh-change ${pctInfo.className}${pctFlash ? " is-updating" : ""}`}>{pctInfo.display}</span>
       </CellTag>
 
@@ -182,6 +183,8 @@ export function TokenRowUnified({
   const cellCadenceMs = 5200 + (Number.isFinite(rank) ? (rank * 83) % 1900 : 0);
   const cellCadenceDelayMs = Number.isFinite(rank) ? (rank * 41) % 620 : 0;
   const cellOrchDelayMs = Number.isFinite(rank) ? (rank * 67) % 980 : 0;
+  const mwRowIndex = Number.isFinite(rowIndex) ? rowIndex : Number.isFinite(rank) ? rank - 1 : 0;
+  const mwSeed = (mwRowIndex * 37) % 97;
   const rowStyle = {
     ...(pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : {}),
     "--bh-breathe-delay": `${breatheDelayMs}ms`,
@@ -190,6 +193,8 @@ export function TokenRowUnified({
     "--bh-cell-cadence-delay": `${cellCadenceDelayMs}ms`,
     "--bh-cell-orch-delay": `${cellOrchDelayMs}ms`,
     "--bh-cell-stagger": "120ms",
+    "--mw-i": mwRowIndex,
+    "--mw-seed": mwSeed,
   };
 
   const setRabbitHover = (on) => (e) => {
