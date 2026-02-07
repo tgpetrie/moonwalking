@@ -1321,23 +1321,86 @@ except Exception:
 def api_sentiment_basic():
     """Return a small, fast basic sentiment payload for the frontend SentimentCard.
 
-    If a richer orchestrator is present (get_basic_sentiment), delegate to it.
-    Otherwise return a lightweight mock useful for local development.
+    Uses only in-memory tape data; never blocks on external network calls.
     """
-    if get_basic_sentiment is None:
-        return jsonify({
-            "fear_greed": {"value": 52, "classification": "neutral"},
-            "btc_funding": {"rate_percentage": 0.0012},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        })
     try:
-        data = get_basic_sentiment()
-        return jsonify(data)
-    except Exception:
+        now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        with _MARKET_HEAT_LOCK:
+            heat = dict(_MARKET_HEAT_CACHE) if _MARKET_HEAT_CACHE else None
+        if not heat:
+            heat = _compute_market_heat()
+        if not isinstance(heat, dict):
+            heat = {}
+
+        components_raw = heat.get("components") if isinstance(heat.get("components"), dict) else {}
+        components = {
+            k: (components_raw.get(k) if isinstance(components_raw, dict) else None)
+            for k in _MARKET_HEAT_COMPONENT_KEYS
+        }
+        total_symbols = components.get("total_symbols")
+        has_data = isinstance(total_symbols, (int, float)) and total_symbols > 0
+
+        score = heat.get("score") if has_data else None
+        regime = heat.get("regime") if has_data and isinstance(heat.get("regime"), str) else None
+        label = heat.get("label") if has_data and isinstance(heat.get("label"), str) else None
+        confidence = heat.get("confidence") if has_data else None
+        reasons = heat.get("reasons") if isinstance(heat.get("reasons"), list) else []
+        if not reasons:
+            reasons = ["No price data yet"] if not has_data else ["Market in equilibrium"]
+
+        ts = heat.get("ts") if isinstance(heat.get("ts"), str) else None
+        timestamp = ts or now_iso
+
+        stale = not has_data
+        try:
+            if ts:
+                ts_norm = ts.replace("Z", "+00:00")
+                ts_dt = datetime.fromisoformat(ts_norm)
+                age_s = (datetime.now(timezone.utc) - ts_dt).total_seconds()
+                if age_s > float(os.getenv("SENTIMENT_BASIC_STALE_S", "60")):
+                    stale = True
+        except Exception:
+            pass
+
+        fg_value = None
+        fg_class = ""
+        with _FG_LOCK:
+            fg_cached = _FG_CACHE.get("data")
+        if isinstance(fg_cached, dict):
+            fg_value = fg_cached.get("value")
+            fg_class = fg_cached.get("classification") or fg_cached.get("label") or ""
+
         return jsonify({
-            "fear_greed": {"value": 50, "classification": "neutral"},
-            "btc_funding": {"rate_percentage": 0.0},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "ok": True,
+            "timestamp": timestamp,
+            "market_heat": {
+                "score": score,
+                "regime": regime,
+                "label": label,
+                "confidence": confidence,
+                "components": components,
+                "reasons": reasons,
+            },
+            "fear_greed": {"value": fg_value, "classification": fg_class or ""},
+            "btc_funding": {"rate_percentage": None},
+            "meta": {"source": "internal", "stale": bool(stale)},
+        })
+    except Exception as e:
+        logging.debug(f"sentiment-basic error: {e}")
+        return jsonify({
+            "ok": True,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "market_heat": {
+                "score": None,
+                "regime": None,
+                "label": None,
+                "confidence": None,
+                "components": {k: None for k in _MARKET_HEAT_COMPONENT_KEYS},
+                "reasons": ["No price data yet"],
+            },
+            "fear_greed": {"value": None, "classification": ""},
+            "btc_funding": {"rate_percentage": None},
+            "meta": {"source": "internal", "stale": True},
         })
 
 def _get_sentiment_for_symbol(*args, **kwargs):
@@ -1590,6 +1653,19 @@ _SENTIMENT_LOCK = threading.Lock()
 _MARKET_HEAT_CACHE = {}  # latest computed heat snapshot
 _MARKET_HEAT_LOCK = threading.Lock()
 _MARKET_HEAT_HISTORY = deque(maxlen=60)  # ~8 min of scores at ~8s intervals
+_MARKET_HEAT_COMPONENT_KEYS = (
+    "green_1m",
+    "red_1m",
+    "green_3m",
+    "red_3m",
+    "total_symbols",
+    "avg_return_1m",
+    "avg_return_3m",
+    "volatility",
+    "momentum_alignment",
+    "breadth_1m",
+    "breadth_3m",
+)
 
 # Fear & Greed TTL cache (external bolt-on, optional)
 _FG_CACHE = {"data": None, "ts": 0}
@@ -3385,11 +3461,24 @@ alerts_log_trend = deque(maxlen=2000)
 alerts_log = alerts_log_main
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
+BASIC_ALERTS_MAX = int(CONFIG.get("ALERTS_BASIC_MAX", 200))
+
+# Lightweight alerts buffer for /api/alerts (simple ring)
+alerts_basic_log = deque(maxlen=BASIC_ALERTS_MAX)
+_BASIC_ALERTS_LOCK = threading.Lock()
+_BASIC_ALERT_EMIT_TS = {}
+_BASIC_ALERT_EMIT_VAL = {}
+_BASIC_ALERT_EMIT_DIR = {}
+
 ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.25))
 ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 2.0))
 ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 90))
 ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.35))
 ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
+ALERT_VOLATILITY_SPIKE = float(CONFIG.get("ALERT_VOLATILITY_SPIKE", 2.0))
+
+BASIC_ALERTS_COOLDOWN = int(CONFIG.get("ALERTS_BASIC_COOLDOWN_SECONDS", ALERT_IMPULSE_COOLDOWN))
+BASIC_ALERTS_DEDUPE_DELTA = float(CONFIG.get("ALERTS_BASIC_DEDUPE_DELTA", ALERT_IMPULSE_DEDUPE_DELTA))
 
 MW_SEED_ALERTS = os.getenv("MW_SEED_ALERTS", "0") == "1"
 _ALERT_EMIT_TS = {}
@@ -3468,6 +3557,69 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
     return True
 
 
+def emit_alert(alert_type: str, severity: str, symbol: str | None, message: str,
+               window: str | None = None, extra: dict | None = None) -> bool:
+    """Emit a lightweight alert into the basic ring buffer with dedupe + cooldown."""
+    try:
+        if not alert_type or not message:
+            return False
+        sym = str(symbol).upper() if symbol else "MARKET"
+        key = f"{alert_type}::{sym}"
+        now = time.time()
+        last_ts = _BASIC_ALERT_EMIT_TS.get(key, 0)
+        within_cooldown = (now - last_ts) < BASIC_ALERTS_COOLDOWN if last_ts else False
+
+        magnitude = None
+        direction = None
+        if isinstance(extra, dict):
+            direction = extra.get("direction")
+            magnitude = extra.get("magnitude")
+            if magnitude is None:
+                magnitude = extra.get("pct")
+            if magnitude is None:
+                magnitude = extra.get("volatility")
+
+        try:
+            mag_val = abs(float(magnitude)) if magnitude is not None else 0.0
+        except Exception:
+            mag_val = 0.0
+
+        prev_val = float(_BASIC_ALERT_EMIT_VAL.get(key, 0) or 0)
+        prev_dir = _BASIC_ALERT_EMIT_DIR.get(key)
+
+        allow = False
+        if not within_cooldown:
+            allow = True
+        else:
+            if mag_val and mag_val > prev_val + BASIC_ALERTS_DEDUPE_DELTA:
+                allow = True
+            elif direction and prev_dir and direction != prev_dir:
+                allow = True
+
+        if not allow:
+            return False
+
+        ts_iso = datetime.fromtimestamp(now, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        alert = {
+            "id": f"{alert_type}_{sym}_{int(now * 1000)}",
+            "ts": ts_iso,
+            "type": alert_type,
+            "severity": (severity or "info"),
+            "symbol": sym,
+            "window": window,
+            "message": message,
+            "extra": extra or {},
+        }
+        with _BASIC_ALERTS_LOCK:
+            alerts_basic_log.append(alert)
+        _BASIC_ALERT_EMIT_TS[key] = now
+        _BASIC_ALERT_EMIT_VAL[key] = mag_val
+        _BASIC_ALERT_EMIT_DIR[key] = direction
+        return True
+    except Exception:
+        return False
+
+
 def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: str = "1m") -> None:
     """Emit a typed impulse alert for short-window moves (1m/3m).
 
@@ -3531,6 +3683,23 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
           "meta": {"magnitude": mag, "direction": direction, "window": window, "alert_type": alert_type},
         }
         _emit_alert(alert)
+        try:
+            emit_alert(
+                f"impulse_{window}",
+                severity,
+                product_id,
+                f"{product_id} moved {float(change_pct):+.2f}% in {window}",
+                window=window,
+                extra={
+                    "magnitude": mag,
+                    "direction": direction,
+                    "pct": float(change_pct),
+                    "price": price_now,
+                    "alert_type": alert_type,
+                },
+            )
+        except Exception:
+            pass
     except Exception:
         # never block tables
         pass
@@ -3590,6 +3759,51 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
             },
         }
         _emit_alert(alert, cooldown_s=180, dedupe_delta=0.5)
+        try:
+            emit_alert(
+                "divergence",
+                "medium",
+                product_id,
+                msg,
+                window="1m_vs_3m",
+                extra={
+                    "magnitude": magnitude,
+                    "direction": direction,
+                    "ret_1m": round(ret_1m, 4),
+                    "ret_3m": round(ret_3m, 4),
+                    "price": div_price_now,
+                },
+            )
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+def _emit_volatility_spike_alert(heat: dict | None) -> None:
+    """Emit a market-wide volatility spike alert based on Market Heat volatility."""
+    try:
+        if not isinstance(heat, dict):
+            return
+        comps = heat.get("components") if isinstance(heat.get("components"), dict) else {}
+        vol = comps.get("volatility")
+        if vol is None:
+            return
+        vol_val = float(vol)
+        if vol_val < ALERT_VOLATILITY_SPIKE:
+            return
+        severity = "high" if vol_val >= ALERT_VOLATILITY_SPIKE * 1.5 else "medium"
+        emit_alert(
+            "volatility_spike",
+            severity,
+            "MARKET",
+            f"Market volatility spike ({vol_val:.2f}%)",
+            window="3m",
+            extra={
+                "volatility": round(vol_val, 4),
+                "threshold": ALERT_VOLATILITY_SPIKE,
+            },
+        )
     except Exception:
         pass
 
@@ -6999,6 +7213,17 @@ def get_top_movers_bar():
 # -----------------------------------------------------------------------------
 # Alerts API: expose recent Moonwalking alerts (normalized)
 # -----------------------------------------------------------------------------
+@app.route('/api/alerts')
+def get_basic_alerts():
+    """Return lightweight alerts from the in-memory ring buffer."""
+    try:
+        with _BASIC_ALERTS_LOCK:
+            items = list(alerts_basic_log)
+        return jsonify({"ok": True, "data": items})
+    except Exception as e:
+        logging.error(f"Error in basic alerts endpoint: {e}")
+        return jsonify({"ok": True, "data": []})
+
 @app.route('/api/alerts/recent')
 def get_recent_alerts():
     try:
@@ -8408,6 +8633,7 @@ def _compute_snapshots_from_cache():
             with _MARKET_HEAT_LOCK:
                 _MARKET_HEAT_CACHE.update(heat)
                 _MARKET_HEAT_HISTORY.append(heat)
+            _emit_volatility_spike_alert(heat)
         except Exception as e:
             logging.debug(f"Market heat compute skip: {e}")
 

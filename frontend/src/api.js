@@ -17,6 +17,7 @@ const buildEndpoints = () => ({
   watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
   watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
   watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
+  sentimentBasic: `${API_BASE_URL}/api/sentiment-basic`,
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
   socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`

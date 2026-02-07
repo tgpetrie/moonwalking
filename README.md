@@ -183,6 +183,15 @@ BHABIT CBMOONERS/
 
 ---
 
+### Quick API Checks
+
+```bash
+curl http://127.0.0.1:5003/api/sentiment-basic
+curl http://127.0.0.1:5003/api/alerts
+```
+
+---
+
 ## Development Scripts
 
 Available utility commands:
@@ -394,4 +403,3 @@ If you’re having issues:
 
 **BHABIT — Profits Buy Impulse**
 **by Tom Petrie | GUISAN DESIGN**
-

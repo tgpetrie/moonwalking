@@ -21118,3 +21118,2107 @@
 2025-08-13 23:48:48,172 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:48] "GET /api/component/gainers-table-1min HTTP/1.1" 200 -
 2025-08-13 23:48:51,923 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=1 HTTP/1.1" 200 -
 2025-08-13 23:48:51,925 - INFO - 127.0.0.1 - - [13/Aug/2025 23:48:51] "GET /api/alerts/recent?limit=25 HTTP/1.1" 200 -
+2026-02-06 21:55:12,689 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 21:55:16,239 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 21:55:16,240 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 21:55:16,244 - INFO - === CBMo4ers Configuration ===
+2026-02-06 21:55:16,245 - INFO - CACHE_TTL: 60
+2026-02-06 21:55:16,245 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 21:55:16,245 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 21:55:16,245 - INFO - PORT: 5003
+2026-02-06 21:55:16,245 - INFO - HOST: 127.0.0.1
+2026-02-06 21:55:16,245 - INFO - DEBUG: False
+2026-02-06 21:55:16,245 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 21:55:16,245 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 21:55:16,245 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 21:55:16,245 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 21:55:16,245 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 21:55:16,245 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 21:55:16,245 - INFO - API_TIMEOUT: 10
+2026-02-06 21:55:16,245 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 21:55:16,245 - INFO - ENABLE_1MIN: True
+2026-02-06 21:55:16,245 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 21:55:16,245 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 21:55:16,245 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 21:55:16,245 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 21:55:16,245 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 21:55:16,245 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 21:55:16,246 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 21:55:16,246 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 21:55:16,246 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 21:55:16,246 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 21:55:16,246 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 21:55:16,246 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 21:55:16,246 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 21:55:16,246 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 21:55:16,246 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 21:55:16,246 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 21:55:16,246 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 21:55:16,246 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 21:55:16,246 - INFO - ===============================
+2026-02-06 21:57:22,129 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 21:57:24,979 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 21:57:24,980 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 21:57:24,984 - INFO - === CBMo4ers Configuration ===
+2026-02-06 21:57:24,984 - INFO - CACHE_TTL: 60
+2026-02-06 21:57:24,984 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 21:57:24,984 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 21:57:24,984 - INFO - PORT: 5003
+2026-02-06 21:57:24,984 - INFO - HOST: 127.0.0.1
+2026-02-06 21:57:24,984 - INFO - DEBUG: False
+2026-02-06 21:57:24,984 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 21:57:24,984 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 21:57:24,984 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 21:57:24,984 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 21:57:24,984 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 21:57:24,984 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 21:57:24,984 - INFO - API_TIMEOUT: 10
+2026-02-06 21:57:24,984 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 21:57:24,984 - INFO - ENABLE_1MIN: True
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 21:57:24,985 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 21:57:24,985 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 21:57:24,985 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 21:57:24,985 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 21:57:24,985 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 21:57:24,985 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 21:57:24,985 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 21:57:24,985 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 21:57:24,985 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 21:57:24,985 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 21:57:24,985 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 21:57:24,985 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 21:57:24,985 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 21:57:24,985 - INFO - ===============================
+2026-02-06 21:58:32,702 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 21:58:36,012 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 21:58:36,013 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 21:58:36,018 - INFO - === CBMo4ers Configuration ===
+2026-02-06 21:58:36,018 - INFO - CACHE_TTL: 60
+2026-02-06 21:58:36,018 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 21:58:36,018 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 21:58:36,018 - INFO - PORT: 5003
+2026-02-06 21:58:36,018 - INFO - HOST: 127.0.0.1
+2026-02-06 21:58:36,018 - INFO - DEBUG: False
+2026-02-06 21:58:36,018 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 21:58:36,018 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 21:58:36,018 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 21:58:36,019 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 21:58:36,019 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 21:58:36,019 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 21:58:36,019 - INFO - API_TIMEOUT: 10
+2026-02-06 21:58:36,019 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 21:58:36,019 - INFO - ENABLE_1MIN: True
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 21:58:36,019 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 21:58:36,019 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 21:58:36,019 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 21:58:36,019 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 21:58:36,019 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 21:58:36,019 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 21:58:36,019 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 21:58:36,019 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 21:58:36,019 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 21:58:36,019 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 21:58:36,019 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 21:58:36,019 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 21:58:36,019 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 21:58:36,019 - INFO - ===============================
+2026-02-06 21:58:36,026 - INFO - === CBMo4ers Configuration ===
+2026-02-06 21:58:36,026 - INFO - CACHE_TTL: 60
+2026-02-06 21:58:36,026 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 21:58:36,026 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 21:58:36,026 - INFO - PORT: 5003
+2026-02-06 21:58:36,026 - INFO - HOST: 127.0.0.1
+2026-02-06 21:58:36,026 - INFO - DEBUG: False
+2026-02-06 21:58:36,026 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 21:58:36,026 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 21:58:36,026 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 21:58:36,026 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 21:58:36,026 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 21:58:36,026 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 21:58:36,026 - INFO - API_TIMEOUT: 10
+2026-02-06 21:58:36,026 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 21:58:36,026 - INFO - ENABLE_1MIN: True
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 21:58:36,026 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 21:58:36,026 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 21:58:36,026 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 21:58:36,026 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 21:58:36,026 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 21:58:36,026 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 21:58:36,026 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 21:58:36,026 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 21:58:36,026 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 21:58:36,026 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 21:58:36,026 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 21:58:36,026 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 21:58:36,026 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 21:58:36,026 - INFO - ===============================
+2026-02-06 21:58:36,027 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2026-02-06 21:58:36,031 - INFO - SQLite price snapshot database initialized
+2026-02-06 21:58:36,400 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:58:41,300 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:58:41,387 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:41,388 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:41,388 - INFO - Warmed /data cache after DEV seeding
+2026-02-06 21:58:41,388 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 21:58:41,388 - INFO - Volume 1h updater thread started
+2026-02-06 21:58:41,388 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 21:58:41,388 - INFO - Background update thread started
+2026-02-06 21:58:41,389 - INFO - Sentiment polling thread started
+2026-02-06 21:58:41,390 - INFO - Server starting on http://127.0.0.1:5003
+2026-02-06 21:58:41,390 - INFO - [volume1h] tracked=9 ok=0 fail=9 rl=0 skip=0
+2026-02-06 21:58:41,437 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5003
+2026-02-06 21:58:41,437 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-06 21:58:41,542 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:58:41,587 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 21:58:41,587 - INFO - Background update thread started (flask-run bootstrap)
+2026-02-06 21:58:41,588 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 21:58:41,588 - INFO - Volume 1h updater thread started (flask-run bootstrap)
+2026-02-06 21:58:41,588 - INFO - [volume1h] tracked=9 ok=0 fail=0 rl=0 skip=9
+2026-02-06 21:58:41,588 - INFO - External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.
+2026-02-06 21:58:41,589 - INFO - 127.0.0.1 - - [06/Feb/2026 21:58:41] "GET /health HTTP/1.1" 200 -
+2026-02-06 21:58:41,601 - INFO - 127.0.0.1 - - [06/Feb/2026 21:58:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 21:58:41,722 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:58:46,191 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:58:46,197 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:58:46,264 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,264 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,290 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,290 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,324 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,324 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,381 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,381 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,638 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,638 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,693 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,693 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,721 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,721 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,761 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,761 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,818 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,818 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,938 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,939 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,982 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,982 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:46,997 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:46,997 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:47,010 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:47,010 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:47,088 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:47,088 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:47,144 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:47,144 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:47,199 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:47,200 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:55,204 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:58:55,413 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:58:59,801 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:58:59,803 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:58:59,870 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,870 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:59,887 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,887 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:59,913 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,913 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:58:59,930 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,930 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:58:59,966 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,966 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:58:59,973 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:58:59,973 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:00,008 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:00,008 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:00,016 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:00,016 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:00,053 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:00,053 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:00,079 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:00,079 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:08,304 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:08,310 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:12,562 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:12,567 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:12,621 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,622 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,643 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,643 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,656 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,656 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,686 - WARNING - 1m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,686 - WARNING - No 1-min crypto data available after calculation - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,714 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,714 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,718 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,718 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,752 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,752 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,774 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,774 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,799 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,799 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:12,828 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:12,828 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:21,007 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:21,037 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:25,221 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:25,309 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:25,309 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:25,361 - INFO - 1m retention candidates=44 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:25,361 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 21:59:25,427 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:25,427 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:25,486 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:25,488 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:25,488 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:25,538 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:25,538 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:25,539 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:25,539 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:25,594 - INFO - 1m retention candidates=44 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:25,594 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 21:59:29,358 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:29,358 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:29,412 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:29,412 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:29,465 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:29,465 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:33,717 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:37,676 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:38,075 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:38,167 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:38,167 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:38,220 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:38,220 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 21:59:38,274 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:38,274 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:38,329 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:38,329 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:38,383 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:38,383 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:41,872 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:41,965 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:41,965 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:42,017 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:42,017 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 21:59:42,184 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:42,184 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:42,236 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:42,236 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:42,287 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:42,287 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:46,593 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:50,473 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 21:59:50,662 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:50,764 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:50,764 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:50,820 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:50,821 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 21:59:51,136 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:51,136 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:51,193 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:51,193 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:51,246 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:51,247 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:54,589 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 21:59:54,682 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:54,682 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:54,734 - INFO - 1m retention candidates=39 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 21:59:54,734 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 21:59:54,785 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:54,785 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:54,836 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:54,836 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:54,886 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 21:59:54,886 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 21:59:59,473 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:03,089 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:03,554 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:03,642 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:03,642 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:03,697 - INFO - 1m retention candidates=41 retained_symbols=35 gainers=13 losers=22 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:03,697 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=13 losers=22
+2026-02-06 22:00:06,203 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:06,203 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:06,261 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:06,261 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:06,314 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:06,315 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:07,099 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:07,187 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:07,187 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:07,239 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:07,239 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 22:00:07,552 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:07,552 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:07,606 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:07,606 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:07,659 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:07,659 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:11,400 - INFO - [volume1h] tracked=23 ok=0 fail=23 rl=0 skip=0
+2026-02-06 22:00:11,590 - INFO - [volume1h] tracked=23 ok=0 fail=0 rl=0 skip=23
+2026-02-06 22:00:14,523 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:15,940 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:18,568 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:18,664 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:18,664 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:18,718 - INFO - 1m retention candidates=52 retained_symbols=35 gainers=11 losers=24 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:18,718 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=11 losers=24
+2026-02-06 22:00:19,302 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:19,387 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,387 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,440 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=10 losers=25 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:19,440 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=10 losers=25
+2026-02-06 22:00:19,638 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,638 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,655 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,655 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,694 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,694 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,702 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,702 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,732 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,732 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:19,761 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:19,761 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:28,030 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:28,034 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:31,980 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:32,070 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:32,076 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,076 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,111 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:32,111 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:00:32,127 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,127 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,178 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:32,178 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:00:32,271 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,272 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,294 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,294 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,321 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,321 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,347 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,347 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,353 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,353 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:32,391 - WARNING - 3m_eligibility_empty: total_prices=120
+2026-02-06 22:00:32,391 - WARNING - No crypto data available - 120 current prices, 120 symbols with history
+2026-02-06 22:00:40,608 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:40,633 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:44,918 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:45,078 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:00:49,808 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:00:49,811 - INFO - Successfully processed data: 30 gainers, 21 losers, 14 banner items
+2026-02-06 22:00:49,812 - INFO - Price fetch: 30 gainers, 21 losers, 14 banner
+2026-02-06 22:00:49,892 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=10 losers=25 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:49,892 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=10 losers=25
+2026-02-06 22:00:49,899 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:00:49,899 - INFO - Successfully processed data: 30 gainers, 21 losers, 14 banner items
+2026-02-06 22:00:49,899 - INFO - Price fetch: 30 gainers, 21 losers, 14 banner
+2026-02-06 22:00:49,956 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=10 losers=25 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:00:49,956 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=10 losers=25
+2026-02-06 22:00:58,948 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:00:58,952 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:01:03,040 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:03,069 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:07,841 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:01:07,843 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:01:07,845 - INFO - Successfully processed data: 30 gainers, 23 losers, 13 banner items
+2026-02-06 22:01:07,848 - INFO - Successfully processed data: 30 gainers, 23 losers, 13 banner items
+2026-02-06 22:01:07,848 - INFO - Price fetch: 30 gainers, 23 losers, 13 banner
+2026-02-06 22:01:07,848 - INFO - Price fetch: 30 gainers, 23 losers, 13 banner
+2026-02-06 22:01:07,906 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=20 losers=15 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:07,906 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=20 losers=15
+2026-02-06 22:01:07,927 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=20 losers=15 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:07,927 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=20 losers=15
+2026-02-06 22:01:25,453 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:01:25,552 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:01:29,643 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:29,645 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:34,463 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:01:34,465 - INFO - Successfully processed data: 30 gainers, 18 losers, 14 banner items
+2026-02-06 22:01:34,465 - INFO - Price fetch: 30 gainers, 18 losers, 14 banner
+2026-02-06 22:01:34,527 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:34,527 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:01:34,613 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:01:34,614 - INFO - Successfully processed data: 30 gainers, 18 losers, 14 banner items
+2026-02-06 22:01:34,614 - INFO - Price fetch: 30 gainers, 18 losers, 14 banner
+2026-02-06 22:01:34,672 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:34,672 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:01:41,400 - INFO - [volume1h] tracked=57 ok=0 fail=57 rl=0 skip=0
+2026-02-06 22:01:41,591 - INFO - [volume1h] tracked=57 ok=0 fail=0 rl=0 skip=57
+2026-02-06 22:01:48,351 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:01:48,356 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:01:51,981 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:52,005 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:01:57,011 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:01:57,012 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:01:57,018 - INFO - Successfully processed data: 30 gainers, 19 losers, 14 banner items
+2026-02-06 22:01:57,018 - INFO - Price fetch: 30 gainers, 19 losers, 14 banner
+2026-02-06 22:01:57,023 - INFO - Successfully processed data: 30 gainers, 19 losers, 14 banner items
+2026-02-06 22:01:57,024 - INFO - Price fetch: 30 gainers, 19 losers, 14 banner
+2026-02-06 22:01:57,086 - INFO - 1m retention candidates=44 retained_symbols=35 gainers=30 losers=5 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:57,086 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=30 losers=5
+2026-02-06 22:01:57,090 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=30 losers=5 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:01:57,090 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=30 losers=5
+2026-02-06 22:02:12,638 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:02:12,757 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:02:16,935 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:02:17,137 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:02:22,083 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:02:22,083 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:02:22,085 - INFO - Successfully processed data: 30 gainers, 21 losers, 12 banner items
+2026-02-06 22:02:22,086 - INFO - Successfully processed data: 30 gainers, 21 losers, 12 banner items
+2026-02-06 22:02:22,086 - INFO - Price fetch: 30 gainers, 21 losers, 12 banner
+2026-02-06 22:02:22,086 - INFO - Price fetch: 30 gainers, 21 losers, 12 banner
+2026-02-06 22:02:22,151 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:02:22,152 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:02:22,179 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:02:22,179 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:02:33,844 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:02:33,851 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:02:37,907 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:02:38,018 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:02:42,856 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 5 losers
+2026-02-06 22:02:42,856 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 5 losers
+2026-02-06 22:02:42,861 - INFO - Successfully processed data: 30 gainers, 25 losers, 15 banner items
+2026-02-06 22:02:42,863 - INFO - Successfully processed data: 30 gainers, 25 losers, 15 banner items
+2026-02-06 22:02:42,865 - INFO - Price fetch: 30 gainers, 25 losers, 15 banner
+2026-02-06 22:02:42,864 - INFO - Price fetch: 30 gainers, 25 losers, 15 banner
+2026-02-06 22:02:42,921 - INFO - 1m retention candidates=35 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:02:42,921 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:02:42,944 - INFO - 1m retention candidates=35 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:02:42,944 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:02:58,905 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:02:58,912 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:03:00,377 - INFO - 127.0.0.1 - - [06/Feb/2026 22:03:00] "GET /api/sentiment-basic HTTP/1.1" 200 -
+2026-02-06 22:03:00,843 - INFO - 127.0.0.1 - - [06/Feb/2026 22:03:00] "GET /api/alerts HTTP/1.1" 200 -
+2026-02-06 22:03:02,904 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:03,068 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:03,667 - INFO - 127.0.0.1 - - [06/Feb/2026 22:03:03] "GET /api/sentiment-basic HTTP/1.1" 200 -
+2026-02-06 22:03:04,310 - INFO - 127.0.0.1 - - [06/Feb/2026 22:03:04] "GET /api/alerts HTTP/1.1" 200 -
+2026-02-06 22:03:07,573 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:03:07,575 - INFO - Successfully processed data: 30 gainers, 18 losers, 13 banner items
+2026-02-06 22:03:07,576 - INFO - Price fetch: 30 gainers, 18 losers, 13 banner
+2026-02-06 22:03:07,577 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:03:07,578 - INFO - Successfully processed data: 30 gainers, 18 losers, 13 banner items
+2026-02-06 22:03:07,578 - INFO - Price fetch: 30 gainers, 18 losers, 13 banner
+2026-02-06 22:03:07,630 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:07,630 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:03:07,657 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:07,657 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:03:11,405 - INFO - [volume1h] tracked=63 ok=0 fail=63 rl=0 skip=0
+2026-02-06 22:03:11,594 - INFO - [volume1h] tracked=63 ok=0 fail=0 rl=0 skip=63
+2026-02-06 22:03:22,695 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:03:22,724 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:03:26,882 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:26,944 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:31,582 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:03:31,586 - INFO - Successfully processed data: 30 gainers, 6 losers, 11 banner items
+2026-02-06 22:03:31,587 - INFO - Price fetch: 30 gainers, 6 losers, 11 banner
+2026-02-06 22:03:31,590 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:03:31,592 - INFO - Successfully processed data: 30 gainers, 6 losers, 11 banner items
+2026-02-06 22:03:31,592 - INFO - Price fetch: 30 gainers, 6 losers, 11 banner
+2026-02-06 22:03:31,653 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=34 losers=1 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:31,653 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=34 losers=1
+2026-02-06 22:03:31,666 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=34 losers=1 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:31,666 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=34 losers=1
+2026-02-06 22:03:46,421 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:03:46,436 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:03:50,629 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:50,660 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:03:55,503 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:03:55,508 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:03:55,508 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:03:55,508 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:03:55,510 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:03:55,511 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:03:55,555 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:55,556 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 22:03:55,583 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:03:55,583 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 22:04:07,938 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:07,943 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:12,174 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:04:12,274 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:04:17,252 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:04:17,263 - INFO - Successfully processed data: 30 gainers, 12 losers, 12 banner items
+2026-02-06 22:04:17,266 - INFO - Price fetch: 30 gainers, 12 losers, 12 banner
+2026-02-06 22:04:17,343 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:04:17,343 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:04:17,425 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:04:17,427 - INFO - Successfully processed data: 30 gainers, 12 losers, 12 banner items
+2026-02-06 22:04:17,427 - INFO - Price fetch: 30 gainers, 12 losers, 12 banner
+2026-02-06 22:04:17,512 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:04:17,512 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:04:32,429 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:32,436 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:36,923 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:04:36,924 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:04:41,412 - INFO - [volume1h] tracked=50 ok=0 fail=50 rl=0 skip=0
+2026-02-06 22:04:41,600 - INFO - [volume1h] tracked=50 ok=0 fail=0 rl=0 skip=50
+2026-02-06 22:04:41,653 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:04:41,658 - INFO - Successfully processed data: 30 gainers, 21 losers, 12 banner items
+2026-02-06 22:04:41,658 - INFO - Price fetch: 30 gainers, 21 losers, 12 banner
+2026-02-06 22:04:41,735 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:04:41,735 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:04:41,889 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:04:41,890 - INFO - Successfully processed data: 30 gainers, 21 losers, 12 banner items
+2026-02-06 22:04:41,890 - INFO - Price fetch: 30 gainers, 21 losers, 12 banner
+2026-02-06 22:04:41,959 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:04:41,959 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:04:53,417 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:53,427 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:04:57,763 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:04:57,896 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:05:02,613 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:05:02,613 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:05:02,614 - INFO - Successfully processed data: 30 gainers, 11 losers, 13 banner items
+2026-02-06 22:05:02,637 - INFO - Successfully processed data: 30 gainers, 11 losers, 13 banner items
+2026-02-06 22:05:02,650 - INFO - Price fetch: 30 gainers, 11 losers, 13 banner
+2026-02-06 22:05:02,650 - INFO - Price fetch: 30 gainers, 11 losers, 13 banner
+2026-02-06 22:05:02,867 - INFO - 1m retention candidates=64 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:02,867 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:05:02,885 - INFO - 1m retention candidates=64 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:02,885 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:05:18,737 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:05:18,752 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:05:23,065 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:05:23,066 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:05:27,778 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:05:27,784 - INFO - Successfully processed data: 30 gainers, 20 losers, 13 banner items
+2026-02-06 22:05:27,784 - INFO - Price fetch: 30 gainers, 20 losers, 13 banner
+2026-02-06 22:05:27,848 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:05:27,849 - INFO - Successfully processed data: 30 gainers, 20 losers, 13 banner items
+2026-02-06 22:05:27,849 - INFO - Price fetch: 30 gainers, 20 losers, 13 banner
+2026-02-06 22:05:27,858 - INFO - 1m retention candidates=58 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:27,858 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:05:27,913 - INFO - 1m retention candidates=58 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:27,913 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:05:41,475 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:05:41,486 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:05:45,773 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:05:45,776 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:05:50,338 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:05:50,340 - INFO - Successfully processed data: 30 gainers, 20 losers, 12 banner items
+2026-02-06 22:05:50,340 - INFO - Price fetch: 30 gainers, 20 losers, 12 banner
+2026-02-06 22:05:50,355 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:05:50,355 - INFO - Successfully processed data: 30 gainers, 20 losers, 12 banner items
+2026-02-06 22:05:50,356 - INFO - Price fetch: 30 gainers, 20 losers, 12 banner
+2026-02-06 22:05:50,404 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:50,404 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:05:50,410 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:05:50,411 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:06:05,261 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:05,287 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:09,358 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:06:09,358 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:06:11,418 - INFO - [volume1h] tracked=55 ok=0 fail=46 rl=0 skip=9
+2026-02-06 22:06:11,603 - INFO - [volume1h] tracked=55 ok=0 fail=0 rl=0 skip=55
+2026-02-06 22:06:14,134 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:06:14,136 - INFO - Successfully processed data: 30 gainers, 20 losers, 11 banner items
+2026-02-06 22:06:14,136 - INFO - Price fetch: 30 gainers, 20 losers, 11 banner
+2026-02-06 22:06:14,156 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:06:14,157 - INFO - Successfully processed data: 30 gainers, 20 losers, 11 banner items
+2026-02-06 22:06:14,157 - INFO - Price fetch: 30 gainers, 20 losers, 11 banner
+2026-02-06 22:06:14,211 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:06:14,211 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:06:14,244 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:06:14,244 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:06:28,165 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:28,181 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:32,117 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:06:32,123 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:06:36,683 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:06:36,688 - INFO - Successfully processed data: 30 gainers, 30 losers, 10 banner items
+2026-02-06 22:06:36,688 - INFO - Price fetch: 30 gainers, 30 losers, 10 banner
+2026-02-06 22:06:36,736 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:06:36,736 - INFO - Successfully processed data: 30 gainers, 30 losers, 10 banner items
+2026-02-06 22:06:36,737 - INFO - Price fetch: 30 gainers, 30 losers, 10 banner
+2026-02-06 22:06:36,768 - INFO - 1m retention candidates=42 retained_symbols=35 gainers=14 losers=21 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:06:36,768 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=14 losers=21
+2026-02-06 22:06:36,800 - INFO - 1m retention candidates=42 retained_symbols=35 gainers=14 losers=21 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:06:36,800 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=14 losers=21
+2026-02-06 22:06:51,946 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:51,953 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:06:56,151 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:06:56,240 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:07:00,820 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:00,822 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:00,822 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:07:00,905 - INFO - 1m retention candidates=63 retained_symbols=35 gainers=2 losers=33 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:00,905 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=2 losers=33
+2026-02-06 22:07:00,939 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:00,940 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:00,940 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:07:00,995 - INFO - 1m retention candidates=63 retained_symbols=35 gainers=2 losers=33 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:00,996 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=2 losers=33
+2026-02-06 22:07:15,511 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:07:15,520 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:07:19,709 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:07:19,770 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:07:24,558 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:24,562 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:24,562 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:07:24,635 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=4 losers=31 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:24,635 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=4 losers=31
+2026-02-06 22:07:24,687 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:24,688 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:24,688 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:07:24,741 - INFO - 1m retention candidates=59 retained_symbols=35 gainers=4 losers=31 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:24,741 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=4 losers=31
+2026-02-06 22:07:38,209 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:07:38,210 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:07:41,422 - INFO - [volume1h] tracked=65 ok=0 fail=59 rl=0 skip=6
+2026-02-06 22:07:41,608 - INFO - [volume1h] tracked=65 ok=0 fail=0 rl=0 skip=65
+2026-02-06 22:07:42,261 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:07:42,289 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:07:47,270 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:47,276 - INFO - Successfully processed data: 27 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:47,277 - INFO - Price fetch: 27 gainers, 30 losers, 11 banner
+2026-02-06 22:07:47,361 - INFO - 1m retention candidates=36 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:47,361 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:07:47,471 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:07:47,472 - INFO - Successfully processed data: 27 gainers, 30 losers, 11 banner items
+2026-02-06 22:07:47,472 - INFO - Price fetch: 27 gainers, 30 losers, 11 banner
+2026-02-06 22:07:47,530 - INFO - 1m retention candidates=36 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:07:47,530 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:07:59,942 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:07:59,951 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:08:03,853 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:04,086 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:08,753 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:08:08,757 - INFO - Successfully processed data: 14 gainers, 30 losers, 12 banner items
+2026-02-06 22:08:08,757 - INFO - Price fetch: 14 gainers, 30 losers, 12 banner
+2026-02-06 22:08:08,827 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:08:08,827 - INFO - Successfully processed data: 14 gainers, 30 losers, 12 banner items
+2026-02-06 22:08:08,827 - INFO - Price fetch: 14 gainers, 30 losers, 12 banner
+2026-02-06 22:08:08,838 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=23 losers=12 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:08,838 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=23 losers=12
+2026-02-06 22:08:08,887 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=23 losers=12 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:08,887 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=23 losers=12
+2026-02-06 22:08:23,083 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:08:23,095 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:08:27,091 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:27,199 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:31,964 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:08:31,967 - INFO - Successfully processed data: 14 gainers, 30 losers, 13 banner items
+2026-02-06 22:08:31,967 - INFO - Price fetch: 14 gainers, 30 losers, 13 banner
+2026-02-06 22:08:32,047 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=17 losers=18 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:32,047 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=17 losers=18
+2026-02-06 22:08:32,129 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:08:32,129 - INFO - Successfully processed data: 14 gainers, 30 losers, 13 banner items
+2026-02-06 22:08:32,129 - INFO - Price fetch: 14 gainers, 30 losers, 13 banner
+2026-02-06 22:08:32,191 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=17 losers=18 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:32,191 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=17 losers=18
+2026-02-06 22:08:47,352 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:08:47,359 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:08:51,387 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:51,387 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:08:56,470 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:08:56,471 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:08:56,475 - INFO - Successfully processed data: 11 gainers, 30 losers, 14 banner items
+2026-02-06 22:08:56,476 - INFO - Successfully processed data: 11 gainers, 30 losers, 14 banner items
+2026-02-06 22:08:56,477 - INFO - Price fetch: 11 gainers, 30 losers, 14 banner
+2026-02-06 22:08:56,477 - INFO - Price fetch: 11 gainers, 30 losers, 14 banner
+2026-02-06 22:08:56,524 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:56,524 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:08:56,537 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:08:56,537 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:09:10,295 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:10,333 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:11,425 - INFO - [volume1h] tracked=48 ok=0 fail=36 rl=0 skip=12
+2026-02-06 22:09:11,610 - INFO - [volume1h] tracked=48 ok=0 fail=0 rl=0 skip=48
+2026-02-06 22:09:14,289 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:09:14,346 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:09:19,237 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:09:19,242 - INFO - Successfully processed data: 12 gainers, 30 losers, 12 banner items
+2026-02-06 22:09:19,242 - INFO - Price fetch: 12 gainers, 30 losers, 12 banner
+2026-02-06 22:09:19,247 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:09:19,251 - INFO - Successfully processed data: 12 gainers, 30 losers, 12 banner items
+2026-02-06 22:09:19,251 - INFO - Price fetch: 12 gainers, 30 losers, 12 banner
+2026-02-06 22:09:19,319 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:09:19,319 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:09:19,320 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:09:19,321 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:09:32,879 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:32,893 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:37,209 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:09:37,363 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:09:41,813 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:09:41,817 - INFO - Successfully processed data: 13 gainers, 30 losers, 14 banner items
+2026-02-06 22:09:41,817 - INFO - Price fetch: 13 gainers, 30 losers, 14 banner
+2026-02-06 22:09:41,899 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:09:41,900 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:09:41,941 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:09:41,941 - INFO - Successfully processed data: 13 gainers, 30 losers, 13 banner items
+2026-02-06 22:09:41,941 - INFO - Price fetch: 13 gainers, 30 losers, 13 banner
+2026-02-06 22:09:42,002 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:09:42,002 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:09:54,869 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:54,878 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:09:59,355 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:09:59,355 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:10:04,221 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:10:04,224 - INFO - Successfully processed data: 30 gainers, 24 losers, 13 banner items
+2026-02-06 22:10:04,225 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:10:04,225 - INFO - Price fetch: 30 gainers, 24 losers, 13 banner
+2026-02-06 22:10:04,226 - INFO - Successfully processed data: 30 gainers, 24 losers, 13 banner items
+2026-02-06 22:10:04,227 - INFO - Price fetch: 30 gainers, 24 losers, 13 banner
+2026-02-06 22:10:04,299 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:04,299 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:10:04,302 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:04,302 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:10:17,093 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:10:17,184 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:10:21,123 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:10:21,126 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:10:25,862 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:10:25,865 - INFO - Successfully processed data: 30 gainers, 24 losers, 12 banner items
+2026-02-06 22:10:25,865 - INFO - Price fetch: 30 gainers, 24 losers, 12 banner
+2026-02-06 22:10:25,903 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:10:25,903 - INFO - Successfully processed data: 30 gainers, 24 losers, 12 banner items
+2026-02-06 22:10:25,903 - INFO - Price fetch: 30 gainers, 24 losers, 12 banner
+2026-02-06 22:10:25,927 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:25,927 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:10:25,966 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:25,966 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:10:40,612 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:10:40,618 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:10:41,427 - INFO - [volume1h] tracked=59 ok=0 fail=42 rl=0 skip=17
+2026-02-06 22:10:41,615 - INFO - [volume1h] tracked=59 ok=0 fail=0 rl=0 skip=59
+2026-02-06 22:10:44,743 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:10:44,746 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:10:49,346 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 5 losers
+2026-02-06 22:10:49,350 - INFO - Successfully processed data: 30 gainers, 24 losers, 15 banner items
+2026-02-06 22:10:49,350 - INFO - Price fetch: 30 gainers, 24 losers, 15 banner
+2026-02-06 22:10:49,377 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 5 losers
+2026-02-06 22:10:49,378 - INFO - Successfully processed data: 30 gainers, 24 losers, 15 banner items
+2026-02-06 22:10:49,378 - INFO - Price fetch: 30 gainers, 24 losers, 15 banner
+2026-02-06 22:10:49,426 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:49,426 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 22:10:49,430 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=15 losers=20 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:10:49,430 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=15 losers=20
+2026-02-06 22:11:02,514 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:02,566 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:06,322 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:06,635 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:10,824 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:11:10,827 - INFO - Successfully processed data: 30 gainers, 23 losers, 10 banner items
+2026-02-06 22:11:10,827 - INFO - Price fetch: 30 gainers, 23 losers, 10 banner
+2026-02-06 22:11:10,839 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:11:10,840 - INFO - Successfully processed data: 30 gainers, 23 losers, 10 banner items
+2026-02-06 22:11:10,840 - INFO - Price fetch: 30 gainers, 23 losers, 10 banner
+2026-02-06 22:11:10,898 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:10,899 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:11:10,902 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:10,902 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:11:27,351 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:27,476 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:31,632 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:31,632 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:36,353 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:11:36,354 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:11:36,357 - INFO - Successfully processed data: 30 gainers, 13 losers, 13 banner items
+2026-02-06 22:11:36,358 - INFO - Successfully processed data: 30 gainers, 13 losers, 13 banner items
+2026-02-06 22:11:36,359 - INFO - Price fetch: 30 gainers, 13 losers, 13 banner
+2026-02-06 22:11:36,359 - INFO - Price fetch: 30 gainers, 13 losers, 13 banner
+2026-02-06 22:11:36,420 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:36,420 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:11:36,453 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:36,453 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:11:49,127 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:49,143 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:11:53,137 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:53,138 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:11:58,059 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:11:58,059 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:11:58,061 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:11:58,062 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:11:58,062 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:11:58,062 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:11:58,129 - INFO - 1m retention candidates=60 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:58,129 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:11:58,155 - INFO - 1m retention candidates=60 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:11:58,156 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:12:11,431 - INFO - [volume1h] tracked=50 ok=0 fail=29 rl=0 skip=21
+2026-02-06 22:12:11,620 - INFO - [volume1h] tracked=50 ok=0 fail=0 rl=0 skip=50
+2026-02-06 22:12:13,175 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:12:13,184 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:12:17,427 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:12:17,432 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:12:22,131 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:12:22,132 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:12:22,133 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:12:22,134 - INFO - Successfully processed data: 30 gainers, 10 losers, 12 banner items
+2026-02-06 22:12:22,135 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:12:22,135 - INFO - Price fetch: 30 gainers, 10 losers, 12 banner
+2026-02-06 22:12:22,195 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=30 losers=5 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:12:22,195 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=30 losers=5
+2026-02-06 22:12:22,202 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=30 losers=5 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:12:22,202 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=30 losers=5
+2026-02-06 22:12:34,155 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:12:34,173 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:12:38,252 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:12:38,305 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:12:43,119 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:12:43,121 - INFO - Successfully processed data: 30 gainers, 9 losers, 11 banner items
+2026-02-06 22:12:43,122 - INFO - Price fetch: 30 gainers, 9 losers, 11 banner
+2026-02-06 22:12:43,156 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:12:43,156 - INFO - Successfully processed data: 30 gainers, 9 losers, 11 banner items
+2026-02-06 22:12:43,157 - INFO - Price fetch: 30 gainers, 9 losers, 11 banner
+2026-02-06 22:12:43,201 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:12:43,201 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:12:43,206 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:12:43,206 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:12:57,218 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:12:57,230 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:01,691 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:01,705 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:06,697 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:13:06,702 - INFO - Successfully processed data: 30 gainers, 5 losers, 12 banner items
+2026-02-06 22:13:06,703 - INFO - Price fetch: 30 gainers, 5 losers, 12 banner
+2026-02-06 22:13:06,708 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:13:06,710 - INFO - Successfully processed data: 30 gainers, 5 losers, 12 banner items
+2026-02-06 22:13:06,710 - INFO - Price fetch: 30 gainers, 5 losers, 12 banner
+2026-02-06 22:13:06,772 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:06,772 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:13:06,775 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:06,775 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:13:07,100 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 22:13:10,031 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 22:13:10,032 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 22:13:10,037 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:13:10,037 - INFO - CACHE_TTL: 60
+2026-02-06 22:13:10,037 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:13:10,037 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:13:10,037 - INFO - PORT: 5004
+2026-02-06 22:13:10,037 - INFO - HOST: 127.0.0.1
+2026-02-06 22:13:10,037 - INFO - DEBUG: False
+2026-02-06 22:13:10,037 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:13:10,037 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:13:10,037 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:13:10,037 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:13:10,037 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:13:10,037 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:13:10,037 - INFO - API_TIMEOUT: 10
+2026-02-06 22:13:10,037 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:13:10,037 - INFO - ENABLE_1MIN: True
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:13:10,037 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:13:10,037 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:13:10,037 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:13:10,037 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:13:10,037 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:13:10,037 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:13:10,037 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:13:10,037 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:13:10,038 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:13:10,038 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:13:10,038 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:13:10,038 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:13:10,038 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:13:10,038 - INFO - ===============================
+2026-02-06 22:13:10,043 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:13:10,043 - INFO - CACHE_TTL: 60
+2026-02-06 22:13:10,043 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:13:10,043 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:13:10,043 - INFO - PORT: 5004
+2026-02-06 22:13:10,043 - INFO - HOST: 127.0.0.1
+2026-02-06 22:13:10,043 - INFO - DEBUG: False
+2026-02-06 22:13:10,043 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:13:10,043 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:13:10,043 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:13:10,043 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:13:10,043 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:13:10,043 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:13:10,043 - INFO - API_TIMEOUT: 10
+2026-02-06 22:13:10,043 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:13:10,043 - INFO - ENABLE_1MIN: True
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:13:10,043 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:13:10,043 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:13:10,043 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:13:10,043 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:13:10,043 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:13:10,047 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:13:10,047 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:13:10,047 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:13:10,047 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:13:10,047 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:13:10,047 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:13:10,047 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:13:10,047 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:13:10,047 - INFO - ===============================
+2026-02-06 22:13:10,047 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2026-02-06 22:13:10,048 - INFO - SQLite price snapshot database initialized
+2026-02-06 22:13:10,220 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:14,394 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:18,765 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:18,808 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:19,153 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:13:19,157 - INFO - Successfully processed data: 30 gainers, 2 losers, 13 banner items
+2026-02-06 22:13:19,157 - INFO - Warmed /data cache after DEV seeding
+2026-02-06 22:13:19,157 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:13:19,157 - INFO - Volume 1h updater thread started
+2026-02-06 22:13:19,158 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:13:19,158 - INFO - Background update thread started
+2026-02-06 22:13:19,159 - INFO - Sentiment polling thread started
+2026-02-06 22:13:19,159 - INFO - Server starting on http://127.0.0.1:5004
+2026-02-06 22:13:19,169 - INFO - [volume1h] tracked=9 ok=0 fail=9 rl=0 skip=0
+2026-02-06 22:13:19,204 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5004
+2026-02-06 22:13:19,204 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-06 22:13:19,319 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:20,015 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:13:20,015 - INFO - Background update thread started (flask-run bootstrap)
+2026-02-06 22:13:20,015 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:13:20,016 - INFO - [volume1h] tracked=9 ok=0 fail=0 rl=0 skip=9
+2026-02-06 22:13:20,016 - INFO - Volume 1h updater thread started (flask-run bootstrap)
+2026-02-06 22:13:20,016 - INFO - External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.
+2026-02-06 22:13:20,019 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:20] "GET /health HTTP/1.1" 200 -
+2026-02-06 22:13:20,030 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:20,334 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:22,991 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:23,044 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:23,302 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:24,403 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:28,456 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:28,457 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:28,547 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:13:28,551 - INFO - Successfully processed data: 30 gainers, 3 losers, 11 banner items
+2026-02-06 22:13:28,554 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:13:28,553 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:13:28,554 - INFO - Price fetch: 30 gainers, 3 losers, 11 banner
+2026-02-06 22:13:28,563 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:13:28,564 - INFO - Successfully processed data: 30 gainers, 3 losers, 11 banner items
+2026-02-06 22:13:28,565 - INFO - Price fetch: 30 gainers, 3 losers, 11 banner
+2026-02-06 22:13:28,564 - INFO - Successfully processed data: 30 gainers, 8 losers, 11 banner items
+2026-02-06 22:13:28,574 - INFO - Price fetch: 30 gainers, 8 losers, 11 banner
+2026-02-06 22:13:28,575 - INFO - Successfully processed data: 30 gainers, 8 losers, 11 banner items
+2026-02-06 22:13:28,575 - INFO - Price fetch: 30 gainers, 8 losers, 11 banner
+2026-02-06 22:13:28,727 - INFO - 1m retention candidates=24 retained_symbols=24 gainers=14 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:28,728 - INFO - 1-min data processed (throttle 25s) retained=24 gainers=14 losers=10
+2026-02-06 22:13:28,730 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=24 losers=11 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:28,730 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=24 losers=11
+2026-02-06 22:13:28,760 - INFO - 1m retention candidates=24 retained_symbols=24 gainers=14 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:28,761 - INFO - 1-min data processed (throttle 25s) retained=24 gainers=14 losers=10
+2026-02-06 22:13:28,819 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:28,820 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:28,852 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=24 losers=11 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:28,852 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=24 losers=11
+2026-02-06 22:13:28,974 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:28,978 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:29,245 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:29,248 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:29,678 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:29,680 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:30,383 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:30,390 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:32,318 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:32] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:32,322 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:32] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:36,121 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:37,351 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:37,354 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:37,585 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:37,702 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:39,272 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:39,290 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:41,433 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:41,437 - INFO - [volume1h] tracked=52 ok=0 fail=35 rl=0 skip=17
+2026-02-06 22:13:41,435 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:41,625 - INFO - [volume1h] tracked=52 ok=0 fail=0 rl=0 skip=52
+2026-02-06 22:13:41,868 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:41,899 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:42,961 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:42,986 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:13:43,838 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:43] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:43,845 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:43] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:46,130 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:46,133 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:46,755 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:13:46,755 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:13:46,758 - INFO - Successfully processed data: 30 gainers, 1 losers, 14 banner items
+2026-02-06 22:13:46,759 - INFO - Successfully processed data: 30 gainers, 1 losers, 14 banner items
+2026-02-06 22:13:46,759 - INFO - Price fetch: 30 gainers, 1 losers, 14 banner
+2026-02-06 22:13:46,759 - INFO - Price fetch: 30 gainers, 1 losers, 14 banner
+2026-02-06 22:13:46,810 - INFO - 1m retention candidates=29 retained_symbols=29 gainers=12 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:46,810 - INFO - 1-min data processed (throttle 25s) retained=29 gainers=12 losers=17
+2026-02-06 22:13:46,824 - INFO - 1m retention candidates=30 retained_symbols=30 gainers=13 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:46,824 - INFO - 1-min data processed (throttle 25s) retained=30 gainers=13 losers=17
+2026-02-06 22:13:46,894 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:46,896 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:13:48,565 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:48] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:48,568 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:48] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:51,096 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:13:51,098 - INFO - Successfully processed data: 30 gainers, 9 losers, 10 banner items
+2026-02-06 22:13:51,098 - INFO - Price fetch: 30 gainers, 9 losers, 10 banner
+2026-02-06 22:13:51,165 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:51,165 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:13:51,170 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:13:51,171 - INFO - Successfully processed data: 30 gainers, 9 losers, 10 banner items
+2026-02-06 22:13:51,171 - INFO - Price fetch: 30 gainers, 9 losers, 10 banner
+2026-02-06 22:13:51,230 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=7 losers=28 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:13:51,230 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=7 losers=28
+2026-02-06 22:13:52,618 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:52] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:53,008 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:53,011 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:55,212 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:55,214 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:57,827 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:57,835 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:59,750 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:13:59,753 - INFO - 127.0.0.1 - - [06/Feb/2026 22:13:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:01,379 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:01,430 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:01,623 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:01] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:01,633 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:01] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:03,812 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:03,817 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:04,710 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:04,712 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:05,486 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:05,498 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:07,019 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:07,023 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:07,958 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:07,958 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:09,780 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:09] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:09,784 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:09] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:10,741 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:10,742 - INFO - Successfully processed data: 30 gainers, 1 losers, 11 banner items
+2026-02-06 22:14:10,742 - INFO - Price fetch: 30 gainers, 1 losers, 11 banner
+2026-02-06 22:14:10,805 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=18 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:10,805 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=18 losers=17
+2026-02-06 22:14:10,837 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:10,838 - INFO - Successfully processed data: 30 gainers, 1 losers, 11 banner items
+2026-02-06 22:14:10,838 - INFO - Price fetch: 30 gainers, 1 losers, 11 banner
+2026-02-06 22:14:10,899 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=18 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:10,899 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=18 losers=17
+2026-02-06 22:14:12,907 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:14:12,911 - INFO - Successfully processed data: 30 gainers, 9 losers, 12 banner items
+2026-02-06 22:14:12,912 - INFO - Price fetch: 30 gainers, 9 losers, 12 banner
+2026-02-06 22:14:12,989 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:12,989 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:14:13,108 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:14:13,109 - INFO - Successfully processed data: 30 gainers, 9 losers, 12 banner items
+2026-02-06 22:14:13,109 - INFO - Price fetch: 30 gainers, 9 losers, 12 banner
+2026-02-06 22:14:13,175 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=21 losers=14 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:13,175 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=21 losers=14
+2026-02-06 22:14:13,592 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:13] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:13,598 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:13] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:15,658 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:15] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:15,657 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:15] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:19,651 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:19] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:20,540 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:20,544 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:22,371 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:22,384 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:24,312 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:24] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:25,152 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:25,157 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:26,381 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:26,390 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:26,430 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:26,431 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:28,063 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:28,066 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:30,510 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:30,511 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:30,954 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:30,955 - INFO - Successfully processed data: 30 gainers, 5 losers, 11 banner items
+2026-02-06 22:14:30,955 - INFO - Price fetch: 30 gainers, 5 losers, 11 banner
+2026-02-06 22:14:30,985 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:30,986 - INFO - Successfully processed data: 30 gainers, 5 losers, 11 banner items
+2026-02-06 22:14:30,987 - INFO - Price fetch: 30 gainers, 5 losers, 11 banner
+2026-02-06 22:14:31,052 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=27 losers=8 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:31,052 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=27 losers=8
+2026-02-06 22:14:31,091 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=27 losers=8 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:31,091 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=27 losers=8
+2026-02-06 22:14:31,562 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:31,566 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:34,085 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:34,085 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:34,087 - INFO - Successfully processed data: 30 gainers, 14 losers, 11 banner items
+2026-02-06 22:14:34,089 - INFO - Successfully processed data: 30 gainers, 14 losers, 11 banner items
+2026-02-06 22:14:34,089 - INFO - Price fetch: 30 gainers, 14 losers, 11 banner
+2026-02-06 22:14:34,090 - INFO - Price fetch: 30 gainers, 14 losers, 11 banner
+2026-02-06 22:14:34,138 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:34,138 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:14:34,164 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:34,164 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:14:35,459 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:35,466 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:36,994 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:36,996 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:40,628 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:40] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:42,028 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:42,030 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:45,077 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:45] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:45,081 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:45] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:45,137 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:45,250 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:47,267 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:47,275 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:14:49,170 - INFO - [volume1h] tracked=44 ok=0 fail=44 rl=0 skip=0
+2026-02-06 22:14:49,262 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:49] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:49,287 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:49,289 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:50,021 - INFO - [volume1h] tracked=44 ok=0 fail=0 rl=0 skip=44
+2026-02-06 22:14:50,044 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:50] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:50,050 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:50] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:51,385 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:51,568 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:14:53,511 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:53,515 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:54,013 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:54,013 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:14:54,015 - INFO - Successfully processed data: 26 gainers, 9 losers, 11 banner items
+2026-02-06 22:14:54,017 - INFO - Successfully processed data: 26 gainers, 9 losers, 11 banner items
+2026-02-06 22:14:54,021 - INFO - Price fetch: 26 gainers, 9 losers, 11 banner
+2026-02-06 22:14:54,019 - INFO - Price fetch: 26 gainers, 9 losers, 11 banner
+2026-02-06 22:14:54,079 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:54,079 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:14:54,096 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:54,096 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:14:55,162 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:55,168 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:56,108 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:14:56,110 - INFO - Successfully processed data: 30 gainers, 18 losers, 10 banner items
+2026-02-06 22:14:56,110 - INFO - Price fetch: 30 gainers, 18 losers, 10 banner
+2026-02-06 22:14:56,111 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:14:56,112 - INFO - Successfully processed data: 30 gainers, 18 losers, 10 banner items
+2026-02-06 22:14:56,112 - INFO - Price fetch: 30 gainers, 18 losers, 10 banner
+2026-02-06 22:14:56,165 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:56,165 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:14:56,176 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:14:56,176 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:14:58,591 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:58] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:14:58,594 - INFO - 127.0.0.1 - - [06/Feb/2026 22:14:58] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:00,270 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:00] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:00,273 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:00] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:04,354 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:04,941 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:04,944 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:06,622 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:06,648 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:06,823 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:06,826 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:07,890 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:07,893 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:10,118 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:10,123 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:10,787 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:10,788 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:11,437 - INFO - [volume1h] tracked=60 ok=0 fail=27 rl=0 skip=33
+2026-02-06 22:15:11,626 - INFO - [volume1h] tracked=60 ok=0 fail=0 rl=0 skip=60
+2026-02-06 22:15:11,916 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:11] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:12,522 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:12] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:12,537 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:12] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:14,457 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:14,601 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:15,501 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:15:15,503 - INFO - Successfully processed data: 30 gainers, 29 losers, 12 banner items
+2026-02-06 22:15:15,504 - INFO - Price fetch: 30 gainers, 29 losers, 12 banner
+2026-02-06 22:15:15,507 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:15:15,509 - INFO - Successfully processed data: 30 gainers, 29 losers, 12 banner items
+2026-02-06 22:15:15,509 - INFO - Price fetch: 30 gainers, 29 losers, 12 banner
+2026-02-06 22:15:15,633 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:15,633 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:15:15,644 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:15,644 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:15:16,072 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:16] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:16,075 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:16] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:18,135 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:18,138 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:18,750 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:15:18,752 - INFO - Successfully processed data: 30 gainers, 30 losers, 14 banner items
+2026-02-06 22:15:18,753 - INFO - Price fetch: 30 gainers, 30 losers, 14 banner
+2026-02-06 22:15:18,841 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=17 losers=18 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:18,841 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=17 losers=18
+2026-02-06 22:15:18,868 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:15:18,869 - INFO - Successfully processed data: 30 gainers, 30 losers, 14 banner items
+2026-02-06 22:15:18,869 - INFO - Price fetch: 30 gainers, 30 losers, 14 banner
+2026-02-06 22:15:18,952 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=17 losers=18 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:18,952 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=17 losers=18
+2026-02-06 22:15:22,024 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:22] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:22,038 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:22] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:25,105 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:25,108 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:26,274 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:26] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:26,278 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:26] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:29,865 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:29,884 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:30,058 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:31,047 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:31,054 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:31,970 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:31,984 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:34,113 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:34,124 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:34,665 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:34] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:35,925 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:35,929 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:36,483 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:36,654 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:39,232 - WARNING - Error processing Coinbase 24h data for AIOZ-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Max retries exceeded with url: /products/AIOZ-USD/ticker (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x118a2a210>: Failed to resolve 'api.exchange.coinbase.com' ([Errno 8] nodename nor servname provided, or not known)"))
+2026-02-06 22:15:39,296 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:15:39,297 - INFO - Successfully processed data: 28 gainers, 30 losers, 12 banner items
+2026-02-06 22:15:39,297 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:15:39,297 - INFO - Price fetch: 28 gainers, 30 losers, 12 banner
+2026-02-06 22:15:39,298 - INFO - Successfully processed data: 28 gainers, 30 losers, 12 banner items
+2026-02-06 22:15:39,299 - INFO - Price fetch: 28 gainers, 30 losers, 12 banner
+2026-02-06 22:15:39,386 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=10 losers=25 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:39,386 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=10 losers=25
+2026-02-06 22:15:39,403 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=10 losers=25 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:39,403 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=10 losers=25
+2026-02-06 22:15:39,730 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:39,734 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:39,994 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:15:39,994 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:15:39,995 - INFO - Successfully processed data: 27 gainers, 30 losers, 11 banner items
+2026-02-06 22:15:39,996 - INFO - Successfully processed data: 27 gainers, 30 losers, 11 banner items
+2026-02-06 22:15:39,997 - INFO - Price fetch: 27 gainers, 30 losers, 11 banner
+2026-02-06 22:15:39,997 - INFO - Price fetch: 27 gainers, 30 losers, 11 banner
+2026-02-06 22:15:40,046 - INFO - 1m retention candidates=55 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:40,046 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:15:40,056 - INFO - 1m retention candidates=55 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:15:40,056 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:15:42,710 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:42,714 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:46,519 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:46,522 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:50,324 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:50] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:50,327 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:50] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:53,095 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:53,100 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:53,249 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:53,277 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:54,945 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:54,970 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:15:56,747 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:56] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:57,187 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:57,192 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:57,316 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:57,319 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:58,678 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:58,712 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:15:59,885 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:15:59,888 - INFO - 127.0.0.1 - - [06/Feb/2026 22:15:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:02,403 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:02,407 - INFO - Successfully processed data: 19 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:02,407 - INFO - Price fetch: 19 gainers, 30 losers, 12 banner
+2026-02-06 22:16:02,408 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:02,411 - INFO - Successfully processed data: 29 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:02,411 - INFO - Price fetch: 29 gainers, 30 losers, 12 banner
+2026-02-06 22:16:02,412 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:02,414 - INFO - Successfully processed data: 19 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:02,414 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:02,414 - INFO - Price fetch: 19 gainers, 30 losers, 12 banner
+2026-02-06 22:16:02,416 - INFO - Successfully processed data: 29 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:02,417 - INFO - Price fetch: 29 gainers, 30 losers, 12 banner
+2026-02-06 22:16:02,509 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:02,510 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:16:02,524 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:02,524 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:16:02,527 - INFO - 1m retention candidates=50 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:02,527 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:16:02,532 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:02,532 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:16:02,965 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:02] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:02,968 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:02] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:06,036 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:06,040 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:08,360 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:08] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:08,364 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:08] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:10,344 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:10] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:10,348 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:10] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:13,781 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:13] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:13,794 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:13] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:14,343 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:14,350 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:16,213 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:16,356 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:17,756 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:17] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:18,416 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:18,557 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:18,668 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:18,682 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:19,171 - INFO - [volume1h] tracked=64 ok=0 fail=64 rl=0 skip=0
+2026-02-06 22:16:20,026 - INFO - [volume1h] tracked=64 ok=0 fail=0 rl=0 skip=64
+2026-02-06 22:16:20,513 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:20,517 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:21,670 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:21] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:21,681 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:21] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:23,395 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:23,396 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:23,396 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:23,413 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:23,413 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:23,413 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:23,453 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:23,453 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:16:23,461 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:23,461 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:16:23,720 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:23,722 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:23,722 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:23,732 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:23,733 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:23,733 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:23,780 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=13 losers=22 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:23,780 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=13 losers=22
+2026-02-06 22:16:23,806 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=13 losers=22 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:23,806 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=13 losers=22
+2026-02-06 22:16:25,058 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:25,064 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:28,022 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:28,028 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:29,777 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:29,781 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:31,862 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:31,866 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:31] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:35,481 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:36,042 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:36,047 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:36,884 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:36,900 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:37,021 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:37,025 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:37,126 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:37,133 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:16:38,316 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:38] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:38,322 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:38] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:40,843 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:40,860 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:40,862 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:40,957 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:16:41,447 - INFO - [volume1h] tracked=67 ok=0 fail=32 rl=0 skip=35
+2026-02-06 22:16:41,542 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:41,545 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:41,627 - INFO - [volume1h] tracked=67 ok=0 fail=0 rl=0 skip=67
+2026-02-06 22:16:45,595 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:45] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:45,682 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:45,686 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:45,688 - INFO - Successfully processed data: 30 gainers, 28 losers, 12 banner items
+2026-02-06 22:16:45,688 - INFO - Price fetch: 30 gainers, 28 losers, 12 banner
+2026-02-06 22:16:45,690 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:45,690 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:45,708 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:45,709 - INFO - Successfully processed data: 30 gainers, 28 losers, 12 banner items
+2026-02-06 22:16:45,710 - INFO - Price fetch: 30 gainers, 28 losers, 12 banner
+2026-02-06 22:16:45,793 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:16:45,795 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:16:45,795 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:16:45,822 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:45,822 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:16:45,832 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:45,832 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:16:45,840 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=25 losers=10 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:45,840 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=25 losers=10
+2026-02-06 22:16:45,893 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:16:45,893 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:16:46,320 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:46,326 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:47,933 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:47] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:47,938 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:47] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:51,907 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:51] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:52,729 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:52] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:52,753 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:52] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:54,404 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:54] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:54,409 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:54] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:58,296 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:58] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:58,836 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:58] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:16:58,840 - INFO - 127.0.0.1 - - [06/Feb/2026 22:16:58] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:00,544 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:00,546 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:00,709 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:00,714 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:02,801 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:02] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:03,181 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:03] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:03,185 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:03] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:04,676 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:04,707 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:04,755 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:04,842 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:06,762 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:07,293 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:07,301 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:09,550 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:17:09,552 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:17:09,552 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:17:09,627 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:09,628 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:17:09,786 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:09] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:09,791 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:09] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:09,797 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:17:09,800 - INFO - Successfully processed data: 30 gainers, 29 losers, 11 banner items
+2026-02-06 22:17:09,800 - INFO - Price fetch: 30 gainers, 29 losers, 11 banner
+2026-02-06 22:17:09,801 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:17:09,804 - INFO - Successfully processed data: 30 gainers, 30 losers, 11 banner items
+2026-02-06 22:17:09,804 - INFO - Price fetch: 30 gainers, 30 losers, 11 banner
+2026-02-06 22:17:09,861 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:17:09,862 - INFO - Successfully processed data: 30 gainers, 29 losers, 11 banner items
+2026-02-06 22:17:09,862 - INFO - Price fetch: 30 gainers, 29 losers, 11 banner
+2026-02-06 22:17:09,988 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:09,989 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:17:09,989 - INFO - 1m retention candidates=45 retained_symbols=35 gainers=26 losers=9 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:09,990 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=26 losers=9
+2026-02-06 22:17:10,007 - INFO - 1m retention candidates=49 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:10,007 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:17:11,607 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:11] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:11,611 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:11] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:14,582 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:14] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:14,586 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:14] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:16,964 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:16] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:16,974 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:16] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:18,470 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:18,474 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:22,135 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:22] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:23,367 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:23] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:23,371 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:23] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:23,448 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:23,581 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:24,098 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:24,103 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:27,410 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:27] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:27,801 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:27,801 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:27,854 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:27,858 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:27,878 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:27] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:27,883 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:27] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:30,654 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:30,660 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:32,330 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:32] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:32,369 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:32] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:32,864 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:32,864 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:32,865 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:32,866 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:32,866 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:17:32,866 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:17:32,870 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:32,874 - INFO - Successfully processed data: 24 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:32,875 - INFO - Price fetch: 24 gainers, 30 losers, 12 banner
+2026-02-06 22:17:32,885 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:32,887 - INFO - Successfully processed data: 24 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:32,888 - INFO - Price fetch: 24 gainers, 30 losers, 12 banner
+2026-02-06 22:17:33,026 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:33,027 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:17:33,079 - INFO - 1m retention candidates=47 retained_symbols=35 gainers=19 losers=16 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:33,079 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=19 losers=16
+2026-02-06 22:17:33,079 - INFO - 1m retention candidates=41 retained_symbols=35 gainers=18 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:33,079 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=18 losers=17
+2026-02-06 22:17:33,089 - INFO - 1m retention candidates=41 retained_symbols=35 gainers=18 losers=17 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:33,089 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=18 losers=17
+2026-02-06 22:17:35,048 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:35,059 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:35] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:38,862 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:38] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:39,100 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:39,104 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:39] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:42,809 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:42,820 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:44,903 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:44] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:44,908 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:44] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:46,839 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:46,855 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:47,673 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:47,680 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:17:48,805 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:48] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:49,176 - INFO - [volume1h] tracked=66 ok=0 fail=66 rl=0 skip=0
+2026-02-06 22:17:49,449 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:49] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:49,452 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:49] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:50,031 - INFO - [volume1h] tracked=66 ok=0 fail=0 rl=0 skip=66
+2026-02-06 22:17:51,302 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:51,302 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:51,412 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:51,412 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:17:52,784 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:52] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:52,790 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:52] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:55,954 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:55,955 - INFO - Successfully processed data: 18 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:55,955 - INFO - Price fetch: 18 gainers, 30 losers, 12 banner
+2026-02-06 22:17:55,961 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:55,962 - INFO - Successfully processed data: 29 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:55,962 - INFO - Price fetch: 29 gainers, 30 losers, 12 banner
+2026-02-06 22:17:56,042 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:56,043 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:17:56,060 - INFO - 1m retention candidates=44 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:56,060 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:17:56,070 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:56,071 - INFO - Successfully processed data: 29 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:56,071 - INFO - Price fetch: 29 gainers, 30 losers, 12 banner
+2026-02-06 22:17:56,092 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:17:56,093 - INFO - Successfully processed data: 18 gainers, 30 losers, 12 banner items
+2026-02-06 22:17:56,093 - INFO - Price fetch: 18 gainers, 30 losers, 12 banner
+2026-02-06 22:17:56,172 - INFO - 1m retention candidates=44 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:56,172 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:17:56,181 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:17:56,181 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:17:56,539 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:56] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:56,542 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:56] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:59,684 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:17:59,685 - INFO - 127.0.0.1 - - [06/Feb/2026 22:17:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:00,745 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:00] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:00,749 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:00] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:04,706 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:04] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:05,647 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:05] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:05,655 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:05] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:08,116 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:08] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:08,118 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:08] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:09,594 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:09,595 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:10,223 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:10,245 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:10,697 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:10] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:10,701 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:10] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:11,453 - INFO - [volume1h] tracked=53 ok=0 fail=17 rl=0 skip=36
+2026-02-06 22:18:11,633 - INFO - [volume1h] tracked=53 ok=0 fail=0 rl=0 skip=53
+2026-02-06 22:18:12,252 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:12] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:12,256 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:12] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:13,578 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:13,585 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:14,283 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:14,299 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:14,460 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:14] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:14,463 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:14] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:17,444 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:17] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:17,449 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:17] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:18,870 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:18:18,872 - INFO - Successfully processed data: 21 gainers, 30 losers, 10 banner items
+2026-02-06 22:18:18,873 - INFO - Price fetch: 21 gainers, 30 losers, 10 banner
+2026-02-06 22:18:18,942 - INFO - 1m retention candidates=42 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:18,942 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:18:19,016 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:18:19,017 - INFO - Successfully processed data: 21 gainers, 30 losers, 10 banner items
+2026-02-06 22:18:19,017 - INFO - Price fetch: 21 gainers, 30 losers, 10 banner
+2026-02-06 22:18:19,034 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:18:19,035 - INFO - Successfully processed data: 26 gainers, 30 losers, 10 banner items
+2026-02-06 22:18:19,035 - INFO - Price fetch: 26 gainers, 30 losers, 10 banner
+2026-02-06 22:18:19,042 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:18:19,043 - INFO - Successfully processed data: 26 gainers, 30 losers, 10 banner items
+2026-02-06 22:18:19,043 - INFO - Price fetch: 26 gainers, 30 losers, 10 banner
+2026-02-06 22:18:19,091 - INFO - 1m retention candidates=42 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:19,091 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:18:19,099 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:19,099 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:18:19,126 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=8 losers=27 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:19,126 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=8 losers=27
+2026-02-06 22:18:20,153 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:20,154 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:24,218 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:24] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:24,998 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:24] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:25,001 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:29,369 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:29,392 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:29,395 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:32,800 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:32,816 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:33,381 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:33] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:37,034 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:37,041 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:37,383 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:40,969 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:40] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:42,068 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:18:42,069 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:18:42,069 - INFO - Successfully processed data: 30 gainers, 28 losers, 13 banner items
+2026-02-06 22:18:42,069 - INFO - Price fetch: 30 gainers, 28 losers, 13 banner
+2026-02-06 22:18:42,070 - INFO - Successfully processed data: 30 gainers, 28 losers, 13 banner items
+2026-02-06 22:18:42,070 - INFO - Price fetch: 30 gainers, 28 losers, 13 banner
+2026-02-06 22:18:42,130 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:42,130 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:18:42,163 - INFO - 1m retention candidates=43 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:18:42,164 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:18:45,055 - INFO - 127.0.0.1 - - [06/Feb/2026 22:18:45] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:18:47,353 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 22:18:51,309 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 22:18:51,315 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 22:18:51,320 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:18:51,320 - INFO - CACHE_TTL: 60
+2026-02-06 22:18:51,321 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:18:51,321 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:18:51,321 - INFO - PORT: 5003
+2026-02-06 22:18:51,321 - INFO - HOST: 127.0.0.1
+2026-02-06 22:18:51,321 - INFO - DEBUG: False
+2026-02-06 22:18:51,321 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:18:51,321 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:18:51,321 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:18:51,321 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:18:51,321 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:18:51,321 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:18:51,321 - INFO - API_TIMEOUT: 10
+2026-02-06 22:18:51,321 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:18:51,321 - INFO - ENABLE_1MIN: True
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:18:51,321 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:18:51,321 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:18:51,321 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:18:51,321 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:18:51,321 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:18:51,321 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:18:51,321 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:18:51,321 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:18:51,321 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:18:51,321 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:18:51,321 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:18:51,321 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:18:51,321 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:18:51,321 - INFO - ===============================
+2026-02-06 22:18:51,328 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:18:51,328 - INFO - CACHE_TTL: 60
+2026-02-06 22:18:51,328 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:18:51,328 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:18:51,328 - INFO - PORT: 5003
+2026-02-06 22:18:51,328 - INFO - HOST: 127.0.0.1
+2026-02-06 22:18:51,328 - INFO - DEBUG: False
+2026-02-06 22:18:51,328 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:18:51,328 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:18:51,328 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:18:51,328 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:18:51,328 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:18:51,328 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:18:51,328 - INFO - API_TIMEOUT: 10
+2026-02-06 22:18:51,328 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:18:51,328 - INFO - ENABLE_1MIN: True
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:18:51,328 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:18:51,328 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:18:51,328 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:18:51,328 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:18:51,328 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:18:51,328 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:18:51,328 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:18:51,328 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:18:51,328 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:18:51,328 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:18:51,328 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:18:51,328 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:18:51,328 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:18:51,328 - INFO - ===============================
+2026-02-06 22:18:51,328 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2026-02-06 22:18:51,335 - INFO - SQLite price snapshot database initialized
+2026-02-06 22:18:51,618 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:54,262 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:54,273 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:18:55,716 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:58,325 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:18:58,325 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:19:00,196 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:19:00,197 - INFO - Successfully processed data: 26 gainers, 15 losers, 13 banner items
+2026-02-06 22:19:00,197 - INFO - Warmed /data cache after DEV seeding
+2026-02-06 22:19:00,198 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:19:00,198 - INFO - Volume 1h updater thread started
+2026-02-06 22:19:00,198 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:19:00,199 - INFO - Background update thread started
+2026-02-06 22:19:00,200 - INFO - Sentiment polling thread started
+2026-02-06 22:19:00,200 - INFO - Server starting on http://127.0.0.1:5003
+2026-02-06 22:19:00,201 - INFO - [volume1h] tracked=9 ok=0 fail=9 rl=0 skip=0
+2026-02-06 22:19:00,230 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5003
+2026-02-06 22:19:00,230 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-06 22:19:00,231 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:19:00,231 - INFO - Background update thread started (flask-run bootstrap)
+2026-02-06 22:19:00,231 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:19:00,231 - INFO - Volume 1h updater thread started (flask-run bootstrap)
+2026-02-06 22:19:00,231 - INFO - [volume1h] tracked=9 ok=0 fail=0 rl=0 skip=9
+2026-02-06 22:19:00,232 - INFO - External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.
+2026-02-06 22:19:00,233 - INFO - 127.0.0.1 - - [06/Feb/2026 22:19:00] "GET /health HTTP/1.1" 200 -
+2026-02-06 22:19:00,243 - INFO - 127.0.0.1 - - [06/Feb/2026 22:19:00] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:19:00,421 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:00,453 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:02,675 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:19:02,685 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:19:02,687 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:19:02,692 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:19:02,697 - INFO - Successfully processed data: 30 gainers, 30 losers, 12 banner items
+2026-02-06 22:19:02,698 - INFO - Price fetch: 30 gainers, 30 losers, 12 banner
+2026-02-06 22:19:02,805 - INFO - 1m retention candidates=48 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:02,805 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:19:03,008 - INFO - 1m retention candidates=48 retained_symbols=35 gainers=22 losers=13 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:03,008 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=22 losers=13
+2026-02-06 22:19:17,753 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:17,759 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:19,186 - INFO - [volume1h] tracked=64 ok=0 fail=64 rl=0 skip=0
+2026-02-06 22:19:20,032 - INFO - [volume1h] tracked=64 ok=0 fail=0 rl=0 skip=64
+2026-02-06 22:19:21,919 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:19:21,922 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:19:25,531 - WARNING - Error processing Coinbase 24h data for ENS-USD: HTTPSConnectionPool(host='api.exchange.coinbase.com', port=443): Read timed out. (read timeout=3)
+2026-02-06 22:19:26,682 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:19:26,684 - INFO - Successfully processed data: 28 gainers, 30 losers, 10 banner items
+2026-02-06 22:19:26,685 - INFO - Price fetch: 28 gainers, 30 losers, 10 banner
+2026-02-06 22:19:26,769 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:19:26,769 - INFO - Successfully processed data: 28 gainers, 30 losers, 10 banner items
+2026-02-06 22:19:26,769 - INFO - Price fetch: 28 gainers, 30 losers, 10 banner
+2026-02-06 22:19:26,773 - INFO - 1m retention candidates=39 retained_symbols=35 gainers=4 losers=31 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:26,773 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=4 losers=31
+2026-02-06 22:19:26,827 - INFO - 1m retention candidates=39 retained_symbols=35 gainers=4 losers=31 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:26,827 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=4 losers=31
+2026-02-06 22:19:41,345 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:41,442 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:19:45,518 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:19:45,532 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:19:49,953 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:19:49,954 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:19:49,957 - INFO - Successfully processed data: 24 gainers, 30 losers, 11 banner items
+2026-02-06 22:19:49,959 - INFO - Successfully processed data: 24 gainers, 30 losers, 11 banner items
+2026-02-06 22:19:49,959 - INFO - Price fetch: 24 gainers, 30 losers, 11 banner
+2026-02-06 22:19:49,960 - INFO - Price fetch: 24 gainers, 30 losers, 11 banner
+2026-02-06 22:19:50,027 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=6 losers=29 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:50,027 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=6 losers=29
+2026-02-06 22:19:50,036 - INFO - 1m retention candidates=38 retained_symbols=35 gainers=6 losers=29 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:19:50,036 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=6 losers=29
+2026-02-06 22:20:06,260 - INFO - CORS configured with dev_origins: 7 origins
+2026-02-06 22:20:08,694 - WARNING - sentiment_intelligence.load_engine not available: cannot import name 'load_engine' from 'sentiment_intelligence' (/Users/cdmxx/Documents/moonwalkings/backend/sentiment_intelligence.py)
+2026-02-06 22:20:08,694 - WARNING - Intelligence API blueprint registration skipped: name 'logger' is not defined
+2026-02-06 22:20:08,698 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:20:08,698 - INFO - CACHE_TTL: 60
+2026-02-06 22:20:08,698 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:20:08,698 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:20:08,698 - INFO - PORT: 5003
+2026-02-06 22:20:08,698 - INFO - HOST: 127.0.0.1
+2026-02-06 22:20:08,698 - INFO - DEBUG: False
+2026-02-06 22:20:08,698 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:20:08,698 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:20:08,698 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:20:08,698 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:20:08,698 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:20:08,698 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:20:08,698 - INFO - API_TIMEOUT: 10
+2026-02-06 22:20:08,698 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:20:08,698 - INFO - ENABLE_1MIN: True
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:20:08,698 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:20:08,698 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:20:08,698 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:20:08,698 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:20:08,699 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:20:08,699 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:20:08,699 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:20:08,699 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:20:08,699 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:20:08,699 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:20:08,699 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:20:08,699 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:20:08,699 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:20:08,699 - INFO - ===============================
+2026-02-06 22:20:08,704 - INFO - === CBMo4ers Configuration ===
+2026-02-06 22:20:08,704 - INFO - CACHE_TTL: 60
+2026-02-06 22:20:08,704 - INFO - INTERVAL_MINUTES: 3
+2026-02-06 22:20:08,704 - INFO - MAX_PRICE_HISTORY: 90
+2026-02-06 22:20:08,704 - INFO - PORT: 5003
+2026-02-06 22:20:08,704 - INFO - HOST: 127.0.0.1
+2026-02-06 22:20:08,704 - INFO - DEBUG: False
+2026-02-06 22:20:08,704 - INFO - UPDATE_INTERVAL: 60
+2026-02-06 22:20:08,704 - INFO - PRICE_FETCH_INTERVAL: 8
+2026-02-06 22:20:08,704 - INFO - SNAPSHOT_COMPUTE_INTERVAL: 8
+2026-02-06 22:20:08,704 - INFO - MAX_COINS_PER_CATEGORY: 30
+2026-02-06 22:20:08,704 - INFO - MIN_VOLUME_THRESHOLD: 0
+2026-02-06 22:20:08,704 - INFO - MIN_CHANGE_THRESHOLD: 0.15
+2026-02-06 22:20:08,704 - INFO - API_TIMEOUT: 10
+2026-02-06 22:20:08,704 - INFO - CHART_DAYS_LIMIT: 30
+2026-02-06 22:20:08,704 - INFO - ENABLE_1MIN: True
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_REFRESH_SECONDS: 25
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_ENTER_PCT: 0.005
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_STAY_PCT: 0.0025
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_MAX_COINS: 35
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_DWELL_SECONDS: 90
+2026-02-06 22:20:08,704 - INFO - TOP_MOVERS_SAMPLE_SIZE: 120
+2026-02-06 22:20:08,704 - INFO - ONE_MIN_DEFAULT_SEED_COUNT: 10
+2026-02-06 22:20:08,704 - INFO - PRICE_UNIVERSE_SAMPLE_SIZE: 120
+2026-02-06 22:20:08,704 - INFO - PRICE_UNIVERSE_MAX: 250
+2026-02-06 22:20:08,704 - INFO - PRICE_MIN_SUCCESS_RATIO: 0.7
+2026-02-06 22:20:08,704 - INFO - ALERTS_COOLDOWN_SECONDS: 300
+2026-02-06 22:20:08,704 - INFO - ALERT_IMPULSE_1M_PCT: 1.25
+2026-02-06 22:20:08,704 - INFO - ALERT_IMPULSE_3M_PCT: 2.0
+2026-02-06 22:20:08,704 - INFO - ALERT_IMPULSE_COOLDOWN_SECONDS: 90
+2026-02-06 22:20:08,704 - INFO - ALERT_IMPULSE_DEDUPE_DELTA: 0.35
+2026-02-06 22:20:08,704 - INFO - ALERT_IMPULSE_TTL_MINUTES: 5
+2026-02-06 22:20:08,704 - INFO - ALERTS_STICKY_SECONDS: 60
+2026-02-06 22:20:08,704 - INFO - ALERTS_STREAK_THRESHOLDS: [3, 5]
+2026-02-06 22:20:08,704 - INFO - ===============================
+2026-02-06 22:20:08,704 - INFO - Starting CBMo4ers Crypto Dashboard Backend...
+2026-02-06 22:20:08,706 - INFO - SQLite price snapshot database initialized
+2026-02-06 22:20:08,840 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:20:13,095 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:20:17,731 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:20:17,732 - INFO - Successfully processed data: 18 gainers, 23 losers, 13 banner items
+2026-02-06 22:20:17,732 - INFO - Warmed /data cache after DEV seeding
+2026-02-06 22:20:17,733 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:20:17,733 - INFO - Volume 1h updater thread started
+2026-02-06 22:20:17,734 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:20:17,735 - INFO - Background update thread started
+2026-02-06 22:20:17,736 - INFO - [volume1h] tracked=9 ok=0 fail=9 rl=0 skip=0
+2026-02-06 22:20:17,736 - INFO - Sentiment polling thread started
+2026-02-06 22:20:17,737 - INFO - Server starting on http://127.0.0.1:5003
+2026-02-06 22:20:17,764 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5003
+2026-02-06 22:20:17,764 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-06 22:20:17,862 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:20:18,258 - INFO - Starting two-loop background worker: compute every 8s, fetch every 8s
+2026-02-06 22:20:18,258 - INFO - Background update thread started (flask-run bootstrap)
+2026-02-06 22:20:18,259 - INFO - Starting volume1h updater: interval=90s workers=4
+2026-02-06 22:20:18,259 - INFO - Volume 1h updater thread started (flask-run bootstrap)
+2026-02-06 22:20:18,259 - INFO - [volume1h] tracked=9 ok=0 fail=0 rl=0 skip=9
+2026-02-06 22:20:18,259 - INFO - External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.
+2026-02-06 22:20:18,260 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:18] "GET /health HTTP/1.1" 200 -
+2026-02-06 22:20:18,273 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:18,393 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:20:22,025 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:20:22,205 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:20:22,999 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:22] "[33mGET /api/intelligence-reports?symbols=POL,XRP HTTP/1.1[0m" 404 -
+2026-02-06 22:20:23,001 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:23] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:23,003 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:23] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:26,559 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:20:26,561 - INFO - Successfully processed data: 21 gainers, 18 losers, 14 banner items
+2026-02-06 22:20:26,561 - INFO - Price fetch: 21 gainers, 18 losers, 14 banner
+2026-02-06 22:20:26,629 - INFO - 1m retention candidates=35 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:20:26,629 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:20:26,643 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:20:26,643 - INFO - Successfully processed data: 21 gainers, 18 losers, 14 banner items
+2026-02-06 22:20:26,643 - INFO - Price fetch: 21 gainers, 18 losers, 14 banner
+2026-02-06 22:20:26,702 - INFO - 1m retention candidates=35 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:20:26,702 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:20:26,777 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:26] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:30,894 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:34,506 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:34] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:35,481 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:20:35,483 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:20:38,595 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:38] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:39,240 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:20:39,260 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:20:42,297 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:42] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:43,430 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 4 losers
+2026-02-06 22:20:43,432 - INFO - Successfully processed data: 26 gainers, 18 losers, 14 banner items
+2026-02-06 22:20:43,432 - INFO - Price fetch: 26 gainers, 18 losers, 14 banner
+2026-02-06 22:20:43,496 - INFO - 1m retention candidates=33 retained_symbols=33 gainers=30 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:20:43,496 - INFO - 1-min data processed (throttle 25s) retained=33 gainers=30 losers=3
+2026-02-06 22:20:43,868 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:20:43,869 - INFO - Successfully processed data: 26 gainers, 18 losers, 11 banner items
+2026-02-06 22:20:43,870 - INFO - Price fetch: 26 gainers, 18 losers, 11 banner
+2026-02-06 22:20:43,937 - INFO - 1m retention candidates=33 retained_symbols=33 gainers=30 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:20:43,937 - INFO - 1-min data processed (throttle 25s) retained=33 gainers=30 losers=3
+2026-02-06 22:20:46,093 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:46] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:50,147 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:50] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:53,956 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:20:57,784 - INFO - 127.0.0.1 - - [06/Feb/2026 22:20:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:01,463 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:01] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:01,859 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:01,886 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:05,313 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:05] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:05,945 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:05,976 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:08,937 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:08] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:10,596 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:21:10,598 - INFO - Successfully processed data: 30 gainers, 9 losers, 10 banner items
+2026-02-06 22:21:10,598 - INFO - Price fetch: 30 gainers, 9 losers, 10 banner
+2026-02-06 22:21:10,665 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:10,665 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:21:10,668 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:21:10,668 - INFO - Successfully processed data: 30 gainers, 9 losers, 10 banner items
+2026-02-06 22:21:10,668 - INFO - Price fetch: 30 gainers, 9 losers, 10 banner
+2026-02-06 22:21:10,725 - INFO - 1m retention candidates=46 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:10,725 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:21:12,713 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:12] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:16,397 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:16] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:20,179 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:20] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:21,557 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:21,564 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:23,885 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:23] "GET /health HTTP/1.1" 200 -
+2026-02-06 22:21:23,996 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:23] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:25,467 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:25,525 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:28,057 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:28] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:29,850 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:21:29,852 - INFO - Successfully processed data: 30 gainers, 7 losers, 13 banner items
+2026-02-06 22:21:29,852 - INFO - Price fetch: 30 gainers, 7 losers, 13 banner
+2026-02-06 22:21:29,920 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:29,921 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:21:30,143 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:21:30,143 - INFO - Successfully processed data: 30 gainers, 7 losers, 13 banner items
+2026-02-06 22:21:30,144 - INFO - Price fetch: 30 gainers, 7 losers, 13 banner
+2026-02-06 22:21:30,200 - INFO - 1m retention candidates=53 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:30,200 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:21:32,106 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:32] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:36,220 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:40,276 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:40] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:44,099 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:44,103 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:21:44,209 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:44] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:47,737 - INFO - [volume1h] tracked=50 ok=0 fail=50 rl=0 skip=0
+2026-02-06 22:21:47,785 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:47] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:48,260 - INFO - [volume1h] tracked=50 ok=0 fail=0 rl=0 skip=50
+2026-02-06 22:21:48,274 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:48,295 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:21:51,342 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:51] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:52,915 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:21:52,916 - INFO - Successfully processed data: 30 gainers, 8 losers, 13 banner items
+2026-02-06 22:21:52,916 - INFO - Price fetch: 30 gainers, 8 losers, 13 banner
+2026-02-06 22:21:52,916 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:21:52,917 - INFO - Successfully processed data: 30 gainers, 8 losers, 13 banner items
+2026-02-06 22:21:52,917 - INFO - Price fetch: 30 gainers, 8 losers, 13 banner
+2026-02-06 22:21:52,968 - INFO - 1m retention candidates=54 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:52,968 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:21:52,977 - INFO - 1m retention candidates=54 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:21:52,977 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:21:55,420 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:21:59,198 - INFO - 127.0.0.1 - - [06/Feb/2026 22:21:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:02,920 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:02] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:06,421 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:06,455 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:06,831 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:06] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:10,369 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:10] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:10,775 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:10,775 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:14,488 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:14] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:15,608 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:22:15,608 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 1 losers
+2026-02-06 22:22:15,609 - INFO - Successfully processed data: 30 gainers, 8 losers, 11 banner items
+2026-02-06 22:22:15,611 - INFO - Successfully processed data: 30 gainers, 8 losers, 11 banner items
+2026-02-06 22:22:15,611 - INFO - Price fetch: 30 gainers, 8 losers, 11 banner
+2026-02-06 22:22:15,611 - INFO - Price fetch: 30 gainers, 8 losers, 11 banner
+2026-02-06 22:22:15,662 - INFO - 1m retention candidates=57 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:22:15,662 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:22:15,677 - INFO - 1m retention candidates=58 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:22:15,677 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:22:18,007 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:21,900 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:21] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:25,666 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:25] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:29,208 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:29] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:29,944 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:29,962 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:33,153 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:33] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:34,017 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:34,023 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:36,709 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:36] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:38,539 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 0 losers
+2026-02-06 22:22:38,541 - INFO - Successfully processed data: 30 gainers, 6 losers, 10 banner items
+2026-02-06 22:22:38,541 - INFO - Price fetch: 30 gainers, 6 losers, 10 banner
+2026-02-06 22:22:38,617 - INFO - 1m retention candidates=71 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:22:38,617 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:22:38,794 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:22:38,795 - INFO - Successfully processed data: 30 gainers, 6 losers, 12 banner items
+2026-02-06 22:22:38,795 - INFO - Price fetch: 30 gainers, 6 losers, 12 banner
+2026-02-06 22:22:38,857 - INFO - 1m retention candidates=71 retained_symbols=35 gainers=32 losers=3 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:22:38,857 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=32 losers=3
+2026-02-06 22:22:40,249 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:40] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:43,913 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:43] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:47,931 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:47] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:51,321 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:51,326 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:22:51,705 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:51] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:55,300 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:55,300 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:22:55,703 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:55] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:22:59,450 - INFO - 127.0.0.1 - - [06/Feb/2026 22:22:59] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:00,025 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:23:00,026 - INFO - Successfully processed data: 30 gainers, 7 losers, 12 banner items
+2026-02-06 22:23:00,027 - INFO - Price fetch: 30 gainers, 7 losers, 12 banner
+2026-02-06 22:23:00,079 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:23:00,080 - INFO - Successfully processed data: 30 gainers, 7 losers, 12 banner items
+2026-02-06 22:23:00,080 - INFO - Price fetch: 30 gainers, 7 losers, 12 banner
+2026-02-06 22:23:00,097 - INFO - 1m retention candidates=58 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:00,097 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:23:00,126 - INFO - 1m retention candidates=58 retained_symbols=35 gainers=28 losers=7 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:00,126 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=28 losers=7
+2026-02-06 22:23:03,508 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:03] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:07,363 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:07] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:11,372 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:11] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:14,740 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:23:14,806 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:23:15,189 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:15] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:17,740 - INFO - [volume1h] tracked=51 ok=0 fail=51 rl=0 skip=0
+2026-02-06 22:23:18,264 - INFO - [volume1h] tracked=51 ok=0 fail=0 rl=0 skip=51
+2026-02-06 22:23:18,734 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:18] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:18,929 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:23:19,070 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:23:22,559 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:22] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:23,621 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:23:23,623 - INFO - Successfully processed data: 30 gainers, 9 losers, 12 banner items
+2026-02-06 22:23:23,624 - INFO - Price fetch: 30 gainers, 9 losers, 12 banner
+2026-02-06 22:23:23,692 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:23,692 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:23:23,698 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 2 losers
+2026-02-06 22:23:23,698 - INFO - Successfully processed data: 30 gainers, 9 losers, 12 banner items
+2026-02-06 22:23:23,699 - INFO - Price fetch: 30 gainers, 9 losers, 12 banner
+2026-02-06 22:23:23,781 - INFO - 1m retention candidates=56 retained_symbols=35 gainers=29 losers=6 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:23,781 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=29 losers=6
+2026-02-06 22:23:26,055 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:26] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:30,075 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:30] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:33,730 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:33] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:36,590 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:23:36,596 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:23:37,510 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:37] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:40,917 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:23:40,989 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:23:41,628 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:41] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:45,397 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:23:45,398 - INFO - Successfully processed data: 30 gainers, 9 losers, 13 banner items
+2026-02-06 22:23:45,398 - INFO - Price fetch: 30 gainers, 9 losers, 13 banner
+2026-02-06 22:23:45,442 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:23:45,443 - INFO - Successfully processed data: 30 gainers, 9 losers, 13 banner items
+2026-02-06 22:23:45,444 - INFO - Price fetch: 30 gainers, 9 losers, 13 banner
+2026-02-06 22:23:45,469 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:45] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:45,494 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:45,494 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:23:45,528 - INFO - 1m retention candidates=51 retained_symbols=35 gainers=31 losers=4 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:23:45,528 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=31 losers=4
+2026-02-06 22:23:49,526 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:49] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:53,094 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:53] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:57,211 - INFO - 127.0.0.1 - - [06/Feb/2026 22:23:57] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:23:58,867 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:23:58,876 - INFO - prices: products=783 usd=368 submitted=120
+2026-02-06 22:24:01,332 - INFO - 127.0.0.1 - - [06/Feb/2026 22:24:01] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:24:03,069 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:24:03,069 - INFO - price_fetch_stats: submitted=120 ok=120 429=0 5xx=0 other=0 exceptions=0 sample=120 deadline_s=8.0
+2026-02-06 22:24:05,304 - INFO - 127.0.0.1 - - [06/Feb/2026 22:24:05] "GET /data HTTP/1.1" 200 -
+2026-02-06 22:24:08,389 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:24:08,392 - INFO - Successfully processed data: 30 gainers, 11 losers, 13 banner items
+2026-02-06 22:24:08,393 - INFO - Price fetch: 30 gainers, 11 losers, 13 banner
+2026-02-06 22:24:08,465 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:24:08,465 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:24:08,720 - INFO - Successfully fetched Coinbase 24h top movers: 10 gainers, 3 losers
+2026-02-06 22:24:08,721 - INFO - Successfully processed data: 30 gainers, 11 losers, 13 banner items
+2026-02-06 22:24:08,722 - INFO - Price fetch: 30 gainers, 11 losers, 13 banner
+2026-02-06 22:24:08,808 - INFO - 1m retention candidates=37 retained_symbols=35 gainers=12 losers=23 enter=0.005 stay=0.003 dwell=90s
+2026-02-06 22:24:08,808 - INFO - 1-min data processed (throttle 25s) retained=35 gainers=12 losers=23
+2026-02-06 22:24:09,032 - INFO - 127.0.0.1 - - [06/Feb/2026 22:24:09] "GET /data HTTP/1.1" 200 -

@@ -140,22 +140,27 @@ trap cleanup EXIT INT TERM
 HOST="${HOST:-127.0.0.1}"
 
 REQ_BACKEND_PORT="${BACKEND_PORT:-5003}"
-REQ_FRONTEND_PORT="${FRONTEND_PORT:-5175}"
+REQ_FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-BACKEND_PORT="$(find_free_port "$REQ_BACKEND_PORT")"
-FRONTEND_PORT="$(find_free_port "$REQ_FRONTEND_PORT")"
+# Force fixed ports (no fallback). Reclaim them before launch.
+BACKEND_PORT="$REQ_BACKEND_PORT"
+FRONTEND_PORT="$REQ_FRONTEND_PORT"
 
 # Always reclaim ports before launching (prevents "stuck" runs)
 kill_listeners_on_port "${BACKEND_PORT}"
 kill_listeners_on_port "${FRONTEND_PORT}"
-# Optional: if you run sentiment locally and want it reclaimed too:
-# kill_listeners_on_port "${SENTIMENT_PORT}"
 
 SENTIMENT_HOST="${SENTIMENT_HOST:-$HOST}"
 SENTIMENT_PORT="${SENTIMENT_PORT:-8002}"
 SENTIMENT_PIPELINE_URL="http://${SENTIMENT_HOST}:${SENTIMENT_PORT}"
 
+# Also reclaim sentiment port so it never "sticks"
+kill_listeners_on_port "${SENTIMENT_PORT}"
+
 export HOST BACKEND_PORT FRONTEND_PORT SENTIMENT_HOST SENTIMENT_PORT SENTIMENT_PIPELINE_URL
+
+BACKEND_URL="http://${HOST}:${BACKEND_PORT}"
+export BACKEND_URL
 
 if [ "$BACKEND_PORT" != "$REQ_BACKEND_PORT" ]; then
   echo "[start_app] backend port ${REQ_BACKEND_PORT} busy -> using ${BACKEND_PORT}"
@@ -207,8 +212,6 @@ start_backend_bg() {
 
 start_backend_bg
 
-BACKEND_URL="http://${HOST}:${BACKEND_PORT}"
-
 # Fast readiness: backend process is listening and responding.
 wait_for_http "${BACKEND_URL}/health" 60
 
@@ -224,7 +227,7 @@ for c in \
   "./backend/start_pipeline.sh" \
   "./start_pipeline.sh"
 do
-  if [ -x "$c" ]; then
+  if [ -f "$c" ]; then
     PIPELINE="$c"
     break
   fi
@@ -240,7 +243,7 @@ fi
 if [ -n "$PIPELINE" ]; then
   echo "[start_app] sentiment pipeline: http://${SENTIMENT_HOST}:${SENTIMENT_PORT} (starting in background via ${PIPELINE})"
   (
-    SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" "$PIPELINE"
+    SENTIMENT_HOST="$SENTIMENT_HOST" SENTIMENT_PORT="$SENTIMENT_PORT" SENTIMENT_PIPELINE_URL="$SENTIMENT_PIPELINE_URL" bash "$PIPELINE"
   ) &
   PIPELINE_PID=$!
   wait_for_http "http://${SENTIMENT_HOST}:${SENTIMENT_PORT}/health" 30 || true
@@ -251,4 +254,13 @@ fi
 # --- start frontend (foreground) ---
 cd frontend
 export VITE_PROXY_TARGET="http://${HOST}:${BACKEND_PORT}"
+
+# Re-reclaim frontend port right before Vite (closes any zombie that grabbed it during backend warmup)
+kill_listeners_on_port "${FRONTEND_PORT}"
+
+# Auto-open on macOS
+if [ "$(uname -s)" = "Darwin" ]; then
+  (sleep 2; open "http://${HOST}:${FRONTEND_PORT}/" >/dev/null 2>&1 || true) &
+fi
+
 npm run dev -- --host "$HOST" --port "$FRONTEND_PORT"

@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { useMarketHeat } from "../../hooks/useMarketHeat";
+import React, { useEffect, useMemo, useState } from "react";
+import { API_ENDPOINTS, fetchData } from "../../api";
 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
@@ -33,6 +33,58 @@ const formatTime = (ts) => {
     return "--";
   }
 };
+
+function useBasicSentiment(pollMs = 15000) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    const load = async () => {
+      if (!cancelled) {
+        setState((prev) => ({ ...prev, loading: prev.data == null }));
+      }
+      try {
+        const json = await fetchData(API_ENDPOINTS.sentimentBasic, { cache: "no-store" });
+        if (cancelled) return;
+        setState({ data: json, loading: false, error: null });
+      } catch (err) {
+        if (cancelled) return;
+        setState((prev) => ({ data: prev.data, loading: false, error: err }));
+      } finally {
+        if (!cancelled && pollMs) {
+          timer = setTimeout(load, pollMs);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [pollMs]);
+
+  return state;
+}
+
+function mapBasicSentiment(payload) {
+  const heat = payload?.market_heat || {};
+  const scoreNum = Number(heat?.score);
+  const overallSentiment = Number.isFinite(scoreNum) ? scoreNum / 100 : null;
+  const confidenceNum = Number(heat?.confidence);
+  const sourceBreakdown = Number.isFinite(confidenceNum)
+    ? { tier1: Math.round(confidenceNum * 100), tier2: 0, tier3: 0, fringe: 0 }
+    : {};
+
+  return {
+    overallSentiment,
+    fearGreedIndex: payload?.fear_greed?.value ?? null,
+    updatedAt: payload?.timestamp ?? null,
+    sourceBreakdown,
+  };
+}
 
 export function SentimentCardBody({ d, symbol }) {
   const hasUpdatedAt = Boolean(d.updatedAt);
@@ -128,13 +180,14 @@ export function SentimentCardBody({ d, symbol }) {
 }
 
 export default function SentimentCard({ symbol }) {
-  const { data, loading, error } = useMarketHeat();
+  const { data, loading, error } = useBasicSentiment();
+  const mapped = useMemo(() => mapBasicSentiment(data), [data]);
 
   if (loading) {
     return <div className="state-copy">Loading sentiment…</div>;
   }
-  if (error) {
+  if (error && !data) {
     return <div className="state-copy">Sentiment offline.</div>;
   }
-  return <SentimentCardBody d={data} symbol={symbol} />;
+  return <SentimentCardBody d={mapped} symbol={symbol} />;
 }
