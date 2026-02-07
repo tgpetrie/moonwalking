@@ -4103,13 +4103,17 @@ a.bh-row {
 
 /* GOLD for gainers */
 .bh-banner-item.is-gain::after,
-.bh-banner-chip.is-gain::after {
+.bh-banner-item.is-up::after,
+.bh-banner-chip.is-gain::after,
+.bh-banner-chip.is-up::after {
   background: radial-gradient(closest-side, rgba(255, 196, 61, 0.22), rgba(255, 196, 61, 0.0) 70%);
 }
 
 /* PURPLE for losers */
 .bh-banner-item.is-loss::after,
-.bh-banner-chip.is-loss::after {
+.bh-banner-item.is-down::after,
+.bh-banner-chip.is-loss::after,
+.bh-banner-chip.is-down::after {
   background: radial-gradient(closest-side, rgba(176, 96, 255, 0.20), rgba(176, 96, 255, 0.0) 70%);
 }
 
@@ -5401,6 +5405,27 @@ body {
     rgba(170, 120, 255, 0.14) 40%,
     transparent 75%
   ) !important;
+}
+
+/* 3m PANELS: mirror 1m hover glow */
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid:hover {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(255, 165, 0, 0.14) 0%,
+    rgba(255, 165, 0, 0.06) 45%,
+    transparent 80%
+  ) !important;
+  border-radius: 4px !important;
+}
+
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loser"]:hover {
+  background: radial-gradient(
+    ellipse 180% 200% at 15% 50%,
+    rgba(170, 120, 255, 0.28) 0%,
+    rgba(170, 120, 255, 0.14) 40%,
+    transparent 75%
+  ) !important;
+  border-radius: 4px !important;
 }
 
 /* Fix page width — prevent horizontal overflow */
