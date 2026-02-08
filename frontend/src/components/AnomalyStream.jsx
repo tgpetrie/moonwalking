@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPct, formatPrice } from "../utils/format";
-import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { deriveAlertType, extractAlertPct, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 
 const safeSymbol = (value) => {
@@ -343,9 +343,11 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const sev = String(a.severity || "info").toLowerCase();
       const type = String(a.type || "alert").toUpperCase();
       const parsed = parseImpulseMessage(a);
-      const pct = pickNumber(a?.pct, parsed?.parsed_pct);
+      // Prefer typed metrics.pct > top-level pct > parsed from message
+      const extracted = extractAlertPct(a);
+      const pct = extracted.pct ?? pickNumber(a?.pct, parsed?.parsed_pct);
       const windowLabel = windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
-      const volPct = pickNumber(a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
+      const volPct = pickNumber(a?.metrics?.vol_change_pct, a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
       const sentimentDelta = pickNumber(
         a?.sentiment_delta,
         a?.sentimentDelta,

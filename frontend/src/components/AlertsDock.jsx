@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
-import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { deriveAlertType, extractAlertPct, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { useData } from "../context/DataContext";
 
 const LS_SEEN_KEY = "mw_alerts_last_seen_id";
@@ -101,7 +101,10 @@ export default function AlertsDock() {
       const productId = a.product_id || (a.symbol ? `${a.symbol}-USD` : null);
       const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: a.symbol });
       const parsed = parseImpulseMessage(a);
-      const derivedType = deriveAlertType({ type: a?.type, pct: a.pct ?? parsed.parsed_pct, severity: a?.severity || a?.sev });
+      // Prefer typed metrics.pct > top-level pct > parsed from message
+      const extracted = extractAlertPct(a);
+      const effectivePct = extracted.pct ?? parsed.parsed_pct;
+      const derivedType = deriveAlertType({ type: a?.type, pct: effectivePct, severity: a?.severity || a?.sev });
 
       out.push({
         ...a,
@@ -111,6 +114,8 @@ export default function AlertsDock() {
         productId,
         url,
         derivedType,
+        _effectivePct: effectivePct,
+        _metricsWindowS: extracted.window_s,
       });
     }
 
@@ -203,17 +208,14 @@ export default function AlertsDock() {
                 const sev = String(a.severity || "info").toUpperCase();
                 const direction = formatDirection(a.parsed_direction || a.meta?.direction);
                 const w = windowLabelFromType(a.type) || a.parsed_window_label;
-                const pctDirect = asNumber(a?.pct);
-                const pctParsed = asNumber(a?.parsed_pct);
-                const magnitude = pctDirect !== null
-                  ? pctDirect
-                  : pctParsed !== null
-                    ? pctParsed
-                    : Number.isFinite(Number(a?.meta?.magnitude))
-                      ? (String(a?.meta?.direction || "").toLowerCase() === "down"
-                        ? -Number(a.meta.magnitude)
-                        : Number(a.meta.magnitude))
-                      : null;
+                // Prefer typed metrics.pct (via _effectivePct), fall back to legacy chain
+                const magnitude = a._effectivePct !== null && a._effectivePct !== undefined
+                  ? a._effectivePct
+                  : Number.isFinite(Number(a?.meta?.magnitude))
+                    ? (String(a?.meta?.direction || "").toLowerCase() === "down"
+                      ? -Number(a.meta.magnitude)
+                      : Number(a.meta.magnitude))
+                    : null;
                 const pctText = pctForDisplay(magnitude, w);
                 // price (only if it actually exists)
                 const priceNowRaw = asNumber(a.price_now ?? a.price ?? a.current_price ?? null);

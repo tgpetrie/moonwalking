@@ -79,6 +79,20 @@ class SentimentBasicPayload(BaseModel):
     meta: MetaHealth
 
 
+class AlertMetrics(BaseModel):
+    """Typed numeric metrics for an alert — prefer over parsing message text."""
+
+    model_config = ConfigDict(extra="allow")
+
+    pct: int | float | None = None
+    window_s: int | None = None
+    price: int | float | None = None
+    price_now: int | float | None = None
+    price_then: int | float | None = None
+    volume: int | float | None = None
+    vol_change_pct: int | float | None = None
+
+
 class AlertItem(BaseModel):
     """Normalized alert item payload for /api/alerts (and related feeds)."""
 
@@ -91,7 +105,7 @@ class AlertItem(BaseModel):
     symbol: str | None = None
     window: str | None = None
     window_s: int | None = None
-    pct: int | float | None = None
+    pct: int | float | None = None  # legacy compat — prefer metrics.pct
     price: int | float | None = None
     price_now: int | float | None = None
     price_then: int | float | None = None
@@ -111,6 +125,10 @@ class AlertItem(BaseModel):
     trade_url: str | None = None
     meta: Dict[str, Any] | None = None
     extra: Dict[str, Any] | None = None
+    metrics: AlertMetrics | None = None
+    dedupe_key: str | None = None
+    cooldown_s: int | None = None
+    event_count: int | None = None
 
 
-__all__ = ["MetaHealth", "SentimentBasicPayload", "AlertItem"]
+__all__ = ["MetaHealth", "SentimentBasicPayload", "AlertItem", "AlertMetrics"]

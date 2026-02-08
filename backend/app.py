@@ -2860,10 +2860,10 @@ CONFIG = {
     'ALERTS_COOLDOWN_SECONDS': int(os.environ.get('ALERTS_COOLDOWN_SECONDS', 300)),  # 5 minutes
     # Impulse alert thresholds (percentage points). Keep defaults conservative;
     # allow env overrides for local verification.
-    'ALERT_IMPULSE_1M_PCT': float(os.environ.get('ALERT_IMPULSE_1M_PCT', 1.25)),
-    'ALERT_IMPULSE_3M_PCT': float(os.environ.get('ALERT_IMPULSE_3M_PCT', 2.0)),
-    'ALERT_IMPULSE_COOLDOWN_SECONDS': int(os.environ.get('ALERT_IMPULSE_COOLDOWN_SECONDS', 90)),
-    'ALERT_IMPULSE_DEDUPE_DELTA': float(os.environ.get('ALERT_IMPULSE_DEDUPE_DELTA', 0.35)),
+    'ALERT_IMPULSE_1M_PCT': float(os.environ.get('ALERT_IMPULSE_1M_PCT', 0.75)),
+    'ALERT_IMPULSE_3M_PCT': float(os.environ.get('ALERT_IMPULSE_3M_PCT', 1.25)),
+    'ALERT_IMPULSE_COOLDOWN_SECONDS': int(os.environ.get('ALERT_IMPULSE_COOLDOWN_SECONDS', 60)),
+    'ALERT_IMPULSE_DEDUPE_DELTA': float(os.environ.get('ALERT_IMPULSE_DEDUPE_DELTA', 0.2)),
     'ALERT_IMPULSE_TTL_MINUTES': int(os.environ.get('ALERT_IMPULSE_TTL_MINUTES', 5)),
     'ALERTS_STICKY_SECONDS': int(os.environ.get('ALERTS_STICKY_SECONDS', 60)),
     # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
@@ -3493,12 +3493,12 @@ _BASIC_ALERT_EMIT_TS = {}
 _BASIC_ALERT_EMIT_VAL = {}
 _BASIC_ALERT_EMIT_DIR = {}
 
-ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 1.25))
-ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 2.0))
-ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 90))
-ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.35))
+ALERT_IMPULSE_1M_THRESH = float(CONFIG.get("ALERT_IMPULSE_1M_PCT", 0.75))
+ALERT_IMPULSE_3M_THRESH = float(CONFIG.get("ALERT_IMPULSE_3M_PCT", 1.25))
+ALERT_IMPULSE_COOLDOWN = int(CONFIG.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 60))
+ALERT_IMPULSE_DEDUPE_DELTA = float(CONFIG.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.2))
 ALERT_IMPULSE_TTL_MINUTES = int(CONFIG.get("ALERT_IMPULSE_TTL_MINUTES", 5))
-ALERT_VOLATILITY_SPIKE = float(CONFIG.get("ALERT_VOLATILITY_SPIKE", 2.0))
+ALERT_VOLATILITY_SPIKE = float(CONFIG.get("ALERT_VOLATILITY_SPIKE", 1.2))
 
 BASIC_ALERTS_COOLDOWN = int(CONFIG.get("ALERTS_BASIC_COOLDOWN_SECONDS", ALERT_IMPULSE_COOLDOWN))
 BASIC_ALERTS_DEDUPE_DELTA = float(CONFIG.get("ALERTS_BASIC_DEDUPE_DELTA", ALERT_IMPULSE_DEDUPE_DELTA))
@@ -3762,10 +3762,10 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
             price_then = None
 
         # Rich type classification
-        if mag >= 6.0:
+        if mag >= 3.0:
             alert_type = "moonshot" if direction == "up" else "crater"
             severity = "critical"
-        elif mag >= 2.5:
+        elif mag >= 1.5:
             alert_type = "breakout" if direction == "up" else "dump"
             severity = "high"
         else:
@@ -3826,14 +3826,14 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
 def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: float) -> None:
     """Emit an alert when 1m and 3m disagree significantly.
 
-    Fires when 1m > 0.5% and 3m < -0.5% (or vice versa).
-    Cooldown 180s, dedupe_delta 0.5.
+    Fires when 1m > 0.3% and 3m < -0.3% (or vice versa).
+    Cooldown 120s, dedupe_delta 0.3.
     """
     try:
         if symbol is None or ret_1m is None or ret_3m is None:
             return
         # Check for divergence: 1m and 3m in opposite directions with magnitude
-        if not ((ret_1m > 0.5 and ret_3m < -0.5) or (ret_1m < -0.5 and ret_3m > 0.5)):
+        if not ((ret_1m > 0.3 and ret_3m < -0.3) or (ret_1m < -0.3 and ret_3m > 0.3)):
             return
 
         sym_clean = str(symbol).upper()
@@ -3880,7 +3880,7 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
                 "ret_3m": round(ret_3m, 4),
             },
         }
-        _emit_alert(alert, cooldown_s=180, dedupe_delta=0.5)
+        _emit_alert(alert, cooldown_s=120, dedupe_delta=0.3)
         try:
             emit_alert(
                 "divergence",
@@ -4002,8 +4002,8 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                     # --- Mode 1: WHALE MOVE (z-score spike + price impact) ---
                     # Single candle: z >= 3.0 AND price moved >= 0.3%
                     # OR 3-candle cluster: avg z >= 2.5 AND price moved >= 0.4%
-                    if (z_vol >= 3.0 and abs(candle_pct) >= 0.3 and latest_vol > 100) or \
-                       (cluster_z >= 2.5 and abs(candle_pct) >= 0.4 and cluster_vol > 300):
+                    if (z_vol >= 2.5 and abs(candle_pct) >= 0.2 and latest_vol > 100) or \
+                       (cluster_z >= 2.0 and abs(candle_pct) >= 0.3 and cluster_vol > 200):
                         direction = "up" if candle_pct > 0 else "down"
                         whale_score = z_vol * abs(candle_pct)  # composite magnitude
                         severity = "critical" if z_vol >= 5.0 or whale_score >= 8 else "high"
@@ -4053,7 +4053,7 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                                 "alert_type": "whale_move",
                             },
                         }
-                        _emit_alert(alert, cooldown_s=120, dedupe_delta=2.0)
+                        _emit_alert(alert, cooldown_s=90, dedupe_delta=1.5)
                         return  # Don't double-fire
 
                     # --- Mode 3: ABSORPTION (high vol, flat price) ---
@@ -4114,7 +4114,7 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
 
         # --- Mode 2: WHALE SURGE fallback (hourly comparison) ---
         # Lower threshold than before: 150% (was 200%)
-        if vol1h_pct is not None and vol1h_pct >= 150 and vol1h is not None and vol1h >= 500:
+        if vol1h_pct is not None and vol1h_pct >= 100 and vol1h is not None and vol1h >= 300:
             now = datetime.now(timezone.utc)
             emitted_ms = int(now.timestamp() * 1000)
             severity = "critical" if vol1h_pct >= 400 else "high" if vol1h_pct >= 250 else "medium"
@@ -4163,12 +4163,12 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
     Detects quiet moves — price up >=1.5% over 3m but volume change < 30%.
     """
     try:
-        if price_change_3m is None or price_change_3m < 1.5:
+        if price_change_3m is None or price_change_3m < 0.8:
             return
         if vol1h_pct is None:
             return
         # Stealth = price up but volume NOT spiking
-        if vol1h_pct > 30:
+        if vol1h_pct > 50:
             return
 
         sym_clean = str(symbol).upper()
@@ -4219,7 +4219,7 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
                 "alert_type": "stealth_move",
             },
         }
-        _emit_alert(alert, cooldown_s=300, dedupe_delta=0.5)
+        _emit_alert(alert, cooldown_s=180, dedupe_delta=0.3)
     except Exception:
         pass
 
@@ -4228,13 +4228,13 @@ def _emit_fomo_alert(heat_score: float, heat_label: str, fg_value: int | None) -
     """Emit a FOMO/fear alert based on market heat + Fear & Greed.
 
     Fires when:
-      - Heat >=80 AND F&G >=75 → FOMO (market overheating)
-      - Heat <=20 AND F&G <=25 → FEAR (extreme fear)
-    Cooldown 600s — this is a macro signal, not per-symbol.
+      - Heat >=70 AND F&G >=60 → FOMO (market overheating)
+      - Heat <=25 AND F&G <=35 → FEAR (extreme fear)
+    Cooldown 300s — this is a macro signal, not per-symbol.
     """
     try:
-        fomo = heat_score >= 80 and (fg_value is None or fg_value >= 70)
-        fear = heat_score <= 20 and (fg_value is None or fg_value <= 30)
+        fomo = heat_score >= 70 and (fg_value is None or fg_value >= 60)
+        fear = heat_score <= 25 and (fg_value is None or fg_value <= 35)
 
         if not fomo and not fear:
             return
@@ -4283,7 +4283,7 @@ def _emit_fomo_alert(heat_score: float, heat_label: str, fg_value: int | None) -
                 "alert_type": alert_type,
             },
         }
-        _emit_alert(alert, cooldown_s=600, dedupe_delta=10.0)
+        _emit_alert(alert, cooldown_s=300, dedupe_delta=10.0)
     except Exception:
         pass
 

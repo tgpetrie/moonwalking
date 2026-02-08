@@ -29,9 +29,10 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 ### A) Define the contract (API + data shapes)
 
 #### A1: Decide canonical endpoints
-- [ ] **DONE** (requires C-proof)
-- [ ] T-proof anchors: (none — not yet decided)
-- [ ] C-proof evidence: —
+- [x] **DONE** (C-proven 2026-02-07)
+- [x] T-proof anchors: vite.config.js:38-42 proxy rules, DataContext.jsx:483 fetch(/data), SentimentCard.jsx:49 fetch(sentimentBasic), app.py /api/alerts handler
+- [x] C-proof evidence: Decision: `/api/data` is the canonical dashboard bundle (all tables + alerts + meta). `/api/sentiment-basic` is canonical for the SentimentCard (fast local). `/api/alerts` is canonical for standalone alert feeds. `/api/sentiment/latest` is a pipeline proxy (optional, not required). All three canonical endpoints confirmed working via runtime polls (P2/P4/P5)
+- **Decision**: Canonical dashboard contract is `/api/data`. Supporting endpoints `/api/sentiment-basic` and `/api/alerts` remain valid for isolated cards/tools.
 
 #### A2: Define JSON schemas (SentimentCard, Alert, MetaHealth)
 - [x] **DONE** (C-proven 2026-02-07)
@@ -123,7 +124,7 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 #### D4: No style bleed into terminal/intelligence panel
 - [x] **DONE** (C-proven 2026-02-07, structural)
 - [x] T-proof anchors: frontend/src/index.css:5782-5792
-- [x] C-proof evidence: index.css:5782 explicit anti-bleed guard: `.bh-intel-panel .bh-row, .bh-intel-panel .token-row { all: unset !important; }` + `*::before, *::after { box-shadow: none !important; }`. Row hover glow (.bh-row:hover::after) neutralized inside intel panel. Note: structural CSS proof, not visual screenshot
+- [x] C-proof evidence: CSS guard at index.css:5782 + Playwright runtime DOM proof: 8 bh-intel-line elements all show boxShadow="none", afterBoxShadow="none", afterContent="none". rowsInsideIntelPanel=0 (zero .bh-row/.token-row leaked). Screenshot p3_healthy_final.png confirms intel panel renders terminal-clean with no row glow bleed
 
 ---
 
@@ -131,7 +132,7 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 
 #### P1: `./start_local.sh` runs clean
 - [x] **DONE** (C-proven 2026-02-07)
-- [x] C-proof evidence: `OPEN_BROWSER=0 bash start_local.sh` output pasted in chat. Backend http://127.0.0.1:5003 responds 200, frontend http://127.0.0.1:5173 responds 200. Note: line 357 has pre-existing bash syntax corruption (`$frontend_ok` padded with garbage chars) causing `[: too many arguments` — not caused by our changes, both services start fine
+- [x] C-proof evidence: Line 357 fixed (quoting `"${frontend_ok}"`). Rerun output pasted: zero errors, zero warnings. `[start.local] frontend root is responding` + `[start.local] backend /data is responding`. Both http://127.0.0.1:5003 and :5173 return 200
 
 #### P2: Backend returns stable JSON (no missing keys) for 5 consecutive polls
 - [x] **DONE** (C-proven 2026-02-07)
@@ -139,7 +140,7 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 
 #### P3: Simulate pipeline down → UI shows stale/down, no crashes
 - [x] **DONE** (C-proven 2026-02-07)
-- [x] C-proof evidence: Backend killed (`kill $(cat /tmp/mw_backend.pid)`), confirmed unreachable (curl returns connection refused). Frontend still serves 200. Code paths verified: DashboardShell returns OFFLINE on (error && !coreReady), SentimentCard returns "Sentiment offline." on (error && !data). No crash path — all error states handled
+- [x] C-proof evidence: Backend killed (`kill $(cat /tmp/mw_backend.pid)`), confirmed unreachable (curl returns connection refused). Playwright runtime DOM proof in fresh incognito context (no cache/localStorage): pill text="OFFLINE", class="bh-status-pill bh-status-pill--offline". Empty data tables (hasData=0). rootChildren>0 (no white screen). No crash. Screenshot p3_offline.png confirms degraded UI state
 
 #### P4: Alerts dedupe works (no repeated spam on same move)
 - [x] **DONE** (C-proven 2026-02-07)
@@ -151,12 +152,14 @@ Replace the current sentiment/alerts experience with a real, trustworthy system:
 
 ---
 
-## Score: 20/21 DONE
-## Remaining: A1 (endpoint decision — design choice, not implementation)
+## Score: 21/21 DONE
+## Remaining: None
 
 ## Notes / Findings
 - Keep a running list: files touched, thresholds changed, payload decisions.
 - 2026-02-07: Converted to Mode 2 dual-layer format. All items demoted pending chat-evidenced proof.
 - 2026-02-07: Bulk static C-proof pass — 16 items proven from source reads.
 - 2026-02-07: Runtime sweep — P1-P5 + D4 proven. start_local.sh line 357 has pre-existing bash corruption (not our change). All endpoints return stable JSON, dedupe works (event_count incrementing), restart preserves behavior.
-- A1 remains open: endpoints exist and work (`/api/data`, `/api/sentiment-basic`, `/api/sentiment/latest`, `/api/alerts`) but no formal "decision" document recording which are canonical vs deprecated.
+- 2026-02-07: A1 closed — canonical endpoints decided: `/api/data` (dashboard bundle), `/api/sentiment-basic` (SentimentCard), `/api/alerts` (standalone feeds). `/api/sentiment/latest` is optional pipeline proxy.
+- 2026-02-07: P3 re-proven with Playwright incognito context (fresh load with backend dead → OFFLINE pill, no crash). D4 re-proven with Playwright computed styles (boxShadow=none on all intel-line elements, zero leaked rows).
+- 2026-02-07: **21/21 — tracker complete.**

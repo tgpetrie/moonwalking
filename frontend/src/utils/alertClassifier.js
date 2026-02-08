@@ -1,4 +1,25 @@
 // Shared alert/intel classification helpers (single source of truth)
+
+// Prefer typed metrics.pct, fall back to top-level pct, then parse from message.
+const _asNum = (v) => {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * Extract pct from alert, preferring metrics.pct > pct > message parse.
+ * Returns { pct: number|null, window_s: number|null, fromMetrics: boolean }
+ */
+export const extractAlertPct = (a) => {
+  const m = a?.metrics;
+  const metricsPct = _asNum(m?.pct);
+  if (metricsPct !== null) return { pct: metricsPct, window_s: _asNum(m?.window_s), fromMetrics: true };
+  const topPct = _asNum(a?.pct);
+  if (topPct !== null) return { pct: topPct, window_s: _asNum(a?.window_s), fromMetrics: false };
+  return { pct: null, window_s: null, fromMetrics: false };
+};
+
 export const windowLabelFromType = (raw) => {
   const t = String(raw || "").toUpperCase();
   if (t.includes("_1M")) return "1m";
