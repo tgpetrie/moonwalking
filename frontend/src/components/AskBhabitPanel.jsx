@@ -1,53 +1,171 @@
-import React, { useState } from 'react';
-import { API_ENDPOINTS, fetchData } from '../api.js';
+import { useMemo, useState } from "react";
+import { fetchData, getApiBaseUrl } from "../api.js";
 
-export default function AskCodexPanel({ onClose }) {
-  const [query, setQuery] = useState('Explain how 1‑minute gainers trend streak is computed.');
-  const [reply, setReply] = useState('');
+const SYMBOL_RE = /\b[A-Z]{2,10}\b/g;
+
+const extractSymbols = (query) => {
+  const out = [];
+  const seen = new Set();
+  const tokens = String(query || "").toUpperCase().match(SYMBOL_RE) || [];
+  for (const token of tokens) {
+    if (["WHAT", "WITH", "FROM", "THIS", "THAT", "RIGHT", "NOW", "THE", "AND"].includes(token)) {
+      continue;
+    }
+    if (!seen.has(token)) {
+      seen.add(token);
+      out.push(token);
+    }
+  }
+  return out.slice(0, 8);
+};
+
+const fmtPct = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "NA";
+  return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+};
+
+const fmtPx = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "NA";
+  return `$${n.toFixed(n >= 100 ? 2 : 4)}`;
+};
+
+export default function AskBhabitPanel() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("What is happening with BTC and SOL right now?");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+
+  const apiBase = useMemo(() => getApiBaseUrl().replace(/\/$/, ""), []);
+  const endpoint = `${apiBase}/api/ask-codex`;
+  const mode = String(result?.mode || "deterministic").toUpperCase();
+  const structured = result?.structured || {};
+  const moved = Array.isArray(structured.what_moved) ? structured.what_moved : [];
+  const riskFlags = Array.isArray(structured.risk_flags) ? structured.risk_flags : [];
+  const levels = Array.isArray(structured.levels) ? structured.levels : [];
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true); setError(''); setReply('');
+    const q = query.trim();
+    if (!q) return;
+    setLoading(true);
+    setError("");
     try {
-      const endpoint = `${API_ENDPOINTS.serverInfo.replace('/api/server-info', '')}/api/ask-codex`;
       const data = await fetchData(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: q,
+          symbols: extractSymbols(q),
+          narrate: true,
+        }),
       });
-      setReply(data.reply || 'No reply available');
-    } catch (e2) {
-      setError(e2.message || 'Failed to get response from Codex');
+      setResult(data || null);
+    } catch (err) {
+      setError(err?.message || "Ask request failed");
+      setResult(null);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-xl bg-gray-950 border border-purple-800 rounded-xl shadow-lg flex flex-col max-h-full">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-purple-900/50">
-          <h2 className="text-sm font-bold tracking-wide text-purple-200">ASK CODEX</h2>
-          <button onClick={onClose} className="px-2 py-1 text-xs rounded bg-purple-700/40 hover:bg-purple-600 text-purple-100 border border-purple-600">Close</button>
-        </div>
-        <form onSubmit={submit} className="p-4 flex flex-col gap-3 overflow-auto">
-          <textarea
-            className="w-full h-28 text-xs bg-black/40 border border-purple-700 rounded p-2 font-mono text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Ask about the dashboard, data flow, trends..." />
-          <div className="flex items-center gap-2">
-            <button type="submit" disabled={loading || !query.trim()} className="px-4 py-1.5 rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-xs font-semibold shadow">{loading ? 'Asking...' : 'Ask'}</button>
-            <button type="button" onClick={() => { setReply(''); setQuery(''); }} className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs border border-gray-600">Clear</button>
+    <div className="bh-ask-dock" data-open={open ? "1" : "0"}>
+      <button
+        type="button"
+        className="bh-ask-btn"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        title="Ask Bhabit"
+      >
+        <span className="bh-ask-btn-label">ASK BHABIT</span>
+      </button>
+
+      {open ? (
+        <div className="bh-ask-panel" role="dialog" aria-label="Ask Bhabit">
+          <div className="bh-ask-head">
+            <div className="bh-ask-title">Ask Bhabit</div>
+            <button type="button" className="bh-ask-close" onClick={() => setOpen(false)} aria-label="Close">
+              x
+            </button>
           </div>
-          {error && <div className="text-xs text-red-400">{error}</div>}
-          {reply && <div className="mt-2 p-3 rounded bg-black/40 border border-purple-800 text-xs whitespace-pre-wrap leading-relaxed text-purple-100 font-mono max-h-64 overflow-auto">{reply}</div>}
-        </form>
-      </div>
+
+          <form onSubmit={submit} className="bh-ask-form">
+            <textarea
+              className="bh-ask-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ask about movers, alerts, risk, and levels..."
+            />
+            <div className="bh-ask-actions">
+              <button type="submit" className="bh-ask-submit" disabled={loading || !query.trim()}>
+                {loading ? "Asking..." : "Ask"}
+              </button>
+              <button
+                type="button"
+                className="bh-ask-clear"
+                onClick={() => {
+                  setQuery("");
+                  setError("");
+                  setResult(null);
+                }}
+              >
+                Clear
+              </button>
+              <span className="bh-ask-mode">mode: {mode}</span>
+            </div>
+          </form>
+
+          {error ? <div className="bh-ask-error">{error}</div> : null}
+
+          {result ? (
+            <div className="bh-ask-body">
+              <div className="bh-ask-answer">{result.answer || result.reply || "No answer available."}</div>
+
+              {moved.length > 0 ? (
+                <div className="bh-ask-section">
+                  <div className="bh-ask-section-title">What moved</div>
+                  <div className="bh-ask-list">
+                    {moved.slice(0, 6).map((row, idx) => (
+                      <div key={`${row.symbol || "S"}-${idx}`} className="bh-ask-list-row">
+                        <span>{row.symbol || "UNK"}</span>
+                        <span>{fmtPct(row.change_1m ?? row.change_3m)}</span>
+                        <span>{fmtPx(row.price_now)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {riskFlags.length > 0 ? (
+                <div className="bh-ask-section">
+                  <div className="bh-ask-section-title">Risk flags</div>
+                  <div className="bh-ask-tags">
+                    {riskFlags.slice(0, 5).map((item, idx) => (
+                      <span key={`${idx}-${item}`} className="bh-ask-tag">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {levels.length > 0 ? (
+                <div className="bh-ask-section">
+                  <div className="bh-ask-section-title">Levels</div>
+                  <div className="bh-ask-levels">
+                    {levels.slice(0, 4).map((item, idx) => (
+                      <div key={`${idx}-${item}`}>{item}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
-g

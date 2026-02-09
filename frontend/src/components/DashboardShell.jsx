@@ -12,6 +12,7 @@ import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
 import AlertsDock from "./AlertsDock.jsx";
+import AskBhabitPanel from "./AskBhabitPanel.jsx";
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
@@ -357,6 +358,7 @@ export default function DashboardShell({ onInfo }) {
         }}
       />
 
+      <AskBhabitPanel />
       <AlertsDock />
     </div>
   );

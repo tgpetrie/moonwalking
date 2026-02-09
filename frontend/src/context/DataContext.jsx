@@ -1,4 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
+import { normalizeAlert as normalizeAlertShape } from "../utils/alerts_normalize";
 
 const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
@@ -74,17 +75,19 @@ function normalizeApiData(payload) {
     return Number.isFinite(t) ? t : null;
   };
 
-  const normalizeAlert = (a) => {
+  const normalizeAlertRow = (a) => {
     if (!a || typeof a !== "object") return null;
-    const symRaw = a.symbol ?? a.product_id ?? a.pair ?? a.ticker ?? "";
+    const norm = normalizeAlertShape(a);
+    const symRaw = norm.symbol ?? norm.product_id ?? a.symbol ?? a.product_id ?? a.pair ?? a.ticker ?? "";
     const rawUpper = String(symRaw || "").trim().toUpperCase();
-    const product_id = rawUpper;
+    const product_id = rawUpper ? (rawUpper.includes("-") ? rawUpper : `${rawUpper}-USD`) : "";
     const symbol = rawUpper.replace(/-USD$|-USDT$|-PERP$/i, "");
 
-    const emitted_ts = a.ts ?? a.emitted_ts ?? a.emittedTs ?? a.ts_iso ?? a.tsIso ?? null;
-    const emitted_ts_ms = toMs(a.ts_ms ?? a.tsMs ?? a.emitted_ts_ms ?? a.emittedTsMs ?? emitted_ts);
+    const emitted_ts = norm.ts ?? a.ts ?? a.emitted_ts ?? a.emittedTs ?? a.ts_iso ?? a.tsIso ?? null;
+    const emitted_ts_ms = toMs(norm.ts_ms ?? a.ts_ms ?? a.tsMs ?? a.emitted_ts_ms ?? a.emittedTsMs ?? emitted_ts);
 
     const event_ts =
+      norm.event_ts ??
       a.event_ts ??
       a.eventTs ??
       a.window_end_ts ??
@@ -92,9 +95,10 @@ function normalizeApiData(payload) {
       a.detected_ts ??
       a.detectedTs ??
       null;
-    const event_ts_ms = toMs(a.event_ts_ms ?? a.eventTsMs ?? a.event_ms ?? a.eventMs ?? event_ts);
+    const event_ts_ms = toMs(norm.event_ts_ms ?? a.event_ts_ms ?? a.eventTsMs ?? a.event_ms ?? a.eventMs ?? event_ts);
     return {
       ...a,
+      ...norm,
       symbol,
       product_id,
       ts: emitted_ts || a.ts || null,
@@ -117,7 +121,7 @@ function normalizeApiData(payload) {
   };
 
   const alerts = Array.isArray(alertsRaw)
-    ? alertsRaw.map(normalizeAlert).filter((a) => a && !isPingNoise(a))
+    ? alertsRaw.map(normalizeAlertRow).filter((a) => a && !isPingNoise(a))
     : [];
 
   // Sentiment / market heat data flows through the main /data payload

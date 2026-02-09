@@ -1,7 +1,23 @@
 #!/usr/bin/env python3
 """
-Moonwalking Alert System - Advanced Crypto Movement Detection
-by bhabit - cbmovers integration with sentiment pipeline
+DEPRECATED — DO NOT USE
+
+This file is the old-world alert system. It depends on:
+  - Binance WebSocket feeds
+  - CoinGecko API
+  - Redis as primary data store
+  - Sentiment pipeline (social/news)
+
+None of these are wired into the production Coinbase-only architecture.
+
+The production alert engine lives in:
+  backend/alerts_engine.py  (compute_alerts pure function)
+
+The production emitters that feed /api/alerts live in:
+  backend/app.py (_emit_impulse_alert, _emit_whale_alert, etc.)
+  These are being migrated to alerts_engine.py.
+
+This file is kept only for reference. Do not import from it.
 """
 
 import asyncio
@@ -19,23 +35,23 @@ import redis
 from collections import defaultdict, deque
 
 class AlertSeverity(Enum):
-    CRITICAL = "🔴 CRITICAL"
-    HIGH = "🟠 HIGH"  
-    MEDIUM = "🟡 MEDIUM"
-    LOW = "🟢 LOW"
-    INFO = "🔵 INFO"
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    INFO = "INFO"
 
 class AlertType(Enum):
-    MOONSHOT = "🚀 MOONSHOT"           # Massive pump detected
-    CRATER = "📉 CRATER"               # Major dump detected  
-    SENTIMENT_SPIKE = "🌊 SENTIMENT"    # Social sentiment explosion
-    WHALE_MOVE = "🐋 WHALE"            # Large volume anomaly
-    DIVERGENCE = "⚖️ DIVERGENCE"       # Price vs sentiment mismatch
-    BREAKOUT = "📈 BREAKOUT"           # Technical breakout
-    FOMO_ALERT = "🔥 FOMO"             # FOMO/Fear spike detected
-    STEALTH_MOVE = "👤 STEALTH"        # Quiet accumulation
-    NEWS_CATALYST = "📰 NEWS"          # News-driven movement
-    ARBITRAGE = "💰 ARBITRAGE"         # Cross-exchange opportunity
+    MOONSHOT = "MOONSHOT"           # Massive pump detected
+    CRATER = "CRATER"               # Major dump detected
+    SENTIMENT_SPIKE = "SENTIMENT"   # Social sentiment explosion
+    WHALE_MOVE = "WHALE"            # Large volume anomaly
+    DIVERGENCE = "DIVERGENCE"       # Price vs sentiment mismatch
+    BREAKOUT = "BREAKOUT"           # Technical breakout
+    FOMO_ALERT = "FOMO"             # FOMO/Fear spike detected
+    STEALTH_MOVE = "STEALTH"        # Quiet accumulation
+    NEWS_CATALYST = "NEWS"          # News-driven movement
+    ARBITRAGE = "ARBITRAGE"         # Cross-exchange opportunity
 
 @dataclass
 class MoonwalkingAlert:

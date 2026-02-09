@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPct, formatPrice } from "../utils/format";
-import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -70,15 +71,13 @@ const classifyLog = (log) => {
   if (log?.label) {
     return { label: log.label, chipTone: "info" };
   }
-  const pct = Number.isFinite(log?.pct) ? log.pct : toNum(log?.pct);
-  const derivedType = deriveAlertType({
-    type: log?.type,
-    pct,
-    severity: log?.severity || log?.sev,
-  });
+  const norm = normalizeAlert(log);
+  const pct = Number.isFinite(norm?.pct) ? norm.pct : toNum(log?.pct);
+  const derivedType = typeKeyToUpper(norm.type_key);
   let chipTone = "info";
-  if (["MOONSHOT", "BREAKOUT", "IMPULSE", "FOMO"].includes(derivedType)) chipTone = "gain";
+  if (["MOONSHOT", "BREAKOUT", "FOMO"].includes(derivedType)) chipTone = "gain";
   else if (["CRATER", "DUMP", "FEAR"].includes(derivedType)) chipTone = "loss";
+  else if (derivedType === "MOVE") chipTone = Number.isFinite(pct) && pct < 0 ? "loss" : "gain";
   else if (["SENTIMENT", "DIVERGENCE", "VOLUME", "WHALE", "STEALTH"].includes(derivedType)) chipTone = "sent";
   return { label: derivedType, chipTone };
 };
@@ -330,13 +329,16 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const key = `A-${id}`;
       if (seenRef.current.has(key)) continue;
 
-      const symbol = safeSymbol(a.symbol || a.product_id || a.pair);
-      const url = a.trade_url || spotUrl({ product_id: a.product_id || (symbol ? `${symbol}-USD` : null) }, symbol);
-      const sev = String(a.severity || "info").toLowerCase();
-      const type = String(a.type || "alert").toUpperCase();
+      const norm = normalizeAlert(a);
+      const symbol = safeSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
+      const url = a.trade_url || spotUrl(
+        { product_id: norm.product_id || a.product_id || (symbol ? `${symbol}-USD` : null) },
+        symbol
+      );
+      const type = typeKeyToUpper(norm.type_key);
       const parsed = parseImpulseMessage(a);
-      const pct = pickNumber(a?.pct, parsed?.parsed_pct);
-      const windowLabel = windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
+      const pct = pickNumber(norm?.pct, a?.pct, parsed?.parsed_pct);
+      const windowLabel = norm?.window || windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
       const volPct = pickNumber(a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
       const sentimentDelta = pickNumber(
         a?.sentiment_delta,
@@ -354,8 +356,9 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           url,
           prefix: "",
         body: msg ? `${type} — ${msg}` : type,
-        type: a?.type || type,
-        severity: a?.severity || "info",
+        type: norm?.type || a?.type || type,
+        type_key: norm?.type_key || "",
+        severity: norm?.severity || a?.severity || "info",
         pct,
         window: windowLabel,
         vol_change_pct: volPct,

@@ -10,7 +10,6 @@ import LosersTable3Min from "./components/LosersTable3Min.jsx";
 import WatchlistPanel from "./components/WatchlistPanel.jsx";
 import InsightsTabbed from "./components/InsightsTabbed.jsx";
 import AlertsIndicator from "./components/AlertsIndicator.jsx";
-import AskBhabitPanel from "./components/AskBhabitPanel.jsx";
 
 function WatchlistSync({ bySymbol }) {
   const { refreshFromData } = useWatchlist();

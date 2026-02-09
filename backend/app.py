@@ -909,27 +909,7 @@ def _get_gainers_table_1min_swr():
             'momentum': momentum,
             'alert_level': alert_level
         })
-        try:
-            if isinstance(gain_pct, (int, float)) and abs(gain_pct) >= ALERT_IMPULSE_1M_THRESH:
-                _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
-        except Exception:
-            pass
-
-    # Also emit impulse alerts for strong 1m losers, even though this component
-    # only renders the gainers table. This keeps the main alerts stream
-    # directionally complete without needing a dedicated 1m losers component.
-    try:
-        losers = data.get('losers', []) or []
-        for coin in losers[:max(10, min(20, limit))]:
-            current_price = coin.get('current') or coin.get('current_price') or 0
-            gain_pct = _safe_float(coin.get('gain'))
-            if gain_pct is None:
-                gain_pct = _safe_float(coin.get('price_change_percentage_1min'))
-            if gain_pct is None:
-                gain_pct = 0
-            if isinstance(gain_pct, (int, float)) and abs(gain_pct) >= ALERT_IMPULSE_1M_THRESH:
-                _emit_impulse_alert(coin.get('symbol'), gain_pct, current_price, window="1m")
-    except Exception:
+        # SWR impulse emitters DISABLED — engine is sole impulse owner (Phase 6)
         pass
     return {
         'component': 'gainers_table_1min',
@@ -975,11 +955,8 @@ def _get_gainers_table_3min_swr():
             'momentum': 'strong' if gain > 5 else 'moderate',
             'alert_level': 'high' if gain > 10 else 'normal'
         })
-        try:
-            if isinstance(gain, (int, float)) and abs(gain) >= ALERT_IMPULSE_3M_THRESH:
-                _emit_impulse_alert(sym, float(gain or 0), coin.get('current'), window="3m")
-        except Exception:
-            pass
+        # SWR impulse emitter DISABLED — engine is sole impulse owner (Phase 6)
+        pass
     return {
         'component': 'gainers_table',
         'data': gainers_table_data,
@@ -1022,11 +999,8 @@ def _get_losers_table_3min_swr():
             'momentum': 'strong' if gain < -5 else 'moderate',
             'alert_level': 'high' if gain < -10 else 'normal'
         })
-        try:
-            if isinstance(gain, (int, float)) and abs(gain) >= ALERT_IMPULSE_3M_THRESH:
-                _emit_impulse_alert(sym, float(gain or 0), coin.get('current'), window="3m")
-        except Exception:
-            pass
+        # SWR impulse emitter DISABLED — engine is sole impulse owner (Phase 6)
+        pass
     return {
         'component': 'losers_table',
         'data': losers_table_data,
@@ -3711,11 +3685,64 @@ _MW_LAST_GOOD_ALERTS_TS = None
 
 # --- Alerts stream dedupe (last line of defense) ---
 _ALERT_STREAM_DEDUPE_WINDOW_S = 60
+_ALERT_STREAM_DEDUPE_PRUNE_INTERVAL_S = 30
+_ALERT_STREAM_DEDUPE_MAX_KEYS = 20000
 _ALERT_STREAM_LAST_SEEN: dict[str, tuple[float, float | None]] = {}
+_ALERT_STREAM_LAST_PRUNE_S = 0.0
+
+
+def _ensure_alert_contract(a: dict) -> dict:
+    """Canonicalize alert dict at the stream boundary.
+
+    Guarantees every alert in alerts_log_main has:
+      symbol, type_key, severity, event_ts_ms, id, evidence
+    """
+    if not isinstance(a, dict):
+        return a
+    out = dict(a)
+
+    # symbol — uppercase product_id style
+    sym = out.get("symbol") or out.get("product_id") or ""
+    sym = str(sym).strip().upper()
+    out["symbol"] = sym
+
+    # type_key — canonical lowercase
+    tkey = out.get("type_key")
+    if not tkey:
+        t = out.get("type")
+        out["type_key"] = str(t).lower() if t else "unknown"
+    else:
+        out["type_key"] = str(tkey).lower()
+
+    # severity — always lowercase string
+    sev = out.get("severity")
+    out["severity"] = str(sev).lower().strip() if sev else "info"
+
+    # event_ts_ms — always int
+    ts_ms = _to_ts_ms(
+        out.get("event_ts_ms")
+        or out.get("ts_ms")
+        or out.get("event_ts")
+        or out.get("ts")
+    )
+    if ts_ms is None:
+        ts_ms = _utc_now_ts_ms()
+    out["event_ts_ms"] = int(ts_ms)
+
+    # id — stable-ish unique string
+    if not out.get("id"):
+        out["id"] = f"{out['type_key']}|{out['symbol']}|{out['event_ts_ms']}"
+
+    # evidence — always dict
+    ev = out.get("evidence")
+    if ev is None or not isinstance(ev, dict):
+        out["evidence"] = {}
+
+    return out
 
 
 def _alert_stream_key(a: dict) -> str:
-    t = str(a.get("type") or a.get("type_key") or "").lower()
+    t = str(a.get("type_key") or a.get("type") or "").lower()
     sym = str(a.get("symbol") or a.get("product_id") or "").upper()
     win = str(a.get("window") or "").lower()
     direction = str(a.get("direction") or "").lower()
@@ -3735,6 +3762,8 @@ def _is_number(v) -> bool:
     try:
         if v is None:
             return False
+        if isinstance(v, bool):
+            return False
         float(v)
         return True
     except Exception:
@@ -3743,7 +3772,10 @@ def _is_number(v) -> bool:
 
 def _is_engine_family_type(t: str) -> bool:
     s = str(t or "").lower()
-    return any(k in s for k in ("whale", "stealth", "diverg", "fomo", "fear"))
+    return any(k in s for k in (
+        "whale", "stealth", "diverg", "fomo", "fear",
+        "moonshot", "crater", "breakout", "dump", "impulse",
+    ))
 
 
 def _has_numeric_evidence(a: dict) -> bool:
@@ -3775,6 +3807,13 @@ def _stale_seconds(now_ms: int, asof_ms: int | None) -> float | None:
         return max(0.0, (now_ms - int(asof_ms)) / 1000.0)
     except Exception:
         return None
+
+
+_SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+def _sev_rank(v) -> int:
+    s = str(v or "").lower().strip()
+    return _SEV_RANK.get(s, 0)
 
 
 def _to_ts_ms(value) -> int | None:
@@ -3823,12 +3862,34 @@ def _should_accept_stream_alert(a: dict, now_s: float) -> bool:
     return False
 
 
+def _prune_alert_stream_dedupe(now_s: float) -> None:
+    global _ALERT_STREAM_LAST_PRUNE_S
+    if (now_s - _ALERT_STREAM_LAST_PRUNE_S) < _ALERT_STREAM_DEDUPE_PRUNE_INTERVAL_S:
+        return
+    _ALERT_STREAM_LAST_PRUNE_S = now_s
+
+    # Drop keys older than 2x dedupe window.
+    cutoff = now_s - (2.0 * _ALERT_STREAM_DEDUPE_WINDOW_S)
+    dead = [k for k, (ts, _pct) in _ALERT_STREAM_LAST_SEEN.items() if ts < cutoff]
+    for k in dead:
+        _ALERT_STREAM_LAST_SEEN.pop(k, None)
+
+    # Hard cap: if still too large, drop oldest keys.
+    if len(_ALERT_STREAM_LAST_SEEN) > _ALERT_STREAM_DEDUPE_MAX_KEYS:
+        items = sorted(_ALERT_STREAM_LAST_SEEN.items(), key=lambda kv: kv[1][0])  # ts asc
+        overflow = len(items) - _ALERT_STREAM_DEDUPE_MAX_KEYS
+        for i in range(max(0, overflow)):
+            _ALERT_STREAM_LAST_SEEN.pop(items[i][0], None)
+
+
 def _append_alerts_deduped(stream: deque, new_alerts: list[dict]) -> int:
     now_s = time.time()
+    _prune_alert_stream_dedupe(now_s)
     accepted = 0
     for a in (new_alerts or []):
         if not isinstance(a, dict):
             continue
+        a = _ensure_alert_contract(a)
         if _should_accept_stream_alert(a, now_s):
             stream.append(a)
             accepted += 1
@@ -4441,11 +4502,14 @@ def _normalize_alert(raw: dict) -> dict:
         except Exception:
             return None
 
+    type_key = raw.get("type_key") or (str(alert_type).lower() if alert_type else "unknown")
+
     norm = {
         "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
         "symbol": symbol,
         "product_id": raw.get("product_id") or symbol,
         "type": alert_type,
+        "type_key": type_key,
         "severity": severity,
         "title": raw.get("title") or raw.get("message") or f"{scope.upper()} alert",
         "message": raw.get("message") or raw.get("title") or "",
@@ -4467,7 +4531,7 @@ def _normalize_alert(raw: dict) -> dict:
         "score": score,
         "sources": raw.get("sources") or [],
         "trade_url": trade_url,
-        "evidence": raw.get("evidence"),
+        "evidence": raw.get("evidence") if isinstance(raw.get("evidence"), dict) else {},
     }
     return {k: v for k, v in norm.items() if v is not None}
 
@@ -7594,6 +7658,108 @@ def get_alerts_proof():
         "bad_alerts": bad_alerts,
         "meta": alerts_meta,
     })
+
+
+# ---------------------------------------------------------------------------
+# /api/alerts — canonical contract (active + recent + meta)
+# ---------------------------------------------------------------------------
+
+def _active_key(a: dict) -> str:
+    sym = str(a.get("symbol") or "").upper()
+    t = str(a.get("type_key") or a.get("type") or "").lower()
+    return f"{sym}|{t}"
+
+
+def _alert_score(a: dict, now_ms: int) -> float:
+    """Score an alert for active-reducer ranking.
+
+    Weights: severity dominates, freshness next, magnitude third.
+    """
+    # Severity (dominant): 0..4 * 10 = 0..40
+    sev_rank = _sev_rank(a.get("severity"))
+
+    # Freshness: 1.0 when brand-new, decays to 0 over 300s
+    ts = int(a.get("event_ts_ms") or 0)
+    age_s = max(0.0, (now_ms - ts) / 1000.0) if ts else 1e9
+    fresh = max(0.0, 1.0 - (age_s / 300.0))
+
+    # Magnitude from evidence (cap so it doesn't dominate)
+    ev = a.get("evidence") if isinstance(a.get("evidence"), dict) else {}
+    mag = 0.0
+    for k in ("volume_change_1h_pct", "abs_pct_3m", "pct_3m", "pct_1m", "pct", "heat", "z_vol"):
+        v = ev.get(k)
+        try:
+            if v is not None:
+                mag = max(mag, abs(float(v)))
+        except Exception:
+            pass
+    # Also check top-level pct
+    try:
+        top_pct = a.get("pct")
+        if top_pct is not None:
+            mag = max(mag, abs(float(top_pct)))
+    except Exception:
+        pass
+    mag_norm = min(1.0, mag / 10.0)  # 10% move == 1.0
+
+    return (sev_rank * 10.0) + (fresh * 2.0) + (mag_norm * 1.0)
+
+
+def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
+    """One best alert per (symbol, type) within TTL window, scored."""
+    now_ms = _utc_now_ts_ms()
+    ttl_ms = max(10_000, int(ttl_s) * 1000)
+    best: dict[str, tuple[float, dict]] = {}  # key -> (score, alert)
+
+    for a in (items or []):
+        if not isinstance(a, dict):
+            continue
+        ts_ms = _to_ts_ms(a.get("event_ts_ms") or a.get("ts_ms") or a.get("event_ts") or a.get("ts"))
+        if ts_ms is None:
+            continue
+        if (now_ms - ts_ms) > ttl_ms:
+            continue
+        k = _active_key(a)
+        if not k.strip("|"):
+            continue
+        score = _alert_score(a, now_ms)
+        cur = best.get(k)
+        if cur is None or score > cur[0]:
+            best[k] = (score, a)
+
+    out = [entry[1] for entry in best.values()]
+    out.sort(key=lambda x: _alert_score(x, now_ms), reverse=True)
+    return out
+
+
+@app.route("/api/alerts")
+def get_alerts_contract():
+    """Canonical alerts endpoint: active (deduped) + recent + meta."""
+    try:
+        limit = int(request.args.get("limit", 50))
+    except Exception:
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    try:
+        active_ttl_s = int(request.args.get("active_ttl_s", 120))
+    except Exception:
+        active_ttl_s = 120
+    active_ttl_s = max(30, min(active_ttl_s, 900))
+
+    try:
+        items, alerts_meta = _build_recent_alerts_payload(limit)
+        active = _reduce_active_alerts(items, ttl_s=active_ttl_s)
+        return jsonify({
+            "active": active,
+            "recent": items,
+            "meta": alerts_meta,
+        })
+    except Exception as e:
+        logging.error(f"Error in canonical alerts endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
 
 def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
@@ -9040,7 +9206,7 @@ def _compute_snapshots_from_cache():
                 minute_volumes=minute_volumes,
                 state=_ALERT_ENGINE_STATE,
                 fg_value=fg_val,
-                include_impulse=False,
+                include_impulse=True,
             )
 
             # Append engine alerts through the shared stream-level dedupe gate
@@ -9071,11 +9237,9 @@ def _compute_snapshots_from_cache():
         except Exception as e:
             logging.error(f"Alert engine error (non-fatal): {e}")
 
-        # --- Legacy emitters kept for impulse alerts fired inline by SWR builders ---
-        # NOTE: _emit_impulse_alert() is still called inside _get_gainers_table_1min_swr
-        # and _get_gainers_table_3min_swr for 1m/3m impulse detection. Those will be
-        # migrated to the engine in a future pass. Divergence, whale, stealth, and
-        # fomo/fear are now handled exclusively by the engine above.
+        # --- All alert families now owned by the engine (Phase 6) ---
+        # SWR impulse emitters disabled. Engine handles impulse (moonshot/crater/
+        # breakout/dump), whale, stealth, divergence, and fomo/fear.
 
         # Alerts snapshot (main only). Trend alerts are debug-only and do not
         # mix into the main UI stream.

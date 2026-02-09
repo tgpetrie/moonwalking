@@ -232,4 +232,9 @@ def generate_recommendation(rsi: Optional[float], macd: Dict, current_price: flo
     else:
         recommendation = "🟡 Neutral - Wait for clearer signals"
     
-    return f"{recommendation} | {' | '.join(signals[:3])}"  # Limit to 3 signals
+    return f"{recommendation} | {' | '.join(signals[:3])}"  # Limit to 3 signalsVBGFCDSXWEAAQŽ1
+
+
+
+
+    5402

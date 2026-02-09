@@ -28,7 +28,7 @@ try:
     from refresh import Refresher
 except Exception as _e:
     Refresher = None
-    logger.warning(f"refresh.Refresher not available: {_e}")
+    logging.getLogger(__name__).warning(f"refresh.Refresher not available: {_e}")
 
 logger = logging.getLogger(__name__)
 

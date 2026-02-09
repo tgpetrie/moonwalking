@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
-import { deriveAlertType, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { useData } from "../context/DataContext";
+import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 
 const LS_SEEN_KEY = "mw_alerts_last_seen_id";
 
@@ -78,7 +79,22 @@ const toProductId = (a) => {
   return p;
 };
 
-const TYPE_OPTIONS = ["ALL", "MOONSHOT", "CRATER", "BREAKOUT", "DUMP", "WHALE", "STEALTH", "DIVERGENCE", "FOMO", "FEAR", "VOLUME", "IMPULSE"];
+const TYPE_OPTIONS = [
+  "ALL",
+  "MOONSHOT",
+  "CRATER",
+  "BREAKOUT",
+  "DUMP",
+  "WHALE",
+  "STEALTH",
+  "DIVERGENCE",
+  "FOMO",
+  "FEAR",
+  "VOLUME",
+  "SENTIMENT",
+  "MOVE",
+  "ALERT",
+];
 
 export default function AlertsDock() {
   const { alerts = [] } = useData() || {};
@@ -97,14 +113,16 @@ export default function AlertsDock() {
       if (seen.has(id)) continue;
       seen.add(id);
 
-      const tsMs = toMs(a.event_ts_ms ?? a.eventTsMs ?? a.ts_ms ?? a.tsMs ?? a.ts);
-      const productId = a.product_id || (a.symbol ? `${a.symbol}-USD` : null);
-      const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: a.symbol });
+      const norm = normalizeAlert(a);
+      const tsMs = toMs(norm.event_ts_ms ?? norm.eventTsMs ?? norm.ts_ms ?? norm.tsMs ?? norm.ts);
+      const productId = norm.product_id || (norm.symbol ? `${norm.symbol}-USD` : null);
+      const url = a.trade_url || coinbaseSpotUrl({ product_id: productId, symbol: norm.symbol || a.symbol });
       const parsed = parseImpulseMessage(a);
-      const derivedType = deriveAlertType({ type: a?.type, pct: a.pct ?? parsed.parsed_pct, severity: a?.severity || a?.sev });
+      const derivedType = typeKeyToUpper(norm.type_key);
 
       out.push({
         ...a,
+        ...norm,
         ...parsed,
         id,
         tsMs,
@@ -202,7 +220,7 @@ export default function AlertsDock() {
                 const age = a.tsMs ? formatAge(nowMs - a.tsMs) : "—";
                 const sev = String(a.severity || "info").toUpperCase();
                 const direction = formatDirection(a.parsed_direction || a.meta?.direction);
-                const w = windowLabelFromType(a.type) || a.parsed_window_label;
+                const w = a.window || a.parsed_window_label || windowLabelFromType(a.type);
                 const pctDirect = asNumber(a?.pct);
                 const pctParsed = asNumber(a?.parsed_pct);
                 const magnitude = pctDirect !== null

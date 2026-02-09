@@ -620,6 +620,221 @@ body {
   line-height: 1.25;
 }
 
+/* ===== Ask Bhabit dock (floating) ===== */
+.bh-ask-dock {
+  position: fixed;
+  right: 18px;
+  bottom: 74px;
+  z-index: 1395;
+}
+
+.bh-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 205, 120, 0.28);
+  background: rgba(18, 12, 0, 0.64);
+  color: rgba(255, 222, 170, 0.95);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(10px) contrast(var(--bh-glass-contrast, 3.2)) brightness(var(--bh-glass-bright, 1.08)) saturate(var(--bh-glass-sat, 1.08));
+}
+
+.bh-ask-btn:hover {
+  border-color: rgba(255, 228, 170, 0.45);
+}
+
+.bh-ask-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(460px, calc(100vw - 36px));
+  max-height: min(70vh, 620px);
+  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 205, 120, 0.18);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(14px) contrast(var(--bh-glass-contrast, 3.35)) brightness(var(--bh-glass-bright, 1.12)) saturate(var(--bh-glass-sat, 1.1));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.58);
+}
+
+.bh-ask-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 205, 120, 0.16);
+}
+
+.bh-ask-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 230, 190, 0.9);
+}
+
+.bh-ask-close {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 222, 170, 0.8);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bh-ask-form {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.bh-ask-input {
+  min-height: 88px;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 220, 150, 0.16);
+  padding: 9px 10px;
+  background: rgba(20, 16, 6, 0.55);
+  color: rgba(255, 235, 205, 0.92);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.bh-ask-input:focus {
+  outline: none;
+  border-color: rgba(255, 220, 150, 0.35);
+}
+
+.bh-ask-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bh-ask-submit,
+.bh-ask-clear {
+  border-radius: 999px;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 7px 11px;
+  cursor: pointer;
+}
+
+.bh-ask-submit {
+  border: 1px solid rgba(255, 210, 130, 0.42);
+  background: rgba(120, 70, 15, 0.58);
+  color: rgba(255, 235, 210, 0.96);
+}
+
+.bh-ask-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bh-ask-clear {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.bh-ask-mode {
+  margin-left: auto;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 230, 190, 0.65);
+}
+
+.bh-ask-error {
+  margin: 0 12px 8px;
+  color: rgba(255, 136, 136, 0.95);
+  font-size: 0.72rem;
+}
+
+.bh-ask-body {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.bh-ask-answer {
+  border: 1px solid rgba(255, 205, 120, 0.2);
+  background: rgba(24, 16, 4, 0.45);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: rgba(255, 238, 214, 0.9);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.bh-ask-section {
+  border: 1px solid rgba(255, 205, 120, 0.14);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: rgba(10, 10, 10, 0.28);
+}
+
+.bh-ask-section-title {
+  font-size: 0.63rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 224, 170, 0.86);
+  margin-bottom: 8px;
+}
+
+.bh-ask-list {
+  display: grid;
+  gap: 5px;
+}
+
+.bh-ask-list-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.bh-ask-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bh-ask-tag {
+  font-size: 0.7rem;
+  border: 1px solid rgba(255, 205, 120, 0.22);
+  background: rgba(120, 70, 15, 0.2);
+  color: rgba(255, 230, 190, 0.9);
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+.bh-ask-levels {
+  display: grid;
+  gap: 5px;
+  font-size: 0.73rem;
+  color: rgba(255, 245, 220, 0.82);
+}
+
+@media (max-width: 760px) {
+  .bh-ask-dock {
+    right: 12px;
+    bottom: 70px;
+  }
+
+  .bh-ask-panel {
+    width: min(94vw, 460px);
+    max-height: 64vh;
+  }
+}
+
 .live-beat {
   width: 10px;
   height: 10px;
