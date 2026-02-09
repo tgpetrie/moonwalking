@@ -106,6 +106,7 @@ except Exception:
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from social_sentiment import get_social_sentiment
+from alerts_engine import compute_alerts, AlertEngineState, compute_market_pressure
 # New insights helpers
 try:
     from insights import build_asset_insights
@@ -2386,29 +2387,7 @@ One concise sentence (max 25 words). Start with the primary driver. Be decisive.
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/metrics')
-def api_metrics():
-    """Get observability metrics for sentiment aggregator monitoring.
-
-    Returns JSON with:
-    - cache_hit_rate: Percentage of cache hits
-    - avg_response_time_ms: Average response time
-    - requests_last_hour: Recent request count
-    - source_availability: Per-source health metrics
-    """
-    try:
-        from sentiment_aggregator import get_metrics
-        metrics = get_metrics()
-        return jsonify(metrics)
-    except Exception as exc:
-        print(f"[Metrics API] Error: {exc}")
-        return jsonify({
-            "error": str(exc),
-            "cache_hit_rate": 0.0,
-            "avg_response_time_ms": 0.0,
-            "requests_last_hour": 0,
-            "source_availability": {}
-        }), 500
+# /api/metrics already registered above (line ~1125)
 
 @app.route('/api/signals/pumpdump')
 def api_signals_pumpdump():
@@ -2666,46 +2645,376 @@ def schema_gainers_1m():
     return jsonify(Gainers1mComponent.model_json_schema())
 
 # -------------------------------- Codex Assistant ---------------------------------
-@app.route('/api/ask-codex', methods=['POST'])
-def ask_codex():
-    """Proxy user query to OpenAI Chat Completions (server-side to protect API key)."""
+_ASK_SYMBOL_RE = re.compile(r"\b[A-Z]{2,10}\b")
+
+def _ask_num(v):
     try:
-        data = request.get_json(silent=True) or {}
-        query = (data.get('query') or '').strip()
-        if not query:
-            return jsonify({'error': 'Missing query'}), 400
-        api_key = os.environ.get('OPENAI_API_KEY')
-        # Stub mode if no key, or explicit stub flag, or clearly fake key
-        if (not api_key) or os.environ.get('OPENAI_STUB') == '1' or str(api_key).lower() in {'fake','test','dummy'}:
-            demo = f"[stub] You asked: '{query}'. This is a local test response. Set OPENAI_API_KEY to use real model."
-            return jsonify({'reply': demo, 'stub': True})
-        payload = {
-            'model': os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
-            'messages': [
-                { 'role': 'system', 'content': 'You are a helpful React/JS/crypto assistant helping debug a WebSocket-based crypto dashboard.' },
-                { 'role': 'user', 'content': query }
-            ],
-            'temperature': 0.2
-        }
-        # Use requests directly (no extra dependency)
-        resp = requests.post('https://api.openai.com/v1/chat/completions',
-                              headers={
-                                  'Authorization': f'Bearer {api_key}',
-                                  'Content-Type': 'application/json'
-                              },
-                              json=payload, timeout=20)
-        if resp.status_code >= 400:
-            logging.warning(f"ask-codex upstream error {resp.status_code}: {resp.text[:200]}")
-            return jsonify({'reply': f'Upstream error {resp.status_code}'}), 502
+        if v is None or v == "":
+            return None
+        n = float(v)
+        return n if math.isfinite(n) else None
+    except Exception:
+        return None
+
+def _ask_norm_symbol(v):
+    if not v:
+        return None
+    s = str(v).strip().upper()
+    if not s:
+        return None
+    if "-" in s:
+        s = s.split("-", 1)[0].strip()
+    if s.endswith("USD"):
+        s = s[:-3].strip()
+    return s or None
+
+def _ask_extract_symbols(query: str, symbols_in):
+    out = []
+    seen = set()
+    allowed = set()
+
+    try:
+        price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else {}
+        if isinstance(price_map, dict):
+            for key in price_map.keys():
+                sym = _ask_norm_symbol(key)
+                if sym:
+                    allowed.add(sym)
+    except Exception:
+        allowed = set()
+
+    def _push(sym):
+        s = _ask_norm_symbol(sym)
+        if not s or s in seen:
+            return
+        seen.add(s)
+        out.append(s)
+
+    if isinstance(symbols_in, str):
+        for item in symbols_in.split(","):
+            _push(item)
+    elif isinstance(symbols_in, list):
+        for item in symbols_in:
+            _push(item)
+
+    for token in _ASK_SYMBOL_RE.findall(str(query or "").upper()):
+        if token in {"WHAT", "WITH", "FROM", "THIS", "THAT", "RIGHT", "NOW", "THE", "AND"}:
+            continue
+        if allowed and token not in allowed:
+            continue
+        _push(token)
+
+    return out[:8]
+
+def _ask_rows_to_compact(rows):
+    out = []
+    for r in (rows or []):
+        if not isinstance(r, dict):
+            continue
+        sym = _ask_norm_symbol(r.get("symbol") or r.get("product_id") or r.get("ticker"))
+        if not sym:
+            continue
+        out.append({
+            "symbol": sym,
+            "price_now": _ask_num(r.get("current_price") or r.get("price")),
+            "change_1m": _ask_num(r.get("change_1m") or r.get("price_change_1m")),
+            "change_3m": _ask_num(r.get("change_3m") or r.get("price_change_3m")),
+        })
+    return out
+
+def _ask_merge_movers(g1_rows, g3_rows, l3_rows, symbols):
+    want = set(symbols or [])
+    merged = {}
+
+    def _ingest(rows):
+        for row in _ask_rows_to_compact(rows):
+            sym = row["symbol"]
+            if want and sym not in want:
+                continue
+            slot = merged.get(sym)
+            if slot is None:
+                slot = {"symbol": sym, "price_now": None, "change_1m": None, "change_3m": None}
+                merged[sym] = slot
+            if row.get("price_now") is not None:
+                slot["price_now"] = row.get("price_now")
+            if row.get("change_1m") is not None:
+                slot["change_1m"] = row.get("change_1m")
+            if row.get("change_3m") is not None:
+                slot["change_3m"] = row.get("change_3m")
+
+    _ingest(g1_rows)
+    _ingest(g3_rows)
+    _ingest(l3_rows)
+
+    # If caller asked for specific symbols, add placeholders so UI can render deterministic rows.
+    if want:
+        price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else {}
+        if not isinstance(price_map, dict):
+            price_map = {}
+        for sym in want:
+            slot = merged.get(sym)
+            if slot is None:
+                slot = {"symbol": sym, "price_now": None, "change_1m": None, "change_3m": None}
+                merged[sym] = slot
+            if slot["price_now"] is None:
+                px = _ask_num(price_map.get(sym) or price_map.get(f"{sym}-USD"))
+                if px is not None:
+                    slot["price_now"] = px
+
+    movers = list(merged.values())
+    movers.sort(
+        key=lambda r: abs(r.get("change_1m") if r.get("change_1m") is not None else (r.get("change_3m") or 0.0)),
+        reverse=True,
+    )
+    return movers[:10]
+
+def _ask_build_levels(movers):
+    levels = []
+    for row in (movers or [])[:4]:
+        sym = row.get("symbol")
+        px = row.get("price_now")
+        ch = row.get("change_1m")
+        if ch is None:
+            ch = row.get("change_3m")
+        if not sym or px is None or ch is None:
+            continue
+        pct_abs = min(max(abs(float(ch)), 0.2), 20.0) / 100.0
+        if ch >= 0:
+            hold = px * (1.0 - pct_abs * 0.5)
+            clear = px * (1.0 + pct_abs)
+            levels.append(f"{sym}: hold ~${hold:.6g}, clear ~${clear:.6g}")
+        else:
+            reclaim = px * (1.0 + pct_abs * 0.5)
+            lose = px * (1.0 - pct_abs)
+            levels.append(f"{sym}: reclaim ~${reclaim:.6g}, lose ~${lose:.6g}")
+    return levels
+
+def _ask_collect_structured(symbols):
+    g1, _ = _wrap_rows_and_ts(_mw_get_component_snapshot("gainers_1m"))
+    g3, _ = _wrap_rows_and_ts(_mw_get_component_snapshot("gainers_3m"))
+    l3, _ = _wrap_rows_and_ts(_mw_get_component_snapshot("losers_3m"))
+    movers = _ask_merge_movers(g1, g3, l3, symbols)
+
+    snap_alerts_obj = _mw_get_component_snapshot("alerts")
+    snap_alerts, _ = _wrap_rows_and_ts(snap_alerts_obj)
+    if not snap_alerts:
+        snap_alerts, _ = _mw_get_alerts_normalized_with_sticky()
+    alerts = _normalize_alerts(snap_alerts or [])
+    alerts = list(alerts or [])[:40]
+    if symbols:
+        want = set(symbols)
+        alerts = [a for a in alerts if _ask_norm_symbol(a.get("symbol")) in want]
+
+    sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
+
+    risk_flags = []
+    if isinstance(last_current_prices, dict) and bool(last_current_prices.get("partial")):
+        reason = last_current_prices.get("partial_reason") or "partial_tick"
+        risk_flags.append(f"Price feed partial ({reason})")
+    stale_s = sentiment_meta.get("staleSeconds") if isinstance(sentiment_meta, dict) else None
+    if not bool((sentiment_meta or {}).get("ok", False)):
+        risk_flags.append("Sentiment pipeline not healthy")
+    elif isinstance(stale_s, (int, float)) and stale_s > 120:
+        risk_flags.append(f"Sentiment stale ({int(stale_s)}s)")
+    high_alerts = [a for a in alerts if str(a.get("severity", "")).lower() in {"critical", "high"}]
+    if high_alerts:
+        risk_flags.append(f"{len(high_alerts)} high-severity alert(s) active")
+    if not movers:
+        risk_flags.append("No mover snapshot rows available")
+    if symbols and movers:
+        have = {_ask_norm_symbol(m.get("symbol")) for m in movers}
+        missing = [s for s in symbols if s not in have]
+        if missing:
+            risk_flags.append(f"No mover stats for: {', '.join(missing)}")
+
+    what_moved = []
+    for row in movers[:6]:
+        what_moved.append({
+            "symbol": row.get("symbol"),
+            "price_now": row.get("price_now"),
+            "change_1m": row.get("change_1m"),
+            "change_3m": row.get("change_3m"),
+        })
+
+    alert_rows = []
+    for a in alerts[:8]:
+        t_raw = str(a.get("type") or "")
+        w = a.get("window")
+        if not w and "1M" in t_raw.upper():
+            w = "1m"
+        elif not w and "3M" in t_raw.upper():
+            w = "3m"
+        elif not w and "1H" in t_raw.upper():
+            w = "1h"
+        alert_rows.append({
+            "symbol": _ask_norm_symbol(a.get("symbol")),
+            "type_key": a.get("type_key") or a.get("type"),
+            "severity": a.get("severity"),
+            "window": w,
+            "pct": a.get("pct"),
+        })
+
+    structured = {
+        "what_moved": what_moved,
+        "alerts": alert_rows,
+        "risk_flags": risk_flags,
+        "levels": _ask_build_levels(movers),
+        "sentiment": {
+            "overall_sentiment": sentiment_payload.get("overall_sentiment") if isinstance(sentiment_payload, dict) else None,
+            "fear_greed": sentiment_payload.get("fear_greed_index") if isinstance(sentiment_payload, dict) else None,
+            "stale_seconds": stale_s,
+            "ok": bool((sentiment_meta or {}).get("ok", False)),
+        },
+    }
+    return structured
+
+def _ask_build_deterministic_answer(query: str, symbols, structured):
+    moved = structured.get("what_moved") or []
+    alerts = structured.get("alerts") or []
+    risk_flags = structured.get("risk_flags") or []
+    levels = structured.get("levels") or []
+
+    move_bits = []
+    for row in moved[:4]:
+        sym = row.get("symbol")
+        c1 = row.get("change_1m")
+        c3 = row.get("change_3m")
+        if c1 is not None:
+            move_bits.append(f"{sym} {c1:+.2f}%/1m")
+        elif c3 is not None:
+            move_bits.append(f"{sym} {c3:+.2f}%/3m")
+        else:
+            move_bits.append(f"{sym} flat")
+
+    alert_bits = []
+    for a in alerts[:3]:
+        sym = a.get("symbol") or "UNK"
+        tk = str(a.get("type_key") or "alert").upper()
+        pct = a.get("pct")
+        if pct is None:
+            alert_bits.append(f"{tk} {sym}")
+        else:
+            alert_bits.append(f"{tk} {sym} {float(pct):+.2f}%")
+
+    lines = []
+    symbols_txt = ", ".join(symbols) if symbols else "market"
+    lines.append(f"Ask Bhabit snapshot for {symbols_txt}:")
+    lines.append(f"Moves: {', '.join(move_bits) if move_bits else 'no strong movers in cached windows.'}")
+    lines.append(f"Alerts: {', '.join(alert_bits) if alert_bits else 'no active alerts.'}")
+    lines.append(f"Risk: {'; '.join(risk_flags) if risk_flags else 'no immediate feed-quality flags.'}")
+    if levels:
+        lines.append(f"Levels: {'; '.join(levels[:3])}")
+    lines.append(f"Question focus: {query.strip()[:220]}")
+    return "\n".join(lines)
+
+def _ask_try_openai_narrator(query: str, deterministic_answer: str, structured: dict):
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if (not api_key) or os.environ.get("OPENAI_STUB") == "1" or str(api_key).lower() in {"fake", "test", "dummy"}:
+        return None, "no_valid_openai_key"
+
+    payload = {
+        "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are Bhabit, a concise crypto tape narrator. Do not invent data. Keep to 5-7 lines.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"User question: {query}\n\n"
+                    f"Deterministic analysis:\n{deterministic_answer}\n\n"
+                    f"Structured data:\n{json.dumps(structured, separators=(',', ':'), default=str)}"
+                ),
+            },
+        ],
+        "temperature": 0.2,
+    }
+
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=18,
+        )
+    except Exception as exc:
+        return None, f"network_error:{exc}"
+
+    if resp.status_code >= 400:
+        logging.warning(f"ask-codex narrator upstream {resp.status_code}: {resp.text[:200]}")
+        return None, f"upstream_error:{resp.status_code}"
+
+    try:
         data = resp.json()
-        reply = (data.get('choices') or [{}])[0].get('message', {}).get('content') or 'No reply received.'
-        return jsonify({'reply': reply})
+        text = (data.get("choices") or [{}])[0].get("message", {}).get("content")
+        text = str(text or "").strip()
+        if not text:
+            return None, "empty_narrator_reply"
+        return text, None
+    except Exception as exc:
+        return None, f"invalid_upstream_payload:{exc}"
+
+@app.route('/api/ask-codex', methods=['GET', 'POST'])
+def ask_codex():
+    """Ask Bhabit endpoint: deterministic first, optional LLM narration."""
+    try:
+        if request.method == "GET":
+            return jsonify({
+                "ok": True,
+                "usage": "POST JSON {query|prompt, symbols?}",
+                "fields": ["query", "prompt", "symbols", "narrate"],
+                "mode": "deterministic-first",
+            })
+
+        data = request.get_json(silent=True) or {}
+        query = str(data.get("query") or data.get("prompt") or "").strip()
+        if not query:
+            return jsonify({"ok": False, "error": "Missing query", "hint": "send JSON with query or prompt"}), 400
+
+        symbols = _ask_extract_symbols(query, data.get("symbols"))
+        structured = _ask_collect_structured(symbols)
+        deterministic = _ask_build_deterministic_answer(query, symbols, structured)
+
+        narrate = bool(data.get("narrate", True))
+        answer = deterministic
+        mode = "deterministic"
+        narrator_error = None
+        if narrate:
+            narrated, narrator_error = _ask_try_openai_narrator(query, deterministic, structured)
+            if narrated:
+                answer = narrated
+                mode = "narrated"
+
+        response = {
+            "ok": True,
+            "mode": mode,
+            "answer": answer,
+            "reply": answer,  # back-compat for older UI
+            "query": query,
+            "symbols": symbols,
+            "structured": structured,
+            "meta": {
+                "narrate_requested": narrate,
+                "narrator_error": narrator_error,
+                "ts_ms": int(time.time() * 1000),
+            },
+        }
+        return jsonify(response), 200
     except Exception as e:
         logging.error(f"ask-codex error: {e}")
-        return jsonify({'reply': 'Internal error'}), 500
+        return jsonify({
+            "ok": False,
+            "mode": "error",
+            "answer": "Ask Bhabit is temporarily unavailable.",
+            "reply": "Ask Bhabit is temporarily unavailable.",
+            "error": str(e),
+        }), 500
 
-# Register blueprints after final app creation
-app.register_blueprint(watchlist_bp)
+# watchlist_bp already registered above (line ~656)
 
 # ---------------- Health + Metrics -----------------
 _ERROR_STATS = { '5xx': 0 }
@@ -2723,53 +3032,9 @@ def _after_req_metrics(resp):
         pass
     return resp
 
-@app.route('/api/health')
-def api_health():
-    """Lightweight health alias (faster than full server-info)."""
-    return jsonify({
-        'status': 'ok',
-        'uptime_seconds': round(time.time() - startup_time, 2),
-        'errors_5xx': _ERROR_STATS['5xx']
-    })
+# /api/health already registered above (line ~1089)
 
-# -------------------------------- Codex Assistant ---------------------------------
-@app.route('/api/ask-codex', methods=['POST'])
-def ask_codex():
-    """Proxy user query to OpenAI Chat Completions (server-side to protect API key)."""
-    try:
-        data = request.get_json(silent=True) or {}
-        query = (data.get('query') or '').strip()
-        if not query:
-            return jsonify({'error': 'Missing query'}), 400
-        api_key = os.environ.get('OPENAI_API_KEY')
-        # Stub mode if no key, or explicit stub flag, or clearly fake key
-        if (not api_key) or os.environ.get('OPENAI_STUB') == '1' or str(api_key).lower() in {'fake','test','dummy'}:
-            demo = f"[stub] You asked: '{query}'. This is a local test response. Set OPENAI_API_KEY to use real model."
-            return jsonify({'reply': demo, 'stub': True})
-        payload = {
-            'model': os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo'),
-            'messages': [
-                { 'role': 'system', 'content': 'You are a helpful React/JS/crypto assistant helping debug a WebSocket-based crypto dashboard.' },
-                { 'role': 'user', 'content': query }
-            ],
-            'temperature': 0.2
-        }
-        # Use requests directly (no extra dependency)
-        resp = requests.post('https://api.openai.com/v1/chat/completions',
-                              headers={
-                                  'Authorization': f'Bearer {api_key}',
-                                  'Content-Type': 'application/json'
-                              },
-                              json=payload, timeout=20)
-        if resp.status_code >= 400:
-            logging.warning(f"ask-codex upstream error {resp.status_code}: {resp.text[:200]}")
-            return jsonify({'reply': f'Upstream error {resp.status_code}'}), 502
-        data = resp.json()
-        reply = (data.get('choices') or [{}])[0].get('message', {}).get('content') or 'No reply received.'
-        return jsonify({'reply': reply})
-    except Exception as e:
-        logging.error(f"ask-codex error: {e}")
-        return jsonify({'reply': 'Internal error'}), 500
+# /api/ask-codex already registered above (line ~2669)
 
 # Dynamic Configuration with Environment Variables and Defaults
 CONFIG = {
@@ -3444,6 +3709,131 @@ _ALERT_EMIT_DIR = {}
 _MW_LAST_GOOD_ALERTS = []
 _MW_LAST_GOOD_ALERTS_TS = None
 
+# --- Alerts stream dedupe (last line of defense) ---
+_ALERT_STREAM_DEDUPE_WINDOW_S = 60
+_ALERT_STREAM_LAST_SEEN: dict[str, tuple[float, float | None]] = {}
+
+
+def _alert_stream_key(a: dict) -> str:
+    t = str(a.get("type") or a.get("type_key") or "").lower()
+    sym = str(a.get("symbol") or a.get("product_id") or "").upper()
+    win = str(a.get("window") or "").lower()
+    direction = str(a.get("direction") or "").lower()
+    return f"{t}|{sym}|{win}|{direction}"
+
+
+def _num_or_none(v):
+    try:
+        if v is None:
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
+def _is_number(v) -> bool:
+    try:
+        if v is None:
+            return False
+        float(v)
+        return True
+    except Exception:
+        return False
+
+
+def _is_engine_family_type(t: str) -> bool:
+    s = str(t or "").lower()
+    return any(k in s for k in ("whale", "stealth", "diverg", "fomo", "fear"))
+
+
+def _has_numeric_evidence(a: dict) -> bool:
+    ev = a.get("evidence")
+    if not isinstance(ev, dict) or not ev:
+        return False
+    for _, v in ev.items():
+        if _is_number(v):
+            return True
+        if isinstance(v, dict):
+            for __, vv in v.items():
+                if _is_number(vv):
+                    return True
+    return False
+
+
+def _utc_now_ts_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def _iso_utc_from_ms(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _stale_seconds(now_ms: int, asof_ms: int | None) -> float | None:
+    if not asof_ms:
+        return None
+    try:
+        return max(0.0, (now_ms - int(asof_ms)) / 1000.0)
+    except Exception:
+        return None
+
+
+def _to_ts_ms(value) -> int | None:
+    if value is None:
+        return None
+    try:
+        if isinstance(value, (int, float)):
+            v = float(value)
+            if v <= 0:
+                return None
+            # Heuristic: seconds are ~1e9, milliseconds are ~1e12.
+            return int(v if v >= 1_000_000_000_000 else v * 1000.0)
+        s = str(value).strip()
+        if not s:
+            return None
+        n = _num_or_none(s)
+        if n is not None:
+            return _to_ts_ms(n)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return int(dt.timestamp() * 1000)
+    except Exception:
+        return None
+
+
+def _should_accept_stream_alert(a: dict, now_s: float) -> bool:
+    key = _alert_stream_key(a)
+    pct = _num_or_none(a.get("pct"))
+    last = _ALERT_STREAM_LAST_SEEN.get(key)
+
+    if last is None:
+        _ALERT_STREAM_LAST_SEEN[key] = (now_s, pct)
+        return True
+
+    last_ts, last_pct = last
+
+    # allow through if outside dedupe window
+    if (now_s - last_ts) >= _ALERT_STREAM_DEDUPE_WINDOW_S:
+        _ALERT_STREAM_LAST_SEEN[key] = (now_s, pct)
+        return True
+
+    # allow real escalation inside window
+    if pct is not None and last_pct is not None and abs(pct - last_pct) >= 1.0:
+        _ALERT_STREAM_LAST_SEEN[key] = (now_s, pct)
+        return True
+
+    return False
+
+
+def _append_alerts_deduped(stream: deque, new_alerts: list[dict]) -> int:
+    now_s = time.time()
+    accepted = 0
+    for a in (new_alerts or []):
+        if not isinstance(a, dict):
+            continue
+        if _should_accept_stream_alert(a, now_s):
+            stream.append(a)
+            accepted += 1
+    return accepted
+
 
 def _mw_get_alerts_normalized_with_sticky():
     """Return (alerts, meta) where alerts may be a short sticky last-good list.
@@ -3506,7 +3896,10 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
     if not allow:
         return False
 
-    alerts_log_main.append(alert)
+    accepted = _append_alerts_deduped(alerts_log_main, [alert])
+    if accepted <= 0:
+        return False
+
     _ALERT_EMIT_TS[key] = now
     _ALERT_EMIT_VAL[key] = magnitude
     _ALERT_EMIT_DIR[key] = direction
@@ -3562,6 +3955,7 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
           "event_ts_ms": emitted_ms,
           "symbol": product_id,
           "type": alert_type,
+          "window": str(window).lower(),
           "severity": severity,
           "title": title,
           "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
@@ -3980,7 +4374,7 @@ def _seed_alerts_once():
         return
     _seed_alerts_once._done = True
     now = datetime.now(timezone.utc)
-    alerts_log_main.append({
+    _append_alerts_deduped(alerts_log_main, [{
         "id": f"seed_{int(time.time())}",
         "ts": now.isoformat(),
         "symbol": "BTC-USD",
@@ -3991,7 +4385,7 @@ def _seed_alerts_once():
         "expires_at": (now + timedelta(seconds=90)).isoformat(),
         "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
         "meta": {"source": "seed", "ttl_s": 90},
-    })
+    }])
 
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
 
@@ -4059,6 +4453,7 @@ def _normalize_alert(raw: dict) -> dict:
         "ts_ms": raw.get("ts_ms"),
         "event_ts": raw.get("event_ts"),
         "event_ts_ms": raw.get("event_ts_ms"),
+        "window": raw.get("window") or (raw.get("meta") or {}).get("window"),
         "window_s": raw.get("window_s"),
         "pct": _num_or_none(raw.get("pct")),
         "direction": raw.get("direction") or direction,
@@ -4072,6 +4467,7 @@ def _normalize_alert(raw: dict) -> dict:
         "score": score,
         "sources": raw.get("sources") or [],
         "trade_url": trade_url,
+        "evidence": raw.get("evidence"),
     }
     return {k: v for k, v in norm.items() if v is not None}
 
@@ -7044,21 +7440,99 @@ def get_top_movers_bar():
 # -----------------------------------------------------------------------------
 # Alerts API: expose recent Moonwalking alerts (normalized)
 # -----------------------------------------------------------------------------
+def _build_recent_alerts_payload(limit: int):
+    """
+    Single source of truth for building recent alerts + meta.
+    Both /api/alerts/recent and /api/alerts/proof MUST call this.
+    """
+    snap = _mw_get_component_snapshot('alerts')
+    items, _ts = _wrap_rows_and_ts(snap)
+    if isinstance(items, list) and items:
+        alerts_meta = {"sticky": False, "last_good_age_s": None}
+    else:
+        items, alerts_meta = _mw_get_alerts_normalized_with_sticky()
+
+    items = (items or [])[-limit:]
+
+    # Staleness + canonical meta (new fields, backwards-compatible)
+    updated_at = None
+    try:
+        updated_at = _mw_get_component_snapshot('updated_at')
+    except Exception:
+        pass
+
+    pressure_snap = _mw_get_component_snapshot('market_pressure')
+    pressure_data = None
+    if isinstance(pressure_snap, dict):
+        pressure_data = pressure_snap.get('data')
+
+    alerts_meta = dict(alerts_meta or {})
+
+    now_ms = _utc_now_ts_ms()
+    price_asof_ms = None
+    volume_asof_ms = None
+    warming_count = None
+
+    try:
+        price_asof_ms = _to_ts_ms(last_current_prices.get('timestamp'))
+    except Exception:
+        pass
+
+    try:
+        with _CANDLE_VOLUME_CACHE_LOCK:
+            cache_values = list(_CANDLE_VOLUME_CACHE.values())
+        if cache_values:
+            warming_count = 0
+            volume_ts_candidates = []
+            for cached in cache_values:
+                ts_ms = _to_ts_ms(cached.get('ts_computed'))
+                if ts_ms is not None:
+                    volume_ts_candidates.append(ts_ms)
+                prev = _num_or_none(cached.get('vol1h_prev'))
+                baseline_ready = bool(prev is not None and prev > 0 and ts_ms is not None)
+                if not baseline_ready:
+                    warming_count += 1
+            if volume_ts_candidates:
+                volume_asof_ms = max(volume_ts_candidates)
+        else:
+            warming_count = 0
+    except Exception:
+        pass
+
+    alerts_meta["asof_ts_ms"] = now_ms
+    alerts_meta["asof_ts"] = _iso_utc_from_ms(now_ms)
+    alerts_meta["inputs"] = {
+        "price_asof_ts_ms": price_asof_ms,
+        "volume_asof_ts_ms": volume_asof_ms,
+    }
+    alerts_meta["stale_seconds"] = {
+        "price": _stale_seconds(now_ms, price_asof_ms),
+        "volume": _stale_seconds(now_ms, volume_asof_ms),
+    }
+    alerts_meta["volume_warming_count"] = warming_count
+    alerts_meta["market_pressure"] = pressure_data
+    if updated_at is not None:
+        alerts_meta["snapshot_updated_at"] = updated_at
+
+    if not isinstance(items, list):
+        items = []
+    if not isinstance(alerts_meta, dict):
+        alerts_meta = {}
+
+    items = items[:limit]
+    return items, alerts_meta
+
+
 @app.route('/api/alerts/recent')
 def get_recent_alerts():
     try:
-        limit = int(request.args.get('limit', 50))
-        if limit <= 0:
-            limit = 50
+        limit = int(request.args.get("limit", 50))
+    except Exception:
+        limit = 50
+    limit = max(1, min(limit, 200))
 
-        snap = _mw_get_component_snapshot('alerts')
-        items, _ts = _wrap_rows_and_ts(snap)
-        if isinstance(items, list) and items:
-            alerts_meta = {"sticky": False, "last_good_age_s": None}
-        else:
-            items, alerts_meta = _mw_get_alerts_normalized_with_sticky()
-
-        items = (items or [])[-limit:]
+    try:
+        items, alerts_meta = _build_recent_alerts_payload(limit)
         return jsonify({
             'count': len(items),
             'limit': limit,
@@ -7068,6 +7542,58 @@ def get_recent_alerts():
     except Exception as e:
         logging.error(f"Error in recent alerts endpoint: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/alerts/proof')
+def get_alerts_proof():
+    """
+    Strict runtime validator for the alerts stream.
+    Does NOT change /api/alerts/recent behavior; only reports compliance.
+    """
+    try:
+        limit = int(request.args.get("limit", 50))
+    except Exception:
+        limit = 50
+    limit = max(1, min(limit, 200))
+
+    try:
+        items, alerts_meta = _build_recent_alerts_payload(limit)
+    except Exception as e:
+        logging.error(f"Error building alerts proof payload: {e}")
+        items, alerts_meta = [], {}
+
+    bad_alerts = []
+    engine_family_count = 0
+    missing_evidence_count = 0
+
+    for a in items:
+        if not isinstance(a, dict):
+            continue
+        t = a.get("type") or a.get("type_key") or ""
+        if _is_engine_family_type(t):
+            engine_family_count += 1
+            if not _has_numeric_evidence(a):
+                missing_evidence_count += 1
+                if len(bad_alerts) < 10:
+                    evidence = a.get("evidence")
+                    bad_alerts.append({
+                        "type": t,
+                        "symbol": a.get("symbol") or a.get("product_id") or "",
+                        "why": "engine-family alert missing numeric evidence",
+                        "evidence_keys": sorted(list(evidence.keys())) if isinstance(evidence, dict) else None,
+                    })
+
+    ok = (engine_family_count >= 1) and (missing_evidence_count == 0)
+
+    return jsonify({
+        "ok": ok,
+        "limit": limit,
+        "count": len(items),
+        "engine_family_count": engine_family_count,
+        "missing_evidence_count": missing_evidence_count,
+        "bad_alerts": bad_alerts,
+        "meta": alerts_meta,
+    })
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
 
 def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
@@ -7850,50 +8376,7 @@ def get_config_legacy():
     """Temporary legacy endpoint retained for backward compatibility; returns same payload as unified /api/config GET"""
     return api_config()
 
-@app.route('/api/health')
-def health_check():
-    """Comprehensive health check endpoint for monitoring"""
-    try:
-        # Test primary API connectivity
-        coinbase_status = "unknown"
-        
-        try:
-            coinbase_response = requests.get("https://api.exchange.coinbase.com/products", timeout=5)
-            coinbase_status = "up" if coinbase_response.status_code == 200 else "down"
-        except:
-            coinbase_status = "down"
-            
-        # Determine overall health
-        overall_status = "healthy"
-        if coinbase_status == "down":
-            overall_status = "unhealthy"
-            
-        return jsonify({
-            "status": overall_status,
-            "timestamp": datetime.now().isoformat(),
-            "version": "3.0.0",
-            "uptime": time.time() - startup_time,
-            "cache_status": {
-                "data_cached": cache["data"] is not None,
-                "last_update": cache["timestamp"],
-                "cache_age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
-                "ttl": cache["ttl"]
-            },
-            "external_apis": {
-                "coinbase": coinbase_status
-            },
-            "data_tracking": {
-                "symbols_tracked": len(price_history),
-                "max_history_per_symbol": CONFIG.get('MAX_PRICE_HISTORY', 100)
-            }
-        }), 200 if overall_status == "healthy" else 503
-    except Exception as e:
-        logging.error(f"Health check error: {e}")
-        return jsonify({
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }), 503
+# /api/health already registered above (line ~1089)
 
 @app.route('/api/server-info')
 def server_info():
@@ -8048,43 +8531,7 @@ def get_crypto_news(symbol):
         logging.error(f"Error getting news for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/social-sentiment/<symbol>')
-def get_hybrid_social_sentiment(symbol):
-    try:
-        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
-        if not clean_symbol.isalpha() or len(clean_symbol) < 2:
-            return jsonify({"error": "Invalid symbol format"}), 400
-
-        mock_headlines = [
-            f"Institutional inflows for {clean_symbol} reach record highs",
-            f"Regulatory uncertainty clouds {clean_symbol} short-term outlook",
-            f"Traders optimistic about {clean_symbol} upcoming network upgrade",
-        ]
-
-        current_prices = get_current_prices() if 'get_current_prices' in globals() else {}
-        price = current_prices.get(f"{clean_symbol}-USD", 0)
-
-        sentiment_result = ai_engine.score_headlines_local(mock_headlines)
-        narrative = ai_engine.generate_narrative(clean_symbol, mock_headlines, price)
-
-        return jsonify({
-            "success": True,
-            "data": {
-                "symbol": clean_symbol,
-                "overall_score": sentiment_result['score'],
-                "label": sentiment_result['label'],
-                "narrative": narrative,
-                "sources_breakdown": {
-                    "finbert_confidence": sentiment_result['confidence'],
-                    "headlines_analyzed": len(mock_headlines),
-                    "model": "FinBERT + Gemini 1.5 Flash"
-                }
-            },
-            "timestamp": datetime.now().isoformat()
-        })
-    except Exception as e:
-        logging.error(f"Error getting hybrid sentiment for {symbol}: {e}")
-        return jsonify({"error": str(e)}), 500
+# /api/social-sentiment already registered above (line ~2266)
 
 # =============================================================================
 
@@ -8162,6 +8609,103 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
 _MW_LAST_HEAVY_SNAPSHOT_AT = 0.0
 
 
+# ---------------------------------------------------------------------------
+# Alert engine state + canonical snapshot adapters
+# ---------------------------------------------------------------------------
+_ALERT_ENGINE_STATE = AlertEngineState()
+
+
+def _rows_from_component(comp):
+    """Extract list rows from a component dict shaped like {'component':..., 'data':[...]}."""
+    if isinstance(comp, dict):
+        rows = comp.get("data")
+        if isinstance(rows, list):
+            return rows
+    return []
+
+
+def mw_build_price_snapshot(*, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached_prices=None):
+    """Build canonical per-symbol price snapshot: {sym: {price, pct_1m, pct_3m, pct_1h}}."""
+    snap = {}
+
+    # 1m gainers (also covers 1m losers emitted from the same SWR builder)
+    for r in (g1m_rows or []):
+        sym = r.get("symbol")
+        if not sym:
+            continue
+        d = snap.setdefault(sym, {})
+        d["price"] = r.get("current_price")
+        d["pct_1m"] = r.get("price_change_percentage_1min")
+
+    # 3m gainers
+    for r in (g3m_rows or []):
+        sym = r.get("symbol")
+        if not sym:
+            continue
+        d = snap.setdefault(sym, {})
+        d["price"] = r.get("current_price")
+        d["pct_3m"] = r.get("price_change_percentage_3min")
+
+    # 3m losers
+    for r in (l3m_rows or []):
+        sym = r.get("symbol")
+        if not sym:
+            continue
+        d = snap.setdefault(sym, {})
+        d["price"] = r.get("current_price")
+        d["pct_3m"] = r.get("price_change_percentage_3min")
+
+    # 1h banner
+    for r in (banner_rows or []):
+        sym = r.get("symbol")
+        if not sym and r.get("product_id"):
+            sym = str(r["product_id"]).split("-")[0]
+        if not sym:
+            continue
+        d = snap.setdefault(sym, {})
+        d["price"] = r.get("current_price")
+        d["pct_1h"] = r.get("pct_1h") or r.get("price_change_1h")
+
+    # Fill prices from cached live prices for symbols that only appeared in one window
+    if isinstance(cached_prices, dict):
+        for sym, px in cached_prices.items():
+            if not sym:
+                continue
+            d = snap.setdefault(sym, {})
+            if d.get("price") is None:
+                d["price"] = px
+
+    # Ensure all keys present
+    for d in snap.values():
+        d.setdefault("pct_1m", None)
+        d.setdefault("pct_3m", None)
+        d.setdefault("pct_1h", None)
+
+    return snap
+
+
+def mw_build_volume_snapshot(candle_volume_cache=None):
+    """Build canonical per-symbol volume snapshot from _CANDLE_VOLUME_CACHE."""
+    out = {}
+    if not isinstance(candle_volume_cache, dict):
+        return out
+
+    for product_id, v in candle_volume_cache.items():
+        if not product_id or not isinstance(v, dict):
+            continue
+        sym = str(product_id).split("-")[0] if "-" in product_id else product_id
+        prev = v.get("vol1h_prev")
+        ts = v.get("ts_computed")
+        out[sym] = {
+            "volume_1h_now": v.get("vol1h"),
+            "volume_1h_prev": prev,
+            "volume_change_1h_pct": v.get("vol1h_pct_change"),
+            "baseline_ready": bool(prev and prev > 0 and ts),
+        }
+
+    return out
+
+
 def _compute_snapshots_from_cache():
     """Recompute snapshots using existing cached prices (fast, no network calls)."""
     try:
@@ -8221,9 +8765,9 @@ def _compute_snapshots_from_cache():
         l3m = _mark_partial(l3m)
 
         # Banner snapshots (lightweight)
+        b1h_price_rows = []  # initialized outside try for alert engine access
         try:
             banner_rows = (data_3min or {}).get('banner') or []
-            b1h_price_rows = []
 
             def _to_float(val):
                 try:
@@ -8456,81 +9000,82 @@ def _compute_snapshots_from_cache():
         except Exception as e:
             logging.debug(f"Market heat compute skip: {e}")
 
-        # --- Divergence detection: 1m vs 3m disagreement ---
+        # --- Alert Engine: build canonical snapshots + compute_alerts() ---
         try:
-            cached_prices = last_current_prices.get('data') or {}
-            for sym in cached_prices:
-                hist_1m = price_history_1min.get(sym)
-                hist_3m = price_history.get(sym)
-                if not hist_1m or len(hist_1m) < 2 or not hist_3m or len(hist_3m) < 2:
-                    continue
-                try:
-                    _, latest_price = hist_1m[-1]
-                    # 1m return
-                    base_1m = None
-                    for ts_i, p_i in reversed(list(hist_1m)):
-                        if now_s - ts_i >= 45:
-                            base_1m = p_i
-                            break
-                    # 3m return
-                    base_3m = None
-                    for ts_i, p_i in reversed(list(hist_3m)):
-                        if now_s - ts_i >= 120:
-                            base_3m = p_i
-                            break
-                    if base_1m and base_1m > 0 and base_3m and base_3m > 0:
-                        ret_1m = ((latest_price - base_1m) / base_1m) * 100
-                        ret_3m = ((latest_price - base_3m) / base_3m) * 100
-                        _emit_divergence_alert(sym, ret_1m, ret_3m, latest_price)
-                except Exception:
-                    continue
-        except Exception as e:
-            logging.debug(f"Divergence detection skip: {e}")
+            global _ALERT_ENGINE_STATE
 
-        # --- Whale + Stealth detection from volume cache ---
-        try:
+            # Build canonical price snapshot from component rows
+            g1m_rows = _rows_from_component(g1m)
+            g3m_rows = _rows_from_component(g3m)
+            l3m_rows = _rows_from_component(l3m)
+
+            price_snapshot = mw_build_price_snapshot(
+                g1m_rows=g1m_rows,
+                g3m_rows=g3m_rows,
+                l3m_rows=l3m_rows,
+                banner_rows=b1h_price_rows,
+                cached_prices=last_current_prices.get('data'),
+            )
+
+            # Build canonical volume snapshot from candle cache
             with _CANDLE_VOLUME_CACHE_LOCK:
-                vol_items = list(_CANDLE_VOLUME_CACHE.items())
-            cached_prices_data = last_current_prices.get('data') or {}
-            for product_id, vol_data in vol_items:
-                if not isinstance(vol_data, dict):
-                    continue
-                vol1h = vol_data.get('vol1h')
-                vol1h_pct = vol_data.get('vol1h_pct_change')
-                sym = product_id.split('-')[0].upper() if '-' in product_id else product_id
-                price_val = cached_prices_data.get(product_id) or cached_prices_data.get(sym) or 0
+                vol_cache_copy = dict(_CANDLE_VOLUME_CACHE)
+            volume_snapshot = mw_build_volume_snapshot(candle_volume_cache=vol_cache_copy)
 
-                # Whale detection (always try — z-score can fire even without vol1h_pct)
-                _emit_whale_alert(sym, vol1h, vol1h_pct, price_val)
+            # Get minute-level volumes for z-score whale detection
+            minute_volumes = dict(_CANDLE_MINUTE_VOLUMES)
 
-                # Stealth detection: need 3m price change
-                hist_3m = price_history.get(sym)
-                if hist_3m and len(hist_3m) >= 2 and vol1h_pct is not None:
-                    try:
-                        _, latest_p = hist_3m[-1]
-                        base_p = None
-                        for ts_i, p_i in reversed(list(hist_3m)):
-                            if now_s - ts_i >= 120:
-                                base_p = p_i
-                                break
-                        if base_p and base_p > 0:
-                            pct_3m = ((latest_p - base_p) / base_p) * 100
-                            _emit_stealth_alert(sym, pct_3m, vol1h_pct, latest_p)
-                    except Exception:
-                        pass
+            # Fear & Greed (optional external, fails open)
+            fg_val = None
+            try:
+                fg = _fetch_fear_and_greed_cached()
+                fg_val = fg.get("value") if fg else None
+            except Exception:
+                pass
+
+            # Run the engine (impulse OFF — SWR builders handle moonshot/crater/breakout/dump)
+            engine_alerts, _ALERT_ENGINE_STATE, engine_pressure = compute_alerts(
+                price_snapshot=price_snapshot,
+                volume_snapshot=volume_snapshot,
+                minute_volumes=minute_volumes,
+                state=_ALERT_ENGINE_STATE,
+                fg_value=fg_val,
+                include_impulse=False,
+            )
+
+            # Append engine alerts through the shared stream-level dedupe gate
+            _append_alerts_deduped(alerts_log_main, engine_alerts)
+
+            # Store market pressure for the UI
+            updates["market_pressure"] = {
+                "component": "market_pressure",
+                "data": {
+                    "heat": engine_pressure.heat,
+                    "bias": engine_pressure.bias,
+                    "breadth_up": engine_pressure.breadth_up,
+                    "breadth_down": engine_pressure.breadth_down,
+                    "impulse_count": engine_pressure.impulse_count,
+                    "symbol_count": engine_pressure.symbol_count,
+                    "label": engine_pressure.label,
+                },
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+            logging.info(
+                "Alert engine: %d alerts fired, pressure=%.0f (%s), %d symbols",
+                len(engine_alerts or []),
+                engine_pressure.heat,
+                engine_pressure.label,
+                engine_pressure.symbol_count,
+            )
         except Exception as e:
-            logging.debug(f"Whale/stealth detection skip: {e}")
+            logging.error(f"Alert engine error (non-fatal): {e}")
 
-        # --- FOMO / Fear macro alert from heat + F&G ---
-        try:
-            with _MARKET_HEAT_LOCK:
-                h_score = _MARKET_HEAT_CACHE.get("score", 50)
-                h_label = _MARKET_HEAT_CACHE.get("label", "NEUTRAL")
-            fg = _fetch_fear_and_greed_cached()
-            fg_val = fg.get("value") if fg else None
-            _emit_fomo_alert(h_score, h_label, fg_val)
-        except Exception as e:
-            logging.debug(f"FOMO/fear alert skip: {e}")
+        # --- Legacy emitters kept for impulse alerts fired inline by SWR builders ---
+        # NOTE: _emit_impulse_alert() is still called inside _get_gainers_table_1min_swr
+        # and _get_gainers_table_3min_swr for 1m/3m impulse detection. Those will be
+        # migrated to the engine in a future pass. Divergence, whale, stealth, and
+        # fomo/fear are now handled exclusively by the engine above.
 
         # Alerts snapshot (main only). Trend alerts are debug-only and do not
         # mix into the main UI stream.
