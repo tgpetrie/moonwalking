@@ -186,6 +186,11 @@ export function DataProvider({ children }) {
   const [sentiment, setSentiment] = useState(() => cachedNormalized?.sentiment ?? null);
   const [sentimentMeta, setSentimentMeta] = useState(() => cachedNormalized?.sentiment_meta ?? null);
 
+  // Canonical /api/alerts state (active + recent + meta including market_pressure)
+  const [activeAlerts, setActiveAlerts] = useState([]);
+  const [alertsRecent, setAlertsRecent] = useState([]);
+  const [alertsMeta, setAlertsMeta] = useState({});
+
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(() => !cachedNormalized);
   const [lastFetchTs, setLastFetchTs] = useState(null);
@@ -603,6 +608,66 @@ export function DataProvider({ children }) {
     };
   }, [fetchData]);
 
+  // Canonical /api/alerts poller — slower cadence (8s), feeds active + meta
+  const ALERTS_POLL_MS = Number(import.meta.env.VITE_ALERTS_POLL_MS || 8000);
+  const alertsPollRef = useRef(null);
+  const alertsInflightRef = useRef(false);
+  const alertsContractWarnedRef = useRef(false);
+
+  useEffect(() => {
+    if (!ALERTS_POLL_MS || ALERTS_POLL_MS <= 0) return undefined;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (alertsInflightRef.current || cancelled) return;
+      alertsInflightRef.current = true;
+      try {
+        const base = normalizeBase(import.meta?.env?.VITE_API_BASE_URL || "");
+        const url = `${base}/api/alerts?limit=50&active_ttl_s=300`;
+        const res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        if (import.meta?.env?.DEV && MW_DEBUG && !alertsContractWarnedRef.current) {
+          const required = ["id", "symbol", "type_key", "severity", "event_ts_ms", "evidence"];
+          const validateList = (arr, name) => {
+            if (!Array.isArray(arr)) return { name, reason: "not_array", sample: arr };
+            const bad = arr.find((a) => !a || required.some((k) => a[k] === undefined || a[k] === null));
+            if (!bad) return null;
+            return {
+              name,
+              reason: "missing_fields",
+              missing: required.filter((k) => bad?.[k] == null),
+              sample: bad,
+            };
+          };
+          const violation = validateList(json.active, "active") || validateList(json.recent, "recent");
+          if (violation) {
+            alertsContractWarnedRef.current = true;
+            console.warn("[mw] alerts contract violation", violation);
+          }
+        }
+
+        if (cancelled) return;
+        if (Array.isArray(json.active)) setActiveAlerts(json.active);
+        if (Array.isArray(json.recent)) setAlertsRecent(json.recent);
+        if (json.meta && typeof json.meta === "object") setAlertsMeta(json.meta);
+      } catch (err) {
+        if (MW_DEBUG) console.warn("[mw] /api/alerts poll failed:", err);
+      } finally {
+        alertsInflightRef.current = false;
+      }
+    };
+
+    poll();
+    alertsPollRef.current = setInterval(poll, ALERTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      if (alertsPollRef.current) clearInterval(alertsPollRef.current);
+      alertsPollRef.current = null;
+    };
+  }, []);
+
   // Legacy compatibility: combine all published slices
   const combinedData = useMemo(() => ({
     gainers_1m: oneMinRows,
@@ -693,7 +758,10 @@ export function DataProvider({ children }) {
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta]);
+    activeAlerts,
+    alertsRecent,
+    alertsMeta,
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, activeAlerts, alertsRecent, alertsMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

@@ -4,6 +4,7 @@ import { useMarketHeat } from '../hooks/useMarketHeat';
 import { Chart as ChartJS, registerables } from 'chart.js';
 import '../styles/sentiment-popup-advanced.css';
 import { SkeletonBlock, SkeletonCard, SkeletonText } from './ui/Skeleton';
+import AlertsTab from './AlertsTab';
 
 // Register Chart.js components
 ChartJS.register(...registerables);
@@ -43,12 +44,17 @@ const buildTradingViewEmbedUrl = (tvSymbol) => {
   return `https://s.tradingview.com/widgetembed/?${params.toString()}`;
 };
 
-const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
+const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'overview' }) => {
   const REFRESH_MS = 15000;
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(defaultTab || 'overview');
   const [chartExchange, setChartExchange] = useState('auto'); // auto | coinbase | binance
   const { data: sentimentData, loading, error, refresh, pipelineHealth } = useMarketHeat();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sync tab when popup opens or defaultTab changes
+  useEffect(() => {
+    if (isOpen) setActiveTab(defaultTab || 'overview');
+  }, [isOpen, defaultTab]);
 
   // Optional debug: Log symbol on open for debugging
   useEffect(() => {
@@ -465,32 +471,39 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
     ? Math.round(sentimentData.overallSentiment * 100)
     : null;
   const fg = Number.isFinite(sentimentData?.fearGreedIndex) ? Number(sentimentData.fearGreedIndex) : null;
-  const fgStatus = sentimentData?.fearGreedStatus || (Number.isFinite(fg) ? "LIVE" : "UNAVAILABLE");
+  const hasFG = Number.isFinite(fg);
+  const fgStatus = sentimentData?.fearGreedStatus || (hasFG ? "LIVE" : "UNAVAILABLE");
   const fgUpdatedLabel = formatTimestamp(sentimentData?.fearGreedUpdatedAt);
-  const insight = generateTopInsight(score, Number.isFinite(fg) ? fg : score);
+  const insight = generateTopInsight(score, hasFG ? fg : score);
   const gaugePos = updateGaugePosition(score);
 
   const tvResolved = resolveTvSymbol(symbol, chartExchange);
   const tvUrl = buildTradingViewEmbedUrl(tvResolved.symbol);
 
-  const regimeRaw = (sentimentData?.regime || "unknown").toString();
-  const regimeDisplay = regimeRaw.toUpperCase();
-  const confidenceDisplay = Number.isFinite(sentimentData?.confidence)
-    ? Number(sentimentData.confidence).toFixed(2)
-    : "--";
+  const hasScore = score !== null;
+  const regimeRaw = sentimentData?.regime ? sentimentData.regime.toString() : "";
+  const regimeDisplay = regimeRaw ? regimeRaw.toUpperCase() : "";
+  const confidenceValue = Number.isFinite(sentimentData?.confidence) ? Number(sentimentData.confidence) : null;
+  const confidenceDisplay = confidenceValue != null && confidenceValue > 0 ? confidenceValue.toFixed(2) : "";
   const reasonLines = Array.isArray(sentimentData?.reasons)
     ? sentimentData.reasons.slice(0, 2)
     : [];
+  const hasMetaLine = (regimeDisplay || confidenceDisplay) && (hasScore || hasFG || reasonLines.length > 0);
+  const components = sentimentData?.components || {};
+  const hasComponents = Number.isFinite(components.total_symbols)
+    ? components.total_symbols > 0
+    : [components.breadth_3m, components.breadth_1m, components.momentum_alignment, components.volatility]
+        .some((v) => Number.isFinite(v));
 
   const lastUpdatedMsRaw =
     sentimentData?.pipelineTimestamp ??
     sentimentData?.timestamp ??
     sentimentData?.updatedAt ??
     null;
-  const lastUpdatedMs = Number.isFinite(Date.parse(lastUpdatedMsRaw || "")) ? Date.parse(lastUpdatedMsRaw) : Date.now();
+  const lastUpdatedMs = Number.isFinite(Date.parse(lastUpdatedMsRaw || "")) ? Date.parse(lastUpdatedMsRaw) : null;
   const lastUpdate = Number.isFinite(lastUpdatedMs)
     ? new Date(lastUpdatedMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    : '--:--';
+    : '';
   const status =
     sentimentData?.pipelineStatus ??
     (pipelineHealth?.running ? "LIVE" : "OFFLINE");
@@ -625,6 +638,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
             </svg>
             Key Insights
           </button>
+          <button
+            className={`tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('alerts')}
+            role="tab"
+            aria-selected={activeTab === 'alerts'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/>
+              <path d="M18 16v-5a6 6 0 10-12 0v5l-2 2h16l-2-2z"/>
+            </svg>
+            Alerts
+          </button>
         </nav>
 
         {/* Tab Content */}
@@ -661,84 +686,90 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
           {/* OVERVIEW TAB */}
           {!loading && activeTab === 'overview' && (
             <section className="tab-panel active" role="tabpanel">
-              <div className="sentiment-meta-line">
-                REGIME: {regimeDisplay} | CONFIDENCE: {confidenceDisplay}
-              </div>
+              {hasMetaLine && (
+                <div className="sentiment-meta-line">
+                  {regimeDisplay ? `REGIME: ${regimeDisplay}` : null}
+                  {regimeDisplay && confidenceDisplay ? " | " : null}
+                  {confidenceDisplay ? `CONFIDENCE: ${confidenceDisplay}` : null}
+                </div>
+              )}
               {reasonLines.map((r, idx) => (
                 <div key={`reason-${idx}`} className="sentiment-reason">{r}</div>
               ))}
               <div className="stats-grid">
-                <div className="stat-card primary">
-                  <div className="stat-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <span className="stat-label">Overall Sentiment</span>
-                    <span className={`stat-value ${score !== null ? getSentimentClass(score) : 'muted'}`}>{score !== null ? score : '—'}</span>
-                    <span className="stat-change">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                {hasScore && (
+                  <div className="stat-card primary">
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                       </svg>
-                      <span>Trending</span>
-                    </span>
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-label">Overall Sentiment</span>
+                      <span className={`stat-value ${getSentimentClass(score)}`}>{score}</span>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="stat-card">
-                  <div className="stat-icon fear-greed">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <span className="stat-label">Fear & Greed</span>
-                    <span className={`stat-value ${getFearGreedClass(fg)}`}>{Number.isFinite(fg) ? fg : "N/A"}</span>
-                    <span className="stat-sublabel">
-                      {getFearGreedLabel(fg)}
-                      {" · "}
-                      {fgStatus}
-                      {fgUpdatedLabel ? ` · ${fgUpdatedLabel}` : ""}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <span className="stat-label">Market Heat</span>
-                    <span className={`stat-value ${score !== null && score >= 55 ? 'positive' : score !== null && score <= 35 ? 'negative' : 'neutral'}`}>
-                      {sentimentData?.heatLabel || 'NEUTRAL'}
-                    </span>
-                    {!symbol && (
+                {hasFG && (
+                  <div className="stat-card">
+                    <div className="stat-icon fear-greed">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>
+                      </svg>
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-label">Fear & Greed</span>
+                      <span className={`stat-value ${getFearGreedClass(fg)}`}>{fg}</span>
                       <span className="stat-sublabel">
-                        Breadth {sentimentData?.components?.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '--'}
-                        {' · '}Momentum {sentimentData?.components?.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '--'}
-                        {' · '}Vol {sentimentData?.components?.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '--'}
+                        {getFearGreedLabel(fg)}
+                        {" · "}
+                        {fgStatus}
+                        {fgUpdatedLabel ? ` · ${fgUpdatedLabel}` : ""}
                       </span>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
 
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 6v6l4 2"/>
-                  </svg>
-                </div>
-                <div className="stat-content">
-                  <span className="stat-label">Last Updated</span>
-                  <span className="stat-value small">{lastUpdate}</span>
-                  <span className="stat-sublabel">Auto-refresh: {Math.round(REFRESH_MS / 1000)}s</span>
-                </div>
-              </div>
+                {(hasScore || hasComponents) && (
+                  <div className="stat-card">
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-label">Market Heat</span>
+                      <span className={`stat-value ${hasScore && score >= 55 ? 'positive' : hasScore && score <= 35 ? 'negative' : 'neutral'}`}>
+                        {sentimentData?.heatLabel || 'NEUTRAL'}
+                      </span>
+                      {!symbol && hasComponents && (
+                        <span className="stat-sublabel">
+                          Breadth {Number.isFinite(components.breadth_3m) ? `${components.breadth_3m.toFixed(0)}%` : '--'}
+                          {' · '}Momentum {Number.isFinite(components.momentum_alignment) ? `${(components.momentum_alignment * 100).toFixed(0)}%` : '--'}
+                          {' · '}Vol {Number.isFinite(components.volatility) ? `${components.volatility.toFixed(2)}%` : '--'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {lastUpdate && (
+                  <div className="stat-card">
+                    <div className="stat-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                      </svg>
+                    </div>
+                    <div className="stat-content">
+                      <span className="stat-label">Last Updated</span>
+                      <span className="stat-value small">{lastUpdate}</span>
+                      <span className="stat-sublabel">Auto-refresh: {Math.round(REFRESH_MS / 1000)}s</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="gauge-section">
@@ -773,7 +804,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
               </div>
 
               {/* Market Heat Components - only show in market-wide view, not per-coin */}
-              {sentimentData?.components && !symbol && (
+              {hasComponents && !symbol && (
                 <div className="info-section">
                   <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -788,16 +819,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
                         <span className="tier-label">Breadth (3m)</span>
                       </div>
                       <div className="tier-score">
-                        {sentimentData.components.breadth_3m != null ? `${sentimentData.components.breadth_3m.toFixed(0)}%` : '—'}
+                        {Number.isFinite(components.breadth_3m) ? `${components.breadth_3m.toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-1-fill"
-                          style={{ width: sentimentData.components.breadth_3m != null ? `${Math.min(100, sentimentData.components.breadth_3m)}%` : '0%' }}
+                          style={{ width: Number.isFinite(components.breadth_3m) ? `${Math.min(100, components.breadth_3m)}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">
-                        {sentimentData.components.green_3m ?? 0} green / {sentimentData.components.red_3m ?? 0} red of {sentimentData.components.total_symbols ?? 0}
+                        {components.green_3m ?? 0} green / {components.red_3m ?? 0} red of {components.total_symbols ?? 0}
                       </div>
                     </div>
 
@@ -807,16 +838,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
                         <span className="tier-label">Breadth (1m)</span>
                       </div>
                       <div className="tier-score">
-                        {sentimentData.components.breadth_1m != null ? `${sentimentData.components.breadth_1m.toFixed(0)}%` : '—'}
+                        {Number.isFinite(components.breadth_1m) ? `${components.breadth_1m.toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-2-fill"
-                          style={{ width: sentimentData.components.breadth_1m != null ? `${Math.min(100, sentimentData.components.breadth_1m)}%` : '0%' }}
+                          style={{ width: Number.isFinite(components.breadth_1m) ? `${Math.min(100, components.breadth_1m)}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">
-                        {sentimentData.components.green_1m ?? 0} green / {sentimentData.components.red_1m ?? 0} red
+                        {components.green_1m ?? 0} green / {components.red_1m ?? 0} red
                       </div>
                     </div>
 
@@ -826,12 +857,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
                         <span className="tier-label">Momentum Alignment</span>
                       </div>
                       <div className="tier-score">
-                        {sentimentData.components.momentum_alignment != null ? `${(sentimentData.components.momentum_alignment * 100).toFixed(0)}%` : '—'}
+                        {Number.isFinite(components.momentum_alignment) ? `${(components.momentum_alignment * 100).toFixed(0)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-3-fill"
-                          style={{ width: sentimentData.components.momentum_alignment != null ? `${Math.max(0, Math.min(100, (sentimentData.components.momentum_alignment + 1) * 50))}%` : '0%' }}
+                          style={{ width: Number.isFinite(components.momentum_alignment) ? `${Math.max(0, Math.min(100, (components.momentum_alignment + 1) * 50))}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">
@@ -845,17 +876,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
                         <span className="tier-label">Volatility</span>
                       </div>
                       <div className="tier-score">
-                        {sentimentData.components.volatility != null ? `${sentimentData.components.volatility.toFixed(2)}%` : '—'}
+                        {Number.isFinite(components.volatility) ? `${components.volatility.toFixed(2)}%` : '—'}
                       </div>
                       <div className="tier-bar">
                         <div
                           className="tier-bar-fill tier-fringe-fill"
-                          style={{ width: sentimentData.components.volatility != null ? `${Math.min(100, sentimentData.components.volatility * 20)}%` : '0%' }}
+                          style={{ width: Number.isFinite(components.volatility) ? `${Math.min(100, components.volatility * 20)}%` : '0%' }}
                         />
                       </div>
                       <div className="tier-meta">
-                        Avg 3m: {sentimentData.components.avg_return_3m != null ? `${sentimentData.components.avg_return_3m.toFixed(3)}%` : '--'}
-                        {' · '}Avg 1m: {sentimentData.components.avg_return_1m != null ? `${sentimentData.components.avg_return_1m.toFixed(3)}%` : '--'}
+                        Avg 3m: {Number.isFinite(components.avg_return_3m) ? `${components.avg_return_3m.toFixed(3)}%` : '--'}
+                        {' · '}Avg 1m: {Number.isFinite(components.avg_return_1m) ? `${components.avg_return_1m.toFixed(3)}%` : '--'}
                       </div>
                     </div>
                   </div>
@@ -1336,6 +1367,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol }) => {
                   <p><strong>Disclaimer:</strong> This is sentiment analysis, not financial advice. Always do your own research and consider your risk tolerance before making investment decisions.</p>
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* ALERTS TAB */}
+          {!loading && activeTab === 'alerts' && (
+            <section className="tab-panel active" role="tabpanel">
+              <AlertsTab filterSymbol={symbol || null} />
             </section>
           )}
         </main>

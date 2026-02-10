@@ -17,10 +17,11 @@ import AskBhabitPanel from "./AskBhabitPanel.jsx";
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta } = useDashboardData();
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
+  const [sentimentDefaultTab, setSentimentDefaultTab] = useState("overview");
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
@@ -145,8 +146,15 @@ export default function DashboardShell({ onInfo }) {
     if (sym) {
       console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
+      setSentimentDefaultTab("overview");
       setSentimentOpen(true);
     }
+  };
+
+  const handleOpenAlerts = () => {
+    setSentimentSymbol(null);
+    setSentimentDefaultTab("alerts");
+    setSentimentOpen(true);
   };
 
   const handleToggleWatchlist = (symbol, price = null) => {
@@ -185,6 +193,7 @@ export default function DashboardShell({ onInfo }) {
       const sym = String(e.detail).toUpperCase();
       console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
+      setSentimentDefaultTab("overview");
       setSentimentOpen(true);
     };
     window.addEventListener("openInfo", handler);
@@ -241,6 +250,16 @@ export default function DashboardShell({ onInfo }) {
             <span className="live-updated">
               <span className="live-updated-time">{lastUpdatedLabel}</span>
             </span>
+            {alertsMeta.market_pressure ? (() => {
+              const h = Number(alertsMeta.market_pressure.heat ?? 50);
+              const tone = h >= 65 ? "hot" : h >= 45 ? "warm" : "cold";
+              const label = h >= 80 ? "EXTREME" : h >= 65 ? "HOT" : h >= 45 ? "WARM" : h >= 25 ? "COOL" : "COLD";
+              return (
+                <span className={`bh-pressure-pill bh-pressure-pill--${tone}`} title={`Market Pressure: ${h.toFixed(0)}`}>
+                  {label} {h.toFixed(0)}
+                </span>
+              );
+            })() : null}
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
@@ -349,17 +368,19 @@ export default function DashboardShell({ onInfo }) {
 
       {/* Insights floating card aligned to board rails */}
       <SentimentPopupAdvanced
-        key={sentimentSymbol || "GLOBAL"}
+        key={`${sentimentSymbol || "GLOBAL"}-${sentimentDefaultTab}`}
         isOpen={sentimentOpen}
         symbol={sentimentSymbol || undefined}
+        defaultTab={sentimentDefaultTab}
         onClose={() => {
           setSentimentOpen(false);
           setSentimentSymbol(null);
+          setSentimentDefaultTab("overview");
         }}
       />
 
       <AskBhabitPanel />
-      <AlertsDock />
+      <AlertsDock onOpenAlerts={handleOpenAlerts} />
     </div>
   );
 }

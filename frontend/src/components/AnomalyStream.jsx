@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPct, formatPrice } from "../utils/format";
-import { parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
+import { deriveAlertType, extractAlertPct, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 
@@ -72,10 +72,15 @@ const classifyLog = (log) => {
     return { label: log.label, chipTone: "info" };
   }
   const norm = normalizeAlert(log);
-  const pct = Number.isFinite(norm?.pct) ? norm.pct : toNum(log?.pct);
-  const derivedType = typeKeyToUpper(norm.type_key);
+  const extracted = extractAlertPct(log);
+  const pct = extracted.pct ?? (Number.isFinite(norm?.pct) ? norm.pct : toNum(log?.pct));
+  const derivedType = deriveAlertType({
+    type: log?.type ?? norm?.type,
+    pct,
+    severity: log?.severity ?? norm?.severity ?? log?.sev,
+  }) || typeKeyToUpper(norm.type_key);
   let chipTone = "info";
-  if (["MOONSHOT", "BREAKOUT", "FOMO"].includes(derivedType)) chipTone = "gain";
+  if (["MOONSHOT", "BREAKOUT", "IMPULSE", "FOMO"].includes(derivedType)) chipTone = "gain";
   else if (["CRATER", "DUMP", "FEAR"].includes(derivedType)) chipTone = "loss";
   else if (derivedType === "MOVE") chipTone = Number.isFinite(pct) && pct < 0 ? "loss" : "gain";
   else if (["SENTIMENT", "DIVERGENCE", "VOLUME", "WHALE", "STEALTH"].includes(derivedType)) chipTone = "sent";
@@ -142,7 +147,7 @@ const renderIntelMessage = (message) => {
   if (!message) return null;
   const text = String(message);
   const parts = [];
-  const regex = /([+-]\d+(?:\.\d+)?%)/g;
+  const regex = /([+-]\d+(?:\.\d+)?%|\$\d[\d,]*(?:\.\d+)?)/g;
   let lastIndex = 0;
   let match;
   while ((match = regex.exec(text))) {
@@ -150,12 +155,20 @@ const renderIntelMessage = (message) => {
       parts.push(text.slice(lastIndex, match.index));
     }
     const token = match[1];
-    const cls = token.startsWith("-") ? "bh-intel-pct bh-intel-pct--neg" : "bh-intel-pct bh-intel-pct--pos";
-    parts.push(
-      <span key={`pct-${match.index}`} className={cls}>
-        {token}
-      </span>
-    );
+    if (token.startsWith("$")) {
+      parts.push(
+        <span key={`price-${match.index}`} className="bh-intel-price">
+          {token}
+        </span>
+      );
+    } else {
+      const cls = token.startsWith("-") ? "bh-intel-pct bh-intel-pct--neg" : "bh-intel-pct bh-intel-pct--pos";
+      parts.push(
+        <span key={`pct-${match.index}`} className={cls}>
+          {token}
+        </span>
+      );
+    }
     lastIndex = match.index + token.length;
   }
   if (lastIndex < text.length) {
@@ -335,9 +348,14 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         { product_id: norm.product_id || a.product_id || (symbol ? `${symbol}-USD` : null) },
         symbol
       );
-      const type = typeKeyToUpper(norm.type_key);
+      const extracted = extractAlertPct(a);
+      const type = deriveAlertType({
+        type: a?.type ?? norm?.type,
+        pct: extracted.pct ?? norm?.pct,
+        severity: a?.severity ?? norm?.severity ?? a?.sev,
+      }) || typeKeyToUpper(norm.type_key);
       const parsed = parseImpulseMessage(a);
-      const pct = pickNumber(norm?.pct, a?.pct, parsed?.parsed_pct);
+      const pct = extracted.pct ?? pickNumber(norm?.pct, a?.pct, parsed?.parsed_pct);
       const windowLabel = norm?.window || windowLabelFromType(a?.type) || parsed?.parsed_window_label || "";
       const volPct = pickNumber(a?.vol_change_pct, a?.vol_pct, a?.meta?.vol_change_pct, a?.meta?.vol_pct);
       const sentimentDelta = pickNumber(
@@ -360,6 +378,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         type_key: norm?.type_key || "",
         severity: norm?.severity || a?.severity || "info",
         pct,
+        metrics: a?.metrics || null,
         window: windowLabel,
         vol_change_pct: volPct,
         sentiment_delta: sentimentDelta,

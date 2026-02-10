@@ -141,17 +141,17 @@ export default function GainersTable1Min({
 
                   {/* Col2: prices */}
                   <div className={'w-[152px] pr-6 text-right ' + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal tabular-nums leading-none whitespace-nowrap">
+                    <div className="text-base sm:text-lg md:text-xl font-bold text-teal leading-none whitespace-nowrap">
                       {item && Number.isFinite(item.price) ? formatPrice(item.price) : '0.00'}
                     </div>
-                    <div className="text-sm leading-tight text-gray-300 tabular-nums whitespace-nowrap">
+                    <div className="text-sm leading-tight text-gray-300 whitespace-nowrap">
                       {prevPrice != null ? formatPrice(prevPrice) : '--'}
                     </div>
                   </div>
 
                   {/* Col3: pct + peak + interval */}
                   <div className={'w-[108px] pr-1.5 text-right align-top ' + (isPlaceholder ? 'opacity-0' : '')}>
-                    <div className={`text-base sm:text-lg md:text-xl font-bold tabular-nums leading-none whitespace-nowrap ${pctColorClass(pct)}`}>
+                    <div className={`text-base sm:text-lg md:text-xl font-bold leading-none whitespace-nowrap ${pctColorClass(pct)}`}>
                       {pct > 0 && '+'}{typeof pct === 'number' ? formatPercentage(pct) : '0.00%'}
                     </div>
                     <div className="text-xs text-gray-400 leading-tight">

@@ -427,7 +427,7 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                     {sentimentHistory.slice(-10).map((entry, idx) => (
                       <div key={`sent-h-${idx}`} className="sentiment-history-row">
                         <span>{entry.label || "Heat"}</span>
-                        <span className="tabular-nums">
+                        <span>
                           {entry.sentiment != null
                             ? (Number(entry.sentiment) * 100).toFixed(0)
                             : entry.score != null

@@ -7,6 +7,35 @@ html, body {
   font-family: "Raleway", sans-serif;
 }
 
+/* Global numeric typography: proportional numerals + plain zeros (no tabular, no slashed 0) */
+:root, body, #root, input, button, select, textarea {
+  font-variant-numeric: normal !important;
+  font-feature-settings: "tnum" 0, "lnum" 1, "onum" 0, "zero" 0 !important;
+}
+
+/* If any component explicitly set tabular numerals, neutralize it */
+*[style*="font-variant-numeric"]:not(.bh-num-tabular),
+*[class*="tabular"]:not(.bh-num-tabular),
+*[class*="tnum"]:not(.bh-num-tabular) {
+  font-variant-numeric: normal !important;
+  font-feature-settings: "tnum" 0, "zero" 0 !important;
+}
+
+/* Hard guardrail: prevent tabular numerals from reappearing via utility/classes */
+.tabular-nums:not(.bh-num-tabular),
+.font-tabular:not(.bh-num-tabular),
+.tnum:not(.bh-num-tabular),
+.numeric-tabular:not(.bh-num-tabular) {
+  font-variant-numeric: normal !important;
+  font-feature-settings: "tnum" 0, "zero" 0 !important;
+}
+
+/* Opt-in class for tabular numbers when column alignment is required */
+.bh-num-tabular {
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "zero" 0 !important;
+}
+
 /* ===== BHABIT DASHBOARD – CANONICAL GRID & LAYOUT ===== */
 
 :root {
@@ -1403,7 +1432,7 @@ a.bh-row {
   flex-shrink: 0;
   flex: 0 0 var(--bh-col-rank);
 }
-/* Rank badge: fixed box, tabular digits, no layout shifts */
+/* Rank badge: fixed box, no layout shifts */
 .bh-rank {
   width: 22px;
   height: 22px;
@@ -1417,8 +1446,6 @@ a.bh-row {
   justify-content: center;
 
   line-height: 1;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
   flex: 0 0 auto;
 }
 
@@ -1533,8 +1560,6 @@ a.bh-row {
 .bh-change {
   font-size: 1.02rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
   letter-spacing: -0.01rem;
 }
 
@@ -3781,11 +3806,6 @@ a.bh-row {
 .bh-row.cols-compact { --bh-cols: 44px minmax(0, 1fr) 150px 110px 44px; }
 .bh-row.cols-wide    { --bh-cols: 64px minmax(0, 1fr) 190px 140px 64px; }
 
-.bh-row,
-.bh-row *{
-  font-variant-numeric: tabular-nums;
-}
-
 .bh-cell-rank{ grid-column: 1; }
 .bh-cell-symbol{ grid-column: 2; }
 .bh-cell-price{ grid-column: 3; justify-self: end; text-align: right; }
@@ -4440,7 +4460,6 @@ a.bh-row {
 
 .bh-intel-log .bh-log-time{
   color: rgba(255,255,255,0.45);
-  font-variant-numeric: tabular-nums;
 }
 
 .bh-intel-log .bh-log-type{
@@ -5409,6 +5428,8 @@ html, body {
 .token-row--live .token-pct,
 .token-row.table-row .token-price > div:first-child,
 .token-row.table-row .token-pct,
+.bh-row .bh-price-current,
+.bh-row .bh-change,
 .bh-row .bh-price,
 .bh-row .bh-pct {
   animation: bh-live-glint 2.4s ease-in-out infinite;
@@ -5421,6 +5442,8 @@ html, body {
   .token-row--live .token-pct,
   .token-row.table-row .token-price > div:first-child,
   .token-row.table-row .token-pct,
+  .bh-row .bh-price-current,
+  .bh-row .bh-change,
   .bh-row .bh-price,
   .bh-row .bh-pct {
     animation: none;
@@ -5584,7 +5607,6 @@ html, body {
 
 .bh-intel-ts{
   color: rgba(255,255,255,0.42);
-  font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
 
@@ -5619,6 +5641,12 @@ html, body {
 
 .bh-intel-pct--neg{
   color: rgba(192,132,252,0.95);
+}
+
+.bh-intel-price{
+  color: rgba(88, 245, 214, 0.94);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .bh-intel-chip{
@@ -5684,4 +5712,712 @@ html, body {
 .bh-intel-panel *::before,
 .bh-intel-panel *::after{
   box-shadow: none !important;
+}
+
+/* =========================================================
+   RESTORE: centered table headers + light transparent lasso glow
+   Source lineage: c4e907ef + df3fc6ab + 34a6d6a9
+   ========================================================= */
+
+/* ===== Table Headers (Centered, token weight) ===== */
+.board-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0 0 0.6rem;
+}
+
+.board-section-header--center {
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  padding-bottom: 0.48rem;
+}
+
+.board-section-title,
+.table-title {
+  font-family: var(--bh-font-sans);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.board-section-title--center,
+.table-title {
+  width: 100%;
+  text-align: center;
+}
+
+.table-title {
+  margin: 0.2rem 0 0.7rem;
+  position: relative;
+  padding-bottom: 0.48rem;
+}
+
+/* 1m + 3m header underlines (restored hierarchy) */
+.board-section-header--center::after,
+.bh-3m-grid .table-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.board-section-header--center::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 170, 64, 0.08) 18%,
+    rgba(255, 170, 64, 0.14) 50%,
+    rgba(255, 170, 64, 0.08) 82%,
+    transparent 100%
+  );
+}
+
+.bh-3m-grid > .bh-panel:first-child .table-title::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 170, 64, 0.08) 18%,
+    rgba(255, 170, 64, 0.14) 50%,
+    rgba(255, 170, 64, 0.08) 82%,
+    transparent 100%
+  );
+}
+
+.bh-3m-grid > .bh-panel:last-child .table-title::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(170, 120, 255, 0.08) 18%,
+    rgba(170, 120, 255, 0.14) 50%,
+    rgba(170, 120, 255, 0.08) 82%,
+    transparent 100%
+  );
+}
+
+/* ===== Light transparent lasso glow (1m + 3m) ===== */
+.board-core .bh-row.bh-row-grid {
+  background-color: transparent !important;
+}
+
+.board-core .bh-row.bh-row-grid:hover,
+.board-core .bh-row.bh-row-grid:focus-visible {
+  border-radius: 4px !important;
+}
+
+/* 1m LEFT column gainers: glow from center seam (right side) */
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(255, 165, 0, 0.10) 0%,
+    rgba(255, 165, 0, 0.04) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 1m RIGHT column gainers: glow from center seam (left side) */
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:hover,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(255, 165, 0, 0.10) 0%,
+    rgba(255, 165, 0, 0.04) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 1m LEFT column losers */
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:focus-visible,
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loss"]:hover,
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loss"]:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(170, 120, 255, 0.11) 0%,
+    rgba(170, 120, 255, 0.045) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 1m RIGHT column losers */
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:focus-visible,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loss"]:hover,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loss"]:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(170, 120, 255, 0.11) 0%,
+    rgba(170, 120, 255, 0.045) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 3m LEFT panel gainers */
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(255, 165, 0, 0.10) 0%,
+    rgba(255, 165, 0, 0.04) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 3m RIGHT panel gainers */
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid:hover,
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(255, 165, 0, 0.10) 0%,
+    rgba(255, 165, 0, 0.04) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 3m LEFT panel losers */
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid[data-side="loser"]:focus-visible,
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid[data-side="loss"]:hover,
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid[data-side="loss"]:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 100% 50%,
+    rgba(170, 120, 255, 0.11) 0%,
+    rgba(170, 120, 255, 0.045) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* 3m RIGHT panel losers */
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loser"]:focus-visible,
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loss"]:hover,
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loss"]:focus-visible {
+  background: radial-gradient(
+    ellipse 140% 180% at 0% 50%,
+    rgba(170, 120, 255, 0.11) 0%,
+    rgba(170, 120, 255, 0.045) 45%,
+    transparent 80%
+  ) !important;
+}
+
+/* ===== Micro Animations (Per-Cell + Orchestrated, restored) ===== */
+@keyframes bh-cell-breathe {
+  0%, 100% {
+    opacity: 0.94;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes bh-cell-orchestrate {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.05);
+  }
+}
+
+.bh-row.bh-row-grid > .bh-cell {
+  --bh-cell-index: 0;
+  --bh-cell-cadence-step: 0ms;
+  filter: brightness(1);
+  animation-name: bh-cell-breathe, bh-cell-orchestrate;
+  animation-duration: calc(var(--bh-cell-cadence, 5200ms) + var(--bh-cell-cadence-step, 0ms)), 2400ms;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: calc(var(--bh-cell-cadence-delay, 0ms) + var(--bh-cell-stagger, 120ms) * var(--bh-cell-index)),
+    calc(var(--bh-cell-orch-delay, 0ms) + var(--bh-cell-stagger, 120ms) * var(--bh-cell-index));
+  animation-fill-mode: both;
+}
+
+.bh-row.bh-row-grid > .bh-cell:nth-of-type(1) { --bh-cell-index: 0; --bh-cell-cadence-step: 0ms; }
+.bh-row.bh-row-grid > .bh-cell:nth-of-type(2) { --bh-cell-index: 1; --bh-cell-cadence-step: 180ms; }
+.bh-row.bh-row-grid > .bh-cell:nth-of-type(3) { --bh-cell-index: 2; --bh-cell-cadence-step: 320ms; }
+.bh-row.bh-row-grid > .bh-cell:nth-of-type(4) { --bh-cell-index: 3; --bh-cell-cadence-step: 240ms; }
+.bh-row.bh-row-grid > .bh-cell:nth-of-type(5) { --bh-cell-index: 4; --bh-cell-cadence-step: 140ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-row.bh-row-grid > .bh-cell {
+    animation: none !important;
+    filter: none !important;
+  }
+}
+
+/* =========================================================
+   FINAL LOCK: 1m/3m row glow + rabbit transparency
+   This block intentionally overrides older hover experiments.
+   ========================================================= */
+
+/* Rabbit baseline: lighter / more transparent by default */
+.board-core .rabbit-bg,
+.board-core .bh-bunny-layer {
+  opacity: 0.0018 !important;
+  filter: brightness(0.9) contrast(0.92) saturate(0.88) !important;
+}
+
+/* Hover wake: still subtle, but visible and color-tinted */
+.board-core[data-row-hover="1"] .rabbit-bg,
+.board-core[data-row-hover="1"] .bh-bunny-layer {
+  opacity: 0.032 !important;
+  filter:
+    brightness(1.42)
+    contrast(1.08)
+    saturate(1.04)
+    drop-shadow(0 0 12px rgba(255, 182, 80, 0.22))
+    drop-shadow(0 0 22px rgba(170, 120, 255, 0.20)) !important;
+}
+
+/* Keep row content readable over the hover lens */
+.board-core .bh-row.bh-row-grid > .bh-cell {
+  position: relative;
+  z-index: 4;
+}
+
+/* Canonical hover lens (in front of row background, above rabbit) */
+.board-core .bh-row.bh-row-grid::after {
+  content: "";
+  position: absolute;
+  inset: 4px 10px;
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+  transition: opacity 140ms ease, filter 140ms ease, transform 140ms ease;
+  transform: translateZ(0);
+  mix-blend-mode: screen;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Orange glow for gain side (default) */
+.board-core .bh-row.bh-row-grid:hover::after,
+.board-core .bh-row.bh-row-grid:focus-visible::after {
+  opacity: 0.92;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 176, 46, 0.00) 0%,
+      rgba(255, 176, 46, 0.040) 20%,
+      rgba(255, 176, 46, 0.078) 50%,
+      rgba(255, 176, 46, 0.040) 80%,
+      rgba(255, 176, 46, 0.00) 100%
+    ),
+    radial-gradient(
+      160% 230% at 50% 50%,
+      rgba(255, 176, 46, 0.15) 0%,
+      rgba(255, 176, 46, 0.06) 42%,
+      rgba(0, 0, 0, 0) 76%
+    ) !important;
+  backdrop-filter: brightness(1.36) contrast(1.2) saturate(1.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 176, 46, 0.24),
+    inset 0 0 22px rgba(255, 176, 46, 0.10) !important;
+}
+
+/* Purple glow for loser rows */
+.board-core .bh-row.bh-row-grid[data-side="loser"]:hover::after,
+.board-core .bh-row.bh-row-grid[data-side="loser"]:focus-visible::after,
+.board-core .bh-row.bh-row-grid[data-side="loss"]:hover::after,
+.board-core .bh-row.bh-row-grid[data-side="loss"]:focus-visible::after {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(160, 110, 255, 0.00) 0%,
+      rgba(160, 110, 255, 0.040) 20%,
+      rgba(160, 110, 255, 0.078) 50%,
+      rgba(160, 110, 255, 0.040) 80%,
+      rgba(160, 110, 255, 0.00) 100%
+    ),
+    radial-gradient(
+      160% 230% at 50% 50%,
+      rgba(170, 120, 255, 0.16) 0%,
+      rgba(170, 120, 255, 0.06) 42%,
+      rgba(0, 0, 0, 0) 76%
+    ) !important;
+  backdrop-filter: brightness(1.34) contrast(1.2) saturate(1.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(170, 120, 255, 0.24),
+    inset 0 0 24px rgba(170, 120, 255, 0.10) !important;
+}
+
+/* ---- Alerts Tab: Market Mood (Pressure card) ---- */
+.bh-pressure-card .bh-pressure-toprow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.bh-mood-dot{
+  display:inline-block;
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  margin-right:10px;
+  background: rgba(180,180,180,0.7);
+  box-shadow: 0 0 10px rgba(180,180,180,0.25);
+}
+
+.bh-pressure-card[data-tone="bull"] .bh-mood-dot{
+  background: rgba(70, 200, 140, 0.85);
+  box-shadow: 0 0 12px rgba(70, 200, 140, 0.35);
+}
+.bh-pressure-card[data-tone="bear"] .bh-mood-dot{
+  background: rgba(240, 90, 90, 0.85);
+  box-shadow: 0 0 12px rgba(240, 90, 90, 0.35);
+}
+.bh-pressure-card[data-tone="neutral"] .bh-mood-dot{
+  background: rgba(180,180,180,0.75);
+  box-shadow: 0 0 10px rgba(180,180,180,0.25);
+}
+
+.bh-pressure-confidence{
+  font-size: 12px;
+  opacity: 0.9;
+}
+.bh-pressure-confidence[data-tone="high"]{ opacity: 1; }
+.bh-pressure-confidence[data-tone="med"]{ opacity: 0.9; }
+.bh-pressure-confidence[data-tone="low"]{ opacity: 0.75; }
+.bh-pressure-confidence[data-tone="unknown"]{ opacity: 0.75; }
+
+.bh-pressure-hint{
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* ---- Alerts Tab: Help / Glossary ---- */
+.bh-alerts-help{
+  margin: 10px 0 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.bh-alerts-help-title{
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.bh-alerts-help-body{
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 10px;
+}
+
+.bh-alerts-help-line{
+  margin: 4px 0;
+}
+
+.bh-alerts-glossary{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+@media (max-width: 860px){
+  .bh-alerts-glossary{ grid-template-columns: 1fr; }
+}
+
+.bh-gloss-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.12);
+}
+
+.bh-gloss-key{
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bh-gloss-val{
+  font-size: 12px;
+  opacity: 0.8;
+  text-align: right;
+}
+
+/* Help toggle button */
+.bh-control--help{
+  display:flex;
+  align-items:flex-end;
+}
+.bh-help-toggle{
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bh-help-toggle:hover{
+  background: rgba(255,255,255,0.09);
+}
+
+/* ── Alerts Tab layout ─────────────────────────────────── */
+.bh-alerts-tab{
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+}
+.bh-alerts-layout{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow: hidden;
+}
+.bh-alerts-feed{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.bh-alerts-feed-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.bh-alerts-feed-title{
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+
+/* Active / Recent toggle */
+.bh-alerts-toggle{
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+.bh-toggle-btn{
+  padding: 4px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.bh-toggle-btn[aria-selected="true"]{
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+}
+.bh-toggle-btn:hover{
+  color: rgba(255,255,255,0.8);
+}
+
+/* Controls grid – 4 columns */
+.bh-alerts-tab-controls{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  flex-shrink: 0;
+}
+.bh-control{}
+.bh-control-label{
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 3px;
+}
+.bh-control-select{
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.bh-control-select:focus{
+  outline: none;
+  border-color: rgba(255,255,255,0.18);
+}
+
+/* Help bar */
+.bh-alerts-help-bar{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Signal list */
+.bh-signal-list{
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+.bh-signal-empty{
+  text-align: center;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  padding: 28px 0;
+}
+
+/* Signal row */
+.bh-signal-row{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.bh-signal-row:hover{
+  background: rgba(255,255,255,0.06);
+}
+.bh-signal-main{
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bh-signal-top{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bh-signal-type{
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+}
+.bh-signal-sym{
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.bh-signal-age{
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  margin-left: auto;
+}
+.bh-signal-chips{
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.bh-chip{
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+}
+.bh-chip--hint{
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+  font-weight: 400;
+}
+.bh-signal-side{
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.bh-sev-pill{
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.5);
+}
+
+/* Signal footer */
+.bh-signal-foot{
+  flex-shrink: 0;
+  padding-top: 6px;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+}
+
+/* ── Proof footer ──────────────────────────────────────── */
+.bh-proof-footer{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.04);
+  flex-shrink: 0;
+}
+.bh-proof-item{
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+}
+.bh-proof-key{
+  color: rgba(255,255,255,0.35);
+  font-weight: 500;
+}
+.bh-proof-val{
+  color: rgba(255,255,255,0.6);
+  font-weight: 700;
+}
+.bh-proof--ok{
+  color: #4caf50;
+}
+.bh-proof--warn{
+  color: #ff9800;
 }

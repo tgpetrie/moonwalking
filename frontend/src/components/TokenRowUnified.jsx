@@ -171,10 +171,17 @@ export function TokenRowUnified({
 
   const breatheDelayMs = Number.isFinite(rank) ? (rank * 137) % 9200 : 0;
   const breatheDurationMs = 8800 + (Number.isFinite(rank) ? (rank * 53) % 2400 : 0);
+  const cellCadenceMs = 5200 + (Number.isFinite(rank) ? (rank * 83) % 1900 : 0);
+  const cellCadenceDelayMs = Number.isFinite(rank) ? (rank * 41) % 620 : 0;
+  const cellOrchDelayMs = Number.isFinite(rank) ? (rank * 67) % 980 : 0;
   const rowStyle = {
     ...(pulse ? { "--bh-pulse-delay": `${pulseDelayMs}ms` } : {}),
     "--bh-breathe-delay": `${breatheDelayMs}ms`,
     "--bh-breathe-duration": `${breatheDurationMs}ms`,
+    "--bh-cell-cadence": `${cellCadenceMs}ms`,
+    "--bh-cell-cadence-delay": `${cellCadenceDelayMs}ms`,
+    "--bh-cell-orch-delay": `${cellOrchDelayMs}ms`,
+    "--bh-cell-stagger": "120ms",
   };
 
   const setRabbitHover = (on) => (e) => {

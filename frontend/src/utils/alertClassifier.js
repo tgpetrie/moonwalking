@@ -8,6 +8,39 @@ import {
 
 export { extractWindow, extractPct };
 
+const asNum = (v) => {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+// Prefer typed metrics.pct, then top-level pct.
+export const extractAlertPct = (a = {}) => {
+  const metricsPct = asNum(a?.metrics?.pct);
+  if (metricsPct !== null) {
+    return {
+      pct: metricsPct,
+      window_s: asNum(a?.metrics?.window_s),
+      fromMetrics: true,
+    };
+  }
+
+  const topPct = asNum(a?.pct);
+  if (topPct !== null) {
+    return {
+      pct: topPct,
+      window_s: asNum(a?.window_s),
+      fromMetrics: false,
+    };
+  }
+
+  return {
+    pct: null,
+    window_s: null,
+    fromMetrics: false,
+  };
+};
+
 export const windowLabelFromType = (raw) => {
   const fromRaw = extractWindow(raw);
   if (fromRaw) return fromRaw;
