@@ -144,3 +144,15 @@ backend/**/*.sqlite-*
 
 # local venv
 .venv/
+
+# env files
+backend/.env.production
+
+# env files
+backend/.env.production
+
+# env files
+backend/.env.production
+
+# env files (never commit)
+backend/.env.production
