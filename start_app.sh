@@ -151,7 +151,7 @@ start_backend_bg() {
 
 start_backend_bg
 
-hBACKEND_URL="http://${HOST}:${BACKEND_PORT}"
+BACKEND_URL="http://${HOST}:${BACKEND_PORT}"
 
 if ! wait_for_http "${BACKEND_URL}/data" 90; then
   wait_for_http "${BACKEND_URL}/health" 30 || true

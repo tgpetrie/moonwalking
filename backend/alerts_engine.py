@@ -76,10 +76,10 @@ class AlertSeverity(str, Enum):
 
 DEFAULT_THRESHOLDS = {
     # Impulse (MOONSHOT / CRATER / BREAKOUT / DUMP)
-    "moonshot_1m_pct": 6.0,       # >= this on 1m -> moonshot/crater
-    "moonshot_3m_pct": 8.0,       # >= this on 3m -> moonshot/crater
-    "breakout_1m_pct": 2.5,       # >= this on 1m -> breakout/dump
-    "breakout_3m_pct": 3.5,       # >= this on 3m -> breakout/dump
+    "moonshot_1m_pct": 1.25,      # >= this on 1m -> moonshot/crater
+    "moonshot_3m_pct": 3.25,      # >= this on 3m -> moonshot/crater
+    "breakout_1m_pct": 0.65,      # >= this on 1m -> breakout/dump
+    "breakout_3m_pct": 2.20,      # >= this on 3m -> breakout/dump
     "impulse_1m_pct": 1.25,       # minimum to even consider 1m impulse
     "impulse_3m_pct": 2.0,        # minimum to even consider 3m impulse
 
@@ -115,7 +115,7 @@ DEFAULT_THRESHOLDS = {
     "cooldown_whale": 120,
     "cooldown_absorption": 300,
     "cooldown_whale_surge": 300,
-    "cooldown_stealth": 300,
+    "cooldown_stealth": 420,
     "cooldown_divergence": 180,
     "cooldown_fomo": 600,
 
@@ -752,7 +752,7 @@ def compute_alerts(
 
     all_alerts: list[dict] = []
 
-    # 1. Impulse alerts — enabled by default; production call-site passes include_impulse=False
+    # 1. Impulse alerts — enabled by default; call-sites may disable via include_impulse=False
     if include_impulse:
         all_alerts.extend(_detect_impulse_alerts(price_snapshot, state, t))
 

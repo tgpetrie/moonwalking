@@ -7647,10 +7647,14 @@ def get_alerts_proof():
                         "evidence_keys": sorted(list(evidence.keys())) if isinstance(evidence, dict) else None,
                     })
 
-    ok = (engine_family_count >= 1) and (missing_evidence_count == 0)
+    if engine_family_count == 0:
+        ok = None  # warming / nothing to validate yet
+    else:
+        ok = (missing_evidence_count == 0)
 
     return jsonify({
         "ok": ok,
+        "state": "warming" if engine_family_count == 0 else ("pass" if ok else "fail"),
         "limit": limit,
         "count": len(items),
         "engine_family_count": engine_family_count,
