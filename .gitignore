@@ -119,10 +119,10 @@ backend/*.log
 *.pid
 
 # Local logs
-backend/server.log
-backend/server.log.*
-backend/backend/server.log
-backend/backend/server.log.*
+backend/server.log*
+backend/backend/server.log*
+**/*.log
+**/*.log.*
 backend/*.stdout
 backend/*.err
 vite*.stdout
