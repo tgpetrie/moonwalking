@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import test from "node:test";
+import { expect, test } from "vitest";
 import {
   parseAlertCore,
   classifyByThreshold,
@@ -13,20 +12,20 @@ test("parseAlertCore extracts pct/window from message", () => {
     symbol: "TROLL-USD",
     message: "TROLL-USD moved +10.94% in 1m",
   });
-  assert.strictEqual(core.window, "1m");
-  assert.strictEqual(core.pct, 10.94);
+  expect(core.window).toBe("1m");
+  expect(core.pct).toBe(10.94);
 });
 
 test("classifyByThreshold applies 1m moonshot band", () => {
   const out = classifyByThreshold({ window: "1m", pct: 10.94 });
-  assert.strictEqual(out.type_key, "moonshot");
-  assert.strictEqual(out.severity, "high");
+  expect(out.type_key).toBe("moonshot");
+  expect(out.severity).toBe("high");
 });
 
 test("classifyByThreshold applies 3m downside crater band", () => {
   const out = classifyByThreshold({ window: "3m", pct: -7.0 });
-  assert.strictEqual(out.type_key, "crater");
-  assert.strictEqual(out.severity, "high");
+  expect(out.type_key).toBe("crater");
+  expect(out.severity).toBe("high");
 });
 
 test("normalizeAlert keeps explicit whale/divergence families", () => {
@@ -36,8 +35,8 @@ test("normalizeAlert keeps explicit whale/divergence families", () => {
     severity: "critical",
     message: "flow spike",
   });
-  assert.strictEqual(whale.type_key, "whale");
-  assert.strictEqual(typeKeyToUpper(whale.type_key), "WHALE");
+  expect(whale.type_key).toBe("whale");
+  expect(typeKeyToUpper(whale.type_key)).toBe("WHALE");
 });
 
 test("normalizeAlert falls back to evidence pct fields", () => {
@@ -46,9 +45,9 @@ test("normalizeAlert falls back to evidence pct fields", () => {
     type: "impulse_3m",
     evidence: { pct_3m: 6.2 },
   });
-  assert.strictEqual(out.window, "3m");
-  assert.strictEqual(out.pct, 6.2);
-  assert.strictEqual(out.type_key, "breakout");
+  expect(out.window).toBe("3m");
+  expect(out.pct).toBe(6.2);
+  expect(out.type_key).toBe("breakout");
 });
 
 test("normalizeAlert drops legacy long-horizon window labels", () => {
@@ -59,6 +58,6 @@ test("normalizeAlert drops legacy long-horizon window labels", () => {
     window: legacyWindow,
     pct: 2.1,
   });
-  assert.strictEqual(out.window, "");
-  assert.strictEqual(out.window_key, WINDOW_KEYS.UNKNOWN);
+  expect(out.window).toBe("");
+  expect(out.window_key).toBe(WINDOW_KEYS.UNKNOWN);
 });

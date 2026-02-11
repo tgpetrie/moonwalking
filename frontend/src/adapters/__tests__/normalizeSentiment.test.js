@@ -1,5 +1,4 @@
-import assert from "node:assert";
-import test from "node:test";
+import { expect, test } from "vitest";
 import normalizeSentiment from "../../adapters/normalizeSentiment.js";
 
 test("normalizeSentiment fills defaults and coerces numbers", () => {
@@ -12,19 +11,19 @@ test("normalizeSentiment fills defaults and coerces numbers", () => {
     trending_topics: ["btc"],
   };
   const norm = normalizeSentiment(raw);
-  assert.strictEqual(norm.overallSentiment, 0.42);
-  assert.strictEqual(norm.fearGreedIndex, 68);
-  assert.strictEqual(norm.socialMetrics.volumeChange, 5.5);
-  assert.ok(Array.isArray(norm.sentimentHistory));
-  assert.ok(Array.isArray(norm.trendingTopics));
-  assert.strictEqual(norm.socialBreakdown.reddit, 0.8);
-  assert.strictEqual(norm.socialBreakdown.twitter, 0);
+  expect(norm.overallSentiment).toBe(0.42);
+  expect(norm.fearGreedIndex).toBe(68);
+  expect(norm.socialMetrics.volumeChange).toBe(5.5);
+  expect(Array.isArray(norm.sentimentHistory)).toBe(true);
+  expect(Array.isArray(norm.trendingTopics)).toBe(true);
+  expect(norm.socialBreakdown.reddit).toBe(0.8);
+  expect(norm.socialBreakdown.twitter).toBe(0);
 });
 
 test("normalizeSentiment tolerates nullish input", () => {
   const norm = normalizeSentiment(null);
-  assert.deepStrictEqual(norm.sentimentHistory, []);
-  assert.deepStrictEqual(norm.socialHistory, []);
-  assert.deepStrictEqual(norm.trendingTopics, []);
-  assert.strictEqual(norm.overallSentiment, 0);
+  expect(norm.sentimentHistory).toEqual([]);
+  expect(norm.socialHistory).toEqual([]);
+  expect(norm.trendingTopics).toEqual([]);
+  expect(norm.overallSentiment).toBe(0);
 });
