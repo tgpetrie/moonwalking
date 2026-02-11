@@ -8,7 +8,7 @@ export function normalizeBannerRow(row: any) {
   const currentPrice = row.current_price ?? row.price ?? row.last_price ?? null;
   const priceChange1h = row.price_change_1h ?? row.price_change_percentage_1h ?? row.pct_change_1h ?? row.change_pct ?? null;
 
-  const volume24h = Number(row.volume_24h ?? row.volume ?? 0) || 0;
+  const volumeNow = Number(row.volume_1h ?? row.volume ?? 0) || 0;
 
   let volumeChangePct: number | null = null;
   if (row.volume_change_1h_pct != null && !Number.isNaN(Number(row.volume_change_1h_pct))) {
@@ -28,7 +28,7 @@ export function normalizeBannerRow(row: any) {
     originalSymbol: symbolRaw,
     currentPrice: currentPrice == null ? null : Number(currentPrice),
     priceChange1h: priceChange1h == null ? null : Number(priceChange1h),
-    volume24h,
+    volumeNow,
     volumeChangePct: volumeChangePct == null ? null : Number(volumeChangePct),
     volumeChangeIsEstimated: Boolean(row.volume_change_is_estimated ?? isEstimated),
     // keep raw for debugging

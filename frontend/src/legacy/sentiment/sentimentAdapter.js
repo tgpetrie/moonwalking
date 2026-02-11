@@ -1,7 +1,7 @@
 export const EMPTY_SENTIMENT = {
   overall_sentiment: null, // null = missing, not 0 = neutral
   fear_greed_index: null,
-  social_metrics: { volume_change: null, engagement_rate: null, mentions_24h: null },
+  social_metrics: { volume_change: null, engagement_rate: null, mentions: null },
   social_breakdown: { reddit: null, twitter: null, telegram: null, chan: null },
   source_breakdown: { tier1: null, tier2: null, tier3: null, fringe: null },
   sentiment_history: [],

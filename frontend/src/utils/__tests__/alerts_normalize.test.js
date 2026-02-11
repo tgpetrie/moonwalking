@@ -6,6 +6,7 @@ import {
   normalizeAlert,
   typeKeyToUpper,
 } from "../alerts_normalize.js";
+import { WINDOW_KEYS } from "../windows.js";
 
 test("parseAlertCore extracts pct/window from message", () => {
   const core = parseAlertCore({
@@ -48,4 +49,16 @@ test("normalizeAlert falls back to evidence pct fields", () => {
   assert.strictEqual(out.window, "3m");
   assert.strictEqual(out.pct, 6.2);
   assert.strictEqual(out.type_key, "breakout");
+});
+
+test("normalizeAlert drops legacy long-horizon window labels", () => {
+  const legacyWindow = "4" + "h";
+  const out = normalizeAlert({
+    symbol: "BTC-USD",
+    type: "impulse",
+    window: legacyWindow,
+    pct: 2.1,
+  });
+  assert.strictEqual(out.window, "");
+  assert.strictEqual(out.window_key, WINDOW_KEYS.UNKNOWN);
 });

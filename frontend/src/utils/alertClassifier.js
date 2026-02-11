@@ -5,6 +5,7 @@ import {
   typeKeyToUpper,
   TYPE_EMOJI,
 } from "./alerts_normalize";
+import { normalizeWindowKey, toWindowLabel } from "./windows.js";
 
 export { extractWindow, extractPct };
 
@@ -42,15 +43,8 @@ export const extractAlertPct = (a = {}) => {
 };
 
 export const windowLabelFromType = (raw) => {
-  const fromRaw = extractWindow(raw);
-  if (fromRaw) return fromRaw;
-  const t = String(raw || "").toUpperCase();
-  if (t.includes("_1M")) return "1m";
-  if (t.includes("_3M")) return "3m";
-  if (t.includes("_5M")) return "5m";
-  if (t.includes("_15M")) return "15m";
-  if (t.includes("_1H")) return "1h";
-  return "";
+  const key = normalizeWindowKey(extractWindow(raw), { type: raw });
+  return toWindowLabel(key);
 };
 
 export const parseImpulseMessage = (a) => {
@@ -61,12 +55,15 @@ export const parseImpulseMessage = (a) => {
       ? a.pct
       : extractPct(msg) ?? extractPct(title);
 
-  const parsed_window_label =
+  const parsedWindowRaw =
     String(a?.window || "").toLowerCase() ||
     windowLabelFromType(a?.type) ||
     extractWindow(msg) ||
     extractWindow(title) ||
     "";
+  const parsed_window_label = toWindowLabel(
+    normalizeWindowKey(parsedWindowRaw, { type: a?.type })
+  );
 
   const directionRaw = String(a?.direction || "").toLowerCase();
   let parsed_direction = null;

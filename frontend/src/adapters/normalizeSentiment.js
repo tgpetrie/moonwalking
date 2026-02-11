@@ -71,11 +71,10 @@ export function normalizeSentiment(raw = {}) {
     totalMarketCap: toNum(pick(marketPulseRaw, "total_market_cap_usd", "market_cap_usd", "total_market_cap"), null),
     totalVolume: toNum(pick(marketPulseRaw, "total_volume_usd", "volume_usd", "total_volume"), null),
     btcDominance: toNum(pick(marketPulseRaw, "btc_dominance", "btc_dominance_pct", "btc_dominance_usd"), null),
-    mcapChange24hPct: toNum(
+    mcapChangePct: toNum(
       pick(
         marketPulseRaw,
-        "mcap_change_24h_pct",
-        "market_cap_change_percentage_24h_usd",
+        "mcap_change_pct",
         "mcap_change_pct"
       ),
       null
@@ -95,7 +94,7 @@ export function normalizeSentiment(raw = {}) {
   const socialMetrics = {
     volumeChange: toNum(pick(socialMetricsRaw, "volume_change", "volumeChange"), 0),
     engagementRate: clamp01(pick(socialMetricsRaw, "engagement_rate", "engagementRate")),
-    mentions24h: toNum(pick(socialMetricsRaw, "mentions_24h", "mentions24h"), 0),
+    mentions: toNum(pick(socialMetricsRaw, "mentions", "mentions_1h", "mentions1h"), 0),
   };
 
   const socialBreakdownRaw =

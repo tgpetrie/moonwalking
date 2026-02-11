@@ -230,9 +230,9 @@ function Social({ loading, data }) {
       </Card>
       <Card title="Social metrics" className="md:col-span-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-          <Stat label="Twitter 24h" value={fmt(s.social_metrics?.twitter?.mentions_24h)} compact />
-          <Stat label="Reddit posts" value={fmt(s.social_metrics?.reddit?.posts_24h)} compact />
-          <Stat label="Telegram 24h" value={fmt(s.social_metrics?.telegram?.messages_24h)} compact />
+          <Stat label="Twitter 1h" value={fmt(s.social_metrics?.twitter?.mentions_1h ?? s.social_metrics?.twitter?.mentions)} compact />
+          <Stat label="Reddit posts" value={fmt(s.social_metrics?.reddit?.posts_1h ?? s.social_metrics?.reddit?.posts)} compact />
+          <Stat label="Telegram 1h" value={fmt(s.social_metrics?.telegram?.messages_1h ?? s.social_metrics?.telegram?.messages)} compact />
         </div>
       </Card>
     </div>

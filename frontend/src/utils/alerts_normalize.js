@@ -1,4 +1,6 @@
-const WINDOW_RE = /\b(1m|3m|5m|15m|1h)\b/i;
+import { WINDOW_KEYS, normalizeWindowKey, toWindowLabel } from "./windows.js";
+
+const WINDOW_RE = /\b(1m|3m|1h|5m|15m)\b/i;
 const TYPE_WINDOW_RE = /(?:_|\b)(1M|3M|5M|15M|1H)(?:\b|_)/i;
 const PCT_RE = /([+-]?\d+(?:\.\d+)?)\s*%/;
 
@@ -97,7 +99,8 @@ export const extractWindow = (raw) => {
   const s = String(raw || "");
   if (!s) return "";
   const m = s.match(WINDOW_RE);
-  return m ? m[1].toLowerCase() : "";
+  if (!m) return "";
+  return toWindowLabel(m[1].toLowerCase());
 };
 
 export const extractPct = (raw) => {
@@ -151,16 +154,19 @@ export const parseAlertCore = (a = {}) => {
     a?.market ||
     "";
 
-  const explicitWindow =
+  const explicitWindowRaw =
     String(a?.window || a?.window_label || a?.meta?.window || a?.evidence?.window || "").trim().toLowerCase();
 
-  const window =
-    explicitWindow ||
+  const windowRaw =
+    explicitWindowRaw ||
     typeWindow(type) ||
     extractWindow(type) ||
     extractWindow(msg) ||
     extractWindow(title) ||
     "";
+
+  const windowKey = normalizeWindowKey(windowRaw, { type });
+  const window = windowKey === WINDOW_KEYS.UNKNOWN ? "" : toWindowLabel(windowKey);
 
   let pct = firstNumber(
     a?.pct,
@@ -189,20 +195,24 @@ export const parseAlertCore = (a = {}) => {
 
   return {
     symbol: String(symbolRaw || "").trim(),
+    windowKey,
     window,
     pct: Number.isFinite(pct) ? pct : null,
   };
 };
 
-export const classifyByThreshold = ({ window, pct }) => {
+export const classifyByThreshold = ({ window, windowKey, pct }) => {
   if (!Number.isFinite(pct)) {
     return { type_key: TYPE_KEYS.unknown, severity: "info" };
   }
 
-  const w = window || "3m";
+  const w =
+    windowKey ||
+    normalizeWindowKey(window, { source: "price" }) ||
+    WINDOW_KEYS.THREE_MIN;
   const p = pct;
 
-  if (w === "1m") {
+  if (w === WINDOW_KEYS.ONE_MIN) {
     if (p >= 12) return { type_key: TYPE_KEYS.moonshot, severity: "critical" };
     if (p >= 8) return { type_key: TYPE_KEYS.moonshot, severity: "high" };
     if (p >= 4) return { type_key: TYPE_KEYS.breakout, severity: "medium" };
@@ -211,6 +221,14 @@ export const classifyByThreshold = ({ window, pct }) => {
     if (p >= -8) return { type_key: TYPE_KEYS.dump, severity: "medium" };
     if (p >= -12) return { type_key: TYPE_KEYS.crater, severity: "high" };
     return { type_key: TYPE_KEYS.crater, severity: "critical" };
+  }
+
+  if (w === WINDOW_KEYS.ONE_HOUR_PRICE || w === WINDOW_KEYS.ONE_HOUR_VOLUME) {
+    if (p >= 8) return { type_key: TYPE_KEYS.breakout, severity: "high" };
+    if (p >= 4) return { type_key: TYPE_KEYS.move, severity: "medium" };
+    if (p <= -8) return { type_key: TYPE_KEYS.dump, severity: "high" };
+    if (p <= -4) return { type_key: TYPE_KEYS.dump, severity: "medium" };
+    return { type_key: TYPE_KEYS.move, severity: "low" };
   }
 
   if (p >= 18) return { type_key: TYPE_KEYS.moonshot, severity: "critical" };
@@ -238,7 +256,11 @@ export const normalizeAlert = (a = {}) => {
   const core = parseAlertCore(a);
   const rawType = String(a?.type || a?.alert_type || "");
   const mappedType = mapTypeKey(rawType);
-  const thresholdType = classifyByThreshold({ window: core.window, pct: core.pct });
+  const thresholdType = classifyByThreshold({
+    window: core.window,
+    windowKey: core.windowKey,
+    pct: core.pct,
+  });
 
   const type_key = mappedType || thresholdType.type_key || TYPE_KEYS.unknown;
   const severity = normalizeSeverity(a?.severity || a?.sev || thresholdType.severity);
@@ -253,6 +275,7 @@ export const normalizeAlert = (a = {}) => {
     ...a,
     symbol,
     product_id,
+    window_key: core.windowKey,
     window: core.window || "",
     pct: Number.isFinite(core.pct) ? core.pct : null,
     type_key,

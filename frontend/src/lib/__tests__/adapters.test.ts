@@ -7,14 +7,14 @@ describe('adapters.normalizeBannerRow', () => {
       symbol: 'edge-usd',
       current_price: 0.26142,
       price_change_1h: 0.5,
-      volume_24h: 1234567,
+      volume_1h: 1234567,
       volume_change_1h_pct: 12.34,
     } as any;
     const out = normalizeBannerRow(raw);
     expect(out.symbol).toBe('EDGE-USD');
     expect(out.currentPrice).toBeCloseTo(0.26142, 6);
     expect(out.priceChange1h).toBeCloseTo(0.5, 6);
-    expect(out.volume24h).toBe(1234567);
+    expect(out.volumeNow).toBe(1234567);
     expect(out.volumeChangePct).toBeCloseTo(12.34, 6);
     expect(out.volumeChangeIsEstimated).toBe(false);
   });

@@ -17,6 +17,12 @@ const formatCurrency = val => new Intl.NumberFormat('en-US', {
   minimumFractionDigits: Math.abs(val) >= 1 ? 2 : 6
 }).format(val);
 
+const pickVolume = (coin) => {
+  const candidate = coin?.volume_1h_now ?? coin?.volume_1h ?? coin?.volume ?? 0;
+  const n = Number(candidate);
+  return Number.isFinite(n) ? n : 0;
+};
+
 const StatusBadge = ({ isConnected, lastUpdate }) => (
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-3">
@@ -86,7 +92,7 @@ const ContinuousScrollingBanner = ({ items }) => {
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
                   </div>
                   <div className="text-base text-gray-400">
-                    Vol: {formatCurrency(coin.volume_24h || 0)}
+                    Vol: {formatCurrency(pickVolume(coin))}
                   </div>
                 </a>
               </div>
@@ -118,7 +124,7 @@ const ContinuousScrollingBanner = ({ items }) => {
                     1h: {(coin.volume_change_1h || 0) >= 0 ? '+' : ''}{formatDecimal(Math.abs(coin.volume_change_1h || 0))}%
                   </div>
                   <div className="text-xs text-gray-400">
-                    Vol: {formatCurrency(coin.volume_24h || 0)}
+                    Vol: {formatCurrency(pickVolume(coin))}
                   </div>
                 </a>
               </div>

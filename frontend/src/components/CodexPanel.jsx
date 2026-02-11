@@ -165,10 +165,10 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                 </div>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-2">24h Change</div>
-                <div className={`text-2xl font-bold ${(coinData?.changePercent || coinData?.price_change_percentage_24h || 0) >= 0 ? 'text-blue' : 'text-pink'}`}>
+                <div className="text-sm text-gray-400 mb-2">1h Change</div>
+                <div className={`text-2xl font-bold ${(coinData?.changePercent || coinData?.price_change_percentage_1h || 0) >= 0 ? 'text-blue' : 'text-pink'}`}>
                   {coinData?.changePercent ? `${coinData.changePercent.toFixed(2)}%` : 
-                   coinData?.price_change_percentage_24h ? `${coinData.price_change_percentage_24h.toFixed(2)}%` : 'N/A'}
+                   coinData?.price_change_percentage_1h ? `${coinData.price_change_percentage_1h.toFixed(2)}%` : 'N/A'}
                 </div>
               </div>
             </div>
@@ -425,9 +425,9 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                       <span className="text-sm text-gray-300">Twitter</span>
                     </div>
                     <div className="text-lg font-bold text-white mb-1">
-                      {socialData.social_metrics.twitter.mentions_24h.toLocaleString()}
+                      {(socialData.social_metrics.twitter.mentions_1h ?? socialData.social_metrics.twitter.mentions ?? 0).toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-400">mentions (24h)</div>
+                    <div className="text-xs text-gray-400">mentions (1h)</div>
                     <div className={`text-xs mt-2 ${
                       socialData.social_metrics.twitter.sentiment_score >= 0.6 ? 'text-green-400' :
                       socialData.social_metrics.twitter.sentiment_score <= 0.4 ? 'text-red-400' : 'text-yellow-400'
@@ -442,9 +442,9 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                       <span className="text-sm text-gray-300">Reddit</span>
                     </div>
                     <div className="text-lg font-bold text-white mb-1">
-                      {socialData.social_metrics.reddit.posts_24h.toLocaleString()}
+                      {(socialData.social_metrics.reddit.posts_1h ?? socialData.social_metrics.reddit.posts ?? 0).toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-400">posts (24h)</div>
+                    <div className="text-xs text-gray-400">posts (1h)</div>
                     <div className={`text-xs mt-2 ${
                       socialData.social_metrics.reddit.sentiment_score >= 0.6 ? 'text-green-400' :
                       socialData.social_metrics.reddit.sentiment_score <= 0.4 ? 'text-red-400' : 'text-yellow-400'
@@ -459,9 +459,9 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                       <span className="text-sm text-gray-300">Telegram</span>
                     </div>
                     <div className="text-lg font-bold text-white mb-1">
-                      {socialData.social_metrics.telegram.messages_24h.toLocaleString()}
+                      {(socialData.social_metrics.telegram.messages_1h ?? socialData.social_metrics.telegram.messages ?? 0).toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-400">messages (24h)</div>
+                    <div className="text-xs text-gray-400">messages (1h)</div>
                     <div className={`text-xs mt-2 ${
                       socialData.social_metrics.telegram.sentiment_score >= 0.6 ? 'text-green-400' :
                       socialData.social_metrics.telegram.sentiment_score <= 0.4 ? 'text-red-400' : 'text-yellow-400'
@@ -476,14 +476,17 @@ const CodexPanel = ({ isOpen, onClose, selectedCoin }) => {
                   <div className="bg-gray-800/30 rounded-lg p-4">
                     <div className="text-sm text-gray-400 mb-3">Trending Keywords</div>
                     <div className="flex flex-wrap gap-2">
-                      {socialData.trending_topics.slice(0, 8).map((topic, index) => (
-                        <div key={index} className="bg-gray-700/50 px-3 py-1 rounded-full text-xs">
-                          <span className="text-white">{topic.keyword}</span>
-                          <span className={`ml-1 ${topic.growth_24h > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            ({topic.growth_24h > 0 ? '+' : ''}{topic.growth_24h.toFixed(1)}%)
-                          </span>
-                        </div>
-                      ))}
+                      {socialData.trending_topics.slice(0, 8).map((topic, index) => {
+                        const growth = Number(topic.growth_1h ?? topic.growth ?? 0);
+                        return (
+                          <div key={index} className="bg-gray-700/50 px-3 py-1 rounded-full text-xs">
+                            <span className="text-white">{topic.keyword}</span>
+                            <span className={`ml-1 ${growth > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              ({growth > 0 ? '+' : ''}{growth.toFixed(1)}%)
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

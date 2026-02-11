@@ -75,8 +75,7 @@ function normalizeVolItem(raw, idx) {
     raw.volume_1h,
     raw.volume_now,
     raw.vol1h,
-    raw.volume,
-    raw.volume_24h
+    raw.volume
   );
 
   let baseline = pickNumber(

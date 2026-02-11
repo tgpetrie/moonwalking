@@ -195,11 +195,10 @@ export const normalizeTieredSentiment = (rawLatest, rawTiered, rawSources) => {
       pick(marketPulseRaw, "btc_dominance", "btc_dominance_pct", "btc_dominance_usd"),
       null
     ),
-    mcapChange24hPct: toNum(
+    mcapChangePct: toNum(
       pick(
         marketPulseRaw,
-        "mcap_change_24h_pct",
-        "market_cap_change_percentage_24h_usd",
+        "mcap_change_pct",
         "mcap_change_pct"
       ),
       null
