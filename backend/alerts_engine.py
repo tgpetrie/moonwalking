@@ -18,8 +18,18 @@ Alert types implemented (Coinbase-only):
     CRATER       — massive downside impulse
     BREAKOUT     — strong 3m move aligned with 1h trend (not moonshot-scale)
     DIVERGENCE   — volume vs price disagreement OR timeframe disagreement
-    FOMO_ALERT   — market pressure index extreme (upside)
-    FEAR_ALERT   — market pressure index extreme (downside)
+    COIN_REVERSAL_UP/DOWN   — fast direction flips after a strong 3m move
+    COIN_FAKEOUT            — breakout rejection/trap pattern
+    COIN_PERSISTENT_GAINER/LOSER — consecutive directional streaks
+    COIN_VOLATILITY_EXPANSION — realized-volatility wake-up vs recent baseline
+    COIN_LIQUIDITY_SHOCK    — minute-volume spike while price is still muted
+    COIN_TREND_BREAK_UP/DOWN — fast/slow EMA crossover with volume support
+    COIN_SQUEEZE_BREAK      — compression regime breaks with abrupt move
+    COIN_EXHAUSTION_TOP/BOTTOM — persistent run loses energy and flips
+    COIN_FOMO            — coin acceleration + volume confirmation in hot tape
+    COIN_BREADTH_THRUST  — coin outperformance during broad participation
+    COIN_BREADTH_FAILURE — coin underperformance in weak or failing breadth
+    FOMO_ALERT / FEAR_ALERT — optional standalone market-only mood alerts (disabled by default)
 
 Not implemented (require external sources):
     SENTIMENT_SPIKE, NEWS_CATALYST, ARBITRAGE
@@ -33,10 +43,12 @@ from __future__ import annotations
 
 import time
 import uuid
+import math
 import logging
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from enum import Enum
+from statistics import median
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -46,6 +58,7 @@ logger = logging.getLogger(__name__)
 # Alert taxonomy
 # ---------------------------------------------------------------------------
 
+
 class AlertType(str, Enum):
     WHALE_MOVE = "whale_move"
     STEALTH_MOVE = "stealth_move"
@@ -54,6 +67,21 @@ class AlertType(str, Enum):
     BREAKOUT = "breakout"
     DUMP = "dump"
     DIVERGENCE = "divergence"
+    COIN_FOMO = "coin_fomo"
+    COIN_BREADTH_THRUST = "coin_breadth_thrust"
+    COIN_BREADTH_FAILURE = "coin_breadth_failure"
+    COIN_REVERSAL_UP = "coin_reversal_up"
+    COIN_REVERSAL_DOWN = "coin_reversal_down"
+    COIN_FAKEOUT = "coin_fakeout"
+    COIN_PERSISTENT_GAINER = "coin_persistent_gainer"
+    COIN_PERSISTENT_LOSER = "coin_persistent_loser"
+    COIN_VOLATILITY_EXPANSION = "coin_volatility_expansion"
+    COIN_LIQUIDITY_SHOCK = "coin_liquidity_shock"
+    COIN_TREND_BREAK_UP = "coin_trend_break_up"
+    COIN_TREND_BREAK_DOWN = "coin_trend_break_down"
+    COIN_SQUEEZE_BREAK = "coin_squeeze_break"
+    COIN_EXHAUSTION_TOP = "coin_exhaustion_top"
+    COIN_EXHAUSTION_BOTTOM = "coin_exhaustion_bottom"
     FOMO_ALERT = "fomo_alert"
     FEAR_ALERT = "fear_alert"
     # Future (disabled, require external sources)
@@ -76,49 +104,104 @@ class AlertSeverity(str, Enum):
 
 DEFAULT_THRESHOLDS = {
     # Impulse (MOONSHOT / CRATER / BREAKOUT / DUMP)
-    "moonshot_1m_pct": 1.25,      # >= this on 1m -> moonshot/crater
-    "moonshot_3m_pct": 3.25,      # >= this on 3m -> moonshot/crater
-    "breakout_1m_pct": 0.65,      # >= this on 1m -> breakout/dump
-    "breakout_3m_pct": 2.20,      # >= this on 3m -> breakout/dump
-    "impulse_1m_pct": 1.25,       # minimum to even consider 1m impulse
-    "impulse_3m_pct": 2.0,        # minimum to even consider 3m impulse
-
+    "moonshot_1m_pct": 1.25,  # >= this on 1m -> moonshot/crater
+    "moonshot_3m_pct": 3.25,  # >= this on 3m -> moonshot/crater
+    "breakout_1m_pct": 0.65,  # >= this on 1m -> breakout/dump
+    "breakout_3m_pct": 2.20,  # >= this on 3m -> breakout/dump
+    "impulse_1m_pct": 1.25,  # minimum to even consider 1m impulse
+    "impulse_3m_pct": 2.0,  # minimum to even consider 3m impulse
     # Whale (volume surge)
-    "whale_z_score": 3.0,         # single-candle z-score vs rolling baseline
-    "whale_cluster_z": 2.5,       # 3-candle cluster z-score
-    "whale_candle_pct": 0.3,      # min abs(candle_pct) for whale move
+    "whale_z_score": 3.0,  # single-candle z-score vs rolling baseline
+    "whale_cluster_z": 2.5,  # 3-candle cluster z-score
+    "whale_candle_pct": 0.3,  # min abs(candle_pct) for whale move
     "whale_surge_1h_pct": 150.0,  # fallback: hourly vol change %
-    "whale_min_abs_vol": 500,     # minimum absolute volume (units) to qualify
-
+    "whale_min_abs_vol": 500,  # minimum absolute volume (units) to qualify
     # Absorption (sub-type of whale)
     "absorption_z": 2.5,
     "absorption_max_pct": 0.15,
     "absorption_max_range": 0.3,
     "absorption_min_pulses": 1,
-
     # Stealth (volume spike + muted price = early smoke)
-    "stealth_vol_min_pct": 80.0,      # vol change must be ABOVE this (loud volume)
-    "stealth_price_max_abs_pct": 1.2, # abs(pct_3m) must be BELOW this (quiet price)
-
+    "stealth_vol_min_pct": 80.0,  # vol change must be ABOVE this (loud volume)
+    "stealth_price_max_abs_pct": 1.2,  # abs(pct_3m) must be BELOW this (quiet price)
     # Divergence
-    "divergence_1m_threshold": 0.5,   # abs(ret_1m) must exceed
-    "divergence_3m_threshold": 0.5,   # abs(ret_3m) must exceed (opposite sign)
-
+    "divergence_1m_threshold": 0.5,  # abs(ret_1m) must exceed
+    "divergence_3m_threshold": 0.5,  # abs(ret_3m) must exceed (opposite sign)
     # FOMO / FEAR (Market Pressure Index)
     "fomo_heat_min": 80,
     "fear_heat_max": 20,
-    "fomo_fg_min": 70,            # Fear & Greed min for FOMO (None = ignore)
-    "fear_fg_max": 30,            # Fear & Greed max for FEAR
-
+    "fomo_fg_min": 70,  # Fear & Greed min for FOMO (None = ignore)
+    "fear_fg_max": 30,  # Fear & Greed max for FEAR
+    # Coin mood alert thresholds (coin-scoped, market-aware)
+    "vol_ratio_fomo": 2.0,
+    "vol_score_mid": 0.60,
+    "coin_fomo_mpi_min": 72,
+    "coin_fomo_d_mpi_60s": 6.0,
+    "coin_fomo_pct3m_min": 2.2,
+    "coin_fomo_pct1m_min": 0.6,
+    "coin_fomo_accel_min": 0.9,
+    "coin_thrust_breadth_min": 0.65,
+    "coin_thrust_pct3m_min": 1.6,
+    "coin_thrust_rs3m_min": 0.8,
+    "coin_thrust_persist_min": 0.35,
+    "coin_failure_breadth_max": 0.35,
+    "coin_failure_pct3m_max": -1.6,
+    "coin_failure_rs3m_max": -0.9,
+    "vol_regime_min": 0.20,
+    "reversal_min_prev_pct": 2.0,
+    "reversal_min_flip_pct": 0.6,
+    "fakeout_min_breakout_pct": 2.0,
+    "fakeout_min_reject_pct": 0.8,
+    "persist_min_streak": 4,
+    "persist_min_pct": 1.5,
+    "volx_window_now": 10,
+    "volx_window_prev": 20,
+    "volx_ratio_min": 2.0,
+    "volx_vol_floor": 0.25,
+    "volx_prev_floor": 0.02,
+    "liq_shock_z_min": 3.0,
+    "liq_shock_price_max_abs_pct": 0.25,
+    "liq_shock_min_samples": 30,
+    "liq_shock_min_latest_vol": 50.0,
+    "trend_break_fast_alpha": 0.3333,  # ~EMA(5) on 1m returns
+    "trend_break_slow_alpha": 0.0952,  # ~EMA(20) on 1m returns
+    "trend_break_min_abs_diff": 0.08,
+    "trend_break_vol_confirm_pct": 10.0,
+    "trend_break_vol_ratio_min": 1.20,
+    "squeeze_window_n": 10,
+    "squeeze_hist_n": 120,
+    "squeeze_compress_percentile": 0.25,
+    "squeeze_break_pct_1m_min": 0.8,
+    "squeeze_break_vol_ratio_min": 1.6,
+    "exhaustion_min_streak": 4,
+    "exhaustion_flip_pct_1m": 0.6,
+    "exhaustion_context_pct_3m": 1.0,
+    "exhaustion_vol_drop_ratio": 0.20,
+    # Market pressure (component calculation)
+    "pressure_impulse_k": 20.0,  # scaling for impulse density component
+    "pressure_vol_ratio_ref": 5.0,  # reference ratio for log scaling
+    "pressure_volume_top_n": 10,  # robust aggregate over top-N volume scores
+    "pressure_persistence_n": 10,  # top-N overlap for persistence
+    "pressure_ema_alpha": 0.12,  # smoothing for pressure score
     # Cooldowns (seconds)
     "cooldown_impulse": 90,
-    "cooldown_whale": 120,
+    "cooldown_whale": 180,
     "cooldown_absorption": 300,
     "cooldown_whale_surge": 300,
     "cooldown_stealth": 420,
     "cooldown_divergence": 180,
     "cooldown_fomo": 600,
-
+    "cooldown_coin_fomo": 240,
+    "cooldown_coin_thrust": 240,
+    "cooldown_coin_failure": 240,
+    "cooldown_reversal": 120,
+    "cooldown_fakeout": 180,
+    "cooldown_persist": 300,
+    "cooldown_volx": 240,
+    "cooldown_liq_shock": 150,
+    "cooldown_trend_break": 240,
+    "cooldown_squeeze_break": 240,
+    "cooldown_exhaustion": 300,
     # TTLs (minutes)
     "ttl_impulse_min": 5,
     "ttl_whale_min": 8,
@@ -127,14 +210,33 @@ DEFAULT_THRESHOLDS = {
     "ttl_stealth_min": 5,
     "ttl_divergence_min": 5,
     "ttl_fomo_min": 10,
-
+    "ttl_coin_mood_min": 5,
+    "ttl_reversal_min": 10,
+    "ttl_fakeout_min": 8,
+    "ttl_persist_min": 20,
+    "ttl_volx_min": 7,
+    "ttl_liq_shock_min": 6,
+    "ttl_trend_break_min": 8,
+    "ttl_squeeze_break_min": 8,
+    "ttl_exhaustion_min": 10,
     # Dedupe deltas (magnitude must change by at least this to re-fire within cooldown)
     "dedupe_impulse": 0.35,
-    "dedupe_whale": 2.0,
+    "dedupe_whale": 2.4,
     "dedupe_absorption": 1.0,
     "dedupe_whale_surge": 30.0,
-    "dedupe_stealth": 0.5,
+    "dedupe_stealth": 0.8,
     "dedupe_divergence": 0.5,
+    "dedupe_coin_fomo": 0.35,
+    "dedupe_coin_thrust": 0.5,
+    "dedupe_coin_failure": 0.5,
+    "dedupe_reversal": 1.8,
+    "dedupe_fakeout": 2.0,
+    "dedupe_persist": 2.5,
+    "dedupe_volx": 0.4,
+    "dedupe_liq_shock": 0.75,
+    "dedupe_trend_break": 0.08,
+    "dedupe_squeeze_break": 0.6,
+    "dedupe_exhaustion": 0.6,
 }
 
 
@@ -142,11 +244,27 @@ DEFAULT_THRESHOLDS = {
 # Engine state (persists across compute cycles)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AlertEngineState:
     """Mutable state carried between compute_alerts() calls."""
+
     # Per-key cooldown tracking: key -> (last_ts, last_magnitude, last_direction)
     last_fired: dict[str, tuple[float, float, str | None]] = field(default_factory=dict)
+    # Market pressure smoothing state
+    market_pressure_ema: float | None = None
+    market_pressure_abs_move_hist: list[float] = field(default_factory=list)
+    market_pressure_index_hist: list[tuple[float, float]] = field(default_factory=list)
+    # Coin persistence streaks: symbol -> (streak_count, direction)
+    coin_persistence_streaks: dict[str, tuple[int, str]] = field(default_factory=dict)
+    # Coin 1m return history used for volatility expansion detection.
+    coin_return_hist: dict[str, list[float]] = field(default_factory=dict)
+    # EMA state for micro-structure trend-break detection.
+    coin_trend_ema_fast: dict[str, float] = field(default_factory=dict)
+    coin_trend_ema_slow: dict[str, float] = field(default_factory=dict)
+    coin_trend_last_diff: dict[str, float] = field(default_factory=dict)
+    # Last seen per-coin volume ratio for exhaustion checks.
+    coin_last_vol_ratio: dict[str, float] = field(default_factory=dict)
 
     def check_cooldown(
         self,
@@ -172,7 +290,9 @@ class AlertEngineState:
             return True
         return False
 
-    def record_fire(self, key: str, magnitude: float = 0.0, direction: str | None = None) -> None:
+    def record_fire(
+        self, key: str, magnitude: float = 0.0, direction: str | None = None
+    ) -> None:
         self.last_fired[key] = (time.time(), magnitude, direction)
 
 
@@ -180,73 +300,267 @@ class AlertEngineState:
 # Market Pressure Index (replaces external sentiment)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MarketPressure:
     """Coinbase-only 'emotion' proxy derived from breadth + impulse density."""
-    heat: float = 50.0       # 0-100
-    bias: str = "neutral"    # "up" | "down" | "neutral"
+
+    heat: float = 50.0  # 0-100
+    bias: str = "neutral"  # "up" | "down" | "neutral"
     breadth_up: float = 0.0  # fraction of symbols with 1m > threshold
     breadth_down: float = 0.0
-    impulse_count: int = 0   # how many symbols crossed impulse thresholds
-    symbol_count: int = 0    # total symbols evaluated
-    label: str = "Normal"    # human-readable
+    impulse_count: int = 0  # how many symbols crossed impulse thresholds
+    symbol_count: int = 0  # total symbols evaluated
+    label: str = "Normal"  # human-readable
+    # Canonical payload shape for UI
+    index: int = 50
+    score01: float = 0.5
+    components: dict[str, float] = field(default_factory=dict)
+    ts: int = 0
+
+
+def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    if value < lo:
+        return lo
+    if value > hi:
+        return hi
+    return value
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return float(median(values))
+
+
+def _stddev(values: list[float]) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean_v = sum(values) / float(n)
+    variance = sum((v - mean_v) ** 2 for v in values) / float(n)
+    return float(variance**0.5)
+
+
+def _top_positive_symbols(
+    price_snapshot: dict[str, dict], key: str, n: int
+) -> list[str]:
+    scored: list[tuple[str, float]] = []
+    for sym, data in (price_snapshot or {}).items():
+        val = _to_float_or_none(data.get(key))
+        if val is None or val <= 0:
+            continue
+        scored.append((sym, val))
+    scored.sort(key=lambda item: item[1], reverse=True)
+    return [sym for sym, _ in scored[: max(0, int(n))]]
+
+
+def _overlap_ratio(a_syms: list[str], b_syms: list[str], n: int) -> float:
+    n = int(n or 0)
+    if n <= 0:
+        return 0.0
+    if not a_syms or not b_syms:
+        return 0.0
+    a = set(a_syms[:n])
+    b = set(b_syms[:n])
+    if not a or not b:
+        return 0.0
+    return len(a.intersection(b)) / float(n)
 
 
 def compute_market_pressure(
     price_snapshot: dict[str, dict],
+    volume_snapshot: dict[str, dict] | None = None,
     thresholds: dict | None = None,
+    state: AlertEngineState | None = None,
 ) -> MarketPressure:
-    """Compute market-wide pressure from price snapshot alone."""
+    """Compute market pressure with component decomposition.
+
+    The `heat`/`bias` fields keep backward-compatible semantics for alert rules,
+    while `index`/`score01`/`components` expose the richer UI payload.
+    """
     t = thresholds or DEFAULT_THRESHOLDS
     impulse_1m = t["impulse_1m_pct"]
+    impulse_3m = t["impulse_3m_pct"]
+    volume_snapshot = volume_snapshot or {}
 
-    symbols = [s for s, d in price_snapshot.items() if d.get("pct_1m") is not None]
-    n = len(symbols)
-    if n == 0:
-        return MarketPressure()
+    symbols_all = set(price_snapshot.keys()) | set(volume_snapshot.keys())
+    if not symbols_all:
+        now_ts = int(time.time())
+        return MarketPressure(
+            heat=50.0,
+            bias="neutral",
+            breadth_up=0.0,
+            breadth_down=0.0,
+            impulse_count=0,
+            symbol_count=0,
+            label="Neutral",
+            index=50,
+            score01=0.5,
+            components={
+                "breadth": 0.0,
+                "impulse_density": 0.0,
+                "volume_anomaly": 0.0,
+                "vol_regime": 0.0,
+                "persistence": 0.0,
+            },
+            ts=now_ts,
+        )
 
-    up = sum(1 for s in symbols if (price_snapshot[s].get("pct_1m") or 0) > impulse_1m)
-    down = sum(1 for s in symbols if (price_snapshot[s].get("pct_1m") or 0) < -impulse_1m)
-    impulse_total = up + down
+    returns_1m: dict[str, float] = {}
+    returns_3m: dict[str, float] = {}
+    returns_1h: dict[str, float] = {}
+    for sym in symbols_all:
+        data = price_snapshot.get(sym) or {}
+        r1 = _to_float_or_none(data.get("pct_1m"))
+        r3 = _to_float_or_none(data.get("pct_3m"))
+        r1h = _to_float_or_none(data.get("pct_1h"))
+        if r1 is not None:
+            returns_1m[sym] = r1
+        if r3 is not None:
+            returns_3m[sym] = r3
+        if r1h is not None:
+            returns_1h[sym] = r1h
 
-    breadth_up = up / n
-    breadth_down = down / n
-
-    # Heat: 0-100 scale.  50 = neutral.
-    # Up breadth pushes heat up, down breadth pushes heat down, impulse density amplifies.
-    raw = 50.0 + (breadth_up - breadth_down) * 100.0
-    density_boost = min(20.0, (impulse_total / max(n, 1)) * 80.0)
-    if breadth_up > breadth_down:
-        raw += density_boost
+    # Breadth component uses directional win-rate (3m preferred for stability).
+    breadth_source = returns_3m if returns_3m else returns_1m
+    if breadth_source:
+        up_sign = sum(1 for v in breadth_source.values() if v > 0.0)
+        down_sign = sum(1 for v in breadth_source.values() if v < 0.0)
+        source_n = len(breadth_source)
+        pct_green = up_sign / float(source_n)
     else:
-        raw -= density_boost
-    heat = max(0.0, min(100.0, raw))
+        up_sign = 0
+        down_sign = 0
+        source_n = 0
+        pct_green = 0.5
+    breadth_component = _clamp((pct_green - 0.5) * 2.0, 0.0, 1.0)
 
-    if heat >= 80:
-        bias, label = "up", "Overheated"
-    elif heat >= 70:
-        bias, label = "up", "Hot"
-    elif heat <= 20:
-        bias, label = "down", "Frozen"
-    elif heat <= 30:
-        bias, label = "down", "Cold"
+    # Impulse density (symbols crossing impulse thresholds).
+    impulse_total = 0
+    for sym in symbols_all:
+        r1 = returns_1m.get(sym)
+        r3 = returns_3m.get(sym)
+        if (r1 is not None and abs(r1) >= impulse_1m) or (
+            r3 is not None and abs(r3) >= impulse_3m
+        ):
+            impulse_total += 1
+    impulse_k = max(1.0, float(t.get("pressure_impulse_k", 20.0) or 20.0))
+    impulse_density = _clamp(impulse_total / impulse_k, 0.0, 1.0)
+
+    # Volume anomaly via log-scaled vol ratio and robust top-N median.
+    vol_scores: list[float] = []
+    ratio_ref = max(1.01, float(t.get("pressure_vol_ratio_ref", 5.0) or 5.0))
+    for sym, vdata in (volume_snapshot or {}).items():
+        vol_now = _to_float_or_none(vdata.get("volume_1h_now"))
+        vol_prev = _to_float_or_none(vdata.get("volume_1h_prev"))
+        if vol_now is None or vol_prev is None or vol_prev <= 0:
+            continue
+        ratio = vol_now / vol_prev
+        if ratio <= 0:
+            continue
+        score = _clamp(math.log(ratio) / math.log(ratio_ref), 0.0, 1.0)
+        vol_scores.append(score)
+    vol_scores.sort(reverse=True)
+    volume_top_n = max(1, int(t.get("pressure_volume_top_n", 10) or 10))
+    volume_anomaly = _clamp(_median(vol_scores[:volume_top_n]), 0.0, 1.0)
+
+    # Volatility regime: median abs move vs rolling baseline.
+    abs_moves = [abs(v) for v in returns_3m.values()] or [
+        abs(v) for v in returns_1m.values()
+    ]
+    median_abs_move = _median(abs_moves)
+    if state is not None:
+        hist = state.market_pressure_abs_move_hist
+        hist.append(float(median_abs_move))
+        if len(hist) > 120:
+            del hist[: len(hist) - 120]
+        baseline_abs_move = _median(hist) if hist else max(median_abs_move, 1e-9)
     else:
-        bias, label = "neutral", "Normal"
+        baseline_abs_move = max(median_abs_move, 1e-9)
+    baseline_abs_move = max(baseline_abs_move, 1e-9)
+    vol_ratio = _clamp(median_abs_move / baseline_abs_move, 0.0, 2.0)
+    vol_regime = _clamp(vol_ratio / 2.0, 0.0, 1.0)
 
+    # Persistence: overlap of top gainers across time windows.
+    persistence_n = max(1, int(t.get("pressure_persistence_n", 10) or 10))
+    top_1m = _top_positive_symbols(price_snapshot, "pct_1m", persistence_n)
+    top_3m = _top_positive_symbols(price_snapshot, "pct_3m", persistence_n)
+    top_1h = _top_positive_symbols(price_snapshot, "pct_1h", persistence_n)
+    o1 = _overlap_ratio(top_1m, top_3m, persistence_n)
+    o2 = _overlap_ratio(top_3m, top_1h, persistence_n) if top_1h else 0.0
+    persistence = _clamp((0.5 * o1) + (0.5 * o2), 0.0, 1.0)
+
+    # Component blend -> pressure score (0..1), then smooth with EMA.
+    raw_score01 = _clamp(
+        (0.30 * volume_anomaly)
+        + (0.25 * breadth_component)
+        + (0.20 * impulse_density)
+        + (0.15 * persistence)
+        + (0.10 * vol_regime),
+        0.0,
+        1.0,
+    )
+    alpha = _clamp(float(t.get("pressure_ema_alpha", 0.12) or 0.12), 0.01, 1.0)
+    if state is not None and state.market_pressure_ema is not None:
+        score01 = (alpha * raw_score01) + (
+            (1.0 - alpha) * float(state.market_pressure_ema)
+        )
+    else:
+        score01 = raw_score01
+    if state is not None:
+        state.market_pressure_ema = score01
+
+    # Backward-compatible heat scale for existing alert thresholds.
+    heat = _clamp(score01, 0.0, 1.0) * 100.0
+    index = int(round(heat))
+
+    # Coarse up/down breadth fractions for legacy consumers.
+    breadth_up = (up_sign / float(source_n)) if source_n else 0.0
+    breadth_down = (down_sign / float(source_n)) if source_n else 0.0
+
+    if index <= 20:
+        label = "Fear"
+        bias = "down"
+    elif index <= 40:
+        label = "Cautious"
+        bias = "down"
+    elif index <= 60:
+        label = "Neutral"
+        bias = "neutral"
+    elif index <= 80:
+        label = "Risk-On"
+        bias = "up"
+    else:
+        label = "Euphoria"
+        bias = "up"
+
+    now_ts = int(time.time())
     return MarketPressure(
         heat=round(heat, 1),
         bias=bias,
         breadth_up=round(breadth_up, 3),
         breadth_down=round(breadth_down, 3),
         impulse_count=impulse_total,
-        symbol_count=n,
+        symbol_count=len(symbols_all),
         label=label,
+        index=index,
+        score01=round(score01, 4),
+        components={
+            "breadth": round(breadth_component, 4),
+            "impulse_density": round(impulse_density, 4),
+            "volume_anomaly": round(volume_anomaly, 4),
+            "vol_regime": round(vol_regime, 4),
+            "persistence": round(persistence, 4),
+        },
+        ts=now_ts,
     )
 
 
 # ---------------------------------------------------------------------------
 # Alert builder helper
 # ---------------------------------------------------------------------------
+
 
 def _make_alert(
     *,
@@ -262,6 +576,11 @@ def _make_alert(
 ) -> dict:
     now = datetime.now(timezone.utc)
     product_id = symbol if "-" in symbol else f"{symbol}-USD"
+    window = (
+        str(evidence.get("window") or ("market" if symbol == "MARKET" else "")).strip()
+        if isinstance(evidence, dict)
+        else ""
+    )
     return {
         "id": f"{alert_type.value}_{product_id}_{uuid.uuid4().hex[:8]}",
         "ts": now.isoformat(),
@@ -270,6 +589,8 @@ def _make_alert(
         "event_ts_ms": int(now.timestamp() * 1000),
         "symbol": product_id,
         "type": alert_type.value,
+        "type_key": alert_type.name,
+        "window": window or None,
         "severity": severity.value,
         "title": title,
         "message": message,
@@ -277,7 +598,8 @@ def _make_alert(
         "evidence": evidence,
         "ttl_seconds": ttl_minutes * 60,
         "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
-        "trade_url": trade_url or f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+        "trade_url": trade_url
+        or f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
     }
 
 
@@ -291,9 +613,105 @@ def _to_float_or_none(value: Any) -> float | None:
         return None
 
 
+def _record_pressure_index(state: AlertEngineState, index_value: float) -> None:
+    now = time.time()
+    hist = state.market_pressure_index_hist
+    hist.append((now, float(index_value)))
+    cutoff = now - 600.0
+    if len(hist) > 180:
+        del hist[: len(hist) - 180]
+    while hist and hist[0][0] < cutoff:
+        hist.pop(0)
+
+
+def _pressure_delta_seconds(state: AlertEngineState, seconds: int = 60) -> float:
+    now = time.time()
+    hist = state.market_pressure_index_hist
+    if not hist:
+        return 0.0
+    current = float(hist[-1][1])
+    cutoff = now - float(seconds)
+    baseline = float(hist[0][1])
+    for ts, idx in reversed(hist):
+        if ts <= cutoff:
+            baseline = float(idx)
+            break
+    return current - baseline
+
+
+def _attach_coin_mood_context(alerts: list[dict], pressure: MarketPressure) -> None:
+    mood_label = str(pressure.label or "Neutral")
+    mood_index = float(pressure.index if pressure.index is not None else pressure.heat)
+    mood_score01 = float(
+        pressure.score01 if pressure.score01 is not None else (mood_index / 100.0)
+    )
+    mood_bias = str(pressure.bias or "neutral")
+    for alert in alerts:
+        if not isinstance(alert, dict):
+            continue
+        symbol = str(alert.get("symbol") or "").upper()
+        if symbol in {"MARKET", "MARKET-USD"}:
+            continue
+        evidence = alert.get("evidence")
+        if not isinstance(evidence, dict):
+            evidence = {}
+        evidence.setdefault("mood_label", mood_label)
+        evidence.setdefault("mood_index", round(mood_index, 2))
+        evidence.setdefault("mood_score01", round(mood_score01, 4))
+        evidence.setdefault("mood_bias", mood_bias)
+        alert["evidence"] = evidence
+
+
+def _compute_vol_ratio(
+    vdata: dict[str, Any], ratio_ref: float
+) -> tuple[float | None, float | None]:
+    vol_now = _to_float_or_none(vdata.get("volume_1h_now"))
+    vol_prev = _to_float_or_none(vdata.get("volume_1h_prev"))
+    if vol_now is None or vol_prev is None or vol_prev <= 0:
+        return None, None
+    ratio = vol_now / vol_prev
+    if ratio <= 0:
+        return None, None
+    vol_score = _clamp(math.log(ratio) / math.log(max(1.01, ratio_ref)), 0.0, 1.0)
+    return ratio, vol_score
+
+
+def _bucket_mag(value: float | None, step: float = 0.5) -> float:
+    if value is None:
+        return 0.0
+    try:
+        return round(abs(float(value)) / float(step)) * float(step)
+    except Exception:
+        return 0.0
+
+
+def _cooldown_key(
+    atype: AlertType, symbol: str, window: str, mag_bucket: float | None = None
+) -> str:
+    base = f"{atype.value}::{symbol}::{window}"
+    if mag_bucket is None:
+        return base
+    return f"{base}::b{mag_bucket:g}"
+
+
+def _percentile_rank(value: float, samples: list[float]) -> float:
+    if not samples:
+        return 0.0
+    le = sum(1 for s in samples if s <= value)
+    return le / float(len(samples))
+
+
+def _product_id_for_symbol(symbol: str) -> str:
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return ""
+    return sym if "-" in sym else f"{sym}-USD"
+
+
 # ---------------------------------------------------------------------------
 # Individual detectors (pure functions, no side effects)
 # ---------------------------------------------------------------------------
+
 
 def _detect_impulse_alerts(
     price_snapshot: dict[str, dict],
@@ -344,7 +762,9 @@ def _detect_impulse_alerts(
             sev = AlertSeverity.HIGH
 
         key = f"{atype.value}::{sym}"
-        if not state.check_cooldown(key, t["cooldown_impulse"], best_mag, direction, t["dedupe_impulse"]):
+        if not state.check_cooldown(
+            key, t["cooldown_impulse"], best_mag, direction, t["dedupe_impulse"]
+        ):
             continue
 
         alert = _make_alert(
@@ -412,27 +832,54 @@ def _detect_whale_alerts(
                 if n >= 10:
                     mean_vol = sum(baseline_vols) / n
                     variance = sum((v - mean_vol) ** 2 for v in baseline_vols) / n
-                    std_vol = variance ** 0.5 if variance > 0 else 0
+                    std_vol = variance**0.5 if variance > 0 else 0
                     z_vol = (latest_vol - mean_vol) / std_vol if std_vol > 0 else 0
 
                     sorted_vols = sorted(baseline_vols)
                     median_vol = sorted_vols[n // 2]
                     vol_ratio = (latest_vol / median_vol) if median_vol > 0 else 0
 
-                    candle_pct = ((latest_close - latest_open) / latest_open * 100) if latest_open > 0 else 0
+                    candle_pct = (
+                        ((latest_close - latest_open) / latest_open * 100)
+                        if latest_open > 0
+                        else 0
+                    )
 
                     # 3-candle cluster
-                    cluster_vol = sum(m["vol"] for m in mins[:3]) if len(mins) >= 3 else latest_vol
-                    cluster_z = (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
+                    cluster_vol = (
+                        sum(m["vol"] for m in mins[:3])
+                        if len(mins) >= 3
+                        else latest_vol
+                    )
+                    cluster_z = (
+                        (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
+                    )
 
                     # WHALE MOVE: z >= 3.0 + price impact
-                    if (z_vol >= t["whale_z_score"] and abs(candle_pct) >= t["whale_candle_pct"] and latest_vol > 100) or \
-                       (cluster_z >= t["whale_cluster_z"] and abs(candle_pct) >= 0.4 and cluster_vol > 300):
+                    if (
+                        z_vol >= t["whale_z_score"]
+                        and abs(candle_pct) >= t["whale_candle_pct"]
+                        and latest_vol > 100
+                    ) or (
+                        cluster_z >= t["whale_cluster_z"]
+                        and abs(candle_pct) >= 0.4
+                        and cluster_vol > 300
+                    ):
                         direction = "up" if candle_pct > 0 else "down"
                         whale_score = z_vol * abs(candle_pct)
-                        sev = AlertSeverity.CRITICAL if z_vol >= 5.0 or whale_score >= 8 else AlertSeverity.HIGH
+                        sev = (
+                            AlertSeverity.CRITICAL
+                            if z_vol >= 5.0 or whale_score >= 8
+                            else AlertSeverity.HIGH
+                        )
                         key = f"whale_move::{sym}"
-                        if state.check_cooldown(key, t["cooldown_whale"], whale_score, direction, t["dedupe_whale"]):
+                        if state.check_cooldown(
+                            key,
+                            t["cooldown_whale"],
+                            whale_score,
+                            direction,
+                            t["dedupe_whale"],
+                        ):
                             alert = _make_alert(
                                 symbol=sym,
                                 alert_type=AlertType.WHALE_MOVE,
@@ -441,8 +888,11 @@ def _detect_whale_alerts(
                                 message=f"{sym} {candle_pct:+.2f}% in 1m, vol {vol_ratio:.1f}x median ({z_vol:.1f}\u03c3)",
                                 direction=direction,
                                 evidence={
+                                    "window": "1m",
                                     # Contract fields (always numeric-or-None)
-                                    "volume_change_1h_pct": _to_float_or_none(vol1h_pct),
+                                    "volume_change_1h_pct": _to_float_or_none(
+                                        vol1h_pct
+                                    ),
                                     "vol1h_now": _to_float_or_none(vol1h_now),
                                     "vol1h_prev": _to_float_or_none(vol1h_prev),
                                     "pct_3m": _to_float_or_none(pct_3m),
@@ -462,18 +912,36 @@ def _detect_whale_alerts(
                             continue  # don't double-fire
 
                     # ABSORPTION: high vol, flat price
-                    if z_vol >= t["absorption_z"] and abs(candle_pct) < t["absorption_max_pct"] and latest_vol > 100:
+                    if (
+                        z_vol >= t["absorption_z"]
+                        and abs(candle_pct) < t["absorption_max_pct"]
+                        and latest_vol > 100
+                    ):
                         # Check repeat pattern
                         absorption_count = 0
                         for m in mins[1:6]:
                             m_vol = m.get("vol", 0)
                             m_z = (m_vol - mean_vol) / std_vol if std_vol > 0 else 0
-                            m_pct = ((m.get("close", 0) - m.get("open", 1)) / m.get("open", 1) * 100) if m.get("open", 0) > 0 else 0
+                            m_pct = (
+                                (
+                                    (m.get("close", 0) - m.get("open", 1))
+                                    / m.get("open", 1)
+                                    * 100
+                                )
+                                if m.get("open", 0) > 0
+                                else 0
+                            )
                             if m_z >= 2.0 and abs(m_pct) < 0.2:
                                 absorption_count += 1
                         if absorption_count >= t["absorption_min_pulses"]:
                             key = f"absorption::{sym}"
-                            if state.check_cooldown(key, t["cooldown_absorption"], z_vol, "absorption", t["dedupe_absorption"]):
+                            if state.check_cooldown(
+                                key,
+                                t["cooldown_absorption"],
+                                z_vol,
+                                "absorption",
+                                t["dedupe_absorption"],
+                            ):
                                 alert = _make_alert(
                                     symbol=sym,
                                     alert_type=AlertType.WHALE_MOVE,
@@ -482,8 +950,11 @@ def _detect_whale_alerts(
                                     message=f"{sym} heavy tape, price flat ({candle_pct:+.2f}%), vol {vol_ratio:.1f}x ({z_vol:.1f}\u03c3), {absorption_count + 1} pulses",
                                     direction="absorption",
                                     evidence={
+                                        "window": "1m",
                                         # Contract fields (always numeric-or-None)
-                                        "volume_change_1h_pct": _to_float_or_none(vol1h_pct),
+                                        "volume_change_1h_pct": _to_float_or_none(
+                                            vol1h_pct
+                                        ),
                                         "vol1h_now": _to_float_or_none(vol1h_now),
                                         "vol1h_prev": _to_float_or_none(vol1h_prev),
                                         "pct_3m": _to_float_or_none(pct_3m),
@@ -505,9 +976,21 @@ def _detect_whale_alerts(
         # --- Mode 2: Hourly volume surge fallback ---
         if vol1h_pct is not None and vol1h_pct >= t["whale_surge_1h_pct"]:
             if vol1h_now >= t["whale_min_abs_vol"]:
-                sev = AlertSeverity.CRITICAL if vol1h_pct >= 400 else AlertSeverity.HIGH if vol1h_pct >= 250 else AlertSeverity.MEDIUM
+                sev = (
+                    AlertSeverity.CRITICAL
+                    if vol1h_pct >= 400
+                    else (
+                        AlertSeverity.HIGH if vol1h_pct >= 250 else AlertSeverity.MEDIUM
+                    )
+                )
                 key = f"whale_surge::{sym}"
-                if state.check_cooldown(key, t["cooldown_whale_surge"], vol1h_pct, "up", t["dedupe_whale_surge"]):
+                if state.check_cooldown(
+                    key,
+                    t["cooldown_whale_surge"],
+                    vol1h_pct,
+                    "up",
+                    t["dedupe_whale_surge"],
+                ):
                     alert = _make_alert(
                         symbol=sym,
                         alert_type=AlertType.WHALE_MOVE,
@@ -516,6 +999,7 @@ def _detect_whale_alerts(
                         message=f"{sym} 1h volume {vol1h_pct:+.0f}% vs prev hour ({vol1h_now:,.0f} units)",
                         direction="up",
                         evidence={
+                            "window": "1h",
                             # Contract fields (always numeric-or-None)
                             "vol1h_now": _to_float_or_none(vol1h_now),
                             "vol1h_prev": _to_float_or_none(vol1h_prev),
@@ -575,7 +1059,9 @@ def _detect_stealth_alerts(
         direction = "accumulation" if pct_3m >= 0 else "distribution"
 
         key = f"stealth_move::{sym}"
-        if not state.check_cooldown(key, t["cooldown_stealth"], magnitude, direction, t["dedupe_stealth"]):
+        if not state.check_cooldown(
+            key, t["cooldown_stealth"], magnitude, direction, t["dedupe_stealth"]
+        ):
             continue
 
         alert = _make_alert(
@@ -586,6 +1072,7 @@ def _detect_stealth_alerts(
             message=f"{sym} vol {vol1h_pct:+.0f}% but price only {pct_3m:+.2f}% — quiet {direction}",
             direction=direction,
             evidence={
+                "window": "3m",
                 "volume_change_1h_pct": round(vol1h_pct, 1),
                 "pct_3m": round(pct_3m, 2),
                 "abs_pct_3m": round(abs(pct_3m), 2),
@@ -623,7 +1110,10 @@ def _detect_divergence_alerts(
             continue
 
         # Opposite directions with magnitude
-        if not ((ret_1m > thresh_1m and ret_3m < -thresh_3m) or (ret_1m < -thresh_1m and ret_3m > thresh_3m)):
+        if not (
+            (ret_1m > thresh_1m and ret_3m < -thresh_3m)
+            or (ret_1m < -thresh_1m and ret_3m > thresh_3m)
+        ):
             continue
 
         magnitude = abs(ret_1m - ret_3m)
@@ -635,7 +1125,9 @@ def _detect_divergence_alerts(
             msg = f"{sym}: 1m down {ret_1m:+.2f}% but 3m up {ret_3m:+.2f}% — possible pullback"
 
         key = f"divergence::{sym}"
-        if not state.check_cooldown(key, t["cooldown_divergence"], magnitude, direction, t["dedupe_divergence"]):
+        if not state.check_cooldown(
+            key, t["cooldown_divergence"], magnitude, direction, t["dedupe_divergence"]
+        ):
             continue
 
         price = data.get("price", 0)
@@ -647,19 +1139,979 @@ def _detect_divergence_alerts(
             message=msg,
             direction=direction,
             evidence={
+                "window": "1m_vs_3m",
                 "pct_1m": round(ret_1m, 4),
                 "pct_3m": round(ret_3m, 4),
                 "pct_1h": data.get("pct_1h"),
                 "magnitude": round(magnitude, 2),
                 "heat": _to_float_or_none(pressure.heat if pressure else None),
-                "breadth_up": _to_float_or_none(pressure.breadth_up if pressure else None),
-                "breadth_down": _to_float_or_none(pressure.breadth_down if pressure else None),
+                "breadth_up": _to_float_or_none(
+                    pressure.breadth_up if pressure else None
+                ),
+                "breadth_down": _to_float_or_none(
+                    pressure.breadth_down if pressure else None
+                ),
                 "price": price,
             },
             ttl_minutes=t["ttl_divergence_min"],
         )
         alerts.append(alert)
         state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_reversal_alerts(
+    price_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect coin reversals: strong 3m move that flips direction on 1m."""
+    alerts: list[dict] = []
+    t = thresholds
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    for sym, data in (price_snapshot or {}).items():
+        pct_1m = _to_float_or_none((data or {}).get("pct_1m"))
+        pct_3m = _to_float_or_none((data or {}).get("pct_3m"))
+        if pct_1m is None or pct_3m is None:
+            continue
+        if abs(pct_3m) < float(t.get("reversal_min_prev_pct", 2.0) or 2.0):
+            continue
+        if abs(pct_1m) < float(t.get("reversal_min_flip_pct", 0.6) or 0.6):
+            continue
+        if pct_3m >= 0 and pct_1m >= 0:
+            continue
+        if pct_3m <= 0 and pct_1m <= 0:
+            continue
+
+        direction = "down" if pct_1m < 0 else "up"
+        atype = (
+            AlertType.COIN_REVERSAL_DOWN
+            if direction == "down"
+            else AlertType.COIN_REVERSAL_UP
+        )
+        mag_bucket = _bucket_mag(pct_1m, 0.5)
+        magnitude = abs(pct_1m)
+        key = _cooldown_key(atype, sym, "1m", mag_bucket)
+        if not state.check_cooldown(
+            key, t["cooldown_reversal"], magnitude, direction, t["dedupe_reversal"]
+        ):
+            continue
+
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=atype,
+            severity=AlertSeverity.HIGH if magnitude >= 1.5 else AlertSeverity.MEDIUM,
+            title=f"REVERSAL: {sym}",
+            message=f"{sym} flipped {pct_1m:+.2f}% in 1m after {pct_3m:+.2f}% over 3m",
+            direction=direction,
+            evidence={
+                "window": "1m",
+                "pct_1m": round(pct_1m, 4),
+                "pct_3m": round(pct_3m, 4),
+                "price_now": _to_float_or_none((data or {}).get("price")),
+                "price_ref": _to_float_or_none((data or {}).get("price_3m_ago")),
+                "turn_ts_ms": now_ms,
+                "event_kind": "reversal",
+                "magnitude_bucket": mag_bucket,
+            },
+            ttl_minutes=t["ttl_reversal_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_fakeout_alerts(
+    price_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect fakeouts: strong 3m push immediately rejected on 1m."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    for sym, data in (price_snapshot or {}).items():
+        pct_1m = _to_float_or_none((data or {}).get("pct_1m"))
+        pct_3m = _to_float_or_none((data or {}).get("pct_3m"))
+        if pct_1m is None or pct_3m is None:
+            continue
+        if abs(pct_3m) < float(t.get("fakeout_min_breakout_pct", 2.0) or 2.0):
+            continue
+        if abs(pct_1m) < float(t.get("fakeout_min_reject_pct", 0.8) or 0.8):
+            continue
+        if pct_3m >= 0 and pct_1m >= 0:
+            continue
+        if pct_3m <= 0 and pct_1m <= 0:
+            continue
+
+        direction = "down" if pct_1m < 0 else "up"
+        mag_bucket = _bucket_mag(pct_1m, 0.5)
+        magnitude = abs(pct_1m)
+        key = _cooldown_key(AlertType.COIN_FAKEOUT, sym, "1m", mag_bucket)
+        if not state.check_cooldown(
+            key, t["cooldown_fakeout"], magnitude, direction, t["dedupe_fakeout"]
+        ):
+            continue
+
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=AlertType.COIN_FAKEOUT,
+            severity=AlertSeverity.HIGH if magnitude >= 1.5 else AlertSeverity.MEDIUM,
+            title=f"FAKEOUT: {sym}",
+            message=f"{sym} rejected {pct_1m:+.2f}% in 1m after {pct_3m:+.2f}% over 3m",
+            direction=direction,
+            evidence={
+                "window": "1m",
+                "pct_1m": round(pct_1m, 4),
+                "pct_3m": round(pct_3m, 4),
+                "price_now": _to_float_or_none((data or {}).get("price")),
+                "price_ref": _to_float_or_none((data or {}).get("price_3m_ago")),
+                "reason": "breakout_rejection",
+                "event_kind": "fakeout",
+                "magnitude_bucket": mag_bucket,
+            },
+            ttl_minutes=t["ttl_fakeout_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_persistence_alerts(
+    price_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect persistent gainers/losers from consecutive 3m-direction streaks."""
+    alerts: list[dict] = []
+    t = thresholds
+    streaks = state.coin_persistence_streaks
+    min_pct = float(t.get("persist_min_pct", 1.5) or 1.5)
+    min_streak = int(t.get("persist_min_streak", 4) or 4)
+
+    if not price_snapshot:
+        streaks.clear()
+        return alerts
+
+    gainers: list[tuple[str, float]] = []
+    losers: list[tuple[str, float]] = []
+    active_symbols: set[str] = set()
+    for sym, data in (price_snapshot or {}).items():
+        pct_3m = _to_float_or_none((data or {}).get("pct_3m"))
+        if pct_3m is None:
+            streaks.pop(sym, None)
+            continue
+        if pct_3m >= min_pct:
+            active_symbols.add(sym)
+            gainers.append((sym, pct_3m))
+            prev_n, prev_dir = streaks.get(sym, (0, ""))
+            streaks[sym] = (prev_n + 1, "up") if prev_dir == "up" else (1, "up")
+        elif pct_3m <= -min_pct:
+            active_symbols.add(sym)
+            losers.append((sym, pct_3m))
+            prev_n, prev_dir = streaks.get(sym, (0, ""))
+            streaks[sym] = (prev_n + 1, "down") if prev_dir == "down" else (1, "down")
+        else:
+            streaks.pop(sym, None)
+
+    # Prune symbols that disappeared from the snapshot universe.
+    for sym in list(streaks.keys()):
+        if sym not in price_snapshot:
+            streaks.pop(sym, None)
+
+    gainers.sort(key=lambda item: item[1], reverse=True)
+    losers.sort(key=lambda item: item[1])
+    gain_rank = {sym: idx + 1 for idx, (sym, _pct) in enumerate(gainers)}
+    lose_rank = {sym: idx + 1 for idx, (sym, _pct) in enumerate(losers)}
+
+    for sym in active_symbols:
+        streak_n, direction = streaks.get(sym, (0, ""))
+        if streak_n < min_streak:
+            continue
+        pct_3m = _to_float_or_none((price_snapshot.get(sym) or {}).get("pct_3m"))
+        if pct_3m is None:
+            continue
+        atype = (
+            AlertType.COIN_PERSISTENT_GAINER
+            if direction == "up"
+            else AlertType.COIN_PERSISTENT_LOSER
+        )
+        rank = gain_rank.get(sym) if direction == "up" else lose_rank.get(sym)
+        magnitude = abs(pct_3m) + float(streak_n)
+        mag_bucket = _bucket_mag(pct_3m, 0.5)
+        key = _cooldown_key(atype, sym, "3m", mag_bucket)
+        if not state.check_cooldown(
+            key, t["cooldown_persist"], magnitude, direction, t["dedupe_persist"]
+        ):
+            continue
+
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=atype,
+            severity=(
+                AlertSeverity.HIGH
+                if streak_n >= (min_streak + 2)
+                else AlertSeverity.MEDIUM
+            ),
+            title=f"PERSISTENCE: {sym}",
+            message=f"{sym} stayed {direction} for {streak_n} cycles ({pct_3m:+.2f}% in 3m)",
+            direction=direction,
+            evidence={
+                "window": "3m",
+                "streak": streak_n,
+                "rank": rank,
+                "pct_3m": round(pct_3m, 4),
+                "polls": streak_n,
+                "event_kind": "persistence",
+                "magnitude_bucket": mag_bucket,
+                "price_now": _to_float_or_none(
+                    (price_snapshot.get(sym) or {}).get("price")
+                ),
+            },
+            ttl_minutes=t["ttl_persist_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_volatility_expansion_alerts(
+    price_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect realized-vol expansion vs recent baseline for each coin."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    n_now = max(2, int(t.get("volx_window_now", 10) or 10))
+    n_prev = max(2, int(t.get("volx_window_prev", 20) or 20))
+    ratio_min = float(t.get("volx_ratio_min", 2.0) or 2.0)
+    vol_floor = float(t.get("volx_vol_floor", 0.25) or 0.25)
+    prev_floor = float(t.get("volx_prev_floor", 0.05) or 0.05)
+    keep = max(120, (n_now + n_prev + 60))
+
+    # Keep per-symbol return history warm and bounded.
+    for sym, pdata in (price_snapshot or {}).items():
+        pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
+        if pct_1m is None:
+            continue
+        hist = state.coin_return_hist.setdefault(sym, [])
+        hist.append(float(pct_1m))
+        if len(hist) > keep:
+            del hist[: len(hist) - keep]
+
+    for sym, hist in list(state.coin_return_hist.items()):
+        if sym not in price_snapshot:
+            if len(hist) > keep:
+                del hist[: len(hist) - keep]
+            continue
+
+        if len(hist) < (n_now + n_prev):
+            continue
+        now_vals = hist[-n_now:]
+        prev_vals = hist[-(n_now + n_prev) : -n_now]
+        if len(prev_vals) < n_prev:
+            continue
+
+        vol_now = _stddev(now_vals)
+        vol_prev = _stddev(prev_vals)
+        if vol_now < vol_floor or vol_prev < prev_floor:
+            continue
+
+        ratio = vol_now / max(vol_prev, 1e-9)
+        if ratio < ratio_min:
+            continue
+
+        pdata = price_snapshot.get(sym) or {}
+        mag_bucket = _bucket_mag(ratio, 0.5)
+        key = _cooldown_key(AlertType.COIN_VOLATILITY_EXPANSION, sym, "10m", mag_bucket)
+        direction = (
+            "up" if (_to_float_or_none(pdata.get("pct_1m")) or 0.0) >= 0 else "down"
+        )
+        if not state.check_cooldown(
+            key,
+            t["cooldown_volx"],
+            ratio,
+            direction,
+            t["dedupe_volx"],
+        ):
+            continue
+
+        sev = AlertSeverity.HIGH if ratio >= (ratio_min + 1.0) else AlertSeverity.MEDIUM
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=AlertType.COIN_VOLATILITY_EXPANSION,
+            severity=sev,
+            title=f"VOL EXPANSION: {sym}",
+            message=f"{sym} volatility expanded {ratio:.2f}x vs baseline",
+            direction=direction,
+            evidence={
+                "window": "10m",
+                "vol_ratio": round(ratio, 4),
+                "vol_now": round(vol_now, 4),
+                "vol_prev": round(vol_prev, 4),
+                "pct_1m": _to_float_or_none(pdata.get("pct_1m")),
+                "pct_3m": _to_float_or_none(pdata.get("pct_3m")),
+                "pct_1h": _to_float_or_none(pdata.get("pct_1h")),
+                "price": _to_float_or_none(pdata.get("price")),
+                "samples_now": len(now_vals),
+                "samples_prev": len(prev_vals),
+            },
+            ttl_minutes=t["ttl_volx_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, ratio, direction)
+
+    return alerts
+
+
+def _detect_coin_liquidity_shock_alerts(
+    price_snapshot: dict[str, dict],
+    volume_snapshot: dict[str, dict],
+    minute_volumes: dict[str, list],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect coin minute-volume spikes while price remains muted."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    z_min = float(t.get("liq_shock_z_min", 3.0) or 3.0)
+    price_cap = float(t.get("liq_shock_price_max_abs_pct", 0.25) or 0.25)
+    min_samples = max(10, int(t.get("liq_shock_min_samples", 30) or 30))
+    min_latest_vol = float(t.get("liq_shock_min_latest_vol", 50.0) or 50.0)
+
+    for product_id, rows in (minute_volumes or {}).items():
+        if not isinstance(rows, list) or len(rows) < (min_samples + 1):
+            continue
+        latest = rows[0] if rows else {}
+        latest_vol = _to_float_or_none((latest or {}).get("vol"))
+        if latest_vol is None or latest_vol < min_latest_vol:
+            continue
+
+        baseline_vals = [
+            _to_float_or_none((m or {}).get("vol")) for m in rows[1 : min_samples + 1]
+        ]
+        baseline = [float(v) for v in baseline_vals if v is not None and v > 0]
+        if len(baseline) < min_samples:
+            continue
+
+        base_mean = sum(baseline) / float(len(baseline))
+        base_std = _stddev(baseline)
+        if base_std <= 0:
+            continue
+
+        vol_z = (latest_vol - base_mean) / base_std
+        if vol_z < z_min:
+            continue
+
+        sym_guess = str(product_id or "").upper()
+        base_sym = sym_guess.split("-")[0] if "-" in sym_guess else sym_guess
+        symbol_key = (
+            sym_guess
+            if sym_guess in price_snapshot
+            else (base_sym if base_sym in price_snapshot else f"{base_sym}-USD")
+        )
+        pdata = price_snapshot.get(symbol_key) or {}
+        vdata = volume_snapshot.get(symbol_key) or volume_snapshot.get(base_sym) or {}
+        pct_1m = _to_float_or_none(pdata.get("pct_1m"))
+        if pct_1m is None or abs(pct_1m) > price_cap:
+            continue
+
+        direction = "up" if pct_1m >= 0 else "down"
+        mag_bucket = _bucket_mag(vol_z, 0.5)
+        key = _cooldown_key(
+            AlertType.COIN_LIQUIDITY_SHOCK, symbol_key, "1m", mag_bucket
+        )
+        if not state.check_cooldown(
+            key,
+            t["cooldown_liq_shock"],
+            vol_z,
+            direction,
+            t["dedupe_liq_shock"],
+        ):
+            continue
+
+        sev = AlertSeverity.HIGH if vol_z >= (z_min + 2.0) else AlertSeverity.MEDIUM
+        alert = _make_alert(
+            symbol=symbol_key,
+            alert_type=AlertType.COIN_LIQUIDITY_SHOCK,
+            severity=sev,
+            title=f"LIQUIDITY SHOCK: {symbol_key}",
+            message=f"{symbol_key} volume spiked {vol_z:.1f}σ with muted price ({pct_1m:+.2f}% 1m)",
+            direction=direction,
+            evidence={
+                "window": "1m",
+                "vol_z": round(vol_z, 4),
+                "vol_1m": round(latest_vol, 4),
+                "avg_1m": round(base_mean, 4),
+                "std_1m": round(base_std, 4),
+                "pct_1m": pct_1m,
+                "pct_3m": _to_float_or_none(pdata.get("pct_3m")),
+                "price": _to_float_or_none(pdata.get("price")),
+                "volume_change_1h_pct": _to_float_or_none(
+                    vdata.get("volume_change_1h_pct")
+                ),
+                "baseline_samples": len(baseline),
+            },
+            ttl_minutes=t["ttl_liq_shock_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, vol_z, direction)
+
+    return alerts
+
+
+def _detect_coin_trend_break_alerts(
+    price_snapshot: dict[str, dict],
+    volume_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect micro-structure trend breaks via EMA fast/slow crossover on 1m returns."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    alpha_fast = _clamp(
+        float(t.get("trend_break_fast_alpha", 0.3333) or 0.3333), 0.01, 1.0
+    )
+    alpha_slow = _clamp(
+        float(t.get("trend_break_slow_alpha", 0.0952) or 0.0952), 0.01, 1.0
+    )
+    min_diff = float(t.get("trend_break_min_abs_diff", 0.08) or 0.08)
+    vol_confirm_pct = float(t.get("trend_break_vol_confirm_pct", 10.0) or 10.0)
+    vol_ratio_min = float(t.get("trend_break_vol_ratio_min", 1.20) or 1.20)
+    ratio_ref = float(t.get("pressure_vol_ratio_ref", 5.0) or 5.0)
+
+    for sym, pdata in (price_snapshot or {}).items():
+        pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
+        if pct_1m is None:
+            continue
+
+        prev_fast = state.coin_trend_ema_fast.get(sym, pct_1m)
+        prev_slow = state.coin_trend_ema_slow.get(sym, pct_1m)
+        prev_diff = state.coin_trend_last_diff.get(sym, prev_fast - prev_slow)
+
+        ema_fast = (alpha_fast * pct_1m) + ((1.0 - alpha_fast) * prev_fast)
+        ema_slow = (alpha_slow * pct_1m) + ((1.0 - alpha_slow) * prev_slow)
+        diff = ema_fast - ema_slow
+
+        state.coin_trend_ema_fast[sym] = ema_fast
+        state.coin_trend_ema_slow[sym] = ema_slow
+        state.coin_trend_last_diff[sym] = diff
+
+        crossed_up = prev_diff <= -min_diff and diff >= min_diff
+        crossed_down = prev_diff >= min_diff and diff <= -min_diff
+        if not crossed_up and not crossed_down:
+            continue
+
+        vdata = volume_snapshot.get(sym) or volume_snapshot.get(sym.split("-")[0]) or {}
+        vol_ratio, _vol_score = _compute_vol_ratio(vdata, ratio_ref)
+        vol1h_pct = _to_float_or_none(vdata.get("volume_change_1h_pct"))
+        vol_confirmed = (vol1h_pct is not None and vol1h_pct >= vol_confirm_pct) or (
+            vol_ratio is not None and vol_ratio >= vol_ratio_min
+        )
+        if not vol_confirmed:
+            continue
+
+        direction = "up" if crossed_up else "down"
+        atype = (
+            AlertType.COIN_TREND_BREAK_UP
+            if crossed_up
+            else AlertType.COIN_TREND_BREAK_DOWN
+        )
+        magnitude = abs(diff)
+        key = _cooldown_key(atype, sym, "5m_vs_20m", _bucket_mag(diff, 0.05))
+        if not state.check_cooldown(
+            key,
+            t["cooldown_trend_break"],
+            magnitude,
+            direction,
+            t["dedupe_trend_break"],
+        ):
+            continue
+
+        sev = (
+            AlertSeverity.HIGH
+            if (
+                magnitude >= (2.0 * min_diff)
+                and (vol_ratio or 0.0) >= (vol_ratio_min + 0.3)
+            )
+            else AlertSeverity.MEDIUM
+        )
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=atype,
+            severity=sev,
+            title=f"TREND BREAK {direction.upper()}: {sym}",
+            message=f"{sym} EMA fast/slow crossover with volume support",
+            direction=direction,
+            evidence={
+                "window": "5m_vs_20m",
+                "ema_fast": round(ema_fast, 6),
+                "ema_slow": round(ema_slow, 6),
+                "cross_dir": direction,
+                "diff": round(diff, 6),
+                "prev_diff": round(prev_diff, 6),
+                "pct_1m": pct_1m,
+                "pct_3m": _to_float_or_none((pdata or {}).get("pct_3m")),
+                "pct_1h": _to_float_or_none((pdata or {}).get("pct_1h")),
+                "vol_ratio": round(vol_ratio, 4) if vol_ratio is not None else None,
+                "volume_change_1h_pct": vol1h_pct,
+                "price": _to_float_or_none((pdata or {}).get("price")),
+            },
+            ttl_minutes=t["ttl_trend_break_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_squeeze_break_alerts(
+    price_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect compression regime that breaks into a sharp move."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    window_n = max(3, int(t.get("squeeze_window_n", 10) or 10))
+    hist_n = max(window_n * 3, int(t.get("squeeze_hist_n", 120) or 120))
+    compress_pctile = _clamp(
+        float(t.get("squeeze_compress_percentile", 0.25) or 0.25), 0.01, 0.95
+    )
+    break_pct_min = float(t.get("squeeze_break_pct_1m_min", 0.8) or 0.8)
+    vol_jump_min = float(t.get("squeeze_break_vol_ratio_min", 1.6) or 1.6)
+
+    for sym, pdata in (price_snapshot or {}).items():
+        hist = state.coin_return_hist.get(sym) or []
+        if len(hist) < (window_n * 3):
+            continue
+
+        pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
+        if pct_1m is None:
+            continue
+
+        now_vals = hist[-window_n:]
+        prev_vals = hist[-(2 * window_n) : -window_n]
+        if len(prev_vals) < window_n:
+            continue
+
+        vol_now = _stddev(now_vals)
+        vol_prev = _stddev(prev_vals)
+        if vol_prev <= 0:
+            continue
+        vol_jump_ratio = vol_now / max(vol_prev, 1e-9)
+
+        # Compression percentile is measured on the prior window (before the break).
+        hist_end = len(hist) - window_n
+        hist_start = max(window_n, hist_end - hist_n)
+        vol_hist: list[float] = []
+        for end in range(hist_start + window_n, hist_end + 1):
+            v = _stddev(hist[end - window_n : end])
+            if v > 0:
+                vol_hist.append(v)
+        if not vol_hist:
+            continue
+        vol_percentile = _percentile_rank(vol_prev, vol_hist)
+
+        compression = vol_percentile <= compress_pctile
+        break_move = abs(pct_1m) >= break_pct_min
+        if not (compression and break_move and vol_jump_ratio >= vol_jump_min):
+            continue
+
+        direction = "up" if pct_1m >= 0 else "down"
+        magnitude = abs(pct_1m) + vol_jump_ratio
+        key = _cooldown_key(
+            AlertType.COIN_SQUEEZE_BREAK, sym, "10m", _bucket_mag(pct_1m, 0.5)
+        )
+        if not state.check_cooldown(
+            key,
+            t["cooldown_squeeze_break"],
+            magnitude,
+            direction,
+            t["dedupe_squeeze_break"],
+        ):
+            continue
+
+        sev = (
+            AlertSeverity.HIGH
+            if (
+                abs(pct_1m) >= (break_pct_min * 1.8)
+                or vol_jump_ratio >= (vol_jump_min * 1.5)
+            )
+            else AlertSeverity.MEDIUM
+        )
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=AlertType.COIN_SQUEEZE_BREAK,
+            severity=sev,
+            title=f"SQUEEZE BREAK: {sym}",
+            message=f"{sym} broke from compression with {pct_1m:+.2f}% 1m move",
+            direction=direction,
+            evidence={
+                "window": "10m",
+                "vol_10m": round(vol_now, 6),
+                "vol_prev_10m": round(vol_prev, 6),
+                "vol_jump_ratio": round(vol_jump_ratio, 4),
+                "vol_percentile": round(vol_percentile, 4),
+                "break_change_1m": round(pct_1m, 4),
+                "pct_3m": _to_float_or_none((pdata or {}).get("pct_3m")),
+                "pct_1h": _to_float_or_none((pdata or {}).get("pct_1h")),
+                "price": _to_float_or_none((pdata or {}).get("price")),
+            },
+            ttl_minutes=t["ttl_squeeze_break_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    return alerts
+
+
+def _detect_coin_exhaustion_alerts(
+    price_snapshot: dict[str, dict],
+    volume_snapshot: dict[str, dict],
+    state: AlertEngineState,
+    thresholds: dict,
+    fakeout_symbols: set[str] | None = None,
+) -> list[dict]:
+    """Detect exhaustion after persistent directional runs."""
+    alerts: list[dict] = []
+    t = thresholds
+    fakeout_symbols = {str(s or "").upper() for s in (fakeout_symbols or set())}
+
+    min_streak = int(t.get("exhaustion_min_streak", 4) or 4)
+    flip_pct_1m = float(t.get("exhaustion_flip_pct_1m", 0.6) or 0.6)
+    context_pct_3m = float(t.get("exhaustion_context_pct_3m", 1.0) or 1.0)
+    vol_drop_ratio = _clamp(
+        float(t.get("exhaustion_vol_drop_ratio", 0.20) or 0.20), 0.01, 0.95
+    )
+    ratio_ref = float(t.get("pressure_vol_ratio_ref", 5.0) or 5.0)
+
+    for sym, pdata in (price_snapshot or {}).items():
+        streak_n, streak_dir = state.coin_persistence_streaks.get(sym, (0, ""))
+        pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
+        pct_3m = _to_float_or_none((pdata or {}).get("pct_3m"))
+        if pct_1m is None or pct_3m is None:
+            continue
+
+        vdata = volume_snapshot.get(sym) or volume_snapshot.get(sym.split("-")[0]) or {}
+        vol_ratio, _vol_score = _compute_vol_ratio(vdata, ratio_ref)
+        prev_vol_ratio = state.coin_last_vol_ratio.get(sym)
+        if vol_ratio is not None:
+            state.coin_last_vol_ratio[sym] = vol_ratio
+
+        if streak_n < min_streak:
+            continue
+
+        if streak_dir == "up":
+            flipped = pct_1m <= -flip_pct_1m and pct_3m >= context_pct_3m
+            atype = AlertType.COIN_EXHAUSTION_TOP
+            direction = "down"
+        elif streak_dir == "down":
+            flipped = pct_1m >= flip_pct_1m and pct_3m <= -context_pct_3m
+            atype = AlertType.COIN_EXHAUSTION_BOTTOM
+            direction = "up"
+        else:
+            continue
+        if not flipped:
+            continue
+
+        product_id = _product_id_for_symbol(sym)
+        fakeout_hit = sym.upper() in fakeout_symbols or product_id in fakeout_symbols
+        volume_drop = (
+            vol_ratio is not None
+            and prev_vol_ratio is not None
+            and prev_vol_ratio > 0
+            and vol_ratio <= (prev_vol_ratio * (1.0 - vol_drop_ratio))
+        )
+        if not (fakeout_hit or volume_drop):
+            continue
+
+        magnitude = (
+            abs(pct_1m) + (0.25 * float(streak_n)) + (0.5 if fakeout_hit else 0.0)
+        )
+        key = _cooldown_key(atype, sym, "1m", _bucket_mag(pct_1m, 0.5))
+        if not state.check_cooldown(
+            key,
+            t["cooldown_exhaustion"],
+            magnitude,
+            direction,
+            t["dedupe_exhaustion"],
+        ):
+            continue
+
+        sev = (
+            AlertSeverity.HIGH
+            if (streak_n >= (min_streak + 2) or fakeout_hit)
+            else AlertSeverity.MEDIUM
+        )
+        alert = _make_alert(
+            symbol=sym,
+            alert_type=atype,
+            severity=sev,
+            title=f"EXHAUSTION: {sym}",
+            message=f"{sym} run exhausted after {streak_n} streak cycles ({pct_1m:+.2f}% 1m flip)",
+            direction=direction,
+            evidence={
+                "window": "1m",
+                "streak_len": streak_n,
+                "flip": round(pct_1m, 4),
+                "pct_1m": round(pct_1m, 4),
+                "pct_3m": round(pct_3m, 4),
+                "volume_ratio": round(vol_ratio, 4) if vol_ratio is not None else None,
+                "prev_volume_ratio": (
+                    round(prev_vol_ratio, 4) if prev_vol_ratio is not None else None
+                ),
+                "volume_drop": bool(volume_drop),
+                "fakeout_hit": bool(fakeout_hit),
+                "price": _to_float_or_none((pdata or {}).get("price")),
+            },
+            ttl_minutes=t["ttl_exhaustion_min"],
+        )
+        alerts.append(alert)
+        state.record_fire(key, magnitude, direction)
+
+    # Prune stale volume-ratio state for symbols no longer present.
+    live = set(price_snapshot.keys())
+    for sym in list(state.coin_last_vol_ratio.keys()):
+        if sym not in live:
+            state.coin_last_vol_ratio.pop(sym, None)
+
+    return alerts
+
+
+def _detect_coin_mood_alerts(
+    price_snapshot: dict[str, dict],
+    volume_snapshot: dict[str, dict],
+    pressure: MarketPressure,
+    state: AlertEngineState,
+    thresholds: dict,
+) -> list[dict]:
+    """Detect coin-scoped mood alerts using market context, never MARKET symbol."""
+    alerts: list[dict] = []
+    t = thresholds
+
+    breadth = _clamp(
+        _to_float_or_none((pressure.components or {}).get("breadth")) or 0.0, 0.0, 1.0
+    )
+    persistence = _clamp(
+        _to_float_or_none((pressure.components or {}).get("persistence")) or 0.0,
+        0.0,
+        1.0,
+    )
+    vol_regime = _clamp(
+        _to_float_or_none((pressure.components or {}).get("vol_regime")) or 0.0,
+        0.0,
+        1.0,
+    )
+    mpi_index = float(pressure.index if pressure.index is not None else pressure.heat)
+    mpi_delta_60s = _pressure_delta_seconds(state, 60)
+
+    ratio_ref = float(t.get("pressure_vol_ratio_ref", 5.0) or 5.0)
+    returns_3m = [
+        r
+        for r in (
+            _to_float_or_none((pdata or {}).get("pct_3m"))
+            for pdata in (price_snapshot or {}).values()
+        )
+        if r is not None
+    ]
+    median_pct_3m = _median(returns_3m)
+    if not price_snapshot:
+        return alerts
+
+    for sym, pdata in price_snapshot.items():
+        pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
+        pct_3m = _to_float_or_none((pdata or {}).get("pct_3m"))
+        pct_1h = _to_float_or_none((pdata or {}).get("pct_1h"))
+        price = _to_float_or_none((pdata or {}).get("price"))
+        if pct_3m is None:
+            continue
+
+        vdata = volume_snapshot.get(sym) or {}
+        vol_ratio, vol_score = _compute_vol_ratio(vdata, ratio_ref)
+        rs3m = pct_3m - median_pct_3m
+
+        accel = None
+        if pct_1m is not None:
+            denom = max(abs(pct_3m) / 3.0, 1e-9)
+            accel = pct_1m / denom
+
+        # Skip coin mood alerts when market volatility regime is effectively dead.
+        if vol_regime < float(t.get("vol_regime_min", 0.20) or 0.20):
+            continue
+
+        # 1) COIN_FOMO: coin acceleration + volume confirmation in hot/accelerating market.
+        fomo_rule = (
+            pct_1m is not None
+            and accel is not None
+            and mpi_index >= float(t.get("coin_fomo_mpi_min", 72) or 72)
+            and mpi_delta_60s >= float(t.get("coin_fomo_d_mpi_60s", 6.0) or 6.0)
+            and pct_3m >= float(t.get("coin_fomo_pct3m_min", 2.2) or 2.2)
+            and pct_1m >= float(t.get("coin_fomo_pct1m_min", 0.6) or 0.6)
+            and accel >= float(t.get("coin_fomo_accel_min", 0.9) or 0.9)
+            and (
+                (
+                    vol_ratio is not None
+                    and vol_ratio >= float(t.get("vol_ratio_fomo", 2.0) or 2.0)
+                )
+                or (
+                    vol_score is not None
+                    and vol_score >= float(t.get("vol_score_mid", 0.60) or 0.60)
+                )
+            )
+        )
+        if fomo_rule:
+            sev = (
+                AlertSeverity.HIGH
+                if pct_3m >= 3.5 or (vol_ratio is not None and vol_ratio >= 3.0)
+                else AlertSeverity.MEDIUM
+            )
+            magnitude = max(0.0, pct_3m) + max(0.0, mpi_delta_60s)
+            if vol_ratio is not None:
+                magnitude += max(0.0, vol_ratio - 1.0)
+            key = f"{AlertType.COIN_FOMO.value}::{sym}"
+            if state.check_cooldown(
+                key, t["cooldown_coin_fomo"], magnitude, "up", t["dedupe_coin_fomo"]
+            ):
+                alert = _make_alert(
+                    symbol=sym,
+                    alert_type=AlertType.COIN_FOMO,
+                    severity=sev,
+                    title=f"COIN FOMO: {sym}",
+                    message=f"{sym} accelerating with volume confirmation ({pct_3m:+.2f}% 3m, MPI {mpi_index:.0f})",
+                    direction="up",
+                    evidence={
+                        "window": "3m",
+                        "pct_1m": pct_1m,
+                        "pct_3m": pct_3m,
+                        "pct_1h": pct_1h,
+                        "rs3m": round(rs3m, 4),
+                        "accel": round(accel, 4) if accel is not None else None,
+                        "vol_ratio": (
+                            round(vol_ratio, 4) if vol_ratio is not None else None
+                        ),
+                        "vol_score": (
+                            round(vol_score, 4) if vol_score is not None else None
+                        ),
+                        "mpi_index": round(mpi_index, 2),
+                        "mpi_delta_60s": round(mpi_delta_60s, 2),
+                        "breadth": round(breadth, 4),
+                        "persistence": round(persistence, 4),
+                        "vol_regime": round(vol_regime, 4),
+                        "price": price,
+                    },
+                    ttl_minutes=t["ttl_coin_mood_min"],
+                )
+                alerts.append(alert)
+                state.record_fire(key, magnitude, "up")
+
+        # 2) COIN_BREADTH_THRUST: broad strength + coin outperformance.
+        thrust_rule = (
+            breadth >= float(t.get("coin_thrust_breadth_min", 0.65) or 0.65)
+            and pct_3m >= float(t.get("coin_thrust_pct3m_min", 1.6) or 1.6)
+            and rs3m >= float(t.get("coin_thrust_rs3m_min", 0.8) or 0.8)
+            and persistence >= float(t.get("coin_thrust_persist_min", 0.35) or 0.35)
+        )
+        if thrust_rule:
+            sev = (
+                AlertSeverity.HIGH
+                if rs3m >= 1.6 or pct_3m >= 2.8
+                else AlertSeverity.MEDIUM
+            )
+            magnitude = max(0.0, rs3m) + max(0.0, pct_3m)
+            key = f"{AlertType.COIN_BREADTH_THRUST.value}::{sym}"
+            if state.check_cooldown(
+                key, t["cooldown_coin_thrust"], magnitude, "up", t["dedupe_coin_thrust"]
+            ):
+                alert = _make_alert(
+                    symbol=sym,
+                    alert_type=AlertType.COIN_BREADTH_THRUST,
+                    severity=sev,
+                    title=f"BREADTH THRUST: {sym}",
+                    message=f"{sym} outrunning market breadth ({pct_3m:+.2f}% 3m, RS {rs3m:+.2f})",
+                    direction="up",
+                    evidence={
+                        "window": "3m",
+                        "pct_1m": pct_1m,
+                        "pct_3m": pct_3m,
+                        "pct_1h": pct_1h,
+                        "rs3m": round(rs3m, 4),
+                        "breadth": round(breadth, 4),
+                        "persistence": round(persistence, 4),
+                        "vol_ratio": (
+                            round(vol_ratio, 4) if vol_ratio is not None else None
+                        ),
+                        "vol_score": (
+                            round(vol_score, 4) if vol_score is not None else None
+                        ),
+                        "mpi_index": round(mpi_index, 2),
+                        "price": price,
+                    },
+                    ttl_minutes=t["ttl_coin_mood_min"],
+                )
+                alerts.append(alert)
+                state.record_fire(key, magnitude, "up")
+
+        # 3) COIN_BREADTH_FAILURE: weak breadth + coin weakness or relative failure.
+        failure_rule_a = breadth <= float(
+            t.get("coin_failure_breadth_max", 0.35) or 0.35
+        ) and pct_3m <= float(t.get("coin_failure_pct3m_max", -1.6) or -1.6)
+        failure_rule_b = (
+            rs3m <= float(t.get("coin_failure_rs3m_max", -0.9) or -0.9) and pct_3m < 0
+        )
+        if failure_rule_a or failure_rule_b:
+            sev = (
+                AlertSeverity.HIGH
+                if pct_3m <= -2.8 or rs3m <= -1.6
+                else AlertSeverity.MEDIUM
+            )
+            magnitude = abs(min(0.0, pct_3m)) + abs(min(0.0, rs3m))
+            key = f"{AlertType.COIN_BREADTH_FAILURE.value}::{sym}"
+            if state.check_cooldown(
+                key,
+                t["cooldown_coin_failure"],
+                magnitude,
+                "down",
+                t["dedupe_coin_failure"],
+            ):
+                alert = _make_alert(
+                    symbol=sym,
+                    alert_type=AlertType.COIN_BREADTH_FAILURE,
+                    severity=sev,
+                    title=f"BREADTH FAILURE: {sym}",
+                    message=f"{sym} lagging in weak tape ({pct_3m:+.2f}% 3m, RS {rs3m:+.2f})",
+                    direction="down",
+                    evidence={
+                        "window": "3m",
+                        "pct_1m": pct_1m,
+                        "pct_3m": pct_3m,
+                        "pct_1h": pct_1h,
+                        "rs3m": round(rs3m, 4),
+                        "breadth": round(breadth, 4),
+                        "persistence": round(persistence, 4),
+                        "vol_ratio": (
+                            round(vol_ratio, 4) if vol_ratio is not None else None
+                        ),
+                        "vol_score": (
+                            round(vol_score, 4) if vol_score is not None else None
+                        ),
+                        "mpi_index": round(mpi_index, 2),
+                        "price": price,
+                    },
+                    ttl_minutes=t["ttl_coin_mood_min"],
+                )
+                alerts.append(alert)
+                state.record_fire(key, magnitude, "down")
 
     return alerts
 
@@ -674,31 +2126,40 @@ def _detect_fomo_fear_alerts(
     alerts: list[dict] = []
     t = thresholds
 
-    fomo = pressure.heat >= t["fomo_heat_min"] and (fg_value is None or fg_value >= t["fomo_fg_min"])
-    fear = pressure.heat <= t["fear_heat_max"] and (fg_value is None or fg_value <= t["fear_fg_max"])
+    fomo = pressure.heat >= t["fomo_heat_min"] and (
+        fg_value is None or fg_value >= t["fomo_fg_min"]
+    )
+    fear = pressure.heat <= t["fear_heat_max"] and (
+        fg_value is None or fg_value <= t["fear_fg_max"]
+    )
 
     if not fomo and not fear:
         return alerts
 
+    atype = AlertType.FOMO_ALERT
     if fomo:
-        atype = AlertType.FOMO_ALERT
         sev = AlertSeverity.HIGH
         title = "FOMO: Market Overheating"
         msg = f"Market Heat {pressure.heat}/100 ({pressure.label}), breadth {pressure.breadth_up:.0%} up"
         if fg_value is not None:
             msg += f", Fear & Greed {fg_value}/100"
         direction = "fomo"
+        mood = "euphoria"
+        legacy_type = AlertType.FOMO_ALERT.value
     else:
-        atype = AlertType.FEAR_ALERT
         sev = AlertSeverity.HIGH
         title = "FEAR: Market Extreme"
         msg = f"Market Heat {pressure.heat}/100 ({pressure.label}), breadth {pressure.breadth_down:.0%} down"
         if fg_value is not None:
             msg += f", Fear & Greed {fg_value}/100"
         direction = "fear"
+        mood = "fear"
+        legacy_type = AlertType.FEAR_ALERT.value
 
-    key = f"{atype.value}::MARKET"
-    if not state.check_cooldown(key, t["cooldown_fomo"], pressure.heat, direction, 10.0):
+    key = f"{AlertType.FOMO_ALERT.value}::MARKET"
+    if not state.check_cooldown(
+        key, t["cooldown_fomo"], pressure.heat, direction, 10.0
+    ):
         return alerts
 
     alert = _make_alert(
@@ -709,6 +2170,7 @@ def _detect_fomo_fear_alerts(
         message=msg,
         direction=direction,
         evidence={
+            "window": "market",
             "heat": pressure.heat,
             "bias": pressure.bias,
             "breadth_up": pressure.breadth_up,
@@ -718,6 +2180,8 @@ def _detect_fomo_fear_alerts(
             "impulse_count": pressure.impulse_count,
             "symbol_count": pressure.symbol_count,
             "fear_greed": fg_value,
+            "mood": mood,
+            "legacy_type": legacy_type,
         },
         ttl_minutes=t["ttl_fomo_min"],
     )
@@ -730,6 +2194,7 @@ def _detect_fomo_fear_alerts(
 # Main entry point — pure function
 # ---------------------------------------------------------------------------
 
+
 def compute_alerts(
     price_snapshot: dict[str, dict],
     volume_snapshot: dict[str, dict],
@@ -738,12 +2203,15 @@ def compute_alerts(
     fg_value: int | None = None,
     thresholds: dict | None = None,
     include_impulse: bool = True,
+    include_market_mood: bool = False,
 ) -> tuple[list[dict], AlertEngineState, MarketPressure]:
     """Compute all alerts from current inputs.
 
     Args:
         include_impulse: If False, skip MOONSHOT/CRATER/BREAKOUT/DUMP.
             Use False in production while SWR builders still emit impulse alerts.
+        include_market_mood: If True, allow standalone MARKET mood alerts.
+            Defaults to False so alerts remain coin-scoped.
 
     Returns:
         (alerts, updated_state, market_pressure)
@@ -757,18 +2225,72 @@ def compute_alerts(
         all_alerts.extend(_detect_impulse_alerts(price_snapshot, state, t))
 
     # 2. Whale alerts (aggregated flow spike)
-    all_alerts.extend(_detect_whale_alerts(price_snapshot, volume_snapshot, minute_volumes, state, t))
+    all_alerts.extend(
+        _detect_whale_alerts(price_snapshot, volume_snapshot, minute_volumes, state, t)
+    )
 
     # 3. Stealth alerts (loud volume, quiet price)
     all_alerts.extend(_detect_stealth_alerts(price_snapshot, volume_snapshot, state, t))
 
     # 4. Market pressure + FOMO/FEAR
-    pressure = compute_market_pressure(price_snapshot, t)
+    pressure = compute_market_pressure(
+        price_snapshot=price_snapshot,
+        volume_snapshot=volume_snapshot,
+        thresholds=t,
+        state=state,
+    )
+    _record_pressure_index(state, pressure.index)
 
-    # 5. Divergence alerts (timeframe disagreement + market pressure context)
+    # 5. Coin-structure alerts (reversal/fakeout/trend-break/exhaustion/persistence)
+    reversal_alerts = _detect_coin_reversal_alerts(price_snapshot, state, t)
+    fakeout_alerts = _detect_coin_fakeout_alerts(price_snapshot, state, t)
+    trend_break_alerts = _detect_coin_trend_break_alerts(
+        price_snapshot, volume_snapshot, state, t
+    )
+    fakeout_symbols = {
+        str((a or {}).get("symbol") or "").upper() for a in fakeout_alerts
+    }
+    exhaustion_alerts = _detect_coin_exhaustion_alerts(
+        price_snapshot, volume_snapshot, state, t, fakeout_symbols
+    )
+    persistence_alerts = _detect_coin_persistence_alerts(price_snapshot, state, t)
+    all_alerts.extend(reversal_alerts)
+    all_alerts.extend(fakeout_alerts)
+    all_alerts.extend(trend_break_alerts)
+    all_alerts.extend(exhaustion_alerts)
+    all_alerts.extend(persistence_alerts)
+
+    # 6. Coin wake-up alerts (volatility expansion / liquidity shock / squeeze-break)
+    all_alerts.extend(
+        _detect_coin_volatility_expansion_alerts(price_snapshot, state, t)
+    )
+    all_alerts.extend(
+        _detect_coin_liquidity_shock_alerts(
+            price_snapshot, volume_snapshot, minute_volumes, state, t
+        )
+    )
+    all_alerts.extend(_detect_coin_squeeze_break_alerts(price_snapshot, state, t))
+
+    # 7. Coin-scoped mood alerts (market-aware context, never MARKET symbol)
+    all_alerts.extend(
+        _detect_coin_mood_alerts(price_snapshot, volume_snapshot, pressure, state, t)
+    )
+
+    # 8. Divergence alerts (timeframe disagreement + market pressure context)
     all_alerts.extend(_detect_divergence_alerts(price_snapshot, pressure, state, t))
 
-    # 6. FOMO/FEAR alerts
-    all_alerts.extend(_detect_fomo_fear_alerts(pressure, fg_value, state, t))
+    # 9. Optional standalone market mood alerts (disabled by default).
+    if include_market_mood:
+        all_alerts.extend(_detect_fomo_fear_alerts(pressure, fg_value, state, t))
+
+    # Attach market mood context to all coin alerts for richer coin-popup display.
+    _attach_coin_mood_context(all_alerts, pressure)
+
+    # Hard guardrail: coin-scoped alert stream only.
+    all_alerts = [
+        a
+        for a in all_alerts
+        if str((a or {}).get("symbol") or "").upper() not in {"MARKET", "MARKET-USD"}
+    ]
 
     return all_alerts, state, pressure

@@ -1,13 +1,24 @@
 
+import {
+  getBackendBase,
+  getBackendCandidates,
+  normalizeBase,
+  sanitizeBase,
+  safeFetch,
+} from "./config/api.js";
 
 // API configuration for BHABIT CB4 with dynamic base URL and fallback
-let API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5002').replace(/\/$/, '');
+let API_BASE_URL = getBackendBase();
+const encodeSymbol = (symbol) => encodeURIComponent(String(symbol || '').trim().toUpperCase());
 const buildEndpoints = () => ({
+  data: `${API_BASE_URL}/data`,
   topBanner: `${API_BASE_URL}/api/component/top-banner-scroll`,
   bottomBanner: `${API_BASE_URL}/api/component/bottom-banner-scroll`,
   gainersTable: `${API_BASE_URL}/api/component/gainers-table`,
+  gainersTable3Min: `${API_BASE_URL}/api/component/gainers-table`,
   gainersTable1Min: `${API_BASE_URL}/api/component/gainers-table-1min`,
   losersTable: `${API_BASE_URL}/api/component/losers-table`,
+  losersTable3Min: `${API_BASE_URL}/api/component/losers-table`,
   alertsRecent: `${API_BASE_URL}/api/alerts/recent`,
   topMoversBar: `${API_BASE_URL}/api/component/top-movers-bar`,
   crypto: `${API_BASE_URL}/api/crypto`,
@@ -17,6 +28,14 @@ const buildEndpoints = () => ({
   watchlistInsights: `${API_BASE_URL}/api/watchlist/insights`,
   watchlistInsightsLog: `${API_BASE_URL}/api/watchlist/insights/log`,
   watchlistInsightsPrice: `${API_BASE_URL}/api/watchlist/insights/price`,
+  sentimentLatest: `${API_BASE_URL}/api/sentiment/latest`,
+  sentiment: (symbol) => `${API_BASE_URL}/api/sentiment/latest${symbol ? `?symbol=${encodeSymbol(symbol)}` : ''}`,
+  intelligenceReport: (symbol) => `${API_BASE_URL}/api/intelligence-report/${encodeSymbol(symbol)}`,
+  insights: (symbol) => `${API_BASE_URL}/api/insights/${encodeSymbol(symbol)}`,
+  coinHistory: (symbol) => `${API_BASE_URL}/api/insights/${encodeSymbol(symbol)}`,
+  coinHistoryCb: (symbol) => `${API_BASE_URL}/api/insights/${encodeSymbol(symbol)}`,
+  coinIntel: (symbol) => `${API_BASE_URL}/api/coin-intel?symbol=${encodeSymbol(symbol)}`,
+  coinAlerts: (symbol) => `${API_BASE_URL}/api/coin-alerts?symbol=${encodeSymbol(symbol)}`,
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
   socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`
@@ -32,8 +51,9 @@ export const getSentimentBaseUrl = () => (
   ""
 );
 export const setApiBaseUrl = (url) => {
-  if (!url) return;
-  API_BASE_URL = url.replace(/\/$/, '');
+  const nextBase = sanitizeBase(url);
+  if (!nextBase) return;
+  API_BASE_URL = nextBase;
   API_ENDPOINTS = buildEndpoints();
   try { console.info('[api] Switched API base to', API_BASE_URL); } catch (_) {}
 };
@@ -47,6 +67,14 @@ export async function fetchLatestAlerts(symbols = []) {
       body: JSON.stringify({ symbols })
     });
     if (!res.ok) return {};
+
+    // JSON safety: check content-type before parsing
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      console.warn('[fetchLatestAlerts] Non-JSON response:', contentType);
+      return {};
+    }
+
     const data = await res.json();
     return data.latest || {};
   } catch (e) {
@@ -74,15 +102,8 @@ const probeBase = async (baseUrl, timeoutMs = 1500) => {
   }
 };
 
-const CANDIDATE_BASES = [
-  'http://localhost:5002', 'http://127.0.0.1:5002',
-  'http://localhost:5001', 'http://127.0.0.1:5001',
-  'http://localhost:5003', 'http://127.0.0.1:5003',
-  'http://localhost:5004', 'http://127.0.0.1:5004',
-  'http://localhost:5005', 'http://127.0.0.1:5005',
-  'http://localhost:5006', 'http://127.0.0.1:5006',
-  'http://localhost:5007', 'http://127.0.0.1:5007'
-];
+// Get candidate bases from config (no 8001, no port hunting)
+const getCandidateBases = () => getBackendCandidates();
 
 // Fetch data from API with throttling and automatic base fallback
 export const fetchData = async (endpoint, fetchOptions = {}) => {
@@ -95,6 +116,13 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
     }
     const response = await fetch(endpoint, fetchOptions);
     if (response.ok) {
+      // JSON safety: check content-type before parsing
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.warn('[fetchData] Non-JSON response:', { endpoint, contentType });
+        throw new Error(`Expected JSON, got ${contentType}`);
+      }
+
       const data = await response.json();
       requestCache.set(endpoint, { data, timestamp: now });
       return data;
@@ -106,10 +134,13 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
     }
     throw new Error(`HTTP error! status: ${status}`);
   } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
     // Attempt dynamic base fallback on network errors or wrong-host statuses
     try {
       const oldBase = API_BASE_URL;
-      const altBases = CANDIDATE_BASES.filter(b => b.replace(/\/$/, '') !== oldBase.replace(/\/$/, ''));
+      const altBases = getCandidateBases().filter(b => normalizeBase(b) !== normalizeBase(oldBase));
       for (const base of altBases) {
         const ok = await probeBase(base);
         if (!ok) continue;
@@ -123,9 +154,16 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
             path = u.pathname + (u.search || '');
           } catch (_) {}
         }
-        const newEndpoint = `${base.replace(/\/$/, '')}${path}`;
+        const newEndpoint = `${normalizeBase(base)}${path}`;
         const retryRes = await fetch(newEndpoint, fetchOptions);
         if (retryRes.ok) {
+          // JSON safety: check content-type before parsing
+          const contentType = retryRes.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            console.warn('[fetchData retry] Non-JSON response:', { newEndpoint, contentType });
+            continue; // Try next base
+          }
+
           // Commit base change only after endpoint success
           setApiBaseUrl(base);
           const data = await retryRes.json();
@@ -136,7 +174,9 @@ export const fetchData = async (endpoint, fetchOptions = {}) => {
     } catch (fallbackErr) {
       // swallow to rethrow original error below
     }
-    console.error('API fetch error:', error);
+    if (error?.name !== 'AbortError') {
+      console.error('API fetch error:', error);
+    }
     throw error;
   }
 };
@@ -160,14 +200,14 @@ export async function addToWatchlist(symbol, price = null) {
   try {
     let list = await getWatchlist();
     // Check if symbol already exists (handle both string and object formats)
-    const existingItem = list.find(item => 
+    const existingItem = list.find(item =>
       typeof item === 'string' ? item === symbol : item.symbol === symbol
     );
-    
+
     if (!existingItem) {
       // Add as object with price info
-      const newItem = { 
-        symbol, 
+      const newItem = {
+        symbol,
         priceAtAdd: price || Math.random() * 1000 // fallback random price if not provided
       };
       list.push(newItem);
@@ -184,7 +224,7 @@ export async function removeFromWatchlist(symbol) {
   try {
     let list = await getWatchlist();
     // Filter by symbol (handle both string and object formats)
-    list = list.filter(item => 
+    list = list.filter(item =>
       typeof item === 'string' ? item !== symbol : item.symbol !== symbol
     );
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));

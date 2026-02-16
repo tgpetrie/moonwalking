@@ -1,5 +1,11 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import { normalizeAlert as normalizeAlertShape } from "../utils/alerts_normalize";
+import {
+  getBackendCandidates,
+  normalizeBase,
+  isBlockedPort,
+  LS_BACKEND_KEY,
+} from "../config/api";
 
 const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
@@ -10,7 +16,6 @@ const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
 const BACKOFF_WINDOW_MS = 30_000;
 const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
 const PUBLISH_UI_MS = Number(import.meta.env.VITE_PUBLISH_UI_MS || 4000);
-const MW_BACKEND_KEY = "mw_backend_base";
 const MW_LAST_GOOD_DATA = "mw_last_good_data";
 const MW_LAST_GOOD_AT = "mw_last_good_at";
 const MW_DEBUG = import.meta.env.VITE_MW_DEBUG === "1";
@@ -62,6 +67,7 @@ function normalizeApiData(payload) {
   const banner_1h_volume = root.banner_1h_volume ?? root.volume_banner_1h ?? [];
   const volume1h = root.volume1h ?? [];
   const alertsRaw = root.alerts ?? [];
+  const market_pressure = root.market_pressure ?? payload?.market_pressure ?? null;
 
   const latest_by_symbol = root.latest_by_symbol ?? {};
   const updated_at       = root.updated_at ?? payload?.updated_at ?? Date.now();
@@ -143,6 +149,7 @@ function normalizeApiData(payload) {
     coverage: root.coverage ?? payload?.coverage ?? null,
     sentiment,
     sentiment_meta,
+    market_pressure,
   };
 }
 
@@ -159,10 +166,7 @@ const parseStatus = (err) => {
 
 export function DataProvider({ children }) {
   // Use relative paths - Vite proxy handles routing to backend
-  // Empty string means requests go to /data, /api/... which Vite proxies
-  const CANONICAL_LOCAL_BASE = "";
-  const normalizeBase = (base) => String(base || "").trim().replace(/\/+$/, "");
-  const isCanonicalLocalBase = (base) => normalizeBase(base) === CANONICAL_LOCAL_BASE;
+  // Config centralized in config/api.js
 
   const cachedNormalized = useMemo(() => {
     const cached = readCachedPayload();
@@ -185,6 +189,7 @@ export function DataProvider({ children }) {
   const [alerts, setAlerts] = useState(() => cachedNormalized?.alerts ?? []);
   const [sentiment, setSentiment] = useState(() => cachedNormalized?.sentiment ?? null);
   const [sentimentMeta, setSentimentMeta] = useState(() => cachedNormalized?.sentiment_meta ?? null);
+  const [marketPressure, setMarketPressure] = useState(() => cachedNormalized?.market_pressure ?? null);
 
   // Canonical /api/alerts state (active + recent + meta including market_pressure)
   const [activeAlerts, setActiveAlerts] = useState([]);
@@ -203,8 +208,14 @@ export function DataProvider({ children }) {
   const [backendBase, setBackendBase] = useState(() => {
     if (typeof window === "undefined") return null;
     try {
-      const cached = window.localStorage.getItem(MW_BACKEND_KEY);
-      return cached && isCanonicalLocalBase(cached) ? normalizeBase(cached) : null;
+      const cached = window.localStorage.getItem(LS_BACKEND_KEY);
+      if (!cached) return null;
+      const normalized = normalizeBase(cached);
+      if (isBlockedPort(normalized)) {
+        window.localStorage.removeItem(LS_BACKEND_KEY);
+        return null;
+      }
+      return normalized;
     } catch {
       return null;
     }
@@ -276,15 +287,12 @@ export function DataProvider({ children }) {
         coverage: norm.coverage,
         sentiment: norm.sentiment,
         sentiment_meta: norm.sentiment_meta,
+        market_pressure: norm.market_pressure,
       };
       localStorage.setItem(MW_LAST_GOOD_DATA, JSON.stringify(minimal));
       localStorage.setItem(MW_LAST_GOOD_AT, String(lastGoodAtRef.current));
       const normalizedBase = normalizeBase(baseUrl);
-      if (isCanonicalLocalBase(normalizedBase)) {
-        localStorage.setItem(MW_BACKEND_KEY, CANONICAL_LOCAL_BASE);
-      } else {
-        localStorage.removeItem(MW_BACKEND_KEY);
-      }
+      localStorage.setItem(LS_BACKEND_KEY, normalizedBase);
     } catch {}
   }, []);
 
@@ -417,6 +425,7 @@ export function DataProvider({ children }) {
       setAlerts(Array.isArray(norm.alerts) ? norm.alerts : []);
       if (norm.sentiment != null) setSentiment(norm.sentiment);
       if (norm.sentiment_meta != null) setSentimentMeta(norm.sentiment_meta);
+      setMarketPressure(norm.market_pressure ?? null);
 
       // 1m: every fetch (table layer handles "live feel" without partial commits)
       commit1m(mergedNorm.gainers_1m);
@@ -454,27 +463,25 @@ export function DataProvider({ children }) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
-    const candidates = [];
+    // Get candidates from centralized config (includes env, proxy, fallbacks)
+    let candidates = getBackendCandidates();
 
-    // MW_SPEC: do not silently try random ports.
-    // - If VITE_API_BASE_URL is set, use it.
-    // - Otherwise, in local dev, use the canonical base only.
-    const envCandidate = normalizeBase(import.meta?.env?.VITE_API_BASE_URL || "");
-    const envBase = envCandidate.startsWith("http") ? envCandidate : "";
-    if (envBase) {
-      candidates.push(envBase);
-    } else {
-      candidates.push(CANONICAL_LOCAL_BASE);
+    // Prioritize last working runtime base if available
+    if (backendBase) {
+      const norm = normalizeBase(backendBase);
+      if (norm && !isBlockedPort(norm)) {
+        candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
+      }
     }
 
-    // Only honor cached base if it is canonical local.
+    // Also check localStorage cache
     try {
-      const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(MW_BACKEND_KEY) : null;
-      if (cachedBase && isCanonicalLocalBase(cachedBase) && !candidates.includes(CANONICAL_LOCAL_BASE)) {
-        candidates.push(CANONICAL_LOCAL_BASE);
-      }
-      if (cachedBase && !isCanonicalLocalBase(cachedBase)) {
-        window.localStorage.removeItem(MW_BACKEND_KEY);
+      const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(LS_BACKEND_KEY) : null;
+      if (cachedBase) {
+        const norm = normalizeBase(cachedBase);
+        if (norm && !isBlockedPort(norm)) {
+          candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
+        }
       }
     } catch {}
 
@@ -484,12 +491,13 @@ export function DataProvider({ children }) {
       }
       const controller = new AbortController();
       abortRef.current = controller;
-      const timeoutMs = 4000;
+      const timeoutMs = 2200;
       const timeoutId = setTimeout(() => {
         try { controller.abort("timeout"); } catch {}
       }, timeoutMs);
       try {
-        const url = `${base.replace(/\/$/, "")}/data`;
+        const baseNorm = base.replace(/\/$/, "");
+        const url = `${baseNorm}/data`;
         const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" }, cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -507,7 +515,8 @@ export function DataProvider({ children }) {
       try {
         const { json, base: okBase } = await tryOnce(base);
         const norm = normalizeApiData(json);
-        setBackendBase(isCanonicalLocalBase(okBase) ? CANONICAL_LOCAL_BASE : null);
+        const resolvedBase = normalizeBase(okBase);
+        setBackendBase(resolvedBase);
         setConnectionStatus("LIVE");
         failCountRef.current = 0;
         if (!lastFetchOkRef.current) {
@@ -529,17 +538,18 @@ export function DataProvider({ children }) {
 
     if (!succeeded) {
       setLoading(false);
-      setError(lastError || new Error("fetch failed"));
+      const isAbort = String(lastError?.name || "").toLowerCase() === "aborterror";
+      setError(isAbort ? null : (lastError || new Error("fetch failed")));
       if (lastGoodRef.current) {
         setConnectionStatus("STALE");
       } else {
         setConnectionStatus("DOWN");
       }
-      const status = parseStatus(new Error("fetch failed"));
+      const status = parseStatus(lastError);
       if (status === 429 || (status && status >= 500)) {
         backoffUntilRef.current = Date.now() + BACKOFF_WINDOW_MS;
       }
-      if (lastFetchOkRef.current) {
+      if (lastFetchOkRef.current && !isAbort) {
         console.warn("[mw] data poll failed:", lastError || "fetch failed");
         lastFetchOkRef.current = false;
       }
@@ -547,7 +557,7 @@ export function DataProvider({ children }) {
 
     inFlightRef.current = false;
     return succeeded;
-  }, [applySnapshot]);
+  }, [applySnapshot, backendBase]);
 
   // Publish pending snapshots on a steady cadence to avoid spamming React state.
   useEffect(() => {
@@ -622,11 +632,94 @@ export function DataProvider({ children }) {
       if (alertsInflightRef.current || cancelled) return;
       alertsInflightRef.current = true;
       try {
-        const base = normalizeBase(import.meta?.env?.VITE_API_BASE_URL || "");
-        const url = `${base}/api/alerts?limit=50&active_ttl_s=300`;
-        const res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        // Use same candidate logic as main data fetch
+        let candidates = getBackendCandidates();
+
+        // Prioritize last working runtime base if available
+        if (backendBase) {
+          const norm = normalizeBase(backendBase);
+          if (norm && !isBlockedPort(norm)) {
+            candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
+          }
+        }
+
+        // Also check localStorage cache
+        try {
+          const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(LS_BACKEND_KEY) : null;
+          if (cachedBase) {
+            const norm = normalizeBase(cachedBase);
+            if (norm && !isBlockedPort(norm)) {
+              candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
+            }
+          }
+        } catch {}
+
+        let json = null;
+        let okBase = null;
+        let lastError = null;
+
+        for (const base of candidates) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            try { controller.abort("timeout"); } catch {}
+          }, 2200);
+          try {
+            const baseNorm = base && base.startsWith("http") ? base.replace(/\/+$/, "") : "";
+            const url = `${baseNorm}/api/alerts?limit=50&active_ttl_s=300`;
+            const res = await fetch(url, {
+              signal: controller.signal,
+              headers: { Accept: "application/json" },
+              cache: "no-store",
+            });
+            clearTimeout(timeoutId);
+            if (res.status === 404) {
+              continue;
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            // JSON safety: check content-type before parsing
+            const contentType = res.headers.get("content-type") || "";
+            if (!contentType.includes("application/json")) {
+              console.warn(`[alerts] Non-JSON response from ${url}:`, contentType);
+              throw new Error(`Expected JSON, got ${contentType}`);
+            }
+
+            json = await res.json();
+            if (import.meta?.env?.DEV) {
+              console.log("[mw] /api/alerts OK", {
+                base,
+                url,
+                active: Array.isArray(json?.active) ? json.active.length : "NA",
+                recent: Array.isArray(json?.recent) ? json.recent.length : "NA",
+                meta_ok: json?.meta?.ok,
+              });
+            }
+            okBase = base;
+            break;
+          } catch (err) {
+            clearTimeout(timeoutId);
+            if (String(err?.name || "").toLowerCase() === "aborterror") {
+              lastError = err;
+              continue;
+            }
+            lastError = err;
+            continue;
+          }
+        }
+
+        if (!json) {
+          if (import.meta?.env?.DEV) {
+            console.log("[mw] /api/alerts NO JSON after candidates", candidates);
+          }
+          if (lastError && String(lastError?.name || "").toLowerCase() !== "aborterror" && MW_DEBUG) {
+            console.warn("[mw] /api/alerts poll failed:", lastError);
+          }
+          return;
+        }
+
+        if (okBase && okBase.startsWith("http")) {
+          setBackendBase(normalizeBase(okBase));
+        }
 
         if (import.meta?.env?.DEV && MW_DEBUG && !alertsContractWarnedRef.current) {
           const required = ["id", "symbol", "type_key", "severity", "event_ts_ms", "evidence"];
@@ -653,6 +746,7 @@ export function DataProvider({ children }) {
         if (Array.isArray(json.recent)) setAlertsRecent(json.recent);
         if (json.meta && typeof json.meta === "object") setAlertsMeta(json.meta);
       } catch (err) {
+        if (String(err?.name || "").toLowerCase() === "aborterror") return;
         if (MW_DEBUG) console.warn("[mw] /api/alerts poll failed:", err);
       } finally {
         alertsInflightRef.current = false;
@@ -666,7 +760,7 @@ export function DataProvider({ children }) {
       if (alertsPollRef.current) clearInterval(alertsPollRef.current);
       alertsPollRef.current = null;
     };
-  }, []);
+  }, [backendBase]);
 
   // Legacy compatibility: combine all published slices
   const combinedData = useMemo(() => ({
@@ -680,8 +774,9 @@ export function DataProvider({ children }) {
     latest_by_symbol: latestBySymbol,
     volume1h,
     alerts,
+    market_pressure: marketPressure,
     updated_at: latestNormalizedRef.current?.updated_at ?? lastGoodAtRef.current ?? Date.now(),
-  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h, alerts]);
+  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h, alerts, marketPressure]);
 
   const alertsBySymbol = useMemo(() => {
     const map = {};
@@ -755,13 +850,14 @@ export function DataProvider({ children }) {
     backendBase,
     sentiment,
     sentimentMeta,
+    marketPressure,
     lastGood: lastGoodRef.current,
     lastGoodLatestBySymbol: lastGoodRef.current?.latest_by_symbol || {},
     backendFailCount: failCountRef.current,
     activeAlerts,
     alertsRecent,
     alertsMeta,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, activeAlerts, alertsRecent, alertsMeta]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, alertsMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

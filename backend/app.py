@@ -15,44 +15,78 @@ import threading
 from collections import defaultdict, deque
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
+import hashlib
+from statistics import median
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    as_completed,
+    TimeoutError as FuturesTimeout,
+)
 import logging
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 import asyncio
 from pathlib import Path
+from urllib.parse import urlparse
+
 try:
-    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before, get_price_at_or_after
+    from price_db import (
+        ensure_price_db,
+        insert_price_snapshot,
+        prune_old,
+        get_price_at_or_before,
+        get_price_at_or_after,
+    )
     from volume_1h_store import ensure_db as ensure_volume_db
     from volume_1h_candles import refresh_product_minutes, RateLimitError
     from volume_1h_compute import compute_volume_1h
 except ImportError as e:
     logging.warning(f"Volume tracking imports failed: {e}")
+
     def ensure_volume_db():
         pass
+
     refresh_product_minutes = None
+
     class RateLimitError(Exception):
         pass
+
     def get_price_at_or_after(product_id, target_ts):
         return None
+
     def compute_volume_1h():
         return []
 
+
 try:
-    from price_db import ensure_price_db, insert_price_snapshot, prune_old, get_price_at_or_before, get_price_at_or_after
+    from price_db import (
+        ensure_price_db,
+        insert_price_snapshot,
+        prune_old,
+        get_price_at_or_before,
+        get_price_at_or_after,
+    )
 except ImportError as e:
     logging.warning(f"Price DB imports failed: {e}")
+
     def ensure_price_db():
         pass
+
     def insert_price_snapshot(ts, rows):
         pass
+
     def prune_old(ts_cutoff):
         pass
+
     def get_price_at_or_before(product_id, target_ts):
         return None
+
     def get_price_at_or_after(product_id, target_ts):
         return None
 
+
 from watchlist import watchlist_bp, watchlist_db
+
 try:
     from reliability import stale_while_revalidate
 except Exception:
@@ -66,18 +100,25 @@ except Exception:
         def deco(fn):
             def wrapper(*a, **k):
                 return fn(*a, **k)
+
             return wrapper
+
         return deco
+
+
 try:
     from metrics import collect_swr_cache_stats, emit_prometheus, emit_swr_prometheus
 except Exception:
     # Provide no-op fallbacks for environments missing the metrics module
     def collect_swr_cache_stats(*a, **k):
         return {}
+
     def emit_prometheus(*a, **k):
         return None
+
     def emit_swr_prometheus(*a, **k):
         return None
+
 
 try:
     from alerting import AlertNotifier
@@ -86,19 +127,27 @@ except Exception:
     class AlertNotifier:
         def __init__(self, *a, **k):
             pass
+
         def notify(self, *a, **k):
             return None
+
         @classmethod
         def from_env(cls, *a, **k):
             # create an instance using environment-derived defaults; keep stub lightweight
             return cls()
+
+
 try:
     # optional insight memory (may not exist early in startup)
     from watchlist import _insights_memory as INSIGHTS_MEMORY
 except Exception:
     INSIGHTS_MEMORY = None
 
-from logging_config import setup_logging as _setup_logging, log_config as _log_config_with_param
+from logging_config import (
+    setup_logging as _setup_logging,
+    log_config as _log_config_with_param,
+)
+
 try:
     from logging_config import REQUEST_ID_CTX
 except Exception:
@@ -107,6 +156,41 @@ import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from social_sentiment import get_social_sentiment
 from alerts_engine import compute_alerts, AlertEngineState, compute_market_pressure
+
+try:
+    from coin_intel_external import fetch_coin_intel
+except Exception:
+
+    def fetch_coin_intel(symbol):
+        return {
+            "symbol": str(symbol or "").upper(),
+            "coin_id": None,
+            "status": "offline",
+            "events": {"status": "offline", "items": [], "error": "not_configured"},
+            "news": {"status": "offline", "items": [], "error": "not_configured"},
+            "social": {
+                "status": "offline",
+                "items": [],
+                "metrics": {
+                    "social_volume_24h": None,
+                    "social_engagement_24h": None,
+                    "social_dominance_24h": None,
+                    "sentiment_24h": None,
+                    "social_rank": None,
+                    "social_heat": None,
+                    "social_heat_trend": None,
+                    "posts_60m": None,
+                    "posts_24h": None,
+                    "unique_authors_24h": None,
+                    "source": "none",
+                    "updated_at": None,
+                },
+                "error": "not_configured",
+            },
+            "ts": int(time.time()),
+        }
+
+
 # New insights helpers
 try:
     from insights import build_asset_insights
@@ -129,7 +213,9 @@ except Exception:
         def ttl_cache(ttl=0):
             def deco(fn):
                 return fn
+
             return deco
+
 
 # Import missing constants from price_fetch module
 try:
@@ -151,12 +237,20 @@ VOLUME_1H_MAX_TRACKED = int(os.environ.get("VOLUME_1H_MAX_TRACKED", 80))
 VOLUME_1H_WORKERS = int(os.environ.get("VOLUME_1H_WORKERS", 4))
 VOLUME_1H_BANNER_SIZE = int(os.environ.get("VOLUME_1H_BANNER_SIZE", 12))
 VOLUME_1H_BASELINE = [
-    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD",
-    "ADA-USD", "AVAX-USD", "LINK-USD", "LTC-USD",
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "XRP-USD",
+    "DOGE-USD",
+    "ADA-USD",
+    "AVAX-USD",
+    "LINK-USD",
+    "LTC-USD",
 ]
 
 # Debugging helper for product id resolution
 DEBUG_PID = os.getenv("DEBUG_PRODUCT_ID", "").lower() in ("1", "true", "yes")
+
 
 def _pid_debug(msg: str):
     if DEBUG_PID:
@@ -165,6 +259,8 @@ def _pid_debug(msg: str):
         except Exception:
             # best-effort debug printing; never raise
             pass
+
+
 # Emit an immediate banner so we can confirm whether DEBUG_PID was picked up.
 try:
     if DEBUG_PID:
@@ -185,7 +281,11 @@ def _load_product_ids(timeout=10):
     global PRODUCT_IDS, PRODUCT_IDS_BY_BASE, PRODUCT_IDS_TS
     try:
         now = time.time()
-        if PRODUCT_IDS and (now - PRODUCT_IDS_TS) < PRODUCT_IDS_TTL and PRODUCT_IDS_BY_BASE:
+        if (
+            PRODUCT_IDS
+            and (now - PRODUCT_IDS_TS) < PRODUCT_IDS_TTL
+            and PRODUCT_IDS_BY_BASE
+        ):
             return PRODUCT_IDS, PRODUCT_IDS_BY_BASE
 
         resp = requests.get(COINBASE_PRODUCTS_URL, timeout=timeout)
@@ -194,7 +294,7 @@ def _load_product_ids(timeout=10):
 
         pids = set()
         by_base = {}
-        for p in (data or []):
+        for p in data or []:
             if not isinstance(p, dict):
                 continue
             pid = p.get("id")
@@ -229,7 +329,9 @@ QUOTE_PREF = ("USD", "USDC", "USDT", "EUR", "GBP")
 # Must-include staples (can override via env MW_MUST_INCLUDE_PRODUCTS)
 _MW_MUST_INCLUDE_PRODUCTS = [
     p.strip().upper()
-    for p in os.getenv("MW_MUST_INCLUDE_PRODUCTS", "BTC-USD,ETH-USD,SOL-USD,AMP-USD").split(",")
+    for p in os.getenv(
+        "MW_MUST_INCLUDE_PRODUCTS", "BTC-USD,ETH-USD,SOL-USD,AMP-USD"
+    ).split(",")
     if p.strip()
 ]
 
@@ -237,7 +339,12 @@ _MW_MUST_INCLUDE_PRODUCTS = [
 def _normalize_product_id_from_row(row: dict | None) -> str | None:
     if not isinstance(row, dict):
         return None
-    pid = row.get("product_id") or row.get("productId") or row.get("product") or row.get("id")
+    pid = (
+        row.get("product_id")
+        or row.get("productId")
+        or row.get("product")
+        or row.get("id")
+    )
     if isinstance(pid, str) and pid.strip():
         p = pid.strip().upper()
         if "-" not in p:
@@ -258,7 +365,11 @@ def _row_quality_score(row: dict | None) -> int:
     if not isinstance(row, dict):
         return 0
     score = 0
-    price = row.get("current_price") if row.get("current_price") is not None else row.get("price")
+    price = (
+        row.get("current_price")
+        if row.get("current_price") is not None
+        else row.get("price")
+    )
     if _safe_float(price) is not None:
         score += 2
     for k in (
@@ -272,7 +383,10 @@ def _row_quality_score(row: dict | None) -> int:
         if _safe_float(row.get(k)) is not None:
             score += 2
             break
-    if _safe_float(row.get("volume_1h_now")) is not None or _safe_float(row.get("volume_1h_prev")) is not None:
+    if (
+        _safe_float(row.get("volume_1h_now")) is not None
+        or _safe_float(row.get("volume_1h_prev")) is not None
+    ):
         score += 1
     if row.get("ts") or row.get("timestamp") or row.get("last_updated"):
         score += 1
@@ -320,7 +434,9 @@ def resolve_product_id_from_row(row) -> str | None:
         # try base fallback
         base = _norm_base(s)
         if not base:
-            _pid_debug(f"PID_MISS base={base!r} symbol={s!r} baseField={None!r} ticker={None!r} coinbase_symbol={None!r} options={[]}")
+            _pid_debug(
+                f"PID_MISS base={base!r} symbol={s!r} baseField={None!r} ticker={None!r} coinbase_symbol={None!r} options={[]}"
+            )
             return None
         options = by_base.get(base, [])
         for q in QUOTE_PREF:
@@ -344,7 +460,7 @@ def resolve_product_id_from_row(row) -> str | None:
 
     # 2) pick base from likely fields (prefer coinbase_symbol then ticker,
     # and only accept `symbol` when it looks like a ticker)
-    _SYM_RE = re.compile(r'^[A-Z0-9]{2,10}$')
+    _SYM_RE = re.compile(r"^[A-Z0-9]{2,10}$")
     base = None
     for k in ("base", "coinbase_symbol", "ticker", "asset", "symbol"):
         val = row.get(k)
@@ -358,12 +474,16 @@ def resolve_product_id_from_row(row) -> str | None:
         base = cand
         break
     if not base:
-        _pid_debug(f"PID_MISS base=None symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={[]}")
+        _pid_debug(
+            f"PID_MISS base=None symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={[]}"
+        )
         return None
 
     options = by_base.get(base, [])
     if not options:
-        _pid_debug(f"PID_MISS base={base!r} symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={options[:5]}")
+        _pid_debug(
+            f"PID_MISS base={base!r} symbol={row.get('symbol')!r} baseField={row.get('base')!r} ticker={row.get('ticker')!r} coinbase_symbol={row.get('coinbase_symbol')!r} options={options[:5]}"
+        )
         return None
 
     for q in QUOTE_PREF:
@@ -386,7 +506,8 @@ def resolve_product_id(x) -> str | None:
 PIDS = None
 PIDS_BY_BASE = None
 PIDS_TS = 0
-PRODUCT_IDS_TTL = PRODUCT_IDS_TTL if 'PRODUCT_IDS_TTL' in globals() else 3600
+PRODUCT_IDS_TTL = PRODUCT_IDS_TTL if "PRODUCT_IDS_TTL" in globals() else 3600
+
 
 def _load_products(timeout=10):
     """Backward-compatible loader that returns (PIDS, PIDS_BY_BASE).
@@ -398,7 +519,7 @@ def _load_products(timeout=10):
     pids, by_base = _load_product_ids(timeout=timeout)
     PIDS = pids
     PIDS_BY_BASE = by_base
-    PIDS_TS = PRODUCT_IDS_TS if 'PRODUCT_IDS_TS' in globals() else time.time()
+    PIDS_TS = PRODUCT_IDS_TS if "PRODUCT_IDS_TS" in globals() else time.time()
     return PIDS, PIDS_BY_BASE
 
 
@@ -433,30 +554,43 @@ def _sort_rows_by_numeric(rows, field, descending=True, tie_field="symbol"):
         v = _safe_float((r or {}).get(field))
         is_missing = v is None
         # For descending, invert so default ascending sort yields descending numeric order.
-        score = (-v) if (v is not None and descending) else (v if v is not None else 0.0)
-        tie = ((r or {}).get(tie_field) or "")
+        score = (
+            (-v) if (v is not None and descending) else (v if v is not None else 0.0)
+        )
+        tie = (r or {}).get(tie_field) or ""
         return (is_missing, score, tie)
 
     return sorted((rows or []), key=key)
 
+
 # Check if psutil is available
 try:
     import psutil
+
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
 
+
 def _get_commit_sha():
     """Get the current git commit SHA"""
     try:
-        return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=os.path.dirname(__file__)).decode().strip()
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=os.path.dirname(__file__)
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         return "unknown"
+
 
 # Note: defer Talisman initialization until after the final Flask `app`
 # is created below. Early initialization here caused test-collection
 # failures where a MockFlask used during tests did not expose
 # `jinja_env` (flask_talisman expects app.jinja_env to exist).
+
 
 def get_coinbase_prices():  # legacy wrapper retained for backwards compatibility
     """Wrapper delegating to modular price_fetch.fetch_prices.
@@ -466,10 +600,12 @@ def get_coinbase_prices():  # legacy wrapper retained for backwards compatibilit
     """
     try:
         from price_fetch import fetch_prices
+
         return fetch_prices()
     except Exception as e:  # fallback minimal behavior
         logging.error(f"price_fetch module issue: {e}; falling back to empty price set")
         return {}
+
 
 # (CONFIG is defined later; we defer logging its values until after definition.)
 # Setup logging early
@@ -479,8 +615,8 @@ _setup_logging()
 app = Flask(__name__)
 # In non-production environments, default to disabling Talisman to avoid
 # automatic HTTPS/redirect enforcement during local development and tests.
-if os.environ.get('FLASK_ENV', '').lower() != 'production':
-    os.environ.setdefault('DISABLE_TALISMAN', '1')
+if os.environ.get("FLASK_ENV", "").lower() != "production":
+    os.environ.setdefault("DISABLE_TALISMAN", "1")
 # Provide optional snapshot-based volume helper (working913 compatibility)
 try:
     from utils import get_1h_volume_weighted_data  # type: ignore
@@ -492,36 +628,57 @@ except Exception:
 # existing `get_banner_1h_volume()` computation so the `/api/snapshots/one-hour-volume`
 # endpoint returns rows for the frontend during development.
 if not callable(get_1h_volume_weighted_data):
+
     def get_1h_volume_weighted_data():
         try:
             rows, _ts = get_banner_1h_volume()
             out = []
-            for r in (rows or []):
-                vol_now = r.get("volume_24h") or r.get("volume_now") or r.get("volume") or 0
+            for r in rows or []:
+                vol_now = (
+                    r.get("volume_24h") or r.get("volume_now") or r.get("volume") or 0
+                )
                 vol_ago = r.get("volume_1h") or r.get("previous_volume") or None
-                pct = r.get("volume_change_1h_pct") or r.get("volume_change_1h") or r.get("volume_change_pct")
-                if pct is None and isinstance(vol_now, (int, float)) and isinstance(vol_ago, (int, float)) and vol_ago:
+                pct = (
+                    r.get("volume_change_1h_pct")
+                    or r.get("volume_change_1h")
+                    or r.get("volume_change_pct")
+                )
+                if (
+                    pct is None
+                    and isinstance(vol_now, (int, float))
+                    and isinstance(vol_ago, (int, float))
+                    and vol_ago
+                ):
                     try:
-                        pct = ((float(vol_now) - float(vol_ago)) / float(vol_ago)) * 100.0
+                        pct = (
+                            (float(vol_now) - float(vol_ago)) / float(vol_ago)
+                        ) * 100.0
                     except Exception:
                         pct = None
-                out.append({
-                    **r,
-                    "volume_now": vol_now,
-                    "volume_1h_ago": vol_ago,
-                    "volume_change_pct": pct,
-                    "percent_change": pct,
-                })
+                out.append(
+                    {
+                        **r,
+                        "volume_now": vol_now,
+                        "volume_1h_ago": vol_ago,
+                        "volume_change_pct": pct,
+                        "percent_change": pct,
+                    }
+                )
             return out
         except Exception:
             return []
+
+
 # Ensure minimal lifecycle and routing helpers exist even when tests replace
 # Flask with a very small MockFlask. This prevents import-time endpoint
 # decorators from failing during test collection.
 def _no_op_decorator(fn):
     return fn
+
+
 def _no_op_function(*args, **kwargs):
     return None
+
 
 def _ensure_decorator_on_app(name):
     try:
@@ -534,17 +691,23 @@ def _ensure_decorator_on_app(name):
         except Exception:
             pass
 
-for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
+
+for _d in ("route", "get", "post", "put", "delete", "patch"):
     _ensure_decorator_on_app(_d)
 
-for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
+for name in (
+    "after_request",
+    "before_request",
+    "teardown_request",
+    "context_processor",
+):
     if not hasattr(app, name):
         try:
             setattr(app, name, _no_op_decorator)
         except Exception:
             pass
 
-for name in ('register_blueprint', 'add_url_rule'):
+for name in ("register_blueprint", "add_url_rule"):
     if not hasattr(app, name):
         try:
             setattr(app, name, _no_op_function)
@@ -553,20 +716,20 @@ for name in ('register_blueprint', 'add_url_rule'):
 # Some test runners replace Flask with a lightweight MockFlask which may not
 # implement `config` as a dict. Ensure `app.config` exists and is writable to
 # avoid AttributeError during test collection.
-if not hasattr(app, 'config') or app.config is None:
+if not hasattr(app, "config") or app.config is None:
     try:
         app.config = {}
     except Exception:
         # best-effort: ignore if we cannot inject config
         pass
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'crypto-dashboard-secret')
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "crypto-dashboard-secret")
 
 # Add startup time tracking
 startup_time = time.time()
 
 # Configure allowed CORS origins from environment
-cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
-if cors_env == '*':
+cors_env = os.environ.get("CORS_ALLOWED_ORIGINS", "*")
+if cors_env == "*":
     # Default development restriction: only allow local dev origins so we don't ship a
     # permissive CORS policy accidentally. This is intended for local tooling only.
     dev_origins = [
@@ -603,24 +766,32 @@ if cors_env == '*':
         # lifecycle helper methods, provide no-op shims so import-time setup
         # doesn't crash test collection.
         logging.warning(f"CORS initialization failed (will retry): {e}")
+
         def _no_op_decorator(fn):
             return fn
+
         def _no_op_function(*args, **kwargs):
             return None
 
-        for name in ('after_request', 'before_request', 'teardown_request', 'context_processor'):
+        for name in (
+            "after_request",
+            "before_request",
+            "teardown_request",
+            "context_processor",
+        ):
             if not hasattr(app, name):
                 try:
                     setattr(app, name, _no_op_decorator)
                 except Exception:
                     pass
 
-        for name in ('register_blueprint', 'add_url_rule'):
+        for name in ("register_blueprint", "add_url_rule"):
             if not hasattr(app, name):
                 try:
                     setattr(app, name, _no_op_function)
                 except Exception:
                     pass
+
         # route and HTTP method shortcuts (get/post/put/delete) are decorators;
         # provide no-op decorators if missing or not callable so import-time
         # endpoint definitions don't fail under a minimalist MockFlask.
@@ -635,71 +806,83 @@ if cors_env == '*':
                 except Exception:
                     pass
 
-        for _d in ('route', 'get', 'post', 'put', 'delete', 'patch'):
+        for _d in ("route", "get", "post", "put", "delete", "patch"):
             _ensure_decorator(_d)
 
         # Retry CORS now that shims are present; if it still fails, continue silently.
         try:
             CORS(app, resources={r"/*": {"origins": dev_origins}})
-            logging.info(f"CORS configured with dev_origins (retry): {len(dev_origins)} origins")
+            logging.info(
+                f"CORS configured with dev_origins (retry): {len(dev_origins)} origins"
+            )
         except Exception:
-            logging.exception('CORS initialization skipped due to MockFlask limitations')
+            logging.exception(
+                "CORS initialization skipped due to MockFlask limitations"
+            )
 else:
-    cors_origins = [origin.strip() for origin in cors_env.split(',') if origin.strip()]
+    cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
     try:
         CORS(app, origins=cors_origins)
         logging.info(f"CORS configured with production origins: {cors_origins}")
     except Exception:
-        logging.exception('CORS initialization skipped due to environment limitations')
+        logging.exception("CORS initialization skipped due to environment limitations")
 
 # Register blueprints after final app creation
 try:
     app.register_blueprint(watchlist_bp)
 except Exception:
-    logging.exception('Skipping blueprint registration during test or mocked environment')
+    logging.exception(
+        "Skipping blueprint registration during test or mocked environment"
+    )
 
 # Register intelligence API blueprint
 try:
     from intelligence_api import intelligence_bp
+
     app.register_blueprint(intelligence_bp)
-    logging.info('✅ Intelligence API blueprint registered')
+    logging.info("✅ Intelligence API blueprint registered")
 except Exception as e:
-    logging.warning(f'Intelligence API blueprint registration skipped: {e}')
+    logging.warning(f"Intelligence API blueprint registration skipped: {e}")
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
 # want to turn it off). When disabled, ensure `app.jinja_env` exists so any
 # code that expects it won't fail during import/collection.
 try:
-    disable_talisman = os.environ.get('DISABLE_TALISMAN', '0') == '1'
+    disable_talisman = os.environ.get("DISABLE_TALISMAN", "0") == "1"
 except Exception:
     disable_talisman = False
 
-if not disable_talisman and not app.config.get('TESTING', False):
+if not disable_talisman and not app.config.get("TESTING", False):
     try:
-        Talisman(app, content_security_policy={
-            'default-src': ["'self'"],
-            'img-src': ["'self'", 'data:'],
-            'script-src': ["'self'"],
-            'style-src': ["'self'"],
-        },
-        strict_transport_security=True,
-        frame_options='deny',
-        x_xss_protection=True,
-        x_content_type_options=True)
+        Talisman(
+            app,
+            content_security_policy={
+                "default-src": ["'self'"],
+                "img-src": ["'self'", "data:"],
+                "script-src": ["'self'"],
+                "style-src": ["'self'"],
+            },
+            strict_transport_security=True,
+            frame_options="deny",
+            x_xss_protection=True,
+            x_content_type_options=True,
+        )
     except Exception:
         # best-effort: don't crash app creation if Talisman can't be applied
-        logging.exception('Talisman initialization failed; continuing without it')
+        logging.exception("Talisman initialization failed; continuing without it")
 else:
     # Ensure jinja_env and its globals dict exist so code importing the app
     # (or extensions) can safely reference app.jinja_env.globals during tests.
-    if not hasattr(app, 'jinja_env') or getattr(app.jinja_env, 'globals', None) is None:
+    if not hasattr(app, "jinja_env") or getattr(app.jinja_env, "globals", None) is None:
+
         class _DummyJinjaEnv:
             def __init__(self):
                 self.globals = {}
+
         app.jinja_env = _DummyJinjaEnv()
 
 # ---------------- Health + Metrics -----------------
-_ERROR_STATS = { '5xx': 0 }
+_ERROR_STATS = {"5xx": 0}
 one_minute_market_stats = {}
 _one_min_hist_lock = threading.Lock()
 _spike_p95_history = deque(maxlen=30)
@@ -710,49 +893,64 @@ _breadth_adv_decl_ratio_ema = None
 _breadth_net_advancers_ema = None
 _breadth_thrust_started_at = None
 _ALERTER = AlertNotifier.from_env()
-_STALE_ALERT_RATIO = float(os.environ.get('ALERT_STALE_RATIO','0.6'))
-_STALE_ALERT_WINDOW_SEC = int(os.environ.get('ALERT_STALE_MIN_WINDOW_SEC','120'))
+_STALE_ALERT_RATIO = float(os.environ.get("ALERT_STALE_RATIO", "0.6"))
+_STALE_ALERT_WINDOW_SEC = int(os.environ.get("ALERT_STALE_MIN_WINDOW_SEC", "120"))
 _last_stale_alert = 0.0
 _stale_window_start = None
 
 # Configurable thresholds / params (env override optional)
-_BREADTH_THRUST_RATIO = float(os.environ.get('BREADTH_THRUST_RATIO','1.3'))
-_BREADTH_THRUST_NET_MIN = int(os.environ.get('BREADTH_THRUST_NET_MIN','0'))  # allow >=0 by default
-_BREADTH_EMA_ALPHA = float(os.environ.get('BREADTH_EMA_ALPHA','0.2'))  # smoothing for EMA oscillator
-_BREADTH_BB_K = float(os.environ.get('BREADTH_BB_K','2.0'))  # Bollinger multiple for adv/decl ratio
+_BREADTH_THRUST_RATIO = float(os.environ.get("BREADTH_THRUST_RATIO", "1.3"))
+_BREADTH_THRUST_NET_MIN = int(
+    os.environ.get("BREADTH_THRUST_NET_MIN", "0")
+)  # allow >=0 by default
+_BREADTH_EMA_ALPHA = float(
+    os.environ.get("BREADTH_EMA_ALPHA", "0.2")
+)  # smoothing for EMA oscillator
+_BREADTH_BB_K = float(
+    os.environ.get("BREADTH_BB_K", "2.0")
+)  # Bollinger multiple for adv/decl ratio
 
 # Unified threshold registry (env overridable) to avoid scattering magic numbers
 THRESHOLDS = {
-    'pump_thrust_confirm_ratio_min': float(os.environ.get('PUMP_THRUST_CONFIRM_MIN_RATIO','0.6')),
-    'pump_thrust_adv_decl_ratio_min': float(os.environ.get('PUMP_THRUST_ADV_DECL_MIN','1.8')),
-    'narrowing_vol_sd_max': float(os.environ.get('NARROWING_VOL_SD_MAX','0.05')),
-    'accel_fade_min_thrust_seconds': float(os.environ.get('ACCEL_FADE_MIN_THRUST_SECONDS','30')),
+    "pump_thrust_confirm_ratio_min": float(
+        os.environ.get("PUMP_THRUST_CONFIRM_MIN_RATIO", "0.6")
+    ),
+    "pump_thrust_adv_decl_ratio_min": float(
+        os.environ.get("PUMP_THRUST_ADV_DECL_MIN", "1.8")
+    ),
+    "narrowing_vol_sd_max": float(os.environ.get("NARROWING_VOL_SD_MAX", "0.05")),
+    "accel_fade_min_thrust_seconds": float(
+        os.environ.get("ACCEL_FADE_MIN_THRUST_SECONDS", "30")
+    ),
     # p95 rate must be BELOW (negative) this to count as fading (default 0 => any negative)
-    'accel_fade_p95_rate_max': float(os.environ.get('ACCEL_FADE_P95_RATE_MAX','0')),
+    "accel_fade_p95_rate_max": float(os.environ.get("ACCEL_FADE_P95_RATE_MAX", "0")),
 }
 
-_THRESHOLDS_FILE = os.environ.get('THRESHOLDS_FILE','thresholds.json')
+_THRESHOLDS_FILE = os.environ.get("THRESHOLDS_FILE", "thresholds.json")
+
 
 def _load_thresholds_file():
     """Load persisted thresholds from JSON file if present (best‑effort)."""
     if not os.path.isfile(_THRESHOLDS_FILE):
         return
     import json
+
     try:
-        with open(_THRESHOLDS_FILE,'r', encoding='utf-8') as f:
+        with open(_THRESHOLDS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:  # pragma: no cover - defensive
         logging.warning(f"Failed loading thresholds file: {e}")
         return
     if not isinstance(data, dict):
         return
-    for k,v in data.items():
+    for k, v in data.items():
         if k in THRESHOLDS:
             try:
                 THRESHOLDS[k] = float(v)
             except (TypeError, ValueError):
                 # Ignore invalid persisted value
                 continue
+
 
 _load_thresholds_file()
 
@@ -774,86 +972,106 @@ def pct_change(current: float | int | None, past: float | int | None) -> float |
         return None
     return (c - p) / p * 100.0
 
+
 def update_thresholds(patch: dict):
     """Runtime safe partial update with validation: returns (applied, errors)."""
     applied: dict[str, float] = {}
     errors: dict[str, str] = {}
-    for k,v in patch.items():
+    for k, v in patch.items():
         if k not in THRESHOLDS:
-            errors[k] = 'unknown_threshold'
+            errors[k] = "unknown_threshold"
             continue
         try:
             fv = float(v)
         except (TypeError, ValueError):
-            errors[k] = 'not_float'
+            errors[k] = "not_float"
             continue
         # Basic semantic validations
-        if 'ratio' in k and fv <= 0:
-            errors[k] = 'ratio_must_be_positive'
+        if "ratio" in k and fv <= 0:
+            errors[k] = "ratio_must_be_positive"
             continue
-        if 'sd_max' in k and fv <= 0:
-            errors[k] = 'sd_max_must_be_positive'
+        if "sd_max" in k and fv <= 0:
+            errors[k] = "sd_max_must_be_positive"
             continue
-        if 'seconds' in k and fv < 0:
-            errors[k] = 'seconds_must_be_non_negative'
+        if "seconds" in k and fv < 0:
+            errors[k] = "seconds_must_be_non_negative"
             continue
         THRESHOLDS[k] = fv
         applied[k] = fv
     # Persist if at least one applied
     if applied:
         import json
+
         try:
-            with open(_THRESHOLDS_FILE,'w', encoding='utf-8') as f:
+            with open(_THRESHOLDS_FILE, "w", encoding="utf-8") as f:
                 json.dump(THRESHOLDS, f, indent=2)
         except OSError as e:  # pragma: no cover - file system issues
             logging.warning(f"Failed persisting thresholds: {e}")
     return applied, errors
 
-@app.route('/api/thresholds', methods=['GET','POST'])
+
+@app.route("/api/thresholds", methods=["GET", "POST"])
 def api_thresholds():
-    if request.method == 'POST':
+    if request.method == "POST":
         data = request.get_json(silent=True) or {}
         applied, errors = update_thresholds(data)
         status_code = 200 if not errors else 400 if not applied else 207
-        return jsonify({'applied': applied, 'errors': errors, 'thresholds': THRESHOLDS}), status_code
-    return jsonify({'thresholds': THRESHOLDS})
+        return (
+            jsonify({"applied": applied, "errors": errors, "thresholds": THRESHOLDS}),
+            status_code,
+        )
+    return jsonify({"thresholds": THRESHOLDS})
+
 
 @app.before_request
 def _before_req_metrics():
     g._start_time = time.time()
     # Correlation ID: honor inbound header else generate
     try:
-        incoming = request.headers.get('X-Request-ID') or request.headers.get('X-Correlation-ID')
+        incoming = request.headers.get("X-Request-ID") or request.headers.get(
+            "X-Correlation-ID"
+        )
         rid = incoming if incoming and len(incoming) < 80 else uuid.uuid4().hex[:24]
         REQUEST_ID_CTX.set(rid)
     except Exception:
         pass
 
+
 @app.after_request
 def _after_req_metrics(resp):
     try:
         if 500 <= resp.status_code < 600:
-            _ERROR_STATS['5xx'] += 1
+            _ERROR_STATS["5xx"] += 1
         # Echo correlation id header for client chaining
         try:
             rid = REQUEST_ID_CTX.get()
             if rid:
-                resp.headers['X-Request-ID'] = rid
+                resp.headers["X-Request-ID"] = rid
         except Exception:
             pass
     except Exception:
         pass
     return resp
 
+
 # ---------------- SWR CONFIG (env configurable) -----------------
-_GAINERS_1M_SWR_TTL = float(os.environ.get('GAINERS_1M_SWR_TTL','6'))
-_GAINERS_1M_SWR_STALE = float(os.environ.get('GAINERS_1M_SWR_STALE','24'))
-_GAINERS_3M_SWR_TTL = float(os.environ.get('GAINERS_3M_SWR_TTL','6'))
-_GAINERS_3M_SWR_STALE = float(os.environ.get('GAINERS_3M_SWR_STALE','24'))
-_LOSERS_3M_SWR_TTL = float(os.environ.get('LOSERS_3M_SWR_TTL', str(_GAINERS_3M_SWR_TTL)))
-_LOSERS_3M_SWR_STALE = float(os.environ.get('LOSERS_3M_SWR_STALE', str(_GAINERS_3M_SWR_STALE)))
-_TOP_MOVERS_BAR_SWR_TTL = float(os.environ.get('TOP_MOVERS_BAR_SWR_TTL', str(_GAINERS_3M_SWR_TTL)))
-_TOP_MOVERS_BAR_SWR_STALE = float(os.environ.get('TOP_MOVERS_BAR_SWR_STALE', str(_GAINERS_3M_SWR_STALE)))
+_GAINERS_1M_SWR_TTL = float(os.environ.get("GAINERS_1M_SWR_TTL", "6"))
+_GAINERS_1M_SWR_STALE = float(os.environ.get("GAINERS_1M_SWR_STALE", "24"))
+_GAINERS_3M_SWR_TTL = float(os.environ.get("GAINERS_3M_SWR_TTL", "6"))
+_GAINERS_3M_SWR_STALE = float(os.environ.get("GAINERS_3M_SWR_STALE", "24"))
+_LOSERS_3M_SWR_TTL = float(
+    os.environ.get("LOSERS_3M_SWR_TTL", str(_GAINERS_3M_SWR_TTL))
+)
+_LOSERS_3M_SWR_STALE = float(
+    os.environ.get("LOSERS_3M_SWR_STALE", str(_GAINERS_3M_SWR_STALE))
+)
+_TOP_MOVERS_BAR_SWR_TTL = float(
+    os.environ.get("TOP_MOVERS_BAR_SWR_TTL", str(_GAINERS_3M_SWR_TTL))
+)
+_TOP_MOVERS_BAR_SWR_STALE = float(
+    os.environ.get("TOP_MOVERS_BAR_SWR_STALE", str(_GAINERS_3M_SWR_STALE))
+)
+
 
 @stale_while_revalidate(ttl=_GAINERS_1M_SWR_TTL, stale_window=_GAINERS_1M_SWR_STALE)
 @ttl_cache(ttl=int(_GAINERS_1M_SWR_TTL))
@@ -864,66 +1082,75 @@ def _get_gainers_table_1min_swr():
     baseline_ts_1m = baseline_meta_1m.get("baseline_ts")
     if not data:
         return {
-            'component': 'gainers_table_1min',
-            'data': [],
-            'count': 0,
-            'table_type': 'gainers',
-            'time_frame': '1_minute',
-            'update_interval': 10000,
-            'last_updated': datetime.now().isoformat(),
-            'warming': warming_1m,
-            'baseline_ts': baseline_ts_1m,
+            "component": "gainers_table_1min",
+            "data": [],
+            "count": 0,
+            "table_type": "gainers",
+            "time_frame": "1_minute",
+            "update_interval": 10000,
+            "last_updated": datetime.now().isoformat(),
+            "warming": warming_1m,
+            "baseline_ts": baseline_ts_1m,
         }
-    gainers = data.get('gainers', [])
+    gainers = data.get("gainers", [])
     limit = int(CONFIG.get("ONE_MIN_MAX_COINS", 35))
     gainers_table_data = []
     for i, coin in enumerate(gainers[:limit]):
         # accept either the processed shape (current/gain/initial_1min) or the
         # seeded fixture shape (current_price, price_change_percentage_1min)
-        current_price = coin.get('current') or coin.get('current_price') or 0
-        gain_pct = _safe_float(coin.get('gain'))
+        current_price = coin.get("current") or coin.get("current_price") or 0
+        gain_pct = _safe_float(coin.get("gain"))
         if gain_pct is None:
-            gain_pct = _safe_float(coin.get('price_change_percentage_1min'))
+            gain_pct = _safe_float(coin.get("price_change_percentage_1min"))
         if gain_pct is None:
             gain_pct = 0
-        initial_price = coin.get('initial_1min') or coin.get('initial_price_1min') or current_price
-        peak_gain = coin.get('peak_gain', gain_pct)
-        trend_direction = coin.get('trend_direction', 'flat')
-        trend_streak = coin.get('trend_streak', 0)
-        trend_score = coin.get('trend_score', 0.0)
-        trend_delta = coin.get('trend_delta', 0.0)
-        momentum = 'strong' if gain_pct > 5 else 'moderate'
-        alert_level = 'high' if gain_pct > 10 else 'normal'
-        gainers_table_data.append({
-            'rank': i + 1,
-            'symbol': coin.get('symbol'),
-            'current_price': current_price,
-            'price_change_percentage_1min': gain_pct,
-            'initial_price_1min': initial_price,
-            'actual_interval_minutes': coin.get('interval_minutes', 1),
-            'peak_gain': peak_gain,
-            'trend_direction': trend_direction,
-            'trend_streak': trend_streak,
-            'trend_score': trend_score,
-            'trend_delta': trend_delta,
-            'momentum': momentum,
-            'alert_level': alert_level
-        })
+        initial_price = (
+            coin.get("initial_1min") or coin.get("initial_price_1min") or current_price
+        )
+        peak_gain = coin.get("peak_gain", gain_pct)
+        trend_direction = coin.get("trend_direction", "flat")
+        trend_streak = coin.get("trend_streak", 0)
+        trend_score = coin.get("trend_score", 0.0)
+        trend_delta = coin.get("trend_delta", 0.0)
+        momentum = "strong" if gain_pct > 5 else "moderate"
+        alert_level = "high" if gain_pct > 10 else "normal"
+        gainers_table_data.append(
+            {
+                "rank": i + 1,
+                "symbol": coin.get("symbol"),
+                "current_price": current_price,
+                "price_change_percentage_1min": gain_pct,
+                "initial_price_1min": initial_price,
+                "actual_interval_minutes": coin.get("interval_minutes", 1),
+                "peak_gain": peak_gain,
+                "trend_direction": trend_direction,
+                "trend_streak": trend_streak,
+                "trend_score": trend_score,
+                "trend_delta": trend_delta,
+                "momentum": momentum,
+                "alert_level": alert_level,
+            }
+        )
         # SWR impulse emitters DISABLED — engine is sole impulse owner (Phase 6)
         pass
     return {
-        'component': 'gainers_table_1min',
-        'data': gainers_table_data,
-        'count': len(gainers_table_data),
-        'table_type': 'gainers',
-        'time_frame': '1_minute',
-        'update_interval': 10000,
-        'last_updated': datetime.now().isoformat(),
-        'warming': warming_1m,
-        'baseline_ts': baseline_ts_1m,
-        **({'source': data.get('source')} if isinstance(data, dict) and data.get('source') else {}),
-        **({'seed': True} if isinstance(data, dict) and data.get('seed') else {})
+        "component": "gainers_table_1min",
+        "data": gainers_table_data,
+        "count": len(gainers_table_data),
+        "table_type": "gainers",
+        "time_frame": "1_minute",
+        "update_interval": 10000,
+        "last_updated": datetime.now().isoformat(),
+        "warming": warming_1m,
+        "baseline_ts": baseline_ts_1m,
+        **(
+            {"source": data.get("source")}
+            if isinstance(data, dict) and data.get("source")
+            else {}
+        ),
+        **({"seed": True} if isinstance(data, dict) and data.get("seed") else {}),
     }
+
 
 @stale_while_revalidate(ttl=_GAINERS_3M_SWR_TTL, stale_window=_GAINERS_3M_SWR_STALE)
 @ttl_cache(ttl=int(_GAINERS_3M_SWR_TTL))
@@ -933,41 +1160,44 @@ def _get_gainers_table_3min_swr():
         return None
     baseline_ready = bool(data.get("baseline_ready_3m"))
     baseline_ts = data.get("baseline_ts_3m")
-    gainers = data.get('gainers', [])
+    gainers = data.get("gainers", [])
     limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     gainers_table_data = []
     for i, coin in enumerate(gainers[:limit]):
-        sym = coin['symbol']
-        gain = _safe_float(coin.get('gain'))
+        sym = coin["symbol"]
+        gain = _safe_float(coin.get("gain"))
         if gain is None:
             gain = 0
         direction, streak, score = _update_3m_trend(sym, gain)
-        gainers_table_data.append({
-            'rank': i + 1,
-            'symbol': coin['symbol'],
-            'current_price': coin['current'],
-            'price_change_percentage_3min': gain,
-            'initial_price_3min': coin['initial_3min'],
-            'actual_interval_minutes': coin.get('interval_minutes', 3),
-            'trend_direction': direction,
-            'trend_streak': streak,
-            'trend_score': score,
-            'momentum': 'strong' if gain > 5 else 'moderate',
-            'alert_level': 'high' if gain > 10 else 'normal'
-        })
+        gainers_table_data.append(
+            {
+                "rank": i + 1,
+                "symbol": coin["symbol"],
+                "current_price": coin["current"],
+                "price_change_percentage_3min": gain,
+                "initial_price_3min": coin["initial_3min"],
+                "actual_interval_minutes": coin.get("interval_minutes", 3),
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score,
+                "momentum": "strong" if gain > 5 else "moderate",
+                "alert_level": "high" if gain > 10 else "normal",
+            }
+        )
         # SWR impulse emitter DISABLED — engine is sole impulse owner (Phase 6)
         pass
     return {
-        'component': 'gainers_table',
-        'data': gainers_table_data,
-        'count': len(gainers_table_data),
-        'table_type': 'gainers',
-        'time_frame': '3_minutes',
-        'update_interval': 3000,
-        'last_updated': datetime.now().isoformat(),
-        'warming': not baseline_ready,
-        'baseline_ts': baseline_ts,
+        "component": "gainers_table",
+        "data": gainers_table_data,
+        "count": len(gainers_table_data),
+        "table_type": "gainers",
+        "time_frame": "3_minutes",
+        "update_interval": 3000,
+        "last_updated": datetime.now().isoformat(),
+        "warming": not baseline_ready,
+        "baseline_ts": baseline_ts,
     }
+
 
 @stale_while_revalidate(ttl=_LOSERS_3M_SWR_TTL, stale_window=_LOSERS_3M_SWR_STALE)
 @ttl_cache(ttl=int(_LOSERS_3M_SWR_TTL))
@@ -977,97 +1207,139 @@ def _get_losers_table_3min_swr():
         return None
     baseline_ready = bool(data.get("baseline_ready_3m"))
     baseline_ts = data.get("baseline_ts_3m")
-    losers = data.get('losers', [])
+    losers = data.get("losers", [])
     limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
     losers_table_data = []
     for i, coin in enumerate(losers[:limit]):
-        sym = coin['symbol']
-        gain = _safe_float(coin.get('gain'))
+        sym = coin["symbol"]
+        gain = _safe_float(coin.get("gain"))
         if gain is None:
             gain = 0
         direction, streak, score = _update_3m_trend(sym, gain)
-        losers_table_data.append({
-            'rank': i + 1,
-            'symbol': coin['symbol'],
-            'current_price': coin['current'],
-            'price_change_percentage_3min': gain,
-            'initial_price_3min': coin['initial_3min'],
-            'actual_interval_minutes': coin.get('interval_minutes', 3),
-            'trend_direction': direction,
-            'trend_streak': streak,
-            'trend_score': score,
-            'momentum': 'strong' if gain < -5 else 'moderate',
-            'alert_level': 'high' if gain < -10 else 'normal'
-        })
+        losers_table_data.append(
+            {
+                "rank": i + 1,
+                "symbol": coin["symbol"],
+                "current_price": coin["current"],
+                "price_change_percentage_3min": gain,
+                "initial_price_3min": coin["initial_3min"],
+                "actual_interval_minutes": coin.get("interval_minutes", 3),
+                "trend_direction": direction,
+                "trend_streak": streak,
+                "trend_score": score,
+                "momentum": "strong" if gain < -5 else "moderate",
+                "alert_level": "high" if gain < -10 else "normal",
+            }
+        )
         # SWR impulse emitter DISABLED — engine is sole impulse owner (Phase 6)
         pass
     return {
-        'component': 'losers_table',
-        'data': losers_table_data,
-        'count': len(losers_table_data),
-        'table_type': 'losers',
-        'time_frame': '3_minutes',
-        'update_interval': 3000,
-        'last_updated': datetime.now().isoformat(),
-        'warming': not baseline_ready,
-        'baseline_ts': baseline_ts,
+        "component": "losers_table",
+        "data": losers_table_data,
+        "count": len(losers_table_data),
+        "table_type": "losers",
+        "time_frame": "3_minutes",
+        "update_interval": 3000,
+        "last_updated": datetime.now().isoformat(),
+        "warming": not baseline_ready,
+        "baseline_ts": baseline_ts,
     }
 
-@stale_while_revalidate(ttl=_TOP_MOVERS_BAR_SWR_TTL, stale_window=_TOP_MOVERS_BAR_SWR_STALE)
+
+@stale_while_revalidate(
+    ttl=_TOP_MOVERS_BAR_SWR_TTL, stale_window=_TOP_MOVERS_BAR_SWR_STALE
+)
 @ttl_cache(ttl=int(_TOP_MOVERS_BAR_SWR_TTL))
 def _get_top_movers_bar_swr():
     data = get_crypto_data()
     if not data:
         return None
-    top_movers_3min = data.get('top24h', [])
+    top_movers_3min = data.get("top24h", [])
     top_movers_data = []
     for coin in top_movers_3min[:15]:
-        top_movers_data.append({
-            'symbol': coin['symbol'],
-            'current_price': coin['current'],
-            'price_change_3min': coin['gain'],
-            'initial_price_3min': coin['initial_3min'],
-            'interval_minutes': coin.get('interval_minutes', 3),
-            'bar_color': 'green' if coin['gain'] > 0 else 'red',
-            'momentum': 'strong' if abs(coin['gain']) > 5 else 'moderate'
-        })
+        top_movers_data.append(
+            {
+                "symbol": coin["symbol"],
+                "current_price": coin["current"],
+                "price_change_3min": coin["gain"],
+                "initial_price_3min": coin["initial_3min"],
+                "interval_minutes": coin.get("interval_minutes", 3),
+                "bar_color": "green" if coin["gain"] > 0 else "red",
+                "momentum": "strong" if abs(coin["gain"]) > 5 else "moderate",
+            }
+        )
     return {
-        'component': 'top_movers_bar',
-        'data': top_movers_data,
-        'count': len(top_movers_data),
-        'animation': 'horizontal_scroll',
-        'time_frame': '3_minutes',
-        'update_interval': 3000,
-        'last_updated': datetime.now().isoformat()
+        "component": "top_movers_bar",
+        "data": top_movers_data,
+        "count": len(top_movers_data),
+        "animation": "horizontal_scroll",
+        "time_frame": "3_minutes",
+        "update_interval": 3000,
+        "last_updated": datetime.now().isoformat(),
     }
+
 
 # Centralized SWR registry to avoid duplication
 def _swr_entries():
     return [
-        ('gainers_1m', globals().get('_get_gainers_table_1min_swr'), _GAINERS_1M_SWR_TTL, _GAINERS_1M_SWR_STALE),
-        ('gainers_3m', globals().get('_get_gainers_table_3min_swr'), _GAINERS_3M_SWR_TTL, _GAINERS_3M_SWR_STALE),
-        ('losers_3m', globals().get('_get_losers_table_3min_swr'), _LOSERS_3M_SWR_TTL, _LOSERS_3M_SWR_STALE),
-# Closing bracket fixed below
-        ('top_movers_bar', globals().get('_get_top_movers_bar_swr'), _TOP_MOVERS_BAR_SWR_TTL, _TOP_MOVERS_BAR_SWR_STALE),
+        (
+            "gainers_1m",
+            globals().get("_get_gainers_table_1min_swr"),
+            _GAINERS_1M_SWR_TTL,
+            _GAINERS_1M_SWR_STALE,
+        ),
+        (
+            "gainers_3m",
+            globals().get("_get_gainers_table_3min_swr"),
+            _GAINERS_3M_SWR_TTL,
+            _GAINERS_3M_SWR_STALE,
+        ),
+        (
+            "losers_3m",
+            globals().get("_get_losers_table_3min_swr"),
+            _LOSERS_3M_SWR_TTL,
+            _LOSERS_3M_SWR_STALE,
+        ),
+        # Closing bracket fixed below
+        (
+            "top_movers_bar",
+            globals().get("_get_top_movers_bar_swr"),
+            _TOP_MOVERS_BAR_SWR_TTL,
+            _TOP_MOVERS_BAR_SWR_STALE,
+        ),
     ]
+
+
 # --- Helper to reduce duplication & complexity in 3m trend updates ---
 def _update_3m_trend(sym: str, gain_val):
     g = float(gain_val or 0)
-    prev = three_minute_trends.get(sym, {'last': g, 'streak': 0, 'last_dir': 'flat', 'score': 0.0})
-    direction = 'up' if g > prev['last'] else ('down' if g < prev['last'] else 'flat')
-    streak = prev['streak'] + 1 if direction != 'flat' and direction == prev['last_dir'] else (1 if direction != 'flat' else prev['streak'])
-    score = round(prev['score'] * 0.8 + g * 0.2, 3)
-    three_minute_trends[sym] = {'last': g, 'streak': streak, 'last_dir': direction, 'score': score}
-    _maybe_fire_trend_alert('3m', sym, direction, streak, score)
+    prev = three_minute_trends.get(
+        sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0}
+    )
+    direction = "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
+    streak = (
+        prev["streak"] + 1
+        if direction != "flat" and direction == prev["last_dir"]
+        else (1 if direction != "flat" else prev["streak"])
+    )
+    score = round(prev["score"] * 0.8 + g * 0.2, 3)
+    three_minute_trends[sym] = {
+        "last": g,
+        "streak": streak,
+        "last_dir": direction,
+        "score": score,
+    }
+    _maybe_fire_trend_alert("3m", sym, direction, streak, score)
     return direction, streak, score
 
-@app.route('/api/health')
+
+@app.route("/api/health")
 def api_health():
     """Lightweight health alias (faster than full server-info)."""
     payload = {
-        'status': 'ok',
-        'uptime_seconds': round(time.time() - startup_time, 2),
-        'errors_5xx': _ERROR_STATS['5xx']
+        "status": "ok",
+        "uptime_seconds": round(time.time() - startup_time, 2),
+        "errors_5xx": _ERROR_STATS["5xx"],
     }
     return jsonify(HealthResponse(**payload).model_dump())
 
@@ -1079,49 +1351,66 @@ def one_hour_volume():
         if callable(get_1h_volume_weighted_data):
             rows = get_1h_volume_weighted_data()
             normalized = []
-            for item in (rows or []):
-                vol_now = item.get("volume_now") or item.get("volume") or item.get("current_volume")
-                vol_ago = item.get("volume_1h_ago") or item.get("prev_volume") or item.get("previous_volume")
+            for item in rows or []:
+                vol_now = (
+                    item.get("volume_now")
+                    or item.get("volume")
+                    or item.get("current_volume")
+                )
+                vol_ago = (
+                    item.get("volume_1h_ago")
+                    or item.get("prev_volume")
+                    or item.get("previous_volume")
+                )
                 pct = item.get("volume_change_pct") or item.get("percent_change")
-                if pct is None and isinstance(vol_now, (int, float)) and isinstance(vol_ago, (int, float)) and vol_ago:
+                if (
+                    pct is None
+                    and isinstance(vol_now, (int, float))
+                    and isinstance(vol_ago, (int, float))
+                    and vol_ago
+                ):
                     pct = ((vol_now - vol_ago) / vol_ago) * 100.0
-                normalized.append({
-                    **item,
-                    "volume_now": vol_now,
-                    "volume_1h_ago": vol_ago,
-                    "volume_change_pct": pct,
-                    "percent_change": pct,
-                })
+                normalized.append(
+                    {
+                        **item,
+                        "volume_now": vol_now,
+                        "volume_1h_ago": vol_ago,
+                        "volume_change_pct": pct,
+                        "percent_change": pct,
+                    }
+                )
             return jsonify({"data": normalized}), 200
         return jsonify({"data": []}), 200
     except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/metrics')
+
+@app.route("/api/metrics")
 def metrics():
     """Return internal operational metrics (non-prometheus simple JSON)."""
     out = {
-        'status': 'ok',
-        'uptime_seconds': round(time.time() - startup_time, 2),
-        'errors_5xx': _ERROR_STATS['5xx']
+        "status": "ok",
+        "uptime_seconds": round(time.time() - startup_time, 2),
+        "errors_5xx": _ERROR_STATS["5xx"],
     }
     try:
         from price_fetch import get_price_fetch_metrics
-        out['price_fetch'] = get_price_fetch_metrics()
+
+        out["price_fetch"] = get_price_fetch_metrics()
         # Surface circuit breaker (flatten selected fields for convenience)
-        cb = out['price_fetch'].get('circuit_breaker') or {}
+        cb = out["price_fetch"].get("circuit_breaker") or {}
         if cb:
-            out['circuit_breaker'] = {
-                'state': cb.get('state'),
-                'failures': cb.get('failures'),
-                'open_until': cb.get('open_until'),
-                'is_open': cb.get('state') == 'OPEN',
-                'is_half_open': cb.get('state') == 'HALF_OPEN'
+            out["circuit_breaker"] = {
+                "state": cb.get("state"),
+                "failures": cb.get("failures"),
+                "open_until": cb.get("open_until"),
+                "is_open": cb.get("state") == "OPEN",
+                "is_half_open": cb.get("state") == "HALF_OPEN",
             }
         if one_minute_market_stats:
-            out['one_min_market'] = dict(one_minute_market_stats)
+            out["one_min_market"] = dict(one_minute_market_stats)
     except Exception as e:
-        out['price_fetch_error'] = str(e)
+        out["price_fetch_error"] = str(e)
     # SWR caches summary block
     now = time.time()
     swr_entries = _swr_entries()
@@ -1132,32 +1421,43 @@ def metrics():
         served_cached = 0
         for v in swr_caches.values():
             stats = v
-            total_calls += stats.get('total_calls',0) or 0
+            total_calls += stats.get("total_calls", 0) or 0
             # cached includes both fresh & stale; approximate stale via served_cached_total vs fresh? For simplicity use served_cached_total
-            served_cached += stats.get('served_cached',0) or 0
+            served_cached += stats.get("served_cached", 0) or 0
         global _stale_window_start, _last_stale_alert
         if total_calls >= 10:  # avoid noise
-            ratio = (served_cached/total_calls) if total_calls else 0
+            ratio = (served_cached / total_calls) if total_calls else 0
             if ratio >= _STALE_ALERT_RATIO:
                 if _stale_window_start is None:
                     _stale_window_start = now
-                elif (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC and (now - _last_stale_alert) >=  _STALE_ALERT_WINDOW_SEC:
+                elif (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC and (
+                    now - _last_stale_alert
+                ) >= _STALE_ALERT_WINDOW_SEC:
                     try:
-                        _ALERTER.send('stale_surge', {'ratio': round(ratio,3), 'window_seconds': int(now-_stale_window_start)})
+                        _ALERTER.send(
+                            "stale_surge",
+                            {
+                                "ratio": round(ratio, 3),
+                                "window_seconds": int(now - _stale_window_start),
+                            },
+                        )
                         _last_stale_alert = now
                     except Exception:
                         pass
             else:
-                if _stale_window_start is not None and (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC:
+                if (
+                    _stale_window_start is not None
+                    and (now - _stale_window_start) >= _STALE_ALERT_WINDOW_SEC
+                ):
                     try:
-                        _ALERTER.send('stale_resolved', {})
+                        _ALERTER.send("stale_resolved", {})
                     except Exception:
                         pass
                 _stale_window_start = None
     except Exception:
         pass
     if swr_caches:
-        out['swr_caches'] = swr_caches
+        out["swr_caches"] = swr_caches
     # Validate minimally (will raise if schema mismatch during development)
     try:
         validated = MetricsResponse(**out).model_dump()
@@ -1166,7 +1466,8 @@ def metrics():
         validated = out
     return jsonify(validated)
 
-@app.route('/api/mobile/bundle')
+
+@app.route("/api/mobile/bundle")
 def api_mobile_bundle():
     """Mobile-friendly aggregate: returns banner + tables in one call.
 
@@ -1178,12 +1479,14 @@ def api_mobile_bundle():
         try:
             banner = _compute_top_banner_data_safe() or []
             for it in banner[:20]:
-                banner_rows.append({
-                    'symbol': it.get('symbol'),
-                    'price': float(it.get('current_price') or 0),
-                    'changePct1h': float(it.get('price_change_1h') or 0),
-                    'ts': int(time.time() * 1000),
-                })
+                banner_rows.append(
+                    {
+                        "symbol": it.get("symbol"),
+                        "price": float(it.get("current_price") or 0),
+                        "changePct1h": float(it.get("price_change_1h") or 0),
+                        "ts": int(time.time() * 1000),
+                    }
+                )
         except Exception:
             pass
 
@@ -1191,39 +1494,51 @@ def api_mobile_bundle():
         gainers1m_rows = []
         try:
             g1m = _get_gainers_table_1min_swr() or {}
-            for it in (g1m.get('data') or [])[:30]:
-                gainers1m_rows.append({
-                    'symbol': it.get('symbol'),
-                    'price': float(it.get('current_price') or 0),
-                    'changePct1m': float(it.get('price_change_percentage_1min') or 0),
-                    'ts': int(time.time() * 1000),
-                })
+            for it in (g1m.get("data") or [])[:30]:
+                gainers1m_rows.append(
+                    {
+                        "symbol": it.get("symbol"),
+                        "price": float(it.get("current_price") or 0),
+                        "changePct1m": float(
+                            it.get("price_change_percentage_1min") or 0
+                        ),
+                        "ts": int(time.time() * 1000),
+                    }
+                )
         except Exception:
             pass
 
         gainers3m_rows = []
         try:
             g3m = _get_gainers_table_3min_swr() or {}
-            for it in (g3m.get('data') or [])[:30]:
-                gainers3m_rows.append({
-                    'symbol': it.get('symbol'),
-                    'price': float(it.get('current_price') or 0),
-                    'changePct3m': float(it.get('price_change_percentage_3min') or 0),
-                    'ts': int(time.time() * 1000),
-                })
+            for it in (g3m.get("data") or [])[:30]:
+                gainers3m_rows.append(
+                    {
+                        "symbol": it.get("symbol"),
+                        "price": float(it.get("current_price") or 0),
+                        "changePct3m": float(
+                            it.get("price_change_percentage_3min") or 0
+                        ),
+                        "ts": int(time.time() * 1000),
+                    }
+                )
         except Exception:
             pass
 
         losers3m_rows = []
         try:
             l3m = _get_losers_table_3min_swr() or {}
-            for it in (l3m.get('data') or [])[:30]:
-                losers3m_rows.append({
-                    'symbol': it.get('symbol'),
-                    'price': float(it.get('current_price') or 0),
-                    'changePct3m': float(it.get('price_change_percentage_3min') or 0),
-                    'ts': int(time.time() * 1000),
-                })
+            for it in (l3m.get("data") or [])[:30]:
+                losers3m_rows.append(
+                    {
+                        "symbol": it.get("symbol"),
+                        "price": float(it.get("current_price") or 0),
+                        "changePct3m": float(
+                            it.get("price_change_percentage_3min") or 0
+                        ),
+                        "ts": int(time.time() * 1000),
+                    }
+                )
         except Exception:
             pass
 
@@ -1231,22 +1546,24 @@ def api_mobile_bundle():
         volume1h_rows = []
         try:
             for it in banner_rows[:20]:
-                volume1h_rows.append({
-                    'symbol': it['symbol'],
-                    'price': it['price'],
-                    'volumeChangePct1h': 0.0,
-                    'ts': it['ts'],
-                })
+                volume1h_rows.append(
+                    {
+                        "symbol": it["symbol"],
+                        "price": it["price"],
+                        "volumeChangePct1h": 0.0,
+                        "ts": it["ts"],
+                    }
+                )
         except Exception:
             pass
 
         out = {
-            'banner1h': banner_rows,
-            'gainers1m': gainers1m_rows,
-            'gainers3m': gainers3m_rows,
-            'losers3m': losers3m_rows,
-            'volume1h': volume1h_rows,
-            'ts': int(time.time() * 1000),
+            "banner1h": banner_rows,
+            "gainers1m": gainers1m_rows,
+            "gainers3m": gainers3m_rows,
+            "losers3m": losers3m_rows,
+            "volume1h": volume1h_rows,
+            "ts": int(time.time() * 1000),
         }
         return jsonify(out)
     except Exception as e:
@@ -1254,25 +1571,46 @@ def api_mobile_bundle():
             app.logger.exception("mobile bundle error: %s", e)
         except Exception:
             pass
-        return jsonify({'banner1h': [], 'gainers1m': [], 'gainers3m': [], 'losers3m': [], 'volume1h': [], 'ts': int(time.time()*1000)}), 200
+        return (
+            jsonify(
+                {
+                    "banner1h": [],
+                    "gainers1m": [],
+                    "gainers3m": [],
+                    "losers3m": [],
+                    "volume1h": [],
+                    "ts": int(time.time() * 1000),
+                }
+            ),
+            200,
+        )
 
-@app.route('/api/sentiment')
+
+@app.route("/api/sentiment")
 def api_sentiment():
     """Return simple sentiment rows for a comma-separated symbols list."""
-    syms_param = (request.args.get('symbols') or '').strip()
+    syms_param = (request.args.get("symbols") or "").strip()
     if not syms_param:
         # No symbols provided, return divergence data
-        payload, used_url, err_info = _proxy_pipeline_request('/sentiment/divergence', timeout=5)
+        payload, used_url, err_info = _proxy_pipeline_request(
+            "/sentiment/divergence", timeout=5
+        )
         if err_info:
-            return _pipeline_error_response(err_info, 'Sentiment divergence fetch failed')
+            return _pipeline_error_response(
+                err_info, "Sentiment divergence fetch failed"
+            )
 
         divergence_payload = payload or {}
-        return jsonify({
-            'success': True,
-            'data': divergence_payload,
-            'timestamp': divergence_payload.get('timestamp', datetime.utcnow().isoformat()),
-            'pipeline_url': used_url,
-        })
+        return jsonify(
+            {
+                "success": True,
+                "data": divergence_payload,
+                "timestamp": divergence_payload.get(
+                    "timestamp", datetime.utcnow().isoformat()
+                ),
+                "pipeline_url": used_url,
+            }
+        )
 
     # Process symbols list
     out = {}
@@ -1286,7 +1624,7 @@ except Exception:
     get_basic_sentiment = None
 
 
-@app.route('/api/sentiment-basic')
+@app.route("/api/sentiment-basic")
 def api_sentiment_basic():
     """Return a small, fast basic sentiment payload for the frontend SentimentCard.
 
@@ -1294,20 +1632,25 @@ def api_sentiment_basic():
     Otherwise return a lightweight mock useful for local development.
     """
     if get_basic_sentiment is None:
-        return jsonify({
-            "fear_greed": {"value": 52, "classification": "neutral"},
-            "btc_funding": {"rate_percentage": 0.0012},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        })
+        return jsonify(
+            {
+                "fear_greed": {"value": 52, "classification": "neutral"},
+                "btc_funding": {"rate_percentage": 0.0012},
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+        )
     try:
         data = get_basic_sentiment()
         return jsonify(data)
     except Exception:
-        return jsonify({
-            "fear_greed": {"value": 50, "classification": "neutral"},
-            "btc_funding": {"rate_percentage": 0.0},
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-        })
+        return jsonify(
+            {
+                "fear_greed": {"value": 50, "classification": "neutral"},
+                "btc_funding": {"rate_percentage": 0.0},
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+        )
+
 
 def _get_sentiment_for_symbol(*args, **kwargs):
     # allow tests to disable sentiment to avoid import cycles
@@ -1315,18 +1658,23 @@ def _get_sentiment_for_symbol(*args, **kwargs):
         return None
     try:
         from sentiment_aggregator import get_sentiment_for_symbol
+
         return get_sentiment_for_symbol(*args, **kwargs)
     except Exception:
         return None
+
+
 try:
     from sentiment_intelligence import ai_engine
 except Exception:
+
     class _DummyAIEngine:
         def score_headlines_local(self, *a, **k):
             return {"score": 0.0, "label": "neutral", "confidence": 0.0}
 
         def generate_narrative(self, *a, **k):
             return ""
+
     ai_engine = _DummyAIEngine()
 
 _SENTIMENT_CACHE = {}
@@ -1335,7 +1683,10 @@ _SENTIMENT_TTL_S = int(os.getenv("SENTIMENT_TTL_S", "60"))
 _SENTIMENT_TIMEOUT_FAST_S = float(os.getenv("SENTIMENT_TIMEOUT_FAST_S", "3"))
 _SENTIMENT_TIMEOUT_SLOW_S = float(os.getenv("SENTIMENT_TIMEOUT_SLOW_S", "25"))
 # Legacy env still supported; falls back to slow timeout if provided
-_SENTIMENT_TIMEOUT_S = float(os.getenv("SENTIMENT_TIMEOUT_S", str(_SENTIMENT_TIMEOUT_SLOW_S)))
+_SENTIMENT_TIMEOUT_S = float(
+    os.getenv("SENTIMENT_TIMEOUT_S", str(_SENTIMENT_TIMEOUT_SLOW_S))
+)
+
 
 # Sentiment proxy cache settings
 def _sentiment_cache_lookup(symbol):
@@ -1346,6 +1697,7 @@ def _sentiment_cache_lookup(symbol):
         return None, True, None
     age = now - entry["ts"]
     return entry["data"], age > _SENTIMENT_TTL_S, entry["ts"]
+
 
 def _sentiment_cache_set(symbol, data):
     with _SENTIMENT_CACHE_LOCK:
@@ -1370,8 +1722,12 @@ def _save_cache(path: Path, payload: dict):
 
 
 def _now_iso():
-    return datetime.utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
-
+    return (
+        datetime.utcnow()
+        .replace(tzinfo=timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 @app.route("/api/sentiment/fng")
@@ -1385,11 +1741,15 @@ def api_sentiment_market():
     """Removed legacy endpoint."""
     return jsonify({"ok": False, "message": "Removed. Use /api/sentiment/latest"}), 410
 
+
 _LATEST_PROXY_CACHE = None
 _LATEST_PROXY_TS = None
 _LATEST_PROXY_URL = None
 
-def _build_proxy_meta(used_url: str | None, latency_ms: float, cache_ts=None, stale=False):
+
+def _build_proxy_meta(
+    used_url: str | None, latency_ms: float, cache_ts=None, stale=False
+):
     meta = {
         "upstream_url": used_url,
         "upstream_latency_ms": int(latency_ms),
@@ -1401,7 +1761,7 @@ def _build_proxy_meta(used_url: str | None, latency_ms: float, cache_ts=None, st
     return meta
 
 
-@app.route('/api/sentiment/latest')
+@app.route("/api/sentiment/latest")
 def api_sentiment_latest():
     """Strict proxy to sentiment pipeline for canonical sentiment payload.
 
@@ -1411,13 +1771,15 @@ def api_sentiment_latest():
     """
     global _LATEST_PROXY_CACHE, _LATEST_PROXY_TS, _LATEST_PROXY_URL
 
-    symbol = request.args.get('symbol')
+    symbol = request.args.get("symbol")
     params = {}
     if symbol:
         params["symbol"] = symbol.upper()
 
     start = time.time()
-    payload, used_url, err_info = _proxy_pipeline_request("/sentiment/latest", params=params, timeout=1.0)
+    payload, used_url, err_info = _proxy_pipeline_request(
+        "/sentiment/latest", params=params, timeout=1.0
+    )
     latency_ms = (time.time() - start) * 1000
 
     # Single source of truth: sentiment_meta from the polling snapshot.
@@ -1425,17 +1787,22 @@ def api_sentiment_latest():
     _, sentiment_meta = _get_local_sentiment_payload()
 
     if payload:
-        _LATEST_PROXY_CACHE = payload
+        payload_sanitized = _strip_emoji_payload(payload)
+        _LATEST_PROXY_CACHE = payload_sanitized
         _LATEST_PROXY_TS = time.time()
         _LATEST_PROXY_URL = used_url
-        proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=False)
-        out = dict(payload)
+        proxy_meta = _build_proxy_meta(
+            used_url, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=False
+        )
+        out = dict(payload_sanitized)
         out["proxy_meta"] = proxy_meta
         out["sentiment_meta"] = sentiment_meta
         return jsonify(out)
 
     if _LATEST_PROXY_CACHE and _LATEST_PROXY_TS:
-        proxy_meta = _build_proxy_meta(_LATEST_PROXY_URL, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=True)
+        proxy_meta = _build_proxy_meta(
+            _LATEST_PROXY_URL, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=True
+        )
         out = dict(_LATEST_PROXY_CACHE)
         out["proxy_meta"] = proxy_meta
         out["sentiment_meta"] = sentiment_meta
@@ -1444,19 +1811,24 @@ def api_sentiment_latest():
     # No cached data available - return minimal response with canonical sentiment_meta
     status_code = err_info.get("status", 503) if err_info else 503
     proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=None, stale=True)
-    return jsonify({
-        "ok": False,
-        "message": "Sentiment pipeline offline",
-        "proxy_meta": proxy_meta,
-        "sentiment_meta": sentiment_meta,  # unchanged from snapshot
-    }), status_code
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": "Sentiment pipeline offline",
+                "proxy_meta": proxy_meta,
+                "sentiment_meta": sentiment_meta,  # unchanged from snapshot
+            }
+        ),
+        status_code,
+    )
 
 
 # Legacy endpoint - keeping for backward compatibility
-@app.route('/api/sentiment/latest_legacy')
+@app.route("/api/sentiment/latest_legacy")
 def api_sentiment_latest_legacy():
     """Legacy aggregator-based sentiment (deprecated - use /api/sentiment/latest instead)."""
-    symbol = request.args.get('symbol', "BTC").upper()
+    symbol = request.args.get("symbol", "BTC").upper()
     fresh = request.args.get("fresh", "0") == "1"
 
     timeout_budget = _SENTIMENT_TIMEOUT_SLOW_S if fresh else _SENTIMENT_TIMEOUT_FAST_S
@@ -1485,29 +1857,42 @@ def api_sentiment_latest_legacy():
             payload["ts_cache"] = cache_ts
             payload["error"] = f"timeout:{exc}"
             payload["upstream_url"] = SENTIMENT_PIPELINE_URL
-            payload["hint"] = f"sentiment aggregator exceeded timeout ({timeout_budget}s)"
+            payload["hint"] = (
+                f"sentiment aggregator exceeded timeout ({timeout_budget}s)"
+            )
             return jsonify(payload)
         import hashlib
+
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
         fallback = {
-            'symbol': symbol,
-            'overall_sentiment': (50 + seed) / 100,
-            'fear_greed_index': 50 + seed,
-            'total_sources': 0,
-            'sources': [],
-            'sentiment_history': [],
-            'social_breakdown': {'reddit': 0.5, 'twitter': 0.5, 'telegram': 0.5, 'news': 0.5},
-            'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
-            'timestamp': datetime.utcnow().isoformat() + "Z",
-            'error': f"timeout:{exc}",
-            'upstream_url': SENTIMENT_PIPELINE_URL,
-            'hint': f"sentiment aggregator exceeded timeout ({timeout_budget}s)",
-            'stale': True,
+            "symbol": symbol,
+            "overall_sentiment": (50 + seed) / 100,
+            "fear_greed_index": 50 + seed,
+            "total_sources": 0,
+            "sources": [],
+            "sentiment_history": [],
+            "social_breakdown": {
+                "reddit": 0.5,
+                "twitter": 0.5,
+                "telegram": 0.5,
+                "news": 0.5,
+            },
+            "social_metrics": {
+                "volume_change": 0,
+                "engagement_rate": 0,
+                "mentions_24h": 0,
+            },
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": f"timeout:{exc}",
+            "upstream_url": SENTIMENT_PIPELINE_URL,
+            "hint": f"sentiment aggregator exceeded timeout ({timeout_budget}s)",
+            "stale": True,
         }
         return jsonify(fallback)
     except Exception as exc:
         print(f"[Sentiment API] Error: {exc}")
         import random, hashlib
+
         seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
         if cached:
             payload = dict(cached)
@@ -1519,19 +1904,28 @@ def api_sentiment_latest_legacy():
             payload["hint"] = "sentiment aggregator error; serving cached payload"
             return jsonify(payload)
         fallback = {
-            'symbol': symbol,
-            'overall_sentiment': (50 + seed) / 100,
-            'fear_greed_index': 50 + seed,
-            'total_sources': 0,
-            'sources': [],
-            'sentiment_history': [],
-            'social_breakdown': {'reddit': 0.5, 'twitter': 0.5, 'telegram': 0.5, 'news': 0.5},
-            'social_metrics': {'volume_change': 0, 'engagement_rate': 0, 'mentions_24h': 0},
-            'timestamp': datetime.utcnow().isoformat() + "Z",
-            'error': str(exc),
-            'upstream_url': SENTIMENT_PIPELINE_URL,
-            'hint': "sentiment aggregator error; serving synthetic fallback",
-            'stale': True,
+            "symbol": symbol,
+            "overall_sentiment": (50 + seed) / 100,
+            "fear_greed_index": 50 + seed,
+            "total_sources": 0,
+            "sources": [],
+            "sentiment_history": [],
+            "social_breakdown": {
+                "reddit": 0.5,
+                "twitter": 0.5,
+                "telegram": 0.5,
+                "news": 0.5,
+            },
+            "social_metrics": {
+                "volume_change": 0,
+                "engagement_rate": 0,
+                "mentions_24h": 0,
+            },
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": str(exc),
+            "upstream_url": SENTIMENT_PIPELINE_URL,
+            "hint": "sentiment aggregator error; serving synthetic fallback",
+            "stale": True,
         }
         return jsonify(fallback)
 
@@ -1540,8 +1934,8 @@ def api_sentiment_latest_legacy():
 # SENTIMENT PIPELINE PROXY ENDPOINTS
 # ============================================================================
 
-SENTIMENT_HOST = os.getenv('SENTIMENT_HOST', '127.0.0.1')
-SENTIMENT_PORT = os.getenv('SENTIMENT_PORT', '8002')
+SENTIMENT_HOST = os.getenv("SENTIMENT_HOST", "127.0.0.1")
+SENTIMENT_PORT = os.getenv("SENTIMENT_PORT", "8002")
 SENTIMENT_PIPELINE_URL = f"http://{SENTIMENT_HOST}:{SENTIMENT_PORT}"
 SENTIMENT_PIPELINE_TIMEOUT_S = float(os.getenv("SENTIMENT_PIPELINE_TIMEOUT_S", "0.75"))
 SENTIMENT_PIPELINE_POLL_S = float(os.getenv("SENTIMENT_PIPELINE_POLL_S", "20"))
@@ -1564,6 +1958,118 @@ _MARKET_HEAT_HISTORY = deque(maxlen=60)  # ~8 min of scores at ~8s intervals
 _FG_CACHE = {"data": None, "ts": 0}
 _FG_TTL_S = 300  # 5 min
 _FG_LOCK = threading.Lock()
+
+
+def _is_emoji_char(ch: str) -> bool:
+    """Best-effort emoji detector using common Unicode ranges."""
+    if not ch:
+        return False
+    cp = ord(ch)
+    return (
+        0x1F300 <= cp <= 0x1FAFF  # Misc symbols/pictographs, supplemental symbols
+        or 0x2600 <= cp <= 0x27BF  # Dingbats / misc symbols
+        or 0x1F1E6 <= cp <= 0x1F1FF  # Regional indicator symbols
+        or cp == 0xFE0F  # Variation selector-16
+    )
+
+
+def _strip_emoji_text(value: str) -> str:
+    if not isinstance(value, str):
+        return value
+    return "".join(ch for ch in value if not _is_emoji_char(ch))
+
+
+def _strip_emoji_payload(value):
+    """Recursively remove emoji chars from strings in a JSON-like object."""
+    if isinstance(value, str):
+        return _strip_emoji_text(value)
+    if isinstance(value, list):
+        return [_strip_emoji_payload(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _strip_emoji_payload(v) for k, v in value.items()}
+    return value
+
+
+def _find_emoji_outside_alerts(value, *, in_alerts: bool = False, path: str = "$"):
+    """Return first (path, char) emoji found outside an `alerts` subtree, else None."""
+    if isinstance(value, str):
+        if in_alerts:
+            return None
+        for ch in value:
+            if _is_emoji_char(ch):
+                return (path, ch)
+        return None
+
+    if isinstance(value, list):
+        for idx, item in enumerate(value):
+            hit = _find_emoji_outside_alerts(
+                item, in_alerts=in_alerts, path=f"{path}[{idx}]"
+            )
+            if hit:
+                return hit
+        return None
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            child_path = f"{path}.{key}"
+            child_in_alerts = in_alerts or (str(key) == "alerts")
+            hit = _find_emoji_outside_alerts(
+                item, in_alerts=child_in_alerts, path=child_path
+            )
+            if hit:
+                return hit
+        return None
+
+    return None
+
+
+def _check_emoji_scope(payload: dict, *, context: str) -> None:
+    """Guardrail: only alerts may contain emoji text."""
+    hit = _find_emoji_outside_alerts(payload)
+    violations = []
+    if hit:
+        where, ch = hit
+        violations.append(f"{where} (U+{ord(ch):04X})")
+
+    # Default behavior: fail fast in non-production when emojis leak outside alerts.
+    # Production stays non-fatal unless explicitly overridden.
+    env_name = str(os.getenv("FLASK_ENV") or os.getenv("ENV") or "").strip().lower()
+    is_prod = env_name in {"prod", "production"} or str(
+        os.getenv("MW_ENV") or ""
+    ).strip().lower() in {"prod", "production"}
+
+    # Allow opting out to warn-only (useful for temporary migrations)
+    warn_only = str(os.getenv("MW_EMOJI_WARN_ONLY") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+        "on",
+    }
+
+    # Explicit strict flag wins; otherwise strict-by-default in non-prod
+    strict_raw = str(os.getenv("MW_STRICT_EMOJI_ASSERT") or "").strip().lower()
+    if strict_raw in {"1", "true", "yes", "y", "on"}:
+        strict = True
+    elif strict_raw in {"0", "false", "no", "n", "off"}:
+        strict = False
+    else:
+        strict = not is_prod
+
+    if not violations:
+        return
+
+    msg = (
+        f"{context}: Emoji leakage detected outside alerts; this violates policy. "
+        f"Violations: {violations}"
+    )
+
+    if warn_only or (is_prod and not strict):
+        logging.warning(msg)
+        return
+
+    # Fail fast (dev/test) so we fix the source, not just sanitize symptoms.
+    raise AssertionError(msg)
 
 
 def _compute_market_heat():
@@ -1589,8 +2095,12 @@ def _compute_market_heat():
     all_symbols = set(price_history.keys()) | set(price_history_1min.keys())
     if not all_symbols:
         return {
-            "score": 50, "regime": "calm", "label": "NEUTRAL",
-            "confidence": 0.0, "components": {}, "reasons": ["No price data yet"],
+            "score": 50,
+            "regime": "calm",
+            "label": "NEUTRAL",
+            "confidence": 0.0,
+            "components": {},
+            "reasons": ["No price data yet"],
             "ts": now_iso,
         }
 
@@ -1648,15 +2158,20 @@ def _compute_market_heat():
     breadth_1m = (green_1m / max(len(returns_1m), 1)) * 100
 
     # --- Average returns ---
-    avg_return_3m = (sum(returns_3m.values()) / max(len(returns_3m), 1)) if returns_3m else 0.0
-    avg_return_1m = (sum(returns_1m.values()) / max(len(returns_1m), 1)) if returns_1m else 0.0
+    avg_return_3m = (
+        (sum(returns_3m.values()) / max(len(returns_3m), 1)) if returns_3m else 0.0
+    )
+    avg_return_1m = (
+        (sum(returns_1m.values()) / max(len(returns_1m), 1)) if returns_1m else 0.0
+    )
 
     # --- Momentum alignment: do 1m and 3m agree? (-1..+1) ---
     # Count symbols where both windows have data
     common_syms = set(returns_1m.keys()) & set(returns_3m.keys())
     if common_syms:
         agree_count = sum(
-            1 for s in common_syms
+            1
+            for s in common_syms
             if (returns_1m[s] > 0 and returns_3m[s] > 0)
             or (returns_1m[s] < 0 and returns_3m[s] < 0)
         )
@@ -1667,7 +2182,9 @@ def _compute_market_heat():
     # --- Volatility: stdev of 3m returns ---
     if len(returns_3m) >= 3:
         mean_3m = avg_return_3m
-        variance = sum((r - mean_3m) ** 2 for r in returns_3m.values()) / len(returns_3m)
+        variance = sum((r - mean_3m) ** 2 for r in returns_3m.values()) / len(
+            returns_3m
+        )
         volatility = math.sqrt(variance)
     else:
         volatility = 0.0
@@ -1768,6 +2285,7 @@ def _fetch_fear_and_greed_cached():
     # Outside lock to avoid holding it during network call
     try:
         from sentiment_data_sources import fetch_fear_and_greed_index
+
         result = fetch_fear_and_greed_index()
     except Exception as e:
         logging.debug(f"Fear & Greed fetch failed: {e}")
@@ -1818,10 +2336,12 @@ def _get_local_sentiment_payload():
     with _MARKET_HEAT_LOCK:
         for entry in _MARKET_HEAT_HISTORY:
             try:
-                history.append({
-                    "timestamp": entry.get("ts"),
-                    "sentiment": round(entry.get("score", 50) / 100.0, 4),
-                })
+                history.append(
+                    {
+                        "timestamp": entry.get("ts"),
+                        "sentiment": round(entry.get("score", 50) / 100.0, 4),
+                    }
+                )
             except Exception:
                 continue
 
@@ -1869,11 +2389,12 @@ def _get_local_sentiment_payload():
         "source": "tape_local",
     }
 
-    return sentiment_payload, meta
+    # Enforce: sentiment payloads are emoji-free.
+    return _strip_emoji_payload(sentiment_payload), _strip_emoji_payload(meta)
 
 
 def _pipeline_url(path: str) -> str:
-    clean_path = path if path.startswith('/') else f'/{path}'
+    clean_path = path if path.startswith("/") else f"/{path}"
     return f"{SENTIMENT_PIPELINE_URL.rstrip('/')}{clean_path}"
 
 
@@ -1881,7 +2402,11 @@ def _sentiment_iso(ts: float | None) -> str | None:
     if ts is None:
         return None
     try:
-        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        return (
+            datetime.fromtimestamp(float(ts), tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
     except Exception:
         return None
 
@@ -1957,7 +2482,12 @@ def _validate_sentiment_payload(payload: dict) -> tuple[bool, str | None, dict |
         if not _sentiment_num_in_range(src.get(k), 0.0, 100000.0):
             return False, f"source_breakdown.{k}_range", None
 
-    for k in ("sentiment_history", "social_history", "trending_topics", "divergence_alerts"):
+    for k in (
+        "sentiment_history",
+        "social_history",
+        "trending_topics",
+        "divergence_alerts",
+    ):
         if not isinstance(payload.get(k), list):
             return False, f"{k}_not_list", None
 
@@ -1966,7 +2496,8 @@ def _validate_sentiment_payload(payload: dict) -> tuple[bool, str | None, dict |
         cleaned["timestamp"] = payload.get("timestamp")
     if isinstance(payload.get("sources"), list):
         cleaned["sources"] = payload.get("sources")
-    return True, None, cleaned
+    # Enforce: sentiment payloads from upstream are emoji-free.
+    return True, None, _strip_emoji_payload(cleaned)
 
 
 def _sentiment_poll_once():
@@ -1998,7 +2529,11 @@ def _sentiment_poll_once():
                 _SENTIMENT_LAST_GOOD = cleaned
                 _SENTIMENT_LAST_OK_TS = time.time()
                 _SENTIMENT_LAST_ERROR = None
-                _SENTIMENT_LAST_SOURCES = cleaned.get("sources") if isinstance(cleaned.get("sources"), list) else None
+                _SENTIMENT_LAST_SOURCES = (
+                    cleaned.get("sources")
+                    if isinstance(cleaned.get("sources"), list)
+                    else None
+                )
             return
     except Exception as exc:
         errors.append(f"latest:{exc}")
@@ -2022,11 +2557,15 @@ def _get_sentiment_snapshot():
     try:
         thread_ref = globals().get("_MW_SENTIMENT_THREAD")
         lock_ref = globals().get("_MW_SENTIMENT_LOCK")
-        if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+        if thread_ref is None or (
+            hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()
+        ):
             if lock_ref is not None:
                 with lock_ref:
                     thread_ref = globals().get("_MW_SENTIMENT_THREAD")
-                    if thread_ref is None or (hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()):
+                    if thread_ref is None or (
+                        hasattr(thread_ref, "is_alive") and not thread_ref.is_alive()
+                    ):
                         st = threading.Thread(target=_sentiment_polling_loop)
                         st.daemon = True
                         st.start()
@@ -2035,7 +2574,11 @@ def _get_sentiment_snapshot():
         pass
 
     with _SENTIMENT_LOCK:
-        sentiment = dict(_SENTIMENT_LAST_GOOD) if isinstance(_SENTIMENT_LAST_GOOD, dict) else None
+        sentiment = (
+            dict(_SENTIMENT_LAST_GOOD)
+            if isinstance(_SENTIMENT_LAST_GOOD, dict)
+            else None
+        )
         last_ok = _SENTIMENT_LAST_OK_TS
         last_try = _SENTIMENT_LAST_TRY_TS
         err = _SENTIMENT_LAST_ERROR
@@ -2046,9 +2589,9 @@ def _get_sentiment_snapshot():
     # Pipeline considered running if we had a successful poll within 2x poll interval
     max_stale_for_running = max(60.0, SENTIMENT_PIPELINE_POLL_S * 2.5)
     pipeline_running = (
-        last_ok is not None and
-        stale_seconds is not None and
-        stale_seconds < max_stale_for_running
+        last_ok is not None
+        and stale_seconds is not None
+        and stale_seconds < max_stale_for_running
     )
     meta = {
         "ok": bool(sentiment) and (err is None),
@@ -2062,10 +2605,12 @@ def _get_sentiment_snapshot():
     if sources:
         meta["sources"] = sources
 
-    return sentiment or {}, meta
+    return _strip_emoji_payload(sentiment or {}), _strip_emoji_payload(meta)
 
 
-def _proxy_pipeline_request(path: str, params: dict | None = None, timeout: float = 5.0):
+def _proxy_pipeline_request(
+    path: str, params: dict | None = None, timeout: float = 5.0
+):
     """Proxy a GET to the pipeline and normalize success/error payloads."""
     url = _pipeline_url(path)
     try:
@@ -2074,26 +2619,38 @@ def _proxy_pipeline_request(path: str, params: dict | None = None, timeout: floa
         payload = response.json()
         return payload, url, None
     except requests.exceptions.ConnectionError as exc:
-        return None, url, {
-            "error": "pipeline_unreachable",
-            "detail": str(exc),
-            "status": 503,
-            "pipeline_url": url,
-        }
+        return (
+            None,
+            url,
+            {
+                "error": "pipeline_unreachable",
+                "detail": str(exc),
+                "status": 503,
+                "pipeline_url": url,
+            },
+        )
     except requests.exceptions.Timeout as exc:
-        return None, url, {
-            "error": "pipeline_timeout",
-            "detail": str(exc),
-            "status": 504,
-            "pipeline_url": url,
-        }
+        return (
+            None,
+            url,
+            {
+                "error": "pipeline_timeout",
+                "detail": str(exc),
+                "status": 504,
+                "pipeline_url": url,
+            },
+        )
     except Exception as exc:
-        return None, url, {
-            "error": "pipeline_error",
-            "detail": str(exc),
-            "status": 502,
-            "pipeline_url": url,
-        }
+        return (
+            None,
+            url,
+            {
+                "error": "pipeline_error",
+                "detail": str(exc),
+                "status": 502,
+                "pipeline_url": url,
+            },
+        )
 
 
 def _pipeline_error_response(err_info: dict, message: str | None = None):
@@ -2123,7 +2680,7 @@ def _pipeline_try_get_json(paths, timeout=5):
     raise last_err if last_err else RuntimeError("pipeline request failed")
 
 
-@app.route('/api/sentiment/tiered')
+@app.route("/api/sentiment/tiered")
 def get_tiered_sentiment():
     """
     Proxy endpoint for tiered sentiment from the sentiment pipeline.
@@ -2132,41 +2689,50 @@ def get_tiered_sentiment():
     # Align with /api/sentiment/latest proxy contract
     return api_sentiment_latest()
 
-@app.route('/api/sentiment/pipeline-health')
+
+@app.route("/api/sentiment/pipeline-health")
 def check_sentiment_pipeline_health():
     """
     Check if the sentiment pipeline is running and healthy.
     """
-    payload, used_url, err_info = _proxy_pipeline_request('/health', timeout=2)
+    payload, used_url, err_info = _proxy_pipeline_request("/health", timeout=2)
     if err_info:
-        return _pipeline_error_response(err_info, 'Sentiment pipeline health check failed')
+        return _pipeline_error_response(
+            err_info, "Sentiment pipeline health check failed"
+        )
 
     health_data = payload or {}
-    return jsonify({
-        'success': True,
-        'ok': True,
-        'pipeline_running': True,
-        'pipeline_url': used_url,
-        'health_data': health_data,
-    })
+    return jsonify(
+        {
+            "success": True,
+            "ok": True,
+            "pipeline_running": True,
+            "pipeline_url": used_url,
+            "health_data": health_data,
+        }
+    )
 
 
-@app.route('/api/sentiment/health')
+@app.route("/api/sentiment/health")
 def api_sentiment_health():
     return check_sentiment_pipeline_health()
 
-@app.route('/api/sentiment/sources')
+
+@app.route("/api/sentiment/sources")
 def get_sentiment_sources():
     """
     Get list of all sentiment data sources with their tier and status.
     """
     try:
-        payload, used_url = _pipeline_try_get_json([
-            "/sentiment/sources",
-            "/sources",
-            "/stats",
-            "/sentiment/stats",
-        ], timeout=5)
+        payload, used_url = _pipeline_try_get_json(
+            [
+                "/sentiment/sources",
+                "/sources",
+                "/stats",
+                "/sentiment/stats",
+            ],
+            timeout=5,
+        )
 
         sources = []
         if isinstance(payload, list):
@@ -2174,74 +2740,102 @@ def get_sentiment_sources():
         elif isinstance(payload, dict):
             if isinstance(payload.get("sources"), list):
                 sources = payload.get("sources")
-            elif isinstance(payload.get("data"), dict) and isinstance(payload["data"].get("sources"), list):
+            elif isinstance(payload.get("data"), dict) and isinstance(
+                payload["data"].get("sources"), list
+            ):
                 sources = payload["data"].get("sources")
 
-        return jsonify({
-            "success": True,
-            "pipeline_url": used_url,
-            "sources": sources,
-            "raw": payload if not sources else None,
-        })
+        return jsonify(
+            {
+                "success": True,
+                "pipeline_url": used_url,
+                "sources": sources,
+                "raw": payload if not sources else None,
+            }
+        )
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "pipeline_url": _pipeline_url("/sentiment/sources"),
-            "error": str(e),
-            "help": "Start the pipeline with: ./start_sentiment_pipeline.sh"
-        }), 502
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "pipeline_url": _pipeline_url("/sentiment/sources"),
+                    "error": str(e),
+                    "help": "Start the pipeline with: ./start_sentiment_pipeline.sh",
+                }
+            ),
+            502,
+        )
 
-@app.route('/api/sentiment/divergence')
+
+@app.route("/api/sentiment/divergence")
 def get_sentiment_divergence():
     """
     Proxy endpoint that returns the divergence payload from the pipeline.
     """
     try:
-        response = requests.get(
-            _pipeline_url('/sentiment/divergence'),
-            timeout=5
-        )
+        response = requests.get(_pipeline_url("/sentiment/divergence"), timeout=5)
         response.raise_for_status()
         divergence_payload = response.json()
 
-        return jsonify({
-            'success': True,
-            'data': divergence_payload,
-            'timestamp': divergence_payload.get('timestamp', datetime.utcnow().isoformat())
-        })
+        return jsonify(
+            {
+                "success": True,
+                "data": divergence_payload,
+                "timestamp": divergence_payload.get(
+                    "timestamp", datetime.utcnow().isoformat()
+                ),
+            }
+        )
 
     except requests.exceptions.ConnectionError:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline not running',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': f'Could not reach sentiment pipeline at {SENTIMENT_PIPELINE_URL}'
-        }), 503
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Sentiment pipeline not running",
+                    "pipeline_url": SENTIMENT_PIPELINE_URL,
+                    "message": f"Could not reach sentiment pipeline at {SENTIMENT_PIPELINE_URL}",
+                }
+            ),
+            503,
+        )
 
     except requests.exceptions.Timeout:
-        return jsonify({
-            'success': False,
-            'error': 'Sentiment pipeline timeout',
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'message': 'The sentiment pipeline took too long to respond'
-        }), 504
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Sentiment pipeline timeout",
+                    "pipeline_url": SENTIMENT_PIPELINE_URL,
+                    "message": "The sentiment pipeline took too long to respond",
+                }
+            ),
+            504,
+        )
 
     except Exception as e:
         logging.error(f"Error fetching divergence data: {e}")
-        return jsonify({
-            'success': False,
-            'pipeline_url': SENTIMENT_PIPELINE_URL,
-            'error': str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "pipeline_url": SENTIMENT_PIPELINE_URL,
+                    "error": str(e),
+                }
+            ),
+            500,
+        )
+
 
 # ============================================================================
 # END SENTIMENT PIPELINE PROXY ENDPOINTS
 # ============================================================================
 
-@app.route('/api/social-sentiment/<symbol>')
+
+@app.route("/api/social-sentiment/<symbol>")
 def get_social_sentiment_endpoint(symbol):
     try:
-        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
+        clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
         mock_headlines = [
             f"{clean_symbol} sees massive inflow from institutional investors",
             f"Regulators approve new {clean_symbol} trading vehicle",
@@ -2251,24 +2845,27 @@ def get_social_sentiment_endpoint(symbol):
         sentiment_result = ai_engine.score_headlines_local(mock_headlines)
         narrative = ai_engine.generate_narrative(clean_symbol, mock_headlines, 45000.00)
 
-        return jsonify({
-            "success": True,
-            "data": {
-                "symbol": clean_symbol,
-                "overall_score": sentiment_result['score'],
-                "label": sentiment_result['label'],
-                "narrative": narrative,
-                "sources_breakdown": {
-                    "finbert_confidence": sentiment_result['confidence'],
-                    "headlines_analyzed": len(mock_headlines),
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "symbol": clean_symbol,
+                    "overall_score": sentiment_result["score"],
+                    "label": sentiment_result["label"],
+                    "narrative": narrative,
+                    "sources_breakdown": {
+                        "finbert_confidence": sentiment_result["confidence"],
+                        "headlines_analyzed": len(mock_headlines),
+                    },
                 },
-            },
-        })
+            }
+        )
     except Exception as e:
         app.logger.error(f"Error in sentiment endpoint: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/intelligence-report/<symbol>')
+
+@app.route("/api/intelligence-report/<symbol>")
 def api_intelligence_report(symbol):
     """
     Returns Hybrid Intelligence Report for Divergence Detection.
@@ -2280,16 +2877,24 @@ def api_intelligence_report(symbol):
     - Gemini-generated narrative explaining divergence
     """
     try:
-        from sentiment_data_sources import fetch_fear_and_greed_index, fetch_coingecko_social, COINGECKO_ID_MAP
+        from sentiment_data_sources import (
+            fetch_fear_and_greed_index,
+            fetch_coingecko_social,
+            COINGECKO_ID_MAP,
+        )
         from sentiment_aggregator import fetch_reddit_count
 
-        clean_symbol = symbol.upper().replace('-USD', '').replace('USD', '')
+        clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
 
         # Get current price from Coinbase
         try:
-            price_resp = requests.get(f"https://api.coinbase.com/v2/prices/{clean_symbol}-USD/spot", timeout=3)
+            price_resp = requests.get(
+                f"https://api.coinbase.com/v2/prices/{clean_symbol}-USD/spot", timeout=3
+            )
             price_data = price_resp.json()
-            current_price = float(price_data['data']['amount']) if price_data.get('data') else None
+            current_price = (
+                float(price_data["data"]["amount"]) if price_data.get("data") else None
+            )
         except Exception:
             current_price = None
 
@@ -2305,21 +2910,23 @@ def api_intelligence_report(symbol):
 
         # Fetch Fear & Greed Index (retail sentiment)
         fg_data = fetch_fear_and_greed_index()
-        fear_greed_value = fg_data['value'] if fg_data else 50
+        fear_greed_value = fg_data["value"] if fg_data else 50
 
         # Fetch social volume (Reddit mentions)
         try:
-            reddit_count = fetch_reddit_count(clean_symbol) if 'fetch_reddit_count' in dir() else 0
+            reddit_count = (
+                fetch_reddit_count(clean_symbol) if "fetch_reddit_count" in dir() else 0
+            )
         except Exception:
             reddit_count = 0
 
         # Bundle metrics for Gemini prompt
         metrics_bundle = {
-            'finbert_score': finbert_result['score'],
-            'finbert_label': finbert_result['label'],
-            'fear_greed': fear_greed_value,
-            'social_volume': reddit_count,
-            'confidence': finbert_result['confidence']
+            "finbert_score": finbert_result["score"],
+            "finbert_label": finbert_result["label"],
+            "fear_greed": fear_greed_value,
+            "social_volume": reddit_count,
+            "confidence": finbert_result["confidence"],
         }
 
         # Generate divergence narrative with Gemini
@@ -2341,29 +2948,116 @@ OUTPUT FORMAT:
 One concise sentence (max 25 words). Start with the primary driver. Be decisive.
 """
 
-        narrative = ai_engine.generate_narrative(clean_symbol, [divergence_prompt], current_price or 0)
+        narrative = ai_engine.generate_narrative(
+            clean_symbol, [divergence_prompt], current_price or 0
+        )
 
-        return jsonify({
-            "success": True,
-            "data": {
-                "symbol": clean_symbol,
-                "metrics": metrics_bundle,
-                "narrative": narrative,
-                "raw_context": {
-                    "top_headlines": mock_headlines,
-                    "price": current_price
-                }
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "symbol": clean_symbol,
+                    "metrics": metrics_bundle,
+                    "narrative": narrative,
+                    "raw_context": {
+                        "top_headlines": mock_headlines,
+                        "price": current_price,
+                    },
+                },
             }
-        })
+        )
 
     except Exception as e:
         app.logger.error(f"Error in intelligence-report endpoint: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.get("/api/coin-intel")
+def api_coin_intel():
+    """Best-effort coin intel endpoint for popup tab (events + social pulse)."""
+    raw_symbol = request.args.get("symbol", "")
+    symbol = str(raw_symbol or "").strip().upper()
+    if not symbol:
+        events = {"status": "offline", "items": [], "error": "symbol_missing"}
+        social = {
+            "status": "offline",
+            "items": [],
+            "metrics": {
+                "social_volume_24h": None,
+                "social_engagement_24h": None,
+                "social_dominance_24h": None,
+                "sentiment_24h": None,
+                "social_rank": None,
+                "social_heat": None,
+                "social_heat_trend": None,
+                "posts_60m": None,
+                "posts_24h": None,
+                "unique_authors_24h": None,
+                "source": "none",
+                "updated_at": None,
+            },
+            "error": "symbol_missing",
+        }
+        return (
+            jsonify(
+                {
+                    "symbol": "",
+                    "coin_id": None,
+                    "status": "offline",
+                    "events": events,
+                    "news": events,
+                    "social": social,
+                    "ts": int(time.time()),
+                }
+            ),
+            200,
+        )
+
+    try:
+        payload = fetch_coin_intel(symbol)
+        if not isinstance(payload, dict):
+            raise ValueError("coin intel payload must be an object")
+        payload = _strip_emoji_payload(payload)
+        _check_emoji_scope(payload, context="/api/coin-intel")
+        return jsonify(payload), 200
+    except Exception as e:
+        logging.error(f"coin-intel error ({symbol}): {e}")
+        events = {"status": "offline", "items": [], "error": "unavailable"}
+        social = {
+            "status": "offline",
+            "items": [],
+            "metrics": {
+                "social_volume_24h": None,
+                "social_engagement_24h": None,
+                "social_dominance_24h": None,
+                "sentiment_24h": None,
+                "social_rank": None,
+                "social_heat": None,
+                "social_heat_trend": None,
+                "posts_60m": None,
+                "posts_24h": None,
+                "unique_authors_24h": None,
+                "source": "none",
+                "updated_at": None,
+            },
+            "error": "unavailable",
+        }
+        fallback = {
+            "symbol": symbol,
+            "coin_id": None,
+            "status": "offline",
+            "events": events,
+            "news": events,
+            "social": social,
+            "ts": int(time.time()),
+        }
+        return jsonify(fallback), 200
+
+
 # /api/metrics already registered above (line ~1125)
 
-@app.route('/api/signals/pumpdump')
+
+@app.route("/api/signals/pumpdump")
 def api_signals_pumpdump():
     """Stub signals endpoint to keep mobile/web screens functional.
 
@@ -2374,252 +3068,565 @@ def api_signals_pumpdump():
     except Exception:
         return jsonify([])
 
-@app.route('/metrics.prom')
+
+@app.route("/metrics.prom")
 def metrics_prom():
     """Minimal Prometheus-style metrics exposition (text/plain)."""
     lines = []
     now = time.time()
     uptime = now - startup_time
     # Core app metrics
-    lines.append('# HELP app_uptime_seconds Application uptime in seconds')
-    lines.append('# TYPE app_uptime_seconds gauge')
-    lines.append(f'app_uptime_seconds {uptime:.2f}')
-    lines.append('# HELP app_errors_5xx_total Total 5xx responses observed (incremented post-response)')
-    lines.append('# TYPE app_errors_5xx_total counter')
+    lines.append("# HELP app_uptime_seconds Application uptime in seconds")
+    lines.append("# TYPE app_uptime_seconds gauge")
+    lines.append(f"app_uptime_seconds {uptime:.2f}")
+    lines.append(
+        "# HELP app_errors_5xx_total Total 5xx responses observed (incremented post-response)"
+    )
+    lines.append("# TYPE app_errors_5xx_total counter")
     lines.append(f'app_errors_5xx_total {_ERROR_STATS["5xx"]}')
     # Price fetch metrics if available
     try:
         from price_fetch import get_price_fetch_metrics
+
         pf = get_price_fetch_metrics()
-        cb = (pf.get('circuit_breaker') or {}) if isinstance(pf, dict) else {}
+        cb = (pf.get("circuit_breaker") or {}) if isinstance(pf, dict) else {}
         # Threshold gauges (static-ish config exposed for observability)
-        for k,v in THRESHOLDS.items():
+        for k, v in THRESHOLDS.items():
             try:
-                emit_prometheus(lines, f'threshold_{k}', v, 'gauge', f'Threshold parameter {k}')
+                emit_prometheus(
+                    lines, f"threshold_{k}", v, "gauge", f"Threshold parameter {k}"
+                )
             except Exception:
                 pass
-        emit_prometheus(lines, 'price_fetch_total_calls_total', pf.get('total_calls',0), 'counter', 'Total calls to fetch_prices (including snapshot served)')
-        emit_prometheus(lines, 'price_fetch_products_cache_hits_total', pf.get('products_cache_hits',0), 'counter', 'Number of product list cache hits')
-        emit_prometheus(lines, 'price_fetch_snapshot_served_total', pf.get('snapshot_served',0), 'counter', 'Number of times stale snapshot returned instead of fresh fetch')
-        emit_prometheus(lines, 'price_fetch_rate_failures', pf.get('rate_failures',0), 'gauge', 'Current consecutive failure / throttling count')
-        emit_prometheus(lines, 'price_fetch_last_fetch_duration_ms', round(pf.get('last_fetch_duration_ms',0),2), 'gauge', 'Duration of last successful fetch in milliseconds')
+        emit_prometheus(
+            lines,
+            "price_fetch_total_calls_total",
+            pf.get("total_calls", 0),
+            "counter",
+            "Total calls to fetch_prices (including snapshot served)",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_products_cache_hits_total",
+            pf.get("products_cache_hits", 0),
+            "counter",
+            "Number of product list cache hits",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_snapshot_served_total",
+            pf.get("snapshot_served", 0),
+            "counter",
+            "Number of times stale snapshot returned instead of fresh fetch",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_rate_failures",
+            pf.get("rate_failures", 0),
+            "gauge",
+            "Current consecutive failure / throttling count",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_last_fetch_duration_ms",
+            round(pf.get("last_fetch_duration_ms", 0), 2),
+            "gauge",
+            "Duration of last successful fetch in milliseconds",
+        )
         # Advanced latency & error/backoff metrics
-        if pf.get('p95_fetch_duration_ms') is not None:
-            emit_prometheus(lines, 'price_fetch_p95_fetch_duration_ms', round(pf.get('p95_fetch_duration_ms'),2), 'gauge', 'Approximate p95 of recent fetch durations (ms)')
-        emit_prometheus(lines, 'price_fetch_error_rate_percent', pf.get('error_rate_percent'), 'gauge', 'Rolling error rate percentage over recent calls')
-        emit_prometheus(lines, 'price_fetch_backoff_seconds_remaining', pf.get('backoff_seconds_remaining'), 'gauge', 'Seconds remaining in current exponential backoff window (0 if none)')
+        if pf.get("p95_fetch_duration_ms") is not None:
+            emit_prometheus(
+                lines,
+                "price_fetch_p95_fetch_duration_ms",
+                round(pf.get("p95_fetch_duration_ms"), 2),
+                "gauge",
+                "Approximate p95 of recent fetch durations (ms)",
+            )
+        emit_prometheus(
+            lines,
+            "price_fetch_error_rate_percent",
+            pf.get("error_rate_percent"),
+            "gauge",
+            "Rolling error rate percentage over recent calls",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_backoff_seconds_remaining",
+            pf.get("backoff_seconds_remaining"),
+            "gauge",
+            "Seconds remaining in current exponential backoff window (0 if none)",
+        )
         # Histogram exposition (Prometheus style cumulative buckets)
-        buckets = pf.get('fetch_duration_hist_buckets') or {}
+        buckets = pf.get("fetch_duration_hist_buckets") or {}
         running = 0
         for edge in sorted([int(k) for k in buckets.keys()]):
             running += buckets[str(edge)]
-            lines.append('# TYPE price_fetch_duration_seconds histogram')
+            lines.append("# TYPE price_fetch_duration_seconds histogram")
             # convert ms to seconds for Prometheus histogram convention
-            lines.append(f'price_fetch_duration_seconds_bucket{{le="{edge/1000.0:.3f}"}} {running}')
+            lines.append(
+                f'price_fetch_duration_seconds_bucket{{le="{edge/1000.0:.3f}"}} {running}'
+            )
         # +Inf bucket
-        overflow = pf.get('fetch_duration_hist_overflow',0)
-        count = pf.get('fetch_duration_count', running + overflow)
+        overflow = pf.get("fetch_duration_hist_overflow", 0)
+        count = pf.get("fetch_duration_count", running + overflow)
         lines.append(f'price_fetch_duration_seconds_bucket{{le="+Inf"}} {count}')
         # sum & count
-        sum_ms = pf.get('fetch_duration_sum_ms',0.0)
-        lines.append(f'price_fetch_duration_seconds_sum {sum_ms/1000.0:.6f}')
-        lines.append(f'price_fetch_duration_seconds_count {count}')
-        age_val = round(pf.get('snapshot_age_sec',0),2) if pf.get('snapshot_age_sec') is not None else None
-        emit_prometheus(lines, 'price_fetch_snapshot_age_seconds', age_val, 'gauge', 'Age in seconds of current price snapshot')
-        emit_prometheus(lines, 'price_fetch_has_snapshot', 1 if pf.get('has_snapshot') else 0, 'gauge', 'Whether a snapshot is currently cached (1=yes)')
+        sum_ms = pf.get("fetch_duration_sum_ms", 0.0)
+        lines.append(f"price_fetch_duration_seconds_sum {sum_ms/1000.0:.6f}")
+        lines.append(f"price_fetch_duration_seconds_count {count}")
+        age_val = (
+            round(pf.get("snapshot_age_sec", 0), 2)
+            if pf.get("snapshot_age_sec") is not None
+            else None
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_snapshot_age_seconds",
+            age_val,
+            "gauge",
+            "Age in seconds of current price snapshot",
+        )
+        emit_prometheus(
+            lines,
+            "price_fetch_has_snapshot",
+            1 if pf.get("has_snapshot") else 0,
+            "gauge",
+            "Whether a snapshot is currently cached (1=yes)",
+        )
         # Circuit breaker metrics
         if cb:
-            state_map = {'CLOSED':0,'OPEN':1,'HALF_OPEN':0.5}
-            emit_prometheus(lines, 'price_fetch_circuit_breaker_state', state_map.get(cb.get('state'), -1), 'gauge', 'Circuit breaker state (0=closed,1=open,0.5=half_open)')
-            emit_prometheus(lines, 'price_fetch_circuit_breaker_failures', cb.get('failures'), 'gauge', 'Current consecutive failures counted by breaker')
-            emit_prometheus(lines, 'price_fetch_circuit_breaker_open_until_epoch', cb.get('open_until'), 'gauge', 'Epoch timestamp until which breaker remains open (0 if closed)')
+            state_map = {"CLOSED": 0, "OPEN": 1, "HALF_OPEN": 0.5}
+            emit_prometheus(
+                lines,
+                "price_fetch_circuit_breaker_state",
+                state_map.get(cb.get("state"), -1),
+                "gauge",
+                "Circuit breaker state (0=closed,1=open,0.5=half_open)",
+            )
+            emit_prometheus(
+                lines,
+                "price_fetch_circuit_breaker_failures",
+                cb.get("failures"),
+                "gauge",
+                "Current consecutive failures counted by breaker",
+            )
+            emit_prometheus(
+                lines,
+                "price_fetch_circuit_breaker_open_until_epoch",
+                cb.get("open_until"),
+                "gauge",
+                "Epoch timestamp until which breaker remains open (0 if closed)",
+            )
             # Normalized boolean gauges for simpler alerting
-            emit_prometheus(lines, 'price_fetch_circuit_breaker_is_open', 1 if cb.get('state') == 'OPEN' else 0, 'gauge', 'Circuit breaker open (1=open,0=otherwise)')
-            emit_prometheus(lines, 'price_fetch_circuit_breaker_is_half_open', 1 if cb.get('state') == 'HALF_OPEN' else 0, 'gauge', 'Circuit breaker half-open (1=half-open,0=otherwise)')
+            emit_prometheus(
+                lines,
+                "price_fetch_circuit_breaker_is_open",
+                1 if cb.get("state") == "OPEN" else 0,
+                "gauge",
+                "Circuit breaker open (1=open,0=otherwise)",
+            )
+            emit_prometheus(
+                lines,
+                "price_fetch_circuit_breaker_is_half_open",
+                1 if cb.get("state") == "HALF_OPEN" else 0,
+                "gauge",
+                "Circuit breaker half-open (1=half-open,0=otherwise)",
+            )
         # SWR metrics
         emit_swr_prometheus(lines, _swr_entries())
         # Market breadth metrics (1m universe)
-        if 'one_minute_market_stats' in globals() and one_minute_market_stats:
+        if "one_minute_market_stats" in globals() and one_minute_market_stats:
             m = one_minute_market_stats
+
             def _maybe(name, val, help_txt):
                 if val is None:
                     return
-                emit_prometheus(lines, name, val, 'gauge', help_txt)
-            _maybe('one_min_market_universe_count', m.get('universe_count'), 'Count of symbols in 1m universe sample')
-            _maybe('one_min_market_advancers', m.get('advancers'), 'Advancers (positive 1m change) count')
-            _maybe('one_min_market_decliners', m.get('decliners'), 'Decliners (negative 1m change) count')
-            _maybe('one_min_market_adv_decl_ratio', m.get('adv_decl_ratio'), 'Advancers / Decliners ratio (breadth)')
-            for p in (50,75,90,95,99):
-                _maybe(f'one_min_market_pct{p}', m.get(f'pct{p}'), f'{p}th percentile of raw 1m percentage changes')
-            for p in (90,95,99):
-                _maybe(f'one_min_market_abs_pct{p}', m.get(f'abs_pct{p}'), f'{p}th percentile of absolute 1m percentage changes')
-            for thr in (1,2,5):
-                _maybe(f'one_min_market_count_gt_{thr}pct', m.get(f'count_gt_{thr}pct'), f'Count of symbols with |1m| change >= {thr}%')
-            _maybe('one_min_market_top5_avg_gain', m.get('top5_avg_gain'), 'Average 1m gain of top 5 advancers')
-            _maybe('one_min_market_bottom5_avg_loss', m.get('bottom5_avg_loss'), 'Average 1m gain (negative) of top 5 decliners')
-            _maybe('one_min_market_extreme_gainer_pct', m.get('extreme_gainer_pct'), 'Largest 1m percentage gain observed')
-            _maybe('one_min_market_extreme_loser_pct', m.get('extreme_loser_pct'), 'Largest 1m percentage loss observed')
+                emit_prometheus(lines, name, val, "gauge", help_txt)
+
+            _maybe(
+                "one_min_market_universe_count",
+                m.get("universe_count"),
+                "Count of symbols in 1m universe sample",
+            )
+            _maybe(
+                "one_min_market_advancers",
+                m.get("advancers"),
+                "Advancers (positive 1m change) count",
+            )
+            _maybe(
+                "one_min_market_decliners",
+                m.get("decliners"),
+                "Decliners (negative 1m change) count",
+            )
+            _maybe(
+                "one_min_market_adv_decl_ratio",
+                m.get("adv_decl_ratio"),
+                "Advancers / Decliners ratio (breadth)",
+            )
+            for p in (50, 75, 90, 95, 99):
+                _maybe(
+                    f"one_min_market_pct{p}",
+                    m.get(f"pct{p}"),
+                    f"{p}th percentile of raw 1m percentage changes",
+                )
+            for p in (90, 95, 99):
+                _maybe(
+                    f"one_min_market_abs_pct{p}",
+                    m.get(f"abs_pct{p}"),
+                    f"{p}th percentile of absolute 1m percentage changes",
+                )
+            for thr in (1, 2, 5):
+                _maybe(
+                    f"one_min_market_count_gt_{thr}pct",
+                    m.get(f"count_gt_{thr}pct"),
+                    f"Count of symbols with |1m| change >= {thr}%",
+                )
+            _maybe(
+                "one_min_market_top5_avg_gain",
+                m.get("top5_avg_gain"),
+                "Average 1m gain of top 5 advancers",
+            )
+            _maybe(
+                "one_min_market_bottom5_avg_loss",
+                m.get("bottom5_avg_loss"),
+                "Average 1m gain (negative) of top 5 decliners",
+            )
+            _maybe(
+                "one_min_market_extreme_gainer_pct",
+                m.get("extreme_gainer_pct"),
+                "Largest 1m percentage gain observed",
+            )
+            _maybe(
+                "one_min_market_extreme_loser_pct",
+                m.get("extreme_loser_pct"),
+                "Largest 1m percentage loss observed",
+            )
             # Acceleration / delta signals
-            _maybe('one_min_market_spike_p95_delta', m.get('spike_p95_delta'), 'Change in 95th percentile since previous snapshot')
-            _maybe('one_min_market_spike_p99_delta', m.get('spike_p99_delta'), 'Change in 99th percentile since previous snapshot')
-            _maybe('one_min_market_spike_p95_rate_per_sec', m.get('spike_p95_rate_per_sec'), 'Rate of change per second of 95th percentile')
-            _maybe('one_min_market_spike_p99_rate_per_sec', m.get('spike_p99_rate_per_sec'), 'Rate of change per second of 99th percentile')
-            _maybe('one_min_market_extreme_gainer_accel', m.get('extreme_gainer_accel'), 'Delta of extreme gainer pct since previous snapshot')
-            _maybe('one_min_market_extreme_gainer_accel_rate_per_sec', m.get('extreme_gainer_accel_rate_per_sec'), 'Rate/sec of extreme gainer delta')
-            _maybe('one_min_market_breadth_net_advancers', m.get('breadth_net_advancers'), 'Advancers minus decliners (breadth net)')
-            _maybe('one_min_market_breadth_net_advancers_delta', m.get('breadth_net_advancers_delta'), 'Delta of net advancers vs previous snapshot')
-            _maybe('one_min_market_breadth_net_advancers_delta_rate_per_sec', m.get('breadth_net_advancers_delta_rate_per_sec'), 'Rate/sec of net advancers delta')
-            _maybe('one_min_market_breadth_adv_decl_ratio_delta', m.get('breadth_adv_decl_ratio_delta'), 'Delta of adv/decl ratio since previous snapshot')
-            _maybe('one_min_market_breadth_adv_decl_ratio_rate_per_sec', m.get('breadth_adv_decl_ratio_rate_per_sec'), 'Rate/sec of adv/decl ratio delta')
+            _maybe(
+                "one_min_market_spike_p95_delta",
+                m.get("spike_p95_delta"),
+                "Change in 95th percentile since previous snapshot",
+            )
+            _maybe(
+                "one_min_market_spike_p99_delta",
+                m.get("spike_p99_delta"),
+                "Change in 99th percentile since previous snapshot",
+            )
+            _maybe(
+                "one_min_market_spike_p95_rate_per_sec",
+                m.get("spike_p95_rate_per_sec"),
+                "Rate of change per second of 95th percentile",
+            )
+            _maybe(
+                "one_min_market_spike_p99_rate_per_sec",
+                m.get("spike_p99_rate_per_sec"),
+                "Rate of change per second of 99th percentile",
+            )
+            _maybe(
+                "one_min_market_extreme_gainer_accel",
+                m.get("extreme_gainer_accel"),
+                "Delta of extreme gainer pct since previous snapshot",
+            )
+            _maybe(
+                "one_min_market_extreme_gainer_accel_rate_per_sec",
+                m.get("extreme_gainer_accel_rate_per_sec"),
+                "Rate/sec of extreme gainer delta",
+            )
+            _maybe(
+                "one_min_market_breadth_net_advancers",
+                m.get("breadth_net_advancers"),
+                "Advancers minus decliners (breadth net)",
+            )
+            _maybe(
+                "one_min_market_breadth_net_advancers_delta",
+                m.get("breadth_net_advancers_delta"),
+                "Delta of net advancers vs previous snapshot",
+            )
+            _maybe(
+                "one_min_market_breadth_net_advancers_delta_rate_per_sec",
+                m.get("breadth_net_advancers_delta_rate_per_sec"),
+                "Rate/sec of net advancers delta",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_delta",
+                m.get("breadth_adv_decl_ratio_delta"),
+                "Delta of adv/decl ratio since previous snapshot",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_rate_per_sec",
+                m.get("breadth_adv_decl_ratio_rate_per_sec"),
+                "Rate/sec of adv/decl ratio delta",
+            )
             # Z-scores & EMA / thrust
-            _maybe('one_min_market_z_p95', m.get('z_p95'), 'Z-score of current 95th percentile vs rolling window')
-            _maybe('one_min_market_z_p99', m.get('z_p99'), 'Z-score of current 99th percentile vs rolling window')
-            _maybe('one_min_market_z_extreme_gainer', m.get('z_extreme_gainer'), 'Z-score of current extreme gainer vs history')
-            _maybe('one_min_market_breadth_adv_decl_ratio_ema', m.get('breadth_adv_decl_ratio_ema'), 'EMA-smoothed adv/decl ratio')
-            _maybe('one_min_market_breadth_net_advancers_ema', m.get('breadth_net_advancers_ema'), 'EMA-smoothed net advancers')
-            _maybe('one_min_market_breadth_thrust_active', m.get('breadth_thrust_active'), 'Breadth thrust active flag (1=active)')
-            _maybe('one_min_market_breadth_thrust_duration_sec', m.get('breadth_thrust_duration_sec'), 'Duration in seconds of current breadth thrust sequence')
+            _maybe(
+                "one_min_market_z_p95",
+                m.get("z_p95"),
+                "Z-score of current 95th percentile vs rolling window",
+            )
+            _maybe(
+                "one_min_market_z_p99",
+                m.get("z_p99"),
+                "Z-score of current 99th percentile vs rolling window",
+            )
+            _maybe(
+                "one_min_market_z_extreme_gainer",
+                m.get("z_extreme_gainer"),
+                "Z-score of current extreme gainer vs history",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_ema",
+                m.get("breadth_adv_decl_ratio_ema"),
+                "EMA-smoothed adv/decl ratio",
+            )
+            _maybe(
+                "one_min_market_breadth_net_advancers_ema",
+                m.get("breadth_net_advancers_ema"),
+                "EMA-smoothed net advancers",
+            )
+            _maybe(
+                "one_min_market_breadth_thrust_active",
+                m.get("breadth_thrust_active"),
+                "Breadth thrust active flag (1=active)",
+            )
+            _maybe(
+                "one_min_market_breadth_thrust_duration_sec",
+                m.get("breadth_thrust_duration_sec"),
+                "Duration in seconds of current breadth thrust sequence",
+            )
             # Bollinger band metrics & confirmation overlay
-            _maybe('one_min_market_breadth_adv_decl_ratio_bb_mid', m.get('breadth_adv_decl_ratio_bb_mid'), 'Bollinger band mid (mean) of adv/decl ratio')
-            _maybe('one_min_market_breadth_adv_decl_ratio_bb_upper', m.get('breadth_adv_decl_ratio_bb_upper'), 'Bollinger band upper (mean + K*sd) of adv/decl ratio')
-            _maybe('one_min_market_breadth_adv_decl_ratio_bb_lower', m.get('breadth_adv_decl_ratio_bb_lower'), 'Bollinger band lower (mean - K*sd) of adv/decl ratio')
-            _maybe('one_min_market_breadth_adv_decl_ratio_bb_sd', m.get('breadth_adv_decl_ratio_bb_sd'), 'Rolling std dev of adv/decl ratio for bands')
-            _maybe('one_min_market_confirm_3m_overlap', m.get('confirm_3m_overlap'), 'Count of retained 1m symbols with 3m trend data')
-            _maybe('one_min_market_confirm_3m_up', m.get('confirm_3m_up'), 'Count of retained 1m symbols whose 3m trend is up')
-            _maybe('one_min_market_confirm_3m_up_ratio', m.get('confirm_3m_up_ratio'), 'Ratio of retained 1m symbols whose 3m trend is up')
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_bb_mid",
+                m.get("breadth_adv_decl_ratio_bb_mid"),
+                "Bollinger band mid (mean) of adv/decl ratio",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_bb_upper",
+                m.get("breadth_adv_decl_ratio_bb_upper"),
+                "Bollinger band upper (mean + K*sd) of adv/decl ratio",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_bb_lower",
+                m.get("breadth_adv_decl_ratio_bb_lower"),
+                "Bollinger band lower (mean - K*sd) of adv/decl ratio",
+            )
+            _maybe(
+                "one_min_market_breadth_adv_decl_ratio_bb_sd",
+                m.get("breadth_adv_decl_ratio_bb_sd"),
+                "Rolling std dev of adv/decl ratio for bands",
+            )
+            _maybe(
+                "one_min_market_confirm_3m_overlap",
+                m.get("confirm_3m_overlap"),
+                "Count of retained 1m symbols with 3m trend data",
+            )
+            _maybe(
+                "one_min_market_confirm_3m_up",
+                m.get("confirm_3m_up"),
+                "Count of retained 1m symbols whose 3m trend is up",
+            )
+            _maybe(
+                "one_min_market_confirm_3m_up_ratio",
+                m.get("confirm_3m_up_ratio"),
+                "Ratio of retained 1m symbols whose 3m trend is up",
+            )
             # Alert boolean gauges
-            _maybe('one_min_market_alert_pump_thrust', m.get('alert_pump_thrust'), 'Composite pump thrust alert flag')
-            _maybe('one_min_market_alert_narrowing_vol', m.get('alert_narrowing_vol'), 'Volatility squeeze (narrow Bollinger) flag')
-            _maybe('one_min_market_alert_upper_band_touch', m.get('alert_upper_band_touch'), 'Adv/decl ratio touching upper Bollinger band flag')
-            _maybe('one_min_market_alert_lower_band_touch', m.get('alert_lower_band_touch'), 'Adv/decl ratio touching lower Bollinger band flag')
-            _maybe('one_min_market_alert_accel_fade', m.get('alert_accel_fade'), 'Acceleration fade / possible exhaustion flag')
+            _maybe(
+                "one_min_market_alert_pump_thrust",
+                m.get("alert_pump_thrust"),
+                "Composite pump thrust alert flag",
+            )
+            _maybe(
+                "one_min_market_alert_narrowing_vol",
+                m.get("alert_narrowing_vol"),
+                "Volatility squeeze (narrow Bollinger) flag",
+            )
+            _maybe(
+                "one_min_market_alert_upper_band_touch",
+                m.get("alert_upper_band_touch"),
+                "Adv/decl ratio touching upper Bollinger band flag",
+            )
+            _maybe(
+                "one_min_market_alert_lower_band_touch",
+                m.get("alert_lower_band_touch"),
+                "Adv/decl ratio touching lower Bollinger band flag",
+            )
+            _maybe(
+                "one_min_market_alert_accel_fade",
+                m.get("alert_accel_fade"),
+                "Acceleration fade / possible exhaustion flag",
+            )
     except Exception as e:  # pragma: no cover - defensive
-        lines.append('# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)')
-        lines.append('# TYPE price_fetch_metrics_error gauge')
-        lines.append('price_fetch_metrics_error 1')
+        lines.append(
+            "# HELP price_fetch_metrics_error Indicates an error exporting price fetch metrics (1=error)"
+        )
+        lines.append("# TYPE price_fetch_metrics_error gauge")
+        lines.append("price_fetch_metrics_error 1")
         try:
-            _detail = str(e).replace('\n', ' ')[:200]
-            lines.append('# price_fetch_metrics_error_detail ' + _detail)
+            _detail = str(e).replace("\n", " ")[:200]
+            lines.append("# price_fetch_metrics_error_detail " + _detail)
         except Exception:
             pass
-    body = '\n'.join(lines) + '\n'
-    return app.response_class(body, mimetype='text/plain; version=0.0.4')
+    body = "\n".join(lines) + "\n"
+    return app.response_class(body, mimetype="text/plain; version=0.0.4")
+
 
 # ---- OpenAPI & JSON Schemas ----
-@app.route('/api/openapi.json')
+@app.route("/api/openapi.json")
 def openapi_spec():
     spec = {
-        'openapi': '3.1.0',
-        'info': {'title': 'Moonwalking API', 'version': '0.1.0'},
-        'paths': {
-            '/api/health': {
-                'get': {'summary': 'Health check', 'responses': {'200': {'description': 'OK','content': {'application/json': {'schema': HealthResponse.model_json_schema()}}}}}
-            },
-            '/api/metrics': {
-                'get': {'summary': 'Operational metrics', 'responses': {'200': {'description': 'Metrics','content': {'application/json': {'schema': MetricsResponse.model_json_schema()}}}}}
-            },
-            '/api/component/gainers-table-1min': {
-                'get': {'summary': 'Gainers table (1 minute)', 'responses': {
-                    '200': {'description': 'Component payload','content': {'application/json': {'schema': Gainers1mComponent.model_json_schema()}}},
-                    '503': {'description': 'Service unavailable'}
-                }}
-            },
-            '/api/config': {
-                'get': {
-                    'summary': 'Get current runtime config + validation limits',
-                    'responses': {
-                        '200': {
-                            'description': 'Config snapshot',
-                            'content': {
-                                'application/json': {
-                                    'schema': {
-                                        'type': 'object',
-                                        'properties': {
-                                            'config': {'type':'object'},
-                                            'limits': {'type':'object'}
-                                        },
-                                        'required': ['config']
-                                    }
+        "openapi": "3.1.0",
+        "info": {"title": "Moonwalking API", "version": "0.1.0"},
+        "paths": {
+            "/api/health": {
+                "get": {
+                    "summary": "Health check",
+                    "responses": {
+                        "200": {
+                            "description": "OK",
+                            "content": {
+                                "application/json": {
+                                    "schema": HealthResponse.model_json_schema()
                                 }
-                            }
-                        }
-                    }
-                },
-                'post': {
-                    'summary': 'Patch runtime configuration (validated)',
-                    'requestBody': {
-                        'required': True,
-                        'content': {
-                            'application/json': {
-                                'schema': {'type':'object'}
-                            }
+                            },
                         }
                     },
-                    'responses': {
-                        '200': {'description':'All updates applied'},
-                        '207': {'description':'Partial success (some errors)'},
-                        '400': {'description':'No valid keys applied'}
-                    }
                 }
             },
-            '/api/thresholds': {
-                'get': {
-                    'summary': 'Get current runtime alert thresholds',
-                    'responses': {
-                        '200': {
-                            'description': 'Current thresholds',
-                            'content': {
-                                'application/json': {
-                                    'schema': {
-                                        'type': 'object',
-                                        'properties': {
-                                            'thresholds': { 'type': 'object', 'additionalProperties': { 'type': 'number' }}
-                                        },
-                                        'required': ['thresholds']
-                                    }
+            "/api/metrics": {
+                "get": {
+                    "summary": "Operational metrics",
+                    "responses": {
+                        "200": {
+                            "description": "Metrics",
+                            "content": {
+                                "application/json": {
+                                    "schema": MetricsResponse.model_json_schema()
                                 }
-                            }
-                        }
-                    }
-                },
-                'post': {
-                    'summary': 'Patch / update thresholds (partial)',
-                    'requestBody': {
-                        'required': True,
-                        'content': {
-                            'application/json': {
-                                'schema': {
-                                    'type': 'object',
-                                    'description': 'Partial map of threshold keys to new numeric values'
-                                }
-                            }
+                            },
                         }
                     },
-                    'responses': {
-                        '200': { 'description': 'All updates applied successfully' },
-                        '207': { 'description': 'Some updates applied; some rejected (multi-status)' },
-                        '400': { 'description': 'All provided keys invalid / rejected' }
-                    }
                 }
-            }
-        }
+            },
+            "/api/component/gainers-table-1min": {
+                "get": {
+                    "summary": "Gainers table (1 minute)",
+                    "responses": {
+                        "200": {
+                            "description": "Component payload",
+                            "content": {
+                                "application/json": {
+                                    "schema": Gainers1mComponent.model_json_schema()
+                                }
+                            },
+                        },
+                        "503": {"description": "Service unavailable"},
+                    },
+                }
+            },
+            "/api/config": {
+                "get": {
+                    "summary": "Get current runtime config + validation limits",
+                    "responses": {
+                        "200": {
+                            "description": "Config snapshot",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "config": {"type": "object"},
+                                            "limits": {"type": "object"},
+                                        },
+                                        "required": ["config"],
+                                    }
+                                }
+                            },
+                        }
+                    },
+                },
+                "post": {
+                    "summary": "Patch runtime configuration (validated)",
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"type": "object"}}},
+                    },
+                    "responses": {
+                        "200": {"description": "All updates applied"},
+                        "207": {"description": "Partial success (some errors)"},
+                        "400": {"description": "No valid keys applied"},
+                    },
+                },
+            },
+            "/api/thresholds": {
+                "get": {
+                    "summary": "Get current runtime alert thresholds",
+                    "responses": {
+                        "200": {
+                            "description": "Current thresholds",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "thresholds": {
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "type": "number"
+                                                },
+                                            }
+                                        },
+                                        "required": ["thresholds"],
+                                    }
+                                }
+                            },
+                        }
+                    },
+                },
+                "post": {
+                    "summary": "Patch / update thresholds (partial)",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Partial map of threshold keys to new numeric values",
+                                }
+                            }
+                        },
+                    },
+                    "responses": {
+                        "200": {"description": "All updates applied successfully"},
+                        "207": {
+                            "description": "Some updates applied; some rejected (multi-status)"
+                        },
+                        "400": {"description": "All provided keys invalid / rejected"},
+                    },
+                },
+            },
+        },
     }
     return jsonify(spec)
 
-@app.route('/api/schema/health')
+
+@app.route("/api/schema/health")
 def schema_health():
     return jsonify(HealthResponse.model_json_schema())
 
-@app.route('/api/schema/metrics')
+
+@app.route("/api/schema/metrics")
 def schema_metrics():
     return jsonify(MetricsResponse.model_json_schema())
 
-@app.route('/api/schema/gainers-1m')
+
+@app.route("/api/schema/gainers-1m")
 def schema_gainers_1m():
     return jsonify(Gainers1mComponent.model_json_schema())
 
+
 # -------------------------------- Codex Assistant ---------------------------------
 _ASK_SYMBOL_RE = re.compile(r"\b[A-Z]{2,10}\b")
+
 
 def _ask_num(v):
     try:
@@ -2629,6 +3636,7 @@ def _ask_num(v):
         return n if math.isfinite(n) else None
     except Exception:
         return None
+
 
 def _ask_norm_symbol(v):
     if not v:
@@ -2642,13 +3650,18 @@ def _ask_norm_symbol(v):
         s = s[:-3].strip()
     return s or None
 
+
 def _ask_extract_symbols(query: str, symbols_in):
     out = []
     seen = set()
     allowed = set()
 
     try:
-        price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else {}
+        price_map = (
+            last_current_prices.get("data")
+            if isinstance(last_current_prices, dict)
+            else {}
+        )
         if isinstance(price_map, dict):
             for key in price_map.keys():
                 sym = _ask_norm_symbol(key)
@@ -2672,7 +3685,17 @@ def _ask_extract_symbols(query: str, symbols_in):
             _push(item)
 
     for token in _ASK_SYMBOL_RE.findall(str(query or "").upper()):
-        if token in {"WHAT", "WITH", "FROM", "THIS", "THAT", "RIGHT", "NOW", "THE", "AND"}:
+        if token in {
+            "WHAT",
+            "WITH",
+            "FROM",
+            "THIS",
+            "THAT",
+            "RIGHT",
+            "NOW",
+            "THE",
+            "AND",
+        }:
             continue
         if allowed and token not in allowed:
             continue
@@ -2680,21 +3703,27 @@ def _ask_extract_symbols(query: str, symbols_in):
 
     return out[:8]
 
+
 def _ask_rows_to_compact(rows):
     out = []
-    for r in (rows or []):
+    for r in rows or []:
         if not isinstance(r, dict):
             continue
-        sym = _ask_norm_symbol(r.get("symbol") or r.get("product_id") or r.get("ticker"))
+        sym = _ask_norm_symbol(
+            r.get("symbol") or r.get("product_id") or r.get("ticker")
+        )
         if not sym:
             continue
-        out.append({
-            "symbol": sym,
-            "price_now": _ask_num(r.get("current_price") or r.get("price")),
-            "change_1m": _ask_num(r.get("change_1m") or r.get("price_change_1m")),
-            "change_3m": _ask_num(r.get("change_3m") or r.get("price_change_3m")),
-        })
+        out.append(
+            {
+                "symbol": sym,
+                "price_now": _ask_num(r.get("current_price") or r.get("price")),
+                "change_1m": _ask_num(r.get("change_1m") or r.get("price_change_1m")),
+                "change_3m": _ask_num(r.get("change_3m") or r.get("price_change_3m")),
+            }
+        )
     return out
+
 
 def _ask_merge_movers(g1_rows, g3_rows, l3_rows, symbols):
     want = set(symbols or [])
@@ -2707,7 +3736,12 @@ def _ask_merge_movers(g1_rows, g3_rows, l3_rows, symbols):
                 continue
             slot = merged.get(sym)
             if slot is None:
-                slot = {"symbol": sym, "price_now": None, "change_1m": None, "change_3m": None}
+                slot = {
+                    "symbol": sym,
+                    "price_now": None,
+                    "change_1m": None,
+                    "change_3m": None,
+                }
                 merged[sym] = slot
             if row.get("price_now") is not None:
                 slot["price_now"] = row.get("price_now")
@@ -2722,13 +3756,22 @@ def _ask_merge_movers(g1_rows, g3_rows, l3_rows, symbols):
 
     # If caller asked for specific symbols, add placeholders so UI can render deterministic rows.
     if want:
-        price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else {}
+        price_map = (
+            last_current_prices.get("data")
+            if isinstance(last_current_prices, dict)
+            else {}
+        )
         if not isinstance(price_map, dict):
             price_map = {}
         for sym in want:
             slot = merged.get(sym)
             if slot is None:
-                slot = {"symbol": sym, "price_now": None, "change_1m": None, "change_3m": None}
+                slot = {
+                    "symbol": sym,
+                    "price_now": None,
+                    "change_1m": None,
+                    "change_3m": None,
+                }
                 merged[sym] = slot
             if slot["price_now"] is None:
                 px = _ask_num(price_map.get(sym) or price_map.get(f"{sym}-USD"))
@@ -2737,10 +3780,15 @@ def _ask_merge_movers(g1_rows, g3_rows, l3_rows, symbols):
 
     movers = list(merged.values())
     movers.sort(
-        key=lambda r: abs(r.get("change_1m") if r.get("change_1m") is not None else (r.get("change_3m") or 0.0)),
+        key=lambda r: abs(
+            r.get("change_1m")
+            if r.get("change_1m") is not None
+            else (r.get("change_3m") or 0.0)
+        ),
         reverse=True,
     )
     return movers[:10]
+
 
 def _ask_build_levels(movers):
     levels = []
@@ -2763,6 +3811,7 @@ def _ask_build_levels(movers):
             levels.append(f"{sym}: reclaim ~${reclaim:.6g}, lose ~${lose:.6g}")
     return levels
 
+
 def _ask_collect_structured(symbols):
     g1, _ = _wrap_rows_and_ts(_mw_get_component_snapshot("gainers_1m"))
     g3, _ = _wrap_rows_and_ts(_mw_get_component_snapshot("gainers_3m"))
@@ -2782,15 +3831,21 @@ def _ask_collect_structured(symbols):
     sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
 
     risk_flags = []
-    if isinstance(last_current_prices, dict) and bool(last_current_prices.get("partial")):
+    if isinstance(last_current_prices, dict) and bool(
+        last_current_prices.get("partial")
+    ):
         reason = last_current_prices.get("partial_reason") or "partial_tick"
         risk_flags.append(f"Price feed partial ({reason})")
-    stale_s = sentiment_meta.get("staleSeconds") if isinstance(sentiment_meta, dict) else None
+    stale_s = (
+        sentiment_meta.get("staleSeconds") if isinstance(sentiment_meta, dict) else None
+    )
     if not bool((sentiment_meta or {}).get("ok", False)):
         risk_flags.append("Sentiment pipeline not healthy")
     elif isinstance(stale_s, (int, float)) and stale_s > 120:
         risk_flags.append(f"Sentiment stale ({int(stale_s)}s)")
-    high_alerts = [a for a in alerts if str(a.get("severity", "")).lower() in {"critical", "high"}]
+    high_alerts = [
+        a for a in alerts if str(a.get("severity", "")).lower() in {"critical", "high"}
+    ]
     if high_alerts:
         risk_flags.append(f"{len(high_alerts)} high-severity alert(s) active")
     if not movers:
@@ -2803,12 +3858,14 @@ def _ask_collect_structured(symbols):
 
     what_moved = []
     for row in movers[:6]:
-        what_moved.append({
-            "symbol": row.get("symbol"),
-            "price_now": row.get("price_now"),
-            "change_1m": row.get("change_1m"),
-            "change_3m": row.get("change_3m"),
-        })
+        what_moved.append(
+            {
+                "symbol": row.get("symbol"),
+                "price_now": row.get("price_now"),
+                "change_1m": row.get("change_1m"),
+                "change_3m": row.get("change_3m"),
+            }
+        )
 
     alert_rows = []
     for a in alerts[:8]:
@@ -2820,13 +3877,15 @@ def _ask_collect_structured(symbols):
             w = "3m"
         elif not w and "1H" in t_raw.upper():
             w = "1h"
-        alert_rows.append({
-            "symbol": _ask_norm_symbol(a.get("symbol")),
-            "type_key": a.get("type_key") or a.get("type"),
-            "severity": a.get("severity"),
-            "window": w,
-            "pct": a.get("pct"),
-        })
+        alert_rows.append(
+            {
+                "symbol": _ask_norm_symbol(a.get("symbol")),
+                "type_key": a.get("type_key") or a.get("type"),
+                "severity": a.get("severity"),
+                "window": w,
+                "pct": a.get("pct"),
+            }
+        )
 
     structured = {
         "what_moved": what_moved,
@@ -2834,13 +3893,22 @@ def _ask_collect_structured(symbols):
         "risk_flags": risk_flags,
         "levels": _ask_build_levels(movers),
         "sentiment": {
-            "overall_sentiment": sentiment_payload.get("overall_sentiment") if isinstance(sentiment_payload, dict) else None,
-            "fear_greed": sentiment_payload.get("fear_greed_index") if isinstance(sentiment_payload, dict) else None,
+            "overall_sentiment": (
+                sentiment_payload.get("overall_sentiment")
+                if isinstance(sentiment_payload, dict)
+                else None
+            ),
+            "fear_greed": (
+                sentiment_payload.get("fear_greed_index")
+                if isinstance(sentiment_payload, dict)
+                else None
+            ),
             "stale_seconds": stale_s,
             "ok": bool((sentiment_meta or {}).get("ok", False)),
         },
     }
     return structured
+
 
 def _ask_build_deterministic_answer(query: str, symbols, structured):
     moved = structured.get("what_moved") or []
@@ -2873,17 +3941,28 @@ def _ask_build_deterministic_answer(query: str, symbols, structured):
     lines = []
     symbols_txt = ", ".join(symbols) if symbols else "market"
     lines.append(f"Ask Bhabit snapshot for {symbols_txt}:")
-    lines.append(f"Moves: {', '.join(move_bits) if move_bits else 'no strong movers in cached windows.'}")
-    lines.append(f"Alerts: {', '.join(alert_bits) if alert_bits else 'no active alerts.'}")
-    lines.append(f"Risk: {'; '.join(risk_flags) if risk_flags else 'no immediate feed-quality flags.'}")
+    lines.append(
+        f"Moves: {', '.join(move_bits) if move_bits else 'no strong movers in cached windows.'}"
+    )
+    lines.append(
+        f"Alerts: {', '.join(alert_bits) if alert_bits else 'no active alerts.'}"
+    )
+    lines.append(
+        f"Risk: {'; '.join(risk_flags) if risk_flags else 'no immediate feed-quality flags.'}"
+    )
     if levels:
         lines.append(f"Levels: {'; '.join(levels[:3])}")
     lines.append(f"Question focus: {query.strip()[:220]}")
     return "\n".join(lines)
 
+
 def _ask_try_openai_narrator(query: str, deterministic_answer: str, structured: dict):
     api_key = os.environ.get("OPENAI_API_KEY")
-    if (not api_key) or os.environ.get("OPENAI_STUB") == "1" or str(api_key).lower() in {"fake", "test", "dummy"}:
+    if (
+        (not api_key)
+        or os.environ.get("OPENAI_STUB") == "1"
+        or str(api_key).lower() in {"fake", "test", "dummy"}
+    ):
         return None, "no_valid_openai_key"
 
     payload = {
@@ -2919,7 +3998,9 @@ def _ask_try_openai_narrator(query: str, deterministic_answer: str, structured: 
         return None, f"network_error:{exc}"
 
     if resp.status_code >= 400:
-        logging.warning(f"ask-codex narrator upstream {resp.status_code}: {resp.text[:200]}")
+        logging.warning(
+            f"ask-codex narrator upstream {resp.status_code}: {resp.text[:200]}"
+        )
         return None, f"upstream_error:{resp.status_code}"
 
     try:
@@ -2932,22 +4013,34 @@ def _ask_try_openai_narrator(query: str, deterministic_answer: str, structured: 
     except Exception as exc:
         return None, f"invalid_upstream_payload:{exc}"
 
-@app.route('/api/ask-codex', methods=['GET', 'POST'])
+
+@app.route("/api/ask-codex", methods=["GET", "POST"])
 def ask_codex():
     """Ask Bhabit endpoint: deterministic first, optional LLM narration."""
     try:
         if request.method == "GET":
-            return jsonify({
-                "ok": True,
-                "usage": "POST JSON {query|prompt, symbols?}",
-                "fields": ["query", "prompt", "symbols", "narrate"],
-                "mode": "deterministic-first",
-            })
+            return jsonify(
+                {
+                    "ok": True,
+                    "usage": "POST JSON {query|prompt, symbols?}",
+                    "fields": ["query", "prompt", "symbols", "narrate"],
+                    "mode": "deterministic-first",
+                }
+            )
 
         data = request.get_json(silent=True) or {}
         query = str(data.get("query") or data.get("prompt") or "").strip()
         if not query:
-            return jsonify({"ok": False, "error": "Missing query", "hint": "send JSON with query or prompt"}), 400
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "error": "Missing query",
+                        "hint": "send JSON with query or prompt",
+                    }
+                ),
+                400,
+            )
 
         symbols = _ask_extract_symbols(query, data.get("symbols"))
         structured = _ask_collect_structured(symbols)
@@ -2958,7 +4051,9 @@ def ask_codex():
         mode = "deterministic"
         narrator_error = None
         if narrate:
-            narrated, narrator_error = _ask_try_openai_narrator(query, deterministic, structured)
+            narrated, narrator_error = _ask_try_openai_narrator(
+                query, deterministic, structured
+            )
             if narrated:
                 answer = narrated
                 mode = "narrated"
@@ -2980,31 +4075,40 @@ def ask_codex():
         return jsonify(response), 200
     except Exception as e:
         logging.error(f"ask-codex error: {e}")
-        return jsonify({
-            "ok": False,
-            "mode": "error",
-            "answer": "Ask Bhabit is temporarily unavailable.",
-            "reply": "Ask Bhabit is temporarily unavailable.",
-            "error": str(e),
-        }), 500
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "mode": "error",
+                    "answer": "Ask Bhabit is temporarily unavailable.",
+                    "reply": "Ask Bhabit is temporarily unavailable.",
+                    "error": str(e),
+                }
+            ),
+            500,
+        )
+
 
 # watchlist_bp already registered above (line ~656)
 
 # ---------------- Health + Metrics -----------------
-_ERROR_STATS = { '5xx': 0 }
+_ERROR_STATS = {"5xx": 0}
+
 
 @app.before_request
 def _before_req_metrics():
     g._start_time = time.time()
 
+
 @app.after_request
 def _after_req_metrics(resp):
     try:
         if 500 <= resp.status_code < 600:
-            _ERROR_STATS['5xx'] += 1
+            _ERROR_STATS["5xx"] += 1
     except Exception:
         pass
     return resp
+
 
 # /api/health already registered above (line ~1089)
 
@@ -3012,50 +4116,95 @@ def _after_req_metrics(resp):
 
 # Dynamic Configuration with Environment Variables and Defaults
 CONFIG = {
-    'CACHE_TTL': int(os.environ.get('CACHE_TTL', 60)),  # Cache for 60 seconds
-    'INTERVAL_MINUTES': int(os.environ.get('INTERVAL_MINUTES', 3)),  # Calculate changes over 3 minutes
+    "CACHE_TTL": int(os.environ.get("CACHE_TTL", 60)),  # Cache for 60 seconds
+    "INTERVAL_MINUTES": int(
+        os.environ.get("INTERVAL_MINUTES", 3)
+    ),  # Calculate changes over 3 minutes
     # Keep enough points for 1h-style calculations. At 60s update interval,
     # 90 gives ~90 minutes of history.
-    'MAX_PRICE_HISTORY': int(os.environ.get('MAX_PRICE_HISTORY', 90)),
-    'PORT': int(os.environ.get('PORT', 5003)),  # Default port
-    'HOST': os.environ.get('HOST', '0.0.0.0'),  # Default host
-    'DEBUG': os.environ.get('DEBUG', 'False').lower() == 'true',  # Debug mode
-    'UPDATE_INTERVAL': int(os.environ.get('UPDATE_INTERVAL', 60)),  # Legacy: Background update interval in seconds (deprecated)
-    'PRICE_FETCH_INTERVAL': int(os.environ.get('PRICE_FETCH_INTERVAL', 8)),  # How often to fetch fresh prices from Coinbase (8s for live feel)
-    'SNAPSHOT_COMPUTE_INTERVAL': int(os.environ.get('SNAPSHOT_COMPUTE_INTERVAL', 8)),  # How often to recompute snapshots using cached prices (8-10s recommended)
-    'MAX_COINS_PER_CATEGORY': int(os.environ.get('MAX_COINS_PER_CATEGORY', 30)),  # Max coins to return
-    'MIN_VOLUME_THRESHOLD': int(os.environ.get('MIN_VOLUME_THRESHOLD', 0)),  # Minimum volume for banner (lowered for faster dev warmup)
-    'MIN_CHANGE_THRESHOLD': float(os.environ.get('MIN_CHANGE_THRESHOLD', 0.15)),  # Minimum % change for banner (loosened for dev)
-    'API_TIMEOUT': int(os.environ.get('API_TIMEOUT', 10)),  # API request timeout
-    'CHART_DAYS_LIMIT': int(os.environ.get('CHART_DAYS_LIMIT', 30)),  # Max days for chart data
+    "MAX_PRICE_HISTORY": int(os.environ.get("MAX_PRICE_HISTORY", 90)),
+    "PORT": int(os.environ.get("PORT", 5003)),  # Default port
+    "HOST": os.environ.get("HOST", "0.0.0.0"),  # Default host
+    "DEBUG": os.environ.get("DEBUG", "False").lower() == "true",  # Debug mode
+    "UPDATE_INTERVAL": int(
+        os.environ.get("UPDATE_INTERVAL", 60)
+    ),  # Legacy: Background update interval in seconds (deprecated)
+    "PRICE_FETCH_INTERVAL": int(
+        os.environ.get("PRICE_FETCH_INTERVAL", 8)
+    ),  # How often to fetch fresh prices from Coinbase (8s for live feel)
+    "SNAPSHOT_COMPUTE_INTERVAL": int(
+        os.environ.get("SNAPSHOT_COMPUTE_INTERVAL", 8)
+    ),  # How often to recompute snapshots using cached prices (8-10s recommended)
+    "MAX_COINS_PER_CATEGORY": int(
+        os.environ.get("MAX_COINS_PER_CATEGORY", 30)
+    ),  # Max coins to return
+    "MIN_VOLUME_THRESHOLD": int(
+        os.environ.get("MIN_VOLUME_THRESHOLD", 0)
+    ),  # Minimum volume for banner (lowered for faster dev warmup)
+    "MIN_CHANGE_THRESHOLD": float(
+        os.environ.get("MIN_CHANGE_THRESHOLD", 0.15)
+    ),  # Minimum % change for banner (loosened for dev)
+    "API_TIMEOUT": int(os.environ.get("API_TIMEOUT", 10)),  # API request timeout
+    "CHART_DAYS_LIMIT": int(
+        os.environ.get("CHART_DAYS_LIMIT", 30)
+    ),  # Max days for chart data
     # 1-minute feature load controls
-    'ENABLE_1MIN': os.environ.get('ENABLE_1MIN', 'true').lower() == 'true',  # Master switch
-    'ONE_MIN_REFRESH_SECONDS': int(os.environ.get('ONE_MIN_REFRESH_SECONDS', 25)),  # Throttle 1-min recompute (default 25s)
+    "ENABLE_1MIN": os.environ.get("ENABLE_1MIN", "true").lower()
+    == "true",  # Master switch
+    "ONE_MIN_REFRESH_SECONDS": int(
+        os.environ.get("ONE_MIN_REFRESH_SECONDS", 25)
+    ),  # Throttle 1-min recompute (default 25s)
     # 1-minute retention / hysteresis controls
-    'ONE_MIN_ENTER_PCT': float(os.environ.get('ONE_MIN_ENTER_PCT', 0.005)),   # % change to ENTER list (0.5% - much more data)
-    'ONE_MIN_STAY_PCT': float(os.environ.get('ONE_MIN_STAY_PCT', 0.0025)),    # lower % to remain after entering (0.25% - keep board full)
-    'ONE_MIN_MAX_COINS': int(os.environ.get('ONE_MIN_MAX_COINS', 35)),       # cap displayed coins
-    'ONE_MIN_DWELL_SECONDS': int(os.environ.get('ONE_MIN_DWELL_SECONDS', 90)), # minimum time to stay once entered
-    'TOP_MOVERS_SAMPLE_SIZE': int(os.environ.get('TOP_MOVERS_SAMPLE_SIZE', 120)),  # 24h movers sample size
-    'ONE_MIN_DEFAULT_SEED_COUNT': int(os.environ.get('ONE_MIN_DEFAULT_SEED_COUNT', 10)),  # seed count for 1m list
-    'PRICE_UNIVERSE_SAMPLE_SIZE': int(os.environ.get('PRICE_UNIVERSE_SAMPLE_SIZE', 120)),  # USD products sample size
-    'PRICE_UNIVERSE_MAX': int(os.environ.get('PRICE_UNIVERSE_MAX', 250)),  # Hard cap on sample size
-    'PRICE_MIN_SUCCESS_RATIO': float(os.environ.get('PRICE_MIN_SUCCESS_RATIO', 0.70)),  # coverage guard
+    "ONE_MIN_ENTER_PCT": float(
+        os.environ.get("ONE_MIN_ENTER_PCT", 0.005)
+    ),  # % change to ENTER list (0.5% - much more data)
+    "ONE_MIN_STAY_PCT": float(
+        os.environ.get("ONE_MIN_STAY_PCT", 0.0025)
+    ),  # lower % to remain after entering (0.25% - keep board full)
+    "ONE_MIN_MAX_COINS": int(
+        os.environ.get("ONE_MIN_MAX_COINS", 35)
+    ),  # cap displayed coins
+    "ONE_MIN_DWELL_SECONDS": int(
+        os.environ.get("ONE_MIN_DWELL_SECONDS", 90)
+    ),  # minimum time to stay once entered
+    "TOP_MOVERS_SAMPLE_SIZE": int(
+        os.environ.get("TOP_MOVERS_SAMPLE_SIZE", 120)
+    ),  # 24h movers sample size
+    "ONE_MIN_DEFAULT_SEED_COUNT": int(
+        os.environ.get("ONE_MIN_DEFAULT_SEED_COUNT", 10)
+    ),  # seed count for 1m list
+    "PRICE_UNIVERSE_SAMPLE_SIZE": int(
+        os.environ.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120)
+    ),  # USD products sample size
+    "PRICE_UNIVERSE_MAX": int(
+        os.environ.get("PRICE_UNIVERSE_MAX", 250)
+    ),  # Hard cap on sample size
+    "PRICE_MIN_SUCCESS_RATIO": float(
+        os.environ.get("PRICE_MIN_SUCCESS_RATIO", 0.70)
+    ),  # coverage guard
     # Alert hygiene (streak-triggered alerts with cooldown)
-    'ALERTS_COOLDOWN_SECONDS': int(os.environ.get('ALERTS_COOLDOWN_SECONDS', 300)),  # 5 minutes
+    "ALERTS_COOLDOWN_SECONDS": int(
+        os.environ.get("ALERTS_COOLDOWN_SECONDS", 300)
+    ),  # 5 minutes
     # Impulse alert thresholds (percentage points). Keep defaults conservative;
     # allow env overrides for local verification.
-    'ALERT_IMPULSE_1M_PCT': float(os.environ.get('ALERT_IMPULSE_1M_PCT', 1.25)),
-    'ALERT_IMPULSE_3M_PCT': float(os.environ.get('ALERT_IMPULSE_3M_PCT', 2.0)),
-    'ALERT_IMPULSE_COOLDOWN_SECONDS': int(os.environ.get('ALERT_IMPULSE_COOLDOWN_SECONDS', 90)),
-    'ALERT_IMPULSE_DEDUPE_DELTA': float(os.environ.get('ALERT_IMPULSE_DEDUPE_DELTA', 0.35)),
-    'ALERT_IMPULSE_TTL_MINUTES': int(os.environ.get('ALERT_IMPULSE_TTL_MINUTES', 5)),
-    'ALERTS_STICKY_SECONDS': int(os.environ.get('ALERTS_STICKY_SECONDS', 60)),
+    "ALERT_IMPULSE_1M_PCT": float(os.environ.get("ALERT_IMPULSE_1M_PCT", 1.25)),
+    "ALERT_IMPULSE_3M_PCT": float(os.environ.get("ALERT_IMPULSE_3M_PCT", 2.0)),
+    "ALERT_IMPULSE_COOLDOWN_SECONDS": int(
+        os.environ.get("ALERT_IMPULSE_COOLDOWN_SECONDS", 90)
+    ),
+    "ALERT_IMPULSE_DEDUPE_DELTA": float(
+        os.environ.get("ALERT_IMPULSE_DEDUPE_DELTA", 0.35)
+    ),
+    "ALERT_IMPULSE_TTL_MINUTES": int(os.environ.get("ALERT_IMPULSE_TTL_MINUTES", 5)),
+    "ALERTS_STICKY_SECONDS": int(os.environ.get("ALERTS_STICKY_SECONDS", 60)),
     # Comma-separated streak thresholds that should trigger alerts (e.g., "3,5")
-    'ALERTS_STREAK_THRESHOLDS': [
-        int(x) for x in os.environ.get('ALERTS_STREAK_THRESHOLDS', '3,5').split(',')
+    "ALERTS_STREAK_THRESHOLDS": [
+        int(x)
+        for x in os.environ.get("ALERTS_STREAK_THRESHOLDS", "3,5").split(",")
         if x.strip().isdigit()
-    ] or [3, 5],
+    ]
+    or [3, 5],
 }
 
 # Log configuration once CONFIG is ready
@@ -3065,17 +4214,17 @@ except Exception:
     logging.warning("Could not log configuration")
 
 # Cache and price history storage
-cache = {
-    "data": None,
-    "timestamp": 0,
-    "ttl": CONFIG['CACHE_TTL']
-}
+cache = {"data": None, "timestamp": 0, "ttl": CONFIG["CACHE_TTL"]}
 
 # Store price history for interval calculations
 # Rolling price history (3m + 1m + 1h)
-price_history = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY']))
-price_history_1min = defaultdict(lambda: deque(maxlen=CONFIG['MAX_PRICE_HISTORY'])) # For 1-minute changes
-price_history_1hour = defaultdict(lambda: deque(maxlen=80))  # 1h tracking: 80 snapshots = ~75min at 1min intervals
+price_history = defaultdict(lambda: deque(maxlen=CONFIG["MAX_PRICE_HISTORY"]))
+price_history_1min = defaultdict(
+    lambda: deque(maxlen=CONFIG["MAX_PRICE_HISTORY"])
+)  # For 1-minute changes
+price_history_1hour = defaultdict(
+    lambda: deque(maxlen=80)
+)  # 1h tracking: 80 snapshots = ~75min at 1min intervals
 
 # Track readiness of the 3m baseline (first snapshot >= interval ago)
 _BASELINE_3M_LOCK = threading.Lock()
@@ -3090,7 +4239,9 @@ _BASELINE_1H_LOCK = threading.Lock()
 _BASELINE_1H_META = {"ready": False, "baseline_ts": None, "age_seconds": None}
 
 
-def _set_baseline_meta_3m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+def _set_baseline_meta_3m(
+    *, ready: bool, baseline_ts: float | None, age_seconds: float | None
+):
     with _BASELINE_3M_LOCK:
         _BASELINE_3M_META["ready"] = bool(ready)
         _BASELINE_3M_META["baseline_ts"] = baseline_ts
@@ -3107,7 +4258,9 @@ def _get_baseline_meta_3m():
         return dict(_BASELINE_3M_META)
 
 
-def _set_baseline_meta_1m(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+def _set_baseline_meta_1m(
+    *, ready: bool, baseline_ts: float | None, age_seconds: float | None
+):
     with _BASELINE_1M_LOCK:
         _BASELINE_1M_META["ready"] = bool(ready)
         _BASELINE_1M_META["baseline_ts"] = baseline_ts
@@ -3118,16 +4271,21 @@ def _get_baseline_meta_1m():
     with _BASELINE_1M_LOCK:
         return dict(_BASELINE_1M_META)
 
-def _set_baseline_meta_1h(*, ready: bool, baseline_ts: float | None, age_seconds: float | None):
+
+def _set_baseline_meta_1h(
+    *, ready: bool, baseline_ts: float | None, age_seconds: float | None
+):
     with _BASELINE_1H_LOCK:
         _BASELINE_1H_META["ready"] = bool(ready)
         _BASELINE_1H_META["baseline_ts"] = baseline_ts
         _BASELINE_1H_META["age_seconds"] = age_seconds
 
+
 def _get_baseline_meta_1h():
     """Get 1h baseline meta using direct price_history_1hour check."""
     with _BASELINE_1H_LOCK:
         return dict(_BASELINE_1H_META)
+
 
 # Cache / state for 1-min data to prevent hammering APIs
 one_minute_cache = {"data": None, "timestamp": 0}
@@ -3150,8 +4308,8 @@ last_current_prices = {
 _PRICE_LAST_SEEN_TS = {}
 # Persistence state for 1-min display logic
 one_minute_persistence = {
-    'entries': {},  # symbol -> {'entered_at': ts, 'enter_gain': pct}
-    'last_snapshot_symbols': set()
+    "entries": {},  # symbol -> {'entered_at': ts, 'enter_gain': pct}
+    "last_snapshot_symbols": set(),
 }
 
 # Track rolling 60s peak percentage changes for 1-min logic to avoid rapid top churn
@@ -3176,12 +4334,15 @@ volume_history_24h = defaultdict(lambda: deque(maxlen=180))
 # ----------------------------------------------------------------------------
 # Candle-based 1h volume cache (display-set symbols only)
 # ----------------------------------------------------------------------------
-_CANDLE_VOLUME_CACHE = {}  # product_id -> {vol1h, vol1h_pct_change, ts_computed, last_error}
+_CANDLE_VOLUME_CACHE = (
+    {}
+)  # product_id -> {vol1h, vol1h_pct_change, ts_computed, last_error}
 _CANDLE_VOLUME_CACHE_LOCK = threading.Lock()
 # Per-minute volume series for z-score whale detection
 # product_id -> list of (timestamp, volume) tuples, most-recent first, max ~70 entries
 _CANDLE_MINUTE_VOLUMES = {}  # populated alongside _CANDLE_VOLUME_CACHE
 MAX_CANDLE_SYMBOLS = 60  # Cap to avoid rate limits
+
 
 def _fetch_coinbase_candles(product_id, granularity=60, count=70):
     """Fetch candles from Coinbase API.
@@ -3219,6 +4380,7 @@ def _fetch_coinbase_candles(product_id, granularity=60, count=70):
         logging.debug(f"[Candles] Fetch error for {product_id}: {e}")
         return None
 
+
 def _compute_1h_volume_from_candles(product_id):
     """Compute 1h volume by summing recent 1-minute candles.
 
@@ -3226,13 +4388,14 @@ def _compute_1h_volume_from_candles(product_id):
     for z-score whale detection.
 
     Returns:
-        (vol1h, vol1h_prev, vol1h_pct_change) or (None, None, None) on error
+        (vol1h, vol1h_prev, vol1h_pct_change, baseline_mode, baseline_minutes)
+        or (None, None, None, None, 0) on error
     """
     # Need 120+ candles: 60 for current hour, 60 for previous hour (pct change)
     candles = _fetch_coinbase_candles(product_id, granularity=60, count=130)
 
     if not candles or len(candles) < 60:
-        return None, None, None
+        return None, None, None, None, 0
 
     try:
         # Candles are [[timestamp, low, high, open, close, volume], ...]
@@ -3253,31 +4416,54 @@ def _compute_1h_volume_from_candles(product_id):
         minute_series = []
         for c in complete_candles[:70]:  # Keep last ~70 minutes
             if len(c) > 5:
-                minute_series.append({
-                    'ts': int(c[0]),
-                    'vol': float(c[5]),
-                    'open': float(c[3]),
-                    'close': float(c[4]),
-                    'high': float(c[2]),
-                    'low': float(c[1]),
-                })
+                minute_series.append(
+                    {
+                        "ts": int(c[0]),
+                        "vol": float(c[5]),
+                        "open": float(c[3]),
+                        "close": float(c[4]),
+                        "high": float(c[2]),
+                        "low": float(c[1]),
+                    }
+                )
         _CANDLE_MINUTE_VOLUMES[product_id] = minute_series
 
         # Sum last 60 candles for 1h volume
         vol1h = sum(float(c[5]) for c in complete_candles[:60] if len(c) > 5)
         vol1h_prev = None
         vol1h_pct = None
+        baseline_mode = None
+        baseline_minutes = 0
 
         # Compute 1h volume change % (compare to previous hour)
         if len(complete_candles) >= 120:
-            vol1h_prev = sum(float(c[5]) for c in complete_candles[60:120] if len(c) > 5)
+            vol1h_prev = sum(
+                float(c[5]) for c in complete_candles[60:120] if len(c) > 5
+            )
             if vol1h_prev > 0:
                 vol1h_pct = ((vol1h - vol1h_prev) / vol1h_prev) * 100.0
+                baseline_mode = "full"
+                baseline_minutes = 60
+        else:
+            # Bootstrap baseline during warmup using available older minutes.
+            older = [
+                float(c[5])
+                for c in complete_candles[60:]
+                if len(c) > 5 and float(c[5]) >= 0
+            ]
+            if len(older) >= 10:
+                baseline_per_min = float(median(older))
+                vol1h_prev = baseline_per_min * 60.0
+                if vol1h_prev > 0:
+                    vol1h_pct = ((vol1h - vol1h_prev) / vol1h_prev) * 100.0
+                    baseline_mode = "bootstrap"
+                    baseline_minutes = len(older)
 
-        return vol1h, vol1h_prev, vol1h_pct
+        return vol1h, vol1h_prev, vol1h_pct, baseline_mode, baseline_minutes
     except Exception as e:
         logging.debug(f"[Candles] Volume compute error for {product_id}: {e}")
-        return None, None, None
+        return None, None, None, None, 0
+
 
 def _update_candle_volume_cache(product_ids):
     """Background worker: update candle volume cache for display-set symbols.
@@ -3296,34 +4482,41 @@ def _update_candle_volume_cache(product_ids):
         for product_id in products:
             # Check if recently updated (within 30s)
             cached = _CANDLE_VOLUME_CACHE.get(product_id, {})
-            ts_computed = cached.get('ts_computed', 0)
+            ts_computed = cached.get("ts_computed", 0)
             if now - ts_computed < 30:
                 continue  # Skip, too recent
 
-            vol1h, vol1h_prev, vol1h_pct = _compute_1h_volume_from_candles(product_id)
+            vol1h, vol1h_prev, vol1h_pct, baseline_mode, baseline_minutes = (
+                _compute_1h_volume_from_candles(product_id)
+            )
 
             if vol1h is not None:
                 _CANDLE_VOLUME_CACHE[product_id] = {
-                    'vol1h': vol1h,
-                    'vol1h_prev': vol1h_prev,
-                    'vol1h_pct_change': vol1h_pct,
-                    'ts_computed': now,
-                    'last_error': None,
+                    "vol1h": vol1h,
+                    "vol1h_prev": vol1h_prev,
+                    "vol1h_pct_change": vol1h_pct,
+                    "baseline_mode": baseline_mode,
+                    "baseline_minutes": baseline_minutes,
+                    "ts_computed": now,
+                    "last_error": None,
                 }
             else:
                 # Keep last good value but mark stale
                 if product_id not in _CANDLE_VOLUME_CACHE:
                     _CANDLE_VOLUME_CACHE[product_id] = {
-                        'vol1h': None,
-                        'vol1h_prev': None,
-                        'vol1h_pct_change': None,
-                        'ts_computed': now,
-                        'last_error': 'fetch_failed',
+                        "vol1h": None,
+                        "vol1h_prev": None,
+                        "vol1h_pct_change": None,
+                        "baseline_mode": None,
+                        "baseline_minutes": 0,
+                        "ts_computed": now,
+                        "last_error": "fetch_failed",
                     }
                 else:
                     # Update only error + timestamp, keep old volume
-                    _CANDLE_VOLUME_CACHE[product_id]['last_error'] = 'fetch_failed'
-                    _CANDLE_VOLUME_CACHE[product_id]['ts_computed'] = now
+                    _CANDLE_VOLUME_CACHE[product_id]["last_error"] = "fetch_failed"
+                    _CANDLE_VOLUME_CACHE[product_id]["ts_computed"] = now
+
 
 def _get_candle_volume_for_symbols(symbols):
     """Get cached candle volumes for given symbols.
@@ -3342,37 +4535,44 @@ def _get_candle_volume_for_symbols(symbols):
             if not cached:
                 continue
 
-            vol1h = cached.get('vol1h')
+            vol1h = cached.get("vol1h")
             if vol1h is None:
                 continue
 
-            vol1h_prev = cached.get('vol1h_prev')
-            vol1h_pct = cached.get('vol1h_pct_change')
+            vol1h_prev = cached.get("vol1h_prev")
+            vol1h_pct = cached.get("vol1h_pct_change")
+            baseline_mode = cached.get("baseline_mode")
+            baseline_minutes = cached.get("baseline_minutes")
 
             # Suppress pct if prev is too small (unreliable denominator)
             baseline_missing_reason = None
             if vol1h_prev is None:
-                baseline_missing_reason = 'prev_window_missing'
+                baseline_missing_reason = "prev_window_missing"
                 vol1h_pct = None
             elif vol1h_prev < MIN_PREV_VOLUME:
-                baseline_missing_reason = 'prev_too_small'
+                baseline_missing_reason = "prev_too_small"
                 vol1h_pct = None
 
             now = time.time()
-            ts_computed = cached.get('ts_computed', 0)
+            ts_computed = cached.get("ts_computed", 0)
             stale = (now - ts_computed) > 60  # Stale if > 1 min old
 
-            results.append({
-                'symbol': sym,
-                'product_id': product_id,
-                'vol1h': vol1h,
-                'vol1h_prev': vol1h_prev,
-                'vol1h_pct_change': vol1h_pct,
-                'baseline_missing_reason': baseline_missing_reason,
-                'stale': stale,
-            })
+            results.append(
+                {
+                    "symbol": sym,
+                    "product_id": product_id,
+                    "vol1h": vol1h,
+                    "vol1h_prev": vol1h_prev,
+                    "vol1h_pct_change": vol1h_pct,
+                    "baseline_mode": baseline_mode,
+                    "baseline_minutes": baseline_minutes,
+                    "baseline_missing_reason": baseline_missing_reason,
+                    "stale": stale,
+                }
+            )
 
     return results
+
 
 def calculate_1hour_volume_changes(current_prices):
     """Calculate real-time 1h volume changes using candle data.
@@ -3394,34 +4594,38 @@ def calculate_1hour_volume_changes(current_prices):
     # Combine with current prices
     results = []
     for vol_entry in volume_data:
-        symbol = vol_entry['symbol']
+        symbol = vol_entry["symbol"]
         current_price = current_prices.get(symbol, 0)
 
         if current_price <= 0:
             continue
 
-        results.append({
-            "symbol": symbol,
-            "current_price": current_price,
-            "vol1h": vol_entry['vol1h'],
-            "vol1h_pct_change": vol_entry.get('vol1h_pct_change'),
-            "stale": vol_entry.get('stale', False),
-        })
+        results.append(
+            {
+                "symbol": symbol,
+                "current_price": current_price,
+                "vol1h": vol_entry["vol1h"],
+                "vol1h_pct_change": vol_entry.get("vol1h_pct_change"),
+                "stale": vol_entry.get("stale", False),
+            }
+        )
 
     return results
+
 
 # ----------------------------------------------------------------------------
 # Background-computed component snapshots (cache-only /data)
 # ----------------------------------------------------------------------------
 _MW_COMPONENT_SNAPSHOTS = {
-    'gainers_1m': None,
-    'gainers_3m': None,
-    'losers_3m': None,
-    'banner_1h_price': None,
-    'banner_1h_volume': None,
-    'volume_1h_candles': None,
-    'alerts': None,
-    'updated_at': None,
+    "gainers_1m": None,
+    "gainers_3m": None,
+    "losers_3m": None,
+    "banner_1h_price": None,
+    "banner_1h_volume": None,
+    "volume_1h_candles": None,
+    "market_pressure": None,
+    "alerts": None,
+    "updated_at": None,
 }
 _MW_COMPONENT_SNAPSHOTS_LOCK = threading.Lock()
 
@@ -3440,25 +4644,26 @@ def _mw_set_component_snapshots(**updates):
             _MW_COMPONENT_SNAPSHOTS[k] = v
 
         # Update last-good timestamp if we have meaningful data
-        g1 = _MW_COMPONENT_SNAPSHOTS.get('gainers_1m') or {}
-        g3 = _MW_COMPONENT_SNAPSHOTS.get('gainers_3m') or {}
-        l3 = _MW_COMPONENT_SNAPSHOTS.get('losers_3m') or {}
-        bp = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_price') or {}
-        bv = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_volume') or {}
-        v1h = _MW_COMPONENT_SNAPSHOTS.get('volume_1h_candles') or {}
+        g1 = _MW_COMPONENT_SNAPSHOTS.get("gainers_1m") or {}
+        g3 = _MW_COMPONENT_SNAPSHOTS.get("gainers_3m") or {}
+        l3 = _MW_COMPONENT_SNAPSHOTS.get("losers_3m") or {}
+        bp = _MW_COMPONENT_SNAPSHOTS.get("banner_1h_price") or {}
+        bv = _MW_COMPONENT_SNAPSHOTS.get("banner_1h_volume") or {}
+        v1h = _MW_COMPONENT_SNAPSHOTS.get("volume_1h_candles") or {}
 
         # Check if any component has data (not empty)
         has_data = (
-            (isinstance(g1, dict) and len(g1.get('data', [])) > 0) or
-            (isinstance(g3, dict) and len(g3.get('data', [])) > 0) or
-            (isinstance(l3, dict) and len(l3.get('data', [])) > 0) or
-            (isinstance(bp, dict) and len(bp.get('data', [])) > 0) or
-            (isinstance(bv, dict) and len(bv.get('data', [])) > 0) or
-            (isinstance(v1h, dict) and len(v1h.get('data', [])) > 0)
+            (isinstance(g1, dict) and len(g1.get("data", [])) > 0)
+            or (isinstance(g3, dict) and len(g3.get("data", [])) > 0)
+            or (isinstance(l3, dict) and len(l3.get("data", [])) > 0)
+            or (isinstance(bp, dict) and len(bp.get("data", [])) > 0)
+            or (isinstance(bv, dict) and len(bv.get("data", [])) > 0)
+            or (isinstance(v1h, dict) and len(v1h.get("data", [])) > 0)
         )
 
         if has_data:
             import time
+
             _MW_LAST_GOOD_TS = time.time()
             _MW_LAST_GOOD_DATA = dict(_MW_COMPONENT_SNAPSHOTS)
 
@@ -3500,7 +4705,7 @@ def _volume1h_compute_ranked(payload: dict):
 
     # Sort: abs pct desc (None last via -1 trick), then volume desc
     items.sort(key=sort_key)
-    items = items[: VOLUME_1H_BANNER_SIZE]
+    items = items[:VOLUME_1H_BANNER_SIZE]
     for idx, row in enumerate(items, start=1):
         row["rank"] = idx
     return items
@@ -3543,7 +4748,7 @@ def get_volume_tracked_product_ids(payload: dict) -> list[str]:
             if pid:
                 add(pid)
 
-    return out[: VOLUME_1H_MAX_TRACKED]
+    return out[:VOLUME_1H_MAX_TRACKED]
 
 
 def _volume1h_build_payload_snapshot():
@@ -3580,6 +4785,7 @@ def _mw_check_3m_baseline_ready():
         (warming_3m, baseline_ts_3m, baseline_age_seconds_3m)
     """
     import time
+
     now = time.time()
     oldest_ts = None
 
@@ -3618,9 +4824,18 @@ def _mw_get_last_good_metadata():
         if _MW_LAST_GOOD_TS is None:
             return None, None, True, warming_3m, baseline_ts_3m, baseline_age_3m
         import time
+
         now = time.time()
         stale_seconds = int(now - _MW_LAST_GOOD_TS)
-        return _MW_LAST_GOOD_TS, stale_seconds, False, warming_3m, baseline_ts_3m, baseline_age_3m
+        return (
+            _MW_LAST_GOOD_TS,
+            stale_seconds,
+            False,
+            warming_3m,
+            baseline_ts_3m,
+            baseline_age_3m,
+        )
+
 
 # DEV seed for 1h volume history so banners have data immediately.
 def seed_volume_history_if_dev():
@@ -3634,7 +4849,7 @@ def seed_volume_history_if_dev():
         return
 
     # Do not run in production by mistake
-    if os.environ.get('FLASK_ENV', '').lower() == 'production':
+    if os.environ.get("FLASK_ENV", "").lower() == "production":
         logging.warning("DEV_SEED_VOLUME_HISTORY=1 ignored in production environment")
         return
 
@@ -3649,19 +4864,22 @@ def seed_volume_history_if_dev():
             return
 
     try:
-        result = load_dev_volume_fixture(volume_history_24h, symbols=None, minutes=60, logger=logging)
+        result = load_dev_volume_fixture(
+            volume_history_24h, symbols=None, minutes=60, logger=logging
+        )
         logging.info(f"Seeded dev volume history: {result}")
     except Exception as e:
         logging.debug(f"Dev seeder failed: {e}")
+
 
 # -----------------------------------------------------------------------------
 # Trend Alert Hygiene: fire on streak thresholds with cooldown per scope/symbol
 # -----------------------------------------------------------------------------
 alerts_state = {
-    '1m': {},
-    '3m': {},
-    '1h_price': {},
-    '1h_volume': {},
+    "1m": {},
+    "3m": {},
+    "1h_price": {},
+    "1h_volume": {},
 }
 alerts_log_main = deque(maxlen=2000)
 alerts_log_trend = deque(maxlen=2000)
@@ -3691,6 +4909,46 @@ _ALERT_STREAM_LAST_SEEN: dict[str, tuple[float, float | None]] = {}
 _ALERT_STREAM_LAST_PRUNE_S = 0.0
 
 
+def _canonicalize_market_mood_alert(alert_like: dict) -> None:
+    """Unify fear/fomo variants under type_key=fomo_alert with evidence.mood."""
+    if not isinstance(alert_like, dict):
+        return
+
+    raw_type = str(alert_like.get("type") or "").lower().strip()
+    raw_key = str(alert_like.get("type_key") or "").lower().strip()
+    direction = str(alert_like.get("direction") or "").lower().strip()
+
+    mood = None
+    if (
+        raw_type in {"fear", "fear_alert"}
+        or raw_key in {"fear", "fear_alert"}
+        or direction == "fear"
+    ):
+        mood = "fear"
+    elif (
+        raw_type in {"fomo", "fomo_alert"}
+        or raw_key in {"fomo", "fomo_alert"}
+        or direction in {"fomo", "euphoria"}
+    ):
+        mood = "euphoria"
+
+    if not mood:
+        return
+
+    ev = alert_like.get("evidence")
+    if not isinstance(ev, dict):
+        ev = {}
+    if "mood" not in ev:
+        ev["mood"] = mood
+    if "legacy_type" not in ev:
+        ev["legacy_type"] = (
+            raw_key or raw_type or ("fear_alert" if mood == "fear" else "fomo_alert")
+        )
+    alert_like["evidence"] = ev
+    alert_like["type"] = "fomo_alert"
+    alert_like["type_key"] = "fomo_alert"
+
+
 def _ensure_alert_contract(a: dict) -> dict:
     """Canonicalize alert dict at the stream boundary.
 
@@ -3713,6 +4971,9 @@ def _ensure_alert_contract(a: dict) -> dict:
         out["type_key"] = str(t).lower() if t else "unknown"
     else:
         out["type_key"] = str(tkey).lower()
+
+    # Normalize market mood aliases (fear/fomo) into one canonical key.
+    _canonicalize_market_mood_alert(out)
 
     # severity — always lowercase string
     sev = out.get("severity")
@@ -3772,10 +5033,21 @@ def _is_number(v) -> bool:
 
 def _is_engine_family_type(t: str) -> bool:
     s = str(t or "").lower()
-    return any(k in s for k in (
-        "whale", "stealth", "diverg", "fomo", "fear",
-        "moonshot", "crater", "breakout", "dump", "impulse",
-    ))
+    return any(
+        k in s
+        for k in (
+            "whale",
+            "stealth",
+            "diverg",
+            "fomo",
+            "fear",
+            "moonshot",
+            "crater",
+            "breakout",
+            "dump",
+            "impulse",
+        )
+    )
 
 
 def _has_numeric_evidence(a: dict) -> bool:
@@ -3797,7 +5069,11 @@ def _utc_now_ts_ms() -> int:
 
 
 def _iso_utc_from_ms(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def _stale_seconds(now_ms: int, asof_ms: int | None) -> float | None:
@@ -3810,6 +5086,7 @@ def _stale_seconds(now_ms: int, asof_ms: int | None) -> float | None:
 
 
 _SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
 
 def _sev_rank(v) -> int:
     s = str(v or "").lower().strip()
@@ -3876,7 +5153,9 @@ def _prune_alert_stream_dedupe(now_s: float) -> None:
 
     # Hard cap: if still too large, drop oldest keys.
     if len(_ALERT_STREAM_LAST_SEEN) > _ALERT_STREAM_DEDUPE_MAX_KEYS:
-        items = sorted(_ALERT_STREAM_LAST_SEEN.items(), key=lambda kv: kv[1][0])  # ts asc
+        items = sorted(
+            _ALERT_STREAM_LAST_SEEN.items(), key=lambda kv: kv[1][0]
+        )  # ts asc
         overflow = len(items) - _ALERT_STREAM_DEDUPE_MAX_KEYS
         for i in range(max(0, overflow)):
             _ALERT_STREAM_LAST_SEEN.pop(items[i][0], None)
@@ -3886,10 +5165,13 @@ def _append_alerts_deduped(stream: deque, new_alerts: list[dict]) -> int:
     now_s = time.time()
     _prune_alert_stream_dedupe(now_s)
     accepted = 0
-    for a in (new_alerts or []):
+    for a in new_alerts or []:
         if not isinstance(a, dict):
             continue
         a = _ensure_alert_contract(a)
+        sym = str(a.get("symbol") or "").upper()
+        if sym in {"MARKET", "MARKET-USD"}:
+            continue
         if _should_accept_stream_alert(a, now_s):
             stream.append(a)
             accepted += 1
@@ -3926,11 +5208,18 @@ def _mw_get_alerts_normalized_with_sticky():
     meta = {
         "sticky": sticky,
         "sticky_window_s": sticky_window_s,
-        "last_good_age_s": int(last_good_age_s) if last_good_age_s is not None else None,
+        "last_good_age_s": (
+            int(last_good_age_s) if last_good_age_s is not None else None
+        ),
     }
     return alerts, meta
 
-def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA) -> bool:
+
+def _emit_alert(
+    alert: dict,
+    cooldown_s: int = ALERT_IMPULSE_COOLDOWN,
+    dedupe_delta: float = ALERT_IMPULSE_DEDUPE_DELTA,
+) -> bool:
     """Emit an alert with per-key cooldown and magnitude/direction dedupe."""
     if not alert or not isinstance(alert, dict):
         return False
@@ -3942,7 +5231,9 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
 
     magnitude = float(alert.get("meta", {}).get("magnitude", 0) or 0)
     prev = float(_ALERT_EMIT_VAL.get(key, 0) or 0)
-    direction = (alert.get("meta", {}).get("direction") or alert.get("direction") or "").lower() or None
+    direction = (
+        alert.get("meta", {}).get("direction") or alert.get("direction") or ""
+    ).lower() or None
     prev_dir = _ALERT_EMIT_DIR.get(key)
 
     allow = False
@@ -3967,7 +5258,9 @@ def _emit_alert(alert: dict, cooldown_s: int = ALERT_IMPULSE_COOLDOWN, dedupe_de
     return True
 
 
-def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: str = "1m") -> None:
+def _emit_impulse_alert(
+    symbol: str, change_pct: float, price: float, window: str = "1m"
+) -> None:
     """Emit a typed impulse alert for short-window moves (1m/3m).
 
     Enhanced type classification:
@@ -3980,11 +5273,17 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
             return
         mag = abs(float(change_pct))
         sym_clean = str(symbol).upper()
-        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        product_id = resolve_product_id_from_row(sym_clean) or (
+            f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean
+        )
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
         direction = "up" if change_pct >= 0 else "down"
-        window_s = 60 if str(window).lower().startswith("1") else 180 if str(window).lower().startswith("3") else None
+        window_s = (
+            60
+            if str(window).lower().startswith("1")
+            else 180 if str(window).lower().startswith("3") else None
+        )
         price_now = float(price) if price is not None else None
         price_then = None
         try:
@@ -3998,7 +5297,9 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         if mag >= 6.0:
             alert_type = "moonshot" if direction == "up" else "crater"
             severity = "critical"
-            title = f"{'🚀 Moonshot' if direction == 'up' else '💥 Crater'}: {product_id}"
+            title = (
+                f"{'🚀 Moonshot' if direction == 'up' else '💥 Crater'}: {product_id}"
+            )
         elif mag >= 2.5:
             alert_type = "breakout" if direction == "up" else "dump"
             severity = "high"
@@ -4009,26 +5310,33 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
             title = f"{window} impulse {direction}"
 
         alert = {
-          "id": f"{alert_type}_{product_id}_{int(time.time())}",
-          "ts": now.isoformat(),
-          "ts_ms": emitted_ms,
-          "event_ts": now.isoformat(),
-          "event_ts_ms": emitted_ms,
-          "symbol": product_id,
-          "type": alert_type,
-          "window": str(window).lower(),
-          "severity": severity,
-          "title": title,
-          "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
-          "window_s": window_s,
-          "pct": float(change_pct),
-          "direction": direction,
-          "price_now": price_now,
-          "price_then": price_then,
-          "price": float(price_now or 0),
-          "expires_at": (now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)).isoformat(),
-          "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
-          "meta": {"magnitude": mag, "direction": direction, "window": window, "alert_type": alert_type},
+            "id": f"{alert_type}_{product_id}_{int(time.time())}",
+            "ts": now.isoformat(),
+            "ts_ms": emitted_ms,
+            "event_ts": now.isoformat(),
+            "event_ts_ms": emitted_ms,
+            "symbol": product_id,
+            "type": alert_type,
+            "window": str(window).lower(),
+            "severity": severity,
+            "title": title,
+            "message": f"{product_id} moved {float(change_pct):+.2f}% in {window}",
+            "window_s": window_s,
+            "pct": float(change_pct),
+            "direction": direction,
+            "price_now": price_now,
+            "price_then": price_then,
+            "price": float(price_now or 0),
+            "expires_at": (
+                now + timedelta(minutes=ALERT_IMPULSE_TTL_MINUTES)
+            ).isoformat(),
+            "trade_url": f"https://www.coinbase.com/advanced-trade/spot/{product_id}",
+            "meta": {
+                "magnitude": mag,
+                "direction": direction,
+                "window": window,
+                "alert_type": alert_type,
+            },
         }
         _emit_alert(alert)
     except Exception:
@@ -4036,7 +5344,9 @@ def _emit_impulse_alert(symbol: str, change_pct: float, price: float, window: st
         pass
 
 
-def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: float) -> None:
+def _emit_divergence_alert(
+    symbol: str, ret_1m: float, ret_3m: float, price: float
+) -> None:
     """Emit an alert when 1m and 3m disagree significantly.
 
     Fires when 1m > 0.5% and 3m < -0.5% (or vice versa).
@@ -4050,7 +5360,9 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
             return
 
         sym_clean = str(symbol).upper()
-        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        product_id = resolve_product_id_from_row(sym_clean) or (
+            f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean
+        )
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
 
@@ -4094,7 +5406,9 @@ def _emit_divergence_alert(symbol: str, ret_1m: float, ret_3m: float, price: flo
         pass
 
 
-def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float) -> None:
+def _emit_whale_alert(
+    symbol: str, vol1h: float, vol1h_pct: float, price: float
+) -> None:
     """Emit whale alerts using z-score per-minute volume analysis + price impact.
 
     Three detection modes:
@@ -4110,7 +5424,9 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
     """
     try:
         sym_clean = str(symbol).upper()
-        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        product_id = resolve_product_id_from_row(sym_clean) or (
+            f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean
+        )
 
         # --- Per-minute z-score whale detection ---
         minute_data = _CANDLE_MINUTE_VOLUMES.get(product_id, [])
@@ -4118,16 +5434,16 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
         if len(minute_data) >= 15:
             # minute_data is most-recent first
             # Extract volumes for last 60 minutes (or however many we have)
-            vols = [m['vol'] for m in minute_data if m.get('vol', 0) > 0]
+            vols = [m["vol"] for m in minute_data if m.get("vol", 0) > 0]
 
             if len(vols) >= 15:
                 # Latest completed candle
                 latest = minute_data[0]
-                latest_vol = latest['vol']
-                latest_close = latest.get('close', 0)
-                latest_open = latest.get('open', 0)
-                latest_high = latest.get('high', 0)
-                latest_low = latest.get('low', 0)
+                latest_vol = latest["vol"]
+                latest_close = latest.get("close", 0)
+                latest_open = latest.get("open", 0)
+                latest_high = latest.get("high", 0)
+                latest_low = latest.get("low", 0)
 
                 # Rolling stats from candles [1:] (exclude latest for unbiased baseline)
                 baseline_vols = vols[1:61]  # Up to 60 prior candles
@@ -4138,21 +5454,35 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                     median_vol = sorted_vols[n // 2]
                     mean_vol = sum(baseline_vols) / n
                     variance = sum((v - mean_vol) ** 2 for v in baseline_vols) / n
-                    std_vol = variance ** 0.5 if variance > 0 else 0
+                    std_vol = variance**0.5 if variance > 0 else 0
 
                     # Z-score of latest candle vs baseline
                     z_vol = (latest_vol - mean_vol) / std_vol if std_vol > 0 else 0
 
                     # Per-candle price change %
-                    candle_pct = ((latest_close - latest_open) / latest_open * 100) if latest_open > 0 else 0
-                    candle_range_pct = ((latest_high - latest_low) / latest_low * 100) if latest_low > 0 else 0
+                    candle_pct = (
+                        ((latest_close - latest_open) / latest_open * 100)
+                        if latest_open > 0
+                        else 0
+                    )
+                    candle_range_pct = (
+                        ((latest_high - latest_low) / latest_low * 100)
+                        if latest_low > 0
+                        else 0
+                    )
 
                     # Volume ratio vs median
                     vol_ratio = (latest_vol / median_vol) if median_vol > 0 else 0
 
                     # Also check 3-candle cluster (last 3 minutes combined)
-                    cluster_vol = sum(m['vol'] for m in minute_data[:3]) if len(minute_data) >= 3 else latest_vol
-                    cluster_z = (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
+                    cluster_vol = (
+                        sum(m["vol"] for m in minute_data[:3])
+                        if len(minute_data) >= 3
+                        else latest_vol
+                    )
+                    cluster_z = (
+                        (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
+                    )
 
                     now = datetime.now(timezone.utc)
                     emitted_ms = int(now.timestamp() * 1000)
@@ -4161,11 +5491,18 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                     # --- Mode 1: WHALE MOVE (z-score spike + price impact) ---
                     # Single candle: z >= 3.0 AND price moved >= 0.3%
                     # OR 3-candle cluster: avg z >= 2.5 AND price moved >= 0.4%
-                    if (z_vol >= 3.0 and abs(candle_pct) >= 0.3 and latest_vol > 100) or \
-                       (cluster_z >= 2.5 and abs(candle_pct) >= 0.4 and cluster_vol > 300):
+                    if (
+                        z_vol >= 3.0 and abs(candle_pct) >= 0.3 and latest_vol > 100
+                    ) or (
+                        cluster_z >= 2.5
+                        and abs(candle_pct) >= 0.4
+                        and cluster_vol > 300
+                    ):
                         direction = "up" if candle_pct > 0 else "down"
                         whale_score = z_vol * abs(candle_pct)  # composite magnitude
-                        severity = "critical" if z_vol >= 5.0 or whale_score >= 8 else "high"
+                        severity = (
+                            "critical" if z_vol >= 5.0 or whale_score >= 8 else "high"
+                        )
 
                         # Derive price_then from candle open
                         whale_price_now = base_price
@@ -4214,16 +5551,31 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                     # --- Mode 3: ABSORPTION (high vol, flat price) ---
                     # z >= 2.5 AND price move < 0.15% AND range < 0.3%
                     # Someone is soaking liquidity without moving price
-                    if z_vol >= 2.5 and abs(candle_pct) < 0.15 and candle_range_pct < 0.3 and latest_vol > 100:
+                    if (
+                        z_vol >= 2.5
+                        and abs(candle_pct) < 0.15
+                        and candle_range_pct < 0.3
+                        and latest_vol > 100
+                    ):
                         # Check if this pattern repeats (2+ of last 5 candles also high-vol + flat)
                         absorption_count = 0
                         for m in minute_data[1:6]:
-                            m_vol = m.get('vol', 0)
+                            m_vol = m.get("vol", 0)
                             m_z = (m_vol - mean_vol) / std_vol if std_vol > 0 else 0
-                            m_pct = ((m.get('close', 0) - m.get('open', 1)) / m.get('open', 1) * 100) if m.get('open', 0) > 0 else 0
+                            m_pct = (
+                                (
+                                    (m.get("close", 0) - m.get("open", 1))
+                                    / m.get("open", 1)
+                                    * 100
+                                )
+                                if m.get("open", 0) > 0
+                                else 0
+                            )
                             if m_z >= 2.0 and abs(m_pct) < 0.2:
                                 absorption_count += 1
-                        if absorption_count >= 1:  # At least 2 total high-vol flat candles
+                        if (
+                            absorption_count >= 1
+                        ):  # At least 2 total high-vol flat candles
                             alert = {
                                 "id": f"absorption_{product_id}_{int(time.time())}",
                                 "ts": now.isoformat(),
@@ -4242,7 +5594,9 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
                                 "direction": "absorption",
                                 "price": base_price,
                                 "price_now": base_price,
-                                "price_then": float(latest_open) if latest_open else None,
+                                "price_then": (
+                                    float(latest_open) if latest_open else None
+                                ),
                                 "window_s": 60,
                                 "vol_change_pct": round(vol_ratio * 100 - 100, 1),
                                 "expires_at": (now + timedelta(minutes=5)).isoformat(),
@@ -4264,10 +5618,19 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
 
         # --- Mode 2: WHALE SURGE fallback (hourly comparison) ---
         # Lower threshold than before: 150% (was 200%)
-        if vol1h_pct is not None and vol1h_pct >= 150 and vol1h is not None and vol1h >= 500:
+        if (
+            vol1h_pct is not None
+            and vol1h_pct >= 150
+            and vol1h is not None
+            and vol1h >= 500
+        ):
             now = datetime.now(timezone.utc)
             emitted_ms = int(now.timestamp() * 1000)
-            severity = "critical" if vol1h_pct >= 400 else "high" if vol1h_pct >= 250 else "medium"
+            severity = (
+                "critical"
+                if vol1h_pct >= 400
+                else "high" if vol1h_pct >= 250 else "medium"
+            )
             surge_price = float(price) if price else 0
             alert = {
                 "id": f"whale_surge_{product_id}_{int(time.time())}",
@@ -4301,7 +5664,9 @@ def _emit_whale_alert(symbol: str, vol1h: float, vol1h_pct: float, price: float)
         pass
 
 
-def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, price: float) -> None:
+def _emit_stealth_alert(
+    symbol: str, price_change_3m: float, vol1h_pct: float, price: float
+) -> None:
     """Emit a stealth accumulation alert: price rising but volume flat/low.
 
     Detects quiet moves — price up >=1.5% over 3m but volume change < 30%.
@@ -4316,7 +5681,9 @@ def _emit_stealth_alert(symbol: str, price_change_3m: float, vol1h_pct: float, p
             return
 
         sym_clean = str(symbol).upper()
-        product_id = resolve_product_id_from_row(sym_clean) or (f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean)
+        product_id = resolve_product_id_from_row(sym_clean) or (
+            f"{sym_clean}-USD" if "-" not in sym_clean else sym_clean
+        )
         now = datetime.now(timezone.utc)
         emitted_ms = int(now.timestamp() * 1000)
 
@@ -4435,20 +5802,27 @@ def _seed_alerts_once():
         return
     _seed_alerts_once._done = True
     now = datetime.now(timezone.utc)
-    _append_alerts_deduped(alerts_log_main, [{
-        "id": f"seed_{int(time.time())}",
-        "ts": now.isoformat(),
-        "symbol": "BTC-USD",
-        "type": "seed",
-        "severity": "info",
-        "title": "Seed alert (wiring check)",
-        "message": "If you can read this, alerts are flowing end-to-end.",
-        "expires_at": (now + timedelta(seconds=90)).isoformat(),
-        "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
-        "meta": {"source": "seed", "ttl_s": 90},
-    }])
+    _append_alerts_deduped(
+        alerts_log_main,
+        [
+            {
+                "id": f"seed_{int(time.time())}",
+                "ts": now.isoformat(),
+                "symbol": "BTC-USD",
+                "type": "seed",
+                "severity": "info",
+                "title": "Seed alert (wiring check)",
+                "message": "If you can read this, alerts are flowing end-to-end.",
+                "expires_at": (now + timedelta(seconds=90)).isoformat(),
+                "trade_url": "https://www.coinbase.com/advanced-trade/spot/BTC-USD",
+                "meta": {"source": "seed", "ttl_s": 90},
+            }
+        ],
+    )
+
 
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+
 
 def _normalize_alert(raw: dict) -> dict:
     """Normalize an alert dict to the canonical schema used by /data."""
@@ -4456,7 +5830,9 @@ def _normalize_alert(raw: dict) -> dict:
         return {}
 
     symbol_raw = raw.get("symbol") or raw.get("product_id") or raw.get("pair")
-    product_id = resolve_product_id_from_row(symbol_raw) or (str(symbol_raw).upper() if symbol_raw else None)
+    product_id = resolve_product_id_from_row(symbol_raw) or (
+        str(symbol_raw).upper() if symbol_raw else None
+    )
     symbol = product_id or (str(symbol_raw).upper() if symbol_raw else None)
 
     direction = (raw.get("direction") or "").lower()
@@ -4476,7 +5852,11 @@ def _normalize_alert(raw: dict) -> dict:
     # Derive severity: longer streak => higher severity
     severity = (raw.get("severity") or "").lower()
     if severity not in ALERT_SEVERITY_ORDER:
-        severity = "high" if streak and streak >= 5 else "medium" if streak and streak >= 3 else "info"
+        severity = (
+            "high"
+            if streak and streak >= 5
+            else "medium" if streak and streak >= 3 else "info"
+        )
 
     # Timestamp normalization
     ts = raw.get("ts") or datetime.now(timezone.utc).isoformat()
@@ -4502,7 +5882,22 @@ def _normalize_alert(raw: dict) -> dict:
         except Exception:
             return None
 
-    type_key = raw.get("type_key") or (str(alert_type).lower() if alert_type else "unknown")
+    type_key = raw.get("type_key") or (
+        str(alert_type).lower() if alert_type else "unknown"
+    )
+    type_key = str(type_key).lower()
+    if type_key in {"fear", "fear_alert", "fomo"}:
+        type_key = "fomo_alert"
+        alert_type = "fomo_alert"
+
+    evidence = raw.get("evidence") if isinstance(raw.get("evidence"), dict) else {}
+    if type_key == "fomo_alert" and "mood" not in evidence:
+        raw_direction = str(raw.get("direction") or "").lower()
+        evidence["mood"] = "fear" if raw_direction == "fear" else "euphoria"
+        evidence["legacy_type"] = (
+            str(raw.get("type") or raw.get("type_key") or "").lower()
+            or evidence["mood"]
+        )
 
     norm = {
         "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
@@ -4531,7 +5926,7 @@ def _normalize_alert(raw: dict) -> dict:
         "score": score,
         "sources": raw.get("sources") or [],
         "trade_url": trade_url,
-        "evidence": raw.get("evidence") if isinstance(raw.get("evidence"), dict) else {},
+        "evidence": evidence,
     }
     return {k: v for k, v in norm.items() if v is not None}
 
@@ -4544,6 +5939,9 @@ def _normalize_alerts(alerts: list[dict]) -> list[dict]:
     for raw in alerts:
         norm = _normalize_alert(raw)
         if not norm:
+            continue
+        sym = str(norm.get("symbol") or "").upper()
+        if sym in {"MARKET", "MARKET-USD"}:
             continue
         alert_id = norm.get("id")
         if alert_id in seen:
@@ -4561,34 +5959,41 @@ def _normalize_alerts(alerts: list[dict]) -> list[dict]:
         normalized.append(norm)
     return normalized
 
-def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int, score: float) -> None:
+
+def _maybe_fire_trend_alert(
+    scope: str, symbol: str, direction: str, streak: int, score: float
+) -> None:
     """Fire an alert when a trend streak crosses configured thresholds with cooldown."""
     try:
         # MW_SPEC: alerts must not be polluted by generic trend/score feeds.
         # Keep this logic behind an explicit flag for debugging only.
-        if not bool(CONFIG.get('ALERTS_ENABLE_TREND_ALERTS', False)):
+        if not bool(CONFIG.get("ALERTS_ENABLE_TREND_ALERTS", False)):
             return
-        thresholds = CONFIG.get('ALERTS_STREAK_THRESHOLDS', [2, 3])
-        if direction == 'flat' or not thresholds:
+        thresholds = CONFIG.get("ALERTS_STREAK_THRESHOLDS", [2, 3])
+        if direction == "flat" or not thresholds:
             return
         # Highest threshold reached (if any)
-        reached = max([t for t in thresholds if isinstance(t, int) and streak >= t], default=None)
+        reached = max(
+            [t for t in thresholds if isinstance(t, int) and streak >= t], default=None
+        )
         if reached is None:
             return
         now = time.time()
         last = alerts_state.get(scope, {}).get(symbol, 0)
-        if now - last >= CONFIG.get('ALERTS_COOLDOWN_SECONDS', 120):
+        if now - last >= CONFIG.get("ALERTS_COOLDOWN_SECONDS", 120):
             msg = f"{scope} trend {direction} x{streak} on {symbol} (>= {reached}; score {float(score or 0.0):.2f})"
-            alerts_log_trend.append({
-                'ts': datetime.now().isoformat(),
-                'scope': scope,
-                'symbol': symbol,
-                'direction': direction,
-                'streak': int(streak),
-                'score': round(float(score or 0.0), 3),
-                'message': msg,
-                'source': 'trend_streak',
-            })
+            alerts_log_trend.append(
+                {
+                    "ts": datetime.now().isoformat(),
+                    "scope": scope,
+                    "symbol": symbol,
+                    "direction": direction,
+                    "streak": int(streak),
+                    "score": round(float(score or 0.0), 3),
+                    "message": msg,
+                    "source": "trend_streak",
+                }
+            )
             alerts_state.setdefault(scope, {})[symbol] = now
             # Mirror into insights log if available (best-effort)
             try:
@@ -4600,6 +6005,7 @@ def _maybe_fire_trend_alert(scope: str, symbol: str, direction: str, streak: int
         # Never block main flow on alert failures
         pass
 
+
 def log_config():
     """Log current configuration"""
     logging.info("=== CBMo4ers Configuration ===")
@@ -4607,66 +6013,74 @@ def log_config():
         logging.info(f"{key}: {value}")
     logging.info("===============================")
 
+
 # =============================================================================
 # DYNAMIC PORT MANAGEMENT
 # =============================================================================
 
+
 def find_available_port(start_port=5001, max_attempts=10):
     """Find an available port starting from start_port"""
     import socket
-    
+
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('0.0.0.0', port))
+                s.bind(("0.0.0.0", port))
                 logging.info(f"Found available port: {port}")
                 return port
             except OSError:
                 logging.warning(f"Port {port} is in use, trying next...")
                 continue
-    
-    logging.error(f"Could not find available port in range {start_port}-{start_port + max_attempts}")
+
+    logging.error(
+        f"Could not find available port in range {start_port}-{start_port + max_attempts}"
+    )
     return None
+
 
 def kill_process_on_port(port):
     """Kill process using the specified port"""
     import subprocess
     import sys
-    
+
     try:
-        if sys.platform.startswith('darwin') or sys.platform.startswith('linux'):
+        if sys.platform.startswith("darwin") or sys.platform.startswith("linux"):
             # macOS/Linux
-            result = subprocess.run(['lsof', '-ti', f':{port}'], 
-                                 capture_output=True, text=True)
+            result = subprocess.run(
+                ["lsof", "-ti", f":{port}"], capture_output=True, text=True
+            )
             if result.returncode == 0 and result.stdout.strip():
-                pids = result.stdout.strip().split('\n')
+                pids = result.stdout.strip().split("\n")
                 for pid in pids:
-                    subprocess.run(['kill', '-9', pid])
+                    subprocess.run(["kill", "-9", pid])
                     logging.info(f"Killed process {pid} on port {port}")
                 return True
-        elif sys.platform.startswith('win'):
+        elif sys.platform.startswith("win"):
             # Windows
-            result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
-            for line in result.stdout.split('\n'):
-                if f':{port}' in line and 'LISTENING' in line:
+            result = subprocess.run(["netstat", "-ano"], capture_output=True, text=True)
+            for line in result.stdout.split("\n"):
+                if f":{port}" in line and "LISTENING" in line:
                     pid = line.strip().split()[-1]
-                    subprocess.run(['taskkill', '/F', '/PID', pid])
+                    subprocess.run(["taskkill", "/F", "/PID", pid])
                     logging.info(f"Killed process {pid} on port {port}")
                     return True
     except Exception as e:
         logging.error(f"Error killing process on port {port}: {e}")
-    
+
     return False
+
 
 # =============================================================================
 # DYNAMIC CONFIGURATION FUNCTIONS
 # =============================================================================
 
+
 def update_config(new_config):
     """Update configuration at runtime"""
     global CONFIG, ALERT_IMPULSE_1M_THRESH, ALERT_IMPULSE_3M_THRESH
     old_config = CONFIG.copy()
-    
+
     for key, value in new_config.items():
         if key in CONFIG:
             # Type conversion based on existing type
@@ -4675,66 +6089,76 @@ def update_config(new_config):
             elif isinstance(CONFIG[key], float):
                 CONFIG[key] = float(value)
             elif isinstance(CONFIG[key], bool):
-                CONFIG[key] = str(value).lower() == 'true'
+                CONFIG[key] = str(value).lower() == "true"
             else:
                 CONFIG[key] = value
-            
+
             logging.info(f"Config updated: {key} = {old_config[key]} -> {CONFIG[key]}")
 
     # Keep module-level impulse threshold globals in sync so updates take
     # effect immediately (no restart required).
     try:
-        if 'ALERT_IMPULSE_1M_PCT' in new_config:
-            ALERT_IMPULSE_1M_THRESH = float(CONFIG.get('ALERT_IMPULSE_1M_PCT', ALERT_IMPULSE_1M_THRESH))
-            logging.info(f"Impulse threshold updated: ALERT_IMPULSE_1M_THRESH={ALERT_IMPULSE_1M_THRESH}")
-        if 'ALERT_IMPULSE_3M_PCT' in new_config:
-            ALERT_IMPULSE_3M_THRESH = float(CONFIG.get('ALERT_IMPULSE_3M_PCT', ALERT_IMPULSE_3M_THRESH))
-            logging.info(f"Impulse threshold updated: ALERT_IMPULSE_3M_THRESH={ALERT_IMPULSE_3M_THRESH}")
+        if "ALERT_IMPULSE_1M_PCT" in new_config:
+            ALERT_IMPULSE_1M_THRESH = float(
+                CONFIG.get("ALERT_IMPULSE_1M_PCT", ALERT_IMPULSE_1M_THRESH)
+            )
+            logging.info(
+                f"Impulse threshold updated: ALERT_IMPULSE_1M_THRESH={ALERT_IMPULSE_1M_THRESH}"
+            )
+        if "ALERT_IMPULSE_3M_PCT" in new_config:
+            ALERT_IMPULSE_3M_THRESH = float(
+                CONFIG.get("ALERT_IMPULSE_3M_PCT", ALERT_IMPULSE_3M_THRESH)
+            )
+            logging.info(
+                f"Impulse threshold updated: ALERT_IMPULSE_3M_THRESH={ALERT_IMPULSE_3M_THRESH}"
+            )
     except Exception:
         pass
-    
+
     # Update cache TTL if changed
-    if 'CACHE_TTL' in new_config:
-        cache['ttl'] = CONFIG['CACHE_TTL']
-    
+    if "CACHE_TTL" in new_config:
+        cache["ttl"] = CONFIG["CACHE_TTL"]
+
     # Update price history max length if changed
-    if 'MAX_PRICE_HISTORY' in new_config:
-        new_maxlen = CONFIG['MAX_PRICE_HISTORY']
+    if "MAX_PRICE_HISTORY" in new_config:
+        new_maxlen = CONFIG["MAX_PRICE_HISTORY"]
         for symbol in price_history:
             # Create new deque with updated maxlen
             old_data = list(price_history[symbol])
             price_history[symbol] = deque(old_data[-new_maxlen:], maxlen=new_maxlen)
 
+
 VALIDATABLE_CONFIG = {
-    'CACHE_TTL': {'type': int, 'min': 5, 'max': 3600},
-    'INTERVAL_MINUTES': {'type': int, 'min': 1, 'max': 30},
-    'MAX_PRICE_HISTORY': {'type': int, 'min': 5, 'max': 5000},
-    'UPDATE_INTERVAL': {'type': int, 'min': 5, 'max': 600},
-    'PRICE_FETCH_INTERVAL': {'type': int, 'min': 5, 'max': 120},
-    'SNAPSHOT_COMPUTE_INTERVAL': {'type': int, 'min': 3, 'max': 60},
-    'MAX_COINS_PER_CATEGORY': {'type': int, 'min': 1, 'max': 500},
-    'MIN_VOLUME_THRESHOLD': {'type': int, 'min': 0, 'max': 10_000_000_000},
-    'MIN_CHANGE_THRESHOLD': {'type': float, 'min': 0.0, 'max': 1000.0},
-    'API_TIMEOUT': {'type': int, 'min': 1, 'max': 60},
-    'CHART_DAYS_LIMIT': {'type': int, 'min': 1, 'max': 365},
+    "CACHE_TTL": {"type": int, "min": 5, "max": 3600},
+    "INTERVAL_MINUTES": {"type": int, "min": 1, "max": 30},
+    "MAX_PRICE_HISTORY": {"type": int, "min": 5, "max": 5000},
+    "UPDATE_INTERVAL": {"type": int, "min": 5, "max": 600},
+    "PRICE_FETCH_INTERVAL": {"type": int, "min": 5, "max": 120},
+    "SNAPSHOT_COMPUTE_INTERVAL": {"type": int, "min": 3, "max": 60},
+    "MAX_COINS_PER_CATEGORY": {"type": int, "min": 1, "max": 500},
+    "MIN_VOLUME_THRESHOLD": {"type": int, "min": 0, "max": 10_000_000_000},
+    "MIN_CHANGE_THRESHOLD": {"type": float, "min": 0.0, "max": 1000.0},
+    "API_TIMEOUT": {"type": int, "min": 1, "max": 60},
+    "CHART_DAYS_LIMIT": {"type": int, "min": 1, "max": 365},
     # Impulse alert thresholds (percentage points)
-    'ALERT_IMPULSE_1M_PCT': {'type': float, 'min': 0.0, 'max': 100.0},
-    'ALERT_IMPULSE_3M_PCT': {'type': float, 'min': 0.0, 'max': 100.0},
+    "ALERT_IMPULSE_1M_PCT": {"type": float, "min": 0.0, "max": 100.0},
+    "ALERT_IMPULSE_3M_PCT": {"type": float, "min": 0.0, "max": 100.0},
 }
+
 
 def validate_config_patch(patch: dict):
     errors = {}
     sanitized = {}
-    for k,v in patch.items():
+    for k, v in patch.items():
         meta = VALIDATABLE_CONFIG.get(k)
         if k not in CONFIG:
-            errors[k] = 'unknown_key'
+            errors[k] = "unknown_key"
             continue
         if not meta:
             # allow but treat as string passthrough
             sanitized[k] = v
             continue
-        typ = meta['type']
+        typ = meta["type"]
         try:
             if typ is int:
                 cv = int(v)
@@ -4743,28 +6167,29 @@ def validate_config_patch(patch: dict):
             else:
                 cv = v
         except (TypeError, ValueError):
-            errors[k] = 'invalid_type'
+            errors[k] = "invalid_type"
             continue
         if typ is float:
             try:
                 if not math.isfinite(cv):
-                    errors[k] = 'invalid_value'
+                    errors[k] = "invalid_value"
                     continue
             except Exception:
-                errors[k] = 'invalid_value'
+                errors[k] = "invalid_value"
                 continue
-        if 'min' in meta and cv < meta['min']:
+        if "min" in meta and cv < meta["min"]:
             errors[k] = f"below_min_{meta['min']}"
             continue
-        if 'max' in meta and cv > meta['max']:
+        if "max" in meta and cv > meta["max"]:
             errors[k] = f"above_max_{meta['max']}"
             continue
         sanitized[k] = cv
     return sanitized, errors
 
-@app.route('/api/config', methods=['GET','POST'])
+
+@app.route("/api/config", methods=["GET", "POST"])
 def api_config():
-    if request.method == 'GET':
+    if request.method == "GET":
         # Return JSON-serializable copies to avoid leaking Python types into JSON
         def _serialize_config(cfg):
             out = {}
@@ -4775,16 +6200,17 @@ def api_config():
                 except TypeError:
                     out[k] = str(v)
             return out
+
         def _serialize_limits(limits):
             out = {}
             for k, meta in limits.items():
                 m = {}
-                for mk, mv in (meta.items() if isinstance(meta, dict) else []):
-                    if mk == 'type':
+                for mk, mv in meta.items() if isinstance(meta, dict) else []:
+                    if mk == "type":
                         try:
-                            m['type'] = mv.__name__
+                            m["type"] = mv.__name__
                         except Exception:
-                            m['type'] = str(mv)
+                            m["type"] = str(mv)
                     else:
                         try:
                             json.dumps(mv)
@@ -4793,21 +6219,24 @@ def api_config():
                             m[mk] = str(mv)
                 out[k] = m
             return out
+
         serialized_config = _serialize_config(CONFIG)
         # Backward compatible response:
         # - keep { config: {...}, limits: {...} }
         # - ALSO flatten a small set of commonly-tuned keys at the top-level so
         #   simple scripts can do `d.get(KEY)` without needing `d["config"]`.
         flattened = {}
-        for k in ('ALERT_IMPULSE_1M_PCT', 'ALERT_IMPULSE_3M_PCT'):
+        for k in ("ALERT_IMPULSE_1M_PCT", "ALERT_IMPULSE_3M_PCT"):
             if k in serialized_config:
                 flattened[k] = serialized_config.get(k)
 
-        return jsonify({
-            'config': serialized_config,
-            'limits': _serialize_limits(VALIDATABLE_CONFIG),
-            **flattened,
-        })
+        return jsonify(
+            {
+                "config": serialized_config,
+                "limits": _serialize_limits(VALIDATABLE_CONFIG),
+                **flattened,
+            }
+        )
     data = request.get_json(silent=True) or {}
     to_apply, errors = validate_config_patch(data)
     status = 200 if not errors else 400 if not to_apply else 207
@@ -4815,53 +6244,92 @@ def api_config():
         update_config(to_apply)
     flattened = {}
     try:
-        for k in ('ALERT_IMPULSE_1M_PCT', 'ALERT_IMPULSE_3M_PCT'):
+        for k in ("ALERT_IMPULSE_1M_PCT", "ALERT_IMPULSE_3M_PCT"):
             if k in CONFIG:
                 flattened[k] = CONFIG.get(k)
     except Exception:
         flattened = {}
 
-    return jsonify({'applied': to_apply, 'errors': errors, 'config': CONFIG, **flattened}), status
+    return (
+        jsonify({"applied": to_apply, "errors": errors, "config": CONFIG, **flattened}),
+        status,
+    )
+
 
 # =============================================================================
 # EXISTING FUNCTIONS (Updated with dynamic config)
 # =============================================================================
+
 
 def get_coinbase_prices():
     """Fetch current prices from Coinbase (optimized for speed)"""
     try:
         # Hard deadline so `/data` never hangs for long during local dev.
         # When the deadline is hit we return partial results.
-        deadline_seconds = float(os.environ.get('PRICE_FETCH_DEADLINE_SECONDS', '8'))
+        deadline_seconds = float(os.environ.get("PRICE_FETCH_DEADLINE_SECONDS", "8"))
         deadline_ts = time.time() + max(1.0, deadline_seconds)
 
-        products_timeout = float(os.environ.get('COINBASE_PRODUCTS_TIMEOUT', '5'))
-        products_timeout = max(1.0, min(products_timeout, float(CONFIG.get('API_TIMEOUT', 10))))
+        products_timeout = float(os.environ.get("COINBASE_PRODUCTS_TIMEOUT", "5"))
+        products_timeout = max(
+            1.0, min(products_timeout, float(CONFIG.get("API_TIMEOUT", 10)))
+        )
 
-        ticker_timeout = float(os.environ.get('COINBASE_TICKER_TIMEOUT', '3'))
-        ticker_timeout = max(1.0, min(ticker_timeout, float(CONFIG.get('API_TIMEOUT', 10))))
+        ticker_timeout = float(os.environ.get("COINBASE_TICKER_TIMEOUT", "3"))
+        ticker_timeout = max(
+            1.0, min(ticker_timeout, float(CONFIG.get("API_TIMEOUT", 10)))
+        )
 
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=products_timeout)
+        products_response = requests.get(
+            COINBASE_PRODUCTS_URL, timeout=products_timeout
+        )
         if products_response.status_code == 200:
             products = products_response.json()
             current_prices = {}
-            
+
             # Filter to USD pairs only and prioritize major coins
-            usd_products = [p for p in products 
-                          if p.get("quote_currency") == "USD" 
-                          and p.get("status") == "online"]
-            
+            usd_products = [
+                p
+                for p in products
+                if p.get("quote_currency") == "USD" and p.get("status") == "online"
+            ]
+
             # Prioritize major cryptocurrencies for faster loading
             major_coins = [
-                'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD', 
-                'LINK-USD', 'MATIC-USD', 'AVAX-USD', 'ATOM-USD', 'ALGO-USD',
-                'XRP-USD', 'DOGE-USD', 'SHIB-USD', 'UNI-USD', 'AAVE-USD',
-                'BCH-USD', 'LTC-USD', 'ICP-USD', 'HYPE-USD', 'SPX-USD',
-                'SEI-USD', 'PI-USD', 'KAIA-USD', 'INJ-USD', 'ONDO-USD',
-                'CRO-USD', 'FLR-USD', 'WLD-USD', 'POL-USD', 'WBT-USD',
-                'JUP-USD', 'SKY-USD', 'TAO-USD'
+                "BTC-USD",
+                "ETH-USD",
+                "SOL-USD",
+                "ADA-USD",
+                "DOT-USD",
+                "LINK-USD",
+                "MATIC-USD",
+                "AVAX-USD",
+                "ATOM-USD",
+                "ALGO-USD",
+                "XRP-USD",
+                "DOGE-USD",
+                "SHIB-USD",
+                "UNI-USD",
+                "AAVE-USD",
+                "BCH-USD",
+                "LTC-USD",
+                "ICP-USD",
+                "HYPE-USD",
+                "SPX-USD",
+                "SEI-USD",
+                "PI-USD",
+                "KAIA-USD",
+                "INJ-USD",
+                "ONDO-USD",
+                "CRO-USD",
+                "FLR-USD",
+                "WLD-USD",
+                "POL-USD",
+                "WBT-USD",
+                "JUP-USD",
+                "SKY-USD",
+                "TAO-USD",
             ]
-            
+
             sample = int(CONFIG.get("PRICE_UNIVERSE_SAMPLE_SIZE", 120))
             sample_max = int(CONFIG.get("PRICE_UNIVERSE_MAX", 250))
             sample = max(30, min(sample, sample_max))
@@ -4878,7 +6346,9 @@ def get_coinbase_prices():
 
             rotate_seconds = int(os.environ.get("PRICE_UNIVERSE_ROTATE_SECONDS", 60))
             rotate_seconds = max(1, rotate_seconds)
-            rotate_step = int(os.environ.get("PRICE_UNIVERSE_ROTATE_STEP", max(1, remaining)))
+            rotate_step = int(
+                os.environ.get("PRICE_UNIVERSE_ROTATE_STEP", max(1, remaining))
+            )
             rotate_step = max(1, rotate_step)
 
             # Prefer symbols recently seen to preserve 1m baselines.
@@ -4913,8 +6383,10 @@ def get_coinbase_prices():
             if remaining and len(chosen_rest) < remaining:
                 final_ids = (core_ids + rest)[:sample]
             product_by_id = {p["id"]: p for p in usd_products if p.get("id")}
-            final_products = [product_by_id[pid] for pid in final_ids if pid in product_by_id]
-            
+            final_products = [
+                product_by_id[pid] for pid in final_ids if pid in product_by_id
+            ]
+
             # Use ThreadPoolExecutor for concurrent API calls
             def fetch_ticker(product):
                 """
@@ -4989,8 +6461,10 @@ def get_coinbase_prices():
             # Use ThreadPoolExecutor for faster concurrent API calls
             deadline_hit = False
             with ThreadPoolExecutor(max_workers=8) as executor:
-                future_to_product = {executor.submit(fetch_ticker, product): product 
-                                   for product in final_products}
+                future_to_product = {
+                    executor.submit(fetch_ticker, product): product
+                    for product in final_products
+                }
 
                 submitted = len(future_to_product)
                 ok = 0
@@ -5029,7 +6503,9 @@ def get_coinbase_prices():
                 except Exception as e:
                     # TimeoutError or unexpected iterator issue: best-effort partial return.
                     deadline_hit = True
-                    logging.warning(f"price_fetch_deadline_reached: returning_partial ok={ok} submitted={submitted} err={type(e).__name__}")
+                    logging.warning(
+                        f"price_fetch_deadline_reached: returning_partial ok={ok} submitted={submitted} err={type(e).__name__}"
+                    )
                 finally:
                     # Cancel any futures that haven't started yet.
                     for f in future_to_product:
@@ -5040,7 +6516,14 @@ def get_coinbase_prices():
 
             logging.info(
                 "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
-                submitted, ok, http429, http5xx, other, exceptions, sample, deadline_seconds
+                submitted,
+                ok,
+                http429,
+                http5xx,
+                other,
+                exceptions,
+                sample,
+                deadline_seconds,
             )
             try:
                 ok_ratio = (float(ok) / float(submitted)) if submitted else 0.0
@@ -5066,7 +6549,9 @@ def get_coinbase_prices():
                 pass
             return current_prices
         else:
-            logging.error(f"Coinbase products API Error: {products_response.status_code}")
+            logging.error(
+                f"Coinbase products API Error: {products_response.status_code}"
+            )
             try:
                 last_current_prices["partial"] = True
                 last_current_prices["partial_reason"] = "products_api_error"
@@ -5224,35 +6709,53 @@ def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None)
         price_change = pct_change(price_f, baseline_price)
         actual_interval_minutes = baseline_age_s / 60.0
 
-        formatted_data.append({
-            "symbol": symbol,
-            "current_price": price_f,
-            "initial_price_3min": baseline_price,
-            "previous_price_3m": baseline_price,
-            "price_change_percentage_3min": price_change,
-            "actual_interval_minutes": actual_interval_minutes,
-            "baseline_ts": float(baseline_ts_s),
-            "baseline_ts_ms_3m": int(baseline_ts_s * 1000),
-            "baseline_age_ms_3m": int(baseline_age_s * 1000),
-            "warming_3m": False,
-            "latest_ts_ms": int(now_ts_s * 1000),
-        })
+        formatted_data.append(
+            {
+                "symbol": symbol,
+                "current_price": price_f,
+                "initial_price_3min": baseline_price,
+                "previous_price_3m": baseline_price,
+                "price_change_percentage_3min": price_change,
+                "actual_interval_minutes": actual_interval_minutes,
+                "baseline_ts": float(baseline_ts_s),
+                "baseline_ts_ms_3m": int(baseline_ts_s * 1000),
+                "baseline_age_ms_3m": int(baseline_age_s * 1000),
+                "warming_3m": False,
+                "latest_ts_ms": int(now_ts_s * 1000),
+            }
+        )
 
-    age_seconds = (now_ts_s - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    age_seconds = (
+        (now_ts_s - earliest_baseline_ts)
+        if (baseline_ready_any and earliest_baseline_ts is not None)
+        else None
+    )
     _set_baseline_meta_3m(
         ready=baseline_ready_any,
-        baseline_ts=float(earliest_baseline_ts) if earliest_baseline_ts is not None else None,
+        baseline_ts=(
+            float(earliest_baseline_ts) if earliest_baseline_ts is not None else None
+        ),
         age_seconds=float(age_seconds) if age_seconds is not None else None,
     )
 
     if not formatted_data:
-        partial = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        partial = (
+            bool(last_current_prices.get("partial"))
+            if isinstance(last_current_prices, dict)
+            else False
+        )
         if partial:
-            logging.info("3m_eligibility_empty_partial: total_prices=%d", len(current_prices or {}))
+            logging.info(
+                "3m_eligibility_empty_partial: total_prices=%d",
+                len(current_prices or {}),
+            )
         else:
-            logging.warning("3m_eligibility_empty: total_prices=%d", len(current_prices or {}))
+            logging.warning(
+                "3m_eligibility_empty: total_prices=%d", len(current_prices or {})
+            )
 
     return formatted_data
+
 
 def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
     """Calculate price changes over 1 minute"""
@@ -5319,8 +6822,16 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         "filtered_min_volume": 0,
         "threshold_pct": threshold_pct,
         "baseline_window": dict(BASELINE_WINDOWS.get("1m") or {}),
-        "partial": bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False,
-        "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
+        "partial": (
+            bool(last_current_prices.get("partial"))
+            if isinstance(last_current_prices, dict)
+            else False
+        ),
+        "partial_reason": (
+            last_current_prices.get("partial_reason")
+            if isinstance(last_current_prices, dict)
+            else None
+        ),
     }
 
     for symbol, price in current_prices.items():
@@ -5364,32 +6875,46 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
 
         # Only include significant changes (configurable threshold)
         if abs(price_change) >= threshold_pct:  # Reverted to original threshold
-            formatted_data.append({
-                "symbol": symbol,
-                "current_price": price,
-                "initial_price_1min": baseline_price,
-                "price_change_percentage_1min": price_change,
-                "actual_interval_minutes": actual_interval_minutes,
-                "baseline_ts_ms_1m": int(baseline_ts_s * 1000),
-                "baseline_age_ms_1m": int(baseline_age_s * 1000),
-                "warming_1m": False,
-                "latest_ts_ms": int(now_ts_s * 1000),
-            })
+            formatted_data.append(
+                {
+                    "symbol": symbol,
+                    "current_price": price,
+                    "initial_price_1min": baseline_price,
+                    "price_change_percentage_1min": price_change,
+                    "actual_interval_minutes": actual_interval_minutes,
+                    "baseline_ts_ms_1m": int(baseline_ts_s * 1000),
+                    "baseline_age_ms_1m": int(baseline_age_s * 1000),
+                    "warming_1m": False,
+                    "latest_ts_ms": int(now_ts_s * 1000),
+                }
+            )
             diag["included"] += 1
         else:
             diag["below_threshold"] += 1
 
-    age_seconds = (now_ts_s - earliest_baseline_ts) if (baseline_ready_any and earliest_baseline_ts is not None) else None
+    age_seconds = (
+        (now_ts_s - earliest_baseline_ts)
+        if (baseline_ready_any and earliest_baseline_ts is not None)
+        else None
+    )
     try:
-        diag["eligible_products"] = max(0, int(diag.get("total_prices") or 0) - int(diag.get("price_non_positive") or 0))
-        diag["have_baseline"] = int(diag.get("baseline_used_db") or 0) + int(diag.get("baseline_used_history") or 0)
+        diag["eligible_products"] = max(
+            0,
+            int(diag.get("total_prices") or 0)
+            - int(diag.get("price_non_positive") or 0),
+        )
+        diag["have_baseline"] = int(diag.get("baseline_used_db") or 0) + int(
+            diag.get("baseline_used_history") or 0
+        )
         diag["missing_baseline"] = int(diag.get("baseline_missing") or 0)
         diag["stale_price"] = int(diag.get("baseline_history_missing") or 0)
     except Exception:
         pass
     _set_baseline_meta_1m(
         ready=baseline_ready_any,
-        baseline_ts=float(earliest_baseline_ts) if earliest_baseline_ts is not None else None,
+        baseline_ts=(
+            float(earliest_baseline_ts) if earliest_baseline_ts is not None else None
+        ),
         age_seconds=float(age_seconds) if age_seconds is not None else None,
     )
 
@@ -5397,7 +6922,9 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         try:
             diag["baseline_age_s_min"] = round(min(baseline_ages), 2)
             diag["baseline_age_s_max"] = round(max(baseline_ages), 2)
-            diag["baseline_age_s_avg"] = round(sum(baseline_ages) / len(baseline_ages), 2)
+            diag["baseline_age_s_avg"] = round(
+                sum(baseline_ages) / len(baseline_ages), 2
+            )
         except Exception:
             pass
 
@@ -5408,13 +6935,22 @@ def calculate_1min_changes(current_prices, snapshot_ts_s: int | None = None):
         pass
 
     if not formatted_data:
-        partial = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        partial = (
+            bool(last_current_prices.get("partial"))
+            if isinstance(last_current_prices, dict)
+            else False
+        )
         if partial:
-            logging.info("1m_eligibility_empty_partial: total_prices=%d", len(current_prices))
+            logging.info(
+                "1m_eligibility_empty_partial: total_prices=%d", len(current_prices)
+            )
         else:
-            logging.warning("1m_eligibility_empty: total_prices=%d", len(current_prices))
+            logging.warning(
+                "1m_eligibility_empty: total_prices=%d", len(current_prices)
+            )
 
     return formatted_data
+
 
 def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = None):
     """Calculate real-time 1-hour price changes using price_history_1hour.
@@ -5451,26 +6987,33 @@ def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = No
         price_change = pct_change(price, baseline_price)
         actual_interval_minutes = baseline_age_s / 60.0
 
-        formatted_data.append({
-            "symbol": symbol,
-            "current_price": price,
-            "price_1h_ago": baseline_price,
-            "price_change_1h": price_change,
-            "actual_interval_minutes": actual_interval_minutes,
-            "baseline_ts_ms_1h_price": int(baseline_ts_s * 1000),
-            "baseline_age_ms_1h_price": int(baseline_age_s * 1000),
-            "warming_1h_price": False,
-            "latest_ts_ms": int(now_ts_s * 1000),
-        })
+        formatted_data.append(
+            {
+                "symbol": symbol,
+                "current_price": price,
+                "price_1h_ago": baseline_price,
+                "price_change_1h": price_change,
+                "actual_interval_minutes": actual_interval_minutes,
+                "baseline_ts_ms_1h_price": int(baseline_ts_s * 1000),
+                "baseline_age_ms_1h_price": int(baseline_age_s * 1000),
+                "warming_1h_price": False,
+                "latest_ts_ms": int(now_ts_s * 1000),
+            }
+        )
 
     # Update baseline meta
     if baseline_ready_any and earliest_baseline_ts is not None:
         baseline_age = now_ts_s - earliest_baseline_ts
-        _set_baseline_meta_1h(ready=True, baseline_ts=float(earliest_baseline_ts), age_seconds=float(baseline_age))
+        _set_baseline_meta_1h(
+            ready=True,
+            baseline_ts=float(earliest_baseline_ts),
+            age_seconds=float(baseline_age),
+        )
     else:
         _set_baseline_meta_1h(ready=False, baseline_ts=None, age_seconds=None)
 
     return formatted_data
+
 
 def get_current_prices():
     """Fetch current prices from Coinbase"""
@@ -5485,25 +7028,35 @@ def get_24h_top_movers():
 def get_coinbase_24h_top_movers():
     """Fetch 24h top movers from Coinbase (optimized)."""
     try:
-        products_response = requests.get(COINBASE_PRODUCTS_URL, timeout=CONFIG['API_TIMEOUT'])
+        products_response = requests.get(
+            COINBASE_PRODUCTS_URL, timeout=CONFIG["API_TIMEOUT"]
+        )
         if products_response.status_code != 200:
             return []
 
         products = products_response.json()
-        usd_products = [p for p in products if p["quote_currency"] == "USD" and p["status"] == "online"]
+        usd_products = [
+            p
+            for p in products
+            if p["quote_currency"] == "USD" and p["status"] == "online"
+        ]
         formatted_data = []
 
         def fetch_product_data(product):
             """Fetch stats and ticker data for a single product concurrently"""
             try:
                 # Get 24h stats
-                stats_url = f"https://api.exchange.coinbase.com/products/{product['id']}/stats"
+                stats_url = (
+                    f"https://api.exchange.coinbase.com/products/{product['id']}/stats"
+                )
                 stats_response = requests.get(stats_url, timeout=3)
                 if stats_response.status_code != 200:
                     return None
 
                 # Get current price
-                ticker_url = f"https://api.exchange.coinbase.com/products/{product['id']}/ticker"
+                ticker_url = (
+                    f"https://api.exchange.coinbase.com/products/{product['id']}/ticker"
+                )
                 ticker_response = requests.get(ticker_url, timeout=2)
                 if ticker_response.status_code != 200:
                     return None
@@ -5511,29 +7064,42 @@ def get_coinbase_24h_top_movers():
                 stats_data = stats_response.json()
                 ticker_data = ticker_response.json()
 
-                current_price = float(ticker_data.get('price', 0))
-                volume_24h = float(stats_data.get('volume', 0))
-                open_24h = float(stats_data.get('open', 0))
+                current_price = float(ticker_data.get("price", 0))
+                volume_24h = float(stats_data.get("volume", 0))
+                open_24h = float(stats_data.get("open", 0))
 
                 if current_price > 0 and open_24h > 0:
                     price_change_24h = pct_change(current_price, open_24h)
 
                     # Estimate 1h change using a simple fraction of the 24h move
-                    price_1h_estimate = current_price - ((current_price - open_24h) * 0.04)
-                    price_change_1h = pct_change(current_price, price_1h_estimate) if price_1h_estimate > 0 else 0.0
+                    price_1h_estimate = current_price - (
+                        (current_price - open_24h) * 0.04
+                    )
+                    price_change_1h = (
+                        pct_change(current_price, price_1h_estimate)
+                        if price_1h_estimate > 0
+                        else 0.0
+                    )
 
                     # Always record volume snapshot for later 1h delta computation
                     try:
-                        volume_history_24h[product["id"]].append((time.time(), volume_24h))
+                        volume_history_24h[product["id"]].append(
+                            (time.time(), volume_24h)
+                        )
                     except Exception:
                         pass
 
                     # Only include significant moves in the returned list, but
                     # volume snapshots are collected regardless so bV can be computed
-                    if abs(price_change_24h) >= CONFIG['MIN_CHANGE_THRESHOLD'] and volume_24h > CONFIG['MIN_VOLUME_THRESHOLD']:
+                    if (
+                        abs(price_change_24h) >= CONFIG["MIN_CHANGE_THRESHOLD"]
+                        and volume_24h > CONFIG["MIN_VOLUME_THRESHOLD"]
+                    ):
                         # Record volume snapshot for later 1h delta computation
                         try:
-                            volume_history_24h[product["id"]].append((time.time(), volume_24h))
+                            volume_history_24h[product["id"]].append(
+                                (time.time(), volume_24h)
+                            )
                         except Exception:
                             pass
                         return {
@@ -5544,19 +7110,23 @@ def get_coinbase_24h_top_movers():
                             "price_change_24h": price_change_24h,
                             "price_change_1h": price_change_1h,
                             "volume_24h": volume_24h,
-                            "market_cap": 0
+                            "market_cap": 0,
                         }
             except Exception as e:
-                logging.warning(f"Error processing Coinbase 24h data for {product['id']}: {e}")
+                logging.warning(
+                    f"Error processing Coinbase 24h data for {product['id']}: {e}"
+                )
                 return None
 
         # Use ThreadPoolExecutor for concurrent API calls (SPEED OPTIMIZATION)
         with ThreadPoolExecutor(max_workers=15) as executor:
             # Submit all tasks
             sample = int(CONFIG.get("TOP_MOVERS_SAMPLE_SIZE", 120))
-            future_to_product = {executor.submit(fetch_product_data, product): product 
-                               for product in usd_products[:sample]}  # Reduced for faster response
-            
+            future_to_product = {
+                executor.submit(fetch_product_data, product): product
+                for product in usd_products[:sample]
+            }  # Reduced for faster response
+
             # Collect results as they complete
             for future in as_completed(future_to_product):
                 result = future.result()
@@ -5565,9 +7135,13 @@ def get_coinbase_24h_top_movers():
 
         # Sort and mix gainers/losers
         formatted_data.sort(key=lambda x: abs(x["price_change_24h"]), reverse=True)
-        gainers_24h = [coin for coin in formatted_data if coin["price_change_24h"] > 0][:10]
-        losers_24h = [coin for coin in formatted_data if coin["price_change_24h"] < 0][:10]
-        
+        gainers_24h = [coin for coin in formatted_data if coin["price_change_24h"] > 0][
+            :10
+        ]
+        losers_24h = [coin for coin in formatted_data if coin["price_change_24h"] < 0][
+            :10
+        ]
+
         banner_mix = []
         max_length = max(len(gainers_24h), len(losers_24h))
         for i in range(max_length):
@@ -5575,16 +7149,20 @@ def get_coinbase_24h_top_movers():
                 banner_mix.append(gainers_24h[i])
             if i < len(losers_24h):
                 banner_mix.append(losers_24h[i])
-        
-        logging.info(f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers")
+
+        logging.info(
+            f"Successfully fetched Coinbase 24h top movers: {len(gainers_24h)} gainers, {len(losers_24h)} losers"
+        )
         return banner_mix[:20]
     except Exception as e:
         logging.error(f"Error fetching 24h top movers from Coinbase: {e}")
         return []
 
+
 # =============================================================================
 # DATA FORMATTING FUNCTIONS
 # =============================================================================
+
 
 def process_product_data(products, stats_data, ticker_data):
     """Process a list of products and combine with stats and ticker data."""
@@ -5593,17 +7171,20 @@ def process_product_data(products, stats_data, ticker_data):
         symbol = product.get("id")
         if symbol and symbol in stats_data and symbol in ticker_data:
             try:
-                processed_data.append({
-                    "symbol": symbol,
-                    "base": product.get("base_currency"),
-                    "quote": product.get("quote_currency"),
-                    "volume": float(stats_data[symbol].get("volume", 0)),
-                    "price": float(ticker_data[symbol].get("price", 0)),
-                })
+                processed_data.append(
+                    {
+                        "symbol": symbol,
+                        "base": product.get("base_currency"),
+                        "quote": product.get("quote_currency"),
+                        "volume": float(stats_data[symbol].get("volume", 0)),
+                        "price": float(ticker_data[symbol].get("price", 0)),
+                    }
+                )
             except (ValueError, TypeError) as e:
                 logging.warning(f"Could not process data for {symbol}: {e}")
                 continue
     return processed_data
+
 
 def format_crypto_data(crypto_data):
     """Format 3-minute crypto data for frontend with detailed price tracking"""
@@ -5620,6 +7201,7 @@ def format_crypto_data(crypto_data):
         for coin in crypto_data
     ]
 
+
 def format_crypto_data_1min(crypto_data):
     """Format 1-minute crypto data for frontend with detailed price tracking"""
     return [
@@ -5628,10 +7210,11 @@ def format_crypto_data_1min(crypto_data):
             "current": coin["current_price"],
             "initial_1min": coin["initial_price_1min"],
             "gain": coin["price_change_percentage_1min"],
-            "interval_minutes": round(coin["actual_interval_minutes"], 1)
+            "interval_minutes": round(coin["actual_interval_minutes"], 1),
         }
         for coin in crypto_data
     ]
+
 
 def format_banner_data(banner_data):
     """Format 24h banner data for frontend"""
@@ -5644,14 +7227,16 @@ def format_banner_data(banner_data):
             "price_change_24h": coin["price_change_24h"],
             "price_change_1h": coin["price_change_1h"],
             "volume_24h": coin["volume_24h"],
-            "market_cap": coin.get("market_cap", 0)
+            "market_cap": coin.get("market_cap", 0),
         }
         for coin in banner_data
     ]
 
+
 # =============================================================================
 # MAIN DATA PROCESSING FUNCTION
 # =============================================================================
+
 
 def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
     """Main function to fetch and process 3-minute crypto data.
@@ -5663,59 +7248,78 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
     """
     current_time = time.time()
     snapshot_ts_s = None
-    
+
     # Check cache first
-    if (not force_refresh) and cache["data"] and (current_time - cache["timestamp"]) < cache["ttl"]:
+    if (
+        (not force_refresh)
+        and cache["data"]
+        and (current_time - cache["timestamp"]) < cache["ttl"]
+    ):
         return cache["data"]
-    
+
     try:
         # Resolve a usable price snapshot.
         if current_prices is None:
             # Reuse prices from recent fetch (e.g., 1-min snapshot) to avoid
             # parallel bursts during a single `/data` aggregation.
             prices_age_limit = 10
-            if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
-                current_prices = last_current_prices['data']
-                snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
+            if (
+                last_current_prices["data"]
+                and (current_time - last_current_prices["timestamp"]) < prices_age_limit
+            ):
+                current_prices = last_current_prices["data"]
+                snapshot_ts_s = int(
+                    last_current_prices.get("timestamp") or current_time
+                )
             else:
                 current_prices = get_current_prices()
                 if current_prices:
-                    last_current_prices['data'] = current_prices
-                    last_current_prices['timestamp'] = current_time
+                    last_current_prices["data"] = current_prices
+                    last_current_prices["timestamp"] = current_time
                     snapshot_ts_s = int(current_time)
         else:
-            snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
+            snapshot_ts_s = int(last_current_prices.get("timestamp") or current_time)
         if not current_prices:
             logging.warning("No current prices available")
             return None
 
         if snapshot_ts_s is None:
             snapshot_ts_s = int(current_time)
-            
+
         # Calculate 3-minute interval changes (unique feature)
         crypto_data = calculate_interval_changes(current_prices, snapshot_ts_s)
         baseline_meta = _get_baseline_meta_3m()
-        
+
         if not crypto_data:
-            logging.warning(f"No crypto data available - {len(current_prices)} current prices, {len(price_history)} symbols with history")
+            logging.warning(
+                f"No crypto data available - {len(current_prices)} current prices, {len(price_history)} symbols with history"
+            )
             return None
-        
+
         # Separate gainers and losers based on 3-minute changes
-        gainers = [coin for coin in crypto_data if (coin.get("price_change_percentage_3min") or 0) > 0]
-        losers = [coin for coin in crypto_data if (coin.get("price_change_percentage_3min") or 0) < 0]
-        
+        gainers = [
+            coin
+            for coin in crypto_data
+            if (coin.get("price_change_percentage_3min") or 0) > 0
+        ]
+        losers = [
+            coin
+            for coin in crypto_data
+            if (coin.get("price_change_percentage_3min") or 0) < 0
+        ]
+
         # Sort by 3-minute percentage change
         gainers.sort(key=lambda x: x["price_change_percentage_3min"], reverse=True)
         losers.sort(key=lambda x: x["price_change_percentage_3min"])
-        
+
         # Get top movers (mix of gainers and losers)
         top_gainers = gainers[:8]
         top_losers = losers[:8]
         top24h = (top_gainers + top_losers)[:15]
-        
+
         # Get 24h top movers for banner
         banner_24h_movers = get_24h_top_movers()
-        
+
         limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
         result = {
             "gainers": format_crypto_data(gainers[:limit]),
@@ -5727,21 +7331,25 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
             "baseline_ts_3m": baseline_meta.get("baseline_ts"),
             "baseline_age_seconds_3m": baseline_meta.get("age_seconds"),
         }
-        
+
         # Update cache
         cache["data"] = result
         cache["timestamp"] = current_time
-        
-        logging.info(f"Successfully processed data: {len(result['gainers'])} gainers, {len(result['losers'])} losers, {len(result['banner'])} banner items")
+
+        logging.info(
+            f"Successfully processed data: {len(result['gainers'])} gainers, {len(result['losers'])} losers, {len(result['banner'])} banner items"
+        )
         return result
-        
+
     except Exception as e:
         logging.error(f"Error in get_crypto_data: {e}")
         return None
 
+
 # =============================================================================
 # ADDITIONAL FUNCTIONS
 # =============================================================================
+
 
 def get_historical_chart_data(symbol, days=7):
     """Fetch historical price data for charts from Coinbase"""
@@ -5752,21 +7360,21 @@ def get_historical_chart_data(symbol, days=7):
 
         # Determine granularity based on days
         # Coinbase Pro API granularities: 60, 300, 900, 3600, 21600, 86400
-        if days <= 1: # Up to 1 day, use 1-minute granularity
+        if days <= 1:  # Up to 1 day, use 1-minute granularity
             granularity = 60
-        elif days <= 7: # Up to 7 days, use 1-hour granularity
+        elif days <= 7:  # Up to 7 days, use 1-hour granularity
             granularity = 3600
-        else: # More than 7 days, use 1-day granularity
+        else:  # More than 7 days, use 1-day granularity
             granularity = 86400
 
         url = f"https://api.exchange.coinbase.com/products/{symbol}/candles"
         params = {
-            'start': start_time.isoformat(),
-            'end': end_time.isoformat(),
-            'granularity': granularity
+            "start": start_time.isoformat(),
+            "end": end_time.isoformat(),
+            "granularity": granularity,
         }
 
-        response = requests.get(url, params=params, timeout=CONFIG['API_TIMEOUT'])
+        response = requests.get(url, params=params, timeout=CONFIG["API_TIMEOUT"])
 
         if response.status_code == 200:
             data = response.json()
@@ -5776,21 +7384,29 @@ def get_historical_chart_data(symbol, days=7):
                 price = entry[4]  # Close price
                 volume = entry[5]
 
-                chart_data.append({
-                    'timestamp': timestamp,
-                    'datetime': datetime.fromtimestamp(timestamp / 1000).isoformat(),
-                    'price': round(price, 6),
-                    'volume': round(volume, 2)
-                })
-            
-            # Sort by timestamp in ascending order (Coinbase returns in descending)
-            chart_data.sort(key=lambda x: x['timestamp'])
+                chart_data.append(
+                    {
+                        "timestamp": timestamp,
+                        "datetime": datetime.fromtimestamp(
+                            timestamp / 1000
+                        ).isoformat(),
+                        "price": round(price, 6),
+                        "volume": round(volume, 2),
+                    }
+                )
 
-            logging.info(f"Successfully fetched {len(chart_data)} chart points for {symbol} from Coinbase")
+            # Sort by timestamp in ascending order (Coinbase returns in descending)
+            chart_data.sort(key=lambda x: x["timestamp"])
+
+            logging.info(
+                f"Successfully fetched {len(chart_data)} chart points for {symbol} from Coinbase"
+            )
             return chart_data
 
         else:
-            logging.error(f"Coinbase chart API Error for {symbol}: {response.status_code} - {response.text}")
+            logging.error(
+                f"Coinbase chart API Error for {symbol}: {response.status_code} - {response.text}"
+            )
             return []
 
     except requests.RequestException as e:
@@ -5800,23 +7416,25 @@ def get_historical_chart_data(symbol, days=7):
         logging.error(f"Error fetching chart data for {symbol}: {e}")
         return []
 
+
 def get_trending_coins():
     """Get trending/recommended coins to watch (CoinGecko removed)"""
     logging.info("CoinGecko trending coins API removed. Returning empty list.")
     return []
+
 
 def analyze_coin_potential(symbol, chart_data):
     """Analyze a coin's potential based on historical data"""
     try:
         if len(chart_data) < 24:  # Need at least 24 hours of data
             return {"score": 0, "signals": []}
-        
-        prices = [point['price'] for point in chart_data]
-        volumes = [point['volume'] for point in chart_data]
-        
+
+        prices = [point["price"] for point in chart_data]
+        volumes = [point["volume"] for point in chart_data]
+
         signals = []
         score = 50  # Base score
-        
+
         # Price trend analysis
         recent_prices = prices[-12:]  # Last 12 hours
         if len(recent_prices) >= 2:
@@ -5833,51 +7451,61 @@ def analyze_coin_potential(symbol, chart_data):
             elif trend < -1:
                 signals.append("Negative trend (-1%)")
                 score -= 8
-        
+
         # Volume analysis
         recent_volume = sum(volumes[-6:]) / 6 if len(volumes) >= 6 else 0
-        older_volume = sum(volumes[-24:-6]) / 18 if len(volumes) >= 24 else recent_volume
-        
+        older_volume = (
+            sum(volumes[-24:-6]) / 18 if len(volumes) >= 24 else recent_volume
+        )
+
         if recent_volume > older_volume * 1.5:
             signals.append("High volume spike")
             score += 10
         elif recent_volume > older_volume * 1.2:
             signals.append("Increased volume")
             score += 5
-        
+
         # Volatility check
         if len(prices) >= 24:
-            price_changes = [abs(prices[i] - prices[i-1]) / prices[i-1] * 100 for i in range(1, len(prices))]
+            price_changes = [
+                abs(prices[i] - prices[i - 1]) / prices[i - 1] * 100
+                for i in range(1, len(prices))
+            ]
             avg_volatility = sum(price_changes) / len(price_changes)
-            
+
             if avg_volatility > 5:
                 signals.append("High volatility (>5%)")
                 score += 5
             elif avg_volatility < 1:
                 signals.append("Low volatility (<1%)")
                 score -= 5
-        
+
         # Support/resistance levels
         max_price = max(prices[-24:])
         min_price = min(prices[-24:])
         current_price = prices[-1]
-        
+
         if current_price > max_price * 0.95:
             signals.append("Near resistance level")
         elif current_price < min_price * 1.05:
             signals.append("Near support level")
             score += 5
-        
+
         return {
             "score": max(0, min(100, score)),
             "signals": signals[:5],  # Top 5 signals
-            "trend_percentage": round(trend, 2) if 'trend' in locals() else 0,
-            "volume_change": round((recent_volume - older_volume) / older_volume * 100, 2) if older_volume > 0 else 0
+            "trend_percentage": round(trend, 2) if "trend" in locals() else 0,
+            "volume_change": (
+                round((recent_volume - older_volume) / older_volume * 100, 2)
+                if older_volume > 0
+                else 0
+            ),
         }
-        
+
     except Exception as e:
         logging.error(f"Error analyzing coin potential for {symbol}: {e}")
         return {"score": 0, "signals": []}
+
 
 # =============================================================================
 # API ROUTES
@@ -5887,7 +7515,8 @@ def analyze_coin_potential(symbol, chart_data):
 # THREE UNIQUE ENDPOINTS FOR DIFFERENT UI SECTIONS
 # =============================================================================
 
-@app.route('/api/banner-top')
+
+@app.route("/api/banner-top")
 def get_top_banner():
     """Top banner: Current price + REAL-TIME 1h % change (unique endpoint)"""
     try:
@@ -5896,8 +7525,8 @@ def get_top_banner():
         snapshot_ts_s = None
         if current_prices:
             now_ts = time.time()
-            last_current_prices['data'] = current_prices
-            last_current_prices['timestamp'] = now_ts
+            last_current_prices["data"] = current_prices
+            last_current_prices["timestamp"] = now_ts
             snapshot_ts_s = int(now_ts)
 
         # Calculate REAL 1h price changes from price_history_1hour
@@ -5908,7 +7537,9 @@ def get_top_banner():
 
         # If warming up (no 1h baseline yet), fall back to 24h top movers with estimates
         if not baseline_meta.get("ready") or not hour_changes:
-            logging.info("Top banner: 1h baseline warming, using 24h top movers fallback")
+            logging.info(
+                "Top banner: 1h baseline warming, using 24h top movers fallback"
+            )
             banner_data = get_24h_top_movers()
             if not banner_data:
                 return jsonify({"error": "No banner data available"}), 503
@@ -5922,29 +7553,35 @@ def get_top_banner():
                 if pct < 0:
                     continue
                 symbol = coin["symbol"]
-                items.append({
-                    "symbol": symbol,
-                    "product_id": coin.get("product_id") or symbol,
-                    "current_price": coin.get("current_price") or coin.get('current') or 0,
-                    "price_change_1h": pct,  # estimated
-                    "pct_1h": pct,
-                    "pct_change_1h": pct,
-                    "market_cap": coin.get("market_cap", 0),
-                    "_source": "24h_fallback"
-                })
+                items.append(
+                    {
+                        "symbol": symbol,
+                        "product_id": coin.get("product_id") or symbol,
+                        "current_price": coin.get("current_price")
+                        or coin.get("current")
+                        or 0,
+                        "price_change_1h": pct,  # estimated
+                        "pct_1h": pct,
+                        "pct_change_1h": pct,
+                        "market_cap": coin.get("market_cap", 0),
+                        "_source": "24h_fallback",
+                    }
+                )
 
             items.sort(key=lambda r: r.get("price_change_1h", 0), reverse=True)
             items = items[:20]
 
-            return jsonify({
-                "items": items,
-                "count": len(items),
-                "limit": 20,
-                "age_seconds": 0,
-                "stale": True,
-                "warming": True,
-                "ts": int(time.time())
-            })
+            return jsonify(
+                {
+                    "items": items,
+                    "count": len(items),
+                    "limit": 20,
+                    "age_seconds": 0,
+                    "stale": True,
+                    "warming": True,
+                    "ts": int(time.time()),
+                }
+            )
 
         # Gainers only, sorted by 1h % change descending
         sorted_changes = sorted(
@@ -5958,32 +7595,37 @@ def get_top_banner():
         for change in sorted_changes[:20]:  # Top 20 biggest 1h movers
             symbol = change["symbol"]
             pct = change["price_change_1h"]
-            items.append({
-                "symbol": symbol,
-                "product_id": change.get("product_id") or symbol,
-                "current_price": change["current_price"],
-                "price_change_1h": pct,
-                "pct_1h": pct,
-                "pct_change_1h": pct,
-                "price_1h_ago": change.get("price_1h_ago", 0),
-                "_source": "realtime_1h"
-            })
+            items.append(
+                {
+                    "symbol": symbol,
+                    "product_id": change.get("product_id") or symbol,
+                    "current_price": change["current_price"],
+                    "price_change_1h": pct,
+                    "pct_1h": pct,
+                    "pct_change_1h": pct,
+                    "price_1h_ago": change.get("price_1h_ago", 0),
+                    "_source": "realtime_1h",
+                }
+            )
 
         baseline_age = baseline_meta.get("age_seconds", 0)
-        return jsonify({
-            "items": items,
-            "count": len(items),
-            "limit": 20,
-            "age_seconds": baseline_age,
-            "stale": False,
-            "warming": False,
-            "ts": int(time.time())
-        })
+        return jsonify(
+            {
+                "items": items,
+                "count": len(items),
+                "limit": 20,
+                "age_seconds": baseline_age,
+                "stale": False,
+                "warming": False,
+                "ts": int(time.time()),
+            }
+        )
     except Exception as e:
         logging.error(f"Error in top banner endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/banner-bottom')
+
+@app.route("/api/banner-bottom")
 def get_bottom_banner():
     """Bottom banner: REAL-TIME 1h volume changes from candles (unique endpoint)"""
     try:
@@ -6000,78 +7642,99 @@ def get_bottom_banner():
             if not banner_data:
                 return jsonify({"error": "No banner data available"}), 503
 
-            volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
+            volume_sorted = sorted(
+                banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True
+            )
 
             items = []
             for coin in volume_sorted[:20]:
                 # Use 1h price change as fallback until volume data warms up
                 price_change_1h_fallback = coin.get("price_change_1h", 0) or 0
-                items.append({
-                    "symbol": coin["symbol"],
-                    "volume_24h": coin.get("volume_24h", 0),
-                    "volume_change_1h": price_change_1h_fallback,  # Fallback to price % until volume data ready
-                    "current_price": coin.get("current_price") or coin.get('current') or 0,
-                    "_source": "24h_fallback_using_price_change"
-                })
+                items.append(
+                    {
+                        "symbol": coin["symbol"],
+                        "volume_24h": coin.get("volume_24h", 0),
+                        "volume_change_1h": price_change_1h_fallback,  # Fallback to price % until volume data ready
+                        "current_price": coin.get("current_price")
+                        or coin.get("current")
+                        or 0,
+                        "_source": "24h_fallback_using_price_change",
+                    }
+                )
 
-            return jsonify({
-                "items": items,
-                "count": len(items),
-                "limit": 20,
-                "age_seconds": 0,
-                "stale": True,
-                "warming": True,
-                "ts": int(time.time())
-            })
+            return jsonify(
+                {
+                    "items": items,
+                    "count": len(items),
+                    "limit": 20,
+                    "age_seconds": 0,
+                    "stale": True,
+                    "warming": True,
+                    "ts": int(time.time()),
+                }
+            )
 
         # Sort by 1h volume percent change (descending)
         # Filter out stale or None changes
-        valid_changes = [v for v in volume_changes if v.get('vol1h_pct_change') is not None and not v.get('stale', False)]
+        valid_changes = [
+            v
+            for v in volume_changes
+            if v.get("vol1h_pct_change") is not None and not v.get("stale", False)
+        ]
 
         if not valid_changes:
             # All stale, use whatever we have
             valid_changes = volume_changes
 
-        sorted_changes = sorted(valid_changes, key=lambda x: x.get("vol1h_pct_change") or float("-inf"), reverse=True)
+        sorted_changes = sorted(
+            valid_changes,
+            key=lambda x: x.get("vol1h_pct_change") or float("-inf"),
+            reverse=True,
+        )
 
         # Format for bottom banner
         items = []
         for change in sorted_changes[:20]:  # Top 20 biggest 1h volume movers
-            items.append({
-                "symbol": change["symbol"],
-                "current_price": change["current_price"],
-                "vol1h": change["vol1h"],
-                "volume_change_1h": change.get("vol1h_pct_change", 0),
-                "_source": "realtime_candles"
-            })
+            items.append(
+                {
+                    "symbol": change["symbol"],
+                    "current_price": change["current_price"],
+                    "vol1h": change["vol1h"],
+                    "volume_change_1h": change.get("vol1h_pct_change", 0),
+                    "_source": "realtime_candles",
+                }
+            )
 
-        return jsonify({
-            "items": items,
-            "count": len(items),
-            "limit": 20,
-            "age_seconds": 0,
-            "stale": False,
-            "warming": False,
-            "ts": int(time.time())
-        })
+        return jsonify(
+            {
+                "items": items,
+                "count": len(items),
+                "limit": 20,
+                "age_seconds": 0,
+                "stale": False,
+                "warming": False,
+                "ts": int(time.time()),
+            }
+        )
     except Exception as e:
         logging.error(f"Error in bottom banner endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/tables-3min')
+
+@app.route("/api/tables-3min")
 def get_tables_3min():
     """Tables: 3-minute gainers/losers (unique endpoint)"""
     try:
         # Get specific data for tables - focus on 3-minute changes
         data = get_crypto_data()
-        
+
         if not data:
             return jsonify({"error": "No table data available"}), 503
-            
+
         # Extract gainers and losers from the main data
-        gainers = data.get('gainers', [])
-        losers = data.get('losers', [])
-        
+        gainers = data.get("gainers", [])
+        losers = data.get("losers", [])
+
         # Format specifically for tables with 3-minute data and normalized keys
         g = gainers[:15]
         l = losers[:15]
@@ -6081,16 +7744,18 @@ def get_tables_3min():
             "losers": l,
             "counts": {"gainers": len(g), "losers": len(l)},
             "limit": 15,
-            "ts": int(time.time())
+            "ts": int(time.time()),
         }
         return jsonify(tables_data)
     except Exception as e:
         logging.error(f"Error in tables endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 # =============================================================================
 # INDIVIDUAL COMPONENT ENDPOINTS - Each component gets its own unique data
 # =============================================================================
+
 
 # Resilient helper for top banner (never raises NameError)
 def _compute_top_banner_data_safe():
@@ -6115,23 +7780,27 @@ def _compute_top_banner_data_safe():
             if pct < 0:
                 continue
             sym = coin.get("symbol")
-            out.append({
-                "symbol": sym,
-                "product_id": coin.get("product_id") or sym,
-                "current_price": float(coin.get("current_price", 0) or 0),
-                "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
-                "price_change_1h": pct,
-                "pct_1h": pct,
-                "pct_change_1h": pct,
-                "market_cap": float(coin.get("market_cap", 0) or 0),
-            })
+            out.append(
+                {
+                    "symbol": sym,
+                    "product_id": coin.get("product_id") or sym,
+                    "current_price": float(coin.get("current_price", 0) or 0),
+                    "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
+                    "price_change_1h": pct,
+                    "pct_1h": pct,
+                    "pct_change_1h": pct,
+                    "market_cap": float(coin.get("market_cap", 0) or 0),
+                }
+            )
         except Exception:
             continue
     out.sort(key=lambda r: r.get("price_change_1h", 0), reverse=True)
     out = out[:20]
     return out
 
+
 # ---------------- Simple snapshot helpers for /data -----------------
+
 
 def _wrap_rows_and_ts(payload):
     """Utility: extract (rows, ts) from component payloads.
@@ -6140,12 +7809,13 @@ def _wrap_rows_and_ts(payload):
     """
     try:
         if isinstance(payload, dict):
-            rows = payload.get('data') or []
-            ts = payload.get('last_updated') or None
+            rows = payload.get("data") or []
+            ts = payload.get("last_updated") or None
             return rows, ts
     except Exception:
         pass
     return [], None
+
 
 def get_gainers_1m():
     """Return (rows, ts) for 1m gainers.
@@ -6154,19 +7824,19 @@ def get_gainers_1m():
     Fallback to SWR builder only if the background thread hasn't produced
     a snapshot yet.
     """
-    data = _mw_get_component_snapshot('gainers_1m') or _get_gainers_table_1min_swr()
+    data = _mw_get_component_snapshot("gainers_1m") or _get_gainers_table_1min_swr()
     return _wrap_rows_and_ts(data)
 
 
 def get_gainers_3m():
     """Return (rows, ts) for 3m gainers (cache-only preferred)."""
-    data = _mw_get_component_snapshot('gainers_3m') or _get_gainers_table_3min_swr()
+    data = _mw_get_component_snapshot("gainers_3m") or _get_gainers_table_3min_swr()
     return _wrap_rows_and_ts(data)
 
 
 def get_losers_3m():
     """Return (rows, ts) for 3m losers (cache-only preferred)."""
-    data = _mw_get_component_snapshot('losers_3m') or _get_losers_table_3min_swr()
+    data = _mw_get_component_snapshot("losers_3m") or _get_losers_table_3min_swr()
     return _wrap_rows_and_ts(data)
 
 
@@ -6175,7 +7845,7 @@ def get_banner_1h():
 
     Prefer the background snapshot to avoid on-demand Coinbase calls.
     """
-    snap = _mw_get_component_snapshot('banner_1h_price')
+    snap = _mw_get_component_snapshot("banner_1h_price")
     if isinstance(snap, dict):
         return _wrap_rows_and_ts(snap)
 
@@ -6194,13 +7864,13 @@ def get_banner_1h_volume(banner_data=None):
     """
 
     # 1) If we already have a precomputed snapshot for the banner, use it.
-    snap = _mw_get_component_snapshot('banner_1h_volume')
+    snap = _mw_get_component_snapshot("banner_1h_volume")
     if isinstance(snap, dict):
         return _wrap_rows_and_ts(snap)
 
     # 2) Prefer candle/SQLite snapshot for 1h volume.
     try:
-        snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
+        snap_v1h_obj = _mw_get_component_snapshot("volume_1h_candles")
         # Accept either dict snapshots or raw lists (defensive):
         if isinstance(snap_v1h_obj, dict):
             vrows, vts = _wrap_rows_and_ts(snap_v1h_obj)
@@ -6211,41 +7881,61 @@ def get_banner_1h_volume(banner_data=None):
         if isinstance(vrows, list) and vrows:
             out = []
             for it in vrows:
-                pid = it.get('product_id') or it.get('id')
-                sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
+                pid = it.get("product_id") or it.get("id")
+                sym = (
+                    it.get("symbol")
+                    or (
+                        pid.split("-")[0]
+                        if isinstance(pid, str) and "-" in pid
+                        else None
+                    )
+                    or ""
+                ).upper()
 
                 # Accept both shapes:
                 # - SQLite compute: volume_1h_now / volume_1h_prev / volume_change_1h_pct
                 # - Candle cache:  vol1h / vol1h_prev / vol1h_pct_change
-                vol_now = it.get('volume_1h_now') or it.get('vol1h')
-                vol_prev = it.get('volume_1h_prev') or it.get('vol1h_prev')
-                pct = it.get('volume_change_1h_pct') or it.get('vol1h_pct_change')
-                missing_reason = it.get('baseline_missing_reason')
+                vol_now = it.get("volume_1h_now") or it.get("vol1h")
+                vol_prev = it.get("volume_1h_prev") or it.get("vol1h_prev")
+                pct = it.get("volume_change_1h_pct") or it.get("vol1h_pct_change")
+                missing_reason = it.get("baseline_missing_reason")
+                baseline_mode = it.get("baseline_mode")
+                baseline_minutes = it.get("baseline_minutes")
 
                 # baseline_ready requires both prev and pct to be truly computed (not derived)
                 baseline_ready = (pct is not None) and (vol_prev is not None)
 
                 pct_val = float(pct) if pct is not None else None
-                out.append({
-                    'symbol': sym,
-                    'product_id': pid or (f"{sym}-USD" if sym else None),
-                    'volume_1h_now': float(vol_now) if vol_now is not None else None,
-                    'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                    'volume_change_1h_pct': pct_val,
-                    'vol_pct_1h': pct_val,
-
-                    # aliases some frontend normalizers may read
-                    'change_1h_volume': pct_val,
-                    'volume_change_percentage_1h': pct_val,
-
-                    'baseline_ready': bool(baseline_ready),
-                    'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
-                    'source': 'volume_1h_candles',
-                })
+                out.append(
+                    {
+                        "symbol": sym,
+                        "product_id": pid or (f"{sym}-USD" if sym else None),
+                        "volume_1h_now": (
+                            float(vol_now) if vol_now is not None else None
+                        ),
+                        "volume_1h_prev": (
+                            float(vol_prev) if vol_prev is not None else None
+                        ),
+                        "volume_change_1h_pct": pct_val,
+                        "vol_pct_1h": pct_val,
+                        # aliases some frontend normalizers may read
+                        "change_1h_volume": pct_val,
+                        "volume_change_percentage_1h": pct_val,
+                        "baseline_ready": bool(baseline_ready),
+                        "baseline_mode": baseline_mode,
+                        "baseline_minutes": baseline_minutes,
+                        "baseline_missing_reason": (
+                            None
+                            if baseline_ready
+                            else (missing_reason or "warming_candles")
+                        ),
+                        "source": "volume_1h_candles",
+                    }
+                )
 
             # Stable ordering: volume pct change descending (no abs, no volume sort)
-            out = [r for r in out if isinstance(r.get('vol_pct_1h'), (int, float))]
-            out.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
+            out = [r for r in out if isinstance(r.get("vol_pct_1h"), (int, float))]
+            out.sort(key=lambda r: r.get("vol_pct_1h"), reverse=True)
             return out[:20], (vts or datetime.now().isoformat())
     except Exception:
         pass
@@ -6257,30 +7947,50 @@ def get_banner_1h_volume(banner_data=None):
         if isinstance(computed, list) and computed:
             out = []
             for it in computed:
-                pid = it.get('product_id') or it.get('id')
-                sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
-                vol_now = it.get('volume_1h_now')
-                vol_prev = it.get('volume_1h_prev')
-                pct = it.get('volume_change_1h_pct')
+                pid = it.get("product_id") or it.get("id")
+                sym = (
+                    it.get("symbol")
+                    or (
+                        pid.split("-")[0]
+                        if isinstance(pid, str) and "-" in pid
+                        else None
+                    )
+                    or ""
+                ).upper()
+                vol_now = it.get("volume_1h_now")
+                vol_prev = it.get("volume_1h_prev")
+                pct = it.get("volume_change_1h_pct")
+                baseline_mode = it.get("baseline_mode")
+                baseline_minutes = it.get("baseline_minutes")
                 baseline_ready = (pct is not None) and (vol_prev is not None)
 
                 pct_val = float(pct) if pct is not None else None
-                out.append({
-                    'symbol': sym,
-                    'product_id': pid or (f"{sym}-USD" if sym else None),
-                    'volume_1h_now': float(vol_now) if vol_now is not None else None,
-                    'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                    'volume_change_1h_pct': pct_val,
-                    'vol_pct_1h': pct_val,
-                    'change_1h_volume': pct_val,
-                    'volume_change_percentage_1h': pct_val,
-                    'baseline_ready': bool(baseline_ready),
-                    'baseline_missing_reason': None if baseline_ready else 'warming_candles',
-                    'source': 'volume1h_sqlite',
-                })
+                out.append(
+                    {
+                        "symbol": sym,
+                        "product_id": pid or (f"{sym}-USD" if sym else None),
+                        "volume_1h_now": (
+                            float(vol_now) if vol_now is not None else None
+                        ),
+                        "volume_1h_prev": (
+                            float(vol_prev) if vol_prev is not None else None
+                        ),
+                        "volume_change_1h_pct": pct_val,
+                        "vol_pct_1h": pct_val,
+                        "change_1h_volume": pct_val,
+                        "volume_change_percentage_1h": pct_val,
+                        "baseline_ready": bool(baseline_ready),
+                        "baseline_mode": baseline_mode,
+                        "baseline_minutes": baseline_minutes,
+                        "baseline_missing_reason": (
+                            None if baseline_ready else "warming_candles"
+                        ),
+                        "source": "volume1h_sqlite",
+                    }
+                )
 
-            out = [r for r in out if isinstance(r.get('vol_pct_1h'), (int, float))]
-            out.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
+            out = [r for r in out if isinstance(r.get("vol_pct_1h"), (int, float))]
+            out.sort(key=lambda r: r.get("vol_pct_1h"), reverse=True)
             return out[:20], datetime.now().isoformat()
     except Exception:
         pass
@@ -6288,15 +7998,28 @@ def get_banner_1h_volume(banner_data=None):
     # 4) Not ready yet: no rolling-stat fallback.
     return [], None
 
+
 def _build_one_min_funnel():
     """Build a compact 1m funnel breakdown for UI/debugging."""
     diag = dict(one_minute_diag) if isinstance(one_minute_diag, dict) else {}
     total_prices = int(diag.get("total_prices") or 0)
     price_non_positive = int(diag.get("price_non_positive") or 0)
-    eligible_products = int(diag.get("eligible_products") or max(0, total_prices - price_non_positive))
-    have_baseline = int(diag.get("have_baseline") or (int(diag.get("baseline_used_db") or 0) + int(diag.get("baseline_used_history") or 0)))
-    missing_baseline = int(diag.get("missing_baseline") or diag.get("baseline_missing") or 0)
-    stale_price = int(diag.get("stale_price") or diag.get("baseline_history_missing") or 0)
+    eligible_products = int(
+        diag.get("eligible_products") or max(0, total_prices - price_non_positive)
+    )
+    have_baseline = int(
+        diag.get("have_baseline")
+        or (
+            int(diag.get("baseline_used_db") or 0)
+            + int(diag.get("baseline_used_history") or 0)
+        )
+    )
+    missing_baseline = int(
+        diag.get("missing_baseline") or diag.get("baseline_missing") or 0
+    )
+    stale_price = int(
+        diag.get("stale_price") or diag.get("baseline_history_missing") or 0
+    )
     filtered_min_volume = int(diag.get("filtered_min_volume") or 0)
     final_kept = int(diag.get("final_kept") or diag.get("included") or 0)
     rate_limited = 0
@@ -6315,7 +8038,33 @@ def _build_one_min_funnel():
         "final_kept": final_kept,
     }
 
-@app.route('/data')
+
+def _default_market_pressure_payload() -> dict:
+    """Fallback market pressure shape used when snapshot is unavailable."""
+    now_ts = int(time.time())
+    return {
+        "index": 50,
+        "label": "Neutral",
+        "score01": 0.5,
+        "components": {
+            "breadth": 0.0,
+            "impulse_density": 0.0,
+            "volume_anomaly": 0.0,
+            "vol_regime": 0.0,
+            "persistence": 0.0,
+        },
+        "ts": now_ts,
+        # Legacy aliases used by existing UI paths.
+        "heat": 50.0,
+        "bias": "neutral",
+        "breadth_up": 0.0,
+        "breadth_down": 0.0,
+        "impulse_count": 0,
+        "symbol_count": 0,
+    }
+
+
+@app.route("/data")
 def data_aggregate():
     """Unified aggregate data endpoint used by the dashboard SPA.
 
@@ -6335,15 +8084,16 @@ def data_aggregate():
         # ------------------------------------------------------------------
         # Cache-only fast path: do NOT call any SWR helpers here.
         # ------------------------------------------------------------------
-        snap_updated_at = _mw_get_component_snapshot('updated_at')
-        snap_g1_obj = _mw_get_component_snapshot('gainers_1m')
-        snap_g3_obj = _mw_get_component_snapshot('gainers_3m')
-        snap_l3_obj = _mw_get_component_snapshot('losers_3m')
-        snap_b1h_obj = _mw_get_component_snapshot('banner_1h_price')
-        snap_bv_obj = _mw_get_component_snapshot('banner_1h_volume')
-        snap_v1h_obj = _mw_get_component_snapshot('volume_1h_candles')
-        snap_volume1h_obj = _mw_get_component_snapshot('volume1h')
-        snap_alerts_obj = _mw_get_component_snapshot('alerts')
+        snap_updated_at = _mw_get_component_snapshot("updated_at")
+        snap_g1_obj = _mw_get_component_snapshot("gainers_1m")
+        snap_g3_obj = _mw_get_component_snapshot("gainers_3m")
+        snap_l3_obj = _mw_get_component_snapshot("losers_3m")
+        snap_b1h_obj = _mw_get_component_snapshot("banner_1h_price")
+        snap_bv_obj = _mw_get_component_snapshot("banner_1h_volume")
+        snap_v1h_obj = _mw_get_component_snapshot("volume_1h_candles")
+        snap_volume1h_obj = _mw_get_component_snapshot("volume1h")
+        snap_pressure_obj = _mw_get_component_snapshot("market_pressure")
+        snap_alerts_obj = _mw_get_component_snapshot("alerts")
 
         snap_g1, _g1_ts = _wrap_rows_and_ts(snap_g1_obj)
         snap_g3, _g3_ts = _wrap_rows_and_ts(snap_g3_obj)
@@ -6353,21 +8103,26 @@ def data_aggregate():
         snap_v1h, _v1h_ts = _wrap_rows_and_ts(snap_v1h_obj)
         snap_volume1h, _vol1h_ts = _wrap_rows_and_ts(snap_volume1h_obj)
         snap_alerts, _alerts_ts = _wrap_rows_and_ts(snap_alerts_obj)
+        snap_pressure_data = None
+        if isinstance(snap_pressure_obj, dict):
+            snap_pressure_data = _strip_emoji_payload(snap_pressure_obj.get("data"))
+        if not isinstance(snap_pressure_data, dict) or not snap_pressure_data:
+            snap_pressure_data = _default_market_pressure_payload()
 
         if snap_updated_at:
             # Best-effort latest_by_symbol map from snapshot rows.
             latest_by_symbol = {}
             for lst in (snap_g1, snap_g3, snap_l3, snap_b1h, snap_bv):
-                for item in (lst or []):
+                for item in lst or []:
                     try:
-                        sym = (item.get('symbol') or '').upper()
+                        sym = (item.get("symbol") or "").upper()
                     except Exception:
-                        sym = ''
+                        sym = ""
                     if not sym:
                         continue
-                    raw_price = item.get('current_price')
+                    raw_price = item.get("current_price")
                     if raw_price is None:
-                        raw_price = item.get('price')
+                        raw_price = item.get("price")
                     try:
                         price_f = float(raw_price)
                     except (TypeError, ValueError):
@@ -6391,15 +8146,21 @@ def data_aggregate():
             must_include = list(_MW_MUST_INCLUDE_PRODUCTS)
             present_pids = set()
             for rows in (snap_g1, snap_g3, snap_l3):
-                for row in (rows or []):
+                for row in rows or []:
                     pid = _normalize_product_id_from_row(row)
                     if pid:
                         present_pids.add(pid)
 
-            missing_must_before = [pid for pid in must_include if pid and pid not in present_pids]
+            missing_must_before = [
+                pid for pid in must_include if pid and pid not in present_pids
+            ]
             must_added = []
             if missing_must_before:
-                price_map = last_current_prices.get("data") if isinstance(last_current_prices, dict) else None
+                price_map = (
+                    last_current_prices.get("data")
+                    if isinstance(last_current_prices, dict)
+                    else None
+                )
                 if not isinstance(price_map, dict):
                     price_map = {}
                 for pid in missing_must_before:
@@ -6424,7 +8185,9 @@ def data_aggregate():
                     must_added.append(pid)
                     present_pids.add(pid)
 
-                    missing_must_after = [pid for pid in must_include if pid and pid not in present_pids]
+                    missing_must_after = [
+                        pid for pid in must_include if pid and pid not in present_pids
+                    ]
                     missing_must = missing_must_after
 
             warming_3m = not bool(baseline_meta_3m.get("ready"))
@@ -6433,7 +8196,10 @@ def data_aggregate():
             warming_1m = not bool(baseline_meta_1m.get("ready"))
             baseline_ts_1m = baseline_meta_1m.get("baseline_ts")
             try:
-                if isinstance(snap_g1_obj, dict) and snap_g1_obj.get("warming") is not None:
+                if (
+                    isinstance(snap_g1_obj, dict)
+                    and snap_g1_obj.get("warming") is not None
+                ):
                     warming_1m = bool(snap_g1_obj.get("warming"))
                 if baseline_ts_1m is None and isinstance(snap_g1_obj, dict):
                     baseline_ts_1m = snap_g1_obj.get("baseline_ts") or baseline_ts_1m
@@ -6446,25 +8212,44 @@ def data_aggregate():
             try:
                 if isinstance(snap_g1, list) and len(snap_g1) > 0:
                     warming_1m = False
-                if (isinstance(snap_g3, list) and len(snap_g3) > 0) or (isinstance(snap_l3, list) and len(snap_l3) > 0):
+                if (isinstance(snap_g3, list) and len(snap_g3) > 0) or (
+                    isinstance(snap_l3, list) and len(snap_l3) > 0
+                ):
                     warming_3m = False
             except Exception:
                 pass
             try:
-                if isinstance(snap_g3_obj, dict) and snap_g3_obj.get("warming") is not None:
+                if (
+                    isinstance(snap_g3_obj, dict)
+                    and snap_g3_obj.get("warming") is not None
+                ):
                     warming_3m = bool(snap_g3_obj.get("warming"))
-                if isinstance(snap_l3_obj, dict) and snap_l3_obj.get("warming") is not None:
+                if (
+                    isinstance(snap_l3_obj, dict)
+                    and snap_l3_obj.get("warming") is not None
+                ):
                     warming_3m = warming_3m or bool(snap_l3_obj.get("warming"))
                 if baseline_ts_3m is None:
                     if isinstance(snap_g3_obj, dict):
-                        baseline_ts_3m = snap_g3_obj.get("baseline_ts") or baseline_ts_3m
+                        baseline_ts_3m = (
+                            snap_g3_obj.get("baseline_ts") or baseline_ts_3m
+                        )
                     if isinstance(snap_l3_obj, dict):
-                        baseline_ts_3m = snap_l3_obj.get("baseline_ts") or baseline_ts_3m
+                        baseline_ts_3m = (
+                            snap_l3_obj.get("baseline_ts") or baseline_ts_3m
+                        )
             except Exception:
                 pass
 
             # Get last-good metadata
-            last_good_ts, stale_seconds, warming, warming_3m_meta, baseline_ts_3m_meta, baseline_age_3m_meta = _mw_get_last_good_metadata()
+            (
+                last_good_ts,
+                stale_seconds,
+                warming,
+                warming_3m_meta,
+                baseline_ts_3m_meta,
+                baseline_age_3m_meta,
+            ) = _mw_get_last_good_metadata()
 
             if isinstance(snap_alerts, list) and len(snap_alerts) > 0:
                 alerts_normalized = list(snap_alerts)
@@ -6472,7 +8257,11 @@ def data_aggregate():
             else:
                 alerts_normalized, alerts_meta = _mw_get_alerts_normalized_with_sticky()
 
-            partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+            partial_tick = (
+                bool(last_current_prices.get("partial"))
+                if isinstance(last_current_prices, dict)
+                else False
+            )
             sentiment_payload, sentiment_meta = _get_local_sentiment_payload()
 
             def _to_float(val):
@@ -6496,7 +8285,11 @@ def data_aggregate():
                         pct = _to_float(row.get("price_change_1h"))
                     rr = dict(row)
                     rr["pct_1h"] = pct
-                    rr["pct_change_1h"] = rr.get("pct_change_1h") if rr.get("pct_change_1h") is not None else pct
+                    rr["pct_change_1h"] = (
+                        rr.get("pct_change_1h")
+                        if rr.get("pct_change_1h") is not None
+                        else pct
+                    )
                     rr["product_id"] = rr.get("product_id") or rr.get("symbol")
                     norm_b1h.append(rr)
                 snap_b1h = norm_b1h
@@ -6524,6 +8317,7 @@ def data_aggregate():
                 "banner_1h_volume": snap_bv or [],
                 "volume_1h_candles": snap_v1h or [],
                 "volume1h": snap_volume1h or [],
+                "market_pressure": snap_pressure_data,
                 "alerts": alerts_normalized,
                 "sentiment": sentiment_payload,
                 "sentiment_meta": sentiment_meta,
@@ -6544,11 +8338,31 @@ def data_aggregate():
                     "alerts_sticky": bool(alerts_meta.get("sticky")),
                     "alerts_last_good_age_s": alerts_meta.get("last_good_age_s"),
                     "partial": partial_tick,
-                    "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
-                    "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
-                    "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
-                    "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
-                    "one_min_diagnostics": dict(one_minute_diag) if isinstance(one_minute_diag, dict) else None,
+                    "partial_reason": (
+                        last_current_prices.get("partial_reason")
+                        if isinstance(last_current_prices, dict)
+                        else None
+                    ),
+                    "partial_ok_ratio": (
+                        last_current_prices.get("ok_ratio")
+                        if isinstance(last_current_prices, dict)
+                        else None
+                    ),
+                    "partial_ok": (
+                        last_current_prices.get("ok")
+                        if isinstance(last_current_prices, dict)
+                        else None
+                    ),
+                    "partial_submitted": (
+                        last_current_prices.get("submitted")
+                        if isinstance(last_current_prices, dict)
+                        else None
+                    ),
+                    "one_min_diagnostics": (
+                        dict(one_minute_diag)
+                        if isinstance(one_minute_diag, dict)
+                        else None
+                    ),
                     "one_min_funnel": _build_one_min_funnel(),
                 },
                 "errors": {},
@@ -6557,6 +8371,7 @@ def data_aggregate():
                     "banner_1h_volume": len(snap_bv or []),
                     "volume_1h_candles": len(snap_v1h or []),
                     "volume1h": 0,
+                    "market_pressure": 1 if snap_pressure_data else 0,
                     "gainers_1m": len(snap_g1 or []),
                     "gainers_3m": len(snap_g3 or []),
                     "losers_3m": len(snap_l3 or []),
@@ -6576,20 +8391,33 @@ def data_aggregate():
                 "banner_1h_volume": payload["banner_1h_volume"],
                 "volume_1h_candles": payload["volume_1h_candles"],
                 "volume1h": payload["volume1h"],
+                "market_pressure": payload["market_pressure"],
                 "alerts": alerts_normalized,
                 "latest_by_symbol": payload["latest_by_symbol"],
                 "updated_at": payload["updated_at"],
             }
             payload["coverage"]["volume1h"] = len(payload["volume1h"] or [])
 
+            _check_emoji_scope(payload, context="/data[snapshot]")
             resp = jsonify(payload)
             resp.headers["Cache-Control"] = "no-store, max-age=0"
             return resp, 200
 
         # No snapshot yet: return a fast warming payload.
         warming_ts = datetime.now().isoformat()
-        last_good_ts, stale_seconds, warming, warming_3m_empty, baseline_ts_3m_empty, baseline_age_3m_empty = _mw_get_last_good_metadata()
-        partial_tick = bool(last_current_prices.get("partial")) if isinstance(last_current_prices, dict) else False
+        (
+            last_good_ts,
+            stale_seconds,
+            warming,
+            warming_3m_empty,
+            baseline_ts_3m_empty,
+            baseline_age_3m_empty,
+        ) = _mw_get_last_good_metadata()
+        partial_tick = (
+            bool(last_current_prices.get("partial"))
+            if isinstance(last_current_prices, dict)
+            else False
+        )
         sentiment_payload, sentiment_meta = _get_sentiment_snapshot()
         payload = {
             "gainers_1m": [],
@@ -6599,6 +8427,7 @@ def data_aggregate():
             "banner_1h_volume": [],
             "volume_1h_candles": [],
             "volume1h": [],
+            "market_pressure": snap_pressure_data,
             "alerts": [],
             "sentiment": sentiment_payload,
             "sentiment_meta": sentiment_meta,
@@ -6608,7 +8437,9 @@ def data_aggregate():
                 "snapshot_only": True,
                 "warming": warming,
                 "warming_1m": True,
-                "warming_3m": warming_3m_empty if warming_3m_empty is not None else True,
+                "warming_3m": (
+                    warming_3m_empty if warming_3m_empty is not None else True
+                ),
                 "ts": warming_ts,
                 "lastGoodTs": last_good_ts,
                 "staleSeconds": stale_seconds,
@@ -6617,11 +8448,29 @@ def data_aggregate():
                 "baselineAgeSeconds1m": None,
                 "baselineAgeSeconds3m": baseline_age_3m_empty,
                 "partial": partial_tick,
-                "partial_reason": last_current_prices.get("partial_reason") if isinstance(last_current_prices, dict) else None,
-                "partial_ok_ratio": last_current_prices.get("ok_ratio") if isinstance(last_current_prices, dict) else None,
-                "partial_ok": last_current_prices.get("ok") if isinstance(last_current_prices, dict) else None,
-                "partial_submitted": last_current_prices.get("submitted") if isinstance(last_current_prices, dict) else None,
-                "one_min_diagnostics": dict(one_minute_diag) if isinstance(one_minute_diag, dict) else None,
+                "partial_reason": (
+                    last_current_prices.get("partial_reason")
+                    if isinstance(last_current_prices, dict)
+                    else None
+                ),
+                "partial_ok_ratio": (
+                    last_current_prices.get("ok_ratio")
+                    if isinstance(last_current_prices, dict)
+                    else None
+                ),
+                "partial_ok": (
+                    last_current_prices.get("ok")
+                    if isinstance(last_current_prices, dict)
+                    else None
+                ),
+                "partial_submitted": (
+                    last_current_prices.get("submitted")
+                    if isinstance(last_current_prices, dict)
+                    else None
+                ),
+                "one_min_diagnostics": (
+                    dict(one_minute_diag) if isinstance(one_minute_diag, dict) else None
+                ),
                 "one_min_funnel": _build_one_min_funnel(),
             },
             "errors": {"warming": "no_snapshot_yet"},
@@ -6630,6 +8479,7 @@ def data_aggregate():
                 "banner_1h_volume": 0,
                 "volume_1h_candles": 0,
                 "volume1h": 0,
+                "market_pressure": 1 if snap_pressure_data else 0,
                 "gainers_1m": 0,
                 "gainers_3m": 0,
                 "losers_3m": 0,
@@ -6648,10 +8498,12 @@ def data_aggregate():
             "banner_1h_price": [],
             "banner_1h_volume": [],
             "volume1h": [],
+            "market_pressure": snap_pressure_data,
             "alerts": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
         }
+        _check_emoji_scope(payload, context="/data[warming]")
         resp = jsonify(payload)
         resp.headers["Cache-Control"] = "no-store, max-age=0"
         return resp, 200
@@ -6672,7 +8524,7 @@ def data_aggregate():
         # 1m gainers snapshot
         try:
             g1_rows, g1_ts = get_gainers_1m()
-            for r in (g1_rows or []):
+            for r in g1_rows or []:
                 sym = _sym_from(r)
                 if not sym:
                     continue
@@ -6687,7 +8539,11 @@ def data_aggregate():
                     base["current_price"] = price_f
                     base["price_now"] = price_f
 
-                initial_1m = r.get("initial_price_1min") or r.get("initial_1min") or r.get("previous_price_1m")
+                initial_1m = (
+                    r.get("initial_price_1min")
+                    or r.get("initial_1min")
+                    or r.get("previous_price_1m")
+                )
                 initial_1m_val = None
                 if initial_1m is not None:
                     try:
@@ -6720,7 +8576,7 @@ def data_aggregate():
         # 3m gainers snapshot
         try:
             g3_rows, g3_ts = get_gainers_3m()
-            for r in (g3_rows or []):
+            for r in g3_rows or []:
                 sym = _sym_from(r)
                 if not sym:
                     continue
@@ -6734,7 +8590,11 @@ def data_aggregate():
                     base["price"] = price_f
                     base["current_price"] = price_f
                     base["price_now"] = price_f
-                initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                initial_3m = (
+                    r.get("initial_price_3min")
+                    or r.get("initial_3min")
+                    or r.get("previous_price_3m")
+                )
                 initial_3m_val = None
                 if initial_3m is not None:
                     try:
@@ -6765,7 +8625,7 @@ def data_aggregate():
         # 3m losers snapshot
         try:
             l3_rows, l3_ts = get_losers_3m()
-            for r in (l3_rows or []):
+            for r in l3_rows or []:
                 sym = _sym_from(r)
                 if not sym:
                     continue
@@ -6788,7 +8648,11 @@ def data_aggregate():
                         gain_3m_val = None
                 # losers also carry the same 3m initial reference so the UI
                 # can show the baseline under the current price
-                initial_3m = r.get("initial_price_3min") or r.get("initial_3min") or r.get("previous_price_3m")
+                initial_3m = (
+                    r.get("initial_price_3min")
+                    or r.get("initial_3min")
+                    or r.get("previous_price_3m")
+                )
                 initial_3m_val = None
                 if initial_3m is not None:
                     try:
@@ -6960,10 +8824,16 @@ def data_aggregate():
                 row["rank"] = idx
                 sym = row.get("symbol") or ""
                 # normalize symbol into a Coinbase advanced-trade spot pair
-                slug = str(sym).lower().replace('_', '-').replace('/', '-')
-                if not (slug.endswith('-usd') or slug.endswith('-usdt') or slug.endswith('-perp')):
+                slug = str(sym).lower().replace("_", "-").replace("/", "-")
+                if not (
+                    slug.endswith("-usd")
+                    or slug.endswith("-usdt")
+                    or slug.endswith("-perp")
+                ):
                     slug = f"{slug}-usd"
-                row.setdefault("trade_url", f"https://www.coinbase.com/advanced-trade/spot/{slug}")
+                row.setdefault(
+                    "trade_url", f"https://www.coinbase.com/advanced-trade/spot/{slug}"
+                )
                 out_rows.append(row)
             return out_rows
 
@@ -6992,13 +8862,25 @@ def data_aggregate():
             losers = [r for r in cleaned if r[pct_key] < 0.0]
 
             gainers_sorted = sorted(gainers, key=lambda r: r[pct_key], reverse=True)
-            losers_sorted = sorted(losers, key=lambda r: r[pct_key])  # most negative first
+            losers_sorted = sorted(
+                losers, key=lambda r: r[pct_key]
+            )  # most negative first
 
-            return _rank_and_trade(gainers_sorted, limit), _rank_and_trade(losers_sorted, limit)
+            return _rank_and_trade(gainers_sorted, limit), _rank_and_trade(
+                losers_sorted, limit
+            )
 
         def build_3m_slices(tokens: list[dict], top_n: int = 8):
-            gainers = [t for t in tokens if t.get("change_3m") is not None and t.get("change_3m") > 0]
-            losers = [t for t in tokens if t.get("change_3m") is not None and t.get("change_3m") < 0]
+            gainers = [
+                t
+                for t in tokens
+                if t.get("change_3m") is not None and t.get("change_3m") > 0
+            ]
+            losers = [
+                t
+                for t in tokens
+                if t.get("change_3m") is not None and t.get("change_3m") < 0
+            ]
 
             gainers_sorted = sorted(gainers, key=lambda t: t["change_3m"], reverse=True)
             losers_sorted = sorted(losers, key=lambda t: t["change_3m"], reverse=False)
@@ -7025,7 +8907,11 @@ def data_aggregate():
         def build_1h_price_banner(tokens: list[dict], top_n: int = 20):
             enriched = []
             for t in tokens:
-                price_now = t.get("current_price") if isinstance(t.get("current_price"), (int, float)) else t.get("price")
+                price_now = (
+                    t.get("current_price")
+                    if isinstance(t.get("current_price"), (int, float))
+                    else t.get("price")
+                )
                 if price_now is None:
                     price_now = t.get("price_now")
                 price_ago = t.get("price_1h_ago") or t.get("initial_price_1h")
@@ -7056,15 +8942,21 @@ def data_aggregate():
                 enriched.append(row)
 
             # Keep only numeric, non-zero changes; missing/invalid should not become 0.
-            enriched = [t for t in enriched if t.get("price_change_1h_pct") not in (None, 0.0)]
-            enriched = _sort_rows_by_numeric(enriched, "price_change_1h_pct", descending=True)
+            enriched = [
+                t for t in enriched if t.get("price_change_1h_pct") not in (None, 0.0)
+            ]
+            enriched = _sort_rows_by_numeric(
+                enriched, "price_change_1h_pct", descending=True
+            )
             return _rank_and_trade(enriched, top_n)
 
         def build_1h_volume_banner(tokens: list[dict], top_n: int = 20):
             enriched = []
             fallback_rows = []
             for t in tokens:
-                vol_now = t.get("volume_1h_now") or t.get("volume_24h") or t.get("volume_1h")
+                vol_now = (
+                    t.get("volume_1h_now") or t.get("volume_24h") or t.get("volume_1h")
+                )
                 vol_prev = t.get("volume_1h_prev")
                 try:
                     vol_now_f = float(vol_now)
@@ -7084,11 +8976,17 @@ def data_aggregate():
                 change_pct = pct_change(vol_now_f, vol_prev_f)
                 normalized_pct = _safe_float(change_pct)
                 if normalized_pct in (None, 0.0):
-                    fallback = t.get("volume_change_1h_pct") or t.get("change_1h_volume")
+                    fallback = t.get("volume_change_1h_pct") or t.get(
+                        "change_1h_volume"
+                    )
                     normalized_pct = _safe_float(fallback)
 
                 # If we still don't have a previous volume but do have change_pct, derive it
-                if vol_prev_f is None and vol_now_f is not None and change_pct not in (None, 0.0):
+                if (
+                    vol_prev_f is None
+                    and vol_now_f is not None
+                    and change_pct not in (None, 0.0)
+                ):
                     try:
                         denom = 1 + (change_pct / 100.0)
                         if denom != 0:
@@ -7109,22 +9007,32 @@ def data_aggregate():
                 if normalized_pct in (None, 0.0) and vol_now_f is not None:
                     fallback_rows.append(row)
 
-            enriched = [t for t in enriched if t.get("volume_change_1h_pct") not in (None, 0.0)]
+            enriched = [
+                t for t in enriched if t.get("volume_change_1h_pct") not in (None, 0.0)
+            ]
             if enriched:
-                enriched = _sort_rows_by_numeric(enriched, "volume_change_1h_pct", descending=True)
+                enriched = _sort_rows_by_numeric(
+                    enriched, "volume_change_1h_pct", descending=True
+                )
                 return _rank_and_trade(enriched, top_n)
 
             # Dev-friendly fallback: if no 1h delta is available, rank by volume now
-            fallback_rows = [t for t in fallback_rows if t.get("volume_1h_now") is not None]
+            fallback_rows = [
+                t for t in fallback_rows if t.get("volume_1h_now") is not None
+            ]
             if fallback_rows:
-                fallback_rows = _sort_rows_by_numeric(fallback_rows, "volume_1h_now", descending=True)
+                fallback_rows = _sort_rows_by_numeric(
+                    fallback_rows, "volume_1h_now", descending=True
+                )
                 for row in fallback_rows:
                     row["volume_change_1h_pct"] = row.get("volume_change_1h_pct") or 0.0
                 return _rank_and_trade(fallback_rows, top_n)
 
             return []
 
-        gainers_1m, _losers_dummy_1m = _select_top_movers(all_rows, "change_1m", limit=50)
+        gainers_1m, _losers_dummy_1m = _select_top_movers(
+            all_rows, "change_1m", limit=50
+        )
         gainers_3m, losers_3m = build_3m_slices(all_rows, top_n=50)
 
         banner_1h_price = build_1h_price_banner(all_rows, top_n=20)
@@ -7158,7 +9066,9 @@ def data_aggregate():
             except Exception:
                 row["product_id"] = None
                 if DEBUG_PID:
-                    _pid_debug(f"PID_EXCEPTION_EMIT symbol={sym!r} row_keys={list(row.keys())}")
+                    _pid_debug(
+                        f"PID_EXCEPTION_EMIT symbol={sym!r} row_keys={list(row.keys())}"
+                    )
 
             latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
 
@@ -7206,15 +9116,21 @@ def data_aggregate():
                                 )
                                 # Also emit a full JSON snippet for deeper inspection (first 10 only)
                                 try:
-                                    seen = getattr(app, '_pid_miss_seen', 0)
+                                    seen = getattr(app, "_pid_miss_seen", 0)
                                 except Exception:
                                     seen = 0
                                 if seen < 10:
                                     try:
                                         import json as _json
-                                        _pid_debug("PID_MISS_FULL " + _json.dumps(item, default=str)[:2000])
+
+                                        _pid_debug(
+                                            "PID_MISS_FULL "
+                                            + _json.dumps(item, default=str)[:2000]
+                                        )
                                     except Exception:
-                                        _pid_debug(f"PID_MISS_FULL_FAILED symbol={item.get('symbol')!r}")
+                                        _pid_debug(
+                                            f"PID_MISS_FULL_FAILED symbol={item.get('symbol')!r}"
+                                        )
                                     try:
                                         app._pid_miss_seen = seen + 1
                                     except Exception:
@@ -7274,7 +9190,8 @@ def data_aggregate():
         resp.headers["Cache-Control"] = "no-store, max-age=0"
         return resp, 200
 
-@app.route('/api/component/top-banner-scroll')
+
+@app.route("/api/component/top-banner-scroll")
 def get_top_banner_scroll():
     """Individual endpoint for top scrolling banner - 1-hour price change data (resilient, no trends/sparklines)."""
     try:
@@ -7287,7 +9204,7 @@ def get_top_banner_scroll():
             "focus": "price_change",
             "scroll_speed": "medium",
             "update_interval": 60000,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
         }
         return jsonify(payload), 200
     except Exception as e:
@@ -7296,19 +9213,25 @@ def get_top_banner_scroll():
         except Exception:
             pass
         # Still return 200 with empty list so UI never breaks
-        return jsonify({
-            "component": "top_banner_scroll",
-            "data": [],
-            "count": 0,
-            "time_frame": "1_hour",
-            "focus": "price_change",
-            "scroll_speed": "medium",
-            "update_interval": 60000,
-            "last_updated": datetime.now().isoformat(),
-            "error": str(e)
-        }), 200
+        return (
+            jsonify(
+                {
+                    "component": "top_banner_scroll",
+                    "data": [],
+                    "count": 0,
+                    "time_frame": "1_hour",
+                    "focus": "price_change",
+                    "scroll_speed": "medium",
+                    "update_interval": 60000,
+                    "last_updated": datetime.now().isoformat(),
+                    "error": str(e),
+                }
+            ),
+            200,
+        )
 
-@app.route('/api/component/bottom-banner-scroll')
+
+@app.route("/api/component/bottom-banner-scroll")
 def get_bottom_banner_scroll():
     """Individual endpoint for bottom scrolling banner - 1-hour volume change data"""
     try:
@@ -7316,10 +9239,12 @@ def get_bottom_banner_scroll():
         banner_data = get_24h_top_movers()
         if not banner_data:
             return jsonify({"error": ERROR_NO_DATA}), 503
-            
+
         # Sort by 24h volume for bottom banner (as we don't have hourly volume data)
-        volume_sorted = sorted(banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True)
-        
+        volume_sorted = sorted(
+            banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True
+        )
+
         bottom_scroll_data = []
         for coin in volume_sorted[:20]:  # Top 20 by volume
             sym = coin["symbol"]
@@ -7344,45 +9269,77 @@ def get_bottom_banner_scroll():
             except Exception:
                 pass
             # Fallback metric for trend if we lack 1h volume delta
-            ch_metric = float(vol_change_1h_pct if vol_change_1h_pct is not None else (coin.get("price_change_1h", 0) or 0))
-            prev = one_hour_volume_trends.get(sym, {"last": ch_metric, "streak": 0, "last_dir": "flat", "score": 0.0})
-            direction = "up" if ch_metric > prev["last"] else ("down" if ch_metric < prev["last"] else "flat")
-            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            ch_metric = float(
+                vol_change_1h_pct
+                if vol_change_1h_pct is not None
+                else (coin.get("price_change_1h", 0) or 0)
+            )
+            prev = one_hour_volume_trends.get(
+                sym, {"last": ch_metric, "streak": 0, "last_dir": "flat", "score": 0.0}
+            )
+            direction = (
+                "up"
+                if ch_metric > prev["last"]
+                else ("down" if ch_metric < prev["last"] else "flat")
+            )
+            streak = (
+                prev["streak"] + 1
+                if direction != "flat" and direction == prev["last_dir"]
+                else (1 if direction != "flat" else prev["streak"])
+            )
             score = round(prev["score"] * 0.9 + abs(ch_metric) * 0.1, 3)
-            one_hour_volume_trends[sym] = {"last": ch_metric, "streak": streak, "last_dir": direction, "score": score}
-            _maybe_fire_trend_alert('1h_volume', sym, direction, streak, score)
+            one_hour_volume_trends[sym] = {
+                "last": ch_metric,
+                "streak": streak,
+                "last_dir": direction,
+                "score": score,
+            }
+            _maybe_fire_trend_alert("1h_volume", sym, direction, streak, score)
 
-            bottom_scroll_data.append({
-                "symbol": sym,
-                "current_price": coin["current_price"],
-                "volume_24h": vol_now,
-                "price_change_1h": coin["price_change_1h"],
-                "volume_change_1h": vol_change_1h,
-                "volume_change_1h_pct": vol_change_1h_pct,
-                "volume_change_estimate": coin["price_change_1h"] * 0.5 if vol_change_1h_pct is None else None,
-                "volume_change_is_estimated": vol_change_1h_pct is None,
-                "volume_category": "high" if vol_now > 10000000 else "medium" if vol_now > 1000000 else "low",
-                "trend_direction": direction,
-                "trend_streak": streak,
-                "trend_score": score
-            })
-        
-        return jsonify({
-            "component": "bottom_banner_scroll",
-            "data": bottom_scroll_data,
-            "count": len(bottom_scroll_data),
-            "time_frame": "1_hour",
-            "focus": "volume_change",
-            "scroll_speed": "slow",
-            "update_interval": 60000,  # 1 minute updates for 1-hour data
-            "last_updated": datetime.now().isoformat()
-        })
+            bottom_scroll_data.append(
+                {
+                    "symbol": sym,
+                    "current_price": coin["current_price"],
+                    "volume_24h": vol_now,
+                    "price_change_1h": coin["price_change_1h"],
+                    "volume_change_1h": vol_change_1h,
+                    "volume_change_1h_pct": vol_change_1h_pct,
+                    "volume_change_estimate": (
+                        coin["price_change_1h"] * 0.5
+                        if vol_change_1h_pct is None
+                        else None
+                    ),
+                    "volume_change_is_estimated": vol_change_1h_pct is None,
+                    "volume_category": (
+                        "high"
+                        if vol_now > 10000000
+                        else "medium" if vol_now > 1000000 else "low"
+                    ),
+                    "trend_direction": direction,
+                    "trend_streak": streak,
+                    "trend_score": score,
+                }
+            )
+
+        return jsonify(
+            {
+                "component": "bottom_banner_scroll",
+                "data": bottom_scroll_data,
+                "count": len(bottom_scroll_data),
+                "time_frame": "1_hour",
+                "focus": "volume_change",
+                "scroll_speed": "slow",
+                "update_interval": 60000,  # 1 minute updates for 1-hour data
+                "last_updated": datetime.now().isoformat(),
+            }
+        )
     except Exception as e:
         logging.error(f"Error in bottom banner scroll endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 # --- Edge slim endpoint for Worker seeding ---
-@app.get('/api/edge/volumes-slim')
+@app.get("/api/edge/volumes-slim")
 def volumes_slim():
     """Minimal symbol -> { volume_24h, volume_change_1h_pct? } map for the edge Worker.
     Falls back to the same 24h movers snapshot used for banners. If 1h volume change
@@ -7396,78 +9353,111 @@ def volumes_slim():
             banner = []
         for row in banner:
             try:
-                sym = row.get('symbol')
-                vol = row.get('volume_24h')
+                sym = row.get("symbol")
+                vol = row.get("volume_24h")
                 if not sym or vol is None:
                     continue
                 out[sym] = {
-                    'volume_24h': float(vol),
+                    "volume_24h": float(vol),
                     # passthrough if present; Worker may still choose to estimate
-                    'volume_change_1h_pct': row.get('volume_change_1h_pct') if row.get('volume_change_1h_pct') is not None else None,
+                    "volume_change_1h_pct": (
+                        row.get("volume_change_1h_pct")
+                        if row.get("volume_change_1h_pct") is not None
+                        else None
+                    ),
                 }
             except Exception:
                 continue
         return jsonify(out), 200
     except Exception as e:
         logging.error(f"volumes_slim error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/component/gainers-table')
+
+@app.route("/api/component/gainers-table")
 def get_gainers_table():
     """Individual endpoint for gainers table - 3-minute data only"""
     try:
         data = get_crypto_data()
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
-            
-        gainers = data.get('gainers', [])
-        
+
+        gainers = data.get("gainers", [])
+
         # Enhanced formatting specifically for gainers table
         gainers_table_data = []
         for i, coin in enumerate(gainers[:20]):  # Top 20 gainers
             # update 3-min trend cache
             sym = coin["symbol"]
             g = float(coin.get("gain", 0) or 0)
-            prev = three_minute_trends.get(sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0})
-            direction = "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
-            streak = prev["streak"] + 1 if direction != "flat" and direction == prev["last_dir"] else (1 if direction != "flat" else prev["streak"])
+            prev = three_minute_trends.get(
+                sym, {"last": g, "streak": 0, "last_dir": "flat", "score": 0.0}
+            )
+            direction = (
+                "up" if g > prev["last"] else ("down" if g < prev["last"] else "flat")
+            )
+            streak = (
+                prev["streak"] + 1
+                if direction != "flat" and direction == prev["last_dir"]
+                else (1 if direction != "flat" else prev["streak"])
+            )
             score = round(prev["score"] * 0.8 + g * 0.2, 3)
-            three_minute_trends[sym] = {"last": g, "streak": streak, "last_dir": direction, "score": score}
-            _maybe_fire_trend_alert('3m', sym, direction, streak, score)
-            gainers_table_data.append({
-                "rank": i + 1,
-                "symbol": coin["symbol"],
-                "current_price": coin["current"],  # Use correct field name
-                "price_change_percentage_3min": coin["gain"],  # Use correct field name
-                "initial_price_3min": coin["initial_3min"],  # Use correct field name
-                "actual_interval_minutes": coin.get("interval_minutes", 3),  # Use correct field name
-                "trend_direction": direction,
-                "trend_streak": streak,
-                "trend_score": score,
-                "momentum": "strong" if coin["gain"] > 5 else "moderate",
-                "alert_level": "high" if coin["gain"] > 10 else "normal"
-            })
-        
+            three_minute_trends[sym] = {
+                "last": g,
+                "streak": streak,
+                "last_dir": direction,
+                "score": score,
+            }
+            _maybe_fire_trend_alert("3m", sym, direction, streak, score)
+            gainers_table_data.append(
+                {
+                    "rank": i + 1,
+                    "symbol": coin["symbol"],
+                    "current_price": coin["current"],  # Use correct field name
+                    "price_change_percentage_3min": coin[
+                        "gain"
+                    ],  # Use correct field name
+                    "initial_price_3min": coin[
+                        "initial_3min"
+                    ],  # Use correct field name
+                    "actual_interval_minutes": coin.get(
+                        "interval_minutes", 3
+                    ),  # Use correct field name
+                    "trend_direction": direction,
+                    "trend_streak": streak,
+                    "trend_score": score,
+                    "momentum": "strong" if coin["gain"] > 5 else "moderate",
+                    "alert_level": "high" if coin["gain"] > 10 else "normal",
+                }
+            )
+
         swr_meta = {
-            'ttl': _GAINERS_3M_SWR_TTL,
-            'stale_window': _GAINERS_3M_SWR_STALE,
-            'served_cached': getattr(globals().get('_get_gainers_table_3min_swr'), '_swr_last_served_cached', False)
+            "ttl": _GAINERS_3M_SWR_TTL,
+            "stale_window": _GAINERS_3M_SWR_STALE,
+            "served_cached": getattr(
+                globals().get("_get_gainers_table_3min_swr"),
+                "_swr_last_served_cached",
+                False,
+            ),
         }
-        return jsonify({
-            "component": "gainers_table",
-            "data": gainers_table_data,
-            "count": len(gainers_table_data),
-            "table_type": "gainers",
-            "time_frame": "3_minutes",
-            "update_interval": 3000,
-            "last_updated": datetime.now().isoformat(),
-            "swr": swr_meta
-        })
+        return jsonify(
+            {
+                "component": "gainers_table",
+                "data": gainers_table_data,
+                "count": len(gainers_table_data),
+                "table_type": "gainers",
+                "time_frame": "3_minutes",
+                "update_interval": 3000,
+                "last_updated": datetime.now().isoformat(),
+                "swr": swr_meta,
+            }
+        )
     except Exception as e:
         logging.error(f"Error in gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/component/losers-table')
+
+@app.route("/api/component/losers-table")
 def get_losers_table():
     """Individual endpoint for losers table - 3-minute data only"""
     try:
@@ -7475,16 +9465,19 @@ def get_losers_table():
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
         swr_meta = {
-            'ttl': _LOSERS_3M_SWR_TTL,
-            'stale_window': _LOSERS_3M_SWR_STALE,
-            'served_cached': getattr(_get_losers_table_3min_swr, '_swr_last_served_cached', False),
+            "ttl": _LOSERS_3M_SWR_TTL,
+            "stale_window": _LOSERS_3M_SWR_STALE,
+            "served_cached": getattr(
+                _get_losers_table_3min_swr, "_swr_last_served_cached", False
+            ),
         }
-        return jsonify({**data, 'swr': swr_meta})
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in losers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/component/top-movers-bar')
+
+@app.route("/api/component/top-movers-bar")
 def get_top_movers_bar():
     """Individual endpoint for top movers horizontal bar - 3min focus"""
     try:
@@ -7492,14 +9485,17 @@ def get_top_movers_bar():
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
         swr_meta = {
-            'ttl': _TOP_MOVERS_BAR_SWR_TTL,
-            'stale_window': _TOP_MOVERS_BAR_SWR_STALE,
-            'served_cached': getattr(_get_top_movers_bar_swr, '_swr_last_served_cached', False),
+            "ttl": _TOP_MOVERS_BAR_SWR_TTL,
+            "stale_window": _TOP_MOVERS_BAR_SWR_STALE,
+            "served_cached": getattr(
+                _get_top_movers_bar_swr, "_swr_last_served_cached", False
+            ),
         }
-        return jsonify({**data, 'swr': swr_meta})
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in top movers bar endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # -----------------------------------------------------------------------------
 # Alerts API: expose recent Moonwalking alerts (normalized)
@@ -7509,7 +9505,7 @@ def _build_recent_alerts_payload(limit: int):
     Single source of truth for building recent alerts + meta.
     Both /api/alerts/recent and /api/alerts/proof MUST call this.
     """
-    snap = _mw_get_component_snapshot('alerts')
+    snap = _mw_get_component_snapshot("alerts")
     items, _ts = _wrap_rows_and_ts(snap)
     if isinstance(items, list) and items:
         alerts_meta = {"sticky": False, "last_good_age_s": None}
@@ -7521,14 +9517,16 @@ def _build_recent_alerts_payload(limit: int):
     # Staleness + canonical meta (new fields, backwards-compatible)
     updated_at = None
     try:
-        updated_at = _mw_get_component_snapshot('updated_at')
+        updated_at = _mw_get_component_snapshot("updated_at")
     except Exception:
         pass
 
-    pressure_snap = _mw_get_component_snapshot('market_pressure')
-    pressure_data = None
+    pressure_snap = _mw_get_component_snapshot("market_pressure")
+    pressure_data = _default_market_pressure_payload()
     if isinstance(pressure_snap, dict):
-        pressure_data = pressure_snap.get('data')
+        candidate = _strip_emoji_payload(pressure_snap.get("data"))
+        if isinstance(candidate, dict) and candidate:
+            pressure_data = candidate
 
     alerts_meta = dict(alerts_meta or {})
 
@@ -7538,7 +9536,7 @@ def _build_recent_alerts_payload(limit: int):
     warming_count = None
 
     try:
-        price_asof_ms = _to_ts_ms(last_current_prices.get('timestamp'))
+        price_asof_ms = _to_ts_ms(last_current_prices.get("timestamp"))
     except Exception:
         pass
 
@@ -7549,11 +9547,13 @@ def _build_recent_alerts_payload(limit: int):
             warming_count = 0
             volume_ts_candidates = []
             for cached in cache_values:
-                ts_ms = _to_ts_ms(cached.get('ts_computed'))
+                ts_ms = _to_ts_ms(cached.get("ts_computed"))
                 if ts_ms is not None:
                     volume_ts_candidates.append(ts_ms)
-                prev = _num_or_none(cached.get('vol1h_prev'))
-                baseline_ready = bool(prev is not None and prev > 0 and ts_ms is not None)
+                prev = _num_or_none(cached.get("vol1h_prev"))
+                baseline_ready = bool(
+                    prev is not None and prev > 0 and ts_ms is not None
+                )
                 if not baseline_ready:
                     warming_count += 1
             if volume_ts_candidates:
@@ -7587,7 +9587,7 @@ def _build_recent_alerts_payload(limit: int):
     return items, alerts_meta
 
 
-@app.route('/api/alerts/recent')
+@app.route("/api/alerts/recent")
 def get_recent_alerts():
     try:
         limit = int(request.args.get("limit", 50))
@@ -7597,18 +9597,48 @@ def get_recent_alerts():
 
     try:
         items, alerts_meta = _build_recent_alerts_payload(limit)
-        return jsonify({
-            'count': len(items),
-            'limit': limit,
-            'alerts': items,
-            'meta': alerts_meta,
-        })
+        payload = {
+            "count": len(items),
+            "limit": limit,
+            "alerts": items,
+            "meta": alerts_meta,
+        }
+        try:
+            return jsonify(payload)
+        except Exception as ser_err:
+            logging.exception(
+                "Error serializing recent alerts endpoint payload (limit=%s, args=%s)",
+                limit,
+                dict(request.args),
+            )
+            safe_payload = _json_sanitize_for_api(payload)
+            return jsonify(safe_payload)
     except Exception as e:
-        logging.error(f"Error in recent alerts endpoint: {e}")
-        return jsonify({'error': str(e)}), 500
+        logging.exception(
+            "Error in recent alerts endpoint (limit=%s, args=%s)",
+            limit,
+            dict(request.args),
+        )
+        return (
+            jsonify(
+                {
+                    "count": 0,
+                    "limit": limit,
+                    "alerts": [],
+                    "meta": {
+                        "ok": False,
+                        "degraded": True,
+                        "error": "recent_alerts_failed",
+                        "detail": str(e)[:500],
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    },
+                }
+            ),
+            200,
+        )
 
 
-@app.route('/api/alerts/proof')
+@app.route("/api/alerts/proof")
 def get_alerts_proof():
     """
     Strict runtime validator for the alerts stream.
@@ -7640,33 +9670,44 @@ def get_alerts_proof():
                 missing_evidence_count += 1
                 if len(bad_alerts) < 10:
                     evidence = a.get("evidence")
-                    bad_alerts.append({
-                        "type": t,
-                        "symbol": a.get("symbol") or a.get("product_id") or "",
-                        "why": "engine-family alert missing numeric evidence",
-                        "evidence_keys": sorted(list(evidence.keys())) if isinstance(evidence, dict) else None,
-                    })
+                    bad_alerts.append(
+                        {
+                            "type": t,
+                            "symbol": a.get("symbol") or a.get("product_id") or "",
+                            "why": "engine-family alert missing numeric evidence",
+                            "evidence_keys": (
+                                sorted(list(evidence.keys()))
+                                if isinstance(evidence, dict)
+                                else None
+                            ),
+                        }
+                    )
 
     if engine_family_count == 0:
         ok = None  # warming / nothing to validate yet
     else:
-        ok = (missing_evidence_count == 0)
+        ok = missing_evidence_count == 0
 
-    return jsonify({
-        "ok": ok,
-        "state": "warming" if engine_family_count == 0 else ("pass" if ok else "fail"),
-        "limit": limit,
-        "count": len(items),
-        "engine_family_count": engine_family_count,
-        "missing_evidence_count": missing_evidence_count,
-        "bad_alerts": bad_alerts,
-        "meta": alerts_meta,
-    })
+    return jsonify(
+        {
+            "ok": ok,
+            "state": (
+                "warming" if engine_family_count == 0 else ("pass" if ok else "fail")
+            ),
+            "limit": limit,
+            "count": len(items),
+            "engine_family_count": engine_family_count,
+            "missing_evidence_count": missing_evidence_count,
+            "bad_alerts": bad_alerts,
+            "meta": alerts_meta,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # /api/alerts — canonical contract (active + recent + meta)
 # ---------------------------------------------------------------------------
+
 
 def _active_key(a: dict) -> str:
     sym = str(a.get("symbol") or "").upper()
@@ -7690,7 +9731,15 @@ def _alert_score(a: dict, now_ms: int) -> float:
     # Magnitude from evidence (cap so it doesn't dominate)
     ev = a.get("evidence") if isinstance(a.get("evidence"), dict) else {}
     mag = 0.0
-    for k in ("volume_change_1h_pct", "abs_pct_3m", "pct_3m", "pct_1m", "pct", "heat", "z_vol"):
+    for k in (
+        "volume_change_1h_pct",
+        "abs_pct_3m",
+        "pct_3m",
+        "pct_1m",
+        "pct",
+        "heat",
+        "z_vol",
+    ):
         v = ev.get(k)
         try:
             if v is not None:
@@ -7715,10 +9764,12 @@ def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
     ttl_ms = max(10_000, int(ttl_s) * 1000)
     best: dict[str, tuple[float, dict]] = {}  # key -> (score, alert)
 
-    for a in (items or []):
+    for a in items or []:
         if not isinstance(a, dict):
             continue
-        ts_ms = _to_ts_ms(a.get("event_ts_ms") or a.get("ts_ms") or a.get("event_ts") or a.get("ts"))
+        ts_ms = _to_ts_ms(
+            a.get("event_ts_ms") or a.get("ts_ms") or a.get("event_ts") or a.get("ts")
+        )
         if ts_ms is None:
             continue
         if (now_ms - ts_ms) > ttl_ms:
@@ -7734,6 +9785,953 @@ def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
     out = [entry[1] for entry in best.values()]
     out.sort(key=lambda x: _alert_score(x, now_ms), reverse=True)
     return out
+
+
+def _json_sanitize_for_api(value):
+    """Recursively coerce values to JSON-safe primitives for API responses."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+
+    if isinstance(value, Decimal):
+        try:
+            return float(value)
+        except Exception:
+            return str(value)
+
+    if isinstance(value, datetime):
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            out[str(k)] = _json_sanitize_for_api(v)
+        return out
+
+    if isinstance(value, (list, tuple, set)):
+        return [_json_sanitize_for_api(v) for v in value]
+
+    # Enums and custom types: prefer `.value` when present.
+    if hasattr(value, "value"):
+        try:
+            return _json_sanitize_for_api(value.value)
+        except Exception:
+            pass
+
+    return str(value)
+
+
+def _alerts_contract_fallback_payload(
+    *, limit: int, active_ttl_s: int, detail: str
+) -> dict:
+    ts = datetime.now(timezone.utc).isoformat()
+    return {
+        "active": [],
+        "recent": [],
+        "meta": {
+            "ok": False,
+            "degraded": True,
+            "error": "alerts_endpoint_failed",
+            "detail": str(detail or "")[:500],
+            "limit": int(limit),
+            "active_ttl_s": int(active_ttl_s),
+            "ts": ts,
+        },
+    }
+
+
+_COIN_ALERT_SEV_SCORE = {
+    "critical": 95.0,
+    "high": 78.0,
+    "medium": 58.0,
+    "low": 35.0,
+    "info": 20.0,
+}
+
+_COIN_ALERT_SOURCE_PRIORITY = {
+    "internal_tape": 1.00,
+    "lunarcrush": 0.78,
+    "coinpaprika": 0.72,
+    "coingecko": 0.68,
+    "external": 0.60,
+}
+
+_COIN_ALERT_UP_TYPES = {
+    "moonshot",
+    "breakout",
+    "coin_reversal_up",
+    "coin_trend_break_up",
+    "listing",
+    "partnership",
+    "upgrade",
+    "news_positive",
+    "social_spike_1h",
+    "engagement_surge_1h",
+}
+
+_COIN_ALERT_DOWN_TYPES = {
+    "crater",
+    "dump",
+    "coin_reversal_down",
+    "coin_trend_break_down",
+    "delisting",
+    "unlock",
+    "hack_or_exploit",
+    "news_negative",
+}
+
+
+def _coin_scope_symbol(value) -> str:
+    raw = str(value or "").strip().upper()
+    if not raw:
+        return ""
+    if "-" in raw:
+        raw = raw.split("-", 1)[0]
+    if raw.endswith("USD") and len(raw) > 3:
+        raw = raw[:-3]
+    return "".join(ch for ch in raw if ch.isalnum())
+
+
+def _coin_alert_kind(type_key: str) -> str:
+    t = str(type_key or "").lower()
+    if any(k in t for k in ("social", "engagement", "sentiment")):
+        return "social"
+    if any(
+        k in t
+        for k in (
+            "news",
+            "listing",
+            "delisting",
+            "unlock",
+            "upgrade",
+            "governance",
+            "partnership",
+            "hack",
+        )
+    ):
+        return "events"
+    if any(k in t for k in ("whale", "volume", "liq", "liquidity")):
+        return "volume"
+    if any(
+        k in t for k in ("funding", "oi", "open_interest", "liquidation", "derivative")
+    ):
+        return "derivatives"
+    return "price"
+
+
+def _coin_alert_num(value):
+    try:
+        if value is None or value == "":
+            return None
+        n = float(value)
+        if not math.isfinite(n):
+            return None
+        return n
+    except Exception:
+        return None
+
+
+def _coin_alert_severity_score(severity_value) -> float:
+    n = _coin_alert_num(severity_value)
+    if n is not None:
+        return max(0.0, min(100.0, n))
+    s = str(severity_value or "").strip().lower()
+    return _COIN_ALERT_SEV_SCORE.get(s, _COIN_ALERT_SEV_SCORE["info"])
+
+
+def _coin_alert_severity_label(score_value) -> str:
+    score = _coin_alert_num(score_value)
+    if score is None:
+        return "info"
+    if score >= 88:
+        return "critical"
+    if score >= 70:
+        return "high"
+    if score >= 48:
+        return "medium"
+    if score >= 28:
+        return "low"
+    return "info"
+
+
+def _coin_alert_direction(
+    type_key: str, *, pct=None, sentiment_label: str | None = None
+) -> str:
+    t = str(type_key or "").lower()
+    if t in _COIN_ALERT_UP_TYPES:
+        return "up"
+    if t in _COIN_ALERT_DOWN_TYPES:
+        return "down"
+    p = _coin_alert_num(pct)
+    if p is not None:
+        if p > 0:
+            return "up"
+        if p < 0:
+            return "down"
+    s = str(sentiment_label or "").lower()
+    if "bull" in s:
+        return "up"
+    if "bear" in s:
+        return "down"
+    return "neutral"
+
+
+def _coin_alert_ts_ms(value, fallback: int | None = None) -> int:
+    ts = _to_ts_ms(value)
+    if ts is not None:
+        return int(ts)
+    if fallback is not None:
+        return int(fallback)
+    return _utc_now_ts_ms()
+
+
+def _coin_alert_url_domain(url: str) -> str:
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+        domain = str(parsed.netloc or "").lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain
+    except Exception:
+        return ""
+
+
+def _coin_alert_title_norm(value: str) -> str:
+    text = re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+    return re.sub(r"\s+", " ", text)
+
+
+def _coin_alert_rank(item: dict) -> float:
+    sev = _coin_alert_num(item.get("severity_score")) or 0.0
+    conf = _coin_alert_num(item.get("confidence")) or 0.0
+    source = str(item.get("source") or "").strip().lower()
+    src_w = _COIN_ALERT_SOURCE_PRIORITY.get(
+        source, _COIN_ALERT_SOURCE_PRIORITY["external"]
+    )
+    return (sev * 0.45) + (conf * 0.55) + (src_w * 5.0)
+
+
+def _coin_alert_fingerprint(item: dict) -> str:
+    symbol = _coin_scope_symbol(item.get("symbol"))
+    kind = str(item.get("kind") or "").strip().lower()
+    title = _coin_alert_title_norm(item.get("title") or item.get("message") or "")
+    ts_ms = _coin_alert_ts_ms(item.get("event_ts_ms") or item.get("ts_ms"))
+    bucket_ms = 30 * 60 * 1000  # 30-minute event bucket
+    rounded_ts_bucket = int(ts_ms // bucket_ms)
+    url_domain = _coin_alert_url_domain(item.get("url"))
+    raw = f"{symbol}|{kind}|{title}|{rounded_ts_bucket}|{url_domain}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def _coin_alert_from_internal(alert: dict, symbol_scope: str) -> dict | None:
+    if not isinstance(alert, dict):
+        return None
+    symbol = _coin_scope_symbol(alert.get("symbol") or alert.get("product_id"))
+    if not symbol or symbol != symbol_scope:
+        return None
+
+    type_key = (
+        str(alert.get("type_key") or alert.get("type") or "unknown").strip().lower()
+    )
+    evidence = (
+        dict(alert.get("evidence") or {})
+        if isinstance(alert.get("evidence"), dict)
+        else {}
+    )
+    pct = _coin_alert_num(
+        alert.get("pct")
+        or evidence.get("pct_1m")
+        or evidence.get("pct_3m")
+        or evidence.get("pct")
+    )
+    severity_score = _coin_alert_severity_score(
+        alert.get("severity_score") or alert.get("severity")
+    )
+    streak = _coin_alert_num(evidence.get("streak"))
+    confidence = _coin_alert_num(alert.get("confidence")) or 86.0
+    if streak is not None and streak >= 3:
+        confidence = min(97.0, confidence + min(8.0, streak))
+
+    ts_ms = _coin_alert_ts_ms(
+        alert.get("event_ts_ms")
+        or alert.get("ts_ms")
+        or alert.get("event_ts")
+        or alert.get("ts")
+    )
+    kind = _coin_alert_kind(type_key)
+    direction = str(
+        alert.get("direction") or ""
+    ).strip().lower() or _coin_alert_direction(type_key, pct=pct)
+    product_id = str(alert.get("product_id") or f"{symbol}-USD").upper()
+    url = (
+        str(alert.get("trade_url") or "").strip()
+        or f"https://www.coinbase.com/advanced-trade/spot/{product_id}"
+    )
+
+    item = {
+        "id": str(alert.get("id") or ""),
+        "symbol": symbol,
+        "product_id": product_id,
+        "kind": kind,
+        "type_key": type_key,
+        "severity": _coin_alert_severity_label(severity_score),
+        "severity_score": round(severity_score, 1),
+        "confidence": round(max(0.0, min(100.0, confidence)), 1),
+        "ts_ms": int(ts_ms),
+        "event_ts_ms": int(ts_ms),
+        "title": str(alert.get("title") or type_key.replace("_", " ").title()).strip(),
+        "message": str(alert.get("message") or alert.get("title") or "").strip(),
+        "url": url,
+        "trade_url": url,
+        "source": "internal_tape",
+        "direction": direction if direction in {"up", "down", "neutral"} else "neutral",
+        "window": alert.get("window"),
+        "pct": pct,
+        "evidence": evidence,
+        "also_seen_on": ["internal_tape"],
+    }
+    return item
+
+
+def _coin_alert_classify_event_text(
+    title: str, description: str = ""
+) -> tuple[str, float, float]:
+    text = f"{title} {description}".lower()
+    if any(k in text for k in ("delist", "de-list")):
+        return "delisting", 92.0, 82.0
+    if any(k in text for k in ("hack", "exploit", "breach", "drain", "stolen")):
+        return "hack_or_exploit", 96.0, 87.0
+    if any(k in text for k in ("unlock", "vesting", "token release")):
+        return "unlock", 86.0, 78.0
+    if any(k in text for k in ("listing", "list on", "new market")):
+        return "listing", 88.0, 80.0
+    if any(k in text for k in ("mainnet", "hard fork", "upgrade", "migration")):
+        return "upgrade", 72.0, 70.0
+    if any(k in text for k in ("governance", "proposal", "vote")):
+        return "governance_vote", 62.0, 68.0
+    if any(k in text for k in ("partnership", "integrat", "collaborat")):
+        return "partnership", 68.0, 66.0
+    if any(k in text for k in ("bullish", "buyback", "adoption")):
+        return "news_positive", 64.0, 62.0
+    if any(k in text for k in ("bearish", "lawsuit", "investigation")):
+        return "news_negative", 66.0, 62.0
+    return "external_event", 58.0, 58.0
+
+
+def _coin_alert_from_external_event(
+    symbol_scope: str, row: dict, *, source: str = "coinpaprika"
+) -> dict | None:
+    if not isinstance(row, dict):
+        return None
+    title = str(row.get("title") or row.get("name") or "").strip()
+    if not title:
+        return None
+    description = str(row.get("description") or "").strip()
+    type_key, severity_score, confidence = _coin_alert_classify_event_text(
+        title, description
+    )
+    ts_ms = _coin_alert_ts_ms(
+        row.get("when") or row.get("date") or row.get("created_at")
+    )
+    url = str(row.get("source_url") or row.get("url") or "").strip() or None
+    direction = _coin_alert_direction(type_key)
+    kind = "news" if type_key.startswith("news_") else "events"
+
+    evidence = {
+        "provider": source,
+        "source_url_domain": _coin_alert_url_domain(url) if url else None,
+        "event_type": type_key,
+    }
+    if description:
+        evidence["description"] = description[:220]
+    evidence = {k: v for k, v in evidence.items() if v not in {None, ""}}
+
+    item = {
+        "id": str(row.get("id") or f"{type_key}_{symbol_scope}_{ts_ms}"),
+        "symbol": symbol_scope,
+        "product_id": f"{symbol_scope}-USD",
+        "kind": kind,
+        "type_key": type_key,
+        "severity": _coin_alert_severity_label(severity_score),
+        "severity_score": round(severity_score, 1),
+        "confidence": round(max(0.0, min(100.0, confidence)), 1),
+        "ts_ms": int(ts_ms),
+        "event_ts_ms": int(ts_ms),
+        "title": title,
+        "message": description or title,
+        "url": url,
+        "source": source,
+        "direction": direction,
+        "evidence": evidence,
+        "also_seen_on": [source],
+    }
+    return item
+
+
+def _coin_alerts_from_social_metrics(
+    symbol_scope: str, metrics: dict, *, tape_direction: str | None = None
+) -> list[dict]:
+    if not isinstance(metrics, dict):
+        return []
+
+    now_ms = _utc_now_ts_ms()
+    source = (
+        str(metrics.get("source") or "coinpaprika").strip().lower() or "coinpaprika"
+    )
+    social_heat = _coin_alert_num(metrics.get("social_heat"))
+    posts_60m = _coin_alert_num(metrics.get("posts_60m"))
+    posts_24h = _coin_alert_num(
+        metrics.get("posts_24h") or metrics.get("social_volume_24h")
+    )
+    engagement_24h = _coin_alert_num(metrics.get("social_engagement_24h"))
+    trend = str(metrics.get("social_heat_trend") or "").strip().lower()
+    sentiment = (
+        metrics.get("sentiment_24h")
+        if isinstance(metrics.get("sentiment_24h"), dict)
+        else {}
+    )
+    sentiment_label = str(sentiment.get("label") or "").strip()
+    sentiment_net = _coin_alert_num(sentiment.get("net_score"))
+    ts_ms = _coin_alert_ts_ms(metrics.get("updated_at"), fallback=now_ms)
+
+    ratio = None
+    if posts_60m is not None and posts_24h is not None and posts_24h > 0:
+        ratio = posts_60m / max(1.0, posts_24h / 24.0)
+
+    social_direction = _coin_alert_direction(
+        "social_spike_1h",
+        sentiment_label=sentiment_label,
+        pct=sentiment_net * 100.0 if sentiment_net is not None else None,
+    )
+
+    out: list[dict] = []
+
+    should_spike = bool(
+        (trend == "rising")
+        or (ratio is not None and ratio >= 1.4)
+        or (social_heat is not None and social_heat >= 70)
+    )
+    if should_spike:
+        sev = 60.0
+        if social_heat is not None:
+            sev += max(0.0, (social_heat - 50.0) * 0.45)
+        if ratio is not None:
+            sev += max(0.0, (ratio - 1.0) * 8.0)
+        sev = max(40.0, min(88.0, sev))
+        conf = 60.0
+        if posts_60m is not None:
+            conf += min(15.0, posts_60m * 0.9)
+        if ratio is not None:
+            conf += min(12.0, (ratio - 1.0) * 10.0)
+        conf = max(45.0, min(90.0, conf))
+        out.append(
+            {
+                "id": f"social_spike_1h_{symbol_scope}_{int(ts_ms)}",
+                "symbol": symbol_scope,
+                "product_id": f"{symbol_scope}-USD",
+                "kind": "social",
+                "type_key": "social_spike_1h",
+                "severity": _coin_alert_severity_label(sev),
+                "severity_score": round(sev, 1),
+                "confidence": round(conf, 1),
+                "ts_ms": int(ts_ms),
+                "event_ts_ms": int(ts_ms),
+                "title": f"Social Spike 1h · {symbol_scope}",
+                "message": (
+                    f"Social attention accelerated for {symbol_scope}: "
+                    f"{'trend rising' if trend == 'rising' else 'activity spike detected'}."
+                ),
+                "url": None,
+                "source": source,
+                "direction": (
+                    social_direction
+                    if social_direction in {"up", "down"}
+                    else "neutral"
+                ),
+                "evidence": {
+                    "social_heat": social_heat,
+                    "posts_60m": posts_60m,
+                    "posts_24h": posts_24h,
+                    "ratio_60m_vs_24h_baseline": (
+                        round(ratio, 3) if ratio is not None else None
+                    ),
+                    "social_heat_trend": trend or None,
+                    "sentiment_label": sentiment_label or None,
+                    "sentiment_net_score": sentiment_net,
+                },
+                "also_seen_on": [source],
+            }
+        )
+
+    if engagement_24h is not None and engagement_24h >= 800:
+        sev = max(50.0, min(84.0, 50.0 + (math.log10(max(1.0, engagement_24h)) * 9.0)))
+        conf = max(52.0, min(86.0, 56.0 + (math.log10(max(1.0, engagement_24h)) * 6.0)))
+        out.append(
+            {
+                "id": f"engagement_surge_1h_{symbol_scope}_{int(ts_ms)}",
+                "symbol": symbol_scope,
+                "product_id": f"{symbol_scope}-USD",
+                "kind": "social",
+                "type_key": "engagement_surge_1h",
+                "severity": _coin_alert_severity_label(sev),
+                "severity_score": round(sev, 1),
+                "confidence": round(conf, 1),
+                "ts_ms": int(ts_ms),
+                "event_ts_ms": int(ts_ms),
+                "title": f"Engagement Surge · {symbol_scope}",
+                "message": f"Engagement elevated for {symbol_scope} over the last 24h.",
+                "url": None,
+                "source": source,
+                "direction": (
+                    social_direction
+                    if social_direction in {"up", "down"}
+                    else "neutral"
+                ),
+                "evidence": {
+                    "social_engagement_24h": engagement_24h,
+                    "social_heat": social_heat,
+                    "posts_24h": posts_24h,
+                },
+                "also_seen_on": [source],
+            }
+        )
+
+    if (
+        tape_direction in {"up", "down"}
+        and social_direction in {"up", "down"}
+        and tape_direction != social_direction
+    ):
+        sev = (
+            66.0
+            if social_heat is None
+            else max(58.0, min(84.0, 58.0 + max(0.0, social_heat - 40.0) * 0.5))
+        )
+        conf = 68.0 if sentiment_net is not None else 62.0
+        out.append(
+            {
+                "id": f"social_divergence_{symbol_scope}_{int(ts_ms)}",
+                "symbol": symbol_scope,
+                "product_id": f"{symbol_scope}-USD",
+                "kind": "social",
+                "type_key": "social_divergence",
+                "severity": _coin_alert_severity_label(sev),
+                "severity_score": round(sev, 1),
+                "confidence": round(conf, 1),
+                "ts_ms": int(ts_ms),
+                "event_ts_ms": int(ts_ms),
+                "title": f"Social Divergence · {symbol_scope}",
+                "message": (
+                    f"Attention direction ({social_direction}) diverges from tape direction ({tape_direction})."
+                ),
+                "url": None,
+                "source": source,
+                "direction": social_direction,
+                "evidence": {
+                    "tape_direction": tape_direction,
+                    "social_direction": social_direction,
+                    "sentiment_label": sentiment_label or None,
+                    "sentiment_net_score": sentiment_net,
+                    "social_heat": social_heat,
+                    "social_heat_trend": trend or None,
+                },
+                "also_seen_on": [source],
+            }
+        )
+
+    for row in out:
+        if isinstance(row.get("evidence"), dict):
+            row["evidence"] = {
+                k: v for k, v in row["evidence"].items() if v is not None
+            }
+    return out
+
+
+def _coin_alerts_merge_dedupe(items: list[dict]) -> list[dict]:
+    by_fp: dict[str, dict] = {}
+
+    for raw in items or []:
+        if not isinstance(raw, dict):
+            continue
+        item = dict(raw)
+        item.setdefault("evidence", {})
+        if not isinstance(item["evidence"], dict):
+            item["evidence"] = {}
+        item["symbol"] = _coin_scope_symbol(
+            item.get("symbol") or item.get("product_id")
+        )
+        if not item["symbol"]:
+            continue
+        item["product_id"] = str(
+            item.get("product_id") or f"{item['symbol']}-USD"
+        ).upper()
+        item["type_key"] = str(item.get("type_key") or "unknown").strip().lower()
+        item["kind"] = (
+            str(item.get("kind") or _coin_alert_kind(item["type_key"])).strip().lower()
+        )
+        item["severity_score"] = round(
+            _coin_alert_severity_score(
+                item.get("severity_score") or item.get("severity")
+            ),
+            1,
+        )
+        item["severity"] = _coin_alert_severity_label(item["severity_score"])
+        item["confidence"] = round(
+            max(0.0, min(100.0, _coin_alert_num(item.get("confidence")) or 55.0)), 1
+        )
+        item["event_ts_ms"] = _coin_alert_ts_ms(
+            item.get("event_ts_ms") or item.get("ts_ms")
+        )
+        item["ts_ms"] = int(item["event_ts_ms"])
+        item["direction"] = str(
+            item.get("direction")
+            or _coin_alert_direction(item["type_key"], pct=item.get("pct"))
+        ).lower()
+        item["source"] = (
+            str(item.get("source") or "external").strip().lower() or "external"
+        )
+        item["also_seen_on"] = list(
+            dict.fromkeys(
+                [
+                    str(s).strip().lower()
+                    for s in (item.get("also_seen_on") or [])
+                    if str(s).strip()
+                ]
+                + [item["source"]]
+            )
+        )
+
+        fp = _coin_alert_fingerprint(item)
+        existing = by_fp.get(fp)
+        if existing is None:
+            by_fp[fp] = item
+            continue
+
+        winner = existing
+        loser = item
+        if _coin_alert_rank(item) > _coin_alert_rank(existing):
+            winner = item
+            loser = existing
+
+        merged_evidence = {}
+        if isinstance(loser.get("evidence"), dict):
+            merged_evidence.update(loser.get("evidence"))
+        if isinstance(winner.get("evidence"), dict):
+            merged_evidence.update(winner.get("evidence"))
+
+        urls = []
+        for candidate in (
+            winner.get("url"),
+            loser.get("url"),
+            merged_evidence.get("url"),
+        ):
+            raw_url = str(candidate or "").strip()
+            if raw_url and raw_url not in urls:
+                urls.append(raw_url)
+        if urls:
+            merged_evidence["urls"] = urls
+            winner["url"] = winner.get("url") or urls[0]
+
+        winner["evidence"] = merged_evidence
+        winner["also_seen_on"] = list(
+            dict.fromkeys(
+                [
+                    str(s).strip().lower()
+                    for s in (winner.get("also_seen_on") or [])
+                    if str(s).strip()
+                ]
+                + [
+                    str(s).strip().lower()
+                    for s in (loser.get("also_seen_on") or [])
+                    if str(s).strip()
+                ]
+                + [winner.get("source"), loser.get("source")]
+            )
+        )
+        winner["confidence"] = round(
+            max(
+                _coin_alert_num(winner.get("confidence")) or 0.0,
+                _coin_alert_num(loser.get("confidence")) or 0.0,
+            ),
+            1,
+        )
+        winner["severity_score"] = round(
+            max(
+                _coin_alert_num(winner.get("severity_score")) or 0.0,
+                _coin_alert_num(loser.get("severity_score")) or 0.0,
+            ),
+            1,
+        )
+        winner["severity"] = _coin_alert_severity_label(winner["severity_score"])
+        winner["event_ts_ms"] = max(
+            _coin_alert_ts_ms(winner.get("event_ts_ms")),
+            _coin_alert_ts_ms(loser.get("event_ts_ms")),
+        )
+        winner["ts_ms"] = int(winner["event_ts_ms"])
+        by_fp[fp] = winner
+
+    out = []
+    for fp, item in by_fp.items():
+        if not item.get("id"):
+            item["id"] = (
+                f"coin_alert_{item['symbol']}_{item['type_key']}_{item['event_ts_ms']}_{fp[:10]}"
+            )
+        out.append(item)
+
+    out.sort(
+        key=lambda a: (
+            int(_coin_alert_ts_ms(a.get("event_ts_ms"))),
+            _coin_alert_rank(a),
+        ),
+        reverse=True,
+    )
+    return out
+
+
+def _coin_alerts_apply_promotions(items: list[dict]) -> list[dict]:
+    tape_rows = [
+        row
+        for row in (items or [])
+        if str(row.get("source") or "").lower() == "internal_tape"
+        and str(row.get("direction") or "").lower() in {"up", "down"}
+    ]
+    external_rows = [
+        row
+        for row in (items or [])
+        if str(row.get("source") or "").lower() != "internal_tape"
+        and str(row.get("direction") or "").lower() in {"up", "down"}
+    ]
+
+    horizon_ms = 20 * 60 * 1000
+    for row in items or []:
+        if not isinstance(row, dict):
+            continue
+        source = str(row.get("source") or "").lower()
+        direction = str(row.get("direction") or "").lower()
+        ts_ms = _coin_alert_ts_ms(row.get("event_ts_ms"))
+        confirmed = False
+
+        if direction in {"up", "down"}:
+            peers = external_rows if source == "internal_tape" else tape_rows
+            for peer in peers:
+                if str(peer.get("direction") or "").lower() != direction:
+                    continue
+                pts = _coin_alert_ts_ms(peer.get("event_ts_ms"))
+                if abs(ts_ms - pts) <= horizon_ms:
+                    confirmed = True
+                    break
+
+        if source == "internal_tape":
+            promotion = "CONFIRMED" if confirmed else "TAPE-ONLY"
+        else:
+            promotion = "CONFIRMED" if confirmed else "WATCH"
+
+        row["promotion"] = promotion
+        ev = row.get("evidence") if isinstance(row.get("evidence"), dict) else {}
+        ev["promotion"] = promotion
+        row["evidence"] = ev
+    return items
+
+
+def _coin_alert_tape_direction(items: list[dict]) -> str | None:
+    for row in sorted(
+        items or [], key=lambda a: _coin_alert_ts_ms(a.get("event_ts_ms")), reverse=True
+    ):
+        direction = str(row.get("direction") or "").lower()
+        if direction in {"up", "down"}:
+            return direction
+    return None
+
+
+@app.route("/api/coin-alerts")
+def get_coin_alerts():
+    raw_symbol = request.args.get("symbol", "")
+    symbol = _coin_scope_symbol(raw_symbol)
+    if not symbol:
+        return (
+            jsonify(
+                {
+                    "symbol": "",
+                    "status": "offline",
+                    "items": [],
+                    "active": [],
+                    "recent": [],
+                    "sources_used": [],
+                    "ts": int(time.time()),
+                    "meta": {
+                        "ok": False,
+                        "error": "symbol_required",
+                    },
+                }
+            ),
+            200,
+        )
+
+    try:
+        limit = int(request.args.get("limit", 60))
+    except Exception:
+        limit = 60
+    limit = max(1, min(limit, 250))
+
+    try:
+        active_ttl_s = int(request.args.get("active_ttl_s", 300))
+    except Exception:
+        active_ttl_s = 300
+    active_ttl_s = max(30, min(active_ttl_s, 3600))
+
+    try:
+        internal_limit = max(limit * 3, 120)
+        recent_internal, alerts_meta = _build_recent_alerts_payload(internal_limit)
+        internal_items = []
+        for row in recent_internal or []:
+            norm = _coin_alert_from_internal(row, symbol)
+            if norm:
+                internal_items.append(norm)
+
+        tape_direction = _coin_alert_tape_direction(internal_items)
+
+        intel_payload = fetch_coin_intel(symbol)
+        if not isinstance(intel_payload, dict):
+            intel_payload = {}
+        events = []
+        social_items = []
+        social_metrics = {}
+        intel_status = str(intel_payload.get("status") or "offline").lower()
+        try:
+            events = list(((intel_payload.get("events") or {}).get("items")) or [])
+        except Exception:
+            events = []
+        try:
+            social_items = list(
+                ((intel_payload.get("social") or {}).get("items")) or []
+            )
+        except Exception:
+            social_items = []
+        try:
+            social_metrics = dict(
+                ((intel_payload.get("social") or {}).get("metrics")) or {}
+            )
+        except Exception:
+            social_metrics = {}
+
+        external_items = []
+        for row in events:
+            norm = _coin_alert_from_external_event(symbol, row, source="coinpaprika")
+            if norm:
+                external_items.append(norm)
+        external_items.extend(
+            _coin_alerts_from_social_metrics(
+                symbol, social_metrics, tape_direction=tape_direction
+            )
+        )
+
+        # Use social post count as weak confidence reinforcement when no direct metric alerts fired.
+        if not external_items and social_items:
+            synthetic_ts = _coin_alert_ts_ms(
+                (social_items[0] or {}).get("when"), fallback=_utc_now_ts_ms()
+            )
+            external_items.append(
+                {
+                    "id": f"social_pulse_{symbol}_{synthetic_ts}",
+                    "symbol": symbol,
+                    "product_id": f"{symbol}-USD",
+                    "kind": "social",
+                    "type_key": "social_pulse",
+                    "severity": "low",
+                    "severity_score": 32.0,
+                    "confidence": 52.0,
+                    "ts_ms": synthetic_ts,
+                    "event_ts_ms": synthetic_ts,
+                    "title": f"Social Pulse · {symbol}",
+                    "message": f"{len(social_items)} social item(s) observed for {symbol}.",
+                    "url": None,
+                    "source": str(
+                        (social_metrics or {}).get("source") or "coinpaprika"
+                    ).lower(),
+                    "direction": "neutral",
+                    "evidence": {"social_items_count": len(social_items)},
+                    "also_seen_on": [
+                        str(
+                            (social_metrics or {}).get("source") or "coinpaprika"
+                        ).lower()
+                    ],
+                }
+            )
+
+        merged_items = _coin_alerts_merge_dedupe(internal_items + external_items)
+        merged_items = _coin_alerts_apply_promotions(merged_items)
+
+        active_items = _reduce_active_alerts(merged_items, ttl_s=active_ttl_s)[:limit]
+        recent_items = merged_items[:limit]
+
+        sources_used = sorted(
+            {
+                str(r.get("source") or "").strip().lower()
+                for r in merged_items
+                if str(r.get("source") or "").strip()
+            }
+        )
+
+        status = "live"
+        if intel_status in {"degraded"}:
+            status = "degraded"
+        elif intel_status in {"stale"}:
+            status = "stale"
+        elif not merged_items:
+            status = intel_status or "offline"
+        elif not external_items and internal_items:
+            status = "live"
+
+        payload = {
+            "symbol": symbol,
+            "status": status,
+            "items": recent_items,
+            "active": active_items,
+            "recent": recent_items,
+            "sources_used": sources_used,
+            "ts": int(time.time()),
+            "meta": {
+                "ok": True,
+                "internal_count": len(internal_items),
+                "external_count": len(external_items),
+                "deduped_count": len(merged_items),
+                "active_count": len(active_items),
+                "active_ttl_s": active_ttl_s,
+                "intel_status": intel_status,
+                "alerts_meta": alerts_meta,
+            },
+        }
+        return jsonify(_json_sanitize_for_api(payload)), 200
+    except Exception as e:
+        logging.exception(
+            "coin-alerts error (symbol=%s, args=%s)", symbol, dict(request.args)
+        )
+        return (
+            jsonify(
+                {
+                    "symbol": symbol,
+                    "status": "offline",
+                    "items": [],
+                    "active": [],
+                    "recent": [],
+                    "sources_used": [],
+                    "ts": int(time.time()),
+                    "meta": {
+                        "ok": False,
+                        "error": "coin_alerts_failed",
+                        "detail": str(e)[:500],
+                    },
+                }
+            ),
+            200,
+        )
 
 
 @app.route("/api/alerts")
@@ -7754,17 +10752,55 @@ def get_alerts_contract():
     try:
         items, alerts_meta = _build_recent_alerts_payload(limit)
         active = _reduce_active_alerts(items, ttl_s=active_ttl_s)
-        return jsonify({
+        payload = {
             "active": active,
             "recent": items,
             "meta": alerts_meta,
-        })
+        }
+
+        try:
+            return jsonify(payload)
+        except Exception as ser_err:
+            logging.exception(
+                "Error serializing canonical alerts endpoint payload "
+                "(limit=%s, active_ttl_s=%s, args=%s)",
+                limit,
+                active_ttl_s,
+                dict(request.args),
+            )
+            safe_payload = _json_sanitize_for_api(payload)
+            try:
+                return jsonify(safe_payload)
+            except Exception as safe_err:
+                logging.exception(
+                    "Error serializing sanitized canonical alerts payload "
+                    "(limit=%s, active_ttl_s=%s, args=%s)",
+                    limit,
+                    active_ttl_s,
+                    dict(request.args),
+                )
+                fallback = _alerts_contract_fallback_payload(
+                    limit=limit,
+                    active_ttl_s=active_ttl_s,
+                    detail=f"serialization_failed: {safe_err or ser_err}",
+                )
+                return jsonify(fallback), 200
     except Exception as e:
-        logging.error(f"Error in canonical alerts endpoint: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.exception(
+            "Error in canonical alerts endpoint "
+            "(limit=%s, active_ttl_s=%s, args=%s)",
+            limit,
+            active_ttl_s,
+            dict(request.args),
+        )
+        fallback = _alerts_contract_fallback_payload(
+            limit=limit, active_ttl_s=active_ttl_s, detail=str(e)
+        )
+        return jsonify(fallback), 200
 
 
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
+
 
 def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
     """Main function to fetch and process 1-minute crypto data.
@@ -7776,32 +10812,40 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
     # when the env flag USE_1MIN_SEED=1 is present. This helps tests avoid
     # needing live price history during CI.
     try:
-        if os.environ.get('USE_1MIN_SEED', '0') == '1':
-            fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures', 'top_movers_3m.json')
+        if os.environ.get("USE_1MIN_SEED", "0") == "1":
+            fixture_path = os.path.join(
+                os.path.dirname(__file__), "fixtures", "top_movers_3m.json"
+            )
             if os.path.exists(fixture_path):
                 try:
-                    with open(fixture_path, 'r', encoding='utf-8') as fh:
+                    with open(fixture_path, "r", encoding="utf-8") as fh:
                         seeded = json.load(fh)
-                    seeded.setdefault('source', 'fixture-seed')
-                    seeded.setdefault('seed', True)
-                    one_minute_cache['data'] = seeded
-                    one_minute_cache['timestamp'] = time.time()
+                    seeded.setdefault("source", "fixture-seed")
+                    seeded.setdefault("seed", True)
+                    one_minute_cache["data"] = seeded
+                    one_minute_cache["timestamp"] = time.time()
                     return seeded
                 except Exception:
-                    logging.exception('Failed to load 1-min fixture; falling back to live calculation')
+                    logging.exception(
+                        "Failed to load 1-min fixture; falling back to live calculation"
+                    )
     except Exception:
         pass
 
-    if not CONFIG.get('ENABLE_1MIN', True):
+    if not CONFIG.get("ENABLE_1MIN", True):
         return None
     current_time = time.time()
     snapshot_ts_s = None
     # Throttle heavy recomputation; allow front-end fetch to reuse last processed snapshot.
     # Callers that are responsible for appending new history (e.g., the background
     # price fetch loop) should pass force_refresh=True.
-    refresh_window = CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30)
-    if (not force_refresh) and one_minute_cache['data'] and (current_time - one_minute_cache['timestamp']) < refresh_window:
-        return one_minute_cache['data']
+    refresh_window = CONFIG.get("ONE_MIN_REFRESH_SECONDS", 30)
+    if (
+        (not force_refresh)
+        and one_minute_cache["data"]
+        and (current_time - one_minute_cache["timestamp"]) < refresh_window
+    ):
+        return one_minute_cache["data"]
     try:
         # If callers provided a price snapshot, prefer it (cache-only path).
         # Otherwise reuse the freshest cached price set or fetch.
@@ -7810,14 +10854,19 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
         else:
             # Reuse prices from background thread if fetched recently (<10s) to avoid parallel bursts
             prices_age_limit = 10
-            if last_current_prices['data'] and (current_time - last_current_prices['timestamp']) < prices_age_limit:
-                current_prices = last_current_prices['data']
-                snapshot_ts_s = int(last_current_prices.get('timestamp') or current_time)
+            if (
+                last_current_prices["data"]
+                and (current_time - last_current_prices["timestamp"]) < prices_age_limit
+            ):
+                current_prices = last_current_prices["data"]
+                snapshot_ts_s = int(
+                    last_current_prices.get("timestamp") or current_time
+                )
             else:
                 current_prices = get_current_prices()
                 if current_prices:
-                    last_current_prices['data'] = current_prices
-                    last_current_prices['timestamp'] = current_time
+                    last_current_prices["data"] = current_prices
+                    last_current_prices["timestamp"] = current_time
                     snapshot_ts_s = int(current_time)
         if not current_prices:
             logging.warning("No current prices available for 1-min data")
@@ -7836,48 +10885,56 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                 len(current_prices),
                 len(price_history_1min),
             )
-            prior = one_minute_cache.get('data')
-            if isinstance(prior, dict) and ((prior.get('gainers') or []) or (prior.get('losers') or [])):
+            prior = one_minute_cache.get("data")
+            if isinstance(prior, dict) and (
+                (prior.get("gainers") or []) or (prior.get("losers") or [])
+            ):
                 return prior
             empty_result = {
                 "gainers": [],
                 "losers": [],
                 "throttled": True,
-                "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS', 30),
-                "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT', 0.15),
-                "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT', 0.05),
-                "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS', 90),
+                "refresh_seconds": CONFIG.get("ONE_MIN_REFRESH_SECONDS", 30),
+                "enter_threshold_pct": CONFIG.get("ONE_MIN_ENTER_PCT", 0.15),
+                "stay_threshold_pct": CONFIG.get("ONE_MIN_STAY_PCT", 0.05),
+                "dwell_seconds": CONFIG.get("ONE_MIN_DWELL_SECONDS", 90),
                 "retained": 0,
             }
-            one_minute_cache['data'] = empty_result
-            one_minute_cache['timestamp'] = current_time
+            one_minute_cache["data"] = empty_result
+            one_minute_cache["timestamp"] = current_time
             return empty_result
 
         # --- Retention / hysteresis logic ---
-        enter_pct = CONFIG.get('ONE_MIN_ENTER_PCT', 0.15)
-        stay_pct = CONFIG.get('ONE_MIN_STAY_PCT', 0.05)
-        dwell_seconds = CONFIG.get('ONE_MIN_DWELL_SECONDS', 90)
-        max_coins = CONFIG.get('ONE_MIN_MAX_COINS', 25)
+        enter_pct = CONFIG.get("ONE_MIN_ENTER_PCT", 0.15)
+        stay_pct = CONFIG.get("ONE_MIN_STAY_PCT", 0.05)
+        dwell_seconds = CONFIG.get("ONE_MIN_DWELL_SECONDS", 90)
+        max_coins = CONFIG.get("ONE_MIN_MAX_COINS", 25)
         now_ts = current_time
-        pers = one_minute_persistence['entries']
+        pers = one_minute_persistence["entries"]
 
         # Index by symbol for quick lookups and update rolling 60s peak table
         data_by_symbol = {}
         peak_window = 60  # seconds to hold a peak
         for c in crypto_data:
-            sym = c['symbol']
-            pct_now = c.get('price_change_percentage_1min', 0)
+            sym = c["symbol"]
+            pct_now = c.get("price_change_percentage_1min", 0)
             data_by_symbol[sym] = c
             peak = one_minute_peaks.get(sym)
-            if not peak or pct_now > peak.get('peak_pct', -999):
-                one_minute_peaks[sym] = {'peak_pct': pct_now, 'peak_at': now_ts, 'last_seen': now_ts}
+            if not peak or pct_now > peak.get("peak_pct", -999):
+                one_minute_peaks[sym] = {
+                    "peak_pct": pct_now,
+                    "peak_at": now_ts,
+                    "last_seen": now_ts,
+                }
             else:
-                peak['last_seen'] = now_ts
+                peak["last_seen"] = now_ts
 
         # Decay / prune old peaks beyond window
         to_prune = []
         for sym, peak in one_minute_peaks.items():
-            if (now_ts - peak['peak_at']) > peak_window and (now_ts - peak['last_seen']) > peak_window:
+            if (now_ts - peak["peak_at"]) > peak_window and (
+                now_ts - peak["last_seen"]
+            ) > peak_window:
                 to_prune.append(sym)
         for sym in to_prune:
             one_minute_peaks.pop(sym, None)
@@ -7885,54 +10942,81 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
         # Adjust effective pct used for ranking: hold peak within window if current dipped
         for sym, coin in data_by_symbol.items():
             peak = one_minute_peaks.get(sym)
-            if peak and (now_ts - peak['peak_at']) <= peak_window:
-                current_pct = coin.get('price_change_percentage_1min', 0)
-                if peak['peak_pct'] > current_pct > 0:
-                    coin['price_change_percentage_1min_peak'] = peak['peak_pct']
-                elif peak['peak_pct'] < current_pct < 0:  # for negative movers
-                    coin['price_change_percentage_1min_peak'] = peak['peak_pct']
+            if peak and (now_ts - peak["peak_at"]) <= peak_window:
+                current_pct = coin.get("price_change_percentage_1min", 0)
+                if peak["peak_pct"] > current_pct > 0:
+                    coin["price_change_percentage_1min_peak"] = peak["peak_pct"]
+                elif peak["peak_pct"] < current_pct < 0:  # for negative movers
+                    coin["price_change_percentage_1min_peak"] = peak["peak_pct"]
                 else:
-                    coin['price_change_percentage_1min_peak'] = current_pct
+                    coin["price_change_percentage_1min_peak"] = current_pct
             else:
-                coin['price_change_percentage_1min_peak'] = coin.get('price_change_percentage_1min', 0)
+                coin["price_change_percentage_1min_peak"] = coin.get(
+                    "price_change_percentage_1min", 0
+                )
 
         # --- Trending logic: direction/streak/score based on effective gain deltas ---
-        trend_eps = CONFIG.get('ONE_MIN_TREND_EPS', 0.02)  # %. Minimal delta to count as movement
+        trend_eps = CONFIG.get(
+            "ONE_MIN_TREND_EPS", 0.02
+        )  # %. Minimal delta to count as movement
         for sym, coin in data_by_symbol.items():
-            eff = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0)) or 0.0
-            prev = one_minute_trends.get(sym, {"last_gain": eff, "streak": 0, "last_dir": "flat", "score": 0.0})
-            delta = eff - prev.get('last_gain', 0.0)
+            eff = (
+                coin.get(
+                    "price_change_percentage_1min_peak",
+                    coin.get("price_change_percentage_1min", 0),
+                )
+                or 0.0
+            )
+            prev = one_minute_trends.get(
+                sym, {"last_gain": eff, "streak": 0, "last_dir": "flat", "score": 0.0}
+            )
+            delta = eff - prev.get("last_gain", 0.0)
             if delta > trend_eps:
-                direction = 'up'
-                streak = prev['streak'] + 1 if prev.get('last_dir') == 'up' else 1
+                direction = "up"
+                streak = prev["streak"] + 1 if prev.get("last_dir") == "up" else 1
             elif delta < -trend_eps:
-                direction = 'down'
-                streak = prev['streak'] + 1 if prev.get('last_dir') == 'down' else 1
+                direction = "down"
+                streak = prev["streak"] + 1 if prev.get("last_dir") == "down" else 1
             else:
-                direction = 'flat'
-                streak = prev['streak'] + 1 if prev.get('last_dir') == 'flat' else 1
+                direction = "flat"
+                streak = prev["streak"] + 1 if prev.get("last_dir") == "flat" else 1
                 streak = min(streak, 5)
             # Simple bounded trend score combining delta and streak
-            score = max(-10.0, min(10.0, round(delta * 3.0 + streak * (0.5 if direction != 'flat' else 0.1), 2)))
+            score = max(
+                -10.0,
+                min(
+                    10.0,
+                    round(
+                        delta * 3.0 + streak * (0.5 if direction != "flat" else 0.1), 2
+                    ),
+                ),
+            )
             one_minute_trends[sym] = {
-                'last_gain': eff,
-                'last_dir': direction,
-                'streak': streak,
-                'score': score,
-                'updated_at': now_ts,
-                'delta': round(delta, 3),
+                "last_gain": eff,
+                "last_dir": direction,
+                "streak": streak,
+                "score": score,
+                "updated_at": now_ts,
+                "delta": round(delta, 3),
             }
-            _maybe_fire_trend_alert('1m', sym, direction, streak, score)
+            _maybe_fire_trend_alert("1m", sym, direction, streak, score)
 
         # Update existing entries & drop those that lost momentum AND exceeded dwell time below stay threshold
         to_delete = []
         for sym, meta in pers.items():
             coin = data_by_symbol.get(sym)
-            gain_pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0)) if coin else 0
+            gain_pct = (
+                coin.get(
+                    "price_change_percentage_1min_peak",
+                    coin.get("price_change_percentage_1min", 0),
+                )
+                if coin
+                else 0
+            )
             if coin:
                 if abs(gain_pct) >= stay_pct:
                     continue
-                if (now_ts - meta['entered_at']) < dwell_seconds:
+                if (now_ts - meta["entered_at"]) < dwell_seconds:
                     continue
             to_delete.append(sym)
         for sym in to_delete:
@@ -7941,15 +11025,23 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
         # Add new entries meeting enter threshold until capacity (using peak pct)
         sorted_candidates = sorted(
             crypto_data,
-            key=lambda x: abs(x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0))),
-            reverse=True
+            key=lambda x: abs(
+                x.get(
+                    "price_change_percentage_1min_peak",
+                    x.get("price_change_percentage_1min", 0),
+                )
+            ),
+            reverse=True,
         )
         for coin in sorted_candidates:
             if len(pers) >= max_coins:
                 break
-            pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
-            if abs(pct) >= enter_pct and coin['symbol'] not in pers:
-                pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
+            pct = coin.get(
+                "price_change_percentage_1min_peak",
+                coin.get("price_change_percentage_1min", 0),
+            )
+            if abs(pct) >= enter_pct and coin["symbol"] not in pers:
+                pers[coin["symbol"]] = {"entered_at": now_ts, "enter_gain": pct}
 
         # Build separate gainers/losers lists from persistence set
         retained_symbols = set(pers.keys())
@@ -7958,11 +11050,40 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                 one_minute_diag["final_kept"] = len(retained_symbols)
         except Exception:
             pass
-        retained_coins = [data_by_symbol[s] for s in retained_symbols if s in data_by_symbol]
-        gainers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) > 0]
-        losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
-        gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
-        losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+        retained_coins = [
+            data_by_symbol[s] for s in retained_symbols if s in data_by_symbol
+        ]
+        gainers = [
+            c
+            for c in retained_coins
+            if c.get(
+                "price_change_percentage_1min_peak",
+                c.get("price_change_percentage_1min", 0),
+            )
+            > 0
+        ]
+        losers = [
+            c
+            for c in retained_coins
+            if c.get(
+                "price_change_percentage_1min_peak",
+                c.get("price_change_percentage_1min", 0),
+            )
+            < 0
+        ]
+        gainers.sort(
+            key=lambda x: x.get(
+                "price_change_percentage_1min_peak",
+                x.get("price_change_percentage_1min", 0),
+            ),
+            reverse=True,
+        )
+        losers.sort(
+            key=lambda x: x.get(
+                "price_change_percentage_1min_peak",
+                x.get("price_change_percentage_1min", 0),
+            )
+        )
 
         # --- Rank jitter dampening ---
         rank_cooldown_s = float(CONFIG.get("ONE_MIN_RANK_COOLDOWN_S", 10))
@@ -8000,7 +11121,11 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                 prev_rank = prev_ranks.get(sym)
                 last_ts = float(last_change.get(sym) or 0)
                 delta = abs((prev_rank or new_rank) - new_rank)
-                allow_move = (prev_rank is None) or (delta >= min_rank_delta) or ((now_ts - last_ts) >= rank_cooldown_s)
+                allow_move = (
+                    (prev_rank is None)
+                    or (delta >= min_rank_delta)
+                    or ((now_ts - last_ts) >= rank_cooldown_s)
+                )
                 if allow_move:
                     prev_ranks[sym] = new_rank
                     if prev_rank != new_rank:
@@ -8025,14 +11150,25 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
         losers = _dampen_rank(losers, "losers", reverse=False)
 
         # --- Market breadth & pump/dump signal metrics ---
-        universe = [c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) or 0.0 for c in data_by_symbol.values()]
+        universe = [
+            c.get(
+                "price_change_percentage_1min_peak",
+                c.get("price_change_percentage_1min", 0),
+            )
+            or 0.0
+            for c in data_by_symbol.values()
+        ]
         abs_universe = [abs(x) for x in universe]
+
         def _pct(sorted_list, p):
             if not sorted_list:
                 return None
-            k = (len(sorted_list)-1) * (p/100.0)
-            f = int(k); c2 = min(f+1, len(sorted_list)-1); w = k - f
-            return round(sorted_list[f]*(1-w) + sorted_list[c2]*w, 4)
+            k = (len(sorted_list) - 1) * (p / 100.0)
+            f = int(k)
+            c2 = min(f + 1, len(sorted_list) - 1)
+            w = k - f
+            return round(sorted_list[f] * (1 - w) + sorted_list[c2] * w, 4)
+
         if universe:
             s_univ = sorted(universe)
             s_abs = sorted(abs_universe)
@@ -8041,70 +11177,144 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
             total = len(universe)
             adv_decl_ratio = round(advancers / decliners, 3) if decliners else None
             top = gainers[:5]
-            top_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in top)/len(top), 4) if top else None
+            top_avg = (
+                round(
+                    sum(
+                        c.get(
+                            "price_change_percentage_1min_peak",
+                            c.get("price_change_percentage_1min", 0),
+                        )
+                        for c in top
+                    )
+                    / len(top),
+                    4,
+                )
+                if top
+                else None
+            )
             bottom = losers[:5]
-            bottom_avg = round(sum(c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min',0)) for c in bottom)/len(bottom), 4) if bottom else None
-            prev_stats = dict(one_minute_market_stats) if one_minute_market_stats else None
-            pct95_cur = _pct(s_univ,95)
-            pct99_cur = _pct(s_univ,99)
-            extreme_gainer_pct_cur = round(gainers[0].get('price_change_percentage_1min_peak', gainers[0].get('price_change_percentage_1min',0)),4) if gainers else None
+            bottom_avg = (
+                round(
+                    sum(
+                        c.get(
+                            "price_change_percentage_1min_peak",
+                            c.get("price_change_percentage_1min", 0),
+                        )
+                        for c in bottom
+                    )
+                    / len(bottom),
+                    4,
+                )
+                if bottom
+                else None
+            )
+            prev_stats = (
+                dict(one_minute_market_stats) if one_minute_market_stats else None
+            )
+            pct95_cur = _pct(s_univ, 95)
+            pct99_cur = _pct(s_univ, 99)
+            extreme_gainer_pct_cur = (
+                round(
+                    gainers[0].get(
+                        "price_change_percentage_1min_peak",
+                        gainers[0].get("price_change_percentage_1min", 0),
+                    ),
+                    4,
+                )
+                if gainers
+                else None
+            )
             net_advancers_cur = advancers - decliners
             # Compute deltas (acceleration) vs previous snapshot
-            spike_p95_delta = spike_p99_delta = extreme_gainer_accel = breadth_adv_decl_ratio_delta = net_advancers_delta = None
-            spike_p95_rate = spike_p99_rate = extreme_gainer_accel_rate = breadth_adv_decl_ratio_rate = net_advancers_delta_rate = None
-            if prev_stats and prev_stats.get('timestamp') and prev_stats.get('timestamp') != now_ts:
-                dt = max(1.0, now_ts - prev_stats.get('timestamp'))
-                if prev_stats.get('pct95') is not None and pct95_cur is not None:
-                    spike_p95_delta = round(pct95_cur - prev_stats.get('pct95'), 4)
+            spike_p95_delta = spike_p99_delta = extreme_gainer_accel = (
+                breadth_adv_decl_ratio_delta
+            ) = net_advancers_delta = None
+            spike_p95_rate = spike_p99_rate = extreme_gainer_accel_rate = (
+                breadth_adv_decl_ratio_rate
+            ) = net_advancers_delta_rate = None
+            if (
+                prev_stats
+                and prev_stats.get("timestamp")
+                and prev_stats.get("timestamp") != now_ts
+            ):
+                dt = max(1.0, now_ts - prev_stats.get("timestamp"))
+                if prev_stats.get("pct95") is not None and pct95_cur is not None:
+                    spike_p95_delta = round(pct95_cur - prev_stats.get("pct95"), 4)
                     spike_p95_rate = round(spike_p95_delta / dt, 6)
-                if prev_stats.get('pct99') is not None and pct99_cur is not None:
-                    spike_p99_delta = round(pct99_cur - prev_stats.get('pct99'), 4)
+                if prev_stats.get("pct99") is not None and pct99_cur is not None:
+                    spike_p99_delta = round(pct99_cur - prev_stats.get("pct99"), 4)
                     spike_p99_rate = round(spike_p99_delta / dt, 6)
-                if prev_stats.get('extreme_gainer_pct') is not None and extreme_gainer_pct_cur is not None:
-                    extreme_gainer_accel = round(extreme_gainer_pct_cur - prev_stats.get('extreme_gainer_pct'), 4)
+                if (
+                    prev_stats.get("extreme_gainer_pct") is not None
+                    and extreme_gainer_pct_cur is not None
+                ):
+                    extreme_gainer_accel = round(
+                        extreme_gainer_pct_cur - prev_stats.get("extreme_gainer_pct"), 4
+                    )
                     extreme_gainer_accel_rate = round(extreme_gainer_accel / dt, 6)
-                if prev_stats.get('adv_decl_ratio') is not None and adv_decl_ratio is not None:
-                    breadth_adv_decl_ratio_delta = round(adv_decl_ratio - prev_stats.get('adv_decl_ratio'), 6)
-                    breadth_adv_decl_ratio_rate = round(breadth_adv_decl_ratio_delta / dt, 6)
-                if prev_stats.get('breadth_net_advancers') is not None:
-                    net_advancers_delta = net_advancers_cur - prev_stats.get('breadth_net_advancers')
+                if (
+                    prev_stats.get("adv_decl_ratio") is not None
+                    and adv_decl_ratio is not None
+                ):
+                    breadth_adv_decl_ratio_delta = round(
+                        adv_decl_ratio - prev_stats.get("adv_decl_ratio"), 6
+                    )
+                    breadth_adv_decl_ratio_rate = round(
+                        breadth_adv_decl_ratio_delta / dt, 6
+                    )
+                if prev_stats.get("breadth_net_advancers") is not None:
+                    net_advancers_delta = net_advancers_cur - prev_stats.get(
+                        "breadth_net_advancers"
+                    )
                     net_advancers_delta_rate = round(net_advancers_delta / dt, 6)
-            one_minute_market_stats.update({
-                'timestamp': now_ts,
-                'universe_count': total,
-                'advancers': advancers,
-                'decliners': decliners,
-                'adv_decl_ratio': adv_decl_ratio,
-                'pct50': _pct(s_univ,50),
-                'pct75': _pct(s_univ,75),
-                'pct90': _pct(s_univ,90),
-                'pct95': pct95_cur,
-                'pct99': pct99_cur,
-                'abs_pct90': _pct(s_abs,90),
-                'abs_pct95': _pct(s_abs,95),
-                'abs_pct99': _pct(s_abs,99),
-                'count_gt_1pct': sum(1 for v in abs_universe if v >= 1.0),
-                'count_gt_2pct': sum(1 for v in abs_universe if v >= 2.0),
-                'count_gt_5pct': sum(1 for v in abs_universe if v >= 5.0),
-                'top5_avg_gain': top_avg,
-                'bottom5_avg_loss': bottom_avg,
-                'extreme_gainer_symbol': gainers[0]['symbol'] if gainers else None,
-                'extreme_gainer_pct': extreme_gainer_pct_cur,
-                'extreme_loser_symbol': losers[0]['symbol'] if losers else None,
-                'extreme_loser_pct': round(losers[0].get('price_change_percentage_1min_peak', losers[0].get('price_change_percentage_1min',0)),4) if losers else None,
-                # Acceleration / delta metrics
-                'spike_p95_delta': spike_p95_delta,
-                'spike_p99_delta': spike_p99_delta,
-                'spike_p95_rate_per_sec': spike_p95_rate,
-                'spike_p99_rate_per_sec': spike_p99_rate,
-                'extreme_gainer_accel': extreme_gainer_accel,
-                'extreme_gainer_accel_rate_per_sec': extreme_gainer_accel_rate,
-                'breadth_net_advancers': net_advancers_cur,
-                'breadth_net_advancers_delta': net_advancers_delta,
-                'breadth_net_advancers_delta_rate_per_sec': net_advancers_delta_rate,
-                'breadth_adv_decl_ratio_delta': breadth_adv_decl_ratio_delta,
-                'breadth_adv_decl_ratio_rate_per_sec': breadth_adv_decl_ratio_rate,
-            })
+            one_minute_market_stats.update(
+                {
+                    "timestamp": now_ts,
+                    "universe_count": total,
+                    "advancers": advancers,
+                    "decliners": decliners,
+                    "adv_decl_ratio": adv_decl_ratio,
+                    "pct50": _pct(s_univ, 50),
+                    "pct75": _pct(s_univ, 75),
+                    "pct90": _pct(s_univ, 90),
+                    "pct95": pct95_cur,
+                    "pct99": pct99_cur,
+                    "abs_pct90": _pct(s_abs, 90),
+                    "abs_pct95": _pct(s_abs, 95),
+                    "abs_pct99": _pct(s_abs, 99),
+                    "count_gt_1pct": sum(1 for v in abs_universe if v >= 1.0),
+                    "count_gt_2pct": sum(1 for v in abs_universe if v >= 2.0),
+                    "count_gt_5pct": sum(1 for v in abs_universe if v >= 5.0),
+                    "top5_avg_gain": top_avg,
+                    "bottom5_avg_loss": bottom_avg,
+                    "extreme_gainer_symbol": gainers[0]["symbol"] if gainers else None,
+                    "extreme_gainer_pct": extreme_gainer_pct_cur,
+                    "extreme_loser_symbol": losers[0]["symbol"] if losers else None,
+                    "extreme_loser_pct": (
+                        round(
+                            losers[0].get(
+                                "price_change_percentage_1min_peak",
+                                losers[0].get("price_change_percentage_1min", 0),
+                            ),
+                            4,
+                        )
+                        if losers
+                        else None
+                    ),
+                    # Acceleration / delta metrics
+                    "spike_p95_delta": spike_p95_delta,
+                    "spike_p99_delta": spike_p99_delta,
+                    "spike_p95_rate_per_sec": spike_p95_rate,
+                    "spike_p99_rate_per_sec": spike_p99_rate,
+                    "extreme_gainer_accel": extreme_gainer_accel,
+                    "extreme_gainer_accel_rate_per_sec": extreme_gainer_accel_rate,
+                    "breadth_net_advancers": net_advancers_cur,
+                    "breadth_net_advancers_delta": net_advancers_delta,
+                    "breadth_net_advancers_delta_rate_per_sec": net_advancers_delta_rate,
+                    "breadth_adv_decl_ratio_delta": breadth_adv_decl_ratio_delta,
+                    "breadth_adv_decl_ratio_rate_per_sec": breadth_adv_decl_ratio_rate,
+                }
+            )
             # Advanced breadth analytics (z-scores, EMA, thrust, Bollinger, confirmation, alerts)
             with _one_min_hist_lock:
                 if pct95_cur is not None:
@@ -8113,14 +11323,16 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                     _spike_p99_history.append(pct99_cur)
                 if extreme_gainer_pct_cur is not None:
                     _extreme_gainer_history.append(extreme_gainer_pct_cur)
+
                 def _z(hist):
                     if len(hist) < 5:
                         return None
-                    mean = sum(hist)/len(hist)
-                    var = sum((x-mean)**2 for x in hist)/len(hist)
+                    mean = sum(hist) / len(hist)
+                    var = sum((x - mean) ** 2 for x in hist) / len(hist)
                     if var <= 1e-12:
                         return 0.0
-                    return round((hist[-1]-mean)/math.sqrt(var), 4)
+                    return round((hist[-1] - mean) / math.sqrt(var), 4)
+
                 z_p95 = _z(_spike_p95_history)
                 z_p99 = _z(_spike_p99_history)
                 z_extreme = _z(_extreme_gainer_history)
@@ -8129,113 +11341,227 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
                     if _breadth_adv_decl_ratio_ema is None:
                         _breadth_adv_decl_ratio_ema = adv_decl_ratio
                     else:
-                        _breadth_adv_decl_ratio_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_adv_decl_ratio_ema + _BREADTH_EMA_ALPHA*adv_decl_ratio
+                        _breadth_adv_decl_ratio_ema = (
+                            (1 - _BREADTH_EMA_ALPHA) * _breadth_adv_decl_ratio_ema
+                            + _BREADTH_EMA_ALPHA * adv_decl_ratio
+                        )
                 if net_advancers_cur is not None:
                     if _breadth_net_advancers_ema is None:
                         _breadth_net_advancers_ema = net_advancers_cur
                     else:
-                        _breadth_net_advancers_ema = (1-_BREADTH_EMA_ALPHA)*_breadth_net_advancers_ema + _BREADTH_EMA_ALPHA*net_advancers_cur
+                        _breadth_net_advancers_ema = (
+                            (1 - _BREADTH_EMA_ALPHA) * _breadth_net_advancers_ema
+                            + _BREADTH_EMA_ALPHA * net_advancers_cur
+                        )
                 thrust_active = False
-                if adv_decl_ratio is not None and adv_decl_ratio >= _BREADTH_THRUST_RATIO and net_advancers_cur >= _BREADTH_THRUST_NET_MIN:
+                if (
+                    adv_decl_ratio is not None
+                    and adv_decl_ratio >= _BREADTH_THRUST_RATIO
+                    and net_advancers_cur >= _BREADTH_THRUST_NET_MIN
+                ):
                     if _breadth_thrust_started_at is None:
                         _breadth_thrust_started_at = now_ts
                     thrust_active = True
                 else:
                     _breadth_thrust_started_at = None
-                thrust_duration = (now_ts - _breadth_thrust_started_at) if _breadth_thrust_started_at else 0
-                one_minute_market_stats.update({
-                    'z_p95': z_p95,
-                    'z_p99': z_p99,
-                    'z_extreme_gainer': z_extreme,
-                    'breadth_adv_decl_ratio_ema': round(_breadth_adv_decl_ratio_ema,4) if _breadth_adv_decl_ratio_ema is not None else None,
-                    'breadth_net_advancers_ema': round(_breadth_net_advancers_ema,4) if _breadth_net_advancers_ema is not None else None,
-                    'breadth_thrust_active': 1 if thrust_active else 0,
-                    'breadth_thrust_duration_sec': round(thrust_duration,2),
-                })
+                thrust_duration = (
+                    (now_ts - _breadth_thrust_started_at)
+                    if _breadth_thrust_started_at
+                    else 0
+                )
+                one_minute_market_stats.update(
+                    {
+                        "z_p95": z_p95,
+                        "z_p99": z_p99,
+                        "z_extreme_gainer": z_extreme,
+                        "breadth_adv_decl_ratio_ema": (
+                            round(_breadth_adv_decl_ratio_ema, 4)
+                            if _breadth_adv_decl_ratio_ema is not None
+                            else None
+                        ),
+                        "breadth_net_advancers_ema": (
+                            round(_breadth_net_advancers_ema, 4)
+                            if _breadth_net_advancers_ema is not None
+                            else None
+                        ),
+                        "breadth_thrust_active": 1 if thrust_active else 0,
+                        "breadth_thrust_duration_sec": round(thrust_duration, 2),
+                    }
+                )
                 if adv_decl_ratio is not None:
                     _adv_decl_ratio_history.append(adv_decl_ratio)
                     if len(_adv_decl_ratio_history) >= 5:
-                        mean = sum(_adv_decl_ratio_history)/len(_adv_decl_ratio_history)
-                        var = sum((x-mean)**2 for x in _adv_decl_ratio_history)/len(_adv_decl_ratio_history)
+                        mean = sum(_adv_decl_ratio_history) / len(
+                            _adv_decl_ratio_history
+                        )
+                        var = sum(
+                            (x - mean) ** 2 for x in _adv_decl_ratio_history
+                        ) / len(_adv_decl_ratio_history)
                         sd = math.sqrt(var)
                         upper = mean + _BREADTH_BB_K * sd
                         lower = mean - _BREADTH_BB_K * sd
-                        one_minute_market_stats.update({
-                            'breadth_adv_decl_ratio_bb_mid': round(mean,4),
-                            'breadth_adv_decl_ratio_bb_upper': round(upper,4),
-                            'breadth_adv_decl_ratio_bb_lower': round(lower,4),
-                            'breadth_adv_decl_ratio_bb_sd': round(sd,5),
-                        })
+                        one_minute_market_stats.update(
+                            {
+                                "breadth_adv_decl_ratio_bb_mid": round(mean, 4),
+                                "breadth_adv_decl_ratio_bb_upper": round(upper, 4),
+                                "breadth_adv_decl_ratio_bb_lower": round(lower, 4),
+                                "breadth_adv_decl_ratio_bb_sd": round(sd, 5),
+                            }
+                        )
                 # 3m confirmation overlay
                 try:
                     confirm_up = 0
                     confirm_total = 0
-                    for sym in list(one_minute_persistence['entries'].keys())[:100]:
+                    for sym in list(one_minute_persistence["entries"].keys())[:100]:
                         t3 = three_minute_trends.get(sym)
                         if t3:
                             confirm_total += 1
-                            if t3.get('last',0) > 0 and t3.get('score',0) > 0 and t3.get('last_dir') == 'up':
+                            if (
+                                t3.get("last", 0) > 0
+                                and t3.get("score", 0) > 0
+                                and t3.get("last_dir") == "up"
+                            ):
                                 confirm_up += 1
-                    confirm_ratio = round(confirm_up/confirm_total,4) if confirm_total else None
-                    one_minute_market_stats.update({
-                        'confirm_3m_overlap': confirm_total,
-                        'confirm_3m_up': confirm_up,
-                        'confirm_3m_up_ratio': confirm_ratio,
-                    })
+                    confirm_ratio = (
+                        round(confirm_up / confirm_total, 4) if confirm_total else None
+                    )
+                    one_minute_market_stats.update(
+                        {
+                            "confirm_3m_overlap": confirm_total,
+                            "confirm_3m_up": confirm_up,
+                            "confirm_3m_up_ratio": confirm_ratio,
+                        }
+                    )
                 except Exception:
                     confirm_ratio = None
                 # Derived alert triggers
                 try:
-                    pump_thrust = 1 if (thrust_active and confirm_ratio and adv_decl_ratio and
-                        confirm_ratio > THRESHOLDS['pump_thrust_confirm_ratio_min'] and
-                        adv_decl_ratio > THRESHOLDS['pump_thrust_adv_decl_ratio_min']) else 0
-                    narrowing_volatility = 1 if (
-                        one_minute_market_stats.get('breadth_adv_decl_ratio_bb_sd') is not None and
-                        one_minute_market_stats['breadth_adv_decl_ratio_bb_sd'] < THRESHOLDS['narrowing_vol_sd_max']
-                    ) else 0
-                    upper_band_touch = 1 if (
-                        adv_decl_ratio and one_minute_market_stats.get('breadth_adv_decl_ratio_bb_upper') and
-                        adv_decl_ratio >= one_minute_market_stats['breadth_adv_decl_ratio_bb_upper']
-                    ) else 0
-                    lower_band_touch = 1 if (
-                        adv_decl_ratio and one_minute_market_stats.get('breadth_adv_decl_ratio_bb_lower') is not None and
-                        adv_decl_ratio <= one_minute_market_stats['breadth_adv_decl_ratio_bb_lower']
-                    ) else 0
-                    accel_fade = 1 if (
-                        spike_p95_rate is not None and
-                        spike_p95_rate < THRESHOLDS['accel_fade_p95_rate_max'] and
-                        thrust_duration > THRESHOLDS['accel_fade_min_thrust_seconds']
-                    ) else 0
-                    one_minute_market_stats.update({
-                        'alert_pump_thrust': pump_thrust,
-                        'alert_narrowing_vol': narrowing_volatility,
-                        'alert_upper_band_touch': upper_band_touch,
-                        'alert_lower_band_touch': lower_band_touch,
-                        'alert_accel_fade': accel_fade,
-                    })
+                    pump_thrust = (
+                        1
+                        if (
+                            thrust_active
+                            and confirm_ratio
+                            and adv_decl_ratio
+                            and confirm_ratio
+                            > THRESHOLDS["pump_thrust_confirm_ratio_min"]
+                            and adv_decl_ratio
+                            > THRESHOLDS["pump_thrust_adv_decl_ratio_min"]
+                        )
+                        else 0
+                    )
+                    narrowing_volatility = (
+                        1
+                        if (
+                            one_minute_market_stats.get("breadth_adv_decl_ratio_bb_sd")
+                            is not None
+                            and one_minute_market_stats["breadth_adv_decl_ratio_bb_sd"]
+                            < THRESHOLDS["narrowing_vol_sd_max"]
+                        )
+                        else 0
+                    )
+                    upper_band_touch = (
+                        1
+                        if (
+                            adv_decl_ratio
+                            and one_minute_market_stats.get(
+                                "breadth_adv_decl_ratio_bb_upper"
+                            )
+                            and adv_decl_ratio
+                            >= one_minute_market_stats[
+                                "breadth_adv_decl_ratio_bb_upper"
+                            ]
+                        )
+                        else 0
+                    )
+                    lower_band_touch = (
+                        1
+                        if (
+                            adv_decl_ratio
+                            and one_minute_market_stats.get(
+                                "breadth_adv_decl_ratio_bb_lower"
+                            )
+                            is not None
+                            and adv_decl_ratio
+                            <= one_minute_market_stats[
+                                "breadth_adv_decl_ratio_bb_lower"
+                            ]
+                        )
+                        else 0
+                    )
+                    accel_fade = (
+                        1
+                        if (
+                            spike_p95_rate is not None
+                            and spike_p95_rate < THRESHOLDS["accel_fade_p95_rate_max"]
+                            and thrust_duration
+                            > THRESHOLDS["accel_fade_min_thrust_seconds"]
+                        )
+                        else 0
+                    )
+                    one_minute_market_stats.update(
+                        {
+                            "alert_pump_thrust": pump_thrust,
+                            "alert_narrowing_vol": narrowing_volatility,
+                            "alert_upper_band_touch": upper_band_touch,
+                            "alert_lower_band_touch": lower_band_touch,
+                            "alert_accel_fade": accel_fade,
+                        }
+                    )
                 except Exception:
                     pass
 
         # Seed fallback: on a cold or quiet period when nothing is retained yet,
         # gently prefill with the top movers over a tiny threshold so UI isn't empty.
         if not retained_symbols:
-            seed_pct = float(CONFIG.get('ONE_MIN_SEED_PCT', 0.02))  # 0.02% default
-            seed_count = int(CONFIG.get('ONE_MIN_DEFAULT_SEED_COUNT', 10))
+            seed_pct = float(CONFIG.get("ONE_MIN_SEED_PCT", 0.02))  # 0.02% default
+            seed_count = int(CONFIG.get("ONE_MIN_DEFAULT_SEED_COUNT", 10))
             seeded = 0
             for coin in sorted_candidates:
                 if seeded >= seed_count:
                     break
-                pct = coin.get('price_change_percentage_1min_peak', coin.get('price_change_percentage_1min', 0))
+                pct = coin.get(
+                    "price_change_percentage_1min_peak",
+                    coin.get("price_change_percentage_1min", 0),
+                )
                 if abs(pct) >= seed_pct:
-                    pers[coin['symbol']] = {'entered_at': now_ts, 'enter_gain': pct}
+                    pers[coin["symbol"]] = {"entered_at": now_ts, "enter_gain": pct}
                     seeded += 1
             if seeded:
                 retained_symbols = set(pers.keys())
-                retained_coins = [data_by_symbol[s] for s in retained_symbols if s in data_by_symbol]
-                gainers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) > 0]
-                losers = [c for c in retained_coins if c.get('price_change_percentage_1min_peak', c.get('price_change_percentage_1min', 0)) < 0]
-                gainers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)), reverse=True)
-                losers.sort(key=lambda x: x.get('price_change_percentage_1min_peak', x.get('price_change_percentage_1min', 0)))
+                retained_coins = [
+                    data_by_symbol[s] for s in retained_symbols if s in data_by_symbol
+                ]
+                gainers = [
+                    c
+                    for c in retained_coins
+                    if c.get(
+                        "price_change_percentage_1min_peak",
+                        c.get("price_change_percentage_1min", 0),
+                    )
+                    > 0
+                ]
+                losers = [
+                    c
+                    for c in retained_coins
+                    if c.get(
+                        "price_change_percentage_1min_peak",
+                        c.get("price_change_percentage_1min", 0),
+                    )
+                    < 0
+                ]
+                gainers.sort(
+                    key=lambda x: x.get(
+                        "price_change_percentage_1min_peak",
+                        x.get("price_change_percentage_1min", 0),
+                    ),
+                    reverse=True,
+                )
+                losers.sort(
+                    key=lambda x: x.get(
+                        "price_change_percentage_1min_peak",
+                        x.get("price_change_percentage_1min", 0),
+                    )
+                )
 
             # Re-apply dampening after any seed fallback updates
             gainers = _dampen_rank(gainers, "gainers", reverse=True)
@@ -8246,18 +11572,25 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
             out = []
             for c in list_:
                 t = one_minute_trends.get(c["symbol"], {})
-                out.append({
-                    "symbol": c["symbol"],
-                    "current": c["current_price"],
-                    "initial_1min": c["initial_price_1min"],
-                    "gain": c["price_change_percentage_1min"],
-                    "interval_minutes": round(c.get("actual_interval_minutes", 1), 1),
-                    "peak_gain": c.get("price_change_percentage_1min_peak", c.get("price_change_percentage_1min", 0)),
-                    "trend_direction": t.get('last_dir', 'flat'),
-                    "trend_streak": t.get('streak', 0),
-                    "trend_score": t.get('score', 0.0),
-                    "trend_delta": t.get('delta', 0.0),
-                })
+                out.append(
+                    {
+                        "symbol": c["symbol"],
+                        "current": c["current_price"],
+                        "initial_1min": c["initial_price_1min"],
+                        "gain": c["price_change_percentage_1min"],
+                        "interval_minutes": round(
+                            c.get("actual_interval_minutes", 1), 1
+                        ),
+                        "peak_gain": c.get(
+                            "price_change_percentage_1min_peak",
+                            c.get("price_change_percentage_1min", 0),
+                        ),
+                        "trend_direction": t.get("last_dir", "flat"),
+                        "trend_streak": t.get("streak", 0),
+                        "trend_score": t.get("score", 0.0),
+                        "trend_delta": t.get("delta", 0.0),
+                    }
+                )
             return out
 
         result = {
@@ -8268,7 +11601,7 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
             "enter_threshold_pct": enter_pct,
             "stay_threshold_pct": stay_pct,
             "dwell_seconds": dwell_seconds,
-            "retained": len(retained_symbols)
+            "retained": len(retained_symbols),
         }
         logging.info(
             "1m retention candidates=%s retained_symbols=%s gainers=%s losers=%s enter=%.3f stay=%.3f dwell=%ss",
@@ -8280,84 +11613,100 @@ def get_crypto_data_1min(current_prices=None, force_refresh: bool = False):
             stay_pct,
             dwell_seconds,
         )
-        one_minute_cache['data'] = result
-        one_minute_cache['timestamp'] = current_time
-        logging.info(f"1-min data processed (throttle {refresh_window}s) retained={len(retained_symbols)} gainers={len(result['gainers'])} losers={len(result['losers'])}")
+        one_minute_cache["data"] = result
+        one_minute_cache["timestamp"] = current_time
+        logging.info(
+            f"1-min data processed (throttle {refresh_window}s) retained={len(retained_symbols)} gainers={len(result['gainers'])} losers={len(result['losers'])}"
+        )
         return result
     except Exception as e:
         logging.error(f"Error in get_crypto_data_1min: {e}")
         return None
 
-@app.route('/api/component/gainers-table-1min')
+
+@app.route("/api/component/gainers-table-1min")
 def get_gainers_table_1min():
     """Individual endpoint for 1-minute gainers table"""
     try:
         # If tests request seeded fixtures, bypass cached SWR helpers and
         # construct the response directly from the seeded fixture to avoid
         # stale cached outputs that were computed without the seed.
-        if os.environ.get('USE_1MIN_SEED', '0') == '1':
+        if os.environ.get("USE_1MIN_SEED", "0") == "1":
             seeded = get_crypto_data_1min()
             if not seeded:
                 return jsonify({"error": "No 1-minute data available"}), 503
-            gainers = seeded.get('gainers', [])
+            gainers = seeded.get("gainers", [])
             gainers_table_data = []
             for i, coin in enumerate(gainers[:20]):
-                current_price = coin.get('current') or coin.get('current_price') or 0
-                gain_pct = coin.get('gain') or coin.get('price_change_percentage_1min') or 0
-                initial_price = coin.get('initial_1min') or coin.get('initial_price_1min') or current_price
-                peak_gain = coin.get('peak_gain', gain_pct)
-                gainers_table_data.append({
-                    'rank': i + 1,
-                    'symbol': coin.get('symbol'),
-                    'current_price': current_price,
-                    'price_change_percentage_1min': gain_pct,
-                    'initial_price_1min': initial_price,
-                    'actual_interval_minutes': coin.get('interval_minutes', 1),
-                    'peak_gain': peak_gain,
-                    'trend_direction': coin.get('trend_direction', 'flat'),
-                    'trend_streak': coin.get('trend_streak', 0),
-                    'trend_score': coin.get('trend_score', 0.0),
-                    'trend_delta': coin.get('trend_delta', 0.0),
-                    'momentum': 'strong' if gain_pct > 5 else 'moderate',
-                    'alert_level': 'high' if gain_pct > 10 else 'normal'
-                })
+                current_price = coin.get("current") or coin.get("current_price") or 0
+                gain_pct = (
+                    coin.get("gain") or coin.get("price_change_percentage_1min") or 0
+                )
+                initial_price = (
+                    coin.get("initial_1min")
+                    or coin.get("initial_price_1min")
+                    or current_price
+                )
+                peak_gain = coin.get("peak_gain", gain_pct)
+                gainers_table_data.append(
+                    {
+                        "rank": i + 1,
+                        "symbol": coin.get("symbol"),
+                        "current_price": current_price,
+                        "price_change_percentage_1min": gain_pct,
+                        "initial_price_1min": initial_price,
+                        "actual_interval_minutes": coin.get("interval_minutes", 1),
+                        "peak_gain": peak_gain,
+                        "trend_direction": coin.get("trend_direction", "flat"),
+                        "trend_streak": coin.get("trend_streak", 0),
+                        "trend_score": coin.get("trend_score", 0.0),
+                        "trend_delta": coin.get("trend_delta", 0.0),
+                        "momentum": "strong" if gain_pct > 5 else "moderate",
+                        "alert_level": "high" if gain_pct > 10 else "normal",
+                    }
+                )
             data = {
-                'component': 'gainers_table_1min',
-                'data': gainers_table_data,
-                'count': len(gainers_table_data),
-                'table_type': 'gainers',
-                'time_frame': '1_minute',
-                'update_interval': 10000,
-                'last_updated': datetime.now().isoformat(),
-                'source': seeded.get('source'),
-                'seed': seeded.get('seed', True)
+                "component": "gainers_table_1min",
+                "data": gainers_table_data,
+                "count": len(gainers_table_data),
+                "table_type": "gainers",
+                "time_frame": "1_minute",
+                "update_interval": 10000,
+                "last_updated": datetime.now().isoformat(),
+                "source": seeded.get("source"),
+                "seed": seeded.get("seed", True),
             }
         else:
             data = _get_gainers_table_1min_swr()
         if not data:
             return jsonify({"error": "No 1-minute data available"}), 503
         swr_meta = {
-            'ttl': _GAINERS_1M_SWR_TTL,
-            'stale_window': _GAINERS_1M_SWR_STALE,
-            'served_cached': getattr(_get_gainers_table_1min_swr, '_swr_last_served_cached', False),
+            "ttl": _GAINERS_1M_SWR_TTL,
+            "stale_window": _GAINERS_1M_SWR_STALE,
+            "served_cached": getattr(
+                _get_gainers_table_1min_swr, "_swr_last_served_cached", False
+            ),
         }
         # propagate a canonical source marker when the underlying data was seeded
-        if isinstance(data, dict) and data.get('source'):
-            swr_meta['source'] = data.get('source')
-        if isinstance(data, dict) and data.get('seed'):
-            swr_meta['seed'] = True
+        if isinstance(data, dict) and data.get("source"):
+            swr_meta["source"] = data.get("source")
+        if isinstance(data, dict) and data.get("seed"):
+            swr_meta["seed"] = True
         # If the environment requests seeded fixtures, ensure the swr meta
         # reflects that even if a cached SWR result was computed earlier
-        if os.environ.get('USE_1MIN_SEED', '0') == '1':
-            swr_meta.setdefault('source', 'fixture-seed')
-            swr_meta.setdefault('seed', True)
-        return jsonify({**data, 'swr': swr_meta})
+        if os.environ.get("USE_1MIN_SEED", "0") == "1":
+            swr_meta.setdefault("source", "fixture-seed")
+            swr_meta.setdefault("seed", True)
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in 1-minute gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
+
 # =============================================================================
 
-@app.route('/api/component/gainers-table-3min')
+
+@app.route("/api/component/gainers-table-3min")
 def get_gainers_table_3min():
     """Individual endpoint for 3-minute gainers table (parity with 1m endpoint)"""
     try:
@@ -8365,16 +11714,19 @@ def get_gainers_table_3min():
         if not data:
             return jsonify({"error": "No 3-minute data available"}), 503
         swr_meta = {
-            'ttl': _GAINERS_3M_SWR_TTL,
-            'stale_window': _GAINERS_3M_SWR_STALE,
-            'served_cached': getattr(_get_gainers_table_3min_swr, '_swr_last_served_cached', False),
+            "ttl": _GAINERS_3M_SWR_TTL,
+            "stale_window": _GAINERS_3M_SWR_STALE,
+            "served_cached": getattr(
+                _get_gainers_table_3min_swr, "_swr_last_served_cached", False
+            ),
         }
-        return jsonify({**data, 'swr': swr_meta})
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in 3-minute gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/component/losers-table-3min')
+
+@app.route("/api/component/losers-table-3min")
 def get_losers_table_3min():
     """Individual endpoint for 3-minute losers table"""
     try:
@@ -8382,11 +11734,13 @@ def get_losers_table_3min():
         if not data:
             return jsonify({"error": "No 3-minute losers data available"}), 503
         swr_meta = {
-            'ttl': _LOSERS_3M_SWR_TTL,
-            'stale_window': _LOSERS_3M_SWR_STALE,
-            'served_cached': getattr(_get_losers_table_3min_swr, '_swr_last_served_cached', False),
+            "ttl": _LOSERS_3M_SWR_TTL,
+            "stale_window": _LOSERS_3M_SWR_STALE,
+            "served_cached": getattr(
+                _get_losers_table_3min_swr, "_swr_last_served_cached", False
+            ),
         }
-        return jsonify({**data, 'swr': swr_meta})
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in 3-minute losers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
@@ -8395,7 +11749,8 @@ def get_losers_table_3min():
 # Add startup time tracking
 # Add startup time tracking for uptime calculation
 
-@app.route('/')
+
+@app.route("/")
 def root():
     """Root endpoint"""
     try:
@@ -8403,97 +11758,127 @@ def root():
         if not data:
             return jsonify({"error": ERROR_NO_DATA}), 503
         swr_meta = {
-            'ttl': _GAINERS_3M_SWR_TTL,
-            'stale_window': _GAINERS_3M_SWR_STALE,
-            'served_cached': getattr(_get_gainers_table_3min_swr, '_swr_last_served_cached', False),
+            "ttl": _GAINERS_3M_SWR_TTL,
+            "stale_window": _GAINERS_3M_SWR_STALE,
+            "served_cached": getattr(
+                _get_gainers_table_3min_swr, "_swr_last_served_cached", False
+            ),
         }
-        return jsonify({**data, 'swr': swr_meta})
+        return jsonify({**data, "swr": swr_meta})
     except Exception as e:
         logging.error(f"Error in gainers table endpoint: {e}")
         return jsonify({"error": str(e)}), 500
+
+
 def get_banner_endpoint():
     """24h banner data endpoint"""
     try:
         banner_data = get_24h_top_movers()
         formatted_banner = format_banner_data(banner_data)
-        return jsonify({
-            "banner": formatted_banner,
-            "count": len(formatted_banner),
-            "last_updated": datetime.now().isoformat()
-        })
+        return jsonify(
+            {
+                "banner": formatted_banner,
+                "count": len(formatted_banner),
+                "last_updated": datetime.now().isoformat(),
+            }
+        )
     except Exception as e:
         logging.error(f"Error in banner endpoint: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 # Legacy routes for backward compatibility
-@app.route('/banner-1h')
+@app.route("/banner-1h")
 def banner_1h_legacy():
     """Legacy banner endpoint - redirects to new API"""
     return get_banner_endpoint()
 
-@app.route('/crypto')
+
+@app.route("/crypto")
 def get_crypto_legacy():
     """Legacy crypto endpoint - redirects to new API"""
     return get_crypto_endpoint()
 
-@app.route('/favicon.ico')
+
+@app.route("/favicon.ico")
 def favicon():
-    return '', 204
+    return "", 204
+
 
 # New API endpoints
 
-@app.route('/api/chart/<symbol>')
+
+@app.route("/api/chart/<symbol>")
 def get_chart(symbol):
     """Get historical chart data for a specific coin"""
-    days = request.args.get('days', 7, type=int)
+    days = request.args.get("days", 7, type=int)
     days = min(days, 30)  # Limit to 30 days max
-    
+
     chart_data = get_historical_chart_data(symbol.upper(), days)
     if not chart_data:
         return jsonify({"error": f"No chart data available for {symbol}"}), 404
-    
+
     # Add analysis
     analysis = analyze_coin_potential(symbol, chart_data)
-    
-    return jsonify({
-        "symbol": symbol.upper(),
-        "days": days,
-        "data_points": len(chart_data),
-        "chart_data": chart_data,
-        "analysis": analysis
-    })
 
-@app.route('/api/recommendations')
+    return jsonify(
+        {
+            "symbol": symbol.upper(),
+            "days": days,
+            "data_points": len(chart_data),
+            "chart_data": chart_data,
+            "analysis": analysis,
+        }
+    )
+
+
+@app.route("/api/recommendations")
 def get_recommendations():
     """Get recommended coins to watch"""
     recommendations = get_trending_coins()
-    
+
     # Add chart analysis for each recommendation
     for coin in recommendations:
-        chart_data = get_historical_chart_data(coin['symbol'], 3)  # 3 days for quick analysis
+        chart_data = get_historical_chart_data(
+            coin["symbol"], 3
+        )  # 3 days for quick analysis
         if chart_data:
-            analysis = analyze_coin_potential(coin['symbol'], chart_data)
-            coin['analysis'] = analysis
-            coin['chart_preview'] = chart_data[-24:] if len(chart_data) >= 24 else chart_data  # Last 24 hours
+            analysis = analyze_coin_potential(coin["symbol"], chart_data)
+            coin["analysis"] = analysis
+            coin["chart_preview"] = (
+                chart_data[-24:] if len(chart_data) >= 24 else chart_data
+            )  # Last 24 hours
         else:
-            coin['analysis'] = {"score": 0, "signals": []}
-            coin['chart_preview'] = []
-    
-    # Sort by analysis score
-    recommendations.sort(key=lambda x: x.get('analysis', {}).get('score', 0), reverse=True)
-    
-    return jsonify({
-        "recommendations": recommendations,
-        "updated_at": datetime.now().isoformat(),
-        "total_count": len(recommendations)
-    })
+            coin["analysis"] = {"score": 0, "signals": []}
+            coin["chart_preview"] = []
 
-@app.route('/api/popular-charts')
+    # Sort by analysis score
+    recommendations.sort(
+        key=lambda x: x.get("analysis", {}).get("score", 0), reverse=True
+    )
+
+    return jsonify(
+        {
+            "recommendations": recommendations,
+            "updated_at": datetime.now().isoformat(),
+            "total_count": len(recommendations),
+        }
+    )
+
+
+@app.route("/api/popular-charts")
 def get_popular_charts():
     """Get chart data for most popular coins"""
-    popular_symbols = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOT-USD', 'LINK-USD']
+    popular_symbols = [
+        "BTC-USD",
+        "ETH-USD",
+        "SOL-USD",
+        "ADA-USD",
+        "DOT-USD",
+        "LINK-USD",
+    ]
     charts = {}
-    
+
     for symbol in popular_symbols:
         chart_data = get_historical_chart_data(symbol, 7)
         if chart_data:
@@ -8501,12 +11886,13 @@ def get_popular_charts():
             charts[symbol] = {
                 "chart_data": chart_data,
                 "analysis": analysis,
-                "current_price": chart_data[-1]['price'] if chart_data else 0
+                "current_price": chart_data[-1]["price"] if chart_data else 0,
             }
-    
+
     return jsonify(charts)
 
-@app.route('/api/market-overview')
+
+@app.route("/api/market-overview")
 def get_market_overview():
     """Get overall market overview with key metrics (CoinGecko removed)"""
     try:
@@ -8517,53 +11903,58 @@ def get_market_overview():
             "market_cap_change_24h": 0,
             "active_cryptocurrencies": 0,
             "markets": 0,
-            "btc_dominance": 0
+            "btc_dominance": 0,
         }
-        
+
         # Trending coins now returns empty list
         trending = get_trending_coins()[:5]
-        
+
         # Get fear & greed index (mock data since API requires key)
         fear_greed_index = {
             "value": 65,  # You can integrate real Fear & Greed API here
             "classification": "Greed",
-            "last_update": datetime.now().isoformat()
+            "last_update": datetime.now().isoformat(),
         }
-        
-        return jsonify({
-            "market_overview": overview,
-            "trending_coins": trending,
-            "fear_greed_index": fear_greed_index,
-            "last_updated": datetime.now().isoformat()
-        })
-        
+
+        return jsonify(
+            {
+                "market_overview": overview,
+                "trending_coins": trending,
+                "fear_greed_index": fear_greed_index,
+                "last_updated": datetime.now().isoformat(),
+            }
+        )
+
     except Exception as e:
         logging.error(f"Error fetching market overview: {e}")
         return jsonify({"error": "Failed to fetch market overview"}), 500
 
-@app.route('/api/config_legacy', methods=['GET'])
+
+@app.route("/api/config_legacy", methods=["GET"])
 def get_config_legacy():
     """Temporary legacy endpoint retained for backward compatibility; returns same payload as unified /api/config GET"""
     return api_config()
 
+
 # /api/health already registered above (line ~1089)
 
-@app.route('/api/server-info')
+
+@app.route("/api/server-info")
 def server_info():
     """Get server information including port and status, uptime, commit and thresholds."""
     try:
         uptime_seconds = time.time() - startup_time
         one_min_cfg = {
-            "enabled": CONFIG.get('ENABLE_1MIN', True),
-            "refresh_seconds": CONFIG.get('ONE_MIN_REFRESH_SECONDS'),
-            "enter_threshold_pct": CONFIG.get('ONE_MIN_ENTER_PCT'),
-            "stay_threshold_pct": CONFIG.get('ONE_MIN_STAY_PCT'),
-            "dwell_seconds": CONFIG.get('ONE_MIN_DWELL_SECONDS'),
-            "max_coins": CONFIG.get('ONE_MIN_MAX_COINS'),
+            "enabled": CONFIG.get("ENABLE_1MIN", True),
+            "refresh_seconds": CONFIG.get("ONE_MIN_REFRESH_SECONDS"),
+            "enter_threshold_pct": CONFIG.get("ONE_MIN_ENTER_PCT"),
+            "stay_threshold_pct": CONFIG.get("ONE_MIN_STAY_PCT"),
+            "dwell_seconds": CONFIG.get("ONE_MIN_DWELL_SECONDS"),
+            "max_coins": CONFIG.get("ONE_MIN_MAX_COINS"),
         }
         alerts_cfg = {
-            "cooldown_seconds": CONFIG.get('ALERTS_COOLDOWN_SECONDS'),
-            "streak_thresholds": CONFIG.get('ALERTS_STREAK_THRESHOLDS'),
+            "cooldown_seconds": CONFIG.get("ALERTS_COOLDOWN_SECONDS"),
+            "streak_thresholds": CONFIG.get("ALERTS_STREAK_THRESHOLDS"),
         }
         payload = {
             "status": "running",
@@ -8571,23 +11962,27 @@ def server_info():
             "version": "3.0.0",
             "commit": _get_commit_sha(),
             "uptime_seconds": uptime_seconds,
-            "errors_5xx": _ERROR_STATS.get('5xx', 0),
+            "errors_5xx": _ERROR_STATS.get("5xx", 0),
             "runtime": {
-                "python_version": sys.version.split(" ")[0] if hasattr(sys, 'version') else "unknown",
-                "platform": sys.platform if hasattr(sys, 'platform') else "unknown",
-                "env": os.environ.get('ENVIRONMENT', 'production')
+                "python_version": (
+                    sys.version.split(" ")[0] if hasattr(sys, "version") else "unknown"
+                ),
+                "platform": sys.platform if hasattr(sys, "platform") else "unknown",
+                "env": os.environ.get("ENVIRONMENT", "production"),
             },
-            "port": CONFIG['PORT'],
-            "host": CONFIG['HOST'],
-            "debug": CONFIG['DEBUG'],
+            "port": CONFIG["PORT"],
+            "host": CONFIG["HOST"],
+            "debug": CONFIG["DEBUG"],
             "cors_origins": cors_origins,
-            "cache_ttl": CONFIG['CACHE_TTL'],
-            "update_interval": CONFIG['UPDATE_INTERVAL'],
+            "cache_ttl": CONFIG["CACHE_TTL"],
+            "update_interval": CONFIG["UPDATE_INTERVAL"],
             "one_minute": one_min_cfg,
             "alerts": alerts_cfg,
             "cache_status": {
                 "data_cached": cache["data"] is not None,
-                "cache_age_seconds": time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0,
+                "cache_age_seconds": (
+                    time.time() - cache["timestamp"] if cache["timestamp"] > 0 else 0
+                ),
                 "ttl": cache["ttl"],
             },
         }
@@ -8595,6 +11990,7 @@ def server_info():
         if PSUTIL_AVAILABLE:
             try:
                 import psutil as _ps
+
                 process = _ps.Process()
                 payload["process"] = {
                     "pid": process.pid,
@@ -8608,41 +12004,37 @@ def server_info():
         logging.error(f"server-info error: {e}")
         return jsonify({"status": "error", "error": str(e)}), 200
 
-@app.route('/api/clear-cache', methods=['POST'])
+
+@app.route("/api/clear-cache", methods=["POST"])
 def clear_cache():
     """Clear all caches"""
     global cache, price_history
-    
-    cache = {
-        "data": None,
-        "timestamp": 0,
-        "ttl": CONFIG['CACHE_TTL']
-    }
+
+    cache = {"data": None, "timestamp": 0, "ttl": CONFIG["CACHE_TTL"]}
     price_history.clear()
-    
+
     logging.info("Cache and price history cleared")
     return jsonify({"message": "Cache cleared successfully"})
 
-@app.route('/api/technical-analysis/<symbol>')
+
+@app.route("/api/technical-analysis/<symbol>")
 def get_technical_analysis_endpoint(symbol):
     """Get technical analysis for a specific cryptocurrency"""
     try:
         from technical_analysis import get_technical_analysis
-        
+
         # Validate symbol format
-        symbol = symbol.upper().replace('-USD', '')
+        symbol = symbol.upper().replace("-USD", "")
         if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 10:
             return jsonify({"error": "Invalid symbol format"}), 400
-        
+
         # Get technical analysis
         analysis = get_technical_analysis(symbol)
-        
-        return jsonify({
-            "success": True,
-            "data": analysis,
-            "timestamp": datetime.now().isoformat()
-        })
-        
+
+        return jsonify(
+            {"success": True, "data": analysis, "timestamp": datetime.now().isoformat()}
+        )
+
     except ImportError as e:
         logging.error(f"Technical analysis module not available: {e}")
         return jsonify({"error": "Technical analysis not available"}), 503
@@ -8650,13 +12042,14 @@ def get_technical_analysis_endpoint(symbol):
         logging.error(f"Error getting technical analysis for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/news/<symbol>')
+
+@app.route("/api/news/<symbol>")
 def get_crypto_news(symbol):
     """Get news for a specific cryptocurrency (placeholder for now)"""
     try:
         # Placeholder implementation - in real app you'd integrate with news APIs
-        symbol = symbol.upper().replace('-USD', '')
-        
+        symbol = symbol.upper().replace("-USD", "")
+
         # Mock news data for demonstration
         mock_news = [
             {
@@ -8666,7 +12059,7 @@ def get_crypto_news(symbol):
                 "source": "Crypto Technical Analysis",
                 "published": (datetime.now() - timedelta(hours=2)).isoformat(),
                 "sentiment": "neutral",
-                "url": f"https://example.com/news/{symbol.lower()}-analysis"
+                "url": f"https://example.com/news/{symbol.lower()}-analysis",
             },
             {
                 "id": 2,
@@ -8675,7 +12068,7 @@ def get_crypto_news(symbol):
                 "source": "Market Insights",
                 "published": (datetime.now() - timedelta(hours=6)).isoformat(),
                 "sentiment": "positive",
-                "url": f"https://example.com/news/{symbol.lower()}-volume"
+                "url": f"https://example.com/news/{symbol.lower()}-volume",
             },
             {
                 "id": 3,
@@ -8684,41 +12077,46 @@ def get_crypto_news(symbol):
                 "source": "Trading Weekly",
                 "published": (datetime.now() - timedelta(days=1)).isoformat(),
                 "sentiment": "neutral",
-                "url": f"https://example.com/news/{symbol.lower()}-review"
-            }
+                "url": f"https://example.com/news/{symbol.lower()}-review",
+            },
         ]
-        
-        return jsonify({
-            "success": True,
-            "symbol": symbol,
-            "articles": mock_news,
-            "count": len(mock_news),
-            "timestamp": datetime.now().isoformat(),
-            "note": "Demo data - integrate with real news API for production"
-        })
-        
+
+        return jsonify(
+            {
+                "success": True,
+                "symbol": symbol,
+                "articles": mock_news,
+                "count": len(mock_news),
+                "timestamp": datetime.now().isoformat(),
+                "note": "Demo data - integrate with real news API for production",
+            }
+        )
+
     except Exception as e:
         logging.error(f"Error getting news for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # /api/social-sentiment already registered above (line ~2266)
 
 # =============================================================================
 
+
 def _scan_insight_logs(insights_memory, lines=400):
     """Scan recent insight log lines and reconstruct add/update maps for auto logging decisions."""
     import re
     from datetime import datetime
+
     add_pattern = re.compile(r"User added (\w+) to their watchlist at \$([0-9.]+)")
     update_pattern = re.compile(r"(\w+) is now at \$([0-9.]+) \(([+-]?[0-9.]+)%\)")
     added_price, last_logged_price, last_logged_time = {}, {}, {}
     for line in insights_memory.logs[-lines:]:
-        parts = line.split('|', 1)
+        parts = line.split("|", 1)
         ts = None
         if len(parts) == 2:
             ts_raw = parts[0].strip()
             try:
-                ts = datetime.fromisoformat(ts_raw.replace('Z',''))
+                ts = datetime.fromisoformat(ts_raw.replace("Z", ""))
             except Exception:
                 ts = None
             entry = parts[1].strip()
@@ -8744,10 +12142,13 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
         return
     try:
         from datetime import datetime, timedelta
-        added_price, last_logged_price, last_logged_time = _scan_insight_logs(INSIGHTS_MEMORY)
+
+        added_price, last_logged_price, last_logged_time = _scan_insight_logs(
+            INSIGHTS_MEMORY
+        )
         now = datetime.now().astimezone()
         # Build quick lookup for banner volume and 24h change if available
-        banner_lookup = {c['symbol']: c for c in (banner_data or [])}
+        banner_lookup = {c["symbol"]: c for c in (banner_data or [])}
         for sym in watchlist_db:
             add_p = added_price.get(sym)
             cur = current_prices.get(sym)
@@ -8756,21 +12157,32 @@ def _auto_log_watchlist_moves(current_prices, banner_data):
             net_change_pct = (cur - add_p) / add_p * 100
             if abs(net_change_pct) >= INSIGHTS_MIN_NET_CHANGE_PCT:
                 prev_price = last_logged_price.get(sym, add_p)
-                step_change_pct = (cur - prev_price) / prev_price * 100 if prev_price else net_change_pct
+                step_change_pct = (
+                    (cur - prev_price) / prev_price * 100
+                    if prev_price
+                    else net_change_pct
+                )
                 if abs(step_change_pct) >= INSIGHTS_MIN_STEP_CHANGE_PCT:
                     last_ts = last_logged_time.get(sym)
                     if not last_ts or now - last_ts >= timedelta(minutes=2):
-                        INSIGHTS_MEMORY.add(f"{sym} is now at ${cur:.2f} ({net_change_pct:+.2f}%)")
+                        INSIGHTS_MEMORY.add(
+                            f"{sym} is now at ${cur:.2f} ({net_change_pct:+.2f}%)"
+                        )
                         continue  # avoid double logging volume same cycle if price just logged
             # Volume spike condition (only if not just price-logged above)
             banner = banner_lookup.get(sym)
             if banner:
-                vol = banner.get('volume_24h', 0)
-                price_change_24h = banner.get('price_change_24h', 0)
-                if vol >= VOLUME_SPIKE_THRESHOLD and abs(price_change_24h) >= VOLUME_SPIKE_MIN_CHANGE_PCT:
+                vol = banner.get("volume_24h", 0)
+                price_change_24h = banner.get("price_change_24h", 0)
+                if (
+                    vol >= VOLUME_SPIKE_THRESHOLD
+                    and abs(price_change_24h) >= VOLUME_SPIKE_MIN_CHANGE_PCT
+                ):
                     last_ts = last_logged_time.get(sym)
                     if not last_ts or now - last_ts >= timedelta(minutes=10):
-                        INSIGHTS_MEMORY.add(f"{sym} volume spike {vol:,.0f} (24h change {price_change_24h:+.2f}%)")
+                        INSIGHTS_MEMORY.add(
+                            f"{sym} volume spike {vol:,.0f} (24h change {price_change_24h:+.2f}%)"
+                        )
     except Exception as e:
         logging.debug(f"Auto logging skipped: {e}")
 
@@ -8794,12 +12206,14 @@ def _rows_from_component(comp):
     return []
 
 
-def mw_build_price_snapshot(*, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached_prices=None):
+def mw_build_price_snapshot(
+    *, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached_prices=None
+):
     """Build canonical per-symbol price snapshot: {sym: {price, pct_1m, pct_3m, pct_1h}}."""
     snap = {}
 
     # 1m gainers (also covers 1m losers emitted from the same SWR builder)
-    for r in (g1m_rows or []):
+    for r in g1m_rows or []:
         sym = r.get("symbol")
         if not sym:
             continue
@@ -8808,7 +12222,7 @@ def mw_build_price_snapshot(*, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached
         d["pct_1m"] = r.get("price_change_percentage_1min")
 
     # 3m gainers
-    for r in (g3m_rows or []):
+    for r in g3m_rows or []:
         sym = r.get("symbol")
         if not sym:
             continue
@@ -8817,7 +12231,7 @@ def mw_build_price_snapshot(*, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached
         d["pct_3m"] = r.get("price_change_percentage_3min")
 
     # 3m losers
-    for r in (l3m_rows or []):
+    for r in l3m_rows or []:
         sym = r.get("symbol")
         if not sym:
             continue
@@ -8826,7 +12240,7 @@ def mw_build_price_snapshot(*, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached
         d["pct_3m"] = r.get("price_change_percentage_3min")
 
     # 1h banner
-    for r in (banner_rows or []):
+    for r in banner_rows or []:
         sym = r.get("symbol")
         if not sym and r.get("product_id"):
             sym = str(r["product_id"]).split("-")[0]
@@ -8870,6 +12284,8 @@ def mw_build_volume_snapshot(candle_volume_cache=None):
             "volume_1h_now": v.get("vol1h"),
             "volume_1h_prev": prev,
             "volume_change_1h_pct": v.get("vol1h_pct_change"),
+            "baseline_mode": v.get("baseline_mode"),
+            "baseline_minutes": v.get("baseline_minutes"),
             "baseline_ready": bool(prev and prev > 0 and ts),
         }
 
@@ -8883,23 +12299,27 @@ def _compute_snapshots_from_cache():
         # runs frequently (e.g. every ~8s); keeping this function lightweight is
         # critical for a "live" UI.
         global _MW_LAST_HEAVY_SNAPSHOT_AT
-        heavy_interval_s = float(os.environ.get('MW_HEAVY_SNAPSHOT_INTERVAL_S', '30'))
+        heavy_interval_s = float(os.environ.get("MW_HEAVY_SNAPSHOT_INTERVAL_S", "30"))
         now_s = time.time()
         do_heavy = (now_s - _MW_LAST_HEAVY_SNAPSHOT_AT) >= heavy_interval_s
 
         # Get cached prices (no network fetch)
-        cached_prices = last_current_prices.get('data') or {}
-        partial_tick = bool(last_current_prices.get('partial'))
-        partial_reason = last_current_prices.get('partial_reason')
-        partial_ok_ratio = last_current_prices.get('ok_ratio')
-        partial_ok = last_current_prices.get('ok')
-        partial_submitted = last_current_prices.get('submitted')
+        cached_prices = last_current_prices.get("data") or {}
+        partial_tick = bool(last_current_prices.get("partial"))
+        partial_reason = last_current_prices.get("partial_reason")
+        partial_ok_ratio = last_current_prices.get("ok_ratio")
+        partial_ok = last_current_prices.get("ok")
+        partial_submitted = last_current_prices.get("submitted")
 
         # Recompute 3m data using cached prices
-        data_3min = get_crypto_data(current_prices=cached_prices, force_refresh=False) if cached_prices else None
+        data_3min = (
+            get_crypto_data(current_prices=cached_prices, force_refresh=False)
+            if cached_prices
+            else None
+        )
 
         # Recompute 1m data using cached prices
-        if CONFIG.get('ENABLE_1MIN', True) and cached_prices:
+        if CONFIG.get("ENABLE_1MIN", True) and cached_prices:
             try:
                 _ = get_crypto_data_1min(current_prices=cached_prices)
             except Exception as e:
@@ -8907,7 +12327,11 @@ def _compute_snapshots_from_cache():
 
         # Build component snapshots
         try:
-            g1m = _get_gainers_table_1min_swr() if CONFIG.get('ENABLE_1MIN', True) else None
+            g1m = (
+                _get_gainers_table_1min_swr()
+                if CONFIG.get("ENABLE_1MIN", True)
+                else None
+            )
         except Exception:
             g1m = None
         try:
@@ -8923,11 +12347,11 @@ def _compute_snapshots_from_cache():
             if not partial_tick or not isinstance(payload, dict):
                 return payload
             out = dict(payload)
-            out['partial'] = True
-            out['partial_reason'] = partial_reason
-            out['partial_ok_ratio'] = partial_ok_ratio
-            out['partial_ok'] = partial_ok
-            out['partial_submitted'] = partial_submitted
+            out["partial"] = True
+            out["partial_reason"] = partial_reason
+            out["partial_ok_ratio"] = partial_ok_ratio
+            out["partial_ok"] = partial_ok
+            out["partial_submitted"] = partial_submitted
             return out
 
         g1m = _mark_partial(g1m)
@@ -8937,7 +12361,7 @@ def _compute_snapshots_from_cache():
         # Banner snapshots (lightweight)
         b1h_price_rows = []  # initialized outside try for alert engine access
         try:
-            banner_rows = (data_3min or {}).get('banner') or []
+            banner_rows = (data_3min or {}).get("banner") or []
 
             def _to_float(val):
                 try:
@@ -8958,49 +12382,69 @@ def _compute_snapshots_from_cache():
                     if pct is None or not math.isfinite(pct):
                         continue
                     symbol = coin.get("symbol")
-                    b1h_price_rows.append({
-                        "symbol": symbol,
-                        "product_id": coin.get("product_id") or symbol,
-                        "current_price": float(coin.get("current_price", 0) or 0),
-                        "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
-                        "price_change_1h": pct,
-                        "pct_1h": pct,
-                        "pct_change_1h": pct,
-                        "market_cap": float(coin.get("market_cap", 0) or 0),
-                    })
+                    b1h_price_rows.append(
+                        {
+                            "symbol": symbol,
+                            "product_id": coin.get("product_id") or symbol,
+                            "current_price": float(coin.get("current_price", 0) or 0),
+                            "initial_price_1h": float(
+                                coin.get("initial_price_1h", 0) or 0
+                            ),
+                            "price_change_1h": pct,
+                            "pct_1h": pct,
+                            "pct_change_1h": pct,
+                            "market_cap": float(coin.get("market_cap", 0) or 0),
+                        }
+                    )
                 except Exception:
                     continue
             b1h_price_rows.sort(key=lambda r: r.get("pct_1h", 0), reverse=True)
             # If underfilled, widen the candidate pool using cached 1h changes
             if len(b1h_price_rows) < 20:
                 try:
-                    current_prices = last_current_prices.get('data') if isinstance(last_current_prices, dict) else None
+                    current_prices = (
+                        last_current_prices.get("data")
+                        if isinstance(last_current_prices, dict)
+                        else None
+                    )
                     if isinstance(current_prices, dict) and current_prices:
-                        snapshot_ts_s = int(last_current_prices.get('timestamp') or time.time())
-                        hour_changes = calculate_1hour_price_changes(current_prices, snapshot_ts_s)
-                        existing = {r.get('symbol') for r in b1h_price_rows if r.get('symbol')}
+                        snapshot_ts_s = int(
+                            last_current_prices.get("timestamp") or time.time()
+                        )
+                        hour_changes = calculate_1hour_price_changes(
+                            current_prices, snapshot_ts_s
+                        )
+                        existing = {
+                            r.get("symbol") for r in b1h_price_rows if r.get("symbol")
+                        }
                         extra = []
-                        for change in (hour_changes or []):
+                        for change in hour_changes or []:
                             try:
-                                pct = float(change.get('price_change_1h', 0) or 0)
+                                pct = float(change.get("price_change_1h", 0) or 0)
                             except Exception:
                                 pct = 0.0
                             if not math.isfinite(pct):
                                 continue
-                            sym = change.get('symbol')
+                            sym = change.get("symbol")
                             if not sym or sym in existing:
                                 continue
-                            extra.append({
-                                'symbol': sym,
-                                'product_id': change.get('product_id') or sym,
-                                'current_price': float(change.get('current_price', 0) or 0),
-                                'initial_price_1h': float(change.get('price_1h_ago', 0) or 0),
-                                'price_change_1h': pct,
-                                'pct_1h': pct,
-                                'pct_change_1h': pct,
-                                'market_cap': 0.0,
-                            })
-                        extra.sort(key=lambda r: r.get('pct_1h', 0), reverse=True)
+                            extra.append(
+                                {
+                                    "symbol": sym,
+                                    "product_id": change.get("product_id") or sym,
+                                    "current_price": float(
+                                        change.get("current_price", 0) or 0
+                                    ),
+                                    "initial_price_1h": float(
+                                        change.get("price_1h_ago", 0) or 0
+                                    ),
+                                    "price_change_1h": pct,
+                                    "pct_1h": pct,
+                                    "pct_change_1h": pct,
+                                    "market_cap": 0.0,
+                                }
+                            )
+                        extra.sort(key=lambda r: r.get("pct_1h", 0), reverse=True)
                         if extra:
                             b1h_price_rows.extend(extra)
                 except Exception:
@@ -9008,9 +12452,9 @@ def _compute_snapshots_from_cache():
 
             b1h_price_rows = b1h_price_rows[:20]
             banner_1h_price = {
-                'component': 'banner_1h_price',
-                'data': b1h_price_rows,
-                'last_updated': datetime.now().isoformat(),
+                "component": "banner_1h_price",
+                "data": b1h_price_rows,
+                "last_updated": datetime.now().isoformat(),
             }
         except Exception:
             banner_1h_price = None
@@ -9020,9 +12464,9 @@ def _compute_snapshots_from_cache():
             try:
                 vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
                 banner_1h_volume = {
-                    'component': 'banner_1h_volume',
-                    'data': vb_rows or [],
-                    'last_updated': vb_ts or datetime.now().isoformat(),
+                    "component": "banner_1h_volume",
+                    "data": vb_rows or [],
+                    "last_updated": vb_ts or datetime.now().isoformat(),
                 }
             except Exception:
                 banner_1h_volume = None
@@ -9031,37 +12475,37 @@ def _compute_snapshots_from_cache():
         display_symbols = set()
         try:
             for coin in (banner_rows or [])[:20]:
-                sym = coin.get('symbol')
+                sym = coin.get("symbol")
                 if sym:
                     display_symbols.add(sym)
 
             if g1m and isinstance(g1m, dict):
-                for row in (g1m.get('data') or [])[:15]:
-                    sym = row.get('symbol')
+                for row in (g1m.get("data") or [])[:15]:
+                    sym = row.get("symbol")
                     if sym:
                         display_symbols.add(sym)
 
             if g3m and isinstance(g3m, dict):
-                for row in (g3m.get('data') or [])[:15]:
-                    sym = row.get('symbol')
+                for row in (g3m.get("data") or [])[:15]:
+                    sym = row.get("symbol")
                     if sym:
                         display_symbols.add(sym)
 
             if l3m and isinstance(l3m, dict):
-                for row in (l3m.get('data') or [])[:15]:
-                    sym = row.get('symbol')
+                for row in (l3m.get("data") or [])[:15]:
+                    sym = row.get("symbol")
                     if sym:
                         display_symbols.add(sym)
 
             volume_1h_candles = None
             if do_heavy and display_symbols:
                 vol1h_results = _get_candle_volume_for_symbols(list(display_symbols))
-                vol1h_results.sort(key=lambda x: x.get('vol1h', 0), reverse=True)
+                vol1h_results.sort(key=lambda x: x.get("vol1h", 0), reverse=True)
 
                 volume_1h_candles = {
-                    'component': 'volume_1h_candles',
-                    'data': vol1h_results[:20],
-                    'last_updated': datetime.now().isoformat(),
+                    "component": "volume_1h_candles",
+                    "data": vol1h_results[:20],
+                    "last_updated": datetime.now().isoformat(),
                 }
         except Exception as e:
             logging.debug(f"Candle snapshot skip: {e}")
@@ -9074,9 +12518,9 @@ def _compute_snapshots_from_cache():
                 payload = _volume1h_build_payload_snapshot()
                 rows = _volume1h_compute_ranked(payload) or []
                 volume1h_snapshot = {
-                    'component': 'volume1h',
-                    'data': rows,
-                    'last_updated': datetime.now().isoformat(),
+                    "component": "volume1h",
+                    "data": rows,
+                    "last_updated": datetime.now().isoformat(),
                 }
             except Exception as e:
                 logging.debug(f"volume1h snapshot skip: {e}")
@@ -9085,35 +12529,69 @@ def _compute_snapshots_from_cache():
             # Fallback: if banner snapshot is empty but we have candle rows, build
             # a banner-compatible snapshot so the UI can show seeded rows during dev.
         try:
-            if (not banner_1h_volume or (isinstance(banner_1h_volume, dict) and len(banner_1h_volume.get('data') or []) == 0)) and volume_1h_candles and isinstance(volume_1h_candles, dict):
+            if (
+                (
+                    not banner_1h_volume
+                    or (
+                        isinstance(banner_1h_volume, dict)
+                        and len(banner_1h_volume.get("data") or []) == 0
+                    )
+                )
+                and volume_1h_candles
+                and isinstance(volume_1h_candles, dict)
+            ):
                 rows = []
-                for it in (volume_1h_candles.get('data') or [])[:20]:
-                    pid = it.get('product_id') or it.get('id')
-                    sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
-                    vol_now = it.get('volume_1h_now') or it.get('vol1h')
-                    vol_prev = it.get('volume_1h_prev') or it.get('vol1h_prev')
-                    pct = it.get('volume_change_1h_pct') or it.get('vol1h_pct_change')
-                    missing_reason = it.get('baseline_missing_reason')
+                for it in (volume_1h_candles.get("data") or [])[:20]:
+                    pid = it.get("product_id") or it.get("id")
+                    sym = (
+                        it.get("symbol")
+                        or (
+                            pid.split("-")[0]
+                            if isinstance(pid, str) and "-" in pid
+                            else None
+                        )
+                        or ""
+                    ).upper()
+                    vol_now = it.get("volume_1h_now") or it.get("vol1h")
+                    vol_prev = it.get("volume_1h_prev") or it.get("vol1h_prev")
+                    pct = it.get("volume_change_1h_pct") or it.get("vol1h_pct_change")
+                    missing_reason = it.get("baseline_missing_reason")
+                    baseline_mode = it.get("baseline_mode")
+                    baseline_minutes = it.get("baseline_minutes")
                     # baseline_ready: both prev and pct must be truly computed (no backsolve)
                     baseline_ready = (pct is not None) and (vol_prev is not None)
                     pct_val = float(pct) if pct is not None else None
-                    rows.append({
-                        'symbol': sym,
-                        'product_id': pid or (f"{sym}-USD" if sym else None),
-                        'volume_1h_now': float(vol_now) if vol_now is not None else None,
-                        'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                        'volume_change_1h_pct': pct_val,
-                        'vol_pct_1h': pct_val,
-                        'baseline_ready': bool(baseline_ready),
-                        'baseline_missing_reason': None if baseline_ready else (missing_reason or 'warming_candles'),
-                        'source': 'volume_1h_candles',
-                    })
-                rows = [r for r in rows if isinstance(r.get('vol_pct_1h'), (int, float))]
-                rows.sort(key=lambda r: r.get('vol_pct_1h'), reverse=True)
+                    rows.append(
+                        {
+                            "symbol": sym,
+                            "product_id": pid or (f"{sym}-USD" if sym else None),
+                            "volume_1h_now": (
+                                float(vol_now) if vol_now is not None else None
+                            ),
+                            "volume_1h_prev": (
+                                float(vol_prev) if vol_prev is not None else None
+                            ),
+                            "volume_change_1h_pct": pct_val,
+                            "vol_pct_1h": pct_val,
+                            "baseline_ready": bool(baseline_ready),
+                            "baseline_mode": baseline_mode,
+                            "baseline_minutes": baseline_minutes,
+                            "baseline_missing_reason": (
+                                None
+                                if baseline_ready
+                                else (missing_reason or "warming_candles")
+                            ),
+                            "source": "volume_1h_candles",
+                        }
+                    )
+                rows = [
+                    r for r in rows if isinstance(r.get("vol_pct_1h"), (int, float))
+                ]
+                rows.sort(key=lambda r: r.get("vol_pct_1h"), reverse=True)
                 banner_1h_volume = {
-                    'component': 'banner_1h_volume',
-                    'data': rows[:20],
-                    'last_updated': datetime.now().isoformat(),
+                    "component": "banner_1h_volume",
+                    "data": rows[:20],
+                    "last_updated": datetime.now().isoformat(),
                 }
         except Exception:
             pass
@@ -9123,31 +12601,46 @@ def _compute_snapshots_from_cache():
         # can cause the UI to flap to "STALE" even though prior data exists.
         updates = {"updated_at": datetime.now().isoformat()}
         if isinstance(g1m, dict):
-            rows = g1m.get('data') or []
+            rows = g1m.get("data") or []
             if partial_tick and not rows:
-                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_1m'))
+                prev_rows, _ = _wrap_rows_and_ts(
+                    _mw_get_component_snapshot("gainers_1m")
+                )
                 if isinstance(prev_rows, list) and prev_rows:
-                    logging.info("partial_tick: keep gainers_1m snapshot (%d rows)", len(prev_rows))
+                    logging.info(
+                        "partial_tick: keep gainers_1m snapshot (%d rows)",
+                        len(prev_rows),
+                    )
                 else:
                     updates["gainers_1m"] = g1m
             else:
                 updates["gainers_1m"] = g1m
         if isinstance(g3m, dict):
-            rows = g3m.get('data') or []
+            rows = g3m.get("data") or []
             if partial_tick and not rows:
-                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('gainers_3m'))
+                prev_rows, _ = _wrap_rows_and_ts(
+                    _mw_get_component_snapshot("gainers_3m")
+                )
                 if isinstance(prev_rows, list) and prev_rows:
-                    logging.info("partial_tick: keep gainers_3m snapshot (%d rows)", len(prev_rows))
+                    logging.info(
+                        "partial_tick: keep gainers_3m snapshot (%d rows)",
+                        len(prev_rows),
+                    )
                 else:
                     updates["gainers_3m"] = g3m
             else:
                 updates["gainers_3m"] = g3m
         if isinstance(l3m, dict):
-            rows = l3m.get('data') or []
+            rows = l3m.get("data") or []
             if partial_tick and not rows:
-                prev_rows, _ = _wrap_rows_and_ts(_mw_get_component_snapshot('losers_3m'))
+                prev_rows, _ = _wrap_rows_and_ts(
+                    _mw_get_component_snapshot("losers_3m")
+                )
                 if isinstance(prev_rows, list) and prev_rows:
-                    logging.info("partial_tick: keep losers_3m snapshot (%d rows)", len(prev_rows))
+                    logging.info(
+                        "partial_tick: keep losers_3m snapshot (%d rows)",
+                        len(prev_rows),
+                    )
                 else:
                     updates["losers_3m"] = l3m
             else:
@@ -9184,13 +12677,15 @@ def _compute_snapshots_from_cache():
                 g3m_rows=g3m_rows,
                 l3m_rows=l3m_rows,
                 banner_rows=b1h_price_rows,
-                cached_prices=last_current_prices.get('data'),
+                cached_prices=last_current_prices.get("data"),
             )
 
             # Build canonical volume snapshot from candle cache
             with _CANDLE_VOLUME_CACHE_LOCK:
                 vol_cache_copy = dict(_CANDLE_VOLUME_CACHE)
-            volume_snapshot = mw_build_volume_snapshot(candle_volume_cache=vol_cache_copy)
+            volume_snapshot = mw_build_volume_snapshot(
+                candle_volume_cache=vol_cache_copy
+            )
 
             # Get minute-level volumes for z-score whale detection
             minute_volumes = dict(_CANDLE_MINUTE_VOLUMES)
@@ -9211,6 +12706,7 @@ def _compute_snapshots_from_cache():
                 state=_ALERT_ENGINE_STATE,
                 fg_value=fg_val,
                 include_impulse=True,
+                include_market_mood=False,
             )
 
             # Append engine alerts through the shared stream-level dedupe gate
@@ -9219,15 +12715,24 @@ def _compute_snapshots_from_cache():
             # Store market pressure for the UI
             updates["market_pressure"] = {
                 "component": "market_pressure",
-                "data": {
-                    "heat": engine_pressure.heat,
-                    "bias": engine_pressure.bias,
-                    "breadth_up": engine_pressure.breadth_up,
-                    "breadth_down": engine_pressure.breadth_down,
-                    "impulse_count": engine_pressure.impulse_count,
-                    "symbol_count": engine_pressure.symbol_count,
-                    "label": engine_pressure.label,
-                },
+                "data": _strip_emoji_payload(
+                    {
+                        # Canonical market pressure payload
+                        "index": int(engine_pressure.index),
+                        "label": engine_pressure.label,
+                        "score01": float(engine_pressure.score01),
+                        "components": dict(engine_pressure.components or {}),
+                        "ts": int(engine_pressure.ts or time.time()),
+                        # Legacy aliases used by existing UI paths
+                        "heat": engine_pressure.heat,
+                        "bias": engine_pressure.bias,
+                        "breadth_up": engine_pressure.breadth_up,
+                        "breadth_down": engine_pressure.breadth_down,
+                        "impulse_count": engine_pressure.impulse_count,
+                        "symbol_count": engine_pressure.symbol_count,
+                        "label": engine_pressure.label,
+                    }
+                ),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -9250,9 +12755,9 @@ def _compute_snapshots_from_cache():
         try:
             alerts_items, _alerts_meta = _mw_get_alerts_normalized_with_sticky()
             updates["alerts"] = {
-                'component': 'alerts',
-                'data': (alerts_items or [])[-400:],
-                'last_updated': datetime.now(timezone.utc).isoformat(),
+                "component": "alerts",
+                "data": (alerts_items or [])[-400:],
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
         except Exception:
             pass
@@ -9272,38 +12777,47 @@ def _fetch_prices_and_update_history():
         # Fetch prices from Coinbase
         current_prices = get_current_prices() or {}
         if current_prices:
-            last_current_prices['data'] = current_prices
+            last_current_prices["data"] = current_prices
             now_ts = int(time.time())
-            last_current_prices['timestamp'] = now_ts
+            last_current_prices["timestamp"] = now_ts
 
             # Persist price snapshot to SQLite for interval calculations
             try:
-                rows = [(product_id, float(price)) for product_id, price in current_prices.items()]
+                rows = [
+                    (product_id, float(price))
+                    for product_id, price in current_prices.items()
+                ]
                 insert_price_snapshot(now_ts, rows)
 
                 # Prune snapshots older than retention window (default 2 hours)
-                retention = int(os.environ.get('PRICE_DB_RETENTION_SECONDS', 7200))
+                retention = int(os.environ.get("PRICE_DB_RETENTION_SECONDS", 7200))
                 prune_old(now_ts - retention)
             except Exception as e:
                 logging.error(f"SQLite price snapshot persistence failed: {e}")
 
             # Update 3m data cache with fresh prices (force refresh to append history)
-            data_3min = get_crypto_data(current_prices=current_prices, force_refresh=True)
+            data_3min = get_crypto_data(
+                current_prices=current_prices, force_refresh=True
+            )
             if data_3min:
                 logging.info(
                     f"Price fetch: {len(data_3min.get('gainers', []))} gainers, {len(data_3min.get('losers', []))} losers, {len(data_3min.get('banner', []))} banner"
                 )
 
             # Update 1m history with fresh prices
-            if CONFIG.get('ENABLE_1MIN', True):
+            if CONFIG.get("ENABLE_1MIN", True):
                 try:
-                    _ = get_crypto_data_1min(current_prices=current_prices, force_refresh=True)
+                    _ = get_crypto_data_1min(
+                        current_prices=current_prices, force_refresh=True
+                    )
                     logging.debug("1m history updated with fresh prices")
                 except Exception as e:
                     logging.error(f"1m history update failed: {e}")
 
                 # Watchlist auto-logging
-                _auto_log_watchlist_moves(current_prices, data_3min.get('banner') if data_3min else [])
+                _auto_log_watchlist_moves(
+                    current_prices, data_3min.get("banner") if data_3min else []
+                )
 
             # Update candle volume cache (background, display-set only)
             try:
@@ -9311,38 +12825,40 @@ def _fetch_prices_and_update_history():
                 display_symbols = set()
 
                 with _MW_COMPONENT_SNAPSHOTS_LOCK:
-                    g1m_snap = _MW_COMPONENT_SNAPSHOTS.get('gainers_1m')
-                    g3m_snap = _MW_COMPONENT_SNAPSHOTS.get('gainers_3m')
-                    l3m_snap = _MW_COMPONENT_SNAPSHOTS.get('losers_3m')
-                    banner_snap = _MW_COMPONENT_SNAPSHOTS.get('banner_1h_price')
+                    g1m_snap = _MW_COMPONENT_SNAPSHOTS.get("gainers_1m")
+                    g3m_snap = _MW_COMPONENT_SNAPSHOTS.get("gainers_3m")
+                    l3m_snap = _MW_COMPONENT_SNAPSHOTS.get("losers_3m")
+                    banner_snap = _MW_COMPONENT_SNAPSHOTS.get("banner_1h_price")
 
                     if banner_snap and isinstance(banner_snap, dict):
-                        for row in (banner_snap.get('data') or [])[:20]:
-                            sym = row.get('symbol')
+                        for row in (banner_snap.get("data") or [])[:20]:
+                            sym = row.get("symbol")
                             if sym:
                                 display_symbols.add(sym)
 
                     if g1m_snap and isinstance(g1m_snap, dict):
-                        for row in (g1m_snap.get('data') or [])[:15]:
-                            sym = row.get('symbol')
+                        for row in (g1m_snap.get("data") or [])[:15]:
+                            sym = row.get("symbol")
                             if sym:
                                 display_symbols.add(sym)
 
                     if g3m_snap and isinstance(g3m_snap, dict):
-                        for row in (g3m_snap.get('data') or [])[:15]:
-                            sym = row.get('symbol')
+                        for row in (g3m_snap.get("data") or [])[:15]:
+                            sym = row.get("symbol")
                             if sym:
                                 display_symbols.add(sym)
 
                     if l3m_snap and isinstance(l3m_snap, dict):
-                        for row in (l3m_snap.get('data') or [])[:15]:
-                            sym = row.get('symbol')
+                        for row in (l3m_snap.get("data") or [])[:15]:
+                            sym = row.get("symbol")
                             if sym:
                                 display_symbols.add(sym)
 
                 product_ids = [f"{sym}-USD" for sym in display_symbols if sym]
                 if product_ids:
-                    logging.debug(f"Updating candle cache for {len(product_ids)} symbols")
+                    logging.debug(
+                        f"Updating candle cache for {len(product_ids)} symbols"
+                    )
                     _update_candle_volume_cache(product_ids)
             except Exception as e:
                 logging.debug(f"Candle cache update skip: {e}")
@@ -9359,7 +12875,9 @@ def _fetch_prices_and_update_history():
 
 def _volume1h_updater_loop():
     _volume_db_init_once()
-    logging.info(f"Starting volume1h updater: interval={VOLUME_1H_REFRESH_SEC}s workers={VOLUME_1H_WORKERS}")
+    logging.info(
+        f"Starting volume1h updater: interval={VOLUME_1H_REFRESH_SEC}s workers={VOLUME_1H_WORKERS}"
+    )
     while True:
         loop_start = time.time()
         snapshot_payload = _volume1h_build_payload_snapshot()
@@ -9403,14 +12921,18 @@ def _volume1h_updater_loop():
                         _VOLUME_BACKOFF[pid] = int(time.time()) + delay
                         logging.debug(f"volume1h refresh error for {pid}: {e}")
 
-        logging.info(f"[volume1h] tracked={len(tracked)} ok={ok} fail={fail} rl={rl} skip={skipped}")
+        logging.info(
+            f"[volume1h] tracked={len(tracked)} ok={ok} fail={fail} rl={rl} skip={skipped}"
+        )
         sleep_for = max(1, VOLUME_1H_REFRESH_SEC - (time.time() - loop_start))
         time.sleep(sleep_for)
 
 
 def background_crypto_updates():
     """Two-loop background worker: fast snapshot compute + slower price fetch."""
-    logging.info(f"Starting two-loop background worker: compute every {CONFIG['SNAPSHOT_COMPUTE_INTERVAL']}s, fetch every {CONFIG['PRICE_FETCH_INTERVAL']}s")
+    logging.info(
+        f"Starting two-loop background worker: compute every {CONFIG['SNAPSHOT_COMPUTE_INTERVAL']}s, fetch every {CONFIG['PRICE_FETCH_INTERVAL']}s"
+    )
 
     # Initial fetch to populate cache
     _fetch_prices_and_update_history()
@@ -9423,7 +12945,7 @@ def background_crypto_updates():
             now = time.time()
 
             # Check if it's time to fetch fresh prices
-            if now - last_fetch_time >= CONFIG['PRICE_FETCH_INTERVAL']:
+            if now - last_fetch_time >= CONFIG["PRICE_FETCH_INTERVAL"]:
                 _fetch_prices_and_update_history()
                 last_fetch_time = now
 
@@ -9434,7 +12956,7 @@ def background_crypto_updates():
             logging.error(f"Error in background worker: {e}")
 
         # Sleep for snapshot compute interval (fast cadence)
-        time.sleep(CONFIG['SNAPSHOT_COMPUTE_INTERVAL'])
+        time.sleep(CONFIG["SNAPSHOT_COMPUTE_INTERVAL"])
 
 
 # =============================================================================
@@ -9460,7 +12982,10 @@ def _mw_ensure_background_started():
 
     # Avoid starting the thread in the Werkzeug reloader parent process.
     # Only the child process sets WERKZEUG_RUN_MAIN=true.
-    if os.environ.get("FLASK_DEBUG") == "1" and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+    if (
+        os.environ.get("FLASK_DEBUG") == "1"
+        and os.environ.get("WERKZEUG_RUN_MAIN") != "true"
+    ):
         return
 
     with _MW_BG_LOCK:
@@ -9472,7 +12997,9 @@ def _mw_ensure_background_started():
             t.start()
             _MW_BG_THREAD = t
             try:
-                app.logger.info("Background update thread started (flask-run bootstrap)")
+                app.logger.info(
+                    "Background update thread started (flask-run bootstrap)"
+                )
             except Exception:
                 pass
         except Exception as e:
@@ -9490,7 +13017,9 @@ def _mw_ensure_background_started():
                 vt.start()
                 _MW_VOLUME_THREAD = vt
                 try:
-                    app.logger.info("Volume 1h updater thread started (flask-run bootstrap)")
+                    app.logger.info(
+                        "Volume 1h updater thread started (flask-run bootstrap)"
+                    )
                 except Exception:
                     pass
             except Exception as e:
@@ -9511,17 +13040,23 @@ def _mw_ensure_background_started():
                     st.start()
                     _MW_SENTIMENT_THREAD = st
                     try:
-                        app.logger.info("Sentiment polling thread started (flask-run bootstrap)")
+                        app.logger.info(
+                            "Sentiment polling thread started (flask-run bootstrap)"
+                        )
                     except Exception:
                         pass
                 except Exception as e:
                     try:
-                        app.logger.warning(f"Failed to start sentiment poller thread: {e}")
+                        app.logger.warning(
+                            f"Failed to start sentiment poller thread: {e}"
+                        )
                     except Exception:
                         pass
     else:
         try:
-            app.logger.info("External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable.")
+            app.logger.info(
+                "External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable."
+            )
         except Exception:
             pass
 
@@ -9535,7 +13070,7 @@ def _mw_bootstrap_background_once():
 # Dev-only helper: force a snapshot recompute (guarded by env)
 # Set DEV_ALLOW_RECOMPUTE=1 to enable this endpoint in local dev only.
 # ---------------------------------------------------------------------------
-@app.route('/__dev/recompute_snapshots', methods=['POST', 'GET'])
+@app.route("/__dev/recompute_snapshots", methods=["POST", "GET"])
 def __dev_recompute_snapshots():
     # Dev-only: allow recompute unconditionally in local dev. If you need
     # stricter controls, set DEV_ALLOW_RECOMPUTE and update this guard.
@@ -9543,13 +13078,13 @@ def __dev_recompute_snapshots():
         # Clear banner snapshot so recompute will prefer fresh candle/cache path
         try:
             with _MW_COMPONENT_SNAPSHOTS_LOCK:
-                _MW_COMPONENT_SNAPSHOTS.pop('banner_1h_volume', None)
+                _MW_COMPONENT_SNAPSHOTS.pop("banner_1h_volume", None)
         except Exception:
             pass
 
         _compute_snapshots_from_cache()
         # If banner still empty, compute directly from SQLite-backed compute
-        snap = _mw_get_component_snapshot('banner_1h_volume')
+        snap = _mw_get_component_snapshot("banner_1h_volume")
         rows, ts = _wrap_rows_and_ts(snap)
         if not (rows and len(rows) > 0):
             try:
@@ -9558,77 +13093,115 @@ def __dev_recompute_snapshots():
                 if isinstance(computed, list) and computed:
                     out_rows = []
                     for it in computed:
-                        pid = it.get('product_id') or it.get('id')
-                        sym = (it.get('symbol') or (pid.split('-')[0] if isinstance(pid, str) and '-' in pid else None) or '').upper()
-                        vol_now = it.get('volume_1h_now')
-                        vol_prev = it.get('volume_1h_prev')
-                        pct = it.get('volume_change_1h_pct')
+                        pid = it.get("product_id") or it.get("id")
+                        sym = (
+                            it.get("symbol")
+                            or (
+                                pid.split("-")[0]
+                                if isinstance(pid, str) and "-" in pid
+                                else None
+                            )
+                            or ""
+                        ).upper()
+                        vol_now = it.get("volume_1h_now")
+                        vol_prev = it.get("volume_1h_prev")
+                        pct = it.get("volume_change_1h_pct")
+                        baseline_mode = it.get("baseline_mode")
+                        baseline_minutes = it.get("baseline_minutes")
                         baseline_ready = (pct is not None) and (vol_prev is not None)
-                        out_rows.append({
-                            'symbol': sym,
-                            'product_id': pid or (f"{sym}-USD" if sym else None),
-                            'volume_1h_now': float(vol_now) if vol_now is not None else None,
-                            'volume_1h_prev': float(vol_prev) if vol_prev is not None else None,
-                            'volume_change_1h_pct': float(pct) if pct is not None else None,
-                            'baseline_ready': bool(baseline_ready),
-                            'baseline_missing_reason': None if baseline_ready else 'warming_candles',
-                            'source': 'volume1h_sqlite',
-                        })
-                    banner_1h_volume = {'component': 'banner_1h_volume', 'data': out_rows[:20], 'last_updated': datetime.now().isoformat()}
+                        out_rows.append(
+                            {
+                                "symbol": sym,
+                                "product_id": pid or (f"{sym}-USD" if sym else None),
+                                "volume_1h_now": (
+                                    float(vol_now) if vol_now is not None else None
+                                ),
+                                "volume_1h_prev": (
+                                    float(vol_prev) if vol_prev is not None else None
+                                ),
+                                "volume_change_1h_pct": (
+                                    float(pct) if pct is not None else None
+                                ),
+                                "baseline_ready": bool(baseline_ready),
+                                "baseline_mode": baseline_mode,
+                                "baseline_minutes": baseline_minutes,
+                                "baseline_missing_reason": (
+                                    None if baseline_ready else "warming_candles"
+                                ),
+                                "source": "volume1h_sqlite",
+                            }
+                        )
+                    banner_1h_volume = {
+                        "component": "banner_1h_volume",
+                        "data": out_rows[:20],
+                        "last_updated": datetime.now().isoformat(),
+                    }
                     # Persist snapshot immediately
                     _mw_set_component_snapshots(banner_1h_volume=banner_1h_volume)
                     rows = out_rows
-                    ts = banner_1h_volume['last_updated']
+                    ts = banner_1h_volume["last_updated"]
             except Exception:
                 pass
 
-        return jsonify({'ok': True, 'rows': len(rows or []), 'last_updated': ts}), 200
+        return jsonify({"ok": True, "rows": len(rows or []), "last_updated": ts}), 200
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 # =============================================================================
 # COMMAND LINE ARGUMENTS
 # =============================================================================
 
+
 def parse_arguments():
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description='CBMo4ers Crypto Dashboard Backend')
-    parser.add_argument('--port', type=int, help='Port to run the server on')
-    parser.add_argument('--host', type=str, help='Host to bind the server to')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('--interval', type=int, help='Price check interval in minutes')
-    parser.add_argument('--cache-ttl', type=int, help='Cache TTL in seconds')
-    parser.add_argument('--kill-port', action='store_true', help='Kill process on target port before starting')
-    parser.add_argument('--auto-port', action='store_true', help='Automatically find available port')
-    
+    parser = argparse.ArgumentParser(description="CBMo4ers Crypto Dashboard Backend")
+    parser.add_argument("--port", type=int, help="Port to run the server on")
+    parser.add_argument("--host", type=str, help="Host to bind the server to")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--interval", type=int, help="Price check interval in minutes")
+    parser.add_argument("--cache-ttl", type=int, help="Cache TTL in seconds")
+    parser.add_argument(
+        "--kill-port",
+        action="store_true",
+        help="Kill process on target port before starting",
+    )
+    parser.add_argument(
+        "--auto-port", action="store_true", help="Automatically find available port"
+    )
+
     return parser.parse_args()
 
 
 # Backwards-compatible alias: some clients call /api/data. Proxy to the canonical
 # `/data` handler so older frontends or misconfigured envs still work during dev.
-@app.route('/api/data')
+@app.route("/api/data")
 def api_data():
     # === TEST FIXTURE MODE: deterministic payload for unit tests ===
     # When `MW_TEST_FIXTURES` is set to "1", return a tiny, deterministic
     # JSON payload that guarantees at least one row for baseline/unit tests.
     import os
+
     if os.getenv("MW_TEST_FIXTURES") == "1":
         from datetime import datetime, timezone
+
         now = datetime.now(timezone.utc).isoformat()
         return {
-            "gainers": [{
-                "symbol": "BTC-USD",
-                "current": 110.0,
-                "gain": 10.0,
-                "interval_minutes": 3.0,
-                # baseline keys the tests check (all strictly > 0)
-                "previous_price": 100.0,
-                "initial_price_1min": 109.0,
-                "initial_price_3min": 100.0,
-                "price_1m_ago": 109.0,
-                "price_3m_ago": 100.0,
-                "baseline_ts_3m": now,
-            }],
+            "gainers": [
+                {
+                    "symbol": "BTC-USD",
+                    "current": 110.0,
+                    "gain": 10.0,
+                    "interval_minutes": 3.0,
+                    # baseline keys the tests check (all strictly > 0)
+                    "previous_price": 100.0,
+                    "initial_price_1min": 109.0,
+                    "initial_price_3min": 100.0,
+                    "price_1m_ago": 109.0,
+                    "price_3m_ago": 100.0,
+                    "baseline_ts_3m": now,
+                }
+            ],
             "losers": [],
             "banner": [],
             "volumes": [],
@@ -9637,48 +13210,49 @@ def api_data():
 
     return data_aggregate()
 
+
 # =============================================================================
 # APPLICATION STARTUP
 # =============================================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Parse command line arguments
     args = parse_arguments()
-    
+
     # Update config from command line arguments
     if args.port:
-        CONFIG['PORT'] = args.port
+        CONFIG["PORT"] = args.port
     if args.host:
-        CONFIG['HOST'] = args.host
+        CONFIG["HOST"] = args.host
     if args.debug:
-        CONFIG['DEBUG'] = True
+        CONFIG["DEBUG"] = True
     if args.interval:
-        CONFIG['INTERVAL_MINUTES'] = args.interval
+        CONFIG["INTERVAL_MINUTES"] = args.interval
     if args.cache_ttl:
-        CONFIG['CACHE_TTL'] = args.cache_ttl
-        cache['ttl'] = CONFIG['CACHE_TTL']
-    
+        CONFIG["CACHE_TTL"] = args.cache_ttl
+        cache["ttl"] = CONFIG["CACHE_TTL"]
+
     # Log configuration
     log_config()
-    
+
     # Handle port conflicts
-    target_port = CONFIG['PORT']
-    
+    target_port = CONFIG["PORT"]
+
     if args.kill_port:
         logging.info(f"Attempting to kill process on port {target_port}")
         kill_process_on_port(target_port)
         time.sleep(2)  # Wait for process to be killed
-    
+
     # Always try to find available port (auto-port by default)
     if args.auto_port or not args.port:
         available_port = find_available_port(target_port)
         if available_port:
-            CONFIG['PORT'] = available_port
+            CONFIG["PORT"] = available_port
             logging.info(f"Using available port: {available_port}")
         else:
             logging.error("Could not find available port")
             exit(1)
-    
+
     logging.info("Starting CBMo4ers Crypto Dashboard Backend...")
 
     # Initialize SQLite price snapshot database
@@ -9701,8 +13275,8 @@ if __name__ == '__main__':
             result = get_crypto_data()
             if result:
                 try:
-                    cache['data'] = result
-                    cache['timestamp'] = time.time()
+                    cache["data"] = result
+                    cache["timestamp"] = time.time()
                 except Exception:
                     pass
             logging.info("Warmed /data cache after DEV seeding")
@@ -9712,13 +13286,15 @@ if __name__ == '__main__':
                 result = get_crypto_data_1min()
                 if result:
                     try:
-                        one_minute_cache['data'] = result
-                        one_minute_cache['timestamp'] = time.time()
+                        one_minute_cache["data"] = result
+                        one_minute_cache["timestamp"] = time.time()
                     except Exception:
                         pass
                 logging.info("Warmed 1min cache after DEV seeding")
             except Exception:
-                logging.debug("Cache warmup skipped: snapshot builders not available at startup")
+                logging.debug(
+                    "Cache warmup skipped: snapshot builders not available at startup"
+                )
     except Exception:
         logging.debug("Unexpected error during cache warmup after DEV seeding")
 
@@ -9736,7 +13312,7 @@ if __name__ == '__main__':
     background_thread = threading.Thread(target=background_crypto_updates)
     background_thread.daemon = True
     background_thread.start()
-    
+
     logging.info("Background update thread started")
 
     # Start sentiment polling thread
@@ -9748,12 +13324,14 @@ if __name__ == '__main__':
     except Exception as e:
         logging.warning(f"Failed to start sentiment poller thread: {e}")
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
-    
+
     try:
-        app.run(debug=CONFIG['DEBUG'], 
-                host=CONFIG['HOST'], 
-                port=CONFIG['PORT'],
-                use_reloader=False)
+        app.run(
+            debug=CONFIG["DEBUG"],
+            host=CONFIG["HOST"],
+            port=CONFIG["PORT"],
+            use_reloader=False,
+        )
     except OSError as e:
         if "Address already in use" in str(e):
             logging.error(f"Port {CONFIG['PORT']} is in use. Try:")
@@ -9780,23 +13358,27 @@ try:
     app  # type: ignore  # ensure an app instance exists
 except NameError:  # pragma: no cover
     from flask import Flask
+
     app = Flask(__name__)
 
 from flask import jsonify, request
 import time, os
 
+
 @app.get("/server-info")
 def _dev_server_info():
-    return jsonify({
-        "ok": True,
-        "service": "backend",
-        "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "pid": os.getpid(),
-        "version": 1,
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "service": "backend",
+            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "pid": os.getpid(),
+            "version": 1,
+        }
+    )
 
 
-@app.get('/api/insights/<path:symbol>')
+@app.get("/api/insights/<path:symbol>")
 def api_insights(symbol):
     """Return an insights payload for a given symbol using on-disk caches and
     short-term price/volume history. Falls back gracefully if data is missing.
@@ -9805,7 +13387,11 @@ def api_insights(symbol):
     sym = symbol.upper()
 
     # Determine current prices from cached last_current_prices or fetch fresh
-    current_prices = last_current_prices.get('data') if isinstance(last_current_prices, dict) else None
+    current_prices = (
+        last_current_prices.get("data")
+        if isinstance(last_current_prices, dict)
+        else None
+    )
     if not current_prices:
         try:
             current_prices = get_current_prices()
@@ -9814,7 +13400,7 @@ def api_insights(symbol):
 
     # Try several variants to find a matching price key
     current_price = None
-    for key in (sym, sym.replace('-', ''), sym.split('-')[0]):
+    for key in (sym, sym.replace("-", ""), sym.split("-")[0]):
         if key in current_prices:
             current_price = current_prices.get(key)
             break
@@ -9828,7 +13414,11 @@ def api_insights(symbol):
     # price_history_1min and price_history are deques of (ts, price)
     price_1m_ago = None
     try:
-        hist1 = price_history_1min.get(sym) or price_history_1min.get(sym.replace('-', '')) or deque()
+        hist1 = (
+            price_history_1min.get(sym)
+            or price_history_1min.get(sym.replace("-", ""))
+            or deque()
+        )
         # Find point at least ~60s old
         for ts, p in reversed(hist1):
             if now - ts >= 55:
@@ -9841,7 +13431,9 @@ def api_insights(symbol):
 
     price_3m_ago = None
     try:
-        hist_all = price_history.get(sym) or price_history.get(sym.replace('-', '')) or deque()
+        hist_all = (
+            price_history.get(sym) or price_history.get(sym.replace("-", "")) or deque()
+        )
         for ts, p in reversed(hist_all):
             if now - ts >= 175:  # prefer a bit more than 3 minutes to cover gaps
                 price_3m_ago = p
@@ -9851,11 +13443,32 @@ def api_insights(symbol):
     except Exception:
         price_3m_ago = None
 
+    price_1h_ago = None
+    try:
+        hist_1h = (
+            price_history_1hour.get(sym)
+            or price_history_1hour.get(sym.replace("-", ""))
+            or deque()
+        )
+        # Find point at least ~3600s (1 hour) old
+        for ts, p in reversed(hist_1h):
+            if now - ts >= 3540:  # 59 minutes minimum to cover gaps
+                price_1h_ago = p
+                break
+        if price_1h_ago is None and len(hist_1h) > 0:
+            price_1h_ago = hist_1h[0][1]
+    except Exception:
+        price_1h_ago = None
+
     # Volume: use volume_history_24h to estimate 1h current and previous volumes
     vol_1h_now = None
     vol_1h_prev = None
     try:
-        vol_hist = volume_history_24h.get(sym) or volume_history_24h.get(sym.replace('-', '')) or deque()
+        vol_hist = (
+            volume_history_24h.get(sym)
+            or volume_history_24h.get(sym.replace("-", ""))
+            or deque()
+        )
         if len(vol_hist) >= 1:
             vol_1h_now = vol_hist[-1][1]
         if len(vol_hist) >= 2:
@@ -9872,6 +13485,7 @@ def api_insights(symbol):
     snapshots = {
         "price_1m_ago": price_1m_ago,
         "price_3m_ago": price_3m_ago,
+        "price_1h_ago": price_1h_ago,
         "volume_1h_now": vol_1h_now,
         "volume_1h_prev": vol_1h_prev,
     }
@@ -9879,7 +13493,9 @@ def api_insights(symbol):
     # Build insights via the helper if available, else return a minimal derived blob
     try:
         if callable(build_asset_insights):
-            payload = build_asset_insights(sym, current_price, snapshots, COINGECKO_ID_MAP)
+            payload = build_asset_insights(
+                sym, current_price, snapshots, COINGECKO_ID_MAP
+            )
         else:
             # Minimal fallback: compute a few derived fields
             def _pct(a, b):
@@ -9895,12 +13511,17 @@ def api_insights(symbol):
                 "price": current_price,
                 "change_1m": _pct(current_price, price_1m_ago),
                 "change_3m": _pct(current_price, price_3m_ago),
+                "change_1h": _pct(current_price, price_1h_ago),
                 "volume_change_1h": _pct(vol_1h_now, vol_1h_prev),
                 "heat_score": 50.0,
                 "trend": "FLAT",
                 "social": None,
                 "market_sentiment": None,
-                "sources": {"price_volume": "coinbase_snapshots", "social": "none", "macro": "none"},
+                "sources": {
+                    "price_volume": "coinbase_snapshots",
+                    "social": "none",
+                    "macro": "none",
+                },
             }
     except Exception as e:
         logging.exception("Failed to build insights for %s: %s", sym, e)
@@ -9908,14 +13529,18 @@ def api_insights(symbol):
 
     return jsonify(payload), 200
 
+
 @app.get("/metrics")
 def _dev_metrics():
-    return jsonify({
-        "ok": True,
-        "latency_ms": 5,
-        "requests_in_window": 0,
-        "time": time.time(),
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "latency_ms": 5,
+            "requests_in_window": 0,
+            "time": time.time(),
+        }
+    )
+
 
 @app.get("/alerts/recent")
 def _dev_alerts_recent():
@@ -9923,11 +13548,14 @@ def _dev_alerts_recent():
         limit = int(request.args.get("limit", 25))
     except Exception:
         limit = 25
-    return jsonify({
-        "ok": True,
-        "alerts": _normalize_alerts(list(alerts_log))[-limit:],
-        "limit": limit,
-    })
+    return jsonify(
+        {
+            "ok": True,
+            "alerts": _normalize_alerts(list(alerts_log))[-limit:],
+            "limit": limit,
+        }
+    )
+
 
 @app.get("/component/<name>")
 def _dev_component(name: str):
@@ -9943,10 +13571,7 @@ def _dev_component(name: str):
         payload["data"] = []
     return jsonify(payload)
 
+
 # End dev stubs
 
-__all__ = [
-    "process_product_data",
-    "format_crypto_data",
-    "format_banner_data"
-]
+__all__ = ["process_product_data", "format_crypto_data", "format_banner_data"]

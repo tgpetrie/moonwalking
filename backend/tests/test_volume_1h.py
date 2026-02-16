@@ -7,7 +7,9 @@ import backend.volume_1h_store as store
 import backend.volume_1h_compute as compute
 
 
-def _insert_minutes(product_id: str, now_floor: int, minutes: int, prev_val: float, now_val: float):
+def _insert_minutes(
+    product_id: str, now_floor: int, minutes: int, prev_val: float, now_val: float
+):
     start_ts = now_floor - (minutes - 1) * 60
     half = minutes // 2
     for i in range(minutes):
@@ -67,5 +69,46 @@ def test_compute_volume_ready_and_values(tmp_path: Path):
     # Tripwires: minute_ts should be second-bucketed (multiple of 60) and not in ms
     rows = store.fetch_window("READ-USD", start_ts, now_floor)
     assert rows, "no rows found for tripwire check"
-    assert all(int(r.get("minute_ts", 0)) % 60 == 0 for r in rows), "minute_ts not bucket-aligned"
-    assert max(int(r.get("minute_ts", 0)) for r in rows) < 10 ** 12, "timestamps look like milliseconds"
+    assert all(
+        int(r.get("minute_ts", 0)) % 60 == 0 for r in rows
+    ), "minute_ts not bucket-aligned"
+    assert (
+        max(int(r.get("minute_ts", 0)) for r in rows) < 10**12
+    ), "timestamps look like milliseconds"
+
+
+def test_compute_volume_bootstrap_when_partial_window(tmp_path: Path):
+    tmp_db = tmp_path / "volume_1h.sqlite"
+    store.DB_PATH = tmp_db
+    store.ensure_db()
+
+    now_floor = store.floor_minute(int(time.time()))
+    # 80 minutes gives enough warmup to compute a bootstrap baseline
+    # while still being below the full 110-minute baseline threshold.
+    minutes = max(80, compute.MIN_BOOTSTRAP_MINUTES + 1)
+    prev_cut = now_floor - 60 * 60
+    start_ts = now_floor - (minutes - 1) * 60
+    for i in range(minutes):
+        minute_ts = start_ts + i * 60
+        vol = 100.0 if minute_ts < prev_cut else 200.0
+        store.upsert_minute("BOOT-USD", minute_ts, float(vol), close=100.0 + i)
+
+    res = compute.compute_volume_1h("BOOT-USD", now_floor)
+    assert isinstance(
+        res, dict
+    ), "expected bootstrap payload once warmup threshold is met"
+
+    assert res["baseline_mode"] == "bootstrap"
+    assert int(res["window_minutes"]) == minutes
+    assert int(res["baseline_minutes"]) >= compute.MIN_BOOTSTRAP_PREV_MINUTES
+
+    # Bootstrap baseline uses median(previous minute vols) * 60.
+    prev_count = sum(1 for i in range(minutes) if (start_ts + i * 60) < prev_cut)
+    now_count = minutes - prev_count
+    expected_now = now_count * 200.0
+    expected_prev = 100.0 * 60.0
+    expected_pct = ((expected_now - expected_prev) / expected_prev) * 100.0
+
+    assert pytest.approx(res["volume_1h_now"], rel=1e-6) == expected_now
+    assert pytest.approx(res["volume_1h_prev"], rel=1e-6) == expected_prev
+    assert pytest.approx(res["volume_change_1h_pct"], rel=1e-6) == expected_pct
