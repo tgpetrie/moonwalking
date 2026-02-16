@@ -687,6 +687,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const socialSourceLabel = useMemo(() => {
     if (!socialSource) return null;
     if (socialSource === 'coinpaprika') return 'CoinPaprika';
+    if (socialSource === 'coingecko') return 'CoinGecko';
     if (socialSource === 'lunarcrush') return 'LunarCrush';
     if (socialSource === 'mixed') return 'Mixed';
     return socialSource;
