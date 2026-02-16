@@ -185,6 +185,11 @@ const sentimentClassFromLabel = (label) => {
   return 'neutral';
 };
 
+const isProxySocialSource = (source) => {
+  const raw = String(source || '').trim().toLowerCase();
+  return raw === 'coingecko';
+};
+
 const parseSentimentPayload = (value) => {
   if (!value && value !== 0) return null;
 
@@ -677,6 +682,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const socialSentimentDisplay = socialSentimentLabel || sentimentLabelFromScore(socialSentimentNet);
   const socialUpdatedAt = socialMetrics?.updatedAt || null;
   const socialSource = String(socialMetrics?.source || '').trim().toLowerCase() || null;
+  const socialIsProxy = isProxySocialSource(socialSource);
 
   const socialSourceLabel = useMemo(() => {
     if (!socialSource) return null;
@@ -687,7 +693,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   }, [socialSource]);
 
   const socialHeatTrend = useMemo(() => {
-    if (socialSource === 'coingecko') return null;
+    if (socialIsProxy) return null;
     const raw = String(socialMetrics?.socialHeatTrend || '').trim().toLowerCase();
     if (raw.includes('rise') || raw.includes('spike') || raw.includes('up')) return 'rising';
     if (raw.includes('collapse') || raw.includes('fall') || raw.includes('down')) return 'collapsing';
@@ -700,7 +706,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       return 'flat';
     }
     return null;
-  }, [socialMetrics, socialPosts60m, socialPosts24h, socialSource]);
+  }, [socialMetrics, socialPosts60m, socialPosts24h, socialIsProxy]);
 
   const socialHeatTone = socialHeat === null ? 'neutral' : socialHeat >= 66 ? 'positive' : socialHeat <= 35 ? 'negative' : 'neutral';
   const socialSentimentTone = sentimentClassFromLabel(socialSentimentDisplay);
@@ -728,6 +734,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   ]);
 
   const socialActionLine = useMemo(() => {
+    if (socialIsProxy) return null;
     if (change3m === null) return null;
     if (socialHeat === null && !socialHeatTrend) return null;
 
@@ -749,7 +756,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       return 'Attention is leading price: set breakout and breakdown alerts before the next impulse.';
     }
     return null;
-  }, [change3m, socialHeat, socialHeatTrend]);
+  }, [change3m, socialHeat, socialHeatTrend, socialIsProxy]);
 
   const coinAlertsSourcesLabel = useMemo(() => {
     const list = Array.isArray(coinAlertsPayload?.sourcesUsed) ? coinAlertsPayload.sourcesUsed : [];
@@ -1139,7 +1146,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                     {hasMeaningfulSocialMetrics ? (
                       <>
                         <div className="mw-score-chips">
-                          {socialHeat !== null ? (
+                          {!socialIsProxy && socialHeat !== null ? (
                             <div className={`mw-chip ${socialHeatTone}`}>
                               <span>Social Heat</span>
                               <strong>{Math.round(socialHeat)}</strong>
@@ -1169,7 +1176,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                               <strong>{socialDominance24h.toFixed(2)}%</strong>
                             </div>
                           ) : null}
-                          {socialSentimentDisplay ? (
+                          {!socialIsProxy && socialSentimentDisplay ? (
                             <div className={`mw-chip ${socialSentimentTone}`}>
                               <span>Sentiment</span>
                               <strong>{socialSentimentDisplay}</strong>
@@ -1187,7 +1194,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                               <strong>{formatCompactNumber(socialUniqueAuthors24h)}</strong>
                             </div>
                           ) : null}
-                          {socialHeatTrend ? (
+                          {!socialIsProxy && socialHeatTrend ? (
                             <div className={`mw-chip ${socialHeatTrend === 'rising' ? 'positive' : socialHeatTrend === 'collapsing' ? 'negative' : 'neutral'}`}>
                               <span>Heat Trend</span>
                               <strong>{socialHeatTrend === 'rising' ? 'Rising' : socialHeatTrend === 'collapsing' ? 'Collapsing' : 'Flat'}</strong>
@@ -1206,7 +1213,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                             </div>
                           ) : null}
                         </div>
-                        {socialSource === 'coingecko' ? (
+                        {socialIsProxy ? (
                           <div className="coin-history-note">Community proxy (not sentiment).</div>
                         ) : null}
                         {socialActionLine ? <div className="coin-history-note mw-intel-action">{socialActionLine}</div> : null}
