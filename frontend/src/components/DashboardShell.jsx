@@ -7,6 +7,7 @@ import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
+import AlertsPanelGlobal from "./AlertsPanelGlobal.jsx";
 import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
@@ -23,6 +24,7 @@ export default function DashboardShell({ onInfo }) {
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
@@ -153,9 +155,7 @@ export default function DashboardShell({ onInfo }) {
   };
 
   const handleOpenAlerts = () => {
-    setSentimentSymbol(null);
-    setSentimentDefaultTab("alerts");
-    setSentimentOpen(true);
+    setAlertsOpen(true);
   };
 
   const handleToggleWatchlist = (symbol, price = null) => {
@@ -381,6 +381,11 @@ export default function DashboardShell({ onInfo }) {
           setSentimentSymbol(null);
           setSentimentDefaultTab("coin");
         }}
+      />
+
+      <AlertsPanelGlobal
+        isOpen={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
       />
 
       <AskBhabitPanel />
