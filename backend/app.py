@@ -10749,12 +10749,17 @@ def get_alerts_contract():
         active_ttl_s = 120
     active_ttl_s = max(30, min(active_ttl_s, 900))
 
+    # Build active from a wider recent window so type-specific tabs
+    # (e.g. Moonshot) do not disappear simply because limit is small.
+    active_scan_limit = min(max(limit * 6, 300), 1000)
+
     try:
-        items, alerts_meta = _build_recent_alerts_payload(limit)
-        active = _reduce_active_alerts(items, ttl_s=active_ttl_s)
+        scan_items, alerts_meta = _build_recent_alerts_payload(active_scan_limit)
+        active = _reduce_active_alerts(scan_items, ttl_s=active_ttl_s)[:limit]
+        recent = list(scan_items or [])[-limit:]
         payload = {
             "active": active,
-            "recent": items,
+            "recent": recent,
             "meta": alerts_meta,
         }
 
@@ -12698,6 +12703,10 @@ def _compute_snapshots_from_cache():
             except Exception:
                 pass
 
+            include_market_mood = str(
+                os.getenv("MW_MARKET_SIRENS", "0") or "0"
+            ).strip().lower() in {"1", "true", "yes", "on"}
+
             # Run the engine (impulse OFF — SWR builders handle moonshot/crater/breakout/dump)
             engine_alerts, _ALERT_ENGINE_STATE, engine_pressure = compute_alerts(
                 price_snapshot=price_snapshot,
@@ -12706,7 +12715,7 @@ def _compute_snapshots_from_cache():
                 state=_ALERT_ENGINE_STATE,
                 fg_value=fg_val,
                 include_impulse=True,
-                include_market_mood=False,
+                include_market_mood=include_market_mood,
             )
 
             # Append engine alerts through the shared stream-level dedupe gate

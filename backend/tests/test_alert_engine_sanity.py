@@ -27,30 +27,40 @@ def _mk_alert(symbol: str, typ: str, sev: str, **evidence):
 
 
 def test_fear_label_correctness_market_mode():
-    # Force clear fear regime and allow market alerts.
+    # Force clear fear regime and verify rare market siren after persistence.
     price_snapshot = {
         "AAA-USD": {"price": 1.0, "pct_1m": -1.2, "pct_3m": -2.4, "pct_1h": -4.0},
         "BBB-USD": {"price": 2.0, "pct_1m": -1.0, "pct_3m": -2.1, "pct_1h": -3.2},
         "CCC-USD": {"price": 3.0, "pct_1m": -0.8, "pct_3m": -1.8, "pct_1h": -2.8},
     }
 
-    alerts, _state, _pressure = compute_alerts(
-        price_snapshot=price_snapshot,
-        volume_snapshot={},
-        minute_volumes={},
-        state=AlertEngineState(),
-        include_impulse=False,
-        include_market_mood=True,
-        thresholds={"fear_heat_max": 40},
-    )
+    state = AlertEngineState()
+    alerts = []
+    _pressure = None
+    for _ in range(3):
+        alerts, state, _pressure = compute_alerts(
+            price_snapshot=price_snapshot,
+            volume_snapshot={},
+            minute_volumes={},
+            state=state,
+            fg_value=10,
+            include_impulse=False,
+            include_market_mood=True,
+            thresholds={
+                "market_siren_score_min": 60,
+                "market_siren_persist_polls": 3,
+            },
+        )
 
     market_types = [
         str(a.get("type"))
         for a in alerts
         if str(a.get("symbol") or "").upper() in {"MARKET", "MARKET-USD"}
     ]
-    assert "fear_alert" in market_types
-    assert "fomo_alert" not in market_types
+    assert "market_fear_siren" in market_types
+    assert "market_fomo_siren" not in market_types
+    assert _pressure.bias == "down"
+    assert _pressure.label in {"Fear", "Cautious"}
 
 
 def test_market_alerts_do_not_leak_when_market_mode_off():

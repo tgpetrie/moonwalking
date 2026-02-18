@@ -82,6 +82,8 @@ class AlertType(str, Enum):
     COIN_SQUEEZE_BREAK = "coin_squeeze_break"
     COIN_EXHAUSTION_TOP = "coin_exhaustion_top"
     COIN_EXHAUSTION_BOTTOM = "coin_exhaustion_bottom"
+    MARKET_FOMO_SIREN = "market_fomo_siren"
+    MARKET_FEAR_SIREN = "market_fear_siren"
     FOMO_ALERT = "fomo_alert"
     FEAR_ALERT = "fear_alert"
     # Future (disabled, require external sources)
@@ -104,8 +106,8 @@ class AlertSeverity(str, Enum):
 
 DEFAULT_THRESHOLDS = {
     # Impulse (MOONSHOT / CRATER / BREAKOUT / DUMP)
-    "moonshot_1m_pct": 1.25,  # >= this on 1m -> moonshot/crater
-    "moonshot_3m_pct": 3.25,  # >= this on 3m -> moonshot/crater
+    "moonshot_1m_pct": 1.15,  # >= this on 1m -> moonshot/crater
+    "moonshot_3m_pct": 3.00,  # >= this on 3m -> moonshot/crater
     "breakout_1m_pct": 0.65,  # >= this on 1m -> breakout/dump
     "breakout_3m_pct": 2.20,  # >= this on 3m -> breakout/dump
     "impulse_1m_pct": 1.25,  # minimum to even consider 1m impulse
@@ -132,6 +134,13 @@ DEFAULT_THRESHOLDS = {
     "fear_heat_max": 20,
     "fomo_fg_min": 70,  # Fear & Greed min for FOMO (None = ignore)
     "fear_fg_max": 30,  # Fear & Greed max for FEAR
+    # Rare market siren (standalone MARKET alerts only on strong confluence)
+    "market_siren_score_min": 80.0,
+    "market_siren_min_legs": 3,
+    "market_siren_persist_polls": 3,
+    "market_siren_cooldown_s": 900,
+    "market_siren_extreme_heat_min": 0.75,
+    "market_siren_extreme_fear_max": -0.75,
     # Coin mood alert thresholds (coin-scoped, market-aware)
     "vol_ratio_fomo": 2.0,
     "vol_score_mid": 0.60,
@@ -177,6 +186,10 @@ DEFAULT_THRESHOLDS = {
     "exhaustion_flip_pct_1m": 0.6,
     "exhaustion_context_pct_3m": 1.0,
     "exhaustion_vol_drop_ratio": 0.20,
+    # Return-history warmup + global alert shaping
+    "return_hist_min_points": 12,
+    "alerts_max_total": 24,
+    "alerts_max_per_symbol": 2,
     # Market pressure (component calculation)
     "pressure_impulse_k": 20.0,  # scaling for impulse density component
     "pressure_vol_ratio_ref": 5.0,  # reference ratio for log scaling
@@ -191,6 +204,7 @@ DEFAULT_THRESHOLDS = {
     "cooldown_stealth": 420,
     "cooldown_divergence": 180,
     "cooldown_fomo": 600,
+    "cooldown_market_siren": 900,  # legacy alias
     "cooldown_coin_fomo": 240,
     "cooldown_coin_thrust": 240,
     "cooldown_coin_failure": 240,
@@ -210,6 +224,7 @@ DEFAULT_THRESHOLDS = {
     "ttl_stealth_min": 5,
     "ttl_divergence_min": 5,
     "ttl_fomo_min": 10,
+    "ttl_market_siren_min": 12,
     "ttl_coin_mood_min": 5,
     "ttl_reversal_min": 10,
     "ttl_fakeout_min": 8,
@@ -226,6 +241,7 @@ DEFAULT_THRESHOLDS = {
     "dedupe_whale_surge": 30.0,
     "dedupe_stealth": 0.8,
     "dedupe_divergence": 0.5,
+    "dedupe_market_siren": 4.0,  # legacy alias
     "dedupe_coin_fomo": 0.35,
     "dedupe_coin_thrust": 0.5,
     "dedupe_coin_failure": 0.5,
@@ -255,6 +271,9 @@ class AlertEngineState:
     market_pressure_ema: float | None = None
     market_pressure_abs_move_hist: list[float] = field(default_factory=list)
     market_pressure_index_hist: list[tuple[float, float]] = field(default_factory=list)
+    market_siren_streak: int = 0
+    market_siren_last_key: str | None = None
+    market_siren_last_emit_ts: float = 0.0
     # Coin persistence streaks: symbol -> (streak_count, direction)
     coin_persistence_streaks: dict[str, tuple[int, str]] = field(default_factory=dict)
     # Coin 1m return history used for volatility expansion detection.
@@ -369,17 +388,21 @@ def _overlap_ratio(a_syms: list[str], b_syms: list[str], n: int) -> float:
 
 
 def _warm_return_hist(
-    price_snapshot: dict[str, dict],
     state: AlertEngineState,
-    keep: int = 240,
+    price_snapshot: dict[str, dict],
+    thresholds: dict,
 ) -> None:
     """Warm and bound per-symbol 1m return history for downstream detectors."""
+    keep = max(60, int(thresholds.get("return_hist_keep", 240) or 240))
+    min_points = max(1, int(thresholds.get("return_hist_min_points", 12) or 12))
     for sym, pdata in (price_snapshot or {}).items():
         pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
         if pct_1m is None:
             continue
         hist = state.coin_return_hist.setdefault(sym, [])
         hist.append(float(pct_1m))
+        if len(hist) < min_points:
+            hist[:0] = [0.0] * (min_points - len(hist))
         if len(hist) > keep:
             del hist[: len(hist) - keep]
 
@@ -444,16 +467,18 @@ def compute_market_pressure(
         up_sign = sum(1 for v in breadth_source.values() if v > 0.0)
         down_sign = sum(1 for v in breadth_source.values() if v < 0.0)
         source_n = len(breadth_source)
-        pct_green = up_sign / float(source_n)
+        breadth_up = up_sign / float(max(1, source_n))
+        breadth_down = down_sign / float(max(1, source_n))
     else:
         up_sign = 0
         down_sign = 0
         source_n = 0
-        pct_green = 0.5
-    # Breadth intensity: how one-sided participation is (green OR red).
-    breadth_component = _clamp(abs(pct_green - 0.5) * 2.0, 0.0, 1.0)
-    # Breadth direction: +1 all green, -1 all red.
-    breadth_bias_component = _clamp((pct_green - 0.5) * 2.0, -1.0, 1.0)
+        breadth_up = 0.0
+        breadth_down = 0.0
+    # Breadth intensity: directional participation imbalance (0..1).
+    breadth_component = _clamp(abs(breadth_up - breadth_down), 0.0, 1.0)
+    # Breadth direction: +1 all-green, -1 all-red, 0 balanced/flat.
+    breadth_bias_component = _clamp(breadth_up - breadth_down, -1.0, 1.0)
 
     # Impulse density (symbols crossing impulse thresholds).
     impulse_total = 0
@@ -837,16 +862,34 @@ def _detect_whale_alerts(
         baseline_ready = vdata.get("baseline_ready", False)
 
         product_id = sym if "-" in sym else f"{sym}-USD"
-        mins = minute_volumes.get(product_id, [])
+        mins_raw = minute_volumes.get(product_id, [])
+        rows: list[dict] = []
+        if isinstance(mins_raw, list) and mins_raw:
+            # Normalize to chronological order so baseline/latest slicing is stable
+            # regardless of incoming series orientation.
+            rows = [m for m in mins_raw if isinstance(m, dict)]
+            if rows:
+                has_ts = any(_to_float_or_none(m.get("ts")) is not None for m in rows)
+                if has_ts:
+                    rows = sorted(
+                        rows,
+                        key=lambda m: _to_float_or_none(m.get("ts")) or 0.0,
+                    )
+                elif len(rows) >= 2:
+                    v0 = _to_float_or_none(rows[0].get("vol")) or 0.0
+                    v1 = _to_float_or_none(rows[1].get("vol")) or 0.0
+                    # Fallback heuristic: keep existing order unless clearly newest-first.
+                    if v0 and v1 and v0 > (v1 * 4.0):
+                        rows = list(reversed(rows))
 
         # --- Mode 1: Per-minute z-score whale ---
-        if len(mins) >= 15:
-            latest = mins[0]
+        if len(rows) >= 15:
+            latest = rows[-1]
             latest_vol = latest.get("vol", 0) or 0
             latest_close = latest.get("close", 0)
             latest_open = latest.get("open", 0)
 
-            baseline_rows = mins[1:61]
+            baseline_rows = rows[-61:-1]
             baseline_vols = [
                 (m.get("vol", 0) or 0)
                 for m in baseline_rows
@@ -855,7 +898,7 @@ def _detect_whale_alerts(
             if len(baseline_vols) < 10:
                 baseline_vols = [
                     (m.get("vol", 0) or 0)
-                    for m in mins[1:61]
+                    for m in rows[-61:-1]
                     if (m.get("vol", 0) or 0) > 0
                 ]
             n = len(baseline_vols)
@@ -877,8 +920,8 @@ def _detect_whale_alerts(
 
                 # 3-candle cluster
                 cluster_vol = (
-                    sum((m.get("vol", 0) or 0) for m in mins[:3])
-                    if len(mins) >= 3
+                    sum((m.get("vol", 0) or 0) for m in rows[-3:])
+                    if len(rows) >= 3
                     else latest_vol
                 )
                 cluster_z = (cluster_vol / 3 - mean_vol) / std_vol if std_vol > 0 else 0
@@ -945,7 +988,7 @@ def _detect_whale_alerts(
                 ):
                     # Check repeat pattern
                     absorption_count = 0
-                    for m in mins[1:6]:
+                    for m in rows[-6:-1]:
                         m_vol = m.get("vol", 0) or 0
                         m_z = (m_vol - mean_vol) / std_vol if std_vol > 0 else 0
                         m_pct = (
@@ -2132,79 +2175,186 @@ def _detect_coin_mood_alerts(
     return alerts
 
 
-def _detect_fomo_fear_alerts(
+def _market_confluence_legs(
+    pressure: MarketPressure, fg_value: int | None
+) -> tuple[float, int, dict[str, Any]]:
+    """Compute market siren confluence score + leg hits."""
+    legs: dict[str, bool] = {}
+    score = 0.0
+    legs_hit = 0
+
+    b_up = float(getattr(pressure, "breadth_up", 0.0) or 0.0)
+    b_dn = float(getattr(pressure, "breadth_down", 0.0) or 0.0)
+    breadth_intensity = abs(b_up - b_dn)
+    breadth_points = min(30.0, breadth_intensity * 60.0)
+    if breadth_points >= 12.0:
+        legs_hit += 1
+        legs["breadth"] = True
+    else:
+        legs["breadth"] = False
+    score += breadth_points
+
+    align = _to_float_or_none(getattr(pressure, "alignment", None))
+    if align is None:
+        align = (
+            _to_float_or_none((pressure.components or {}).get("breadth_bias")) or 0.0
+        )
+    align = float(align)
+    align_points = min(25.0, max(0.0, abs(align) * 25.0))
+    if align_points >= 12.0:
+        legs_hit += 1
+        legs["alignment"] = True
+    else:
+        legs["alignment"] = False
+    score += align_points
+
+    vol = _to_float_or_none(getattr(pressure, "volatility", None))
+    if vol is None:
+        # Map internal 0..1 vol_regime into a rough 1..3 volatility axis.
+        vr = _clamp(
+            _to_float_or_none((pressure.components or {}).get("vol_regime")) or 0.5
+        )
+        vol = 3.0 - (2.0 * vr)
+    vol = float(vol)
+    if vol <= 1.5:
+        vol_points = 20.0
+    elif vol <= 2.5:
+        vol_points = 10.0
+    else:
+        vol_points = 0.0
+    if vol_points >= 10.0:
+        legs_hit += 1
+        legs["vol_regime"] = True
+    else:
+        legs["vol_regime"] = False
+    score += vol_points
+
+    if fg_value is not None:
+        fg = float(fg_value)
+        if fg >= 75.0:
+            fg_points = min(25.0, (fg - 75.0) * 1.0 + 10.0)
+            legs_hit += 1
+            legs["fear_greed"] = True
+            score += fg_points
+        elif fg <= 25.0:
+            fg_points = min(25.0, (25.0 - fg) * 1.0 + 10.0)
+            legs_hit += 1
+            legs["fear_greed"] = True
+            score += fg_points
+        else:
+            legs["fear_greed"] = False
+
+    detail = {
+        "score": round(score, 2),
+        "legs_hit": legs_hit,
+        "legs": legs,
+        "breadth_intensity": round(breadth_intensity, 3),
+        "alignment": round(align, 3),
+        "volatility": round(vol, 3),
+        "fg_value": fg_value,
+    }
+    return score, legs_hit, detail
+
+
+def _market_extreme_gate(pressure: MarketPressure, t: dict) -> str | None:
+    """Return FOMO/FEAR if market is at an extreme, else None."""
+    heat_raw = _to_float_or_none(getattr(pressure, "heat", 0.0)) or 0.0
+    heat = heat_raw / 100.0 if heat_raw > 1.0 else heat_raw
+    heat_min = float(t.get("market_siren_extreme_heat_min", 0.75) or 0.75)
+    fear_max = float(t.get("market_siren_extreme_fear_max", -0.75) or -0.75)
+    if heat >= heat_min:
+        return "FOMO"
+    if heat_raw < 0 and heat_raw <= fear_max:
+        return "FEAR"
+
+    bias_raw = getattr(pressure, "bias", 0.0)
+    if isinstance(bias_raw, str):
+        bias = (
+            1.0
+            if bias_raw.lower() == "up"
+            else (-1.0 if bias_raw.lower() == "down" else 0.0)
+        )
+    else:
+        bias = _to_float_or_none(bias_raw) or 0.0
+    if heat <= (1.0 - heat_min) and bias < -0.4:
+        return "FEAR"
+    return None
+
+
+def _detect_market_siren_alerts(
     pressure: MarketPressure,
     fg_value: int | None,
     state: AlertEngineState,
-    thresholds: dict,
+    t: dict,
 ) -> list[dict]:
-    """Detect FOMO / FEAR from Market Pressure Index."""
-    alerts: list[dict] = []
-    t = thresholds
+    now = time.time()
+    kind = _market_extreme_gate(pressure, t)
+    if not kind:
+        state.market_siren_streak = 0
+        state.market_siren_last_key = None
+        return []
 
-    fomo = pressure.heat >= t["fomo_heat_min"] and (
-        fg_value is None or fg_value >= t["fomo_fg_min"]
-    )
-    fear = pressure.heat <= t["fear_heat_max"] and (
-        fg_value is None or fg_value <= t["fear_fg_max"]
-    )
+    score, legs_hit, detail = _market_confluence_legs(pressure, fg_value)
 
-    if not fomo and not fear:
-        return alerts
+    if state.market_siren_last_key != kind:
+        state.market_siren_last_key = kind
+        state.market_siren_streak = 0
 
-    if fomo:
-        atype = AlertType.FOMO_ALERT
-        sev = AlertSeverity.HIGH
-        title = "FOMO: Market Overheating"
-        msg = f"Market Heat {pressure.heat}/100 ({pressure.label}), breadth {pressure.breadth_up:.0%} up"
-        if fg_value is not None:
-            msg += f", Fear & Greed {fg_value}/100"
-        direction = "fomo"
-        mood = "euphoria"
-        legacy_type = AlertType.FOMO_ALERT.value
+    if score >= float(
+        t.get("market_siren_score_min", 80.0) or 80.0
+    ) and legs_hit >= int(t.get("market_siren_min_legs", 3) or 3):
+        state.market_siren_streak += 1
     else:
-        atype = AlertType.FEAR_ALERT
-        sev = AlertSeverity.HIGH
-        title = "FEAR: Market Extreme"
-        msg = f"Market Heat {pressure.heat}/100 ({pressure.label}), breadth {pressure.breadth_down:.0%} down"
-        if fg_value is not None:
-            msg += f", Fear & Greed {fg_value}/100"
-        direction = "fear"
-        mood = "fear"
-        legacy_type = AlertType.FEAR_ALERT.value
+        state.market_siren_streak = 0
+        return []
 
-    key = f"{atype.value}::MARKET"
-    if not state.check_cooldown(
-        key, t["cooldown_fomo"], pressure.heat, direction, 10.0
-    ):
-        return alerts
+    if state.market_siren_streak < int(t.get("market_siren_persist_polls", 3) or 3):
+        return []
 
-    alert = _make_alert(
-        symbol="MARKET",
-        alert_type=atype,
-        severity=sev,
-        title=title,
-        message=msg,
-        direction=direction,
-        evidence={
-            "window": "market",
-            "heat": pressure.heat,
-            "bias": pressure.bias,
-            "breadth_up": pressure.breadth_up,
-            "breadth_down": pressure.breadth_down,
-            "advancing": round(pressure.breadth_up * pressure.symbol_count, 2),
-            "declining": round(pressure.breadth_down * pressure.symbol_count, 2),
-            "impulse_count": pressure.impulse_count,
-            "symbol_count": pressure.symbol_count,
-            "fear_greed": fg_value,
-            "mood": mood,
-            "legacy_type": legacy_type,
-        },
-        ttl_minutes=t["ttl_fomo_min"],
+    cooldown_s = float(
+        t.get("market_siren_cooldown_s", t.get("cooldown_market_siren", 900)) or 900
     )
-    alerts.append(alert)
-    state.record_fire(key, pressure.heat, direction)
-    return alerts
+    if (now - float(state.market_siren_last_emit_ts or 0.0)) < cooldown_s:
+        return []
+
+    atype = (
+        AlertType.MARKET_FOMO_SIREN if kind == "FOMO" else AlertType.MARKET_FEAR_SIREN
+    )
+    dedupe_delta = float(t.get("dedupe_market_siren", 4.0) or 4.0)
+    cooldown_key = f"{atype.value}::MARKET"
+    if not state.check_cooldown(
+        cooldown_key, cooldown_s, score, kind.lower(), dedupe_delta
+    ):
+        return []
+
+    state.market_siren_last_emit_ts = now
+    state.record_fire(cooldown_key, score, kind.lower())
+
+    score_min = float(t.get("market_siren_score_min", 80.0) or 80.0)
+    sev = AlertSeverity.HIGH if score >= (score_min + 10.0) else AlertSeverity.MEDIUM
+    title = "Market FOMO" if kind == "FOMO" else "Market FEAR"
+    msg = (
+        f"{kind} confluence: {int(score)} score, {legs_hit} legs, "
+        f"streak {state.market_siren_streak}"
+    )
+    detail = {
+        **detail,
+        "market_siren_streak": int(state.market_siren_streak),
+        "market_siren_kind": kind.lower(),
+    }
+
+    return [
+        _make_alert(
+            symbol="MARKET",
+            alert_type=atype,
+            severity=sev,
+            title=title,
+            message=msg,
+            direction=kind.lower(),
+            evidence=detail,
+            ttl_minutes=int(t.get("ttl_market_siren_min", 12) or 12),
+        )
+    ]
 
 
 _SEV_WEIGHT = {
@@ -2243,6 +2393,8 @@ _TYPE_BONUS = {
     AlertType.COIN_VOLATILITY_EXPANSION.value: 32.0,
     AlertType.COIN_LIQUIDITY_SHOCK.value: 30.0,
     # Market-only mood (optional)
+    AlertType.MARKET_FOMO_SIREN.value: 26.0,
+    AlertType.MARKET_FEAR_SIREN.value: 26.0,
     AlertType.FOMO_ALERT.value: 22.0,
     AlertType.FEAR_ALERT.value: 22.0,
     # Lowest priority under cap
@@ -2275,6 +2427,8 @@ def _alert_rank(a: dict[str, Any]) -> float:
     type_bonus = _TYPE_BONUS.get(typ, 0.0)
     if type_bonus == 0.0 and typ.startswith("coin_"):
         type_bonus = 24.0
+    if typ in {"divergence", "divergence_1m", "divergence_3m"}:
+        type_bonus -= 8.0
     return (w * 100.0) + mag + type_bonus
 
 
@@ -2340,14 +2494,14 @@ def compute_alerts(
     Args:
         include_impulse: If False, skip MOONSHOT/CRATER/BREAKOUT/DUMP.
             Use False in production while SWR builders still emit impulse alerts.
-        include_market_mood: If True, allow standalone MARKET mood alerts.
-            Defaults to False so alerts remain coin-scoped.
+        include_market_mood: If True, allow rare standalone MARKET sirens
+            (confluence + persistence + cooldown).
 
     Returns:
         (alerts, updated_state, market_pressure)
     """
     t = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
-    _warm_return_hist(price_snapshot, state, keep=240)
+    _warm_return_hist(state, price_snapshot, t)
 
     all_alerts: list[dict] = []
 
@@ -2410,24 +2564,35 @@ def compute_alerts(
     # 8. Divergence alerts (timeframe disagreement + market pressure context)
     all_alerts.extend(_detect_divergence_alerts(price_snapshot, pressure, state, t))
 
-    # 9. Optional standalone market mood alerts (disabled by default).
+    # 9. Optional standalone market sirens (disabled by default).
     if include_market_mood:
-        all_alerts.extend(_detect_fomo_fear_alerts(pressure, fg_value, state, t))
+        all_alerts.extend(_detect_market_siren_alerts(pressure, fg_value, state, t))
 
     # Attach market mood context to all coin alerts for richer coin-popup display.
     _attach_coin_mood_context(all_alerts, pressure)
 
-    # Hard guardrail: coin-scoped alert stream only by default.
-    # If include_market_mood=True, allow MARKET alerts to pass through.
-    if not include_market_mood:
-        all_alerts = [
-            a
-            for a in all_alerts
-            if str((a or {}).get("symbol") or "").upper()
-            not in {"MARKET", "MARKET-USD"}
-        ]
+    # Hard guardrail: coin-scoped stream by default; permit only rare MARKET sirens
+    # when include_market_mood=True.
+    allowed_market_types = {
+        AlertType.MARKET_FOMO_SIREN.value,
+        AlertType.MARKET_FEAR_SIREN.value,
+    }
+    all_alerts = [
+        a
+        for a in all_alerts
+        if str((a or {}).get("symbol") or "").upper() not in {"MARKET", "MARKET-USD"}
+        or (
+            include_market_mood
+            and str((a or {}).get("type") or (a or {}).get("type_key") or "").lower()
+            in allowed_market_types
+        )
+    ]
 
     # Final shaping: keep it lively, not spammy.
-    all_alerts = _prune_alerts(all_alerts, max_total=24, max_per_symbol=2)
+    all_alerts = _prune_alerts(
+        all_alerts,
+        max_total=int(t.get("alerts_max_total", 24)),
+        max_per_symbol=int(t.get("alerts_max_per_symbol", 2)),
+    )
 
     return all_alerts, state, pressure
