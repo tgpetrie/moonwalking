@@ -5822,6 +5822,32 @@ def _seed_alerts_once():
 
 
 ALERT_SEVERITY_ORDER = ("critical", "high", "medium", "low", "info")
+_ALERT_FLOAT_TEXT_NOISE_RE = re.compile(r"(?P<num>[+-]?\d+\.\d{8,})")
+
+
+def _clean_alert_message_text(value: str) -> str:
+    """Trim noisy float artifacts inside alert message/title strings."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    def _repl(match: re.Match) -> str:
+        token = match.group("num")
+        try:
+            num = float(token)
+        except Exception:
+            return token
+        if not math.isfinite(num):
+            return token
+        cleaned = float(f"{num:.15g}")
+        if cleaned == 0.0:
+            cleaned = 0.0
+        out = f"{cleaned}"
+        if token.startswith("+") and not out.startswith("-"):
+            out = f"+{out}"
+        return out
+
+    return _ALERT_FLOAT_TEXT_NOISE_RE.sub(_repl, text)
 
 
 def _normalize_alert(raw: dict) -> dict:
@@ -5899,6 +5925,13 @@ def _normalize_alert(raw: dict) -> dict:
             or evidence["mood"]
         )
 
+    title_text = _clean_alert_message_text(
+        raw.get("title") or raw.get("message") or f"{scope.upper()} alert"
+    )
+    message_text = _clean_alert_message_text(
+        raw.get("message") or raw.get("title") or ""
+    )
+
     norm = {
         "id": raw.get("id") or f"{symbol or 'UNKNOWN'}-{scope or 'scope'}-{ts}",
         "symbol": symbol,
@@ -5906,8 +5939,8 @@ def _normalize_alert(raw: dict) -> dict:
         "type": alert_type,
         "type_key": type_key,
         "severity": severity,
-        "title": raw.get("title") or raw.get("message") or f"{scope.upper()} alert",
-        "message": raw.get("message") or raw.get("title") or "",
+        "title": title_text,
+        "message": message_text,
         "ts": ts,
         "ts_ms": raw.get("ts_ms"),
         "event_ts": raw.get("event_ts"),
@@ -9604,14 +9637,25 @@ def get_recent_alerts():
             "meta": alerts_meta,
         }
         try:
-            return jsonify(payload)
+            return jsonify(_json_sanitize_for_api(payload))
         except Exception as ser_err:
             logging.exception(
                 "Error serializing recent alerts endpoint payload (limit=%s, args=%s)",
                 limit,
                 dict(request.args),
             )
-            safe_payload = _json_sanitize_for_api(payload)
+            safe_payload = {
+                "count": 0,
+                "limit": limit,
+                "alerts": [],
+                "meta": {
+                    "ok": False,
+                    "degraded": True,
+                    "error": "recent_alerts_serialization_failed",
+                    "detail": str(ser_err)[:500],
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                },
+            }
             return jsonify(safe_payload)
     except Exception as e:
         logging.exception(
@@ -9715,6 +9759,23 @@ def _active_key(a: dict) -> str:
     return f"{sym}|{t}"
 
 
+def _active_family(a: dict) -> str:
+    t = str(a.get("type_key") or a.get("type") or "").lower()
+    if t.startswith("whale_") or t == "whale_move":
+        return "whale"
+    if t.startswith("stealth_") or t == "stealth_move":
+        return "stealth"
+    if t.startswith("coin_"):
+        return "coin"
+    if t in {"moonshot", "crater", "breakout", "dump"}:
+        return "impulse"
+    if t.startswith("divergence"):
+        return "divergence"
+    if t.startswith("market_") or t in {"fomo_alert", "fear_alert"}:
+        return "market"
+    return t or "other"
+
+
 def _alert_score(a: dict, now_ms: int) -> float:
     """Score an alert for active-reducer ranking.
 
@@ -9787,17 +9848,77 @@ def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
     return out
 
 
-def _json_sanitize_for_api(value):
+def _cap_active_alert_families(
+    items: list[dict],
+    *,
+    capped_families: set[str] | None = None,
+    per_symbol_family_max: int = 1,
+    per_family_max: int = 3,
+) -> list[dict]:
+    """Reduce active-family walls (whale/stealth) after TTL filtering."""
+    if not items:
+        return []
+    capped = capped_families or {"whale", "stealth"}
+    per_symbol_family_max = max(1, int(per_symbol_family_max))
+    per_family_max = max(1, int(per_family_max))
+
+    out: list[dict] = []
+    fam_counts: dict[str, int] = {}
+    fam_symbol_counts: dict[tuple[str, str], int] = {}
+
+    for a in items:
+        fam = _active_family(a)
+        if fam not in capped:
+            out.append(a)
+            continue
+
+        sym = str((a or {}).get("symbol") or "").upper()
+        fam_sym_key = (fam, sym)
+        if fam_counts.get(fam, 0) >= per_family_max:
+            continue
+        if fam_symbol_counts.get(fam_sym_key, 0) >= per_symbol_family_max:
+            continue
+
+        out.append(a)
+        fam_counts[fam] = fam_counts.get(fam, 0) + 1
+        fam_symbol_counts[fam_sym_key] = fam_symbol_counts.get(fam_sym_key, 0) + 1
+
+    return out
+
+
+def _round_api_float(value: float, key: str | None = None):
+    if not math.isfinite(value):
+        return None
+
+    # Normalize binary noise before key-specific rounding.
+    v = float(f"{value:.15g}")
+    k = str(key or "").lower()
+
+    if "price" in k or k.startswith("px") or k.endswith("_px"):
+        v = round(v, 6)
+    elif "pct" in k or "percent" in k:
+        v = round(v, 2)
+    elif k.startswith("vol") or "volume" in k:
+        v = round(v, 2)
+    elif "ratio" in k or k.endswith("_z") or k.startswith("z_") or "score" in k:
+        v = round(v, 2)
+    else:
+        v = round(v, 6)
+
+    return 0.0 if v == 0.0 else v
+
+
+def _json_sanitize_for_api(value, _key: str | None = None):
     """Recursively coerce values to JSON-safe primitives for API responses."""
     if value is None or isinstance(value, (str, bool, int)):
         return value
 
     if isinstance(value, float):
-        return value if math.isfinite(value) else None
+        return _round_api_float(value, _key)
 
     if isinstance(value, Decimal):
         try:
-            return float(value)
+            return _json_sanitize_for_api(float(value), _key)
         except Exception:
             return str(value)
 
@@ -9810,16 +9931,16 @@ def _json_sanitize_for_api(value):
     if isinstance(value, dict):
         out = {}
         for k, v in value.items():
-            out[str(k)] = _json_sanitize_for_api(v)
+            out[str(k)] = _json_sanitize_for_api(v, str(k))
         return out
 
     if isinstance(value, (list, tuple, set)):
-        return [_json_sanitize_for_api(v) for v in value]
+        return [_json_sanitize_for_api(v, _key) for v in value]
 
     # Enums and custom types: prefer `.value` when present.
     if hasattr(value, "value"):
         try:
-            return _json_sanitize_for_api(value.value)
+            return _json_sanitize_for_api(value.value, _key)
         except Exception:
             pass
 
@@ -10755,16 +10876,32 @@ def get_alerts_contract():
 
     try:
         scan_items, alerts_meta = _build_recent_alerts_payload(active_scan_limit)
-        active = _reduce_active_alerts(scan_items, ttl_s=active_ttl_s)[:limit]
+        active_raw = _reduce_active_alerts(scan_items, ttl_s=active_ttl_s)
+        active_capped = _cap_active_alert_families(
+            active_raw,
+            capped_families={"whale", "stealth"},
+            per_symbol_family_max=1,
+            per_family_max=3,
+        )
+        active = active_capped[:limit]
         recent = list(scan_items or [])[-limit:]
+        active_meta = {
+            "pre_family_cap_count": len(active_raw),
+            "post_family_cap_count": len(active_capped),
+            "family_caps": {
+                "capped_families": ["whale", "stealth"],
+                "per_family_max": 3,
+                "per_symbol_family_max": 1,
+            },
+        }
         payload = {
             "active": active,
             "recent": recent,
-            "meta": alerts_meta,
+            "meta": {**(alerts_meta or {}), "active_shaping": active_meta},
         }
 
         try:
-            return jsonify(payload)
+            return jsonify(_json_sanitize_for_api(payload))
         except Exception as ser_err:
             logging.exception(
                 "Error serializing canonical alerts endpoint payload "
@@ -10773,23 +10910,12 @@ def get_alerts_contract():
                 active_ttl_s,
                 dict(request.args),
             )
-            safe_payload = _json_sanitize_for_api(payload)
-            try:
-                return jsonify(safe_payload)
-            except Exception as safe_err:
-                logging.exception(
-                    "Error serializing sanitized canonical alerts payload "
-                    "(limit=%s, active_ttl_s=%s, args=%s)",
-                    limit,
-                    active_ttl_s,
-                    dict(request.args),
-                )
-                fallback = _alerts_contract_fallback_payload(
-                    limit=limit,
-                    active_ttl_s=active_ttl_s,
-                    detail=f"serialization_failed: {safe_err or ser_err}",
-                )
-                return jsonify(fallback), 200
+            fallback = _alerts_contract_fallback_payload(
+                limit=limit,
+                active_ttl_s=active_ttl_s,
+                detail=f"serialization_failed: {ser_err}",
+            )
+            return jsonify(fallback), 200
     except Exception as e:
         logging.exception(
             "Error in canonical alerts endpoint "

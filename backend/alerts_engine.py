@@ -190,6 +190,12 @@ DEFAULT_THRESHOLDS = {
     "return_hist_min_points": 12,
     "alerts_max_total": 24,
     "alerts_max_per_symbol": 2,
+    # Family shaping (prevents whale/stealth dominating)
+    "whale_symbol_cooldown_s": 180,
+    "stealth_symbol_cooldown_s": 240,
+    "family_global_cooldown_s": 20,
+    "family_recent_window_s": 300,
+    "family_recent_max": 14,
     # Market pressure (component calculation)
     "pressure_impulse_k": 20.0,  # scaling for impulse density component
     "pressure_vol_ratio_ref": 5.0,  # reference ratio for log scaling
@@ -274,6 +280,9 @@ class AlertEngineState:
     market_siren_streak: int = 0
     market_siren_last_key: str | None = None
     market_siren_last_emit_ts: float = 0.0
+    last_emit_by_symbol_family: dict[str, float] = field(default_factory=dict)
+    last_emit_by_family: dict[str, float] = field(default_factory=dict)
+    emit_ring: list[tuple[float, str]] = field(default_factory=list)
     # Coin persistence streaks: symbol -> (streak_count, direction)
     coin_persistence_streaks: dict[str, tuple[int, str]] = field(default_factory=dict)
     # Coin 1m return history used for volatility expansion detection.
@@ -2402,6 +2411,15 @@ _TYPE_BONUS = {
 }
 
 
+def _family_of_alert(a: dict[str, Any]) -> str:
+    typ = str((a or {}).get("type") or (a or {}).get("type_key") or "").lower()
+    if typ.startswith("whale_") or typ == AlertType.WHALE_MOVE.value:
+        return "whale"
+    if typ.startswith("stealth_") or typ == AlertType.STEALTH_MOVE.value:
+        return "stealth"
+    return "other"
+
+
 def _alert_rank(a: dict[str, Any]) -> float:
     sev = str((a or {}).get("severity") or "low").lower()
     w = _SEV_WEIGHT.get(sev, 2)
@@ -2427,9 +2445,76 @@ def _alert_rank(a: dict[str, Any]) -> float:
     type_bonus = _TYPE_BONUS.get(typ, 0.0)
     if type_bonus == 0.0 and typ.startswith("coin_"):
         type_bonus = 24.0
+    if typ in {AlertType.WHALE_MOVE.value, AlertType.STEALTH_MOVE.value}:
+        type_bonus -= 10.0
+    if (
+        typ
+        in {
+            AlertType.COIN_LIQUIDITY_SHOCK.value,
+            AlertType.COIN_FAKEOUT.value,
+        }
+        or typ.startswith("coin_reversal_")
+        or typ.startswith("coin_trend_break_")
+    ):
+        type_bonus += 8.0
     if typ in {"divergence", "divergence_1m", "divergence_3m"}:
         type_bonus -= 8.0
     return (w * 100.0) + mag + type_bonus
+
+
+def _shape_alert_stream(
+    alerts: list[dict[str, Any]],
+    state: AlertEngineState,
+    t: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if not alerts:
+        return []
+
+    now = time.time()
+    window_s = float(t.get("family_recent_window_s", 300) or 300)
+
+    # Keep only recent accepted family alerts.
+    ring = [
+        (float(ts), str(fam))
+        for ts, fam in (state.emit_ring or [])
+        if (now - float(ts)) <= window_s
+    ]
+    state.emit_ring = ring
+
+    recent_counts: dict[str, int] = {}
+    for _ts, fam in ring:
+        recent_counts[fam] = recent_counts.get(fam, 0) + 1
+
+    out: list[dict[str, Any]] = []
+    for a in alerts:
+        fam = _family_of_alert(a)
+        if fam == "other":
+            out.append(a)
+            continue
+
+        sym = str((a or {}).get("symbol") or "").upper()
+        symbol_key = f"{fam}:{sym}"
+
+        cd_sym = float(t.get(f"{fam}_symbol_cooldown_s", 180) or 180)
+        last_sym = float(state.last_emit_by_symbol_family.get(symbol_key, 0.0) or 0.0)
+        if (now - last_sym) < cd_sym:
+            continue
+
+        cd_fam = float(t.get("family_global_cooldown_s", 20) or 20)
+        last_fam = float(state.last_emit_by_family.get(fam, 0.0) or 0.0)
+        if (now - last_fam) < cd_fam:
+            continue
+
+        if recent_counts.get(fam, 0) >= int(t.get("family_recent_max", 14) or 14):
+            continue
+
+        out.append(a)
+        state.last_emit_by_symbol_family[symbol_key] = now
+        state.last_emit_by_family[fam] = now
+        state.emit_ring.append((now, fam))
+        recent_counts[fam] = recent_counts.get(fam, 0) + 1
+
+    return out
 
 
 def _prune_alerts(
@@ -2587,6 +2672,9 @@ def compute_alerts(
             in allowed_market_types
         )
     ]
+
+    # Family-level shaping pass (cooldowns + soft cap) before final ranking cap.
+    all_alerts = _shape_alert_stream(all_alerts, state, t)
 
     # Final shaping: keep it lively, not spammy.
     all_alerts = _prune_alerts(
