@@ -3825,7 +3825,7 @@ a.bh-row {
   right: 12px;
   bottom: 0;
   height: 1px;
-  
+
   /* Subtle, always-on gradient rail */
   background: linear-gradient(
     90deg,
@@ -3833,7 +3833,7 @@ a.bh-row {
     rgba(80, 200, 255, 0.18),
     rgba(255, 0, 160, 0.18)
   ) !important;
-  
+
   opacity: 0.55 !important; /* Permanent visibility */
   transform: translateZ(0);
   pointer-events: none;
@@ -4536,7 +4536,7 @@ body {
 .bh-watchlist .bh-1m-grid {
   grid-template-columns: 1fr !important;
 }
-                                                                                                                     
+
 /* Contract hook — board-level hover flag (JS sets data-row-hover="1") */
 .board-core[data-row-hover="1"] {
   --bh-row-hover-flag: 1;
@@ -5642,7 +5642,7 @@ html, body {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 6px 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 12.5px;
   line-height: 1.35;
   color: rgba(255,255,255,0.86);
@@ -5684,7 +5684,6 @@ html, body {
 
 .bh-intel-ts{
   color: rgba(255,255,255,0.42);
-  font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
 

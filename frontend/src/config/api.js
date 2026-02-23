@@ -20,19 +20,11 @@ const BLOCKED_PORT_RE = new RegExp(`:(?:${BLOCKED_PORTS.join('|')})$`, 'i');
 export const BACKEND_BASE_DEV = "";
 
 /**
- * Fallback candidates for backend (only used if proxy fails)
- * Order: prefer localhost variants first (CORS-friendly in dev)
- */
-const BACKEND_FALLBACK_CANDIDATES = [
-  "http://localhost:5003",
-  "http://127.0.0.1:5003",
-];
-
-/**
  * Get backend base URL from environment or use dev default
  */
 export function getBackendBase() {
   const envBase = (
+    import.meta.env.VITE_API_BASE ||
     import.meta.env.VITE_API_BASE_URL ||
     import.meta.env.VITE_API_URL ||
     ""
@@ -46,24 +38,22 @@ export function getBackendBase() {
 }
 
 /**
- * Get all backend candidates (for fallback probing)
- * Order: env base → canonical dev base → fallback candidates
+ * Get backend candidates.
+ * Contract:
+ * - Prefer explicit env base first when present.
+ * - Always include same-origin (Vite proxy) and local direct fallbacks.
+ * This prevents a single bad proxy/base from freezing the UI.
  */
 export function getBackendCandidates() {
-  const candidates = [];
+  const out = [];
   const envBase = getBackendBase();
-
   if (envBase && envBase !== BACKEND_BASE_DEV) {
-    pushCandidate(candidates, envBase);
+    pushCandidate(out, envBase);
   }
-
-  pushCandidate(candidates, BACKEND_BASE_DEV);
-
-  for (const base of BACKEND_FALLBACK_CANDIDATES) {
-    pushCandidate(candidates, base);
-  }
-
-  return candidates;
+  pushCandidate(out, BACKEND_BASE_DEV);
+  pushCandidate(out, "http://127.0.0.1:5003");
+  pushCandidate(out, "http://localhost:5003");
+  return out.length ? out : [BACKEND_BASE_DEV];
 }
 
 // ============================================================================

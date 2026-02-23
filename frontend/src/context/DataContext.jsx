@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import { normalizeAlert as normalizeAlertShape } from "../utils/alerts_normalize";
+import { upsertCoinEvents } from "../utils/coinHistoryCache";
 import {
   getBackendCandidates,
   normalizeBase,
@@ -16,15 +17,21 @@ const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
 const BACKOFF_WINDOW_MS = 30_000;
 const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
 const PUBLISH_UI_MS = Number(import.meta.env.VITE_PUBLISH_UI_MS || 4000);
+const DATA_FETCH_TIMEOUT_MS = Number(import.meta.env.VITE_DATA_FETCH_TIMEOUT_MS || 12000);
+const ALERTS_FETCH_TIMEOUT_MS = Number(import.meta.env.VITE_ALERTS_FETCH_TIMEOUT_MS || 10000);
+const ALERTS_POLL_MS = Number(import.meta.env.VITE_ALERTS_POLL_MS || 8000);
+const LAST_GOOD_MAX_AGE_MS = Number(import.meta.env.VITE_LAST_GOOD_MAX_AGE_MS || 180000);
 const MW_LAST_GOOD_DATA = "mw_last_good_data";
 const MW_LAST_GOOD_AT = "mw_last_good_at";
 const MW_DEBUG = import.meta.env.VITE_MW_DEBUG === "1";
 
 const readCachedPayload = () => {
   if (typeof window === "undefined") return null;
-  // Prefer new last-good cache; fall back to legacy key
+  // Read only canonical last-good cache.
+  // Do not fall back to legacy `bh_last_payload_v1`, which can pin very old
+  // snapshots and make the UI appear frozen after HMR/server restarts.
   try {
-    const raw = window.localStorage.getItem(MW_LAST_GOOD_DATA) || window.localStorage.getItem(LS_KEY);
+    const raw = window.localStorage.getItem(MW_LAST_GOOD_DATA);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -164,15 +171,123 @@ const parseStatus = (err) => {
   return null;
 };
 
+const toEpochMsLoose = (value) => {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    const abs = Math.abs(value);
+    if (abs < 1e11) return Math.round(value * 1000); // seconds
+    if (abs < 1e14) return Math.round(value); // milliseconds
+    if (abs < 1e17) return Math.round(value / 1000); // microseconds
+    return Math.round(value / 1e6); // nanoseconds-ish
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) {
+    return toEpochMsLoose(Number(raw));
+  }
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const alertTsMsFromRow = (row) => {
+  if (!row || typeof row !== "object") return 0;
+  const candidates = [
+    row.event_ts_ms,
+    row.ts_ms,
+    row.timestamp_ms,
+    row.event_ts,
+    row.ts,
+    row.timestamp,
+    row.created_at,
+    row.createdAt,
+    row.time,
+    row.when,
+  ];
+  for (const v of candidates) {
+    const ms = toEpochMsLoose(v);
+    if (Number.isFinite(ms)) return ms;
+  }
+  return 0;
+};
+
+const normalizeAlertRowsForFallback = (rows) => {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  return rows
+    .map((row) => (row && typeof row === "object" ? normalizeAlertShape(row) : null))
+    .filter(Boolean)
+    .sort((a, b) => alertTsMsFromRow(b) - alertTsMsFromRow(a));
+};
+
+const deriveRecentAlertsFromRows = (rows, limit = 50) => {
+  const sorted = normalizeAlertRowsForFallback(rows);
+  return sorted.slice(0, Math.max(1, Number(limit) || 50));
+};
+
+const deriveActiveAlertsFromRows = (rows, limit = 50) => {
+  const sorted = normalizeAlertRowsForFallback(rows);
+  const out = [];
+  const seen = new Set();
+  const max = Math.max(1, Number(limit) || 50);
+  for (const row of sorted) {
+    const symbol = historySymbolFromRow(row) || String(row?.symbol || row?.product_id || "").toUpperCase();
+    const type = String(row?.type_key || row?.type || "unknown").toLowerCase();
+    const key = `${symbol}:${type}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+    if (out.length >= max) break;
+  }
+  return out;
+};
+
+const historySymbolFromRow = (row) => {
+  const raw = String(
+    row?.symbol ||
+    row?.product_id ||
+    row?.productId ||
+    row?.pair ||
+    row?.coin ||
+    ""
+  ).trim().toUpperCase();
+  if (!raw) return "";
+  return raw.replace(/-USD$|-USDT$|-USDC$|-PERP$/i, "");
+};
+
+const cacheCoinHistoryRows = (rows) => {
+  if (typeof window === "undefined") return;
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return;
+
+  const bySymbol = new Map();
+  for (const row of list) {
+    const symbol = historySymbolFromRow(row);
+    if (!symbol) continue;
+    if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
+    bySymbol.get(symbol).push(row);
+  }
+
+  for (const [symbol, items] of bySymbol.entries()) {
+    upsertCoinEvents(symbol, items);
+  }
+};
+
 export function DataProvider({ children }) {
   // Use relative paths - Vite proxy handles routing to backend
   // Config centralized in config/api.js
 
+  const cachedLastGoodAt = useMemo(() => readCachedTimestamp(), []);
   const cachedNormalized = useMemo(() => {
     const cached = readCachedPayload();
-    return cached ? normalizeApiData(cached) : null;
-  }, []);
-  const cachedLastGoodAt = useMemo(() => readCachedTimestamp(), []);
+    if (!cached) return null;
+    if (Number.isFinite(cachedLastGoodAt)) {
+      const ageMs = Date.now() - Number(cachedLastGoodAt);
+      if (ageMs > LAST_GOOD_MAX_AGE_MS) {
+        return null;
+      }
+    }
+    return normalizeApiData(cached);
+  }, [cachedLastGoodAt]);
 
   // "Published" slices that drive the UI at different cadences
   const [oneMinRows, setOneMinRows] = useState(() => cachedNormalized?.gainers_1m ?? []);
@@ -254,11 +369,27 @@ export function DataProvider({ children }) {
   const pollTimerRef = useRef(null);
   const backoffUntilRef = useRef(0);
   const inFlightRef = useRef(false);
+  const lastAlertsContractOkRef = useRef(0);
   const staggerTokenRef = useRef(null);
   const heartbeatTimerRef = useRef(null);
   const failCountRef = useRef(0);
   const lastFetchOkRef = useRef(true);
   const pollStartedRef = useRef(false);
+
+  const hydrateAlertsFromDataRows = useCallback((rows, reason = "alerts_contract_unreachable") => {
+    const recent = deriveRecentAlertsFromRows(rows, 50);
+    if (!recent.length) return false;
+    const active = deriveActiveAlertsFromRows(recent, 50);
+    setActiveAlerts(active);
+    setAlertsRecent(recent);
+    setAlertsMeta((prev) => ({
+      ...(prev || {}),
+      fallback_from_data: true,
+      fallback_reason: reason,
+      asof_ts: new Date().toISOString(),
+    }));
+    return true;
+  }, []);
 
   // Commit 1m rows as a whole snapshot.
   // Row liveliness is handled in the table layer (value-only pulses + staggering),
@@ -422,7 +553,13 @@ export function DataProvider({ children }) {
       persistLastGood(mergedNorm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
-      setAlerts(Array.isArray(norm.alerts) ? norm.alerts : []);
+      const snapshotAlerts = Array.isArray(norm.alerts) ? norm.alerts : [];
+      setAlerts(snapshotAlerts);
+      cacheCoinHistoryRows(snapshotAlerts);
+      const msSinceAlertsContractOk = Date.now() - Number(lastAlertsContractOkRef.current || 0);
+      if (snapshotAlerts.length > 0 && msSinceAlertsContractOk > Math.max(15_000, ALERTS_POLL_MS * 2)) {
+        hydrateAlertsFromDataRows(snapshotAlerts, "alerts_contract_stale");
+      }
       if (norm.sentiment != null) setSentiment(norm.sentiment);
       if (norm.sentiment_meta != null) setSentimentMeta(norm.sentiment_meta);
       setMarketPressure(norm.market_pressure ?? null);
@@ -457,33 +594,15 @@ export function DataProvider({ children }) {
     heartbeatTimerRef.current = setTimeout(() => {
       setHeartbeatPulse(false);
     }, 420);
-  }, [commit1m, persistLastGood]);
+  }, [commit1m, hydrateAlertsFromDataRows, persistLastGood]);
 
   const fetchData = useCallback(async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
-    // Get candidates from centralized config (includes env, proxy, fallbacks)
+    // Get candidates from centralized config.
+    // Contract: explicit env base only, otherwise same-origin via Vite proxy.
     let candidates = getBackendCandidates();
-
-    // Prioritize last working runtime base if available
-    if (backendBase) {
-      const norm = normalizeBase(backendBase);
-      if (norm && !isBlockedPort(norm)) {
-        candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
-      }
-    }
-
-    // Also check localStorage cache
-    try {
-      const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(LS_BACKEND_KEY) : null;
-      if (cachedBase) {
-        const norm = normalizeBase(cachedBase);
-        if (norm && !isBlockedPort(norm)) {
-          candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
-        }
-      }
-    } catch {}
 
     const tryOnce = async (base) => {
       if (abortRef.current) {
@@ -491,7 +610,7 @@ export function DataProvider({ children }) {
       }
       const controller = new AbortController();
       abortRef.current = controller;
-      const timeoutMs = 2200;
+      const timeoutMs = DATA_FETCH_TIMEOUT_MS;
       const timeoutId = setTimeout(() => {
         try { controller.abort("timeout"); } catch {}
       }, timeoutMs);
@@ -557,7 +676,7 @@ export function DataProvider({ children }) {
 
     inFlightRef.current = false;
     return succeeded;
-  }, [applySnapshot, backendBase]);
+  }, [applySnapshot]);
 
   // Publish pending snapshots on a steady cadence to avoid spamming React state.
   useEffect(() => {
@@ -619,7 +738,6 @@ export function DataProvider({ children }) {
   }, [fetchData]);
 
   // Canonical /api/alerts poller — slower cadence (8s), feeds active + meta
-  const ALERTS_POLL_MS = Number(import.meta.env.VITE_ALERTS_POLL_MS || 8000);
   const alertsPollRef = useRef(null);
   const alertsInflightRef = useRef(false);
   const alertsContractWarnedRef = useRef(false);
@@ -632,27 +750,9 @@ export function DataProvider({ children }) {
       if (alertsInflightRef.current || cancelled) return;
       alertsInflightRef.current = true;
       try {
-        // Use same candidate logic as main data fetch
+        // Use same candidate contract as main data fetch:
+        // explicit env base only, otherwise same-origin via Vite proxy.
         let candidates = getBackendCandidates();
-
-        // Prioritize last working runtime base if available
-        if (backendBase) {
-          const norm = normalizeBase(backendBase);
-          if (norm && !isBlockedPort(norm)) {
-            candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
-          }
-        }
-
-        // Also check localStorage cache
-        try {
-          const cachedBase = typeof window !== "undefined" ? window.localStorage.getItem(LS_BACKEND_KEY) : null;
-          if (cachedBase) {
-            const norm = normalizeBase(cachedBase);
-            if (norm && !isBlockedPort(norm)) {
-              candidates = [norm, ...candidates.filter(c => normalizeBase(c) !== norm)];
-            }
-          }
-        } catch {}
 
         let json = null;
         let okBase = null;
@@ -662,7 +762,7 @@ export function DataProvider({ children }) {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
             try { controller.abort("timeout"); } catch {}
-          }, 2200);
+          }, ALERTS_FETCH_TIMEOUT_MS);
           try {
             const baseNorm = base && base.startsWith("http") ? base.replace(/\/+$/, "") : "";
             const url = `${baseNorm}/api/alerts?limit=50&active_ttl_s=300`;
@@ -714,6 +814,11 @@ export function DataProvider({ children }) {
           if (lastError && String(lastError?.name || "").toLowerCase() !== "aborterror" && MW_DEBUG) {
             console.warn("[mw] /api/alerts poll failed:", lastError);
           }
+          const fallbackRows =
+            latestNormalizedRef.current?.alerts ||
+            lastGoodRef.current?.alerts ||
+            [];
+          hydrateAlertsFromDataRows(fallbackRows, "alerts_contract_unreachable");
           return;
         }
 
@@ -742,9 +847,38 @@ export function DataProvider({ children }) {
         }
 
         if (cancelled) return;
-        if (Array.isArray(json.active)) setActiveAlerts(json.active);
-        if (Array.isArray(json.recent)) setAlertsRecent(json.recent);
-        if (json.meta && typeof json.meta === "object") setAlertsMeta(json.meta);
+        lastAlertsContractOkRef.current = Date.now();
+
+        const activeList = Array.isArray(json.active) ? json.active : [];
+        const recentList = Array.isArray(json.recent) ? json.recent : [];
+
+        // Contract can be temporarily empty while /data already has alert rows.
+        // In that case, hydrate from /data so the Alerts UI doesn't go dead.
+        if (activeList.length === 0 && recentList.length === 0) {
+          const fallbackRows =
+            latestNormalizedRef.current?.alerts ||
+            lastGoodRef.current?.alerts ||
+            [];
+          const hydrated = hydrateAlertsFromDataRows(fallbackRows, "alerts_contract_empty");
+          if (hydrated) {
+            setAlertsMeta((prev) => ({
+              ...(json.meta && typeof json.meta === "object" ? json.meta : {}),
+              ...(prev || {}),
+              fallback_from_data: true,
+              fallback_reason: "alerts_contract_empty",
+            }));
+            return;
+          }
+        }
+
+        setActiveAlerts(activeList);
+        setAlertsRecent(recentList);
+        cacheCoinHistoryRows([...activeList, ...recentList]);
+        if (json.meta && typeof json.meta === "object") {
+          setAlertsMeta({ ...json.meta, fallback_from_data: false });
+        } else {
+          setAlertsMeta({ fallback_from_data: false });
+        }
       } catch (err) {
         if (String(err?.name || "").toLowerCase() === "aborterror") return;
         if (MW_DEBUG) console.warn("[mw] /api/alerts poll failed:", err);
@@ -760,7 +894,7 @@ export function DataProvider({ children }) {
       if (alertsPollRef.current) clearInterval(alertsPollRef.current);
       alertsPollRef.current = null;
     };
-  }, [backendBase]);
+  }, [hydrateAlertsFromDataRows]);
 
   // Legacy compatibility: combine all published slices
   const combinedData = useMemo(() => ({

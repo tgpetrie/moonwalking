@@ -3,6 +3,7 @@ import { formatPct, formatPrice } from "../utils/format";
 import { deriveAlertType, extractAlertPct, parseImpulseMessage, windowLabelFromType } from "../utils/alertClassifier";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
+import { stripLeadingSymbol, stripLeadingType } from "../utils/alertText";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -85,6 +86,19 @@ const classifyLog = (log) => {
   else if (derivedType === "MOVE") chipTone = Number.isFinite(pct) && pct < 0 ? "loss" : "gain";
   else if (["SENTIMENT", "DIVERGENCE", "VOLUME", "WHALE", "STEALTH"].includes(derivedType)) chipTone = "sent";
   return { label: derivedType, chipTone };
+};
+
+const cleanAlertMessage = (message, symbol, typeLabel) => {
+  let text = String(message || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  const sym = String(symbol || "").trim().toUpperCase();
+  const type = String(typeLabel || "").trim();
+
+  text = stripLeadingSymbol(text, sym);
+  text = stripLeadingType(text, type);
+
+  return text;
 };
 
 const buildMessage = (log, label) => {
@@ -365,15 +379,16 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         a?.meta?.sentimentDelta
       );
       const divergenceRaw = extractDivergenceRaw(a) ?? extractDivergenceRaw(a?.meta || {});
-      const msg = a.message || a.title || "";
+      const rawMsg = a.message || a.title || "";
+      const msg = cleanAlertMessage(rawMsg, symbol, type);
 
-        newLogs.push({
-          id: `a-${Date.now()}-${Math.random()}`,
-          time: timeStr,
-          symbol,
-          url,
-          prefix: "",
-        body: msg ? `${type} — ${msg}` : type,
+      newLogs.push({
+        id: `a-${Date.now()}-${Math.random()}`,
+        time: timeStr,
+        symbol,
+        url,
+        prefix: "",
+        body: msg || "",
         type: norm?.type || a?.type || type,
         type_key: norm?.type_key || "",
         severity: norm?.severity || a?.severity || "info",

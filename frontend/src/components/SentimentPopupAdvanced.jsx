@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useMarketHeat } from '../hooks/useMarketHeat';
 import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
+import { getCoinEvents } from '../utils/coinHistoryCache';
 import AlertsTab from './AlertsTab';
 import MarketSignalCard from './MarketSignalCard';
 import '../styles/sentiment-popup-advanced.css';
@@ -9,7 +10,7 @@ import '../styles/sentiment-popup-advanced.css';
 const REFRESH_MS = 15000;
 const COIN_REFRESH_MS = 30000;
 const INTEL_REFRESH_MS = 60000;
-const COIN_ALERT_REFRESH_MS = 60000;
+const TAPE_MIN = 12;
 
 const normalizeTab = (value) => {
   const raw = String(value || '').trim().toLowerCase();
@@ -62,7 +63,7 @@ const toNumber = (value) => {
 
 const formatPercent = (value) => {
   const n = toNumber(value);
-  if (n === null) return '--';
+  if (n === null) return 'No data yet';
   const abs = Math.abs(n);
   const digits = abs >= 10 ? 1 : abs >= 1 ? 2 : 3;
   return `${n >= 0 ? '+' : ''}${n.toFixed(digits)}%`;
@@ -130,6 +131,15 @@ const parseCoinInsights = (payload) => {
     change3m: toNumber(root.change_3m ?? root.change3m ?? root.metrics?.change_3m ?? root.metrics?.change3m),
     change1h: toNumber(root.change_1h ?? root.change1h ?? root.d1h ?? root.metrics?.change_1h ?? root.metrics?.change1h),
     volumeChange1h: toNumber(root.volume_change_1h ?? root.volumeChange1h ?? root.metrics?.volume_change_1h ?? root.metrics?.volumeChange1h),
+    tape: Array.isArray(root.tape)
+      ? root.tape
+      : Array.isArray(root.coin_tape)
+        ? root.coin_tape
+        : Array.isArray(root.metrics?.tape)
+          ? root.metrics.tape
+          : Array.isArray(root.samples)
+            ? root.samples
+            : [],
     updatedAt: root.updated_at ?? root.updatedAt ?? root.timestamp ?? null,
   };
 };
@@ -143,7 +153,7 @@ const clamp = (value, min, max) => {
 };
 
 const coinScoreLabel = (score) => {
-  if (score === null) return 'Awaiting tape';
+  if (score === null) return 'Warming up';
   if (score <= 35) return 'Cautious';
   if (score <= 65) return 'Neutral';
   return 'Aggressive';
@@ -151,13 +161,13 @@ const coinScoreLabel = (score) => {
 
 const humanTime = (value) => {
   const tsMs = normalizeTsMs(value);
-  if (!Number.isFinite(tsMs)) return '--';
-  return new Date(tsMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (!Number.isFinite(tsMs)) return 'No update yet';
+  return new Date(tsMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 };
 
 const formatCompactNumber = (value) => {
   const n = toNumber(value);
-  if (n === null) return '--';
+  if (n === null) return 'No data yet';
   const abs = Math.abs(n);
   if (abs >= 1000) {
     return new Intl.NumberFormat(undefined, {
@@ -279,30 +289,6 @@ const parseIntel = (payload) => {
   };
 };
 
-const parseCoinAlertsPayload = (payload) => {
-  const root = payload && typeof payload === 'object' ? payload : {};
-  const recentRaw = Array.isArray(root.recent)
-    ? root.recent
-    : Array.isArray(root.items)
-      ? root.items
-      : [];
-  const activeRaw = Array.isArray(root.active) ? root.active : [];
-  const sourcesRaw = Array.isArray(root.sources_used)
-    ? root.sources_used
-    : Array.isArray(root.sourcesUsed)
-      ? root.sourcesUsed
-      : [];
-  return {
-    status: String(root.status || 'offline'),
-    active: activeRaw.filter((row) => row && typeof row === 'object'),
-    recent: recentRaw.filter((row) => row && typeof row === 'object'),
-    sourcesUsed: sourcesRaw
-      .map((src) => String(src || '').trim().toLowerCase())
-      .filter(Boolean),
-    meta: root.meta && typeof root.meta === 'object' ? root.meta : {},
-  };
-};
-
 const symbolFromAlert = (alert) => {
   const raw = String(alert?.symbol || alert?.product_id || '').toUpperCase();
   if (!raw) return null;
@@ -334,7 +320,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     refresh,
     pipelineStatus,
   } = useMarketHeat();
-  const { activeAlerts = [], alertsRecent = [] } = useData() || {};
+  const {
+    activeAlerts = [],
+    alertsRecent = [],
+    connectionStatus = 'STALE',
+    staleSeconds = null,
+    lastFetchTs = null,
+  } = useData() || {};
 
   const [activeTab, setActiveTab] = useState(normalizeTab(defaultTab));
   const [chartExchange, setChartExchange] = useState('auto');
@@ -347,17 +339,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [coinIntel, setCoinIntel] = useState(null);
   const [coinIntelLoading, setCoinIntelLoading] = useState(false);
   const [coinIntelError, setCoinIntelError] = useState(null);
-
-  const [coinAlertsPayload, setCoinAlertsPayload] = useState(() => ({
-    status: 'offline',
-    active: [],
-    recent: [],
-    sourcesUsed: [],
-    meta: {},
-  }));
-  const [coinAlertsLoading, setCoinAlertsLoading] = useState(false);
-  const [coinAlertsError, setCoinAlertsError] = useState(null);
-  const [coinAlertsHydrated, setCoinAlertsHydrated] = useState(false);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
 
@@ -427,38 +408,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     }
   }, [coinSymbol, isOpen]);
 
-  const loadCoinAlerts = useCallback(async ({ silent = false } = {}) => {
-    if (!coinSymbol || !isOpen) {
-      setCoinAlertsPayload({
-        status: 'offline',
-        active: [],
-        recent: [],
-        sourcesUsed: [],
-        meta: {},
-      });
-      setCoinAlertsError(null);
-      setCoinAlertsHydrated(false);
-      return null;
-    }
-    if (!silent) setCoinAlertsLoading(true);
-    try {
-      const endpoint = API_ENDPOINTS.coinAlerts
-        ? API_ENDPOINTS.coinAlerts(coinSymbol)
-        : `/api/coin-alerts?symbol=${encodeURIComponent(coinSymbol)}`;
-      const payload = await fetchData(endpoint);
-      const parsed = parseCoinAlertsPayload(payload);
-      setCoinAlertsPayload(parsed);
-      setCoinAlertsError(null);
-      setCoinAlertsHydrated(true);
-      return parsed;
-    } catch (err) {
-      setCoinAlertsError(String(err?.message || err || 'Failed to load coin alerts'));
-      return null;
-    } finally {
-      if (!silent) setCoinAlertsLoading(false);
-    }
-  }, [coinSymbol, isOpen]);
-
   useEffect(() => {
     if (!isOpen || !coinSymbol) {
       setCoinInsights(null);
@@ -505,37 +454,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     };
   }, [isOpen, coinSymbol, loadCoinIntel, activeTab]);
 
-  useEffect(() => {
-    if (!isOpen || !coinSymbol) {
-      if (!coinSymbol) {
-        setCoinAlertsPayload({
-          status: 'offline',
-          active: [],
-          recent: [],
-          sourcesUsed: [],
-          meta: {},
-        });
-        setCoinAlertsError(null);
-        setCoinAlertsLoading(false);
-        setCoinAlertsHydrated(false);
-      }
-      return;
-    }
-
-    let cancelled = false;
-    const run = async (silent = false) => {
-      if (cancelled) return;
-      await loadCoinAlerts({ silent });
-    };
-
-    run(false);
-    const id = setInterval(() => run(true), COIN_ALERT_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [isOpen, coinSymbol, loadCoinAlerts]);
-
   const fallbackAllAlerts = useMemo(() => {
     const merged = [
       ...(Array.isArray(activeAlerts) ? activeAlerts : []),
@@ -559,14 +477,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     return [...filtered].sort((a, b) => alertTsMs(b) - alertTsMs(a));
   }, [fallbackAllAlerts, coinSymbol]);
 
+  const cachedCoinHistory = useMemo(() => {
+    if (!coinSymbol) return [];
+    const cached = getCoinEvents(coinSymbol);
+    return [...cached].sort((a, b) => alertTsMs(b) - alertTsMs(a));
+  }, [coinSymbol, activeAlerts, alertsRecent]);
+
   const coinAlerts = useMemo(() => {
     if (!coinSymbol) return [];
-    if (coinAlertsHydrated) {
-      const recent = Array.isArray(coinAlertsPayload.recent) ? coinAlertsPayload.recent : [];
-      return [...recent].sort((a, b) => alertTsMs(b) - alertTsMs(a));
-    }
-    return fallbackCoinAlerts;
-  }, [coinSymbol, coinAlertsHydrated, coinAlertsPayload.recent, fallbackCoinAlerts]);
+    if (fallbackCoinAlerts.length) return fallbackCoinAlerts;
+    return cachedCoinHistory;
+  }, [coinSymbol, fallbackCoinAlerts, cachedCoinHistory]);
 
   const breakoutState = useMemo(() => {
     const top = coinAlerts[0];
@@ -581,8 +502,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const change3m = toNumber(coinInsights?.change3m);
   const change1h = toNumber(coinInsights?.change1h);
   const volumeChange1h = toNumber(coinInsights?.volumeChange1h);
+  const tape = Array.isArray(coinInsights?.tape) ? coinInsights.tape : [];
+  const tapeCount = Math.max(
+    tape.length,
+    coinAlerts.length,
+    [change1m, change3m, change1h, volumeChange1h].filter((v) => v !== null).length * 3
+  );
+  const lastCoinUpdateTs = coinInsights?.updatedAt || coinAlerts[0]?.event_ts_ms || coinAlerts[0]?.ts_ms || coinAlerts[0]?.event_ts || coinAlerts[0]?.ts || null;
+  const hasLastCoinUpdate = Number.isFinite(normalizeTsMs(lastCoinUpdateTs));
+  const metricsReady = tapeCount >= TAPE_MIN && Number.isFinite(normalizeTsMs(lastCoinUpdateTs));
   const alignmentScore = trendScore(change1m, change3m, change1h);
-  const hasCoinTape = (change1m !== null || change3m !== null || change1h !== null || volumeChange1h !== null || coinAlerts.length > 0);
+  const hasCoinTape = metricsReady;
 
   const volumeConfirms = useMemo(() => {
     if (change3m === null || volumeChange1h === null) return false;
@@ -759,25 +689,41 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     return null;
   }, [change3m, socialHeat, socialHeatTrend, socialIsProxy]);
 
-  const coinAlertsSourcesLabel = useMemo(() => {
-    const list = Array.isArray(coinAlertsPayload?.sourcesUsed) ? coinAlertsPayload.sourcesUsed : [];
-    if (!list.length) return null;
-    return list.join(' · ');
-  }, [coinAlertsPayload]);
-
   const coinAlertsScopeNote = useMemo(() => {
     if (!coinSymbol) return null;
-    if (coinAlertsError && !coinAlertsHydrated) {
-      return 'Unified coin alerts unavailable. Using tape-only fallback.';
-    }
-    if (coinAlertsHydrated && coinAlertsSourcesLabel) {
-      return `Unified alerts sources: ${coinAlertsSourcesLabel}`;
-    }
-    if (coinAlertsLoading && !coinAlertsHydrated) {
-      return 'Loading unified coin alerts...';
+    if (!fallbackCoinAlerts.length && cachedCoinHistory.length) {
+      return 'Showing cached coin history while live tape builds.';
     }
     return null;
-  }, [coinSymbol, coinAlertsError, coinAlertsHydrated, coinAlertsSourcesLabel, coinAlertsLoading]);
+  }, [coinSymbol, fallbackCoinAlerts.length, cachedCoinHistory.length]);
+
+  const dataStaleAgeSeconds = useMemo(() => {
+    if (Number.isFinite(staleSeconds)) return Math.max(0, Number(staleSeconds));
+    if (staleSeconds && typeof staleSeconds === 'object') {
+      const nums = Object.values(staleSeconds)
+        .map((v) => Number(v))
+        .filter((v) => Number.isFinite(v));
+      if (nums.length) return Math.max(...nums);
+    }
+    if (Number.isFinite(lastFetchTs)) {
+      return Math.max(0, Math.round((Date.now() - Number(lastFetchTs)) / 1000));
+    }
+    return null;
+  }, [staleSeconds, lastFetchTs]);
+
+  const dataLinkState = useMemo(() => {
+    const status = String(connectionStatus || '').toUpperCase();
+    if (status === 'LIVE') {
+      return { tone: 'live', text: 'DATA: CONNECTED' };
+    }
+    if (status === 'DOWN') {
+      return { tone: 'offline', text: 'DATA: DOWN' };
+    }
+    if (Number.isFinite(dataStaleAgeSeconds)) {
+      return { tone: 'stale', text: `DATA: STALE (${Math.round(dataStaleAgeSeconds)}s)` };
+    }
+    return { tone: 'stale', text: 'DATA: STALE' };
+  }, [connectionStatus, dataStaleAgeSeconds]);
 
   const structureState = useMemo(() => {
     if (signalFlags.hasFakeout) return 'Fakeout';
@@ -790,6 +736,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
 
   const tvResolved = resolveTvSymbol(coinSymbol, chartExchange);
   const tvUrl = buildTradingViewEmbedUrl(tvResolved.symbol);
+  const coinPanelNeedsWarmup = activeTab === 'coin' && coinSymbol && !metricsReady;
+  const liveLabelRaw = coinPanelNeedsWarmup ? (coinInsightsLoading ? 'BOOTING' : 'WARMING') : String(pipelineStatus || 'STALE').toUpperCase();
+  const liveClass = liveLabelRaw === 'LIVE' ? 'live' : liveLabelRaw === 'OFFLINE' ? 'offline' : 'stale';
+  const noCoinAlertsNote = useMemo(() => {
+    if (!coinSymbol) return 'No coin alerts yet.';
+    const last = hasLastCoinUpdate ? ` Last tape ${humanTime(lastCoinUpdateTs)}.` : '';
+    return `No coin-specific alerts in the last few minutes. Watching ${coinSymbol} — waiting for a move.${last}`;
+  }, [coinSymbol, hasLastCoinUpdate, lastCoinUpdateTs]);
 
   const handleOverlayClick = (event) => {
     if (event.target.classList.contains('sentiment-overlay')) onClose();
@@ -801,7 +755,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       refresh({ freshLatest: true }),
       loadCoinInsights({ silent: false }),
       loadCoinIntel({ silent: false }),
-      loadCoinAlerts({ silent: false }),
     ]);
     setTimeout(() => setIsRefreshing(false), 700);
   };
@@ -833,10 +786,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           </div>
 
           <div className="header-right">
-            <div className={`live-indicator ${String(pipelineStatus || 'STALE').toLowerCase()}`}>
-              <span className={`pulse ${String(pipelineStatus || 'STALE').toLowerCase()}`} aria-hidden="true" />
-              <span className="live-text">{pipelineStatus || 'STALE'}</span>
+            <div className={`live-indicator ${liveClass}`}>
+              <span className={`pulse ${liveClass}`} aria-hidden="true" />
+              <span className="live-text">{liveLabelRaw}</span>
             </div>
+            <div className={`data-link-state ${dataLinkState.tone}`}>{dataLinkState.text}</div>
             <button className="close-btn" onClick={onClose} aria-label="Close popup">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12"/>
@@ -918,106 +872,120 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                 <div className="tab-empty">Choose a coin from the board to load its score and coin-specific alerts.</div>
               ) : (
                 <>
-                  <div className="info-section mw-coin-overview">
-                    <div className="section-header">
-                      <h3>Coin Overview</h3>
-                      <p className="section-desc">One-glance score and immediate tape-driven action for {coinSymbol}.</p>
-                    </div>
-                    <div className="mw-overview-grid">
-                      <article className="mw-score-card">
-                        <span className="mw-score-label">Coin Score</span>
-                        <span className={`mw-score-value ${coinScore === null ? 'neutral' : coinScore >= 66 ? 'positive' : coinScore <= 35 ? 'negative' : 'neutral'}`}>
-                          {coinScore === null ? '--' : coinScore}
-                        </span>
-                        <span className="mw-score-sub">{coinScoreLabel(coinScore)}</span>
-                      </article>
-                      <article className="mw-action-card">
-                        <span className="mw-action-label">Do This Now</span>
-                        <p className="mw-action-line">{primaryAction}</p>
-                        {socialActionLine ? <p className="mw-action-line mw-action-secondary">{socialActionLine}</p> : null}
-                      </article>
-                    </div>
-                    <div className="mw-score-chips">
-                      {/* Only show chips with meaningful data (not 0, not null) */}
-                      {change1m !== null && Math.abs(change1m) >= 0.01 && (
-                        <div className={`mw-chip ${toneClass(change1m)}`}>
-                          <span>1m</span>
-                          <strong>{formatPercent(change1m)}</strong>
+                  {metricsReady ? (
+                    <>
+                      <div className="info-section mw-coin-overview">
+                        <div className="section-header">
+                          <h3>Coin Overview</h3>
+                          <p className="section-desc">One-glance score and immediate tape-driven action for {coinSymbol}.</p>
                         </div>
-                      )}
-                      {change3m !== null && Math.abs(change3m) >= 0.01 && (
-                        <div className={`mw-chip ${toneClass(change3m)}`}>
-                          <span>3m</span>
-                          <strong>{formatPercent(change3m)}</strong>
+                        <div className="mw-overview-grid">
+                          <article className="mw-score-card">
+                            <span className="mw-score-label">Coin Score</span>
+                            <span className={`mw-score-value ${coinScore === null ? 'neutral' : coinScore >= 66 ? 'positive' : coinScore <= 35 ? 'negative' : 'neutral'}`}>
+                              {coinScore === null ? 'Calculating' : coinScore}
+                            </span>
+                            <span className="mw-score-sub">{coinScore === null ? 'Reading tape flow' : coinScoreLabel(coinScore)}</span>
+                          </article>
+                          <article className="mw-action-card">
+                            <span className="mw-action-label">Do This Now</span>
+                            <p className="mw-action-line">{primaryAction}</p>
+                            {socialActionLine ? <p className="mw-action-line mw-action-secondary">{socialActionLine}</p> : null}
+                          </article>
                         </div>
-                      )}
-                      {change1h !== null && Math.abs(change1h) >= 0.01 && (
-                        <div className={`mw-chip ${toneClass(change1h)}`}>
-                          <span>1h</span>
-                          <strong>{formatPercent(change1h)}</strong>
+                        <div className="mw-score-chips">
+                          {/* Only show chips with meaningful data (not 0, not null) */}
+                          {change1m !== null && Math.abs(change1m) >= 0.01 && (
+                            <div className={`mw-chip ${toneClass(change1m)}`}>
+                              <span>1m</span>
+                              <strong>{formatPercent(change1m)}</strong>
+                            </div>
+                          )}
+                          {change3m !== null && Math.abs(change3m) >= 0.01 && (
+                            <div className={`mw-chip ${toneClass(change3m)}`}>
+                              <span>3m</span>
+                              <strong>{formatPercent(change3m)}</strong>
+                            </div>
+                          )}
+                          {change1h !== null && Math.abs(change1h) >= 0.01 && (
+                            <div className={`mw-chip ${toneClass(change1h)}`}>
+                              <span>1h</span>
+                              <strong>{formatPercent(change1h)}</strong>
+                            </div>
+                          )}
+                          {volumeChange1h !== null && Math.abs(volumeChange1h) >= 1 && (
+                            <div className={`mw-chip ${toneClass(volumeChange1h)}`}>
+                              <span>Vol 1h</span>
+                              <strong>{formatPercent(volumeChange1h)}</strong>
+                            </div>
+                          )}
+                          {persistenceStreak ? (
+                            <div className="mw-chip positive">
+                              <span>Streak</span>
+                              <strong>{persistenceStreak}x</strong>
+                            </div>
+                          ) : null}
+                          <div className={`mw-chip ${structureState === 'Momentum' || structureState === 'Expansion' ? 'positive' : structureState === 'Calm' ? 'neutral' : 'negative'}`}>
+                            <span>Structure</span>
+                            <strong>{structureState}</strong>
+                          </div>
                         </div>
-                      )}
-                      {volumeChange1h !== null && Math.abs(volumeChange1h) >= 1 && (
-                        <div className={`mw-chip ${toneClass(volumeChange1h)}`}>
-                          <span>Vol 1h</span>
-                          <strong>{formatPercent(volumeChange1h)}</strong>
-                        </div>
-                      )}
-                      {persistenceStreak && (
-                        <div className="mw-chip positive">
-                          <span>Streak</span>
-                          <strong>{persistenceStreak}x</strong>
-                        </div>
-                      )}
-                      <div className={`mw-chip ${structureState === 'Momentum' || structureState === 'Expansion' ? 'positive' : structureState === 'Calm' ? 'neutral' : 'negative'}`}>
-                        <span>Structure</span>
-                        <strong>{structureState}</strong>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="stats-grid">
-                    <div className="stat-card primary">
-                      <div className="stat-content">
-                        <span className="stat-label">Trend Alignment</span>
-                        <span className={`stat-value ${alignmentScore > 0 ? 'positive' : alignmentScore < 0 ? 'negative' : 'neutral'}`}>
-                          {hasCoinTape ? `${alignmentScore > 0 ? '+' : ''}${alignmentScore}` : '--'}
-                        </span>
-                        <span className="stat-sublabel">{hasCoinTape ? `${trendLabel(alignmentScore)} (1m/3m/1h)` : 'Awaiting tape'}</span>
+                      <div className="stats-grid">
+                        <div className="stat-card primary">
+                          <div className="stat-content">
+                            <span className="stat-label">Trend Alignment</span>
+                            <span className={`stat-value ${alignmentScore > 0 ? 'positive' : alignmentScore < 0 ? 'negative' : 'neutral'}`}>
+                              {`${alignmentScore > 0 ? '+' : ''}${alignmentScore}`}
+                            </span>
+                            <span className="stat-sublabel">{`${trendLabel(alignmentScore)} (1m/3m/1h)`}</span>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <div className="stat-content">
+                            <span className="stat-label">Breakout State</span>
+                            <span className={`stat-value ${breakoutState === 'Breakout Up' ? 'positive' : breakoutState === 'Breakout Down' ? 'negative' : 'neutral'}`}>
+                              {breakoutState}
+                            </span>
+                            <span className="stat-sublabel">
+                              {coinAlerts.length > 0 ? `Alerts tracked: ${coinAlerts.length}` : 'Tracking: tape-only'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <div className="stat-content">
+                            <span className="stat-label">Confidence</span>
+                            <span className={`stat-value ${confidencePct !== null && confidencePct >= 65 ? 'positive' : confidencePct !== null && confidencePct <= 35 ? 'negative' : 'neutral'}`}>
+                              {confidencePct === null ? 'Low visibility' : `${confidencePct}%`}
+                            </span>
+                            <span className="stat-sublabel">{confidencePct === null ? 'Alignment still forming' : 'Alignment + volume + streak'}</span>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <div className="stat-content">
+                            <span className="stat-label">Last Coin Update</span>
+                            <span className="stat-value small">{humanTime(lastCoinUpdateTs)}</span>
+                            <span className="stat-sublabel">Auto-refresh {Math.round(COIN_REFRESH_MS / 1000)}s</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bh-coin-warmup">
+                      <div className="bh-coin-warmup__title">Warming up</div>
+                      <div className="bh-coin-warmup__sub">Collecting tape to generate reliable signals.</div>
+                      <div className="bh-coin-warmup__meta">
+                        Tape samples: {tapeCount}/{TAPE_MIN}{hasLastCoinUpdate ? ` · Last update ${humanTime(lastCoinUpdateTs)}` : ''}
                       </div>
                     </div>
-                    <div className="stat-card">
-                      <div className="stat-content">
-                        <span className="stat-label">Breakout State</span>
-                        <span className={`stat-value ${breakoutState === 'Breakout Up' ? 'positive' : breakoutState === 'Breakout Down' ? 'negative' : 'neutral'}`}>
-                          {hasCoinTape ? breakoutState : '--'}
-                        </span>
-                        <span className="stat-sublabel">Alerts tracked: {coinAlerts.length}</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-content">
-                        <span className="stat-label">Confidence</span>
-                        <span className={`stat-value ${confidencePct !== null && confidencePct >= 65 ? 'positive' : confidencePct !== null && confidencePct <= 35 ? 'negative' : 'neutral'}`}>
-                          {confidencePct === null ? '--' : `${confidencePct}%`}
-                        </span>
-                        <span className="stat-sublabel">{confidencePct === null ? 'Awaiting tape' : 'Alignment + volume + streak'}</span>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-content">
-                        <span className="stat-label">Last Coin Update</span>
-                        <span className="stat-value small">{humanTime(coinInsights?.updatedAt)}</span>
-                        <span className="stat-sublabel">Auto-refresh {Math.round(COIN_REFRESH_MS / 1000)}s</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {coinInsightsLoading && !coinInsights ? (
                     <div className="coin-history-note">Loading coin pressure...</div>
                   ) : null}
                   {coinInsightsError ? (
-                    <div className="coin-history-note error mw-fetch-note">Coin insights temporarily unavailable. Showing tape-only signals.</div>
+                    <div className="coin-history-note error mw-fetch-note">Coin insights temporarily unavailable. Tape-only mode is active; metrics appear after enough tape.</div>
                   ) : null}
 
                   <div className="info-section">
@@ -1026,12 +994,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                       <p className="section-desc">Signal stream filtered strictly to this coin.</p>
                     </div>
                     {coinAlertsScopeNote ? (
-                      <div className={`coin-history-note ${coinAlertsError && !coinAlertsHydrated ? 'error mw-fetch-note' : ''}`}>
+                      <div className="coin-history-note">
                         {coinAlertsScopeNote}
                       </div>
                     ) : null}
                     {!coinAlerts.length ? (
-                      <div className="coin-history-note">No coin alerts yet.</div>
+                      <div className="coin-history-note">{noCoinAlertsNote}</div>
                     ) : null}
                     <AlertsTab filterSymbol={coinSymbol} compact />
                   </div>
@@ -1106,7 +1074,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                     <div className="stat-card">
                       <div className="stat-content">
                         <span className="stat-label">CoinPaprika Id</span>
-                        <span className="stat-value small">{coinIntel?.coinId || '--'}</span>
+                        <span className="stat-value small">{coinIntel?.coinId || 'Not linked yet'}</span>
                         <span className="stat-sublabel">Cached for {Math.round(INTEL_REFRESH_MS / 1000)}s polling</span>
                       </div>
                     </div>
@@ -1114,7 +1082,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
 
                   {coinIntelLoading && !coinIntel ? <div className="coin-history-note">Loading coin intel...</div> : null}
                   {coinIntelError ? (
-                    <div className="coin-history-note error mw-fetch-note">Intel temporarily unavailable. Showing tape-only signals.</div>
+                    <div className="coin-history-note error mw-fetch-note">Intel temporarily unavailable. Tape-only mode is active while external intel reconnects.</div>
                   ) : null}
 
                   <div className="info-section">

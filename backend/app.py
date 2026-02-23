@@ -9886,6 +9886,68 @@ def _cap_active_alert_families(
     return out
 
 
+def _cap_recent_alert_families(
+    items: list[dict],
+    *,
+    capped_families: set[str] | None = None,
+    per_symbol_family_max: int = 2,
+    family_max_map: dict[str, int] | None = None,
+    default_family_max: int = 8,
+    limit: int | None = None,
+) -> list[dict]:
+    """Soft-cap family walls in recent feed while preserving recency.
+
+    Strategy:
+    - Iterate newest-first.
+    - Keep within per-family + per-symbol-family caps for capped families.
+    - Defer overflow items, then backfill if result is under limit.
+    """
+    if not items:
+        return []
+
+    capped = capped_families or {"whale", "stealth"}
+    fam_max = dict(family_max_map or {"whale": 6, "stealth": 4})
+    per_symbol_family_max = max(1, int(per_symbol_family_max))
+    default_family_max = max(1, int(default_family_max))
+    target = None if limit is None else max(1, int(limit))
+
+    fam_counts: dict[str, int] = {}
+    fam_symbol_counts: dict[tuple[str, str], int] = {}
+    kept_newest: list[dict] = []
+    deferred_newest: list[dict] = []
+
+    # newest-first
+    for a in reversed(list(items)):
+        fam = _active_family(a)
+        if fam not in capped:
+            kept_newest.append(a)
+            continue
+
+        sym = str((a or {}).get("symbol") or "").upper()
+        fam_sym_key = (fam, sym)
+        fam_cap = max(1, int(fam_max.get(fam, default_family_max)))
+        if fam_counts.get(fam, 0) >= fam_cap:
+            deferred_newest.append(a)
+            continue
+        if fam_symbol_counts.get(fam_sym_key, 0) >= per_symbol_family_max:
+            deferred_newest.append(a)
+            continue
+
+        kept_newest.append(a)
+        fam_counts[fam] = fam_counts.get(fam, 0) + 1
+        fam_symbol_counts[fam_sym_key] = fam_symbol_counts.get(fam_sym_key, 0) + 1
+
+    if target is not None and len(kept_newest) < target and deferred_newest:
+        needed = target - len(kept_newest)
+        kept_newest.extend(deferred_newest[:needed])
+
+    if target is not None:
+        kept_newest = kept_newest[:target]
+
+    # return oldest->newest for stable "recent" list display
+    return list(reversed(kept_newest))
+
+
 def _round_api_float(value: float, key: str | None = None):
     if not math.isfinite(value):
         return None
@@ -10881,17 +10943,35 @@ def get_alerts_contract():
             active_raw,
             capped_families={"whale", "stealth"},
             per_symbol_family_max=1,
-            per_family_max=3,
+            per_family_max=2,
         )
         active = active_capped[:limit]
-        recent = list(scan_items or [])[-limit:]
+        recent_raw = list(scan_items or [])[-limit:]
+        recent_capped = _cap_recent_alert_families(
+            recent_raw,
+            capped_families={"whale", "stealth"},
+            per_symbol_family_max=2,
+            family_max_map={"whale": 6, "stealth": 4},
+            default_family_max=8,
+            limit=limit,
+        )
+        recent = recent_capped
         active_meta = {
             "pre_family_cap_count": len(active_raw),
             "post_family_cap_count": len(active_capped),
             "family_caps": {
                 "capped_families": ["whale", "stealth"],
-                "per_family_max": 3,
+                "per_family_max": 2,
                 "per_symbol_family_max": 1,
+            },
+            "recent_shaping": {
+                "pre_cap_count": len(recent_raw),
+                "post_cap_count": len(recent_capped),
+                "family_caps": {
+                    "capped_families": ["whale", "stealth"],
+                    "per_family_max": {"whale": 6, "stealth": 4},
+                    "per_symbol_family_max": 2,
+                },
             },
         }
         payload = {

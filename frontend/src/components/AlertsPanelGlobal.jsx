@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import AlertsTab from './AlertsTab';
 import '../styles/sentiment-popup-advanced.css';
 
-export default function AlertsPanelGlobal({ isOpen, onClose }) {
+export default function AlertsPanelGlobal({ isOpen, onClose, onOpenCoinSentiment = null }) {
   useEffect(() => {
     const onEsc = (evt) => {
       if (evt.key === 'Escape' && isOpen) onClose();
@@ -59,7 +59,7 @@ export default function AlertsPanelGlobal({ isOpen, onClose }) {
 
         <main className="tab-content">
           <section className="tab-panel active" role="tabpanel">
-            <AlertsTab compact={false} />
+            <AlertsTab compact={false} onOpenCoinSentiment={onOpenCoinSentiment} />
           </section>
         </main>
       </div>

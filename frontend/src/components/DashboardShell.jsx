@@ -386,6 +386,10 @@ export default function DashboardShell({ onInfo }) {
       <AlertsPanelGlobal
         isOpen={alertsOpen}
         onClose={() => setAlertsOpen(false)}
+        onOpenCoinSentiment={(symbol) => {
+          handleInfo(symbol);
+          setAlertsOpen(false);
+        }}
       />
 
       <AskBhabitPanel />

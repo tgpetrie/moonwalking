@@ -106,10 +106,10 @@ class AlertSeverity(str, Enum):
 
 DEFAULT_THRESHOLDS = {
     # Impulse (MOONSHOT / CRATER / BREAKOUT / DUMP)
-    "moonshot_1m_pct": 1.15,  # >= this on 1m -> moonshot/crater
-    "moonshot_3m_pct": 3.00,  # >= this on 3m -> moonshot/crater
-    "breakout_1m_pct": 0.65,  # >= this on 1m -> breakout/dump
-    "breakout_3m_pct": 2.20,  # >= this on 3m -> breakout/dump
+    "moonshot_1m_pct": 1.00,  # >= this on 1m -> moonshot/crater
+    "moonshot_3m_pct": 2.60,  # >= this on 3m -> moonshot/crater
+    "breakout_1m_pct": 0.55,  # >= this on 1m -> breakout/dump
+    "breakout_3m_pct": 1.90,  # >= this on 3m -> breakout/dump
     "impulse_1m_pct": 1.25,  # minimum to even consider 1m impulse
     "impulse_3m_pct": 2.0,  # minimum to even consider 3m impulse
     # Whale (volume surge)
@@ -146,35 +146,35 @@ DEFAULT_THRESHOLDS = {
     "vol_score_mid": 0.60,
     "coin_fomo_mpi_min": 72,
     "coin_fomo_d_mpi_60s": 6.0,
-    "coin_fomo_pct3m_min": 2.2,
+    "coin_fomo_pct3m_min": 1.8,
     "coin_fomo_pct1m_min": 0.6,
     "coin_fomo_accel_min": 0.9,
     "coin_thrust_breadth_min": 0.65,
-    "coin_thrust_pct3m_min": 1.6,
+    "coin_thrust_pct3m_min": 1.2,
     "coin_thrust_rs3m_min": 0.8,
     "coin_thrust_persist_min": 0.35,
     "coin_failure_breadth_max": 0.35,
-    "coin_failure_pct3m_max": -1.6,
+    "coin_failure_pct3m_max": -1.2,
     "coin_failure_rs3m_max": -0.9,
     "vol_regime_min": 0.20,
     "reversal_min_prev_pct": 2.0,
     "reversal_min_flip_pct": 0.6,
-    "fakeout_min_breakout_pct": 2.0,
-    "fakeout_min_reject_pct": 0.8,
-    "persist_min_streak": 4,
-    "persist_min_pct": 1.5,
+    "fakeout_min_breakout_pct": 1.6,
+    "fakeout_min_reject_pct": 0.6,
+    "persist_min_streak": 3,
+    "persist_min_pct": 1.1,
     "volx_window_now": 10,
     "volx_window_prev": 20,
-    "volx_ratio_min": 2.0,
+    "volx_ratio_min": 1.7,
     "volx_vol_floor": 0.25,
     "volx_prev_floor": 0.02,
-    "liq_shock_z_min": 3.0,
+    "liq_shock_z_min": 2.6,
     "liq_shock_price_max_abs_pct": 0.25,
     "liq_shock_min_samples": 30,
     "liq_shock_min_latest_vol": 75.0,
     "trend_break_fast_alpha": 0.3333,  # ~EMA(5) on 1m returns
     "trend_break_slow_alpha": 0.0952,  # ~EMA(20) on 1m returns
-    "trend_break_min_abs_diff": 0.10,
+    "trend_break_min_abs_diff": 0.08,
     "trend_break_vol_confirm_pct": 15.0,
     "trend_break_vol_ratio_min": 1.20,
     "squeeze_window_n": 10,
@@ -212,11 +212,11 @@ DEFAULT_THRESHOLDS = {
     "cooldown_fomo": 600,
     "cooldown_market_siren": 900,  # legacy alias
     "cooldown_coin_fomo": 240,
-    "cooldown_coin_thrust": 240,
-    "cooldown_coin_failure": 240,
+    "cooldown_coin_thrust": 180,
+    "cooldown_coin_failure": 180,
     "cooldown_reversal": 120,
     "cooldown_fakeout": 180,
-    "cooldown_persist": 300,
+    "cooldown_persist": 240,
     "cooldown_volx": 240,
     "cooldown_liq_shock": 150,
     "cooldown_trend_break": 240,
