@@ -9,6 +9,21 @@ const target =
 
 const vitePort = Number(process.env.VITE_PORT || 5173)
 
+const attachProxyErrorHandler = (proxy) => {
+  proxy.on('error', (err, req, res) => {
+    if (!res || res.headersSent) return
+    res.writeHead(502, { 'Content-Type': 'application/json' })
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: 'backend_unreachable',
+        detail: String(err?.message || err || 'proxy error'),
+        path: req?.url || '',
+      })
+    )
+  })
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -35,11 +50,11 @@ export default defineConfig({
       protocol: 'ws'
     },
     proxy: {
-      '/data': { target, changeOrigin: true },
-      '/api': { target, changeOrigin: true, ws: true },
+      '/data': { target, changeOrigin: true, configure: attachProxyErrorHandler },
+      '/api': { target, changeOrigin: true, ws: true, configure: attachProxyErrorHandler },
       // Keep legacy sentiment paths working, but route through the main backend proxy target.
-      '/api/sentiment': { target, changeOrigin: true },
-      '/sentiment': { target, changeOrigin: true },
+      '/api/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },
+      '/sentiment': { target, changeOrigin: true, configure: attachProxyErrorHandler },
     }
   },
   preview: { port: vitePort }

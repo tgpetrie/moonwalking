@@ -137,17 +137,15 @@ export function useDashboardData() {
     }
   }, [data, error]);
 
-  // Last updated timestamp
-  const lastUpdatedTsRef = useRef(null);
-  useEffect(() => {
-    if (!data || error) return;
-    if (prevDataRef.current !== data) {
-      lastUpdatedTsRef.current = Date.now();
-    }
-  }, [data, error]);
-
-  const lastUpdatedTs = lastUpdatedTsRef.current;
-  const lastUpdated = lastUpdatedTs ? new Date(lastUpdatedTs) : null;
+  // Last updated timestamp:
+  // prefer fetch heartbeat time, then backend-provided payload.updated_at.
+  const payloadUpdatedAt = payload?.updated_at ? new Date(payload.updated_at) : null;
+  const lastUpdated = Number.isFinite(lastFetchTs)
+    ? new Date(lastFetchTs)
+    : (payloadUpdatedAt && Number.isFinite(payloadUpdatedAt.getTime()) ? payloadUpdatedAt : null);
+  const lastUpdatedTs = lastUpdated && Number.isFinite(lastUpdated.getTime())
+    ? lastUpdated.getTime()
+    : null;
 
   // Extract error/coverage metadata from payload
   const errors = payload.errors || {};

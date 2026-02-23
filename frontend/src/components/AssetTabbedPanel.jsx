@@ -1,8 +1,9 @@
 // frontend/src/components/AssetTabbedPanel.jsx
-import React from "react";
-import SentimentCard from "./cards/SentimentCard.jsx";
+import React, { useState } from "react";
+import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
 
 export default function AssetTabbedPanel({ asset, onClose }) {
+  const [isCoinPressureOpen, setIsCoinPressureOpen] = useState(false);
   if (!asset) return null;
   const { symbol } = asset;
 
@@ -27,8 +28,23 @@ export default function AssetTabbedPanel({ asset, onClose }) {
           Close
         </button>
       </div>
-      <SentimentCard symbol={symbol} ttlSec={30} />
+
+      <div className="mw-coin-pressure-launch">
+        <button
+          type="button"
+          className="btn-show-more"
+          onClick={() => setIsCoinPressureOpen(true)}
+        >
+          Open Coin Pressure
+        </button>
+
+        <SentimentPopupAdvanced
+          isOpen={isCoinPressureOpen}
+          onClose={() => setIsCoinPressureOpen(false)}
+          symbol={symbol}
+          defaultTab="coin"
+        />
+      </div>
     </div>
   );
 }
-

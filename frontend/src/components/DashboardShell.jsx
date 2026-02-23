@@ -7,12 +7,14 @@ import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
+import AlertsPanelGlobal from "./AlertsPanelGlobal.jsx";
 import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import BoardWrapper from "./BoardWrapper.jsx";
 import AlertsDock from "./AlertsDock.jsx";
 import AskBhabitPanel from "./AskBhabitPanel.jsx";
+import { getMarketPressure } from "../utils/marketPressure";
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
@@ -21,7 +23,8 @@ export default function DashboardShell({ onInfo }) {
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
-  const [sentimentDefaultTab, setSentimentDefaultTab] = useState("overview");
+  const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [highlightY, setHighlightY] = useState(50);
   const [highlightActive, setHighlightActive] = useState(false);
   const [mountedAt] = useState(() => Date.now());
@@ -146,15 +149,13 @@ export default function DashboardShell({ onInfo }) {
     if (sym) {
       console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
-      setSentimentDefaultTab("overview");
+      setSentimentDefaultTab("coin");
       setSentimentOpen(true);
     }
   };
 
   const handleOpenAlerts = () => {
-    setSentimentSymbol(null);
-    setSentimentDefaultTab("alerts");
-    setSentimentOpen(true);
+    setAlertsOpen(true);
   };
 
   const handleToggleWatchlist = (symbol, price = null) => {
@@ -193,7 +194,7 @@ export default function DashboardShell({ onInfo }) {
       const sym = String(e.detail).toUpperCase();
       console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
-      setSentimentDefaultTab("overview");
+      setSentimentDefaultTab("coin");
       setSentimentOpen(true);
     };
     window.addEventListener("openInfo", handler);
@@ -202,7 +203,7 @@ export default function DashboardShell({ onInfo }) {
 
   // Derive `status` from live/partial/fatal indicators. Do not store as derived state
   const formatTempTime = (value) => {
-    if (!value) return "—";                                                                        
+    if (!value) return "—";
     const date = value instanceof Date ? value : new Date(value);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   };
@@ -239,6 +240,14 @@ export default function DashboardShell({ onInfo }) {
     });
   }, [gainers1m]);
 
+  const pressurePill = useMemo(() => {
+    const mp = getMarketPressure({ market_pressure: alertsMeta?.market_pressure });
+    const h = Number(mp.index ?? 50);
+    const tone = h >= 65 ? "hot" : h >= 45 ? "warm" : "cold";
+    const label = h >= 80 ? "EXTREME" : h >= 65 ? "HOT" : h >= 45 ? "WARM" : h >= 25 ? "COOL" : "COLD";
+    return { value: h, tone, label };
+  }, [alertsMeta?.market_pressure]);
+
   return (
     <div className="bh-app">
       <header className="bh-topbar">
@@ -250,16 +259,11 @@ export default function DashboardShell({ onInfo }) {
             <span className="live-updated">
               <span className="live-updated-time">{lastUpdatedLabel}</span>
             </span>
-            {alertsMeta.market_pressure ? (() => {
-              const h = Number(alertsMeta.market_pressure.heat ?? 50);
-              const tone = h >= 65 ? "hot" : h >= 45 ? "warm" : "cold";
-              const label = h >= 80 ? "EXTREME" : h >= 65 ? "HOT" : h >= 45 ? "WARM" : h >= 25 ? "COOL" : "COLD";
-              return (
-                <span className={`bh-pressure-pill bh-pressure-pill--${tone}`} title={`Market Pressure: ${h.toFixed(0)}`}>
-                  {label} {h.toFixed(0)}
-                </span>
-              );
-            })() : null}
+            {alertsMeta.market_pressure ? (
+              <span className={`bh-pressure-pill bh-pressure-pill--${pressurePill.tone}`} title={`Market Pressure: ${pressurePill.value.toFixed(0)}`}>
+                {pressurePill.label} {pressurePill.value.toFixed(0)}
+              </span>
+            ) : null}
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
@@ -375,7 +379,16 @@ export default function DashboardShell({ onInfo }) {
         onClose={() => {
           setSentimentOpen(false);
           setSentimentSymbol(null);
-          setSentimentDefaultTab("overview");
+          setSentimentDefaultTab("coin");
+        }}
+      />
+
+      <AlertsPanelGlobal
+        isOpen={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        onOpenCoinSentiment={(symbol) => {
+          handleInfo(symbol);
+          setAlertsOpen(false);
         }}
       />
 

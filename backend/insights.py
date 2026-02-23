@@ -1,5 +1,9 @@
 import logging
-from sentiment_data_sources import fetch_fear_and_greed_index, fetch_coingecko_social, COINGECKO_ID_MAP
+from sentiment_data_sources import (
+    fetch_fear_and_greed_index,
+    fetch_coingecko_social,
+    COINGECKO_ID_MAP,
+)
 
 log = logging.getLogger(__name__)
 
@@ -13,18 +17,26 @@ def pct_change(cur, prev):
         return None
 
 
-def build_asset_insights(symbol: str, current_price: float, snapshots: dict, coingecko_id_map: dict = COINGECKO_ID_MAP, fear_greed: dict | None = None):
+def build_asset_insights(
+    symbol: str,
+    current_price: float,
+    snapshots: dict,
+    coingecko_id_map: dict = COINGECKO_ID_MAP,
+    fear_greed: dict | None = None,
+):
     """
     Build a consistent insights payload for the frontend.
-    snapshots expected keys: price_1m_ago, price_3m_ago, volume_1h_now, volume_1h_prev
+    snapshots expected keys: price_1m_ago, price_3m_ago, price_1h_ago, volume_1h_now, volume_1h_prev
     """
     price_1m = snapshots.get("price_1m_ago")
     price_3m = snapshots.get("price_3m_ago")
+    price_1h = snapshots.get("price_1h_ago")
     vol_1h_now = snapshots.get("volume_1h_now")
     vol_1h_prev = snapshots.get("volume_1h_prev")
 
     change_1m = pct_change(current_price, price_1m)
     change_3m = pct_change(current_price, price_3m)
+    change_1h = pct_change(current_price, price_1h)
     vol_change_1h = pct_change(vol_1h_now, vol_1h_prev)
 
     heat_score = 50.0
@@ -52,6 +64,7 @@ def build_asset_insights(symbol: str, current_price: float, snapshots: dict, coi
         "price": current_price,
         "change_1m": change_1m,
         "change_3m": change_3m,
+        "change_1h": change_1h,
         "volume_change_1h": vol_change_1h,
         "heat_score": heat_score,
         "trend": trend_label,

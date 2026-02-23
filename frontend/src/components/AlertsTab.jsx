@@ -1,6 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useData } from "../context/DataContext";
+import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { getMarketPressure } from "../utils/marketPressure";
+import { stripLeadingSymbol } from "../utils/alertText";
+import { RowInfo, RowStar } from "./tables/RowActions.jsx";
+import "../styles/alerts-tab.css";
 
 const TYPE_LABEL = {
   moonshot: "MOONSHOT",
@@ -12,8 +17,42 @@ const TYPE_LABEL = {
   divergence: "DIVERGENCE",
   impulse_1m: "MOVE",
   impulse_3m: "MOVE",
+  coin_fomo: "COIN FOMO",
+  coin_breadth_thrust: "BREADTH THRUST",
+  coin_breadth_failure: "BREADTH FAILURE",
+  coin_reversal_up: "REVERSAL UP",
+  coin_reversal_down: "REVERSAL DOWN",
+  coin_fakeout: "FAKEOUT",
+  coin_persistent_gainer: "PERSIST GAINER",
+  coin_persistent_loser: "PERSIST LOSER",
+  coin_volatility_expansion: "VOL EXPANSION",
+  coin_liquidity_shock: "LIQ SHOCK",
+  coin_trend_break_up: "TREND BREAK UP",
+  coin_trend_break_down: "TREND BREAK DOWN",
+  coin_squeeze_break: "SQUEEZE BREAK",
+  coin_exhaustion_top: "EXHAUSTION TOP",
+  coin_exhaustion_bottom: "EXHAUSTION BOTTOM",
+  social_spike_1h: "SOCIAL SPIKE",
+  engagement_surge_1h: "ENGAGEMENT SURGE",
+  social_divergence: "SOCIAL DIVERGENCE",
+  social_pulse: "SOCIAL PULSE",
+  listing: "LISTING",
+  delisting: "DELISTING",
+  unlock: "UNLOCK",
+  upgrade: "UPGRADE",
+  hack_or_exploit: "HACK / EXPLOIT",
+  governance_vote: "GOVERNANCE",
+  partnership: "PARTNERSHIP",
+  news_positive: "NEWS POSITIVE",
+  news_negative: "NEWS NEGATIVE",
+  external_event: "EXTERNAL EVENT",
+  news_confirmed_breakout: "NEWS CONFIRMED",
+  social_confirmed_momentum: "SOCIAL CONFIRMED",
+  event_confirmed_volume: "EVENT CONFIRMED",
   fomo: "FOMO",
+  fomo_alert: "FOMO",
   fear: "FEAR",
+  fear_alert: "FEAR",
 };
 
 const TYPE_HELP = {
@@ -24,40 +63,241 @@ const TYPE_HELP = {
   WHALE: "Unusual volume spike",
   STEALTH: "Volume warming quietly",
   DIVERGENCE: "Price vs sentiment mismatch",
+  "COIN FOMO": "Coin acceleration with market heat context",
+  "BREADTH THRUST": "Coin strength confirmed by broad participation",
+  "BREADTH FAILURE": "Coin weakness in weak market breadth",
+  "REVERSAL UP": "Coin reversed from sell pressure to buy pressure",
+  "REVERSAL DOWN": "Coin reversed from buy pressure to sell pressure",
+  FAKEOUT: "Breakout trap rejected quickly",
+  "PERSIST GAINER": "Coin stayed in sustained upside streak",
+  "PERSIST LOSER": "Coin stayed in sustained downside streak",
+  "VOL EXPANSION": "Coin volatility expanded vs recent baseline",
+  "LIQ SHOCK": "Volume surged while price stayed muted",
+  "TREND BREAK UP": "Fast/slow trend crossover with volume support",
+  "TREND BREAK DOWN": "Fast/slow trend rollover with volume support",
+  "SQUEEZE BREAK": "Compression regime broke into a sharp move",
+  "EXHAUSTION TOP": "Upside run lost energy and flipped",
+  "EXHAUSTION BOTTOM": "Downside run lost energy and snapped back",
+  "SOCIAL SPIKE": "Social attention accelerated quickly",
+  "ENGAGEMENT SURGE": "Participation expanded beyond baseline",
+  "SOCIAL DIVERGENCE": "Social direction disagrees with tape direction",
+  "SOCIAL PULSE": "Social timeline activity is live",
+  LISTING: "Major listing catalyst detected",
+  DELISTING: "Delisting risk or removal notice",
+  UNLOCK: "Token unlock / vesting pressure",
+  UPGRADE: "Protocol upgrade event",
+  "HACK / EXPLOIT": "Security incident / exploit risk",
+  GOVERNANCE: "Governance proposal or vote event",
+  PARTNERSHIP: "Partnership or integration event",
+  "NEWS POSITIVE": "Bullish external news catalyst",
+  "NEWS NEGATIVE": "Bearish external news catalyst",
+  "EXTERNAL EVENT": "External event without directional bias",
+  "NEWS CONFIRMED": "News and tape action aligned",
+  "SOCIAL CONFIRMED": "Social momentum and tape aligned",
+  "EVENT CONFIRMED": "Event and volume expansion aligned",
   MOVE: "Short-term move",
   FOMO: "Chasing behavior",
   FEAR: "Risk-off behavior",
 };
 
-// Signal Class: plain-English buckets for everyday users
-const SIGNAL_CLASSES = {
-  ALL: { label: "All Signals", types: null },
-  OPPORTUNITY: { label: "Opportunity", types: ["MOONSHOT", "BREAKOUT", "STEALTH"] },
-  RISK: { label: "Risk", types: ["CRATER", "DUMP"] },
-  WHALE: { label: "Whale Activity", types: ["WHALE"] },
-  MOMENTUM: { label: "Momentum", types: ["MOVE", "FOMO", "FEAR"] },
-  WEIRDNESS: { label: "Unusual", types: ["DIVERGENCE"] },
+const ALERT_TABS = [
+  { key: "ALL", label: "All" },
+  { key: "MOONSHOT", label: "Moonshot" },
+  { key: "BULLISH", label: "Bullish" },
+  { key: "HEATING", label: "Heating Up" },
+  { key: "WHALE", label: "Whale" },
+  { key: "DUMP", label: "Dump" },
+  { key: "BREAKOUT", label: "Breakout" },
+  { key: "LIQ", label: "Liq Shock" },
+];
+
+const marketMoodKey = (a) => {
+  const mood = String(a?.evidence?.mood || a?.direction || "").toLowerCase();
+  return mood === "fear" ? "FEAR" : "FOMO";
 };
 
-const classForType = (upperType) => {
-  for (const [cls, def] of Object.entries(SIGNAL_CLASSES)) {
-    if (cls === "ALL") continue;
-    if (def.types && def.types.includes(upperType)) return cls;
-  }
+const tabKeyForAlert = (a) => {
+  const raw = String(a?.type_key || a?.type || "").toLowerCase();
+  if (!raw) return "ALL";
+  if (raw.includes("social_") || raw.includes("engagement") || raw.includes("sentiment")) return "SOCIAL";
+  if (raw.includes("news_")) return "NEWS";
+  if (raw.includes("listing") || raw.includes("delisting") || raw.includes("unlock") || raw.includes("upgrade") || raw.includes("governance") || raw.includes("partnership") || raw.includes("hack") || raw.includes("external_event")) return "EVENTS";
+  if (raw.includes("funding") || raw.includes("open_interest") || raw.includes("liquidation") || raw.includes("derivative") || raw === "oi_spike") return "DERIV";
+  if (raw.includes("moonshot")) return "MOONSHOT";
+  if (raw.includes("breakout")) return "BREAKOUT";
+  if (raw.includes("crater")) return "DUMP";
+  if (raw.includes("whale")) return "WHALE";
+  if (raw.includes("stealth")) return "WHALE";
+  if (raw.includes("dump")) return "DUMP";
+  if (raw.includes("coin_fomo")) return "COIN_FOMO";
+  if (raw.includes("coin_breadth_thrust")) return "THRUST";
+  if (raw.includes("coin_breadth_failure")) return "FAILURE";
+  if (raw.includes("coin_reversal")) return "REVERSAL";
+  if (raw.includes("coin_fakeout")) return "FAKEOUT";
+  if (raw.includes("coin_persistent")) return "PERSIST";
+  if (raw.includes("coin_volatility_expansion")) return "VOLX";
+  if (raw.includes("coin_liquidity_shock")) return "LIQ";
+  if (raw.includes("coin_trend_break")) return "TREND";
+  if (raw.includes("coin_squeeze_break")) return "SQUEEZE";
+  if (raw.includes("coin_exhaustion")) return "EXHAUST";
+  if (raw.includes("fear") || raw.includes("fomo")) return marketMoodKey(a);
+  if (raw.includes("divergence")) return "ALL";
+  if (raw.includes("impulse")) return "IMPULSE";
   return "ALL";
+};
+
+const rawTypeKey = (a) => String(a?.type_key || a?.type || "").toLowerCase();
+
+const HEATING_TYPE_TOKENS = [
+  "coin_fomo",
+  "coin_breadth_thrust",
+  "coin_persistent_gainer",
+  "coin_trend_break_up",
+  "coin_squeeze_break",
+  "breakout",
+];
+
+const BULLISH_TYPE_TOKENS = [
+  ...HEATING_TYPE_TOKENS,
+  "moonshot",
+  "coin_reversal_up",
+  "market_fomo_siren",
+  "fomo",
+];
+
+const isHeatingAlert = (a) => {
+  const raw = rawTypeKey(a);
+  if (!raw) return false;
+  if (HEATING_TYPE_TOKENS.some((token) => raw.includes(token))) return true;
+  const heat = Number(a?.evidence?.heat ?? a?.evidence?.mood_index ?? null);
+  const pct = Number(pickPct(a));
+  return Number.isFinite(heat) && heat >= 65 && Number.isFinite(pct) && pct > 0;
+};
+
+const isBullishAlert = (a) => {
+  const raw = rawTypeKey(a);
+  if (!raw) return false;
+  if (raw.includes("fear") || raw.includes("crater") || raw.includes("dump")) return false;
+  if (BULLISH_TYPE_TOKENS.some((token) => raw.includes(token))) return true;
+  const pct = Number(pickPct(a));
+  return Number.isFinite(pct) && pct > 0.75;
+};
+
+const isWhaleAlert = (a) => {
+  const raw = rawTypeKey(a);
+  if (!raw) return false;
+  return (
+    raw.includes("whale") ||
+    raw.includes("stealth") ||
+    raw.includes("liquidity_shock")
+  );
+};
+
+const isDumpAlert = (a) => {
+  const raw = rawTypeKey(a);
+  if (!raw) return false;
+  if (raw.includes("dump") || raw.includes("crater") || raw.includes("fear")) return true;
+  if (
+    raw.includes("persistent_loser") ||
+    raw.includes("trend_break_down") ||
+    raw.includes("reversal_down") ||
+    raw.includes("exhaustion_top") ||
+    raw.includes("breadth_failure")
+  ) {
+    return true;
+  }
+  const pct = Number(pickPct(a));
+  return Number.isFinite(pct) && pct < -0.75;
+};
+
+const alertMatchesTab = (a, tabKey) => {
+  if (tabKey === "ALL") return true;
+  if (tabKey === "HEATING") return isHeatingAlert(a);
+  if (tabKey === "BULLISH") return isBullishAlert(a);
+  if (tabKey === "WHALE") return isWhaleAlert(a);
+  if (tabKey === "DUMP") return isDumpAlert(a);
+  return tabKeyForAlert(a) === tabKey;
 };
 
 const SEV_RANK = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
 
-const toUpperType = (typeKey) => {
-  const k = String(typeKey || "").toLowerCase();
+const toUpperType = (alert) => {
+  const k = String(alert?.type_key || alert?.type || "").toLowerCase();
+  if (k.startsWith("coin_")) {
+    return TYPE_LABEL[k] || k.toUpperCase();
+  }
+  if (k.includes("fear") || k.includes("fomo")) {
+    return marketMoodKey(alert);
+  }
   return TYPE_LABEL[k] || k.toUpperCase() || "ALERT";
 };
 
-const pickTsMs = (a) =>
-  (Number.isFinite(a?.event_ts_ms) && a.event_ts_ms) ||
-  (Number.isFinite(a?.ts_ms) && a.ts_ms) ||
-  null;
+const toEpochMs = (value) => {
+  if (value == null || value === "") return null;
+
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
+
+  const normalizeNumericTs = (raw) => {
+    if (!Number.isFinite(raw)) return null;
+    const abs = Math.abs(raw);
+    if (abs < 1e11) return Math.round(raw * 1000); // seconds
+    if (abs < 1e14) return Math.round(raw); // milliseconds
+    if (abs < 1e17) return Math.round(raw / 1000); // microseconds
+    return Math.round(raw / 1e6); // nanoseconds-ish
+  };
+
+  if (typeof value === "number") {
+    return normalizeNumericTs(value);
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) {
+    return normalizeNumericTs(Number(raw));
+  }
+
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const pickTsMs = (a) => {
+  if (!a || typeof a !== "object") return null;
+  const fields = [
+    a.event_ts_ms,
+    a.ts_ms,
+    a.timestamp_ms,
+    a.event_ts,
+    a.ts,
+    a.timestamp,
+    a.created_at,
+    a.createdAt,
+    a.time,
+    a.when,
+    a.date,
+  ];
+  for (const value of fields) {
+    const ms = toEpochMs(value);
+    if (Number.isFinite(ms)) return ms;
+  }
+  return null;
+};
+
+const formatAlertTimestamp = (a) => {
+  const tsMs = pickTsMs(a);
+  if (!Number.isFinite(tsMs)) return null;
+  const d = new Date(tsMs);
+  if (!Number.isFinite(d.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(d);
+};
 
 const ageLabel = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return "\u2014";
@@ -93,6 +333,8 @@ const pickVolPct = (a) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const shouldShowVolPct = (volPct) => Number.isFinite(volPct) && Math.abs(volPct) >= 0.01;
+
 const toProductId = (a) => {
   let p = String(a?.product_id || a?.symbol || "").trim().toUpperCase();
   if (!p) return "";
@@ -102,6 +344,53 @@ const toProductId = (a) => {
 
 const alertSymbol = (a) =>
   String(a?.symbol || a?.product_id || "").toUpperCase().replace(/-USD$|-USDT$|-PERP$/i, "");
+
+const sentimentSymbolForAlert = (a) => {
+  const candidates = [
+    a?.symbol,
+    a?.product_id,
+    a?.productId,
+    a?.coin,
+    a?.pair,
+    a?.asset,
+  ];
+  for (const value of candidates) {
+    const raw = String(value || "").trim().toUpperCase();
+    if (!raw) continue;
+    return raw.replace(/-USD$|-USDT$|-PERP$/i, "");
+  }
+  return "";
+};
+
+const pickWatchPrice = (a, latestBySymbol = {}) => {
+  const ev = a?.evidence || {};
+  const symbol = sentimentSymbolForAlert(a);
+  const productId = toProductId(a);
+  const latestCandidates = [
+    latestBySymbol?.[symbol],
+    latestBySymbol?.[productId],
+  ].filter(Boolean);
+
+  const candidates = [
+    ev.price_now,
+    ev.current_price,
+    ev.price,
+    a?.price,
+    a?.current_price,
+    ...latestCandidates.flatMap((row) => [
+      row?.price,
+      row?.current_price,
+      row?.last_price,
+      row?.close,
+      typeof row === "number" ? row : null,
+    ]),
+  ];
+  for (const value of candidates) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+};
 
 const moodFromHeat = (heat) => {
   if (heat >= 67) return { mood: "Bullish", tone: "bull", detail: "Buy pressure is leading right now." };
@@ -119,10 +408,11 @@ const confidenceFromStale = (priceStale, volStale) => {
   return { label: "Low", tone: "low", hint: `Data is ${worst.toFixed(1)}s old.` };
 };
 
-function MarketMoodCard({ meta }) {
-  const mp = meta?.market_pressure || {};
-  const heatRaw = Number(mp.heat);
-  const heat = Number.isFinite(heatRaw) ? Math.max(0, Math.min(100, heatRaw)) : 50;
+function MarketMoodCard({ meta, variant = "full" }) {
+  const compact = variant === "compact";
+  const micro = variant === "micro";
+  const mp = getMarketPressure({ market_pressure: meta?.market_pressure });
+  const heat = Number(mp.index ?? 50);
 
   const stale = meta?.stale_seconds || {};
   const priceStale = Number(stale?.price);
@@ -131,8 +421,28 @@ function MarketMoodCard({ meta }) {
   const { mood, tone, detail } = moodFromHeat(heat);
   const confidence = confidenceFromStale(priceStale, volStale);
 
+  if (micro) {
+    return (
+      <div className="bh-pressure-card bh-pressure-card--micro" data-tone={tone}>
+        <div className="bh-pressure-micro-top">
+          <span className="bh-pressure-micro-mood">{mood}</span>
+        </div>
+        <div className="bh-pressure-track bh-pressure-track--micro" aria-label="Market mood gauge">
+          <div className="bh-pressure-fill" style={{ width: `${heat}%` }} />
+        </div>
+        <div className="bh-pressure-micro-foot">
+          <span>{heat.toFixed(0)} / 100</span>
+          <span>{confidence.label}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bh-pressure-card" data-tone={tone}>
+    <div
+      className={`bh-pressure-card ${compact ? "bh-pressure-card--compact" : ""}`}
+      data-tone={tone}
+    >
       <div className="bh-pressure-toprow">
         <div className="bh-pressure-title">
           <span className="bh-mood-dot" aria-hidden="true" />
@@ -141,7 +451,7 @@ function MarketMoodCard({ meta }) {
         <div className="bh-pressure-label">{mood}</div>
       </div>
 
-      <div className="bh-pressure-sub">{detail}</div>
+      <div className={`bh-pressure-sub ${compact ? "bh-pressure-sub--compact" : ""}`}>{detail}</div>
 
       <div className="bh-pressure-track" aria-label="Market mood gauge">
         <div className="bh-pressure-fill" style={{ width: `${heat}%` }} />
@@ -159,7 +469,7 @@ function MarketMoodCard({ meta }) {
         <span>Volume: {Number.isFinite(volStale) ? `${volStale.toFixed(1)}s old` : "\u2014"}</span>
       </div>
 
-      <div className="bh-pressure-hint">{confidence.hint}</div>
+      {!compact ? <div className="bh-pressure-hint">{confidence.hint}</div> : null}
     </div>
   );
 }
@@ -200,27 +510,73 @@ function ProofFooter({ meta, activeCount, recentCount }) {
   );
 }
 
-function SignalRow({ a, nowMs }) {
-  const type = toUpperType(a?.type_key || a?.type);
+function SignalRow({
+  a,
+  nowMs,
+  onOpenCoinSentiment = null,
+  isWatchlisted = false,
+  onToggleWatchlist = null,
+}) {
+  const type = toUpperType(a);
   const sev = String(a?.severity || "info").toLowerCase();
+  const promotion = String(a?.promotion || "").toUpperCase();
+  const sourceLabel = String(a?.source || "")
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (s) => s.toUpperCase());
   const sym = String(a?.product_id || a?.symbol || "").toUpperCase().replace("-USD", "");
   const ts = pickTsMs(a);
+  const absTs = formatAlertTimestamp(a);
   const age = ts ? ageLabel(nowMs - ts) : "\u2014";
+  const windowLabel = String(a?.window || a?.evidence?.window || "").trim();
+
+  // Build clean message without repeating coin name
+  let rawMsg = String(a?.message || a?.title || TYPE_HELP[type] || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Strip leading "SYMBOL:" or "SYMBOL " patterns
+  rawMsg = stripLeadingSymbol(rawMsg, sym).replace(new RegExp(`^${sym}[:\\s]+`, "i"), "");
+  const detail = rawMsg || TYPE_HELP[type] || "Signal detected";
 
   const pct = pickPct(a);
   const volPct = pickVolPct(a);
 
   const pctText = pct == null ? "" : `${pct > 0 ? "+" : ""}${pct.toFixed(Math.abs(pct) < 5 ? 3 : 2)}%`;
-  const volText = volPct == null ? "" : `Vol ${volPct > 0 ? "+" : ""}${volPct.toFixed(0)}%`;
+  const volText = shouldShowVolPct(volPct) ? `Vol ${volPct > 0 ? "+" : ""}${volPct.toFixed(0)}%` : "";
 
-  const url = a?.trade_url || coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
-  const cls = classForType(type);
+  const url = a?.url || a?.trade_url || coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
+  const cls = tabKeyForAlert(a);
+  const heating = isHeatingAlert(a);
+  const bullish = isBullishAlert(a);
+  const sentimentSymbol = sentimentSymbolForAlert(a) || sym;
+
+  // Determine direction for color coding
+  const direction = pct == null ? "neutral" : pct > 0 ? "up" : "down";
+  const handleInfoClick = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!sentimentSymbol) return;
+    if (typeof onOpenCoinSentiment === "function") {
+      onOpenCoinSentiment(sentimentSymbol, { source: "alerts_center", alert: a });
+    }
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new CustomEvent("openInfo", { detail: sentimentSymbol }));
+    }
+  };
+
+  const handleToggleStar = () => {
+    if (typeof onToggleWatchlist !== "function") return;
+    onToggleWatchlist(a);
+  };
 
   return (
     <div
       className="bh-signal-row"
       data-sev={sev}
       data-class={cls.toLowerCase()}
+      data-direction={direction}
       role="button"
       tabIndex={0}
       onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}
@@ -233,42 +589,61 @@ function SignalRow({ a, nowMs }) {
       title={TYPE_HELP[type] ? `${type}: ${TYPE_HELP[type]}` : type}
     >
       <div className="bh-signal-main">
-        <div className="bh-signal-top">
+        <div className="bh-signal-meta">
           <span className="bh-signal-type">{type}</span>
-          <span className="bh-signal-sym">{sym || "\u2014"}</span>
-          <span className="bh-signal-age">{age}</span>
+          {windowLabel ? <span className="bh-signal-window">{windowLabel}</span> : null}
+          <span className="bh-signal-sev" data-sev={sev}>{String(a?.severity || "INFO").toUpperCase()}</span>
+          {promotion ? <span className="bh-signal-promo" data-promo={promotion}>{promotion}</span> : null}
+          {heating ? <span className="bh-signal-bias" data-bias="heating">HEATING</span> : null}
+          {!heating && bullish ? <span className="bh-signal-bias" data-bias="bullish">BULLISH</span> : null}
+          {sourceLabel ? <span className="bh-signal-source">{sourceLabel}</span> : null}
         </div>
 
-        <div className="bh-signal-chips">
-          {pctText ? <span className="bh-chip">{pctText}</span> : null}
-          {volText ? <span className="bh-chip">{volText}</span> : null}
-          {TYPE_HELP[type] ? <span className="bh-chip bh-chip--hint">{TYPE_HELP[type]}</span> : null}
+        <div className="bh-signal-ticker">{sym || "\u2014"}</div>
+
+        <div className="bh-signal-msg">{detail}</div>
+
+        <div className="bh-signal-metrics">
+          {pctText ? <span className="bh-metric" data-direction={direction}>{pctText}</span> : null}
+          {volText ? <span className="bh-metric bh-metric--vol">{volText}</span> : null}
         </div>
       </div>
 
-      <div className="bh-signal-side">
-        <span className="bh-sev-pill">{String(a?.severity || "info").toUpperCase()}</span>
+      <div className="bh-signal-row-right">
+        <div className="bh-row-actions row-actions--stack">
+          <RowStar starred={Boolean(isWatchlisted)} onToggleStar={handleToggleStar} />
+          <RowInfo onInfoClick={() => handleInfoClick()} />
+        </div>
+        <div className="bh-alert-time">
+          <div className="bh-alert-time-abs">{absTs || "\u2014"}</div>
+          <div className="bh-alert-time-rel">{age}</div>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function AlertsTab({ filterSymbol = null }) {
-  const { activeAlerts = [], alertsRecent = [], alertsMeta = {} } = useData() || {};
+export default function AlertsTab({ filterSymbol = null, compact = false, onOpenCoinSentiment = null }) {
+  const { activeAlerts = [], alertsRecent = [], alertsMeta = {}, latestBySymbol = {} } = useData() || {};
+  const { has: watchHas, toggle: watchToggle } = useWatchlist();
+  const forcedCoin = useMemo(() => {
+    const raw = String(filterSymbol || "").toUpperCase().replace(/-USD$|-USDT$|-PERP$/i, "");
+    return raw || null;
+  }, [filterSymbol]);
 
   const [feed, setFeed] = useState("ACTIVE");
-  const [signalClass, setSignalClass] = useState("ALL");
+  const [typeTab, setTypeTab] = useState("ALL");
   const [sev, setSev] = useState("ALL");
   const [sort, setSort] = useState(() => "IMPORTANCE");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [showHelp, setShowHelp] = useState(false);
-  // Coin-aware: if opened with a symbol, default-filter to it
-  const [coinFilter, setCoinFilter] = useState(filterSymbol ? filterSymbol.toUpperCase() : "ALL");
+  // Default to the full market stream; symbol-specific filtering is user-driven.
+  const [coinFilter, setCoinFilter] = useState(() => forcedCoin || "ALL");
 
-  // Reset coin filter when symbol prop changes
   useEffect(() => {
-    setCoinFilter(filterSymbol ? filterSymbol.toUpperCase() : "ALL");
-  }, [filterSymbol]);
+    if (!forcedCoin) return;
+    setCoinFilter(forcedCoin);
+  }, [forcedCoin]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -279,10 +654,34 @@ export default function AlertsTab({ filterSymbol = null }) {
     setSort(feed === "ACTIVE" ? "IMPORTANCE" : "TIME");
   }, [feed]);
 
-  const source = feed === "ACTIVE" ? activeAlerts : alertsRecent;
+  const fallbackForcedActive = useMemo(() => {
+    if (!forcedCoin) return [];
+    return (Array.isArray(activeAlerts) ? activeAlerts : []).filter((a) => alertSymbol(a) === forcedCoin);
+  }, [activeAlerts, forcedCoin]);
+
+  const fallbackForcedRecent = useMemo(() => {
+    if (!forcedCoin) return [];
+    return (Array.isArray(alertsRecent) ? alertsRecent : []).filter((a) => alertSymbol(a) === forcedCoin);
+  }, [alertsRecent, forcedCoin]);
+
+  const effectiveActiveAlerts = useMemo(() => {
+    if (!forcedCoin) return Array.isArray(activeAlerts) ? activeAlerts : [];
+    return fallbackForcedActive;
+  }, [forcedCoin, activeAlerts, fallbackForcedActive]);
+
+  const effectiveRecentAlerts = useMemo(() => {
+    if (!forcedCoin) return Array.isArray(alertsRecent) ? alertsRecent : [];
+    return fallbackForcedRecent;
+  }, [forcedCoin, alertsRecent, fallbackForcedRecent]);
+
+  const effectiveMeta = useMemo(() => alertsMeta || {}, [alertsMeta]);
+
+  const source = feed === "ACTIVE" ? effectiveActiveAlerts : effectiveRecentAlerts;
+  const effectiveCoinFilter = forcedCoin || coinFilter;
 
   // Build coin options from available alerts
   const coinOptions = useMemo(() => {
+    if (forcedCoin) return [forcedCoin];
     const set = new Set(["ALL"]);
     for (const a of alertsRecent || []) {
       const s = alertSymbol(a);
@@ -293,22 +692,44 @@ export default function AlertsTab({ filterSymbol = null }) {
       if (s) set.add(s);
     }
     return Array.from(set).sort();
-  }, [alertsRecent, activeAlerts]);
+  }, [forcedCoin, alertsRecent, activeAlerts]);
+
+  const tabSeedRows = useMemo(() => {
+    let out = Array.isArray(source) ? source : [];
+    if (effectiveCoinFilter !== "ALL") {
+      out = out.filter((a) => alertSymbol(a) === effectiveCoinFilter);
+    }
+    return out;
+  }, [source, effectiveCoinFilter]);
+
+  const tabCounts = useMemo(() => {
+    const counts = new Map();
+    for (const tab of ALERT_TABS) {
+      counts.set(tab.key, 0);
+    }
+    counts.set("ALL", tabSeedRows.length);
+    for (const a of tabSeedRows) {
+      for (const tab of ALERT_TABS) {
+        if (tab.key === "ALL") continue;
+        if (!alertMatchesTab(a, tab.key)) continue;
+        counts.set(tab.key, (counts.get(tab.key) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [tabSeedRows]);
+
+  const visibleTabs = ALERT_TABS;
 
   const rows = useMemo(() => {
     let out = Array.isArray(source) ? source : [];
 
     // Coin filter
-    if (coinFilter !== "ALL") {
-      out = out.filter((a) => alertSymbol(a) === coinFilter);
+    if (effectiveCoinFilter !== "ALL") {
+      out = out.filter((a) => alertSymbol(a) === effectiveCoinFilter);
     }
 
-    // Signal Class filter
-    if (signalClass !== "ALL") {
-      const allowedTypes = SIGNAL_CLASSES[signalClass]?.types;
-      if (allowedTypes) {
-        out = out.filter((a) => allowedTypes.includes(toUpperType(a?.type_key || a?.type)));
-      }
+    if (typeTab !== "ALL") {
+      out = out.filter((a) => alertMatchesTab(a, typeTab));
     }
 
     // Urgency filter
@@ -336,91 +757,135 @@ export default function AlertsTab({ filterSymbol = null }) {
     }
 
     return out;
-  }, [source, coinFilter, signalClass, sev, sort, feed]);
+  }, [source, effectiveCoinFilter, typeTab, sev, sort, feed]);
+
+  const compactRecentFallbackRows = useMemo(() => {
+    let out = Array.isArray(effectiveRecentAlerts) ? effectiveRecentAlerts : [];
+    if (effectiveCoinFilter !== "ALL") {
+      out = out.filter((a) => alertSymbol(a) === effectiveCoinFilter);
+    }
+    if (typeTab !== "ALL") {
+      out = out.filter((a) => alertMatchesTab(a, typeTab));
+    }
+    if (sev !== "ALL") {
+      out = out.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
+    }
+    return [...out].sort((a, b) => (pickTsMs(b) || 0) - (pickTsMs(a) || 0));
+  }, [effectiveRecentAlerts, effectiveCoinFilter, typeTab, sev]);
+
+  const compactFallbackToRecent =
+    compact && feed === "ACTIVE" && rows.length === 0 && compactRecentFallbackRows.length > 0;
+  const rowsForRender = compactFallbackToRecent ? compactRecentFallbackRows : rows;
+  const displayedRows = useMemo(
+    () => rowsForRender.slice(0, compact ? 8 : 8),
+    [rowsForRender, compact]
+  );
+
+  const toggleAlertWatch = useCallback(
+    (alert) => {
+      const symbol = sentimentSymbolForAlert(alert);
+      const price = pickWatchPrice(alert, latestBySymbol);
+      if (!symbol || !Number.isFinite(price) || price <= 0) return;
+      watchToggle({ symbol, price });
+    },
+    [watchToggle, latestBySymbol]
+  );
 
   return (
-    <div className="bh-alerts-tab">
+    <div className={`bh-alerts-tab ${compact ? "bh-alerts-tab--compact" : ""}`}>
       <div className="bh-alerts-layout">
-        <MarketMoodCard meta={alertsMeta} />
-
-        <div className="bh-alerts-feed">
+        <div className="bh-alerts-controls">
           <div className="bh-alerts-feed-head">
-            <div className="bh-alerts-feed-title">Signals</div>
+            <div className="bh-alerts-feed-title">{forcedCoin ? `${forcedCoin} Signals` : "Signals"}</div>
 
-            <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
+            {!compact ? (
+              <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
+                <button
+                  className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
+                  onClick={() => setFeed("ACTIVE")}
+                  type="button"
+                >
+                  Active
+                </button>
+                <button
+                  className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
+                  onClick={() => setFeed("RECENT")}
+                  type="button"
+                >
+                  Recent
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {!compact ? (
+            <div className="bh-alerts-type-tabs" role="tablist" aria-label="Signal classes">
+              {visibleTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={`bh-type-tab ${typeTab === tab.key ? "active" : ""}`}
+                  onClick={() => setTypeTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!compact ? (
+            <div className="bh-alerts-tab-controls">
+              <div className="bh-control">
+                <div className="bh-control-label">Urgency</div>
+                <select className="bh-control-select" value={sev} onChange={(e) => setSev(e.target.value)}>
+                  {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bh-control">
+                <div className="bh-control-label">Order</div>
+                <select className="bh-control-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+                  <option value="IMPORTANCE">Most Important</option>
+                  <option value="TIME">Newest</option>
+                  <option value="URGENCY">Urgency</option>
+                  <option value="MAGNITUDE">Biggest Move</option>
+                </select>
+              </div>
+
+              {!forcedCoin ? (
+                <div className="bh-control">
+                  <div className="bh-control-label">Coin</div>
+                  <select className="bh-control-select" value={coinFilter} onChange={(e) => setCoinFilter(e.target.value)}>
+                    {coinOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <div className="bh-control bh-control--mood">
+                <div className="bh-control-label">Market Mood</div>
+                <MarketMoodCard meta={effectiveMeta} variant="micro" />
+              </div>
+            </div>
+          ) : null}
+
+          {!compact ? (
+            <div className="bh-alerts-help-bar">
               <button
-                className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
-                onClick={() => setFeed("ACTIVE")}
                 type="button"
+                className="bh-help-toggle"
+                onClick={() => setShowHelp((v) => !v)}
+                aria-expanded={showHelp}
               >
-                Active
-              </button>
-              <button
-                className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
-                onClick={() => setFeed("RECENT")}
-                type="button"
-              >
-                Recent
+                {showHelp ? "Hide guide" : "Show guide"}
               </button>
             </div>
-          </div>
+          ) : null}
 
-          <div className="bh-alerts-tab-controls">
-            {/* Signal Class (everyday filter) */}
-            <div className="bh-control">
-              <div className="bh-control-label">Signal Class</div>
-              <select className="bh-control-select" value={signalClass} onChange={(e) => setSignalClass(e.target.value)}>
-                {Object.entries(SIGNAL_CLASSES).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Urgency */}
-            <div className="bh-control">
-              <div className="bh-control-label">Urgency</div>
-              <select className="bh-control-select" value={sev} onChange={(e) => setSev(e.target.value)}>
-                {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"].map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Order By */}
-            <div className="bh-control">
-              <div className="bh-control-label">Order By</div>
-              <select className="bh-control-select" value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="IMPORTANCE">Most Important</option>
-                <option value="TIME">Newest</option>
-                <option value="URGENCY">Urgency</option>
-                <option value="MAGNITUDE">Biggest Move</option>
-              </select>
-            </div>
-
-            {/* Coin filter */}
-            <div className="bh-control">
-              <div className="bh-control-label">Coin</div>
-              <select className="bh-control-select" value={coinFilter} onChange={(e) => setCoinFilter(e.target.value)}>
-                {coinOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Help toggle */}
-          <div className="bh-alerts-help-bar">
-            <button
-              type="button"
-              className="bh-help-toggle"
-              onClick={() => setShowHelp((v) => !v)}
-              aria-expanded={showHelp}
-            >
-              {showHelp ? "Hide guide" : "Show guide"}
-            </button>
-          </div>
-
-          {showHelp ? (
+          {!compact && showHelp ? (
             <div className="bh-alerts-help">
               <div className="bh-alerts-help-title">What you are looking at</div>
               <div className="bh-alerts-help-body">
@@ -442,32 +907,44 @@ export default function AlertsTab({ filterSymbol = null }) {
               </div>
             </div>
           ) : null}
+        </div>
 
+        <div className="bh-alerts-feed">
+          {compactFallbackToRecent ? (
+            <div className="bh-alerts-inline-note">
+              No active signals right now. Showing recent matches.
+            </div>
+          ) : null}
           <div className="bh-signal-list" role="list">
-            {rows.length === 0 ? (
+            {displayedRows.length === 0 ? (
               <div className="bh-signal-empty">
                 {feed === "ACTIVE" ? "No active signals right now." : "No recent signals yet."}
               </div>
             ) : (
-              rows.slice(0, 60).map((a) => (
+              displayedRows.map((a) => (
                 <SignalRow
                   key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
                   a={a}
                   nowMs={nowMs}
+                  onOpenCoinSentiment={onOpenCoinSentiment}
+                  isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
+                  onToggleWatchlist={toggleAlertWatch}
                 />
               ))
             )}
           </div>
 
           <div className="bh-signal-foot">
-            Click any signal to open Coinbase Advanced Trade.
+            Click any signal to open the source link or Coinbase Advanced Trade.
           </div>
 
-          <ProofFooter
-            meta={alertsMeta}
-            activeCount={activeAlerts.length}
-            recentCount={alertsRecent.length}
-          />
+          {!compact ? (
+            <ProofFooter
+              meta={effectiveMeta}
+              activeCount={effectiveActiveAlerts.length}
+              recentCount={effectiveRecentAlerts.length}
+            />
+          ) : null}
         </div>
       </div>
     </div>
