@@ -3,7 +3,11 @@ import os
 from statistics import median
 from typing import Optional, Dict
 
-from .volume_1h_store import fetch_window
+try:
+    from .volume_1h_store import fetch_window
+except ImportError:
+    # Absolute import fallback for script/non-package startup.
+    from volume_1h_store import fetch_window
 
 logger = logging.getLogger(__name__)
 

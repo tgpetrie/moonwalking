@@ -220,6 +220,11 @@ const alertMatchesTab = (a, tabKey) => {
 };
 
 const SEV_RANK = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+const PRIORITY_WINDOW_MS = 7 * 60 * 1000;
+const PRIORITY_HALF_LIFE_MS = 165 * 1000;
+const PRIORITY_FRESH_MS = 2 * 60 * 1000;
+const PRIORITY_FADING_MS = 3.5 * 60 * 1000;
+const PRIORITY_SOFT_EXPIRY_MS = 9 * 60 * 1000;
 
 const toUpperType = (alert) => {
   const k = String(alert?.type_key || alert?.type || "").toLowerCase();
@@ -407,6 +412,303 @@ const confidenceFromStale = (priceStale, volStale) => {
   if (worst <= 15) return { label: "Medium", tone: "med", hint: `Data is ${worst.toFixed(1)}s old.` };
   return { label: "Low", tone: "low", hint: `Data is ${worst.toFixed(1)}s old.` };
 };
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const priorityBucketForAlert = (alert) => {
+  const raw = rawTypeKey(alert);
+  const pct = pickPct(alert);
+
+  if (
+    raw.includes("divergence") ||
+    raw.includes("fakeout") ||
+    raw.includes("exhaustion") ||
+    raw.includes("liquidity_shock") ||
+    raw.includes("stealth")
+  ) {
+    return "divergence";
+  }
+
+  if (
+    raw.includes("dump") ||
+    raw.includes("crater") ||
+    raw.includes("fear") ||
+    raw.includes("persistent_loser") ||
+    raw.includes("trend_break_down") ||
+    raw.includes("reversal_down") ||
+    raw.includes("breadth_failure")
+  ) {
+    return "bearish";
+  }
+
+  if (
+    raw.includes("moonshot") ||
+    raw.includes("breakout") ||
+    raw.includes("fomo") ||
+    raw.includes("persistent_gainer") ||
+    raw.includes("trend_break_up") ||
+    raw.includes("breadth_thrust") ||
+    raw.includes("reversal_up") ||
+    raw.includes("squeeze_break")
+  ) {
+    return "bullish";
+  }
+
+  if (Number.isFinite(pct)) {
+    if (pct > 0) return "bullish";
+    if (pct < 0) return "bearish";
+  }
+
+  return null;
+};
+
+const priorityFamilyBonus = (alert, bucket) => {
+  const raw = rawTypeKey(alert);
+  if (bucket === "divergence") {
+    if (raw.includes("divergence")) return 8;
+    if (raw.includes("fakeout") || raw.includes("exhaustion")) return 7;
+    if (raw.includes("liquidity_shock") || raw.includes("stealth")) return 6;
+    return 4;
+  }
+  if (bucket === "bullish") {
+    if (raw.includes("moonshot") || raw.includes("breakout")) return 8;
+    if (raw.includes("trend_break_up") || raw.includes("breadth_thrust")) return 7;
+    if (raw.includes("persistent_gainer") || raw.includes("fomo")) return 6;
+    return 4;
+  }
+  if (bucket === "bearish") {
+    if (raw.includes("crater") || raw.includes("dump")) return 8;
+    if (raw.includes("trend_break_down") || raw.includes("breadth_failure")) return 7;
+    if (raw.includes("persistent_loser") || raw.includes("fear")) return 6;
+    return 4;
+  }
+  return 0;
+};
+
+const priorityContributionScore = (alert, nowMs) => {
+  const tsMs = pickTsMs(alert);
+  if (!Number.isFinite(tsMs)) return null;
+  const ageMs = Math.max(0, nowMs - tsMs);
+  if (ageMs > PRIORITY_SOFT_EXPIRY_MS) return null;
+
+  const severity = String(alert?.severity || "info").toLowerCase();
+  const severityWeight =
+    {
+      critical: 24,
+      high: 18,
+      medium: 12,
+      low: 6,
+      info: 3,
+    }[severity] || 3;
+  const pct = Math.abs(pickPct(alert) ?? 0);
+  const volPct = Math.abs(pickVolPct(alert) ?? 0);
+  const streak = Math.max(
+    0,
+    Number(alert?.evidence?.streak ?? alert?.extra?.streak ?? 0) || 0
+  );
+  const familyBonus = priorityFamilyBonus(alert, priorityBucketForAlert(alert));
+
+  const baseScore =
+    severityWeight +
+    clamp(pct * 5, 0, 18) +
+    clamp(volPct / 5, 0, 14) +
+    clamp(streak, 0, 4) * 4 +
+    familyBonus;
+
+  const decay = Math.exp(-ageMs / PRIORITY_HALF_LIFE_MS);
+  return {
+    ageMs,
+    tsMs,
+    decay,
+    weighted: baseScore * decay,
+    isFresh: ageMs <= PRIORITY_FRESH_MS,
+    baseScore,
+    pct,
+    volPct,
+    streak,
+  };
+};
+
+const priorityReasons = (entry) => {
+  const reasons = [];
+  if (entry.confirms > 1) {
+    reasons.push(`${entry.confirms} confirms`);
+  }
+  if (entry.rankSummary) {
+    reasons.push(entry.rankSummary);
+  }
+  if (entry.volumeAligned) {
+    reasons.push("volume aligned");
+  }
+  if (entry.breadthSupport >= 0.62) {
+    reasons.push("breadth aligned");
+  } else if (entry.rankTrend === "slipping") {
+    reasons.push("rank slipping");
+  } else if (entry.noConfirmMs >= PRIORITY_FADING_MS) {
+    reasons.push(`no confirm in ${(entry.noConfirmMs / 60000).toFixed(1)}m`);
+  } else {
+    reasons.push(`fresh ${ageLabel(Math.max(0, entry.nowMs - entry.lastTsMs))} ago`);
+  }
+  return reasons.slice(0, 3);
+};
+
+const priorityStateForEntry = (entry) => {
+  if (entry.reversalRiskScore >= 14 || entry.bucket === "divergence") return "Reversal Risk";
+  if (entry.noConfirmMs >= PRIORITY_FADING_MS || entry.score < 40) return "Fading";
+  if (entry.score >= 85 && entry.freshConfirms >= 1 && entry.volumeAligned && !entry.divergenceFlag) return "Dominant";
+  if (entry.score >= 70 && entry.rankPersistenceScore >= 10) return "Persistent";
+  if (entry.score >= 55) return "Building";
+  return "Fragile";
+};
+
+const priorityToneForBucket = (bucket) => {
+  if (bucket === "bullish") return "bullish";
+  if (bucket === "bearish") return "bearish";
+  return "divergence";
+};
+
+const priorityStateTone = (label, bucket) => {
+  if (label === "Reversal Risk" || label === "Fading") return "divergence";
+  return priorityToneForBucket(bucket);
+};
+
+const toBoardSymbol = (row) => alertSymbol(row) || sentimentSymbolForAlert(row);
+
+const buildRankMaps = (rows = [], fallbackKey = "rank") => {
+  const map = new Map();
+  rows.forEach((row, idx) => {
+    const symbol = toBoardSymbol(row);
+    if (!symbol || map.has(symbol)) return;
+    const rankValue = Number(row?.rank ?? idx + 1);
+    map.set(symbol, {
+      rank: Number.isFinite(rankValue) ? rankValue : idx + 1,
+      streak: Number(row?.trend_streak ?? row?.peak_count ?? 0) || 0,
+      pct:
+        Number(
+          row?.price_change_percentage_1min ??
+          row?.price_change_percentage_3min ??
+          row?.pct_1m ??
+          row?.pct_3m ??
+          row?.pct ??
+          null
+        ) || null,
+      key: fallbackKey,
+    });
+  });
+  return map;
+};
+
+const computeRankPersistenceScore = (entry) => {
+  let score = 0;
+  if (Number.isFinite(entry.rank1m)) score += clamp(12 - entry.rank1m, 0, 10);
+  if (Number.isFinite(entry.rank3m)) score += clamp(12 - entry.rank3m, 0, 10);
+  if (Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
+    score += clamp(6 - (Math.abs(entry.rank1m - entry.rank3m) * 2), 0, 6);
+  }
+  return clamp(score, 0, 18);
+};
+
+const computeRankTrend = (entry) => {
+  if (entry.bucket === "bullish" && Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
+    if (entry.rank1m + 1 < entry.rank3m) return "rising";
+    if (Math.abs(entry.rank1m - entry.rank3m) <= 1) return "flat-strong";
+    return "slipping";
+  }
+  if (entry.bucket === "bearish") {
+    if (entry.noConfirmMs >= PRIORITY_FADING_MS) return "slipping";
+    if (Number.isFinite(entry.rank3m) && entry.rank3m <= 3) return "flat-strong";
+    return "rising";
+  }
+  return entry.noConfirmMs >= PRIORITY_FADING_MS ? "slipping" : "mixed";
+};
+
+const buildRankSummary = (entry) => {
+  if (Number.isFinite(entry.rank1m) && Number.isFinite(entry.rank3m)) {
+    const lo = Math.min(entry.rank1m, entry.rank3m);
+    const hi = Math.max(entry.rank1m, entry.rank3m);
+    return `rank held ${lo}-${hi}`;
+  }
+  if (Number.isFinite(entry.rank1m)) return `1m rank ${entry.rank1m}`;
+  if (Number.isFinite(entry.rank3m)) return `${entry.bucket === "bearish" ? "3m loss" : "3m"} rank ${entry.rank3m}`;
+  return "";
+};
+
+const deriveTapeState = (items, marketPressure) => {
+  const activeLeaders = items.filter((item) => item.score >= 55).length;
+  const weakening = items.filter((item) => ["Fading", "Reversal Risk"].includes(item.stateLabel)).length;
+  const freshConfirms = items.reduce((sum, item) => sum + item.freshConfirms, 0);
+  const breadth = Number(marketPressure?.components?.breadth ?? 0);
+
+  let tapeState = "Choppy";
+  if (weakening >= 2 && activeLeaders <= 1) tapeState = "Reversing";
+  else if (activeLeaders >= 3 && freshConfirms >= 3 && breadth >= 0.56) tapeState = "Expanding";
+  else if (activeLeaders <= 2 && items.some((item) => item.score >= 70)) tapeState = "Concentrated";
+  else if (weakening >= 1 && freshConfirms < 2) tapeState = "Cooling";
+
+  return {
+    tapeState,
+    freshConfirms,
+    activeLeaders,
+    weakening,
+  };
+};
+
+function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null }) {
+  const summary = deriveTapeState(items, marketPressure);
+
+  return (
+    <section className="bh-priority-strip" aria-label="Strongest right now">
+      <div className="bh-priority-strip__head">
+        <div>
+          <div className="bh-priority-strip__title">Strongest Right Now</div>
+          <div className="bh-priority-strip__sub">Based on confirmations over the last 7m.</div>
+        </div>
+        <div className="bh-priority-strip__meta">7m decayed model</div>
+      </div>
+
+      <div className="bh-priority-strip__stats">
+        <span>Tape State: {summary.tapeState}</span>
+        <span>Fresh Confirms: {summary.freshConfirms}</span>
+        <span>Active Leaders: {summary.activeLeaders}</span>
+        <span>Weakening: {summary.weakening}</span>
+      </div>
+
+      {!items.length ? (
+        <div className="bh-priority-empty">
+          <div>No dominant live setup</div>
+          <div>tape is active, but conviction is still forming</div>
+        </div>
+      ) : (
+        <div className="bh-priority-rows">
+          {items.map((item) => {
+            const reasons = priorityReasons({ ...item, nowMs });
+            return (
+              <button
+                key={`${item.bucket}:${item.symbol}`}
+                type="button"
+                className="bh-priority-row"
+                data-tone={priorityStateTone(item.stateLabel, item.bucket)}
+                onClick={() => onOpenCoinSentiment?.(item.symbol, { source: "priority_strip", symbol: item.symbol })}
+              >
+                <div className="bh-priority-row__top">
+                  <div className="bh-priority-row__title">
+                    <span className="bh-priority-row__symbol">{item.symbol}</span>
+                    <span className="bh-priority-row__sep">·</span>
+                    <span className="bh-priority-row__label">{item.stateLabel}</span>
+                  </div>
+                  <div className="bh-priority-row__score">{item.score}</div>
+                </div>
+                <div className="bh-priority-row__summary">
+                  {reasons.join(" · ")}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function MarketMoodCard({ meta, variant = "full" }) {
   const compact = variant === "compact";
@@ -623,8 +925,24 @@ function SignalRow({
   );
 }
 
-export default function AlertsTab({ filterSymbol = null, compact = false, onOpenCoinSentiment = null }) {
-  const { activeAlerts = [], alertsRecent = [], alertsMeta = {}, latestBySymbol = {} } = useData() || {};
+export default function AlertsTab({
+  filterSymbol = null,
+  compact = false,
+  onOpenCoinSentiment = null,
+  hideHeader = false,
+  hideFoot = false,
+  emptyCopy = null,
+}) {
+  const {
+    activeAlerts = [],
+    alertsRecent = [],
+    alertsMeta = {},
+    latestBySymbol = {},
+    gainers_1m = [],
+    gainers_3m = [],
+    losers_3m = [],
+    market_pressure = null,
+  } = useData() || {};
   const { has: watchHas, toggle: watchToggle } = useWatchlist();
   const forcedCoin = useMemo(() => {
     const raw = String(filterSymbol || "").toUpperCase().replace(/-USD$|-USDT$|-PERP$/i, "");
@@ -791,32 +1109,226 @@ export default function AlertsTab({ filterSymbol = null, compact = false, onOpen
     [watchToggle, latestBySymbol]
   );
 
+  const boardRanks = useMemo(() => ({
+    oneMin: buildRankMaps(gainers_1m, "1m"),
+    gain3m: buildRankMaps(gainers_3m, "3m"),
+    loss3m: buildRankMaps(losers_3m, "3m-loss"),
+  }), [gainers_1m, gainers_3m, losers_3m]);
+
+  const boardContext = useMemo(() => {
+    if (!forcedCoin) return null;
+    const oneMinBoard = boardRanks.oneMin.get(forcedCoin);
+    const gain3Board = boardRanks.gain3m.get(forcedCoin);
+    const loss3Board = boardRanks.loss3m.get(forcedCoin);
+    const parts = [];
+    if (oneMinBoard?.rank) parts.push(`1m rank #${oneMinBoard.rank}`);
+    if (gain3Board?.rank) parts.push(`3m rank #${gain3Board.rank}`);
+    if (loss3Board?.rank) parts.push(`3m loss rank #${loss3Board.rank}`);
+    return parts.length ? parts.join(" · ") : null;
+  }, [forcedCoin, boardRanks]);
+
+  const latestRecentTsMs = useMemo(() => {
+    for (const row of compactRecentFallbackRows) {
+      const ts = pickTsMs(row);
+      if (Number.isFinite(ts)) return ts;
+    }
+    return null;
+  }, [compactRecentFallbackRows]);
+
+  const resolvedEmptyCopy = useMemo(() => {
+    if (emptyCopy) return emptyCopy;
+    if (!forcedCoin) {
+      return feed === "ACTIVE" ? "No active signals right now." : "No recent signals yet.";
+    }
+    if (boardContext) {
+      return `No live coin signal right now. ${forcedCoin} is still on the board: ${boardContext}.`;
+    }
+    if (Number.isFinite(latestRecentTsMs)) {
+      return `No live coin signal right now. Last ${forcedCoin} signal was ${ageLabel(Math.max(0, nowMs - latestRecentTsMs))} ago.`;
+    }
+    return `No live coin signal for ${forcedCoin} yet. Board position alone does not always produce an alert.`;
+  }, [emptyCopy, forcedCoin, feed, boardContext, latestRecentTsMs, nowMs]);
+
+  const marketPressure = useMemo(
+    () => getMarketPressure({ market_pressure: market_pressure ?? effectiveMeta?.market_pressure }),
+    [market_pressure, effectiveMeta]
+  );
+
+  const priorityItems = useMemo(() => {
+    if (compact) return [];
+
+    let candidates = Array.isArray(effectiveRecentAlerts) ? effectiveRecentAlerts : [];
+    if (effectiveCoinFilter !== "ALL") {
+      candidates = candidates.filter((a) => alertSymbol(a) === effectiveCoinFilter);
+    }
+    if (typeTab !== "ALL") {
+      candidates = candidates.filter((a) => alertMatchesTab(a, typeTab));
+    }
+    if (sev !== "ALL") {
+      candidates = candidates.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
+    }
+
+    const grouped = new Map();
+    for (const alert of candidates) {
+      const symbol = sentimentSymbolForAlert(alert);
+      const bucket = priorityBucketForAlert(alert);
+      if (!symbol || !bucket) continue;
+
+      const contribution = priorityContributionScore(alert, nowMs);
+      if (!contribution) continue;
+
+      const key = `${bucket}:${symbol}`;
+      const existing = grouped.get(key) || {
+        bucket,
+        symbol,
+        scoreRaw: 0,
+        confirms: 0,
+        freshConfirms: 0,
+        lastTsMs: 0,
+        maxStreak: 0,
+        topPct: 0,
+        netPctSign: 1,
+        topVolPct: 0,
+        topVolSign: 1,
+        rank1m: null,
+        rank3m: null,
+        breadthSupport: 0,
+        divergenceFlag: bucket === "divergence",
+        watchlistRelevant: watchHas(symbol),
+      };
+
+      existing.scoreRaw += contribution.weighted;
+      existing.confirms += 1;
+      if (contribution.isFresh) existing.freshConfirms += 1;
+      if (contribution.tsMs > existing.lastTsMs) existing.lastTsMs = contribution.tsMs;
+      if (contribution.streak > existing.maxStreak) existing.maxStreak = contribution.streak;
+
+      const pctSigned = pickPct(alert);
+      if (Number.isFinite(pctSigned) && Math.abs(pctSigned) >= existing.topPct) {
+        existing.topPct = Math.abs(pctSigned);
+        existing.netPctSign = pctSigned >= 0 ? 1 : -1;
+      }
+
+      const volSigned = pickVolPct(alert);
+      if (Number.isFinite(volSigned) && Math.abs(volSigned) >= existing.topVolPct) {
+        existing.topVolPct = Math.abs(volSigned);
+        existing.topVolSign = volSigned >= 0 ? 1 : -1;
+      }
+
+      const oneMinBoard = boardRanks.oneMin.get(symbol);
+      const gain3Board = boardRanks.gain3m.get(symbol);
+      const loss3Board = boardRanks.loss3m.get(symbol);
+      if (oneMinBoard && Number.isFinite(oneMinBoard.rank)) existing.rank1m = oneMinBoard.rank;
+      if (bucket === "bearish") {
+        if (loss3Board && Number.isFinite(loss3Board.rank)) existing.rank3m = loss3Board.rank;
+      } else if (gain3Board && Number.isFinite(gain3Board.rank)) {
+        existing.rank3m = gain3Board.rank;
+      }
+
+      const ev = alert?.evidence || {};
+      const breadthUp = Number(ev.breadth_up ?? marketPressure?.breadth_up ?? marketPressure?.components?.breadth ?? 0) || 0;
+      const breadthDown = Number(ev.breadth_down ?? marketPressure?.breadth_down ?? 0) || 0;
+      const breadthSupport =
+        bucket === "bullish" ? breadthUp :
+        bucket === "bearish" ? breadthDown :
+        Math.max(Math.abs(breadthUp - breadthDown), marketPressure?.components?.breadth ?? 0);
+      existing.breadthSupport = Math.max(existing.breadthSupport, clamp(breadthSupport, 0, 1));
+
+      grouped.set(key, existing);
+    }
+
+    const ranked = Array.from(grouped.values()).map((entry) => {
+      const confirmationBonus = Math.min(18, Math.max(0, entry.confirms - 1) * 6);
+      const freshBonus = entry.freshConfirms > 0 ? Math.min(10, entry.freshConfirms * 4) : 0;
+      entry.noConfirmMs = Math.max(0, nowMs - entry.lastTsMs);
+      entry.rankPersistenceScore = computeRankPersistenceScore(entry);
+      entry.rankTrend = computeRankTrend(entry);
+      entry.rankSummary = buildRankSummary(entry);
+      entry.volumeAligned = entry.topVolSign > 0 && entry.topVolPct >= 10;
+      entry.reversalRiskScore =
+        (entry.bucket === "divergence" ? 10 : 0) +
+        (entry.rankTrend === "slipping" ? 4 : 0) +
+        (entry.noConfirmMs >= PRIORITY_FADING_MS ? 4 : 0);
+      const stalePenalty = entry.noConfirmMs > PRIORITY_FADING_MS ? 12 : 0;
+      const volumeBonus = entry.volumeAligned ? 10 : 0;
+      const breadthBonus = Math.round(entry.breadthSupport * 10);
+      const rankBonus = entry.rankPersistenceScore;
+      const watchlistBonus = entry.watchlistRelevant ? 5 : 0;
+      const score = clamp(
+        Math.round(
+          entry.scoreRaw +
+          confirmationBonus +
+          freshBonus +
+          rankBonus +
+          volumeBonus +
+          breadthBonus +
+          watchlistBonus -
+          stalePenalty
+        ),
+        1,
+        99
+      );
+      const stateLabel = priorityStateForEntry({ ...entry, score });
+      return { ...entry, score, stateLabel };
+    });
+
+    const ordered = ["Dominant", "Persistent", "Building", "Reversal Risk", "Fading"]
+      .flatMap((label) =>
+        ranked
+          .filter((item) => item.stateLabel === label)
+          .sort((a, b) => b.score - a.score || b.lastTsMs - a.lastTsMs)
+      );
+
+    const deduped = [];
+    const seenSymbols = new Set();
+    for (const item of ordered) {
+      if (seenSymbols.has(item.symbol)) continue;
+      seenSymbols.add(item.symbol);
+      deduped.push(item);
+      if (deduped.length >= 3) break;
+    }
+
+    return deduped;
+  }, [
+    compact,
+    effectiveRecentAlerts,
+    effectiveCoinFilter,
+    typeTab,
+    sev,
+    nowMs,
+    boardRanks,
+    marketPressure,
+    watchHas,
+  ]);
+
   return (
     <div className={`bh-alerts-tab ${compact ? "bh-alerts-tab--compact" : ""}`}>
       <div className="bh-alerts-layout">
         <div className="bh-alerts-controls">
-          <div className="bh-alerts-feed-head">
-            <div className="bh-alerts-feed-title">{forcedCoin ? `${forcedCoin} Signals` : "Signals"}</div>
+          {!hideHeader ? (
+            <div className="bh-alerts-feed-head">
+              <div className="bh-alerts-feed-title">{forcedCoin ? `${forcedCoin} Signals` : "Signals"}</div>
 
-            {!compact ? (
-              <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
-                <button
-                  className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
-                  onClick={() => setFeed("ACTIVE")}
-                  type="button"
-                >
-                  Active
-                </button>
-                <button
-                  className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
-                  onClick={() => setFeed("RECENT")}
-                  type="button"
-                >
-                  Recent
-                </button>
-              </div>
-            ) : null}
-          </div>
+              {!compact ? (
+                <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
+                  <button
+                    className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
+                    onClick={() => setFeed("ACTIVE")}
+                    type="button"
+                  >
+                    Active
+                  </button>
+                  <button
+                    className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
+                    onClick={() => setFeed("RECENT")}
+                    type="button"
+                  >
+                    Recent
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {!compact ? (
             <div className="bh-alerts-type-tabs" role="tablist" aria-label="Signal classes">
@@ -910,6 +1422,14 @@ export default function AlertsTab({ filterSymbol = null, compact = false, onOpen
         </div>
 
         <div className="bh-alerts-feed">
+          {!compact ? (
+            <PriorityStrip
+              items={priorityItems}
+              nowMs={nowMs}
+              onOpenCoinSentiment={onOpenCoinSentiment}
+              marketPressure={marketPressure}
+            />
+          ) : null}
           {compactFallbackToRecent ? (
             <div className="bh-alerts-inline-note">
               No active signals right now. Showing recent matches.
@@ -918,7 +1438,7 @@ export default function AlertsTab({ filterSymbol = null, compact = false, onOpen
           <div className="bh-signal-list" role="list">
             {displayedRows.length === 0 ? (
               <div className="bh-signal-empty">
-                {feed === "ACTIVE" ? "No active signals right now." : "No recent signals yet."}
+                {resolvedEmptyCopy}
               </div>
             ) : (
               displayedRows.map((a) => (
@@ -934,9 +1454,11 @@ export default function AlertsTab({ filterSymbol = null, compact = false, onOpen
             )}
           </div>
 
-          <div className="bh-signal-foot">
-            Click any signal to open the source link or Coinbase Advanced Trade.
-          </div>
+          {!hideFoot ? (
+            <div className="bh-signal-foot">
+              Click any signal to open the source link or Coinbase Advanced Trade.
+            </div>
+          ) : null}
 
           {!compact ? (
             <ProofFooter

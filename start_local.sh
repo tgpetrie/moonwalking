@@ -147,10 +147,10 @@ kill_process_on_port "$FRONTEND_START"
 BACKEND_PORT="$BACKEND_START"
 FRONTEND_PORT="$FRONTEND_START"
 
-# In VS Code tasks, child processes can be terminated when the task ends.
-# Detach backend/frontend into a separate session by default in that environment.
-DETACH=${DETACH:-0}
-if [ "${TERM_PROGRAM:-}" = "vscode" ]; then
+# Child processes can be terminated when the launching shell exits (common in
+# IDE task runners and wrapped scripts). Default to detached mode unless the
+# caller explicitly sets DETACH=0.
+if [ -z "${DETACH+x}" ]; then
   DETACH=1
 fi
 

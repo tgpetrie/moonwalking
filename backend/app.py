@@ -13203,6 +13203,16 @@ def _mw_ensure_background_started():
     ):
         return
 
+    # `flask run` does not execute the __main__ block, so initialize the
+    # price snapshot SQLite schema here.
+    try:
+        ensure_price_db()
+    except Exception as e:
+        try:
+            app.logger.warning(f"Failed to initialize price snapshot DB: {e}")
+        except Exception:
+            pass
+
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
             return

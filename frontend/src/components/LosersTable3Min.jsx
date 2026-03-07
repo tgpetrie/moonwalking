@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
 import { TableSkeletonRows } from "./TableSkeletonRows";
@@ -9,11 +9,93 @@ import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
+const REORDER_COMMIT_MS_3M = 700;
 
 const buildRowKey = (row) => {
   const base = row?.product_id ?? row?.symbol;
   return base ? String(base) : undefined;
 };
+
+const getRowIdentity = (row = {}) => {
+  if (row?.product_id) return String(row.product_id);
+  if (row?.symbol) return String(row.symbol);
+  return null;
+};
+
+const sortByPct3mLosersThenSymbol = (a, b) => {
+  const ap = Number(a?.change_3m ?? a?.price_change_percentage_3min);
+  const bp = Number(b?.change_3m ?? b?.price_change_percentage_3min);
+  const aValid = Number.isFinite(ap);
+  const bValid = Number.isFinite(bp);
+
+  if (aValid && bValid && ap !== bp) return ap - bp;
+  if (aValid !== bValid) return aValid ? -1 : 1;
+
+  const aSym = String(a?.symbol ?? a?.ticker ?? "").toUpperCase();
+  const bSym = String(b?.symbol ?? b?.ticker ?? "").toUpperCase();
+  return aSym.localeCompare(bSym);
+};
+
+function useReorderCadence(rows, sortFn, ms = REORDER_COMMIT_MS_3M) {
+  const latestRowsRef = useRef(rows);
+  const timerRef = useRef(null);
+  const prevLenRef = useRef(Array.isArray(rows) ? rows.length : 0);
+  const [displayOrder, setDisplayOrder] = useState(() => {
+    const list = Array.isArray(rows) ? [...rows] : [];
+    list.sort(sortFn);
+    return list.map(getRowIdentity).filter(Boolean);
+  });
+
+  const rowsById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const id = getRowIdentity(row);
+      if (!id || map.has(id)) return;
+      map.set(id, row);
+    });
+    return map;
+  }, [rows]);
+
+  latestRowsRef.current = Array.isArray(rows) ? rows : [];
+
+  useEffect(() => {
+    const nextRows = Array.isArray(rows) ? rows : [];
+    const nextLen = nextRows.length;
+    const prevLen = prevLenRef.current;
+    prevLenRef.current = nextLen;
+
+    const commit = () => {
+      const snapshot = Array.isArray(latestRowsRef.current) ? latestRowsRef.current : [];
+      const sorted = [...snapshot];
+      sorted.sort(sortFn);
+      setDisplayOrder(sorted.map(getRowIdentity).filter(Boolean));
+    };
+
+    if (nextLen !== prevLen) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      commit();
+      return;
+    }
+
+    if (timerRef.current) return;
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      commit();
+    }, ms);
+  }, [rows, sortFn, ms]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return useMemo(
+    () => displayOrder.map((id) => rowsById.get(id)).filter(Boolean),
+    [displayOrder, rowsById]
+  );
+}
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
@@ -71,9 +153,10 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         .sort((a, b) => Number(a.change_3m) - Number(b.change_3m)),
     [mapped]
   );
+  const orderedRows = useReorderCadence(filtered, sortByPct3mLosersThenSymbol, REORDER_COMMIT_MS_3M);
   const visible = useMemo(
-    () => (expanded ? filtered.slice(0, MAX_EXPANDED) : filtered.slice(0, MAX_BASE)),
-    [filtered, expanded]
+    () => (expanded ? orderedRows.slice(0, MAX_EXPANDED) : orderedRows.slice(0, MAX_BASE)),
+    [orderedRows, expanded]
   );
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
@@ -149,16 +232,8 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
       <div className="losers-table">
         <div className="bh-panel bh-panel-half">
           <div className="bh-table">
-            <div className="token-row token-row--empty">
-              {warming3m ? (
-                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-                  3m baseline warming… waiting for first snapshot.
-                </div>
-              ) : (
-                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-                  No 3-minute losers to show right now.
-                </div>
-              )}
+            <div className="panel-empty" style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+              {warming3m ? "3m baseline warming… waiting for first snapshot." : "No 3-minute losers to show right now."}
             </div>
           </div>
         </div>

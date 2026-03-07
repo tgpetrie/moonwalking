@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDataFeed } from "../hooks/useDataFeed";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
@@ -8,11 +8,93 @@ import { baselineOrNull } from "../utils/num.js";
 
 const MAX_BASE = 8;
 const MAX_EXPANDED = 16;
+const REORDER_COMMIT_MS_3M = 700;
 
 const buildRowKey = (row) => {
   const base = row?.product_id ?? row?.symbol;
   return base ? String(base) : undefined;
 };
+
+const getRowIdentity = (row = {}) => {
+  if (row?.product_id) return String(row.product_id);
+  if (row?.symbol) return String(row.symbol);
+  return null;
+};
+
+const sortByPct3mThenSymbol = (a, b) => {
+  const ap = Number(a?._pct ?? a?.change_3m);
+  const bp = Number(b?._pct ?? b?.change_3m);
+  const aValid = Number.isFinite(ap);
+  const bValid = Number.isFinite(bp);
+
+  if (aValid && bValid && bp !== ap) return bp - ap;
+  if (aValid !== bValid) return aValid ? -1 : 1;
+
+  const aSym = String(a?.symbol ?? a?.ticker ?? "").toUpperCase();
+  const bSym = String(b?.symbol ?? b?.ticker ?? "").toUpperCase();
+  return aSym.localeCompare(bSym);
+};
+
+function useReorderCadence(rows, sortFn, ms = REORDER_COMMIT_MS_3M) {
+  const latestRowsRef = useRef(rows);
+  const timerRef = useRef(null);
+  const prevLenRef = useRef(Array.isArray(rows) ? rows.length : 0);
+  const [displayOrder, setDisplayOrder] = useState(() => {
+    const list = Array.isArray(rows) ? [...rows] : [];
+    list.sort(sortFn);
+    return list.map(getRowIdentity).filter(Boolean);
+  });
+
+  const rowsById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const id = getRowIdentity(row);
+      if (!id || map.has(id)) return;
+      map.set(id, row);
+    });
+    return map;
+  }, [rows]);
+
+  latestRowsRef.current = Array.isArray(rows) ? rows : [];
+
+  useEffect(() => {
+    const nextRows = Array.isArray(rows) ? rows : [];
+    const nextLen = nextRows.length;
+    const prevLen = prevLenRef.current;
+    prevLenRef.current = nextLen;
+
+    const commit = () => {
+      const snapshot = Array.isArray(latestRowsRef.current) ? latestRowsRef.current : [];
+      const sorted = [...snapshot];
+      sorted.sort(sortFn);
+      setDisplayOrder(sorted.map(getRowIdentity).filter(Boolean));
+    };
+
+    if (nextLen !== prevLen) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      commit();
+      return;
+    }
+
+    if (timerRef.current) return;
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      commit();
+    }, ms);
+  }, [rows, sortFn, ms]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return useMemo(
+    () => displayOrder.map((id) => rowsById.get(id)).filter(Boolean),
+    [displayOrder, rowsById]
+  );
+}
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
@@ -61,7 +143,8 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
       .sort((a, b) => b._pct - a._pct);
   }, [data, tokensProp]);
 
-  const visibleRows = isExpanded ? gainers3m.slice(0, MAX_EXPANDED) : gainers3m.slice(0, MAX_BASE);
+  const orderedRows = useReorderCadence(gainers3m, sortByPct3mThenSymbol, REORDER_COMMIT_MS_3M);
+  const visibleRows = isExpanded ? orderedRows.slice(0, MAX_EXPANDED) : orderedRows.slice(0, MAX_BASE);
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
     return visibleRows.map((row) => {
@@ -100,11 +183,11 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
         <div className="bh-panel bh-panel-full">
           <div className="bh-table">
             {warming3m ? (
-              <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+              <div className="panel-empty" style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
                 3m baseline warming… waiting for first snapshot.
               </div>
             ) : (
-              <div style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+              <div className="panel-empty" style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
                 No 3-minute movers to show right now.
               </div>
             )}

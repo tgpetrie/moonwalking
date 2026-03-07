@@ -417,10 +417,8 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         <div className="bh-1m-grid bh-1m-grid--single-col">
           <div className="bh-col">
             <div className="bh-table">
-              <div className="token-row token-row--empty">
-                <div style={{ width: "100%", textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
-                  No 1-minute movers to show right now.
-                </div>
+              <div className="panel-empty" style={{ textAlign: "center", opacity: 0.7, padding: "0.75rem 0" }}>
+                No 1-minute movers to show right now.
               </div>
             </div>
           </div>

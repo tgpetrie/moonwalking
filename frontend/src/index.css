@@ -25,8 +25,8 @@ html, body {
 
   /* Token row geometry */
   --bh-col-rank: 34px;
-  --bh-col-price: 108px;
-  --bh-col-pct: 92px;
+  --bh-col-price: 126px;
+  --bh-col-pct: 110px;
   --bh-col-actions: 56px;
   --bh-row-px: 14px;
   --bh-row-py: 12px;
@@ -1241,6 +1241,7 @@ a.bh-row {
   gap: 2px;
   justify-self: end;
   text-align: right;
+  min-width: var(--bh-col-price);
 }
 
 .bh-cell-change {
@@ -1248,6 +1249,7 @@ a.bh-row {
   justify-content: flex-end;
   text-align: right;
   justify-self: end;
+  min-width: var(--bh-col-pct);
 }
 
 .bh-cell-actions {
@@ -1282,6 +1284,12 @@ a.bh-row {
 .bh-row :is(.bh-cell-change, .bh-change, .bh-pct, .pct, .change){
   justify-self: end;
   text-align: right;
+}
+
+.bh-price-current,
+.bh-price-previous,
+.bh-change {
+  white-space: nowrap;
 }
 
 /* Row cell typography — rank badge locked size (no resize) */
@@ -4359,7 +4367,7 @@ body {
 .bh-cell-change,
 .bh-cell-actions { justify-self: end; text-align: right; }
 
-.bh-cell-price { margin-right: -6px; }
+.bh-cell-price { margin-right: 0; }
 
 /* =========================================================
    WATCHLIST LAYOUT OVERRIDE — Always single-column

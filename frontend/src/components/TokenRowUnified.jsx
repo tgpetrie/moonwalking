@@ -102,6 +102,14 @@ export function TokenRowUnified({
     }
   };
 
+  const url = coinbaseSpotUrl(token || {});
+
+  const openTrading = () => {
+    if (!url) return;
+    if (window.getSelection?.().toString()) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const renderCells = () => (
     <>
       {/* 1. Rank circle */}
@@ -133,14 +141,13 @@ export function TokenRowUnified({
         <RowActions
           starred={Boolean(isWatchlisted)}
           onToggleStar={handleToggleStar}
-          onInfoClick={() => openSentiment(symbol || token?.ticker || token?.base || token?.product_id)}
+          onInfoClick={openTrading}
         />
       </CellTag>
     </>
   );
 
-  const url = coinbaseSpotUrl(token || {});
-  const rowClassName = [rowClass, url ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
+  const rowClassName = [rowClass, symbol ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
   const [infoOpen, setInfoOpen] = useState(false);
   const toggleInfo = (e) => {
     if (e?.preventDefault) e.preventDefault();
@@ -149,9 +156,10 @@ export function TokenRowUnified({
   };
 
   const open = () => {
-    if (!url) return;
+    const target = symbol || token?.ticker || token?.base || token?.product_id;
+    if (!target) return;
     if (window.getSelection?.().toString()) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    openSentiment(target);
   };
   const handleClick = (e) => {
     if (e?.target?.closest && e.target.closest("a,button")) return;
@@ -241,13 +249,13 @@ export function TokenRowUnified({
         style={rowStyle}
         data-side={dataSide}
         data-state={dataState}
-        role={url ? "link" : undefined}
-        tabIndex={url ? 0 : undefined}
+        role={symbol ? "button" : undefined}
+        tabIndex={symbol ? 0 : undefined}
         onClick={handleClick}
         onKeyDown={onKeyDown}
         onPointerEnter={setRabbitHover(true)}
         onPointerLeave={setRabbitHover(false)}
-        aria-label={url ? `Open ${token?.symbol} on Coinbase` : undefined}
+        aria-label={symbol ? `Open ${token?.symbol} sentiment` : undefined}
       >
         <span className="bh-row-breathe" aria-hidden="true" />
         {renderCells()}
