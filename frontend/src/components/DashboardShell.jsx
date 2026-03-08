@@ -2,19 +2,19 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import VolumeBannerScroll from "./VolumeBannerScroll.jsx";
 import TopBannerScroll from "./TopBannerScroll.jsx";
-import GainersTable1Min from "./GainersTable1Min.jsx";
-import GainersTable3Min from "./GainersTable3Min.jsx";
-import LosersTable3Min from "./LosersTable3Min.jsx";
-import WatchlistPanel from "./WatchlistPanel.jsx";
 import SentimentPopupAdvanced from "./SentimentPopupAdvanced.jsx";
 import AlertsPanelGlobal from "./AlertsPanelGlobal.jsx";
 import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
-import BoardWrapper from "./BoardWrapper.jsx";
 import AlertsDock from "./AlertsDock.jsx";
 import AskBhabitPanel from "./AskBhabitPanel.jsx";
 import { getMarketPressure } from "../utils/marketPressure";
+import BoardWrapper from "./BoardWrapper.jsx";
+import GainersTable1Min from "./GainersTable1Min.jsx";
+import GainersTable3Min from "./GainersTable3Min.jsx";
+import LosersTable3Min from "./LosersTable3Min.jsx";
+import WatchlistPanel from "./WatchlistPanel.jsx";
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
@@ -25,12 +25,8 @@ export default function DashboardShell({ onInfo }) {
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [highlightY, setHighlightY] = useState(50);
-  const [highlightActive, setHighlightActive] = useState(false);
-  const [mountedAt] = useState(() => Date.now());
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
-  const boardShellRef = useRef(null);
 
   // Rabbit spotlight hover logic (row-rect, no pointer tracking)
   useEffect(() => {
@@ -166,11 +162,6 @@ export default function DashboardShell({ onInfo }) {
   const onInfoProp = onInfo || handleInfo;
   const uiLoading = loading || warming;
 
-  const handleHoverHighlight = (percent = 50, active = false) => {
-    setHighlightY(percent);
-    setHighlightActive(active);
-  };
-
   // Removed global rabbit-hot wake handlers — reveal is per-row via CSS backdrop-filter
 
   const counts = Object.values(coverage || {}).filter((v) => typeof v === "number");
@@ -228,18 +219,6 @@ export default function DashboardShell({ onInfo }) {
     [lastUpdated, lastGoodTs]
   );
 
-  const tickerItems = useMemo(() => {
-    if (!gainers1m?.length) return ["Waiting for live data…"];
-    return gainers1m.slice(0, 5).map((row) => {
-      const pct =
-        Number(row?.change_1m ?? row?.price_change_1m ?? row?.change_pct ?? row?.pct_change ?? 0) || 0;
-      const formatted = pct.toFixed(2);
-      const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
-      const symbol = row?.symbol ?? row?.ticker ?? "—";
-      return `${symbol} ${sign}${formatted}%`;
-    });
-  }, [gainers1m]);
-
   const pressurePill = useMemo(() => {
     const mp = getMarketPressure({ market_pressure: alertsMeta?.market_pressure });
     const h = Number(mp.index ?? 50);
@@ -267,6 +246,23 @@ export default function DashboardShell({ onInfo }) {
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
+            <details className="bh-board-help">
+              <summary className="bh-board-help__toggle">Cue key</summary>
+              <div className="bh-board-help__popover" role="note">
+                <div className="bh-board-help__row">
+                  <span className="bh-board-help__icon" aria-hidden="true">🚀</span>
+                  <span>alert cue</span>
+                </div>
+                <div className="bh-board-help__row">
+                  <span className="bh-board-help__icon" aria-hidden="true">+2</span>
+                  <span>board position shift, not price direction</span>
+                </div>
+                <div className="bh-board-help__row">
+                  <span className="bh-board-help__icon" aria-hidden="true">☆</span>
+                  <span>watchlist</span>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </header>
@@ -281,15 +277,13 @@ export default function DashboardShell({ onInfo }) {
         </div>
 
         <main className="bh-main">
-          <BoardWrapper highlightY={highlightY} highlightActive={highlightActive}>
-            <div ref={boardShellRef} className="bh-board-shell" data-board-hover="0">
+          <BoardWrapper>
+            <div className="bh-board-shell" data-board-hover="0">
               <div className="bh-board">
-                {/* 1m and 3m Rail */}
                 <div className="bh-rail">
                   <div className="bh-rail-stack">
-                    {/* 1-min Gainers */}
                     <section className="bh-board-row-full">
-                    <div className="bh-panel bh-panel--rail" data-hover-origin="center">
+                      <div className="bh-panel bh-panel--rail" data-hover-origin="center">
                         <div className="board-section">
                           <div className="board-section-header board-section-header--center">
                             <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
@@ -305,35 +299,41 @@ export default function DashboardShell({ onInfo }) {
                       </div>
                     </section>
 
-                    {/* 3m Gainers / Losers */}
                     <div className="board-section">
                       <section className="bh-3m-grid">
-                      <div className="bh-panel bh-panel-half" data-hover-origin="right">
-                          <div className="table-title">TOP GAINERS (3M)</div>
-                          <GainersTable3Min
-                            tokens={gainers3m}
-                            loading={uiLoading}
-                            warming3m={warming3m}
-                            onInfo={onInfoProp}
-                            onToggleWatchlist={handleToggleWatchlist}
-                            watchlist={watchlistSymbols}
-                          />
+                        <div className="bh-panel bh-panel-half" data-hover-origin="right">
+                          <div className="board-section">
+                            <div className="board-section-header board-section-header--center">
+                              <div className="board-section-title board-section-title--center">TOP GAINERS (3M)</div>
+                            </div>
+                            <GainersTable3Min
+                              tokens={gainers3m}
+                              loading={uiLoading}
+                              warming3m={warming3m}
+                              onInfo={onInfoProp}
+                              onToggleWatchlist={handleToggleWatchlist}
+                              watchlist={watchlistSymbols}
+                            />
+                          </div>
                         </div>
-                      <div className="bh-panel bh-panel-half" data-hover-origin="left">
-                          <div className="table-title">TOP LOSERS (3M)</div>
-                          <LosersTable3Min
-                            tokens={losers3m}
-                            loading={uiLoading}
-                            warming3m={warming3m}
-                            onInfo={onInfoProp}
-                            onToggleWatchlist={handleToggleWatchlist}
-                            watchlist={watchlistSymbols}
-                          />
+                        <div className="bh-panel bh-panel-half" data-hover-origin="left">
+                          <div className="board-section">
+                            <div className="board-section-header board-section-header--center">
+                              <div className="board-section-title board-section-title--center">TOP LOSERS (3M)</div>
+                            </div>
+                            <LosersTable3Min
+                              tokens={losers3m}
+                              loading={uiLoading}
+                              warming3m={warming3m}
+                              onInfo={onInfoProp}
+                              onToggleWatchlist={handleToggleWatchlist}
+                              watchlist={watchlistSymbols}
+                            />
+                          </div>
                         </div>
                       </section>
                     </div>
 
-                    {/* Anomaly Stream - Intelligence Log */}
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail">
                         <AnomalyStream
@@ -343,7 +343,6 @@ export default function DashboardShell({ onInfo }) {
                       </div>
                     </section>
 
-                    {/* Watchlist (full-width) */}
                     <section className="bh-board-row-full bh-row-watchlist">
                       <div className="bh-panel bh-panel--rail">
                         <div className="board-section">
@@ -351,7 +350,7 @@ export default function DashboardShell({ onInfo }) {
                             <div className="board-section-title">Watchlist</div>
                           </div>
                           <div className="bh-row-block">
-                            <WatchlistPanel onRowHover={handleHoverHighlight} onInfo={onInfoProp} />
+                            <WatchlistPanel onInfo={onInfoProp} />
                           </div>
                         </div>
                       </div>

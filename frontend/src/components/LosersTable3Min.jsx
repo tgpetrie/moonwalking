@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHybridLive as useHybridLiveNamed } from "../hooks/useHybridLive";
+import { useDataFeed } from "../hooks/useDataFeed";
 import { TableSkeletonRows } from "./TableSkeletonRows";
 import { TokenRowUnified } from "./TokenRowUnified";
 import { normalizeTableRow } from "../lib/adapters";
@@ -99,7 +100,11 @@ function useReorderCadence(rows, sortFn, ms = REORDER_COMMIT_MS_3M) {
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
+  const { getActiveAlert } = useDataFeed();
   const lastValueRef = useRef(new Map());
+  const prevRankRef = useRef(new Map());
+  const rankMoveTimersRef = useRef(new Map());
+  const [rankMoveById, setRankMoveById] = useState({});
 
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
   const { data: payload = {} } = useHybridLiveNamed({
@@ -158,6 +163,54 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
     () => (expanded ? orderedRows.slice(0, MAX_EXPANDED) : orderedRows.slice(0, MAX_BASE)),
     [orderedRows, expanded]
   );
+
+  useEffect(() => {
+    return () => {
+      for (const timerId of rankMoveTimersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      rankMoveTimersRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = prevRankRef.current;
+    const nextRanks = new Map();
+    const activeIds = new Set();
+
+    visible.forEach((row, index) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      const nextRank = index + 1;
+      activeIds.add(id);
+      nextRanks.set(id, nextRank);
+      const prevRank = prev.get(id);
+      if (Number.isFinite(prevRank) && prevRank !== nextRank) {
+        const delta = prevRank - nextRank;
+        setRankMoveById((state) => ({ ...state, [id]: delta }));
+        const existing = rankMoveTimersRef.current.get(id);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(() => {
+          setRankMoveById((state) => {
+            if (!(id in state)) return state;
+            const next = { ...state };
+            delete next[id];
+            return next;
+          });
+        }, 2600);
+        rankMoveTimersRef.current.set(id, timer);
+      }
+    });
+
+    for (const [id, timer] of rankMoveTimersRef.current.entries()) {
+      if (activeIds.has(id)) continue;
+      clearTimeout(timer);
+      rankMoveTimersRef.current.delete(id);
+    }
+
+    prevRankRef.current = nextRanks;
+  }, [visible]);
+
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
     return visible.map((row) => {
@@ -170,9 +223,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
       if (key) {
         map.set(key, { price, pct });
       }
-      return { row, priceChanged, pctChanged };
+      return { row, priceChanged, pctChanged, rankDelta: key ? rankMoveById?.[key] ?? 0 : 0 };
     });
-  }, [visible]);
+  }, [visible, rankMoveById]);
 
   const hasData = filtered.length > 0;
 
@@ -251,7 +304,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
         )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
-            {rowsWithPulse.map(({ row: tokenProps, priceChanged, pctChanged }, idx) => {
+            {rowsWithPulse.map(({ row: tokenProps, priceChanged, pctChanged, rankDelta }, idx) => {
               const rowKey = buildRowKey(tokenProps) || tokenProps.symbol || tokenProps.product_id;
               return (
                 <motion.div
@@ -273,7 +326,9 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
                     isWatchlisted={isStarred(tokenProps.symbol)}
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
+                    rankDelta={rankDelta}
                     pulseDelayMs={idx * 18}
+                    activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(tokenProps.symbol) : null}
                   />
                 </motion.div>
               );

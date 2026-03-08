@@ -101,6 +101,9 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
   const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
   const lastValueRef = useRef(new Map());
+  const prevRankRef = useRef(new Map());
+  const rankMoveTimersRef = useRef(new Map());
+  const [rankMoveById, setRankMoveById] = useState({});
 
   // Use props if provided, otherwise fall back to hook data
   const isLoading = loadingProp !== undefined ? loadingProp : hookLoading;
@@ -145,6 +148,54 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
 
   const orderedRows = useReorderCadence(gainers3m, sortByPct3mThenSymbol, REORDER_COMMIT_MS_3M);
   const visibleRows = isExpanded ? orderedRows.slice(0, MAX_EXPANDED) : orderedRows.slice(0, MAX_BASE);
+
+  useEffect(() => {
+    return () => {
+      for (const timerId of rankMoveTimersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      rankMoveTimersRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const prev = prevRankRef.current;
+    const nextRanks = new Map();
+    const activeIds = new Set();
+
+    visibleRows.forEach((row, index) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      const nextRank = index + 1;
+      activeIds.add(id);
+      nextRanks.set(id, nextRank);
+      const prevRank = prev.get(id);
+      if (Number.isFinite(prevRank) && prevRank !== nextRank) {
+        const delta = prevRank - nextRank;
+        setRankMoveById((state) => ({ ...state, [id]: delta }));
+        const existing = rankMoveTimersRef.current.get(id);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(() => {
+          setRankMoveById((state) => {
+            if (!(id in state)) return state;
+            const next = { ...state };
+            delete next[id];
+            return next;
+          });
+        }, 2600);
+        rankMoveTimersRef.current.set(id, timer);
+      }
+    });
+
+    for (const [id, timer] of rankMoveTimersRef.current.entries()) {
+      if (activeIds.has(id)) continue;
+      clearTimeout(timer);
+      rankMoveTimersRef.current.delete(id);
+    }
+
+    prevRankRef.current = nextRanks;
+  }, [visibleRows]);
+
   const rowsWithPulse = useMemo(() => {
     const map = lastValueRef.current;
     return visibleRows.map((row) => {
@@ -157,9 +208,9 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
       if (key) {
         map.set(key, { price, pct });
       }
-      return { row, priceChanged, pctChanged };
+      return { row, priceChanged, pctChanged, rankDelta: key ? rankMoveById?.[key] ?? 0 : 0 };
     });
-  }, [visibleRows]);
+  }, [visibleRows, rankMoveById]);
   const count = gainers3m.length;
   const hasData = count > 0;
 
@@ -207,7 +258,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
         )}
         <div className="bh-table">
           <AnimatePresence initial={false}>
-            {rowsWithPulse.map(({ row: token, priceChanged, pctChanged }, index) => {
+            {rowsWithPulse.map(({ row: token, priceChanged, pctChanged, rankDelta }, index) => {
               const rowKey = buildRowKey(token) || token?.symbol || token?.product_id;
               return (
                 <motion.div
@@ -229,6 +280,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     isWatchlisted={watchlist.includes(token.symbol)}
                     pulsePrice={priceChanged}
                     pulsePct={pctChanged}
+                    rankDelta={rankDelta}
                     pulseDelayMs={index * 18}
                     activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                   />

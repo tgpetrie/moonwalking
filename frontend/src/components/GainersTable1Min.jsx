@@ -267,9 +267,12 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
   const [expanded, setExpanded] = useState(false);
   const prevByIdRef = useRef(new Map());
   const pulseTimersRef = useRef(new Map());
+  const rankMoveTimersRef = useRef(new Map());
+  const prevRankRef = useRef(new Map());
   const [pulsePriceById, setPulsePriceById] = useState({});
   const [pulsePctById, setPulsePctById] = useState({});
   const [rankById, setRankById] = useState({});
+  const [rankMoveById, setRankMoveById] = useState({});
 
   const filteredRows = useMemo(
     () =>
@@ -294,6 +297,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         clearTimeout(timerId);
       }
       pulseTimersRef.current.clear();
+      for (const timerId of rankMoveTimersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      rankMoveTimersRef.current.clear();
     };
   }, []);
 
@@ -381,6 +388,44 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
     };
   }, [rankedRows]);
 
+  useEffect(() => {
+    const prev = prevRankRef.current;
+    const nextRanks = new Map();
+    const activeIds = new Set();
+
+    rankedRows.forEach((row, index) => {
+      const id = getRowIdentity(row);
+      if (!id) return;
+      const nextRank = index + 1;
+      activeIds.add(id);
+      nextRanks.set(id, nextRank);
+      const prevRank = prev.get(id);
+      if (Number.isFinite(prevRank) && prevRank !== nextRank) {
+        const delta = prevRank - nextRank;
+        setRankMoveById((state) => ({ ...state, [id]: delta }));
+        const existing = rankMoveTimersRef.current.get(id);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(() => {
+          setRankMoveById((state) => {
+            if (!(id in state)) return state;
+            const next = { ...state };
+            delete next[id];
+            return next;
+          });
+        }, 2600);
+        rankMoveTimersRef.current.set(id, timer);
+      }
+    });
+
+    for (const [id, timer] of rankMoveTimersRef.current.entries()) {
+      if (activeIds.has(id)) continue;
+      clearTimeout(timer);
+      rankMoveTimersRef.current.delete(id);
+    }
+
+    prevRankRef.current = nextRanks;
+  }, [rankedRows]);
+
   const rowsWithPulse = useMemo(
     () =>
       displayRows.map((row) => {
@@ -390,9 +435,10 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           rank: id && rankById?.[id] ? rankById[id] : undefined,
           priceChanged: id ? Boolean(pulsePriceById?.[id]) : false,
           pctChanged: id ? Boolean(pulsePctById?.[id]) : false,
+          rankDelta: id ? rankMoveById?.[id] ?? 0 : 0,
         };
       }),
-    [displayRows, pulsePriceById, pulsePctById, rankById]
+    [displayRows, pulsePriceById, pulsePctById, rankById, rankMoveById]
   );
 
   const hasData = displayRows.length > 0;
@@ -440,7 +486,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
         <div className="bh-col">
           <div className="bh-table">
             <AnimatePresence initial={false} mode="popLayout">
-              {leftColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
+              {leftColumn.map(({ row: token, rank, priceChanged, pctChanged, rankDelta }, index) => {
                 const displayRank = rank ?? index + 1;
                 const rowKey = buildRowKey(token);
                 const rowTransition = { ...SPRING_CONFIG, delay: Math.min(0.32, (displayRank - 1) * 0.018) };
@@ -468,6 +514,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                       density={density}
                       pulsePrice={priceChanged}
                       pulsePct={pctChanged}
+                      rankDelta={rankDelta}
                       pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                       activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                     />
@@ -482,7 +529,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
           <div className="bh-col">
             <div className="bh-table">
               <AnimatePresence initial={false} mode="popLayout">
-                {rightColumn.map(({ row: token, rank, priceChanged, pctChanged }, index) => {
+                {rightColumn.map(({ row: token, rank, priceChanged, pctChanged, rankDelta }, index) => {
                   const absoluteIndex = rowsPerColumn + index;
                   const displayRank = rank ?? absoluteIndex + 1;
                   const rowKey = buildRowKey(token);
@@ -511,6 +558,7 @@ export default function GainersTable1Min({ tokens: tokensProp, loading: loadingP
                         density={density}
                         pulsePrice={priceChanged}
                         pulsePct={pctChanged}
+                        rankDelta={rankDelta}
                         pulseDelayMs={Math.min(240, (displayRank - 1) * 24)}
                         activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
                       />

@@ -505,13 +505,6 @@ const priorityStateForEntry = (entry) => {
   return 'Fragile';
 };
 
-const priorityStateTone = (label, bucket) => {
-  if (label === 'Reversal Risk' || label === 'Fading') return 'divergence';
-  if (bucket === 'bullish') return 'bullish';
-  if (bucket === 'bearish') return 'bearish';
-  return 'divergence';
-};
-
 const ageLabel = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return 'n/a';
   const s = Math.floor(ms / 1000);
@@ -522,34 +515,7 @@ const ageLabel = (ms) => {
   return `${h}h`;
 };
 
-const deriveTapeState = (items, marketPressure) => {
-  const activeLeaders = items.filter((item) => item.score >= 55).length;
-  const weakening = items.filter((item) => ['Fading', 'Reversal Risk'].includes(item.stateLabel)).length;
-  const freshConfirms = items.reduce((sum, item) => sum + item.freshConfirms, 0);
-  const breadth = Number(marketPressure?.components?.breadth ?? 0);
-
-  let tapeState = 'Choppy';
-  if (weakening >= 2 && activeLeaders <= 1) tapeState = 'Reversing';
-  else if (activeLeaders >= 3 && freshConfirms >= 3 && breadth >= 0.56) tapeState = 'Expanding';
-  else if (activeLeaders <= 2 && items.some((item) => item.score >= 70)) tapeState = 'Concentrated';
-  else if (weakening >= 1 && freshConfirms < 2) tapeState = 'Cooling';
-
-  return { tapeState, freshConfirms, activeLeaders, weakening };
-};
-
-const priorityReasons = (entry, nowMs) => {
-  const reasons = [];
-  if (entry.confirms > 1) reasons.push(`${entry.confirms} confirms`);
-  if (entry.rankSummary) reasons.push(entry.rankSummary);
-  if (entry.volumeAligned) reasons.push('volume aligned');
-  if (entry.breadthSupport >= 0.62) reasons.push('breadth aligned');
-  else if (entry.rankTrend === 'slipping') reasons.push('rank slipping');
-  else if (entry.noConfirmMs >= PRIORITY_FADING_MS) reasons.push(`no reconfirm in ${(entry.noConfirmMs / 60000).toFixed(1)}m`);
-  else reasons.push(`fresh ${ageLabel(Math.max(0, nowMs - entry.lastTsMs))} ago`);
-  return reasons.slice(0, 3);
-};
-
-const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = [], losers3m = [], marketPressure = null, nowMs }) => {
+export const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = [], losers3m = [], marketPressure = null, nowMs }) => {
   const boardRanks = {
     oneMin: buildRankMaps(gainers1m),
     gain3m: buildRankMaps(gainers3m),
@@ -673,61 +639,20 @@ const horizonWord = (value, label) => {
   return `${label} flat`;
 };
 
-const CoinPressurePriorityStrip = ({ items = [], marketPressure = null, nowMs, activeSymbol = null }) => {
-  const summary = deriveTapeState(items, marketPressure);
+const SupportRail = ({ items = [] }) => {
+  const visible = Array.isArray(items) ? items.filter((item) => item && item.value) : [];
+  if (!visible.length) return null;
 
   return (
-    <section className="cp-strip" aria-label="Strongest right now">
-      <div className="cp-strip__hero">
-        <div>
-          <div className="cp-strip__eyebrow">Strongest Right Now</div>
-          <h2 className="cp-strip__title">
-            {items.length ? `${summary.tapeState} tape` : 'No dominant live setup'}
-          </h2>
-          <p className="cp-strip__sub">
-            {items.length
-              ? `7m horizon. Fresh within 2m, fading after 3.5m silence, soft expiry at 9m.`
-              : 'Tape is live, but conviction is still forming inside the 7m window.'}
-          </p>
-        </div>
-        <div className="cp-strip__model">7m decayed model</div>
-      </div>
-
-      <div className="cp-strip__rail">
-        <span className="cp-strip__rail-chip">Tape State: {summary.tapeState}</span>
-        <span className="cp-strip__rail-chip">Fresh: {summary.freshConfirms}</span>
-        <span className="cp-strip__rail-chip">Leaders: {summary.activeLeaders}</span>
-        <span className="cp-strip__rail-chip">Weakening: {summary.weakening}</span>
-      </div>
-
-      {items.length ? (
-        <div className="cp-strip__rows">
-          {items.slice(0, 3).map((item) => (
-            <button
-              key={`${item.bucket}:${item.symbol}`}
-              type="button"
-              className={`cp-strip__row ${activeSymbol === item.symbol ? 'is-active' : ''}`}
-              data-tone={priorityStateTone(item.stateLabel, item.bucket)}
-              onClick={() => {
-                if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-                  window.dispatchEvent(new CustomEvent('openInfo', { detail: item.symbol }));
-                }
-              }}
-            >
-              <div className="cp-strip__row-top">
-                <div className="cp-strip__row-title">
-                  <span>{item.symbol}</span>
-                  <span className="cp-strip__row-sep">·</span>
-                  <span>{item.stateLabel}</span>
-                </div>
-                <div className="cp-strip__row-score">{item.score}</div>
-              </div>
-              <div className="cp-strip__row-body">{priorityReasons(item, nowMs).join(' · ')}</div>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </section>
+    <div className="cp-support-rail">
+      {visible.map((item) => (
+        <article key={item.label} className={`cp-support-pill cp-support-pill--${item.tone || "neutral"}`}>
+          <span className="cp-support-pill__label">{item.label}</span>
+          <strong className="cp-support-pill__value">{item.value}</strong>
+          {item.sub ? <span className="cp-support-pill__sub">{item.sub}</span> : null}
+        </article>
+      ))}
+    </div>
   );
 };
 
@@ -1317,6 +1242,39 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     };
   }, [coinSymbol, metricsReady, coinPriorityEntry, breakoutState, alignmentScore, volumeConfirms, freshAgeMs, signalFlags, change3m]);
 
+  const coinHeroProminence = useMemo(() => {
+    const exceptionalVolume = Math.abs(volumeChange1h ?? 0) >= 140;
+    if (coinHero.state === 'Dominant') return 'elevated';
+    if (coinHero.state === 'Fragile' || signalFlags.hasFakeout || signalFlags.hasExhaustion) return 'elevated';
+    if (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms) return 'elevated';
+    if (exceptionalVolume) return 'elevated';
+    return 'compact';
+  }, [coinHero.state, signalFlags, breakoutState, alignmentScore, volumeConfirms, volumeChange1h]);
+
+  const coinHeroLine = useMemo(() => {
+    const parts = [coinHero.state];
+    if (freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS && (coinPriorityEntry?.freshConfirms || signalFlags.hasMomentum)) {
+      parts.push(`fresh confirm ${ageLabel(freshAgeMs)} ago`);
+    } else if (volumeConfirms) {
+      parts.push('volume confirmed');
+    }
+    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) {
+      parts.push('breadth weak');
+    } else if ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) {
+      parts.push('breadth supportive');
+    }
+    if (coinIntelError) {
+      parts.push('external soft');
+    } else if (coinIntel?.events?.items?.length) {
+      parts.push('external catalyst');
+    } else if (coinIntel?.social?.items?.length) {
+      parts.push('attention only');
+    } else {
+      parts.push('tape-only');
+    }
+    return parts.filter(Boolean).slice(0, 3).join(' · ');
+  }, [coinHero.state, freshAgeMs, coinPriorityEntry, signalFlags, volumeConfirms, marketPressureSummary, coinIntelError, coinIntel]);
+
   const actionBias = useMemo(() => {
     if (!metricsReady) return { label: 'Wait', detail: 'Need more tape before trusting a local read.', tone: 'neutral' };
     if (coinHero.state === 'Dominant') return { label: 'Press strength', detail: 'Momentum is confirmed. Favor pullbacks over chasing extension.', tone: 'positive' };
@@ -1326,6 +1284,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     if (coinHero.state === 'Range-hold' || coinHero.state === 'Mixed') return { label: 'Stand aside', detail: 'Tape is mixed. Wait for a reclaim, breakdown, or fresh reconfirm.', tone: 'neutral' };
     return { label: 'Wait', detail: 'Nothing here deserves urgency yet.', tone: 'neutral' };
   }, [metricsReady, coinHero]);
+
+  const pulseTrigger = useMemo(() => {
+    if (!metricsReady) return 'Need more tape';
+    if (freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS) return `Fresh ${ageLabel(freshAgeMs)}`;
+    if (signalFlags.hasFakeout) return 'Reclaim needed';
+    if (volumeConfirms && alignmentLabel !== 'Mixed') return 'Hold top cohort';
+    return 'Reconfirm inside 2m';
+  }, [metricsReady, freshAgeMs, signalFlags, volumeConfirms, alignmentLabel]);
 
   const coinBadges = useMemo(() => {
     const badges = [];
@@ -1337,6 +1303,33 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     if (coinPriorityEntry?.stateLabel === 'Reversal Risk' || signalFlags.hasReversal || signalFlags.hasExhaustion) badges.push({ label: 'REVERSAL RISK', tone: 'negative' });
     return badges;
   }, [breakoutState, signalFlags, metricsReady, volumeConfirms, marketPressureSummary, coinPriorityEntry]);
+
+  const coinSupportRail = useMemo(() => ([
+    {
+      label: 'Alignment',
+      value: alignmentLabel,
+      tone: alignmentLabel === 'Aligned Up' ? 'positive' : alignmentLabel === 'Aligned Down' ? 'negative' : 'neutral',
+      sub: alignmentDetail,
+    },
+    {
+      label: 'Setup',
+      value: setupQuality.label,
+      tone: setupQuality.tone,
+      sub: setupQuality.detail,
+    },
+    {
+      label: 'Persistence',
+      value: coinPriorityEntry?.stateLabel || (persistenceStreak ? `${persistenceStreak}x hold` : 'Low'),
+      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
+      sub: coinPriorityEntry?.rankSummary || 'Rank hold not established yet.',
+    },
+    {
+      label: 'Updated',
+      value: humanTime(lastCoinUpdateTs),
+      tone: 'neutral',
+      sub: freshAgeMs !== null ? `fresh ${ageLabel(freshAgeMs)}` : 'waiting for next tape sample',
+    },
+  ]), [alignmentLabel, alignmentDetail, setupQuality, coinPriorityEntry, persistenceStreak, lastCoinUpdateTs, freshAgeMs]);
 
   const pulseWhy = useMemo(() => {
     const reasons = [];
@@ -1358,6 +1351,33 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     if (!risks.length) risks.push('invalidates if the next push fails to hold top cohort rank');
     return risks.slice(0, 4);
   }, [freshAgeMs, volumeConfirms, metricsReady, alignmentLabel, marketPressureSummary, signalFlags]);
+
+  const pulseSupportRail = useMemo(() => ([
+    {
+      label: 'Setup',
+      value: setupQuality.label,
+      tone: setupQuality.tone,
+      sub: setupQuality.detail,
+    },
+    {
+      label: 'Persistence',
+      value: coinPriorityEntry?.stateLabel || 'Forming',
+      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
+      sub: coinPriorityEntry?.rankSummary || 'No stable rank hold yet.',
+    },
+    {
+      label: 'Breadth',
+      value: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'Supportive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'Hostile' : 'Mixed',
+      tone: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'positive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'negative' : 'neutral',
+      sub: marketPressureSummary?.label || 'No broad tape label yet.',
+    },
+    {
+      label: 'Trigger',
+      value: pulseTrigger,
+      tone: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
+      sub: 'Fresh inside 2m. Fade threshold 3.5m.',
+    },
+  ]), [setupQuality, coinPriorityEntry, marketPressureSummary, pulseTrigger, freshAgeMs]);
 
   const intelHero = useMemo(() => {
     const hasEvents = Boolean(coinIntel?.events?.items?.length);
@@ -1487,14 +1507,24 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           {activeTab === 'coin' && (
             <section className="tab-panel active" role="tabpanel">
               {!coinSymbol ? (
-                <div className="tab-empty">Choose a coin from the board to load its local state.</div>
+                <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
                   <section className="cp-section cp-section--hero">
-                    <div className={`cp-hero cp-hero--coin cp-hero--${coinHero.tone}`}>
-                      <div className="cp-hero__eyebrow">{coinHero.eyebrow}</div>
-                      <div className="cp-hero__title">{coinHero.state}</div>
-                      <div className="cp-hero__sub">{coinHero.sub}</div>
+                    <div className={`cp-coin-header cp-coin-header--${coinHero.tone} ${coinHeroProminence === 'elevated' ? 'is-elevated' : ''}`}>
+                      <div className="cp-coin-header__main">
+                        <div className="cp-coin-header__eyebrow">Coin Anchor</div>
+                        <div className="cp-coin-header__symbol">{coinSymbol}</div>
+                        <div className="cp-coin-header__subline">
+                          <span className={`cp-state-pill cp-state-pill--${coinHero.tone}`}>{coinHero.state}</span>
+                          <span>{coinHeroLine}</span>
+                        </div>
+                        <p className="cp-coin-header__detail">{coinHero.sub}</p>
+                      </div>
+                      <div className="cp-coin-header__meta">
+                        <span>Updated</span>
+                        <strong>{humanTime(lastCoinUpdateTs)}</strong>
+                      </div>
                     </div>
                   </section>
 
@@ -1509,28 +1539,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   ) : null}
 
                   <section className="cp-section">
-                    <div className="cp-support-grid">
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Alignment</span>
-                        <strong className={`cp-support-card__value ${alignmentLabel === 'Aligned Up' ? 'positive' : alignmentLabel === 'Aligned Down' ? 'negative' : 'neutral'}`}>{alignmentLabel}</strong>
-                        <span className="cp-support-card__sub">{alignmentDetail}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Setup Quality</span>
-                        <strong className={`cp-support-card__value ${setupQuality.tone}`}>{setupQuality.label}</strong>
-                        <span className="cp-support-card__sub">{setupQuality.detail}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Persistence</span>
-                        <strong className="cp-support-card__value neutral">{persistenceStreak ? `${persistenceStreak}x` : 'Quiet'}</strong>
-                        <span className="cp-support-card__sub">{coinPriorityEntry?.rankSummary || 'Rank hold not established yet.'}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Last update</span>
-                        <strong className="cp-support-card__value neutral">{humanTime(lastCoinUpdateTs)}</strong>
-                        <span className="cp-support-card__sub">{freshAgeMs !== null ? `fresh within ${ageLabel(freshAgeMs)}` : 'waiting for next tape sample'}</span>
-                      </article>
-                    </div>
+                    <SupportRail items={coinSupportRail} />
                   </section>
 
                   {coinBadges.length ? (
@@ -1544,10 +1553,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   ) : null}
 
                   {coinInsightsLoading && !coinInsights ? (
-                    <div className="coin-history-note">Advanced insights warming up. Tape-only signals will fill in first.</div>
+                    <div className="coin-history-note coin-history-note--compact">Advanced insights warming up. Tape-only signals will fill in first.</div>
                   ) : null}
                   {coinInsightsError ? (
-                    <div className="coin-history-note error mw-fetch-note">Advanced insights are still building. Showing live tape signals and chart in the meantime.</div>
+                    <div className="coin-history-note coin-history-note--compact error mw-fetch-note">Advanced insights are still building. Showing live tape signals and chart in the meantime.</div>
                   ) : null}
 
                   <section className="cp-section">
@@ -1567,6 +1576,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   <div className="info-section mw-coin-chart-block">
                     <div className="section-header">
                       <h3>Chart</h3>
+                      <p className="section-desc">Utility layer only. Use state and tape first, then zoom into the chart.</p>
                       <div className="mini-toggle">
                         {['auto', 'coinbase', 'binance'].map((opt) => (
                           <button
@@ -1607,7 +1617,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           {activeTab === 'pulse' && (
             <section className="tab-panel active" role="tabpanel">
               {!coinSymbol ? (
-                <div className="tab-empty">Choose a coin from the board to load its tactical read.</div>
+                <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its tactical read.</div>
               ) : (
                 <>
                   <section className="cp-section cp-section--hero">
@@ -1619,32 +1629,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   </section>
 
                   <section className="cp-section">
-                    <div className="cp-support-grid">
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Setup quality</span>
-                        <strong className={`cp-support-card__value ${setupQuality.tone}`}>{setupQuality.label}</strong>
-                        <span className="cp-support-card__sub">{setupQuality.detail}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Persistence</span>
-                        <strong className="cp-support-card__value neutral">{coinPriorityEntry?.stateLabel || 'Forming'}</strong>
-                        <span className="cp-support-card__sub">{coinPriorityEntry?.rankSummary || 'No stable rank hold yet.'}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Market breadth</span>
-                        <strong className={`cp-support-card__value ${((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'positive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'negative' : 'neutral'}`}>
-                          {((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'Supportive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'Hostile' : 'Mixed'}
-                        </strong>
-                        <span className="cp-support-card__sub">Secondary market-wide context. {marketPressureSummary?.label || 'No broad tape label yet.'}</span>
-                      </article>
-                      <article className="cp-support-card">
-                        <span className="cp-support-card__label">Reconfirm timer</span>
-                        <strong className="cp-support-card__value neutral">
-                          {freshAgeMs === null ? 'n/a' : freshAgeMs <= PRIORITY_FRESH_MS ? `fresh ${ageLabel(freshAgeMs)}` : `no reconfirm ${ageLabel(freshAgeMs)}`}
-                        </strong>
-                        <span className="cp-support-card__sub">Fresh within 2m. Fade threshold 3.5m.</span>
-                      </article>
-                    </div>
+                    <SupportRail items={pulseSupportRail} />
                   </section>
 
                   <section className="cp-section">
@@ -1656,7 +1641,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                         </ul>
                       </article>
                       <article className="cp-note-card cp-note-card--risk">
-                        <div className="cp-note-card__title">Risk</div>
+                        <div className="cp-note-card__title">Risk / Trigger</div>
                         <ul className="cp-list">
                           {pulseRisks.map((item) => <li key={item}>{item}</li>)}
                         </ul>
@@ -1679,7 +1664,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           {activeTab === 'intel' && (
             <section className="tab-panel active" role="tabpanel">
               {!coinSymbol ? (
-                <div className="tab-empty">Select a coin to load external context.</div>
+                <div className="tab-empty tab-empty--compact">Select a coin to load external context.</div>
               ) : (
                 <>
                   <section className="cp-section cp-section--hero">
@@ -1691,28 +1676,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   </section>
 
                   <section className="cp-section">
-                    <div className="cp-support-grid">
-                      {intelSupport.map((item) => (
-                        <article key={item.label} className="cp-support-card">
-                          <span className="cp-support-card__label">{item.label}</span>
-                          <strong className={`cp-support-card__value ${item.tone}`}>{item.value}</strong>
-                          <span className="cp-support-card__sub">
-                            {item.label === 'Trust level'
-                              ? 'Plumbing is secondary. Use this only to calibrate trust.'
-                              : item.label === 'Source mix'
-                                ? 'What kind of context is actually feeding this read.'
-                                : item.label === 'Attention'
-                                  ? 'Whether the move has external eyes on it.'
-                                  : 'Last external refresh.'}
-                          </span>
-                        </article>
-                      ))}
-                    </div>
+                    <SupportRail items={intelSupport.map((item) => ({
+                      ...item,
+                      sub:
+                        item.label === 'Trust level'
+                          ? 'Plumbing is secondary. Use this only to calibrate trust.'
+                          : item.label === 'Source mix'
+                            ? 'What kind of context is actually feeding this read.'
+                            : item.label === 'Attention'
+                              ? 'Whether the move has external eyes on it.'
+                              : 'Last external refresh.',
+                    }))} />
                   </section>
 
-                  {coinIntelLoading && !coinIntel ? <div className="coin-history-note">Loading coin intel...</div> : null}
+                  {coinIntelLoading && !coinIntel ? <div className="coin-history-note coin-history-note--compact">Loading coin intel...</div> : null}
                   {coinIntelError ? (
-                    <div className="coin-history-note error mw-fetch-note">External context is degraded. The read below is tape-led until outside sources reconnect.</div>
+                    <div className="coin-history-note coin-history-note--compact error mw-fetch-note">External context is degraded. The read below is tape-led until outside sources reconnect.</div>
                   ) : null}
 
                   <div className="info-section">
@@ -1733,7 +1712,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                         ))}
                       </div>
                     ) : (
-                      <div className="tab-empty">No meaningful external driver detected. Move appears tape-led.</div>
+                      <div className="tab-empty tab-empty--compact">No meaningful external driver detected. Move appears tape-led.</div>
                     )}
                   </div>
 
@@ -1818,7 +1797,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                         {socialActionLine ? <div className="coin-history-note mw-intel-action">{socialActionLine}</div> : null}
                       </>
                     ) : (
-                      <div className="tab-empty">No meaningful external context detected. Treat this as tape-first until something confirms.</div>
+                      <div className="tab-empty tab-empty--compact">No meaningful external context detected. Treat this as tape-first until something confirms.</div>
                     )}
                   </div>
 
@@ -1840,7 +1819,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                         ))}
                       </div>
                     ) : (
-                      <div className="tab-empty">No social items available right now.</div>
+                      <div className="tab-empty tab-empty--compact">No social items available right now.</div>
                     )}
                   </div>
 

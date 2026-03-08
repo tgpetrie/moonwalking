@@ -1,9 +1,10 @@
 // src/components/TokenRowUnified.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import RowActions from "./tables/RowActions.jsx";
 import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
+import { deriveRowCue } from "../utils/rowCue.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -26,7 +27,11 @@ export function TokenRowUnified({
   renderAs = "div",
   density = "normal", // "normal" | "tight"
   pulse = false,
+  pulsePrice = false,
+  pulsePct = false,
   pulseDelayMs = 0,
+  activeAlert = null,
+  rankDelta = 0,
 }) {
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
@@ -44,6 +49,17 @@ export function TokenRowUnified({
 
   const RowTag = renderAs === "tr" ? "tr" : "div";
   const CellTag = renderAs === "tr" ? "td" : "div";
+  const rowCue = useMemo(
+    () =>
+      deriveRowCue({
+        token,
+        changeField,
+        activeAlert,
+        rankDelta,
+        isWatchlisted,
+      }),
+    [token, changeField, activeAlert, rankDelta, isWatchlisted]
+  );
   const rowClass = [
     "bh-row",
     "bh-row-grid",
@@ -52,14 +68,17 @@ export function TokenRowUnified({
     density === "tight" ? "bh-row--tight" : "",
     pctInfo.state === "negative" ? "bh-row--loss" : "",
     pctInfo.state === "positive" ? "is-gain" : pctInfo.state === "negative" ? "is-loss" : "is-flat",
+    rowCue?.intensity === "high" ? "bh-row--hot" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   const [priceFlash, setPriceFlash] = useState(false);
   const [pctFlash, setPctFlash] = useState(false);
+  const [eventPulse, setEventPulse] = useState(false);
   const prevPriceRef = useRef(currentPrice);
   const prevPctRef = useRef(changeNum);
+  const prevCueKeyRef = useRef(rowCue?.triggerKey || "");
 
   useEffect(() => {
     let cleanup;
@@ -84,6 +103,22 @@ export function TokenRowUnified({
     prevPctRef.current = changeNum;
     return cleanup;
   }, [changeNum]);
+
+  useEffect(() => {
+    if (!pulse && !pulsePrice && !pulsePct) return undefined;
+    setEventPulse(true);
+    const timer = setTimeout(() => setEventPulse(false), 520);
+    return () => clearTimeout(timer);
+  }, [pulse, pulsePrice, pulsePct]);
+
+  useEffect(() => {
+    const nextKey = rowCue?.triggerKey || "";
+    if (!nextKey || prevCueKeyRef.current === nextKey) return;
+    prevCueKeyRef.current = nextKey;
+    setEventPulse(true);
+    const timer = setTimeout(() => setEventPulse(false), 760);
+    return () => clearTimeout(timer);
+  }, [rowCue?.triggerKey]);
 
   const handleToggleStar = () => {
     if (!symbol || typeof onToggleWatchlist !== "function") return;
@@ -110,17 +145,74 @@ export function TokenRowUnified({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const dataSide =
+    side === "gainer" || side === "loser"
+      ? side
+      : Number.isFinite(changeNum)
+        ? (changeNum >= 0 ? "gainer" : "loser")
+        : "flat";
+  const dataState =
+    pctInfo.state === "negative"
+      ? "loss"
+      : pctInfo.state === "positive"
+        ? "gain"
+        : "flat";
+  const rankMoveTone = !rowCue?.rankShiftLabel
+    ? "flat"
+    : dataSide === "loser"
+      ? "neutral"
+      : rowCue.rankShiftTone;
+  const rankMoveMagnitude = Math.abs(Number(rankDelta) || 0);
+  const rankMoveLabel = !rowCue?.rankShiftLabel
+    ? ""
+    : dataSide === "loser"
+      ? `${rankMoveMagnitude}${rankDelta > 0 ? "↑" : "↓"}`
+      : rowCue.rankShiftLabel;
+  const rankMoveTitle = !rowCue?.rankShiftLabel
+    ? ""
+    : dataSide === "loser"
+      ? `Moved ${rankDelta > 0 ? "up" : "down"} ${rankMoveMagnitude} position${rankMoveMagnitude === 1 ? "" : "s"} on losers board`
+      : "Board position shift";
+  const rankMoveAria = !rowCue?.rankShiftLabel
+    ? ""
+    : dataSide === "loser"
+      ? `Moved ${rankDelta > 0 ? "up" : "down"} ${rankMoveMagnitude} position${rankMoveMagnitude === 1 ? "" : "s"} on losers board`
+      : `Board position shift ${rankMoveLabel}`;
+
   const renderCells = () => (
     <>
       {/* 1. Rank circle */}
       <CellTag className="bh-cell bh-cell-rank mw-cell mw-cell--rank" style={{ "--mw-j": 0 }}>
-        <div className="bh-rank">{rank}</div>
+        <div className="bh-rank-stack">
+          <div className="bh-rank">{rank}</div>
+        </div>
       </CellTag>
 
       {/* 2. Token name */}
       <CellTag className="bh-cell bh-cell-symbol mw-cell mw-cell--symbol" style={{ "--mw-j": 1 }}>
-        <div className="bh-symbol">{token.symbol}</div>
-        {token.base && <div className="bh-name">{token.base}</div>}
+        <div className="bh-symbol-stack">
+          <div className="bh-symbol-line">
+            <div className="bh-symbol">{token.symbol}</div>
+            {rowCue?.emoji ? (
+              <span
+                className={`bh-symbol-cue bh-symbol-cue--${rowCue.tone === "warning" ? "negative" : rowCue.tone || "neutral"}`}
+                title={rowCue?.title || rowCue?.label}
+                aria-label={rowCue?.label}
+              >
+                {rowCue.emoji}
+              </span>
+            ) : null}
+            {rankMoveLabel ? (
+              <span
+                className={`bh-symbol-move bh-symbol-move--${rankMoveTone}`}
+                title={rankMoveTitle}
+                aria-label={rankMoveAria}
+              >
+                {rankMoveLabel}
+              </span>
+            ) : null}
+          </div>
+        </div>
       </CellTag>
 
       {/* 3. Price stack (current / previous) */}
@@ -148,13 +240,6 @@ export function TokenRowUnified({
   );
 
   const rowClassName = [rowClass, symbol ? "bh-row-clickable" : ""].filter(Boolean).join(" ");
-  const [infoOpen, setInfoOpen] = useState(false);
-  const toggleInfo = (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (e?.stopPropagation) e.stopPropagation();
-    setInfoOpen((v) => !v);
-  };
-
   const open = () => {
     const target = symbol || token?.ticker || token?.base || token?.product_id;
     if (!target) return;
@@ -172,19 +257,6 @@ export function TokenRowUnified({
       open();
     }
   };
-
-  const dataSide =
-    side === "gainer" || side === "loser"
-      ? side
-      : Number.isFinite(changeNum)
-        ? (changeNum >= 0 ? "gainer" : "loser")
-        : "flat";
-  const dataState =
-    pctInfo.state === "negative"
-      ? "loss"
-      : pctInfo.state === "positive"
-        ? "gain"
-        : "flat";
 
   const breatheDelayMs = Number.isFinite(rank) ? (rank * 137) % 9200 : 0;
   const breatheDurationMs = 8800 + (Number.isFinite(rank) ? (rank * 53) % 2400 : 0);
@@ -245,10 +317,13 @@ export function TokenRowUnified({
   return (
     <>
       <RowTag
-        className={`${rowClassName}${pulse ? " is-pulsing" : ""}`}
+        className={`${rowClassName}${pulse || pulsePrice || pulsePct || eventPulse ? " is-pulsing" : ""}${eventPulse ? " bh-row--event" : ""}`}
         style={rowStyle}
         data-side={dataSide}
         data-state={dataState}
+        data-cue={rowCue?.key || "normal"}
+        data-cue-tone={rowCue?.tone || "neutral"}
+        data-cue-intensity={rowCue?.intensity || "low"}
         role={symbol ? "button" : undefined}
         tabIndex={symbol ? 0 : undefined}
         onClick={handleClick}
@@ -257,25 +332,11 @@ export function TokenRowUnified({
         onPointerLeave={setRabbitHover(false)}
         aria-label={symbol ? `Open ${token?.symbol} sentiment` : undefined}
       >
+        <span className="bh-row-accent" aria-hidden="true" />
+        <span className="bh-row-trigger" aria-hidden="true" />
         <span className="bh-row-breathe" aria-hidden="true" />
         {renderCells()}
       </RowTag>
-
-      {infoOpen && (renderAs === "tr" ? (
-        <tr className="bh-info-row">
-          <td colSpan="99">
-            <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-              <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
-              <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
-            </div>
-          </td>
-        </tr>
-      ) : (
-        <div className="bh-info-panel" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          <div className="bh-info-panel__title">{token?.symbol ? token.symbol.toUpperCase() : "—"} Insight</div>
-          <div className="bh-info-panel__muted">Hooking real intelligence next.</div>
-        </div>
-      ))}
     </>
   );
 }

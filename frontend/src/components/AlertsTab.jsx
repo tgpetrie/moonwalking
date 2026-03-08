@@ -653,30 +653,66 @@ const deriveTapeState = (items, marketPressure) => {
   };
 };
 
+const filterAlertRows = (rows, { coinFilter = "ALL", typeTab = "ALL", sev = "ALL" }) => {
+  let out = Array.isArray(rows) ? rows : [];
+  if (coinFilter !== "ALL") {
+    out = out.filter((a) => alertSymbol(a) === coinFilter);
+  }
+  if (typeTab !== "ALL") {
+    out = out.filter((a) => alertMatchesTab(a, typeTab));
+  }
+  if (sev !== "ALL") {
+    out = out.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
+  }
+  return out;
+};
+
+const sortAlertRows = (rows, { sort = "IMPORTANCE", feed = "ACTIVE" }) => {
+  const out = Array.isArray(rows) ? [...rows] : [];
+  if (sort === "URGENCY") {
+    return out.sort((a, b) =>
+      (SEV_RANK[String(b?.severity || "info").toLowerCase()] || 0) -
+      (SEV_RANK[String(a?.severity || "info").toLowerCase()] || 0)
+    );
+  }
+  if (sort === "MAGNITUDE") {
+    return out.sort((a, b) => Math.abs(pickPct(b) ?? 0) - Math.abs(pickPct(a) ?? 0));
+  }
+  if (sort === "TIME") {
+    return out.sort((a, b) => (pickTsMs(b) || 0) - (pickTsMs(a) || 0));
+  }
+  if (feed === "ACTIVE") return out;
+  return out.sort((a, b) => {
+    const sb = SEV_RANK[String(b?.severity || "info").toLowerCase()] || 0;
+    const sa = SEV_RANK[String(a?.severity || "info").toLowerCase()] || 0;
+    if (sb !== sa) return sb - sa;
+    return (pickTsMs(b) || 0) - (pickTsMs(a) || 0);
+  });
+};
+
 function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null }) {
   const summary = deriveTapeState(items, marketPressure);
 
   return (
-    <section className="bh-priority-strip" aria-label="Strongest right now">
+    <section className="bh-priority-strip" aria-label="Hot right now">
       <div className="bh-priority-strip__head">
         <div>
-          <div className="bh-priority-strip__title">Strongest Right Now</div>
-          <div className="bh-priority-strip__sub">Based on confirmations over the last 7m.</div>
+          <div className="bh-priority-strip__title">Hot Right Now</div>
+          <div className="bh-priority-strip__sub">Live shortlist</div>
         </div>
-        <div className="bh-priority-strip__meta">7m decayed model</div>
+        <div className="bh-priority-strip__meta">7m model</div>
       </div>
 
       <div className="bh-priority-strip__stats">
-        <span>Tape State: {summary.tapeState}</span>
-        <span>Fresh Confirms: {summary.freshConfirms}</span>
-        <span>Active Leaders: {summary.activeLeaders}</span>
-        <span>Weakening: {summary.weakening}</span>
+        <span>Tape {summary.tapeState}</span>
+        <span>Fresh {summary.freshConfirms}</span>
+        <span>Leaders {summary.activeLeaders}</span>
+        <span>Weakening {summary.weakening}</span>
       </div>
 
       {!items.length ? (
         <div className="bh-priority-empty">
-          <div>No dominant live setup</div>
-          <div>tape is active, but conviction is still forming</div>
+          <div>No dominant live setup right now.</div>
         </div>
       ) : (
         <div className="bh-priority-rows">
@@ -943,7 +979,7 @@ export default function AlertsTab({
     losers_3m = [],
     market_pressure = null,
   } = useData() || {};
-  const { has: watchHas, toggle: watchToggle } = useWatchlist();
+  const { items: watchlistItems = [], has: watchHas, toggle: watchToggle } = useWatchlist();
   const forcedCoin = useMemo(() => {
     const raw = String(filterSymbol || "").toUpperCase().replace(/-USD$|-USDT$|-PERP$/i, "");
     return raw || null;
@@ -1038,57 +1074,28 @@ export default function AlertsTab({
 
   const visibleTabs = ALERT_TABS;
 
-  const rows = useMemo(() => {
-    let out = Array.isArray(source) ? source : [];
-
-    // Coin filter
-    if (effectiveCoinFilter !== "ALL") {
-      out = out.filter((a) => alertSymbol(a) === effectiveCoinFilter);
-    }
-
-    if (typeTab !== "ALL") {
-      out = out.filter((a) => alertMatchesTab(a, typeTab));
-    }
-
-    // Urgency filter
-    if (sev !== "ALL") out = out.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
-
-    // Sort
-    if (sort === "URGENCY") {
-      out = [...out].sort((a, b) =>
-        (SEV_RANK[String(b?.severity || "info").toLowerCase()] || 0) -
-        (SEV_RANK[String(a?.severity || "info").toLowerCase()] || 0)
-      );
-    } else if (sort === "MAGNITUDE") {
-      out = [...out].sort((a, b) => Math.abs(pickPct(b) ?? 0) - Math.abs(pickPct(a) ?? 0));
-    } else if (sort === "TIME") {
-      out = [...out].sort((a, b) => (pickTsMs(b) || 0) - (pickTsMs(a) || 0));
-    } else {
-      // IMPORTANCE: Active is already score-ordered backend-side
-      if (feed === "ACTIVE") return out;
-      out = [...out].sort((a, b) => {
-        const sb = (SEV_RANK[String(b?.severity || "info").toLowerCase()] || 0);
-        const sa = (SEV_RANK[String(a?.severity || "info").toLowerCase()] || 0);
-        if (sb !== sa) return sb - sa;
-        return (pickTsMs(b) || 0) - (pickTsMs(a) || 0);
-      });
-    }
-
-    return out;
-  }, [source, effectiveCoinFilter, typeTab, sev, sort, feed]);
+  const rows = useMemo(
+    () =>
+      sortAlertRows(
+        filterAlertRows(source, {
+          coinFilter: effectiveCoinFilter,
+          typeTab,
+          sev,
+        }),
+        { sort, feed }
+      ),
+    [source, effectiveCoinFilter, typeTab, sev, sort, feed]
+  );
 
   const compactRecentFallbackRows = useMemo(() => {
-    let out = Array.isArray(effectiveRecentAlerts) ? effectiveRecentAlerts : [];
-    if (effectiveCoinFilter !== "ALL") {
-      out = out.filter((a) => alertSymbol(a) === effectiveCoinFilter);
-    }
-    if (typeTab !== "ALL") {
-      out = out.filter((a) => alertMatchesTab(a, typeTab));
-    }
-    if (sev !== "ALL") {
-      out = out.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
-    }
-    return [...out].sort((a, b) => (pickTsMs(b) || 0) - (pickTsMs(a) || 0));
+    return sortAlertRows(
+      filterAlertRows(effectiveRecentAlerts, {
+        coinFilter: effectiveCoinFilter,
+        typeTab,
+        sev,
+      }),
+      { sort: "TIME", feed: "RECENT" }
+    );
   }, [effectiveRecentAlerts, effectiveCoinFilter, typeTab, sev]);
 
   const compactFallbackToRecent =
@@ -1098,6 +1105,18 @@ export default function AlertsTab({
     () => rowsForRender.slice(0, compact ? 8 : 8),
     [rowsForRender, compact]
   );
+
+  const watchlistAttentionRows = useMemo(() => {
+    if (compact || forcedCoin) return [];
+    const filtered = filterAlertRows(effectiveActiveAlerts, {
+      coinFilter: effectiveCoinFilter,
+      typeTab,
+      sev,
+    }).filter((alert) => watchHas(sentimentSymbolForAlert(alert)));
+    return sortAlertRows(filtered, { sort, feed: "ACTIVE" }).slice(0, 4);
+  }, [compact, forcedCoin, effectiveActiveAlerts, effectiveCoinFilter, typeTab, sev, sort, watchHas]);
+
+  const allAlertsTitle = forcedCoin ? `${forcedCoin} Signals` : "All Alerts";
 
   const toggleAlertWatch = useCallback(
     (alert) => {
@@ -1307,7 +1326,7 @@ export default function AlertsTab({
         <div className="bh-alerts-controls">
           {!hideHeader ? (
             <div className="bh-alerts-feed-head">
-              <div className="bh-alerts-feed-title">{forcedCoin ? `${forcedCoin} Signals` : "Signals"}</div>
+              <div className="bh-alerts-feed-title">{allAlertsTitle}</div>
 
               {!compact ? (
                 <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
@@ -1422,7 +1441,7 @@ export default function AlertsTab({
         </div>
 
         <div className="bh-alerts-feed">
-          {!compact ? (
+          {!compact && !forcedCoin ? (
             <PriorityStrip
               items={priorityItems}
               nowMs={nowMs}
@@ -1430,9 +1449,46 @@ export default function AlertsTab({
               marketPressure={marketPressure}
             />
           ) : null}
+          {!compact && !forcedCoin ? (
+            <section className="bh-alerts-feed-section bh-alerts-feed-section--watchlist" aria-label="Watchlist attention">
+              <div className="bh-alerts-feed-section__head">
+                <div className="bh-alerts-feed-section__title">
+                  <span className="bh-alerts-feed-section__marker" aria-hidden="true">☆</span>
+                  <span>Watchlist Attention</span>
+                </div>
+                <div className="bh-alerts-feed-section__meta">
+                  {watchlistItems.length ? `${watchlistAttentionRows.length} live` : "watchlist"}
+                </div>
+              </div>
+              {watchlistAttentionRows.length === 0 ? (
+                <div className="bh-signal-empty bh-signal-empty--compact">
+                  No active watchlist alerts right now
+                </div>
+              ) : (
+                <div className="bh-signal-list bh-signal-list--watchlist" role="list">
+                  {watchlistAttentionRows.map((a) => (
+                    <SignalRow
+                      key={`watch:${a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}`}
+                      a={a}
+                      nowMs={nowMs}
+                      onOpenCoinSentiment={onOpenCoinSentiment}
+                      isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
+                      onToggleWatchlist={toggleAlertWatch}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
           {compactFallbackToRecent ? (
             <div className="bh-alerts-inline-note">
               No active signals right now. Showing recent matches.
+            </div>
+          ) : null}
+          {!compact && !forcedCoin ? (
+            <div className="bh-alerts-feed-section__head bh-alerts-feed-section__head--all">
+              <div className="bh-alerts-feed-section__title">All Alerts</div>
+              <div className="bh-alerts-feed-section__meta">{displayedRows.length} shown</div>
             </div>
           ) : null}
           <div className="bh-signal-list" role="list">
