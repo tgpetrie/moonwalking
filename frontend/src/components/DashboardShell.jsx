@@ -250,12 +250,20 @@ export default function DashboardShell({ onInfo }) {
               <summary className="bh-board-help__toggle">Cue key</summary>
               <div className="bh-board-help__popover" role="note">
                 <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon" aria-hidden="true">🚀</span>
+                  <span className="bh-board-help__icon bh-board-help__icon--positive" aria-hidden="true">✦</span>
                   <span>alert cue</span>
                 </div>
                 <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon" aria-hidden="true">+2</span>
+                  <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">2↑</span>
                   <span>board position shift, not price direction</span>
+                </div>
+                <div className="bh-board-help__row">
+                  <span className="bh-board-help__icon bh-board-help__icon--negative" aria-hidden="true">⊘</span>
+                  <span>risk / negative cue</span>
+                </div>
+                <div className="bh-board-help__row">
+                  <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">◉</span>
+                  <span>whale / volume cue</span>
                 </div>
                 <div className="bh-board-help__row">
                   <span className="bh-board-help__icon" aria-hidden="true">☆</span>
