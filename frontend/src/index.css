@@ -5988,7 +5988,8 @@ html, body {
   flex: 0 0 auto;
   min-width: 0.9rem;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
+  font-weight: 700;
   line-height: 1;
   opacity: 0.94;
   transform: translateY(-0.02em);
@@ -6003,7 +6004,7 @@ html, body {
 }
 
 .bh-symbol-cue--neutral {
-  color: rgba(175, 243, 218, 0.94);
+  color: rgba(152, 196, 255, 0.94);
 }
 
 .bh-row.bh-row-grid {
@@ -6302,8 +6303,21 @@ html, body {
 }
 
 .bh-board-help__icon {
-  color: rgba(255, 216, 138, 0.92);
+  color: rgba(226, 229, 238, 0.88);
+  font-weight: 700;
   text-align: center;
+}
+
+.bh-board-help__icon--positive {
+  color: rgba(255, 212, 126, 0.98);
+}
+
+.bh-board-help__icon--negative {
+  color: rgba(223, 186, 255, 0.96);
+}
+
+.bh-board-help__icon--neutral {
+  color: rgba(152, 196, 255, 0.94);
 }
 
 @media (max-width: 780px) {
@@ -6318,4 +6332,80 @@ html, body {
     left: 0;
     min-width: 200px;
   }
+}
+
+/* ===== BEGIN: Canonical single-board centering override (layout only) ===== */
+
+.bh-banner-block,
+.bh-banner-wrap,
+.bh-rail,
+.bh-board,
+.dashboard-shell,
+.bh-board-shell,
+.board-shell {
+  width: 100% !important;
+  max-width: var(--bh-board-width) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-inline: 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* BoardWrapper stays behavior-only, not a sizing wrapper. */
+.board-wrapper {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===== END: Canonical single-board centering override ===== */
+
+/* ===== single canonical board: layout only ===== */
+
+:root {
+  --bh-board-inline-pad: 16px;
+}
+
+/* only the primary board wrappers may define centered board width */
+.bh-board,
+.dashboard-shell,
+.bh-board-shell,
+.board-shell {
+  width: 100% !important;
+  max-width: var(--bh-board-width) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--bh-board-inline-pad) !important;
+  padding-right: var(--bh-board-inline-pad) !important;
+  box-sizing: border-box !important;
+}
+
+/* nested board wrappers must not create a second board system */
+:is(.bh-board, .dashboard-shell, .bh-board-shell, .board-shell)
+:is(.bh-board, .dashboard-shell, .bh-board-shell, .board-shell) {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* banners should align to the canonical board, not create a new inner rail */
+.bh-banner-block,
+.bh-banner-wrap {
+  width: 100% !important;
+  max-width: var(--bh-board-width) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+
+:is(.bh-board, .dashboard-shell, .bh-board-shell, .board-shell)
+:is(.bh-banner-block, .bh-banner-wrap) {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
