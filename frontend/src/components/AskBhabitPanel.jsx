@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { fetchData, getApiBaseUrl } from "../api.js";
+import "../styles/ask-codex.css";
 
 const SYMBOL_RE = /\b[A-Z]{2,10}\b/g;
 
@@ -31,9 +32,16 @@ const fmtPx = (v) => {
   return `$${n.toFixed(n >= 100 ? 2 : 4)}`;
 };
 
+const QUICK_CHIPS = [
+  "Why is BTC moving?",
+  "Compare BTC vs SOL",
+  "Summarize anomalies",
+  "Explain top loser",
+];
+
 export default function AskBhabitPanel() {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("What is happening with BTC and SOL right now?");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -71,6 +79,16 @@ export default function AskBhabitPanel() {
     }
   };
 
+  const handleChip = (text) => {
+    setQuery(text);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    setError("");
+    setResult(null);
+  };
+
   return (
     <div className="bh-ask-dock" data-open={open ? "1" : "0"}>
       <button
@@ -78,18 +96,41 @@ export default function AskBhabitPanel() {
         className="bh-ask-btn"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        title="Ask Bhabit"
+        title="Ask CODEX"
       >
-        <span className="bh-ask-btn-label">ASK BHABIT</span>
+        <span className="bh-ask-btn-label">ASK CODEX</span>
       </button>
 
       {open ? (
-        <div className="bh-ask-panel" role="dialog" aria-label="Ask Bhabit">
+        <div className="bh-ask-panel" role="dialog" aria-label="Ask CODEX">
           <div className="bh-ask-head">
-            <div className="bh-ask-title">Ask Bhabit</div>
-            <button type="button" className="bh-ask-close" onClick={() => setOpen(false)} aria-label="Close">
-              x
+            <div className="bh-ask-title">ASK CODEX</div>
+            <span className="bh-ask-beta">BETA</span>
+            <button
+              type="button"
+              className="bh-ask-close"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
+              ×
             </button>
+          </div>
+
+          <p className="bh-ask-helper">
+            Ask about movers, anomalies, watchlist symbols, or compare tickers.
+          </p>
+
+          <div className="bh-ask-chips">
+            {QUICK_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                className="bh-ask-chip"
+                onClick={() => handleChip(chip)}
+              >
+                {chip}
+              </button>
+            ))}
           </div>
 
           <form onSubmit={submit} className="bh-ask-form">
@@ -97,24 +138,22 @@ export default function AskBhabitPanel() {
               className="bh-ask-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask about movers, alerts, risk, and levels..."
+              placeholder="Ask about movers, signals, anomalies, or compare tickers"
             />
             <div className="bh-ask-actions">
-              <button type="submit" className="bh-ask-submit" disabled={loading || !query.trim()}>
-                {loading ? "Asking..." : "Ask"}
-              </button>
               <button
-                type="button"
-                className="bh-ask-clear"
-                onClick={() => {
-                  setQuery("");
-                  setError("");
-                  setResult(null);
-                }}
+                type="submit"
+                className="bh-ask-submit"
+                disabled={loading || !query.trim()}
               >
+                {loading ? "Asking…" : "Ask"}
+              </button>
+              <button type="button" className="bh-ask-clear" onClick={handleClear}>
                 Clear
               </button>
-              <span className="bh-ask-mode">mode: {mode}</span>
+              {result ? (
+                <span className="bh-ask-mode-meta">{mode}</span>
+              ) : null}
             </div>
           </form>
 
@@ -163,6 +202,8 @@ export default function AskBhabitPanel() {
                 </div>
               ) : null}
             </div>
+          ) : !loading && !error ? (
+            <p className="bh-ask-empty">Select a chip or type a question above.</p>
           ) : null}
         </div>
       ) : null}

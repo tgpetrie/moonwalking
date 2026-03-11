@@ -5798,6 +5798,74 @@ html, body {
   box-shadow: none !important;
 }
 
+/* ── Intelligence Log — liveliness layer ───────────────────── */
+
+/* Animated dot before the LIVE pill */
+.bh-intel-state.is-live::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(150, 255, 230, 0.88);
+  margin-right: 5px;
+  flex-shrink: 0;
+  animation: bh-intel-live-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes bh-intel-live-pulse {
+  0%, 100% { opacity: 1;    box-shadow: 0 0 4px rgba(150,255,230,0.45); }
+  50%       { opacity: 0.25; box-shadow: none; }
+}
+
+/* New-row insertion fade+slide */
+@keyframes bh-intel-row-enter {
+  0%   { opacity: 0; transform: translateY(-3px); background: rgba(150,255,230,0.07); }
+  35%  { background: rgba(150,255,230,0.04); }
+  100% { opacity: 1; transform: translateY(0);   background: transparent; }
+}
+
+.bh-intel-line.is-fresh {
+  animation: bh-intel-row-enter 550ms ease-out forwards;
+}
+
+/* Relative-time "updated X ago" label in header */
+.bh-intel-updated {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.20);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Ambient scanning footer */
+.bh-intel-scan {
+  padding: 5px 14px 9px;
+  font-family: var(--bh-font-sans);
+  font-size: 0.60rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.16);
+  animation: bh-intel-scan-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes bh-intel-scan-breathe {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1.0; }
+}
+
+/* ── Watchlist section — extra breathing room after Intel Log ── */
+/* Adds to the 18px bh-rail-stack gap for a calmer section break  */
+.bh-row-watchlist {
+  margin-top: 10px;
+}
+
+/* Slightly lift watchlist title presence so it reads as intentional */
+.bh-row-watchlist .board-section-title {
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.20em;
+}
+
 /* ============================================================
    HOVER GLOW EFFECT — "Desktop Lasso" / Stained Glass Pattern
    ============================================================ */

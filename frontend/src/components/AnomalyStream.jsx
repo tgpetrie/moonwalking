@@ -221,6 +221,13 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
   const scrollRef = useRef(null);
   const lastHeartbeatRef = useRef(0);
 
+  // 1-second ticker drives relative timestamps and fresh-row detection
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     if (!isCollapsed && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -228,6 +235,26 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
   }, [logs, isCollapsed]);
 
   const visibleLogs = isCollapsed ? [] : logs.slice(-8);
+
+  // Rows inserted within the last 3s get the fresh-entry animation
+  const freshIds = useMemo(() => {
+    const s = new Set();
+    for (const l of logs) {
+      if (l.ts && nowMs - l.ts < 3000) s.add(l.id);
+    }
+    return s;
+  }, [logs, nowMs]);
+
+  // Relative "updated X ago" label shown in the header
+  const relLabel = useMemo(() => {
+    let latest = 0;
+    for (const l of logs) { if (l.ts && l.ts > latest) latest = l.ts; }
+    if (!latest) return null;
+    const diff = Math.floor((nowMs - latest) / 1000);
+    if (diff < 5)  return "just now";
+    if (diff < 60) return `${diff}s ago`;
+    return `${Math.floor(diff / 60)}m ago`;
+  }, [logs, nowMs]);
 
   const gainers1m = useMemo(() => (Array.isArray(data?.gainers_1m) ? data.gainers_1m : []), [data]);
   const losers3m = useMemo(() => (Array.isArray(data?.losers_3m) ? data.losers_3m : []), [data]);
@@ -260,6 +287,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         const url = spotUrl(token, symbol);
         newLogs.push({
           id: `g-${Date.now()}-${Math.random()}`,
+          ts: Date.now(),
           time: timeStr,
           symbol,
           url,
@@ -287,6 +315,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         const url = spotUrl(token, symbol);
         newLogs.push({
           id: `l-${Date.now()}-${Math.random()}`,
+          ts: Date.now(),
           time: timeStr,
           symbol,
           url,
@@ -314,6 +343,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         const url = spotUrl(token, symbol);
         newLogs.push({
           id: `v-${Date.now()}-${Math.random()}`,
+          ts: Date.now(),
           time: timeStr,
           symbol,
           url,
@@ -384,6 +414,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
 
       newLogs.push({
         id: `a-${Date.now()}-${Math.random()}`,
+        ts: Date.now(),
         time: timeStr,
         symbol,
         url,
@@ -425,6 +456,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           <div className="bh-intel-sub">Live anomalies</div>
         </button>
         <div className="bh-intel-meta">v4.0.2</div>
+        {relLabel ? <span className="bh-intel-updated">{relLabel}</span> : null}
       </div>
 
       <div
@@ -444,7 +476,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           return (
             <div
               key={log.id}
-              className={`bh-intel-line ${isClickable ? "bh-intel-clickable" : ""}`}
+              className={`bh-intel-line${isClickable ? " bh-intel-clickable" : ""}${freshIds.has(log.id) ? " is-fresh" : ""}`}
               role={isClickable ? "link" : undefined}
               tabIndex={isClickable ? 0 : undefined}
               onClick={(e) => {
@@ -481,6 +513,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         })}
         {!isCollapsed ? <div className="bh-intel-cursor">_</div> : null}
       </div>
+
+      {!isCollapsed ? <div className="bh-intel-scan">scanning live anomalies</div> : null}
     </section>
   );
 }

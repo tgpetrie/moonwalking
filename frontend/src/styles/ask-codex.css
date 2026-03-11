@@ -1,0 +1,362 @@
+/* Ask CODEX panel — dashboard-native styling */
+/* Type scale aligned with Intelligence Log + board-section-title family */
+
+/* ── Dock wrapper ──────────────────────────────────────────── */
+.bh-ask-dock {
+  position: fixed;
+  right: 18px;
+  bottom: 74px;          /* sits above AlertsDock (18px + ~40px button + 8px gap) */
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* ── Trigger button ──────────────────────────────────────────── */
+.bh-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: rgba(168, 85, 247, 0.10);
+  border: 1px solid rgba(168, 85, 247, 0.32);
+  border-radius: 999px;
+  color: rgba(216, 180, 254, 0.88);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bh-ask-btn:hover {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.55);
+  color: rgba(233, 213, 255, 0.95);
+}
+
+/* ── Panel ──────────────────────────────────────────────────── */
+.bh-ask-panel {
+  width: 380px;
+  background: rgba(5, 3, 8, 0.94);
+  backdrop-filter: blur(14px) saturate(1.15) brightness(1.06);
+  border: 1px solid rgba(168, 85, 247, 0.22);
+  border-radius: 12px;
+  box-shadow:
+    0 0 28px rgba(168, 85, 247, 0.07),
+    0 6px 28px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header row ─────────────────────────────────────────────── */
+.bh-ask-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.12);
+}
+
+/* Matches bh-intel-title: 0.72rem / 0.18em / 700 */
+.bh-ask-title {
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(216, 180, 254, 0.95);
+  flex: 1;
+}
+
+.bh-ask-beta {
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.60rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.18);
+  border: 1px solid rgba(168, 85, 247, 0.32);
+  color: rgba(196, 148, 248, 0.80);
+  line-height: 1.5;
+}
+
+.bh-ask-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.bh-ask-close:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Helper text ─────────────────────────────────────────────── */
+/* Matches bh-intel-sub scale: 0.68rem */
+.bh-ask-helper {
+  padding: 9px 14px 0;
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--bh-muted, rgba(255, 255, 255, 0.35));
+}
+
+/* ── Quick prompt chips ──────────────────────────────────────── */
+.bh-ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 9px 14px 5px;
+}
+
+/* Matches intel chip scale: 11px / 0.10em */
+.bh-ask-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.50);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bh-ask-chip:hover {
+  background: rgba(168, 85, 247, 0.16);
+  border-color: rgba(168, 85, 247, 0.38);
+  color: rgba(216, 180, 254, 0.92);
+}
+
+/* ── Form ────────────────────────────────────────────────────── */
+.bh-ask-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 14px 14px;
+}
+
+/* Input at body-text size — 12px / matches bh-intel-log font-size range */
+.bh-ask-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(168, 85, 247, 0.20);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(216, 180, 254, 0.90);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.bh-ask-input::placeholder {
+  color: rgba(255, 255, 255, 0.20);
+}
+.bh-ask-input:focus {
+  border-color: rgba(168, 85, 247, 0.50);
+}
+
+/* ── Action row ──────────────────────────────────────────────── */
+.bh-ask-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Matches intel chip height/scale */
+.bh-ask-submit {
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.72);
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  color: rgba(255, 255, 255, 0.96);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bh-ask-submit:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.92);
+  border-color: rgba(168, 85, 247, 0.75);
+}
+.bh-ask-submit:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.bh-ask-clear {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.38);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.bh-ask-clear:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ── Mode meta label ────────────────────────────────────────── */
+.bh-ask-mode-meta {
+  margin-left: auto;
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.60rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Error ───────────────────────────────────────────────────── */
+.bh-ask-error {
+  margin: 0 14px 10px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  color: rgba(252, 165, 165, 0.88);
+}
+
+/* ── Response body ───────────────────────────────────────────── */
+.bh-ask-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 0 14px 14px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.bh-ask-body::-webkit-scrollbar { width: 3px; }
+.bh-ask-body::-webkit-scrollbar-track { background: transparent; }
+.bh-ask-body::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.28);
+  border-radius: 2px;
+}
+
+/* Answer text at body scale — matches bh-intel-log (12.5px) */
+.bh-ask-answer {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid rgba(168, 85, 247, 0.13);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 12px;
+  line-height: 1.62;
+  color: rgba(236, 231, 223, 0.88);
+  white-space: pre-wrap;
+}
+
+.bh-ask-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Section sub-title: matches bh-intel-sub scale */
+.bh-ask-section-title {
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.bh-ask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bh-ask-list-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 1fr;
+  gap: 9px;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+}
+.bh-ask-list-row span:first-child {
+  font-weight: 700;
+  color: var(--bh-gain, #ffb347);
+}
+
+.bh-ask-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bh-ask-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.09);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+  color: rgba(252, 165, 165, 0.78);
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.bh-ask-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.bh-ask-empty {
+  padding: 16px 14px;
+  text-align: center;
+  font-family: var(--bh-font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.18);
+  font-style: italic;
+}
