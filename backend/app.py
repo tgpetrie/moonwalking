@@ -722,7 +722,29 @@ if not hasattr(app, "config") or app.config is None:
     except Exception:
         # best-effort: ignore if we cannot inject config
         pass
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "crypto-dashboard-secret")
+_IS_PRODUCTION = os.environ.get("FLASK_ENV", "").lower() == "production"
+_secret_key = os.environ.get("SECRET_KEY", "").strip()
+if not _secret_key:
+    if _IS_PRODUCTION:
+        # Session cookies are signed with this key; a predictable default would
+        # let anyone forge a login, so refuse to boot without a real one.
+        raise RuntimeError(
+            "SECRET_KEY environment variable must be set in production "
+            "(it signs user session cookies)."
+        )
+    _secret_key = "dev-only-insecure-secret"  # pragma: allowlist secret
+app.config["SECRET_KEY"] = _secret_key
+
+# Session cookie policy: both dev (Vite proxy) and production (Vercel
+# rewrite of /api/* to Render) keep API requests same-origin from the
+# browser's perspective, so Lax is correct. Set SESSION_COOKIE_SAMESITE=None
+# only if the frontend ever calls the backend origin directly cross-site.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=_IS_PRODUCTION,
+    SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+)
 
 # Add startup time tracking
 startup_time = time.time()
@@ -821,8 +843,21 @@ if cors_env == "*":
             )
 else:
     cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+    if "*" in cors_origins:
+        # Browsers reject Access-Control-Allow-Origin:* on credentialed
+        # requests, which would silently break cookie-based watchlist auth.
+        raise RuntimeError(
+            "CORS_ALLOWED_ORIGINS must list explicit origins (not '*') "
+            "because watchlist auth uses cross-origin session cookies."
+        )
     try:
-        CORS(app, origins=cors_origins)
+        CORS(
+            app,
+            resources={r"/*": {"origins": cors_origins}},
+            supports_credentials=True,
+            methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization"],
+        )
         logging.info(f"CORS configured with production origins: {cors_origins}")
     except Exception:
         logging.exception("CORS initialization skipped due to environment limitations")

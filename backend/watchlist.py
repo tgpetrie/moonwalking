@@ -29,7 +29,13 @@ _insights_memory = (
 )
 
 _SESSION_USER_KEY = "mw_user_id"
-_WATCHLIST_DB_PATH = Path(__file__).resolve().parent / "data" / "watchlists.sqlite"
+# On hosts with ephemeral filesystems (e.g. Render without a disk), the
+# default path is wiped on every deploy — point WATCHLIST_DB_PATH at a
+# persistent mount in production.
+_WATCHLIST_DB_PATH = Path(
+    os.environ.get("WATCHLIST_DB_PATH")
+    or Path(__file__).resolve().parent / "data" / "watchlists.sqlite"
+)
 _DB_LOCK = threading.Lock()
 
 
@@ -388,6 +394,7 @@ def auth_signup():
         finally:
             conn.close()
 
+    session.permanent = True
     session[_SESSION_USER_KEY] = user_id
     return jsonify(payload), 201
 
@@ -415,6 +422,7 @@ def auth_login():
         finally:
             conn.close()
 
+    session.permanent = True
     session[_SESSION_USER_KEY] = user_id
     return jsonify(payload), 200
 

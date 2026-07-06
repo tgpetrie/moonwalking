@@ -5,9 +5,19 @@ services:
     buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
     healthCheckPath: /api/server-info
+    # Persistent disk so user accounts/watchlists survive deploys.
+    # Note: Render disks require a paid instance type (not free tier).
+    disk:
+      name: bhabit-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: FLASK_ENV
         value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WATCHLIST_DB_PATH
+        value: /var/data/watchlists.sqlite
       - key: FLASK_DEBUG
         value: "false"
       - key: HOST
