@@ -9,9 +9,12 @@
 ## Product direction (four tracks, in priority order)
 
 1. Cross-device watchlist — code complete, deploy pending (see below).
-2. Near-live gainers/losers — replace REST polling with the Coinbase public
-   WebSocket feed (`wss://ws-feed.exchange.coinbase.com`, ticker channel) so
-   backend 1m/3m windows update tick-by-tick. Not started.
+2. Near-live gainers/losers — DONE (backend side): `backend/coinbase_ws.py`
+   consumes the Coinbase ticker WebSocket and `get_coinbase_prices()` serves
+   tick-fresh prices first, REST only as fallback (measured: warm cycle 0.1s
+   vs 1.2s cold, zero REST ticker calls). Default on; kill switch
+   `ENABLE_COINBASE_WS=0`; freshness knob `COINBASE_WS_MAX_AGE_S` (10s).
+   Possible follow-up: push updates to the browser (SSE) instead of polling.
 3. Real sentiment tracking — only Fear & Greed and CoinGecko fetchers are real
    (`backend/sentiment_data_sources.py`). The tier configs in
    `backend/sentiment/sources/*.json` describe Reddit/RSS/Telegram/Twitter

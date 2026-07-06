@@ -30,6 +30,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 try:
+    from coinbase_ws import get_feed as coinbase_ws_get_feed
+except Exception:  # keep the REST-only path working if the module is absent
+    coinbase_ws_get_feed = None
+
+try:
     from price_db import (
         ensure_price_db,
         insert_price_snapshot,
@@ -6458,6 +6463,37 @@ def get_coinbase_prices():
                 product_by_id[pid] for pid in final_ids if pid in product_by_id
             ]
 
+            # Live WebSocket ticker: serve tick-fresh symbols directly and
+            # only REST-fetch products the feed hasn't seen recently. With
+            # the feed disabled or cold, this is a no-op and the REST path
+            # below behaves exactly as before.
+            ws_hits = 0
+            _ws_feed = None
+            if coinbase_ws_get_feed is not None:
+                try:
+                    _ws_feed = coinbase_ws_get_feed()
+                except Exception as exc:
+                    logging.warning(f"coinbase-ws feed unavailable: {exc}")
+            if _ws_feed is not None:
+                try:
+                    _ws_feed.set_products([p["id"] for p in final_products])
+                    ws_max_age = float(os.environ.get("COINBASE_WS_MAX_AGE_S", "10"))
+                    ws_prices = _ws_feed.fresh_prices(ws_max_age)
+                    _now_seen = time.time()
+                    _rest_products = []
+                    for product in final_products:
+                        _sym = str(product.get("id") or "").split("-", 1)[0]
+                        _ws_price = ws_prices.get(_sym)
+                        if _ws_price:
+                            current_prices[_sym] = _ws_price
+                            _PRICE_LAST_SEEN_TS[_sym] = _now_seen
+                            ws_hits += 1
+                        else:
+                            _rest_products.append(product)
+                    final_products = _rest_products
+                except Exception as exc:
+                    logging.warning(f"coinbase-ws integration skipped: {exc}")
+
             # Use ThreadPoolExecutor for concurrent API calls
             def fetch_ticker(product):
                 """
@@ -6586,7 +6622,8 @@ def get_coinbase_prices():
                             pass
 
             logging.info(
-                "price_fetch_stats: submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
+                "price_fetch_stats: ws_hits=%d submitted=%d ok=%d 429=%d 5xx=%d other=%d exceptions=%d sample=%d deadline_s=%.1f",
+                ws_hits,
                 submitted,
                 ok,
                 http429,
@@ -6615,6 +6652,7 @@ def get_coinbase_prices():
                 last_current_prices["other"] = int(other)
                 last_current_prices["exceptions"] = int(exceptions)
                 last_current_prices["deadline_hit"] = bool(deadline_hit)
+                last_current_prices["ws_hits"] = int(ws_hits)
                 last_current_prices["last_fetch_ts"] = time.time()
             except Exception:
                 pass
