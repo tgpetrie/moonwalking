@@ -31,6 +31,7 @@ export function TokenRowUnified({
   pulsePct = false,
   pulseDelayMs = 0,
   activeAlert = null,
+  recentAlerts = [],
   rankDelta = 0,
 }) {
   const symbol = token?.symbol;
@@ -55,11 +56,16 @@ export function TokenRowUnified({
         token,
         changeField,
         activeAlert,
+        recentAlerts,
         rankDelta,
         isWatchlisted,
       }),
-    [token, changeField, activeAlert, rankDelta, isWatchlisted]
+    [token, changeField, activeAlert, recentAlerts, rankDelta, isWatchlisted]
   );
+  const primaryCue =
+    rowCue?.primary || (rowCue?.display?.key && rowCue.display.key !== "normal" ? rowCue.display : null);
+  const secondaryCue = rowCue?.secondary || null;
+  const persistenceCue = rowCue?.persistence || null;
   const rowClass = [
     "bh-row",
     "bh-row-grid",
@@ -193,24 +199,45 @@ export function TokenRowUnified({
         <div className="bh-symbol-stack">
           <div className="bh-symbol-line">
             <div className="bh-symbol">{token.symbol}</div>
-            {rowCue?.emoji ? (
-              <span
-                className={`bh-symbol-cue bh-symbol-cue--${rowCue.tone === "warning" ? "negative" : rowCue.tone || "neutral"}`}
-                title={rowCue?.title || rowCue?.label}
-                aria-label={rowCue?.label}
-              >
-                {rowCue.emoji}
-              </span>
-            ) : null}
-            {rankMoveLabel ? (
-              <span
-                className={`bh-symbol-move bh-symbol-move--${rankMoveTone}`}
-                title={rankMoveTitle}
-                aria-label={rankMoveAria}
-              >
-                {rankMoveLabel}
-              </span>
-            ) : null}
+            <div className="bh-symbol-markers">
+              {primaryCue?.emoji ? (
+                <span
+                  className={`bh-symbol-cue bh-symbol-cue--${primaryCue.tone === "warning" ? "negative" : primaryCue.tone || "neutral"}`}
+                  title={primaryCue?.title || primaryCue?.label}
+                  aria-label={primaryCue?.label}
+                >
+                  {primaryCue.emoji}
+                </span>
+              ) : null}
+              {secondaryCue?.emoji ? (
+                <span
+                  className={`bh-symbol-cue bh-symbol-cue--recent bh-symbol-cue--${secondaryCue.tone === "warning" ? "negative" : secondaryCue.tone || "neutral"}`}
+                  title={secondaryCue?.title || secondaryCue?.label}
+                  aria-label={secondaryCue?.title || secondaryCue?.label}
+                >
+                  {secondaryCue.emoji}
+                </span>
+              ) : null}
+              {persistenceCue ? (
+                <span className="bh-symbol-persist" title={persistenceCue.title} aria-label={persistenceCue.ariaLabel}>
+                  <span className="bh-symbol-persist-dot" aria-hidden="true" />
+                  {persistenceCue.compactCount ? (
+                    <span className="bh-symbol-persist-count" aria-hidden="true">
+                      {persistenceCue.compactCount}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {rankMoveLabel ? (
+                <span
+                  className={`bh-symbol-move bh-symbol-move--${rankMoveTone}`}
+                  title={rankMoveTitle}
+                  aria-label={rankMoveAria}
+                >
+                  {rankMoveLabel}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
       </CellTag>
@@ -295,6 +322,31 @@ export function TokenRowUnified({
       const x = ((r.left + r.width / 2 - b.left) / (b.width || 1)) * 100;
       const y = ((r.top + r.height / 2 - b.top) / (b.height || 1)) * 100;
 
+      const panelOrigin = row.closest("[data-hover-origin]")?.getAttribute("data-hover-origin");
+      const col = row.closest(".bh-col");
+      let focusRatioX = 0.5;
+
+      if (panelOrigin === "right") {
+        focusRatioX = 0.74;
+      } else if (panelOrigin === "left") {
+        focusRatioX = 0.26;
+      } else if (col?.parentElement) {
+        if (!col.previousElementSibling) {
+          focusRatioX = 0.74;
+        } else if (!col.nextElementSibling) {
+          focusRatioX = 0.26;
+        }
+      } else {
+        const boardMid = b.left + (b.width || 0) / 2;
+        const rowMid = r.left + r.width / 2;
+        focusRatioX = rowMid < boardMid ? 0.72 : 0.28;
+      }
+
+      const focusX = Math.max(0, r.left - b.left + r.width * focusRatioX);
+      const focusY = Math.max(0, r.top - b.top + bleedTop + r.height * 0.5);
+      const spotW = Math.max(96, Math.min(180, r.width * 0.34));
+      const spotH = Math.max(28, Math.min(56, r.height * 0.84));
+
       // Clip coordinates are in the coordinate space of the mural pseudo-element,
       // which extends above/below the board by bleedTop/bleedBottom.
       const top = Math.max(0, r.top - b.top + bleedTop - pad);
@@ -308,6 +360,10 @@ export function TokenRowUnified({
       board.style.setProperty("--emit-right", `${right}px`);
       board.style.setProperty("--emit-bottom", `${bottom}px`);
       board.style.setProperty("--emit-left", `${left}px`);
+      board.style.setProperty("--emit-focus-x", `${focusX}px`);
+      board.style.setProperty("--emit-focus-y", `${focusY}px`);
+      board.style.setProperty("--emit-spot-w", `${spotW}px`);
+      board.style.setProperty("--emit-spot-h", `${spotH}px`);
       board.setAttribute("data-row-hover", "1");
     } else {
       board.setAttribute("data-row-hover", "0");

@@ -100,7 +100,7 @@ function useReorderCadence(rows, sortFn, ms = REORDER_COMMIT_MS_3M) {
 
 export default function LosersTable3Min({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) {
   const { has, add, remove } = useWatchlist();
-  const { getActiveAlert } = useDataFeed();
+  const { getActiveAlert, getRecentAlerts } = useDataFeed();
   const lastValueRef = useRef(new Map());
   const prevRankRef = useRef(new Map());
   const rankMoveTimersRef = useRef(new Map());
@@ -329,6 +329,7 @@ export default function LosersTable3Min({ tokens: tokensProp, loading: loadingPr
                     rankDelta={rankDelta}
                     pulseDelayMs={idx * 18}
                     activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(tokenProps.symbol) : null}
+                    recentAlerts={typeof getRecentAlerts === "function" ? getRecentAlerts(tokenProps.symbol) : []}
                   />
                 </motion.div>
               );

@@ -909,6 +909,33 @@ function SignalRow({
     onToggleWatchlist(a);
   };
 
+  const detailContent = (() => {
+    if (!pctText) return <span className="bh-signal-msg-text">{detail}</span>;
+    const tokenMatch = [...detail.matchAll(/[+-]?\d+(?:\.\d+)?%/g)].find((match) => {
+      const raw = Number(String(match?.[0] || "").replace("%", ""));
+      return Number.isFinite(raw) && Number.isFinite(pct) && Math.abs(raw - pct) < 0.02;
+    });
+    if (tokenMatch) {
+      const token = tokenMatch[0];
+      const idx = tokenMatch.index ?? detail.indexOf(token);
+      const before = detail.slice(0, idx).trimEnd();
+      const after = detail.slice(idx + token.length).trimStart();
+      return (
+        <>
+          {before ? <span className="bh-signal-msg-text">{before}</span> : null}
+          <span className="bh-metric bh-metric--inline" data-direction={direction}>{token}</span>
+          {after ? <span className="bh-signal-msg-text">{after}</span> : null}
+        </>
+      );
+    }
+    return (
+      <>
+        <span className="bh-signal-msg-text">{detail}</span>
+        <span className="bh-metric bh-metric--inline" data-direction={direction}>{pctText}</span>
+      </>
+    );
+  })();
+
   return (
     <div
       className="bh-signal-row"
@@ -937,14 +964,16 @@ function SignalRow({
           {sourceLabel ? <span className="bh-signal-source">{sourceLabel}</span> : null}
         </div>
 
-        <div className="bh-signal-ticker">{sym || "\u2014"}</div>
-
-        <div className="bh-signal-msg">{detail}</div>
-
-        <div className="bh-signal-metrics">
-          {pctText ? <span className="bh-metric" data-direction={direction}>{pctText}</span> : null}
-          {volText ? <span className="bh-metric bh-metric--vol">{volText}</span> : null}
+        <div className="bh-signal-headline">
+          <span className="bh-signal-ticker">{sym || "\u2014"}</span>
+          <div className="bh-signal-msg">{detailContent}</div>
         </div>
+
+        {volText ? (
+          <div className="bh-signal-metrics">
+            <span className="bh-metric bh-metric--vol">{volText}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="bh-signal-row-right">
@@ -1329,20 +1358,31 @@ export default function AlertsTab({
               <div className="bh-alerts-feed-title">{allAlertsTitle}</div>
 
               {!compact ? (
-                <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
+                <div className="bh-alerts-head-actions">
+                  <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
+                    <button
+                      className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
+                      onClick={() => setFeed("ACTIVE")}
+                      type="button"
+                    >
+                      Active
+                    </button>
+                    <button
+                      className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
+                      onClick={() => setFeed("RECENT")}
+                      type="button"
+                    >
+                      Recent
+                    </button>
+                  </div>
+
                   <button
-                    className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
-                    onClick={() => setFeed("ACTIVE")}
                     type="button"
+                    className="bh-help-toggle"
+                    onClick={() => setShowHelp((v) => !v)}
+                    aria-expanded={showHelp}
                   >
-                    Active
-                  </button>
-                  <button
-                    className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
-                    onClick={() => setFeed("RECENT")}
-                    type="button"
-                  >
-                    Recent
+                    {showHelp ? "Hide guide" : "Show guide"}
                   </button>
                 </div>
               ) : null}
@@ -1400,19 +1440,6 @@ export default function AlertsTab({
                 <div className="bh-control-label">Market Mood</div>
                 <MarketMoodCard meta={effectiveMeta} variant="micro" />
               </div>
-            </div>
-          ) : null}
-
-          {!compact ? (
-            <div className="bh-alerts-help-bar">
-              <button
-                type="button"
-                className="bh-help-toggle"
-                onClick={() => setShowHelp((v) => !v)}
-                aria-expanded={showHelp}
-              >
-                {showHelp ? "Hide guide" : "Show guide"}
-              </button>
             </div>
           ) : null}
 
@@ -1491,7 +1518,7 @@ export default function AlertsTab({
               <div className="bh-alerts-feed-section__meta">{displayedRows.length} shown</div>
             </div>
           ) : null}
-          <div className="bh-signal-list" role="list">
+          <div className="bh-signal-list bh-signal-list--primary" role="list">
             {displayedRows.length === 0 ? (
               <div className="bh-signal-empty">
                 {resolvedEmptyCopy}

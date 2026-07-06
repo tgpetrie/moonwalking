@@ -234,7 +234,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     }
   }, [logs, isCollapsed]);
 
-  const visibleLogs = isCollapsed ? [] : logs.slice(-8);
+  const visibleLogs = isCollapsed ? [] : logs;
 
   // Rows inserted within the last 3s get the fresh-entry animation
   const freshIds = useMemo(() => {
@@ -262,6 +262,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
   const alerts = useMemo(() => (Array.isArray(data?.alerts) ? data.alerts : []), [data]);
 
   useEffect(() => {
+    if (alerts.length > 0) return;
     const hasAnything = gainers1m.length || losers3m.length || vol1h.length;
     if (!hasAnything) return;
 
@@ -289,6 +290,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           id: `g-${Date.now()}-${Math.random()}`,
           ts: Date.now(),
           time: timeStr,
+          source: "synthetic",
           symbol,
           url,
           prefix: ">>>",
@@ -317,6 +319,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           id: `l-${Date.now()}-${Math.random()}`,
           ts: Date.now(),
           time: timeStr,
+          source: "synthetic",
           symbol,
           url,
           prefix: "<<<",
@@ -345,6 +348,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
           id: `v-${Date.now()}-${Math.random()}`,
           ts: Date.now(),
           time: timeStr,
+          source: "synthetic",
           symbol,
           url,
           prefix: "|||",
@@ -362,9 +366,9 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     // (previous behavior inserted lightweight PING messages when no anomalies were present)
 
     if (newLogs.length) {
-      setLogs((prev) => [...prev, ...newLogs].slice(-30));
+      setLogs((prev) => [...prev, ...newLogs].slice(-60));
     }
-  }, [gainers1m, losers3m, vol1h]);
+  }, [alerts.length, gainers1m, losers3m, vol1h]);
 
   useEffect(() => {
     if (!Array.isArray(alerts) || alerts.length === 0) return;
@@ -416,6 +420,7 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         id: `a-${Date.now()}-${Math.random()}`,
         ts: Date.now(),
         time: timeStr,
+        source: "alert",
         symbol,
         url,
         prefix: "",
@@ -434,7 +439,10 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     }
 
     if (newLogs.length) {
-      setLogs((prev) => [...prev, ...newLogs].slice(-40));
+      setLogs((prev) => {
+        const carry = prev.filter((log) => log?.source !== "synthetic");
+        return [...carry, ...newLogs].slice(-60);
+      });
     }
   }, [alerts]);
 

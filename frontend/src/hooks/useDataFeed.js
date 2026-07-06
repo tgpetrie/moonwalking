@@ -20,7 +20,7 @@ export function useDataFeed() {
         status: "DOWN",
       };
     }
-    const { data, error, loading, refetch, connectionStatus, lastGoodLatestBySymbol, alerts, getActiveAlert } = ctx;
+    const { data, error, loading, refetch, connectionStatus, lastGoodLatestBySymbol, alerts, alertsRecent, getActiveAlert, getRecentAlerts } = ctx;
     return {
       data,
       error,
@@ -32,7 +32,9 @@ export function useDataFeed() {
       backendBase: ctx.backendBase,
       lastGoodLatestBySymbol,
       alerts: alerts || [],
+      alertsRecent: alertsRecent || [],
       getActiveAlert: getActiveAlert || (() => null),
+      getRecentAlerts: getRecentAlerts || (() => []),
     };
   }, [ctx]);
 

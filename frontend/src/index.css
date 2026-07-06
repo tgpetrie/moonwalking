@@ -32,7 +32,7 @@ html, body {
   --bh-row-py: 12px;
 
   /* Bunny layer */
-  --bh-bunny-opacity: 0.22;
+  --bh-bunny-opacity: 0.10;
 
   /* Board layout */
   --bh-board-width: 1200px;
@@ -52,8 +52,8 @@ html, body {
   --bh-rail-hover: 1;
   --bh-glass-idle: 0;
   --bh-glass-hover: 1;
-  --bh-bunny-idle: 0.035;
-  --bh-bunny-hover: 0.14;
+  --bh-bunny-idle: 0.012;
+  --bh-bunny-hover: 0.11;
 
   /* Unified Row Specs (single source of truth for row geometry) */
   --bh-row-cols: var(--bh-col-rank) minmax(0, 1fr) var(--bh-col-price) var(--bh-col-pct) var(--bh-col-actions);
@@ -317,6 +317,51 @@ body {
   gap: 12px;
   font-size: 0.7rem;
   color: #d1c1a5;
+}
+
+.bh-topbar-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(245, 243, 240, 0.88);
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.bh-topbar-link:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.bh-topbar-link--ghost {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bh-topbar-link--primary {
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.32);
+}
+
+@media (max-width: 780px) {
+  .bh-topbar {
+    height: auto;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .bh-topbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .live-status-bar {
@@ -817,6 +862,43 @@ body {
   transform: scale(1.00);
 }
 
+/* Rabbit mural: nearly invisible at rest, emerges softly on row hover */
+.board-core::before,
+.board-core::after {
+  transition:
+    opacity 220ms ease,
+    filter 260ms ease,
+    transform 260ms ease,
+    clip-path 220ms ease;
+}
+
+.board-core::before {
+  opacity: var(--bh-bunny-idle, 0.012) !important;
+  filter: blur(0.8px) saturate(0.84) brightness(0.82);
+  transform: translateZ(0) scale(0.992);
+}
+
+.board-core::after {
+  opacity: calc(var(--bh-bunny-idle, 0.012) * 0.9) !important;
+  filter: blur(1px) saturate(0.82) brightness(0.8);
+  transform: translateZ(0) scale(0.99);
+}
+
+.board-core[data-row-hover="1"]::before,
+.board-core[data-row-hover="1"]::after {
+  opacity: var(--bh-bunny-hover, 0.11) !important;
+}
+
+.board-core[data-row-hover="1"]::before {
+  filter: blur(0px) saturate(1.02) brightness(0.98);
+  transform: translateZ(0) scale(1);
+}
+
+.board-core[data-row-hover="1"]::after {
+  filter: blur(0.2px) saturate(1) brightness(0.96);
+  transform: translateZ(0) scale(1);
+}
+
 
 .section-head--left {
   align-items: flex-start;
@@ -1030,6 +1112,28 @@ a.bh-row {
   display: block;
   text-decoration: none;
   color: inherit;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 /* Visual hierarchy tweaks: price stack, change, rank, actions, hover glow */
@@ -4911,26 +5015,40 @@ body {
    (keep at end so it wins)
    ========================================================= */
 
-/* Rabbit: faint full-board watermark, no mask */
+/* Rabbit: local stained-glass reveal, clipped to the hovered row area */
 .board-core .rabbit-bg{
-  /* Centered, fixed watermark so rabbit stays the same size/position */
-  position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  transform: translate(-50%, -50%) !important;
+  position: absolute !important;
+  inset: -90px 0 -180px 0 !important;
   pointer-events: none !important;
   z-index: 0 !important;
-  width: min(1100px, 92vw) !important;
-  height: 100vh !important;
-  background-image: url("/purple-rabbit-bg.png") !important;
-  background-repeat: no-repeat !important;
-  background-position: center center !important;
-  background-size: contain !important;
-  opacity: 0.055 !important;
+  background: url("/purple-rabbit-bg.png") 50% 14% / min(1100px, 92vw) auto no-repeat !important;
+  opacity: 0.001 !important;
   mix-blend-mode: screen !important;
-  filter: brightness(0.82) contrast(0.92) saturate(0.88) !important;
+  filter: blur(1.1px) brightness(0.70) contrast(0.92) saturate(0.78) !important;
+  transform: translateZ(0) scale(0.998) !important;
+  clip-path: ellipse(
+    var(--emit-spot-w, 132px)
+    var(--emit-spot-h, 42px)
+    at var(--emit-focus-x, 50%) var(--emit-focus-y, 50%)
+  ) !important;
+  transition:
+    opacity 220ms ease,
+    filter 260ms ease,
+    transform 260ms ease,
+    clip-path 220ms ease !important;
   -webkit-mask-image: none !important;
   mask-image: none !important;
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg{
+  opacity: 0.016 !important;
+  filter: blur(0.45px) brightness(0.80) contrast(0.95) saturate(0.84) !important;
+  transform: translateZ(0) scale(1) !important;
+  clip-path: ellipse(
+    var(--emit-spot-w, 132px)
+    var(--emit-spot-h, 42px)
+    at var(--emit-focus-x, 50%) var(--emit-focus-y, 50%)
+  ) !important;
 }
 
 .board-core > *{
@@ -6049,6 +6167,14 @@ html, body {
   min-width: 0;
 }
 
+.bh-symbol-markers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .bh-symbol-cue {
   display: inline-flex;
   align-items: center;
@@ -6061,6 +6187,12 @@ html, body {
   line-height: 1;
   opacity: 0.94;
   transform: translateY(-0.02em);
+}
+
+.bh-symbol-cue--recent {
+  min-width: 0.72rem;
+  font-size: 0.62rem;
+  opacity: 0.72;
 }
 
 .bh-symbol-cue--positive {
@@ -6200,6 +6332,10 @@ html, body {
   .bh-symbol-cue {
     font-size: 0.72rem;
   }
+
+  .bh-symbol-cue--recent {
+    font-size: 0.6rem;
+  }
 }
 
 /* =========================================================
@@ -6308,6 +6444,31 @@ html, body {
   white-space: nowrap;
 }
 
+.bh-symbol-persist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  color: rgba(174, 75, 245, 0.94);
+}
+
+.bh-symbol-persist-dot {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: rgba(174, 75, 245, 0.92);
+  box-shadow: 0 0 0 1px rgba(174, 75, 245, 0.28);
+}
+
+.bh-symbol-persist-count {
+  font-size: 0.52rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(196, 131, 255, 0.92);
+}
+
 .bh-symbol-move--up {
   color: rgba(255, 212, 126, 0.82);
 }
@@ -6323,6 +6484,12 @@ html, body {
 
 .bh-board-help {
   position: relative;
+}
+
+.bh-board-legend-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 10px;
 }
 
 .bh-board-help__toggle {
@@ -6353,9 +6520,10 @@ html, body {
   right: 0;
   z-index: 8;
   display: grid;
-  gap: 6px;
-  min-width: 220px;
-  padding: 10px 12px;
+  gap: 10px;
+  min-width: 360px;
+  max-width: min(540px, calc(100vw - 24px));
+  padding: 12px 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(8, 9, 14, 0.94);
   color: rgba(255, 255, 255, 0.68);
@@ -6363,14 +6531,76 @@ html, body {
   line-height: 1.35;
 }
 
+.bh-board-help__title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.bh-board-help__section {
+  display: grid;
+  gap: 6px;
+}
+
+.bh-board-help__section-title {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.bh-board-help__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
 .bh-board-help__row {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr);
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.bh-board-help__copy {
+  display: grid;
+  gap: 2px;
+}
+
+.bh-board-help__label {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.bh-board-help__desc {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.bh-board-help__note {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.64rem;
+  line-height: 1.4;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bh-board-help__note--lead {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .bh-board-help__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-height: 20px;
   color: rgba(226, 229, 238, 0.88);
   font-weight: 700;
   text-align: center;
@@ -6388,6 +6618,43 @@ html, body {
   color: rgba(152, 196, 255, 0.94);
 }
 
+.bh-board-help__icon--warning {
+  color: rgba(255, 188, 120, 0.96);
+}
+
+.bh-board-help__icon--persistence {
+  color: rgba(196, 131, 255, 0.96);
+}
+
+.bh-board-help__persist {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bh-board-help__persist-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px rgba(174, 75, 245, 0.28);
+}
+
+.bh-board-help__persist-count {
+  font-size: 0.5rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bh-board-help__action-svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 780px) {
   .bh-row,
   .token-row.table-row {
@@ -6398,7 +6665,11 @@ html, body {
   .bh-board-help__popover {
     right: auto;
     left: 0;
-    min-width: 200px;
+    min-width: min(320px, calc(100vw - 24px));
+  }
+
+  .bh-board-help__grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -6476,4 +6747,155 @@ html, body {
   margin-right: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
+}
+
+/* ===== Rabbit + Intel Final Pass (Apr-2026) ===== */
+
+/* Passive rabbit watermark only. Hover glass in front should reveal it. */
+.board-core .rabbit-bg {
+  position: absolute !important;
+  inset: 72px 0 112px 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background: url("/purple-rabbit-bg.png") 50% 10% / min(1120px, 90vw) auto no-repeat !important;
+  opacity: 0.0075 !important;
+  mix-blend-mode: screen !important;
+  filter: blur(0.35px) brightness(0.76) contrast(0.94) saturate(0.82) !important;
+  transform: translateZ(0) !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+.board-core[data-row-hover="1"] .rabbit-bg,
+.board-core:hover .rabbit-bg,
+.board-core:focus-within .rabbit-bg {
+  opacity: 0.0075 !important;
+  filter: blur(0.35px) brightness(0.76) contrast(0.94) saturate(0.82) !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Remove painted hover slabs. The reveal should come from foreground glass. */
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid:hover,
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-3m-grid > .bh-panel:first-child .bh-row.bh-row-grid:hover,
+.board-core .bh-3m-grid > .bh-panel:last-child .bh-row.bh-row-grid[data-side="loser"]:hover,
+.board-core .bh-3m-grid .mw-hover-hook:hover,
+.board-core .bh-3m-grid .mw-hover-hook[data-side="loser"]:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Lightweight glass over the row. This brightens what's behind it, including the rabbit. */
+.board-core .bh-row.bh-row-grid {
+  --bh-row-hover-core: rgba(255,184,77,0.24);
+  --bh-row-hover-mid: rgba(255,184,77,0.12);
+  --bh-row-hover-sheen: rgba(255,255,255,0.08);
+  --bh-row-hover-rim: rgba(255,184,77,0.34);
+  --bh-row-hover-bloom: rgba(255,184,77,0.18);
+  --bh-row-hover-outer: rgba(255,184,77,0.12);
+  --mw-row-origin-x: 50%;
+  --mw-row-origin-y: 50%;
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+}
+
+.board-core .bh-row.bh-row-grid[data-side="loser"],
+.board-core .bh-row.bh-row-grid[data-side="loss"],
+.board-core .bh-row.bh-row-grid.bh-row--loss {
+  --bh-row-hover-core: rgba(192,132,252,0.24);
+  --bh-row-hover-mid: rgba(192,132,252,0.12);
+  --bh-row-hover-sheen: rgba(255,255,255,0.07);
+  --bh-row-hover-rim: rgba(192,132,252,0.34);
+  --bh-row-hover-bloom: rgba(192,132,252,0.18);
+  --bh-row-hover-outer: rgba(192,132,252,0.12);
+}
+
+.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid,
+.board-core [data-hover-origin="right"] .bh-row.bh-row-grid {
+  --mw-row-origin-x: 100%;
+}
+
+.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid,
+.board-core [data-hover-origin="left"] .bh-row.bh-row-grid {
+  --mw-row-origin-x: 0%;
+}
+
+.board-core [data-hover-origin="center"] .bh-row.bh-row-grid {
+  --mw-row-origin-x: 50%;
+}
+
+.board-core .bh-row.bh-row-grid::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 1px 6px !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  border-radius: 6px !important;
+  opacity: 0 !important;
+  background:
+    radial-gradient(
+      120% 240% at var(--mw-row-origin-x, 50%) var(--mw-row-origin-y, 50%),
+      var(--bh-row-hover-core) 0%,
+      var(--bh-row-hover-mid) 26%,
+      rgba(255,255,255,0.07) 46%,
+      rgba(255,255,255,0.018) 60%,
+      rgba(255,255,255,0) 80%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,0) 0%,
+      var(--bh-row-hover-sheen) 50%,
+      rgba(255,255,255,0) 100%
+    ) !important;
+  background-color: rgba(255,255,255,0.018);
+  mix-blend-mode: normal;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.05),
+    inset 0 0 0 1px var(--bh-row-hover-rim),
+    inset 0 0 34px var(--bh-row-hover-bloom),
+    0 0 22px var(--bh-row-hover-outer) !important;
+  -webkit-backdrop-filter: brightness(1.48) contrast(1.38) saturate(1.16);
+  backdrop-filter: brightness(1.48) contrast(1.38) saturate(1.16);
+  transform: scale(0.992);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease !important;
+}
+
+.board-core .bh-row.bh-row-grid:hover::before,
+.board-core .bh-row.bh-row-grid:focus-visible::before,
+.board-core .bh-row.bh-row-grid.bh-row--hot::before {
+  opacity: 0.98 !important;
+  transform: scale(1) !important;
+}
+
+.board-core .bh-row.bh-row-grid,
+.board-core .bh-row.bh-row-grid:hover,
+.board-core .bh-row.bh-row-grid:focus-visible {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: 4px !important;
+}
+
+.board-core .bh-row.bh-row-grid > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Let the anomaly stream inherit the surrounding rail shell instead of its own black card. */
+.bh-intel-panel {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

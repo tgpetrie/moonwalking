@@ -8,6 +8,7 @@ const API_BASE =
 const apiBase = API_BASE.replace(/\/$/, "");
 const POLL_MS = Number(import.meta.env.VITE_INTEL_POLL_MS || 300000); // 5 minutes default
 const MIN_FETCH_MS = Number(import.meta.env.VITE_INTEL_MIN_FETCH_MS || 60000); // minimum 1 minute between fetches
+const BATCH_RETRY_MS = Number(import.meta.env.VITE_INTEL_BATCH_RETRY_MS || 180000); // 3 minutes cooldown after 429/5xx
 const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || "false") === "true";
 
 const normalizeCoinIntelAsReport = (symbol, payload) => {
@@ -43,7 +44,8 @@ function uniqSymbols(symbols) {
 }
 
 export function IntelligenceProvider({ children, watchSymbols }) {
-    const symbols = useMemo(() => uniqSymbols(watchSymbols), [watchSymbols]);
+    const symbolsKey = useMemo(() => uniqSymbols(watchSymbols).join(","), [watchSymbols]);
+    const symbols = useMemo(() => (symbolsKey ? symbolsKey.split(",") : []), [symbolsKey]);
 
     const [reports, setReports] = useState({});
     const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ export function IntelligenceProvider({ children, watchSymbols }) {
     const lastFetchOkRef = useRef(true);
     const pollStartedRef = useRef(false);
     const batchUnsupportedRef = useRef(false);
+    const batchRetryAtRef = useRef(0);
 
     const fetchBatch = useCallback(async () => {
         if (!symbols.length) return true;
@@ -112,30 +115,40 @@ export function IntelligenceProvider({ children, watchSymbols }) {
         try {
             let merged = null;
 
-            if (!batchUnsupportedRef.current) {
-                const qs = encodeURIComponent(symbols.join(","));
-                const res = await fetch(
-                    `${apiBase}/api/intelligence-reports?symbols=${qs}`,
-                    { cache: "no-store", signal: ac.signal }
-                );
+            const nowMs = Date.now();
+            const canTryBatch = !batchUnsupportedRef.current && nowMs >= batchRetryAtRef.current;
+            if (canTryBatch) {
+                try {
+                    const qs = encodeURIComponent(symbols.join(","));
+                    const res = await fetch(
+                        `${apiBase}/api/intelligence-reports?symbols=${qs}`,
+                        { cache: "no-store", signal: ac.signal }
+                    );
 
-                if (res.status === 404) {
-                    batchUnsupportedRef.current = true;
-                } else if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
-                } else {
-                    // JSON safety: check content-type before parsing
-                    const contentType = res.headers.get("content-type") || "";
-                    if (!contentType.includes("application/json")) {
-                        console.warn('[Intelligence] Non-JSON response from /api/intelligence-reports:', contentType);
-                        throw new Error(`Expected JSON, got ${contentType}`);
+                    if (res.status === 404) {
+                        batchUnsupportedRef.current = true;
+                    } else if (res.status === 429 || res.status >= 500) {
+                        batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
+                    } else if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    } else {
+                        // JSON safety: check content-type before parsing
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("application/json")) {
+                            console.warn('[Intelligence] Non-JSON response from /api/intelligence-reports:', contentType);
+                            batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
+                        } else {
+                            const json = await res.json();
+                            if (!json.success) {
+                                batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
+                            } else {
+                                merged = json.data || {};
+                            }
+                        }
                     }
-
-                    const json = await res.json();
-                    if (!json.success) {
-                        throw new Error(json?.error?.message || "Unknown backend error");
-                    }
-                    merged = json.data || {};
+                } catch (err) {
+                    if (err?.name === "AbortError") throw err;
+                    batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
                 }
             }
 
@@ -204,7 +217,7 @@ export function IntelligenceProvider({ children, watchSymbols }) {
 
     // Polling loop
     useEffect(() => {
-        if (timerRef.current) clearInterval(timerRef.current);
+        if (timerRef.current) clearTimeout(timerRef.current);
 
         // Initial fetch
         if (pollStartedRef.current) return undefined;

@@ -98,7 +98,7 @@ function useReorderCadence(rows, sortFn, ms = REORDER_COMMIT_MS_3M) {
 
 const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m = false, onInfo, onToggleWatchlist, watchlist = [] }) => {
   // Support both prop-based (new centralized approach) and hook-based (legacy) usage
-  const { data, isLoading: hookLoading, getActiveAlert } = useDataFeed();
+  const { data, isLoading: hookLoading, getActiveAlert, getRecentAlerts } = useDataFeed();
   const [isExpanded, setIsExpanded] = useState(false);
   const lastValueRef = useRef(new Map());
   const prevRankRef = useRef(new Map());
@@ -283,6 +283,7 @@ const GainersTable3Min = ({ tokens: tokensProp, loading: loadingProp, warming3m 
                     rankDelta={rankDelta}
                     pulseDelayMs={index * 18}
                     activeAlert={typeof getActiveAlert === "function" ? getActiveAlert(token.symbol) : null}
+                    recentAlerts={typeof getRecentAlerts === "function" ? getRecentAlerts(token.symbol) : []}
                   />
                 </motion.div>
               );

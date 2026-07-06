@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import { normalizeAlert as normalizeAlertShape } from "../utils/alerts_normalize";
 import { upsertCoinEvents } from "../utils/coinHistoryCache";
+import { deriveDashboardCadence } from "../config/cadence";
 import {
   getBackendCandidates,
   normalizeBase,
@@ -12,11 +13,15 @@ const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
 
 const LS_KEY = "bh_last_payload_v1";
-const FAST_1M_MS = Number(import.meta.env.VITE_FAST_1M_MS || 3800);
-const BACKOFF_1M_MS = Number(import.meta.env.VITE_BACKOFF_1M_MS || 9000);
+const {
+  FAST_1M_MS,
+  BACKOFF_1M_MS,
+  POLL_JITTER_MS,
+  PUBLISH_UI_MS,
+  PUBLISH_3M_MS,
+  PUBLISH_BANNER_MS,
+} = deriveDashboardCadence(import.meta.env);
 const BACKOFF_WINDOW_MS = 30_000;
-const POLL_JITTER_MS = Number(import.meta.env.VITE_POLL_JITTER_MS || 320);
-const PUBLISH_UI_MS = Number(import.meta.env.VITE_PUBLISH_UI_MS || 4000);
 const DATA_FETCH_TIMEOUT_MS = Number(import.meta.env.VITE_DATA_FETCH_TIMEOUT_MS || 12000);
 const ALERTS_FETCH_TIMEOUT_MS = Number(import.meta.env.VITE_ALERTS_FETCH_TIMEOUT_MS || 10000);
 const ALERTS_POLL_MS = Number(import.meta.env.VITE_ALERTS_POLL_MS || 8000);
@@ -51,9 +56,8 @@ const readCachedTimestamp = () => {
   }
 };
 
-// Environment-driven cadence knobs (defaults optimized for N100)
-const PUBLISH_3M_MS = Number(import.meta.env.VITE_PUBLISH_3M_MS || 12000);
-const PUBLISH_BANNER_MS = Number(import.meta.env.VITE_PUBLISH_BANNER_MS || 120000);
+// Environment-driven cadence knobs.
+// Values are normalized so 1m stays fastest, 3m stays slower, and banners stay slowest.
 // NOTE: row-level staggering moved into the 1m table layer; keep env var reserved for future use.
 const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 
@@ -62,6 +66,14 @@ const STAGGER_MS = Number(import.meta.env.VITE_ROW_STAGGER_MS || 65);
 const KEEP_NONEMPTY_1M_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_1M_MS || 60_000);
 const KEEP_NONEMPTY_3M_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_3M_MS || 120_000);
 const KEEP_NONEMPTY_BANNER_MS = Number(import.meta.env.VITE_KEEP_NONEMPTY_BANNER_MS || 180_000);
+
+const listLen = (value) => (Array.isArray(value) ? value.length : 0);
+
+const shouldPromoteBannerNow = (publishedLen, nextLen) => {
+  if (nextLen <= 0) return false;
+  if (publishedLen <= 0) return true;
+  return nextLen > publishedLen && (publishedLen < 3 || nextLen >= publishedLen + 2);
+};
 
 // Normalize backend response to canonical shape
 function normalizeApiData(payload) {
@@ -351,18 +363,22 @@ export function DataProvider({ children }) {
       ? Date.now()
       : 0
   );
-  const lastNonEmptyBannerAtRef = useRef(
-    cachedNormalized &&
-      ((Array.isArray(cachedNormalized.banner_1h_price) && cachedNormalized.banner_1h_price.length) ||
-        (Array.isArray(cachedNormalized.banner_1h_volume) && cachedNormalized.banner_1h_volume.length))
-      ? Date.now()
-      : 0
+  const lastNonEmptyPriceBannerAtRef = useRef(
+    listLen(cachedNormalized?.banner_1h_price) > 0 ? Date.now() : 0
+  );
+  const lastNonEmptyVolumeBannerAtRef = useRef(
+    listLen(cachedNormalized?.banner_1h_volume) > 0 ? Date.now() : 0
   );
 
   // Timing refs for gated publishing
   const last3mPublishRef = useRef(0);
-  const lastBannerPublishRef = useRef(0);
+  const lastPriceBannerPublishRef = useRef(0);
+  const lastVolumeBannerPublishRef = useRef(0);
   const latestNormalizedRef = useRef(cachedNormalized);
+  const publishedBannersRef = useRef({
+    price: cachedNormalized?.banner_1h_price ?? [],
+    volume: cachedNormalized?.banner_1h_volume ?? [],
+  });
   const pendingNormalizedRef = useRef(null);
   const pendingBaseRef = useRef(null);
   const abortRef = useRef(null);
@@ -397,6 +413,15 @@ export function DataProvider({ children }) {
   const commit1m = useCallback((nextRows) => {
     staggerTokenRef.current = null;
     setOneMinRows(Array.isArray(nextRows) ? nextRows : []);
+  }, []);
+
+  const commitBanners = useCallback((nextPrice, nextVolume) => {
+    const next = {
+      price: Array.isArray(nextPrice) ? nextPrice : [],
+      volume: Array.isArray(nextVolume) ? nextVolume : [],
+    };
+    publishedBannersRef.current = next;
+    setBanners(next);
   }, []);
 
   const persistLastGood = useCallback((norm, baseUrl) => {
@@ -476,14 +501,6 @@ export function DataProvider({ children }) {
       (Array.isArray(norm.gainers_3m) ? norm.gainers_3m.length : 0) > 0 ||
       (Array.isArray(norm.losers_3m) ? norm.losers_3m.length : 0) > 0;
 
-    const cachedBannersEmpty =
-      !cached ||
-      ((Array.isArray(cached.banner_1h_price) ? cached.banner_1h_price.length : 0) === 0 &&
-        (Array.isArray(cached.banner_1h_volume) ? cached.banner_1h_volume.length : 0) === 0);
-    const nextBannersHasAny =
-      (Array.isArray(norm.banner_1h_price) ? norm.banner_1h_price.length : 0) > 0 ||
-      (Array.isArray(norm.banner_1h_volume) ? norm.banner_1h_volume.length : 0) > 0;
-
     setError(null);
     setLoading(false);
 
@@ -526,19 +543,27 @@ export function DataProvider({ children }) {
       const merged3mGainers = useCached3m ? cached.gainers_3m : norm.gainers_3m;
       const merged3mLosers = useCached3m ? cached.losers_3m : norm.losers_3m;
 
-      const cachedBannerLen =
-        (Array.isArray(cached?.banner_1h_price) ? cached.banner_1h_price.length : 0) +
-        (Array.isArray(cached?.banner_1h_volume) ? cached.banner_1h_volume.length : 0);
-      const nextBannerLen =
-        (Array.isArray(norm.banner_1h_price) ? norm.banner_1h_price.length : 0) +
-        (Array.isArray(norm.banner_1h_volume) ? norm.banner_1h_volume.length : 0);
-      if (nextBannerLen > 0) lastNonEmptyBannerAtRef.current = now;
-      const useCachedBanners =
-        nextBannerLen === 0 &&
-        cachedBannerLen > 0 &&
-        now - (lastNonEmptyBannerAtRef.current || 0) < KEEP_NONEMPTY_BANNER_MS;
-      const mergedBannerPrice = useCachedBanners ? cached.banner_1h_price : norm.banner_1h_price;
-      const mergedBannerVolume = useCachedBanners ? cached.banner_1h_volume : norm.banner_1h_volume;
+      const cachedBannerPriceLen = listLen(cached?.banner_1h_price);
+      const nextBannerPriceLen = listLen(norm.banner_1h_price);
+      if (nextBannerPriceLen > 0) lastNonEmptyPriceBannerAtRef.current = now;
+      const useCachedBannerPrice =
+        nextBannerPriceLen === 0 &&
+        cachedBannerPriceLen > 0 &&
+        now - (lastNonEmptyPriceBannerAtRef.current || 0) < KEEP_NONEMPTY_BANNER_MS;
+      const mergedBannerPrice = useCachedBannerPrice
+        ? cached.banner_1h_price
+        : norm.banner_1h_price;
+
+      const cachedBannerVolumeLen = listLen(cached?.banner_1h_volume);
+      const nextBannerVolumeLen = listLen(norm.banner_1h_volume);
+      if (nextBannerVolumeLen > 0) lastNonEmptyVolumeBannerAtRef.current = now;
+      const useCachedBannerVolume =
+        nextBannerVolumeLen === 0 &&
+        cachedBannerVolumeLen > 0 &&
+        now - (lastNonEmptyVolumeBannerAtRef.current || 0) < KEEP_NONEMPTY_BANNER_MS;
+      const mergedBannerVolume = useCachedBannerVolume
+        ? cached.banner_1h_volume
+        : norm.banner_1h_volume;
 
       const mergedNorm = {
         ...norm,
@@ -576,13 +601,36 @@ export function DataProvider({ children }) {
         setThreeMin({ gainers: mergedNorm.gainers_3m, losers: mergedNorm.losers_3m });
       }
 
-      // banners: publish every PUBLISH_BANNER_MS (default 2 minutes)
-      if (cachedBannersEmpty && nextBannersHasAny) {
-        lastBannerPublishRef.current = now;
-        setBanners({ price: mergedNorm.banner_1h_price, volume: mergedNorm.banner_1h_volume });
-      } else if (now - lastBannerPublishRef.current >= PUBLISH_BANNER_MS) {
-        lastBannerPublishRef.current = now;
-        setBanners({ price: mergedNorm.banner_1h_price, volume: mergedNorm.banner_1h_volume });
+      // Banners publish independently so one empty rail does not wipe or starve the other.
+      const publishedPriceLen = listLen(publishedBannersRef.current?.price);
+      const publishedVolumeLen = listLen(publishedBannersRef.current?.volume);
+      const mergedPriceLen = listLen(mergedNorm.banner_1h_price);
+      const mergedVolumeLen = listLen(mergedNorm.banner_1h_volume);
+
+      let nextPublishedPrice = publishedBannersRef.current?.price ?? [];
+      let nextPublishedVolume = publishedBannersRef.current?.volume ?? [];
+      let bannersChanged = false;
+
+      if (
+        shouldPromoteBannerNow(publishedPriceLen, mergedPriceLen) ||
+        now - lastPriceBannerPublishRef.current >= PUBLISH_BANNER_MS
+      ) {
+        lastPriceBannerPublishRef.current = now;
+        nextPublishedPrice = mergedNorm.banner_1h_price;
+        bannersChanged = true;
+      }
+
+      if (
+        shouldPromoteBannerNow(publishedVolumeLen, mergedVolumeLen) ||
+        now - lastVolumeBannerPublishRef.current >= PUBLISH_BANNER_MS
+      ) {
+        lastVolumeBannerPublishRef.current = now;
+        nextPublishedVolume = mergedNorm.banner_1h_volume;
+        bannersChanged = true;
+      }
+
+      if (bannersChanged) {
+        commitBanners(nextPublishedPrice, nextPublishedVolume);
       }
     }
 
@@ -594,7 +642,21 @@ export function DataProvider({ children }) {
     heartbeatTimerRef.current = setTimeout(() => {
       setHeartbeatPulse(false);
     }, 420);
-  }, [commit1m, hydrateAlertsFromDataRows, persistLastGood]);
+  }, [commit1m, commitBanners, hydrateAlertsFromDataRows, persistLastGood]);
+
+  const publishFetchedSnapshot = useCallback((norm, baseUrl, now = Date.now()) => {
+    if (PUBLISH_UI_MS > 0) {
+      pendingNormalizedRef.current = norm;
+      pendingBaseRef.current = baseUrl;
+      return;
+    }
+
+    // In dev we sometimes set VITE_PUBLISH_UI_MS=0 to disable throttling.
+    // Treat that as "publish immediately", not "drop all /data updates".
+    pendingNormalizedRef.current = null;
+    pendingBaseRef.current = null;
+    applySnapshot(norm, now, baseUrl);
+  }, [applySnapshot]);
 
   const fetchData = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -642,9 +704,7 @@ export function DataProvider({ children }) {
           console.info("[mw] data poll recovered");
           lastFetchOkRef.current = true;
         }
-        // Fetch fast: store latest payload in a ref; publish on a steady cadence.
-        pendingNormalizedRef.current = norm;
-        pendingBaseRef.current = okBase;
+        publishFetchedSnapshot(norm, okBase, Date.now());
         backoffUntilRef.current = 0;
         succeeded = true;
         break;
@@ -676,7 +736,7 @@ export function DataProvider({ children }) {
 
     inFlightRef.current = false;
     return succeeded;
-  }, [applySnapshot]);
+  }, [publishFetchedSnapshot]);
 
   // Publish pending snapshots on a steady cadence to avoid spamming React state.
   useEffect(() => {
@@ -741,6 +801,7 @@ export function DataProvider({ children }) {
   const alertsPollRef = useRef(null);
   const alertsInflightRef = useRef(false);
   const alertsContractWarnedRef = useRef(false);
+  const alertsLastOkLogAtRef = useRef(0);
 
   useEffect(() => {
     if (!ALERTS_POLL_MS || ALERTS_POLL_MS <= 0) return undefined;
@@ -785,14 +846,18 @@ export function DataProvider({ children }) {
             }
 
             json = await res.json();
-            if (import.meta?.env?.DEV) {
-              console.log("[mw] /api/alerts OK", {
-                base,
-                url,
-                active: Array.isArray(json?.active) ? json.active.length : "NA",
-                recent: Array.isArray(json?.recent) ? json.recent.length : "NA",
-                meta_ok: json?.meta?.ok,
-              });
+            if (import.meta?.env?.DEV && MW_DEBUG) {
+              const now = Date.now();
+              if (now - alertsLastOkLogAtRef.current > 30_000) {
+                alertsLastOkLogAtRef.current = now;
+                console.log("[mw] /api/alerts OK", {
+                  base,
+                  url,
+                  active: Array.isArray(json?.active) ? json.active.length : "NA",
+                  recent: Array.isArray(json?.recent) ? json.recent.length : "NA",
+                  meta_ok: json?.meta?.ok,
+                });
+              }
             }
             okBase = base;
             break;
@@ -808,7 +873,7 @@ export function DataProvider({ children }) {
         }
 
         if (!json) {
-          if (import.meta?.env?.DEV) {
+          if (import.meta?.env?.DEV && MW_DEBUG) {
             console.log("[mw] /api/alerts NO JSON after candidates", candidates);
           }
           if (lastError && String(lastError?.name || "").toLowerCase() !== "aborterror" && MW_DEBUG) {
@@ -924,6 +989,18 @@ export function DataProvider({ children }) {
     return map;
   }, [alerts]);
 
+  const alertsRecentBySymbol = useMemo(() => {
+    const map = {};
+    (alertsRecent || []).forEach((a) => {
+      if (!a) return;
+      const sym = (a.symbol || "").toString().toUpperCase();
+      if (!sym) return;
+      map[sym] = map[sym] || [];
+      map[sym].push(a);
+    });
+    return map;
+  }, [alertsRecent]);
+
   const getActiveAlert = useCallback(
     (sym) => {
       if (!sym) return null;
@@ -960,6 +1037,15 @@ export function DataProvider({ children }) {
     [alertsBySymbol]
   );
 
+  const getRecentAlerts = useCallback(
+    (sym) => {
+      if (!sym) return [];
+      const key = sym.toString().toUpperCase();
+      return Array.isArray(alertsRecentBySymbol[key]) ? alertsRecentBySymbol[key] : [];
+    },
+    [alertsRecentBySymbol]
+  );
+
   const value = useMemo(() => ({
     data: combinedData,
     oneMinRows,
@@ -968,7 +1054,9 @@ export function DataProvider({ children }) {
     latestBySymbol,
     alerts,
     alertsBySymbol,
+    alertsRecentBySymbol,
     getActiveAlert,
+    getRecentAlerts,
     error,
     loading,
     refetch: fetchData,
@@ -991,7 +1079,7 @@ export function DataProvider({ children }) {
     activeAlerts,
     alertsRecent,
     alertsMeta,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, getActiveAlert, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, alertsMeta]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, alertsRecentBySymbol, getActiveAlert, getRecentAlerts, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, alertsMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

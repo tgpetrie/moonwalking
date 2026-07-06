@@ -15,6 +15,153 @@ import GainersTable1Min from "./GainersTable1Min.jsx";
 import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
+import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
+
+const BOARD_MOVEMENT_LEGEND = [
+  {
+    symbol: "+2 / -2",
+    tone: "neutral",
+    label: "Board rank shift",
+    detail: "Position changed on the board. This is not price direction.",
+  },
+  {
+    symbol: "2↑ / 2↓",
+    tone: "neutral",
+    label: "Losers board shift",
+    detail: "Moved up or down the losers list. Still a rank change, not price direction.",
+  },
+];
+
+const BOARD_ACTION_LEGEND = [
+  {
+    kind: "star",
+    tone: "neutral",
+    label: "Watchlist star",
+    detail: "Empty means not pinned. Filled means the coin is on your watchlist.",
+  },
+  {
+    kind: "trade",
+    tone: "neutral",
+    label: "Trade button",
+    detail: "Open Coinbase Advanced Trade in a new tab.",
+  },
+];
+
+function LegendStarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="bh-board-help__action-svg">
+      <polygon points="12,2 15,9 22,9.5 17,14.5 18.5,22 12,18 5.5,22 7,14.5 2,9.5 9,9" />
+    </svg>
+  );
+}
+
+function LegendTradeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="bh-board-help__action-svg">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M14.8 8.3c-.6-.8-1.6-1.3-2.8-1.3-1.8 0-3 1-3 2.4 0 1.6 1.3 2.1 2.9 2.5 1.7.4 3.1.8 3.1 2.5 0 1.4-1.2 2.6-3.2 2.6-1.3 0-2.5-.5-3.3-1.5" />
+      <line x1="12" y1="5.7" x2="12" y2="18.3" />
+    </svg>
+  );
+}
+
+function LegendPersistenceIcon() {
+  return (
+    <span className="bh-board-help__persist" aria-hidden="true">
+      <span className="bh-board-help__persist-dot" />
+      <span className="bh-board-help__persist-count">3x</span>
+    </span>
+  );
+}
+
+function BoardRowLegend() {
+  return (
+    <details className="bh-board-help">
+      <summary className="bh-board-help__toggle">Row legend</summary>
+      <div className="bh-board-help__popover" role="note">
+        <div className="bh-board-help__title">How to read the row symbols</div>
+        <div className="bh-board-help__note bh-board-help__note--lead">
+          Each row can show one current cue, one recent-memory cue from the last few minutes, and one persistence marker.
+        </div>
+
+        <section className="bh-board-help__section" aria-label="Cue symbols">
+          <div className="bh-board-help__section-title">Cue Symbols</div>
+          <div className="bh-board-help__grid">
+            {ROW_CUE_LEGEND.map((item) => (
+              <div key={item.key} className="bh-board-help__row">
+                <span className={`bh-board-help__icon bh-board-help__icon--${item.tone}`} aria-hidden="true">
+                  {item.emoji}
+                </span>
+                <span className="bh-board-help__copy">
+                  <span className="bh-board-help__label">{item.label}</span>
+                  <span className="bh-board-help__desc">{item.detail}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bh-board-help__section" aria-label="Recent context markers">
+          <div className="bh-board-help__section-title">Recent Context</div>
+          <div className="bh-board-help__row">
+            <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">
+              ◉
+            </span>
+            <span className="bh-board-help__copy">
+              <span className="bh-board-help__label">Secondary recent cue</span>
+              <span className="bh-board-help__desc">
+                A smaller second icon means this coin had another meaningful alert recently, even if that is not why it is on the board right now.
+              </span>
+            </span>
+          </div>
+          <div className="bh-board-help__row">
+            <span className="bh-board-help__icon bh-board-help__icon--persistence" aria-hidden="true">
+              <LegendPersistenceIcon />
+            </span>
+            <span className="bh-board-help__copy">
+              <span className="bh-board-help__label">Persistence marker</span>
+              <span className="bh-board-help__desc">
+                Small BHABIT-purple dot means repeat or consecutive board presence. A tiny count appears only for stronger persistence.
+              </span>
+            </span>
+          </div>
+        </section>
+
+        <section className="bh-board-help__section" aria-label="Board movement markers">
+          <div className="bh-board-help__section-title">Board Movement</div>
+          {BOARD_MOVEMENT_LEGEND.map((item) => (
+            <div key={item.symbol} className="bh-board-help__row">
+              <span className={`bh-board-help__icon bh-board-help__icon--${item.tone}`} aria-hidden="true">
+                {item.symbol}
+              </span>
+              <span className="bh-board-help__copy">
+                <span className="bh-board-help__label">{item.label}</span>
+                <span className="bh-board-help__desc">{item.detail}</span>
+              </span>
+            </div>
+          ))}
+        </section>
+
+        <div className="bh-board-help__note">Click any non-icon part of a row to open that coin's detail view.</div>
+
+        <section className="bh-board-help__section" aria-label="Row actions">
+          <div className="bh-board-help__section-title">Row Actions</div>
+          {BOARD_ACTION_LEGEND.map((item) => (
+            <div key={item.kind} className="bh-board-help__row">
+              <span className={`bh-board-help__icon bh-board-help__icon--${item.tone}`} aria-hidden="true">
+                {item.kind === "star" ? <LegendStarIcon /> : <LegendTradeIcon />}
+              </span>
+              <span className="bh-board-help__copy">
+                <span className="bh-board-help__label">{item.label}</span>
+                <span className="bh-board-help__desc">{item.detail}</span>
+              </span>
+            </div>
+          ))}
+        </section>
+      </div>
+    </details>
+  );
+}
 
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
@@ -28,73 +175,19 @@ export default function DashboardShell({ onInfo }) {
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
 
-  // Rabbit spotlight hover logic (row-rect, no pointer tracking)
+  // Clear board-level hover state when leaving the board.
+  // Row components own the active hover coordinates.
   useEffect(() => {
     const board = boardRef.current || document.querySelector(".board-core");
     if (!board) return;
 
-    const setRowHover = (on, row) => {
-      if (!board) return;
-      if (!on) {
-        board.setAttribute("data-row-hover", "0");
-        return;
-      }
-      if (!row) return;
-      const rect = row.getBoundingClientRect();
-      const boardRect = board.getBoundingClientRect();
-
-      // These must match the CSS mural bleed values (see index.css)
-      const bleedTop = 90;
-      const bleedBottom = 180;
-      const pad = 6;
-
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const bw = boardRect.width || 1;
-      const bh = boardRect.height || 1;
-      const x = Math.max(0, Math.min(100, ((cx - boardRect.left) / bw) * 100));
-      const y = Math.max(0, Math.min(100, ((cy - boardRect.top) / bh) * 100));
-
-      // Clip coordinates are in the coordinate space of the mural pseudo-element,
-      // which extends above/below the board by bleedTop/bleedBottom.
-      const top = Math.max(0, rect.top - boardRect.top + bleedTop - pad);
-      const left = Math.max(0, rect.left - boardRect.left - pad);
-      const right = Math.max(0, boardRect.right - rect.right - pad);
-      const bottom = Math.max(0, boardRect.bottom - rect.bottom + bleedBottom - pad);
-      board.style.setProperty("--emit-x", `${x}%`);
-      board.style.setProperty("--emit-y", `${y}%`);
-      board.style.setProperty("--emit-top", `${top}px`);
-      board.style.setProperty("--emit-right", `${right}px`);
-      board.style.setProperty("--emit-bottom", `${bottom}px`);
-      board.style.setProperty("--emit-left", `${left}px`);
-      board.setAttribute("data-row-hover", "1");
+    const onLeaveBoard = () => {
+      board.setAttribute("data-row-hover", "0");
     };
 
-    const rowSelector = ".bh-row, .bh-row-grid, .token-row.table-row, .table-row";
-
-    const onOver = (e) => {
-      const row = e.target?.closest?.(rowSelector);
-      if (!row) return;
-      setRowHover(true, row);
-    };
-
-    const onOut = (e) => {
-      const fromRow = e.target?.closest?.(rowSelector);
-      if (!fromRow) return;
-      const toRow = e.relatedTarget?.closest?.(rowSelector);
-      if (toRow && fromRow === toRow) return;
-      setRowHover(false, fromRow);
-    };
-
-    const onLeaveBoard = () => setRowHover(false, null);
-
-    board.addEventListener("pointerover", onOver, { passive: true });
-    board.addEventListener("pointerout", onOut, { passive: true });
     board.addEventListener("pointerleave", onLeaveBoard);
 
     return () => {
-      board.removeEventListener("pointerover", onOver);
-      board.removeEventListener("pointerout", onOut);
       board.removeEventListener("pointerleave", onLeaveBoard);
     };
   }, []);
@@ -246,32 +339,15 @@ export default function DashboardShell({ onInfo }) {
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
-            <details className="bh-board-help">
-              <summary className="bh-board-help__toggle">Cue key</summary>
-              <div className="bh-board-help__popover" role="note">
-                <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon bh-board-help__icon--positive" aria-hidden="true">✦</span>
-                  <span>alert cue</span>
-                </div>
-                <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">2↑</span>
-                  <span>board position shift, not price direction</span>
-                </div>
-                <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon bh-board-help__icon--negative" aria-hidden="true">⊘</span>
-                  <span>risk / negative cue</span>
-                </div>
-                <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">◉</span>
-                  <span>whale / volume cue</span>
-                </div>
-                <div className="bh-board-help__row">
-                  <span className="bh-board-help__icon" aria-hidden="true">☆</span>
-                  <span>watchlist</span>
-                </div>
-              </div>
-            </details>
           </div>
+        </div>
+        <div className="bh-topbar-right">
+          <a href="/login" className="bh-topbar-link bh-topbar-link--ghost">
+            Login
+          </a>
+          <a href="/signup" className="bh-topbar-link bh-topbar-link--primary">
+            Sign Up
+          </a>
         </div>
       </header>
 
@@ -290,6 +366,10 @@ export default function DashboardShell({ onInfo }) {
               <div className="bh-board">
                 <div className="bh-rail">
                   <div className="bh-rail-stack">
+                    <div className="bh-board-legend-bar">
+                      <BoardRowLegend />
+                    </div>
+
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
                         <div className="board-section">

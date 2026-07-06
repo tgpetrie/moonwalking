@@ -56,11 +56,60 @@ function pick1hChange(row) {
   );
 }
 
+function alertTimeMs(alert = {}) {
+  const raw =
+    alert.event_ts_ms ??
+    alert.ts_ms ??
+    alert.event_ts ??
+    alert.ts ??
+    alert.timestamp ??
+    alert.created_at ??
+    null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  const parsed = Date.parse(String(raw || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function alertMergeKey(alert = {}) {
+  const id = String(alert.id || alert.alert_id || "").trim();
+  if (id) return `id:${id}`;
+  const symbol = String(alert.symbol || alert.product_id || alert.pair || "").trim().toUpperCase();
+  const type = String(alert.type_key || alert.type || alert.alert_type || "").trim().toUpperCase();
+  const ts = alertTimeMs(alert);
+  const body = String(alert.message || alert.title || alert.body || "").trim().slice(0, 80);
+  return `${symbol}|${type}|${ts}|${body}`;
+}
+
+function mergeAlertLists(lists, limit = 80) {
+  const out = [];
+  const seen = new Set();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const key = alertMergeKey(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+    }
+  }
+  out.sort((a, b) => alertTimeMs(b) - alertTimeMs(a));
+  return out.slice(0, Math.max(1, limit));
+}
+
 export function useDashboardData() {
   const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, activeAlerts, alertsRecent, alertsMeta } = useData();
 
   const payload = data || {};
-  const alertsList = Array.isArray(alerts) && alerts.length ? alerts : Array.isArray(payload.alerts) ? payload.alerts : [];
+  const alertsList = mergeAlertLists(
+    [
+      Array.isArray(alertsRecent) ? alertsRecent : [],
+      Array.isArray(activeAlerts) ? activeAlerts : [],
+      Array.isArray(alerts) ? alerts : [],
+      Array.isArray(payload.alerts) ? payload.alerts : [],
+    ],
+    80
+  );
 
   const lastGood1mRef = useRef([]);
   const lastGood3mGRef = useRef([]);
