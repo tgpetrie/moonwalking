@@ -284,7 +284,10 @@ async def _build_sentiment_payload() -> SentimentResponse:
                 data = await provider.fetch_latest()
                 base_payload = dict(data or {})
             except Exception:
-                logger.exception("Sentiment provider '%s' failed; falling back to mocks", provider.name)
+                logger.exception(
+                    "Sentiment provider '%s' failed; falling back to mocks",
+                    provider.name,
+                )
         else:
             logger.warning("USE_REAL_SENTIMENT=1 but no provider is registered")
 
@@ -331,7 +334,9 @@ async def _build_sentiment_payload() -> SentimentResponse:
     total_sources = 0
     for k in ("tier1", "tier2", "tier3", "fringe"):
         try:
-            total_sources += int((sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0)
+            total_sources += int(
+                (sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0
+            )
         except Exception:
             continue
     if total_sources >= 10:
@@ -371,7 +376,9 @@ async def _build_sentiment_payload() -> SentimentResponse:
 
     base_payload["confidence"] = confidence
     base_payload["regime"] = _compute_regime(base_payload, confidence, stability_gate)
-    base_payload["reasons"] = _build_reasons(base_payload, confidence, stability_gate, breadth_gate)
+    base_payload["reasons"] = _build_reasons(
+        base_payload, confidence, stability_gate, breadth_gate
+    )
 
     return SentimentResponse(**base_payload)
 
@@ -523,7 +530,9 @@ async def _fetch_json(url: str, timeout: float) -> Any:
     return await asyncio.to_thread(_req)
 
 
-def _stamp_payload(payload: Dict[str, Any], cache_ts: datetime, ttl: int) -> Dict[str, Any]:
+def _stamp_payload(
+    payload: Dict[str, Any], cache_ts: datetime, ttl: int
+) -> Dict[str, Any]:
     age = _age_seconds(cache_ts) or 0
     out = dict(payload)
     out["stale"] = age > ttl
@@ -584,10 +593,18 @@ async def _get_market_pulse_payload() -> Optional[Dict[str, Any]]:
         raw = await _fetch_json(CG_GLOBAL_URL, timeout=1.0)
         data = (raw or {}).get("data") or {}
         payload = {
-            "total_market_cap_usd": _safe_float((data.get("total_market_cap") or {}).get("usd")),
-            "total_volume_usd": _safe_float((data.get("total_volume") or {}).get("usd")),
-            "btc_dominance": _safe_float((data.get("market_cap_percentage") or {}).get("btc")),
-            "mcap_change_24h_pct": _safe_float(data.get("market_cap_change_percentage_24h_usd")),
+            "total_market_cap_usd": _safe_float(
+                (data.get("total_market_cap") or {}).get("usd")
+            ),
+            "total_volume_usd": _safe_float(
+                (data.get("total_volume") or {}).get("usd")
+            ),
+            "btc_dominance": _safe_float(
+                (data.get("market_cap_percentage") or {}).get("btc")
+            ),
+            "mcap_change_24h_pct": _safe_float(
+                data.get("market_cap_change_percentage_24h_usd")
+            ),
             "source": "coingecko_global",
             "source_url": CG_GLOBAL_URL,
             "updated_at": _iso_utc(now),
@@ -713,13 +730,19 @@ def _compute_confidence(payload: Dict[str, Any]) -> float:
     return _clamp01(conf)
 
 
-def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: float) -> str:
+def _compute_regime(
+    payload: Dict[str, Any], confidence: float, stability_gate: float
+) -> str:
     allowed = {"steady", "mixed", "heated", "stressed", "offline", "unknown"}
     overall = payload.get("overall_sentiment")
     fg = payload.get("fear_greed")
     fg_value = None
     try:
-        fg_value = int(fg.get("value")) if isinstance(fg, dict) and fg.get("value") is not None else None
+        fg_value = (
+            int(fg.get("value"))
+            if isinstance(fg, dict) and fg.get("value") is not None
+            else None
+        )
     except Exception:
         fg_value = None
     divs = payload.get("divergence_alerts")
@@ -740,7 +763,11 @@ def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: 
         sentiments = []
         for p in payload.get("sentiment_history") or []:
             try:
-                v = p.get("sentiment") if isinstance(p, dict) else getattr(p, "sentiment", None)
+                v = (
+                    p.get("sentiment")
+                    if isinstance(p, dict)
+                    else getattr(p, "sentiment", None)
+                )
                 if v is None:
                     continue
                 f = float(v)
@@ -753,14 +780,28 @@ def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: 
             volatility_high = sd > 0.10
 
     # a) offline
-    if (not isinstance(confidence, (int, float)) or not math.isfinite(confidence) or confidence <= 0.40
-        or (overall_f is None and fg_value is None and payload.get("market_pulse") is None)):
+    if (
+        not isinstance(confidence, (int, float))
+        or not math.isfinite(confidence)
+        or confidence <= 0.40
+        or (
+            overall_f is None
+            and fg_value is None
+            and payload.get("market_pulse") is None
+        )
+    ):
         regime = "offline"
     # b) stressed
-    elif (fg_value is not None and fg_value <= 25) or div_count >= 3 or (div_count >= 1 and confidence < 0.60 and volatility_high):
+    elif (
+        (fg_value is not None and fg_value <= 25)
+        or div_count >= 3
+        or (div_count >= 1 and confidence < 0.60 and volatility_high)
+    ):
         regime = "stressed"
     # c) heated
-    elif (fg_value is not None and fg_value >= 75) or (confidence >= 0.55 and volatility_high and div_count <= 1):
+    elif (fg_value is not None and fg_value >= 75) or (
+        confidence >= 0.55 and volatility_high and div_count <= 1
+    ):
         regime = "heated"
     # d) steady
     elif confidence >= 0.75 and not volatility_high and div_count == 0:
@@ -774,7 +815,12 @@ def _compute_regime(payload: Dict[str, Any], confidence: float, stability_gate: 
     return regime if regime in allowed else "unknown"
 
 
-def _build_reasons(payload: Dict[str, Any], confidence: float, stability_gate: float, breadth_gate: float) -> List[str]:
+def _build_reasons(
+    payload: Dict[str, Any],
+    confidence: float,
+    stability_gate: float,
+    breadth_gate: float,
+) -> List[str]:
     reasons: List[str] = []
     fg = payload.get("fear_greed")
     mp = payload.get("market_pulse")
@@ -787,13 +833,17 @@ def _build_reasons(payload: Dict[str, Any], confidence: float, stability_gate: f
     total_sources = 0
     for k in ("tier1", "tier2", "tier3", "fringe"):
         try:
-            total_sources += int((sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0)
+            total_sources += int(
+                (sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0
+            )
         except Exception:
             continue
 
     if isinstance(fg, dict):
         stale = fg.get("stale")
-        reasons.append(f"Fear & Greed is {fg.get('label', 'Unknown')} ({fg.get('value')}){' (stale)' if stale else ''}.")
+        reasons.append(
+            f"Fear & Greed is {fg.get('label', 'Unknown')} ({fg.get('value')}){' (stale)' if stale else ''}."
+        )
 
     if isinstance(mp, dict):
         stale = mp.get("stale")
@@ -803,7 +853,9 @@ def _build_reasons(payload: Dict[str, Any], confidence: float, stability_gate: f
                 dom_str = f"{float(dom):.1f}%"
             except Exception:
                 dom_str = "N/A"
-            reasons.append(f"Market pulse is {'stale' if stale else 'live'}; BTC dominance {dom_str}.")
+            reasons.append(
+                f"Market pulse is {'stale' if stale else 'live'}; BTC dominance {dom_str}."
+            )
         else:
             reasons.append(f"Market pulse is {'stale' if stale else 'live'}.")
 
@@ -964,11 +1016,17 @@ async def websocket_sentiment(websocket: WebSocket) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the Moonwalking Sentiment API service")
+    parser = argparse.ArgumentParser(
+        description="Run the Moonwalking Sentiment API service"
+    )
     parser.add_argument("--host", default=os.getenv("SENTIMENT_HOST", "0.0.0.0"))
-    parser.add_argument("--port", type=int, default=int(os.getenv("SENTIMENT_PORT", "5004")))
+    parser.add_argument(
+        "--port", type=int, default=int(os.getenv("SENTIMENT_PORT", "8003"))
+    )
     parser.add_argument("--log-level", default=os.getenv("SENTIMENT_LOG_LEVEL", "info"))
-    parser.add_argument("--reload", action="store_true", help="Enable uvicorn autoreload (dev only)")
+    parser.add_argument(
+        "--reload", action="store_true", help="Enable uvicorn autoreload (dev only)"
+    )
     args = parser.parse_args()
 
     import uvicorn  # Imported lazily so cli tools don't require it

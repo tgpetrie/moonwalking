@@ -1935,7 +1935,7 @@ def api_sentiment_latest_legacy():
 # ============================================================================
 
 SENTIMENT_HOST = os.getenv("SENTIMENT_HOST", "127.0.0.1")
-SENTIMENT_PORT = os.getenv("SENTIMENT_PORT", "8002")
+SENTIMENT_PORT = os.getenv("SENTIMENT_PORT", "8003")
 SENTIMENT_PIPELINE_URL = f"http://{SENTIMENT_HOST}:{SENTIMENT_PORT}"
 SENTIMENT_PIPELINE_TIMEOUT_S = float(os.getenv("SENTIMENT_PIPELINE_TIMEOUT_S", "0.75"))
 SENTIMENT_PIPELINE_POLL_S = float(os.getenv("SENTIMENT_PIPELINE_POLL_S", "20"))
@@ -7887,7 +7887,7 @@ def get_banner_1h():
     return rows, datetime.now().isoformat()
 
 
-def get_banner_1h_volume(banner_data=None):
+def get_banner_1h_volume(banner_data=None, prefer_snapshot=True):
     """Return (rows, ts) for 1h volume banner.
 
     Source-of-truth: candle / minute-bucket volume via the SQLite-backed volume_1h pipeline.
@@ -7897,9 +7897,10 @@ def get_banner_1h_volume(banner_data=None):
     """
 
     # 1) If we already have a precomputed snapshot for the banner, use it.
-    snap = _mw_get_component_snapshot("banner_1h_volume")
-    if isinstance(snap, dict):
-        return _wrap_rows_and_ts(snap)
+    if prefer_snapshot:
+        snap = _mw_get_component_snapshot("banner_1h_volume")
+        if isinstance(snap, dict):
+            return _wrap_rows_and_ts(snap)
 
     # 2) Prefer candle/SQLite snapshot for 1h volume.
     try:
@@ -12673,7 +12674,13 @@ def _compute_snapshots_from_cache():
         banner_1h_volume = None
         if do_heavy:
             try:
-                vb_rows, vb_ts = get_banner_1h_volume(banner_data=banner_rows)
+                # Rebuild from the underlying volume sources here.
+                # If we read the existing banner snapshot, an underfilled cache can
+                # persist forever because the writer would keep re-saving stale rows.
+                vb_rows, vb_ts = get_banner_1h_volume(
+                    banner_data=banner_rows,
+                    prefer_snapshot=False,
+                )
                 banner_1h_volume = {
                     "component": "banner_1h_volume",
                     "data": vb_rows or [],

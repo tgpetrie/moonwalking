@@ -29,12 +29,12 @@ check "divergence (${SYMBOL})" "${BASE}/divergence?symbol=${SYMBOL}"
 
 # Optional: quick scan for hardcoded pipeline URLs in built assets
 if command -v rg >/dev/null 2>&1; then
-  if rg -q "127\\.0\\.0\\.1:8002|:8002" frontend; then
-    echo "WARN: Found references to :8002 in frontend sources (check DevTools for leaks)"
+  if rg -q "127\\.0\\.0\\.1:8003|:8003" frontend; then
+    echo "WARN: Found direct :8003 references in frontend sources (check DevTools for leaks)"
   fi
 
   # Guardrail: block hardcoded pipeline URLs from sneaking into source
-  if rg -n "8002|SENTIMENT_PIPELINE_URL|localhost:8002|127\\.0\\.0\\.1:8002" frontend/src; then
+  if rg -n "8003|SENTIMENT_PIPELINE_URL|localhost:8003|127\\.0\\.0\\.1:8003" frontend/src; then
     echo "ERROR: Found pipeline URL references in frontend/src (strip them before pushing)."
     exit 1
   fi
