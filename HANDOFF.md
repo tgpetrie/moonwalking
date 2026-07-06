@@ -2,76 +2,107 @@
 
 ## Snapshot
 
-- Date: 2026-03-11
-- Current branch: `main`
-- Repo purpose: BHABIT Moonwalking is a React + Vite frontend and Flask backend for a live crypto tracking dashboard with alerts, movers, watchlist/insights tooling, and an in-progress product-shell pivot toward account-backed, cross-device watchlists.
+- Date: 2026-07-06
+- Current branch: `codex/ai-ml-next-step-plan` (pushed to origin; sits ahead of `main`)
+- Repo purpose: BHABIT Moonwalking is a React + Vite frontend and Flask backend for a live crypto tracking dashboard with alerts, movers, watchlist/insights tooling, and a product-shell pivot toward account-backed, cross-device watchlists.
 
-## Important recent work
+## Product direction (four tracks, in priority order)
 
-### 1. MVP shell for cross-device watchlists
+1. Cross-device watchlist — code complete, deploy pending (see below).
+2. Near-live gainers/losers — replace REST polling with the Coinbase public
+   WebSocket feed (`wss://ws-feed.exchange.coinbase.com`, ticker channel) so
+   backend 1m/3m windows update tick-by-tick. Not started.
+3. Real sentiment tracking — only Fear & Greed and CoinGecko fetchers are real
+   (`backend/sentiment_data_sources.py`). The tier configs in
+   `backend/sentiment/sources/*.json` describe Reddit/RSS/Telegram/Twitter
+   sources but `backend/sentiment/providers/` has no implementations yet.
+   Next win: Reddit public JSON + RSS/VADER providers honoring the
+   truth-state rules in `docs/developer/SENTIMENT_ONE_BOARD.md`; remove the
+   fabricated MD5 fallback documented in
+   `docs/developer/SENTIMENT_ARCHITECTURE.md`. Not started.
+4. Personal Coinbase integration — read-only API key, backend-only storage,
+   `/api/portfolio` summary endpoint. Deliberately last; rides on deployed
+   auth. Not started.
 
-- Commit: `3155fc5a` - `Add MVP watchlist product shell`
-- What changed:
-  - `frontend/src/App.jsx` now boots a routed MVP shell instead of the old single-screen entry.
-  - `frontend/src/mvp/MvpApp.jsx` added page layouts for `/`, `/login`, `/signup`, `/dashboard`, `/watchlists`, `/portfolio`, `/settings`, and `/u/:username`.
-  - `frontend/src/styles/mvp-shell.css` added the new public/member UI system and responsive shell styling.
-- Important constraint:
-  - This work is still UI-only and in-memory. The watchlists, session, profile, and settings state in `frontend/src/mvp/MvpApp.jsx` are seeded `useState` data, not backend-authenticated persistence.
+## Important recent work (July 6, 2026)
 
-### 2. Dashboard cue and alert layout lane that still matters
+### Cross-device watchlist backend + wiring (DONE)
 
-- Commit: `17c9cbb6` - `feat(frontend): add row cue hierarchy and alert layout pass`
-  - Added `frontend/src/utils/rowCue.js`.
-  - Reworked cue wiring and layout across `frontend/src/components/DashboardShell.jsx`, `frontend/src/components/TokenRowUnified.jsx`, `frontend/src/components/GainersTable1Min.jsx`, `frontend/src/components/GainersTable3Min.jsx`, `frontend/src/components/LosersTable3Min.jsx`, `frontend/src/components/AlertsTab.jsx`, `frontend/src/components/SentimentPopupAdvanced.jsx`, `frontend/src/index.css`, `frontend/src/styles/alerts-tab.css`, and `frontend/src/styles/sentiment-popup-advanced.css`.
-- Commit: `8eab79f5` - `snapshot: canonical board override (minimal CSS)`
-  - Tightened the canonical board styling in `frontend/src/index.css`.
-- Commit: `7420683d` - `feat(frontend): replace cue emojis with SVG-based indicators`
-  - Replaced emoji cues with SVG-based indicators in `frontend/src/utils/rowCue.js` and updated `frontend/src/components/DashboardShell.jsx`.
+- Commit `c46e6ceb` — `feat(watchlist): SQLite-backed accounts with auth and guest sync`
+  - `backend/watchlist.py`: user signup/login with hashed passwords, session
+    handling, SQLite persistence (`data/watchlists.sqlite`), guest-watchlist
+    sync into the authenticated account.
+  - `frontend/src/mvp/MvpApp.jsx`: session restore (`/api/auth/session`),
+    login/signup/logout, full watchlist CRUD against `/api/watchlists*`.
+    Routes moved under `/app/*`.
+  - `frontend/src/context/WatchlistContext.jsx`: guest-vs-authenticated sync.
+  - Tests: `backend/tests/test_watchlist_auth_persistence.py`,
+    `frontend/src/context/WatchlistContext.test.jsx`.
+- Commit `fcc99ce3` — `feat(auth): production-ready session config`
+  - `SECRET_KEY` required in production (boot fails without it).
+  - HttpOnly/Secure cookies, SameSite=Lax (prod API traffic is same-origin
+    via the Vercel `/api/*` rewrite to Render in `vercel.json`), 30-day
+    persistent sessions.
+  - CORS explicit-origins branch now sends `supports_credentials`.
+  - `WATCHLIST_DB_PATH` env override + Render persistent disk in `render.yaml`.
 
-## Files that matter most right now
+Remaining gaps in this track:
 
-- `frontend/src/mvp/MvpApp.jsx`
-  - Current MVP shell, route handling, seeded watchlist/profile/session state, and the watchlists page interactions.
-- `frontend/src/styles/mvp-shell.css`
-  - Visual system for the new MVP product shell.
-- `frontend/src/App.jsx`
-  - Current frontend entrypoint now routed to the MVP shell.
-- `frontend/src/index.css`
-  - Canonical styling for the legacy dashboard/board and the cue-related overrides from the March 8-9 work.
-- `frontend/src/components/DashboardShell.jsx`
-  - Main legacy dashboard composition layer and cue integration point.
-- `frontend/src/utils/rowCue.js`
-  - Row cue hierarchy and SVG indicator logic.
-- `backend/watchlist.py`
-  - Existing watchlist API is process-local and unauthenticated; this is not usable for true cross-device persistence.
-- `backend/app.py`
-  - Flask app entrypoint and the place where real auth/persistence wiring will need to live.
-- `frontend/src/context/WatchlistContext.jsx`
-  - Old localStorage-based watchlist provider; useful reference for what exists today and what must not remain the source of truth for cross-device sync.
+- NOT DEPLOYED. Render disks need a paid instance; the free-tier alternative
+  is migrating watchlist storage to Postgres (Supabase). Until deployed,
+  cross-device does not actually work.
+- `/app/portfolio` and `/app/settings` state in `MvpApp.jsx` is still seeded
+  `useState` only (around line 1494) — watchlists persist, portfolio/settings
+  do not.
 
-## Persistence reality check
+### Earlier UI/board lane (still matters, do not regress)
 
-- The new MVP shell does not yet load or save watchlists through the backend.
-- `frontend/src/mvp/MvpApp.jsx` uses in-memory React state only.
-- `frontend/src/context/WatchlistContext.jsx` still shows the old browser-localStorage pattern.
-- `backend/watchlist.py` currently uses `watchlist_db = set()` with no users, no auth, no sessions, and no durable storage.
-- Result: there is still no true authenticated cross-device persistence for watchlists.
+- `17c9cbb6` / `7420683d` / `8eab79f5` — row cue hierarchy, SVG cue
+  indicators, canonical board CSS.
+- `51a96574` — row cue legend (`frontend/src/utils/rowCue.js`), shared
+  polling cadence config (`frontend/src/config/cadence.js`), DataContext
+  rework.
+- `433bf6a1` — 1h volume banner snapshot rebuild fix; sentiment service
+  default port moved 8002 → 8003.
+
+## Performance notes
+
+`PERFORMANCE_OPTIMIZATIONS.md` ("one fetch, three clocks") is still the right
+mental model, but the tuning knobs changed: cadence now derives from
+`frontend/src/config/cadence.js` (`VITE_FAST_1M_MS`, `VITE_BACKOFF_1M_MS`,
+`VITE_PUBLISH_UI_MS`, `VITE_PUBLISH_3M_MS`, `VITE_PUBLISH_BANNER_MS`,
+`VITE_POLL_JITTER_MS`) plus `VITE_ROW_STAGGER_MS` in `DataContext.jsx`.
+`VITE_FETCH_MS` no longer exists. The banner-scroll troubleshooting section
+in that doc is still accurate.
+
+## Known repo hygiene issues
+
+- The eslint pre-commit hook in `.pre-commit-config.yaml` can never pass
+  (ESLint 10 needs a flat config; the repo has no ESLint config or dependency
+  at all). Commit frontend work with `SKIP=eslint git commit ...` until the
+  hook is fixed or removed.
+- Legacy `frontend/src/Dashboard.jsx` hover-emitter code and disabled rabbit
+  hover/glow CSS blocks in `frontend/src/index.css` are dead weight; the
+  active entry is `App.jsx` → `MvpApp.jsx` (with `DashboardShell` mounted for
+  the board view).
+- `moonwalking_mobile/` contains only a `.DS_Store`; safe to delete.
 
 ## Next exact step
 
-Implement user-scoped persistent watchlist CRUD in the Flask backend before adding more shell UI:
+Deploy the watchlist backend so cross-device actually works:
 
-1. Replace the process-local `watchlist_db = set()` in `backend/watchlist.py` with a real store keyed by user.
-2. Add authentication/session handling so the backend can identify the current user on every watchlist request.
-3. Expose authenticated `/api/watchlists` CRUD that supports:
-   - list watchlists for current user
-   - create/rename/delete watchlists
-   - add/remove/update watchlist items and notes
-   - load/save profile metadata if you want `/portfolio` to persist in the same pass
-4. After that backend exists, swap `frontend/src/mvp/MvpApp.jsx` off seeded `useState` data and onto fetch/mutation calls against those endpoints on login and edit.
-
-If choosing the lowest-friction path inside this repo, the first code change should be: add a persistent backend watchlist store module plus authenticated `/api/watchlists` routes, then wire the frontend shell to it.
+1. Decide storage: Render paid disk (config already in `render.yaml`) OR
+   migrate `backend/watchlist.py` storage to Supabase Postgres (free tier).
+2. Sync the Render blueprint; confirm `SECRET_KEY` is generated and
+   `/api/auth/signup` works on the deployed URL.
+3. Verify from two devices: sign up on one, log in on the other, same
+   watchlist appears.
+4. Then move to track 2 (Coinbase WebSocket live board).
 
 ## Resume prompt for another device
 
-Read `HANDOFF.md`, then inspect commits `3155fc5a`, `17c9cbb6`, `8eab79f5`, and `7420683d`. Keep the dashboard cue work intact, but make the new MVP shell real by replacing the in-memory watchlist state in `frontend/src/mvp/MvpApp.jsx` and the process-local store in `backend/watchlist.py` with authenticated backend persistence for cross-device watchlists.
+Read `HANDOFF.md`. Watchlist auth/persistence is code-complete on branch
+`codex/ai-ml-next-step-plan` (commits `c46e6ceb`, `fcc99ce3`) but not
+deployed. Pick up at "Next exact step": choose Render disk vs Supabase
+Postgres, deploy, verify cross-device login, then start the Coinbase
+WebSocket live-board track. Keep the row cue and board CSS lanes intact.
