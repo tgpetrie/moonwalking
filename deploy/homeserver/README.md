@@ -1,10 +1,11 @@
-# Home Server Deploy (mini PC + Tailscale)
+# Single-Box Deploy (mini PC, VPS, or Oracle Free VM + Tailscale)
 
 Single-box deployment: the Flask backend serves both the API and the built
 frontend on one origin, SQLite lives on the local disk, and Tailscale makes
 it reachable from your phone/laptop only — nothing is exposed to the public
-internet. Target hardware: any small Linux box (tested mental model: Intel
-N100 running Debian/Ubuntu).
+internet. Works on any Debian/Ubuntu box with systemd: an Intel N100 mini
+PC, a cheap VPS (Hetzner etc.), or an Oracle Cloud Always Free VM. Moving
+between boxes later = run this kit on the new box and copy one SQLite file.
 
 ```
 phone / laptop (Tailscale)
@@ -17,9 +18,40 @@ Tailscale Serve (TLS)  ──►  gunicorn app:app :5003
                               └─ proxies sentiment :8003 (uvicorn)
 ```
 
+## Oracle Cloud Always Free quickstart
+
+The free tier includes an ARM VM big enough for this app many times over.
+Create the account and VM in the Oracle Cloud console (only you can do
+this part), then the generic setup below applies unchanged.
+
+1. Sign up at oracle.com/cloud/free (card required for identity; you stay
+   on free resources). Pick a home region with Ampere A1 capacity — if VM
+   creation fails with "out of capacity", retry later or script retries;
+   it's the tier's best-known annoyance.
+2. Create instance: **VM.Standard.A1.Flex** (Ampere ARM), e.g. 2 OCPU /
+   12 GB (up to 4 OCPU / 24 GB total is free), image **Ubuntu 24.04
+   (aarch64)**, add your SSH key. Boot volume default (up to 200 GB free).
+3. Recommended: upgrade the account to **Pay As You Go** after signup.
+   Always-free resources still cost $0, but PAYG accounts are exempt from
+   Oracle's idle-instance reclamation policy (pure free-tier accounts can
+   have quiet VMs stopped after ~7 idle days).
+4. Networking: with Tailscale you need **no inbound ports** besides SSH
+   (22, already open in the default security list). Tailscale connects
+   outbound. Skip Oracle's security-list/NSG dance entirely.
+5. Oracle Ubuntu images ship restrictive host-level iptables rules
+   (`/etc/iptables/rules.v4`). They block *inbound* extras, which is fine
+   here — everything rides Tailscale. If something inbound ever seems
+   mysteriously blocked, check iptables before blaming Oracle's cloud
+   firewall.
+6. ARM note: all Python deps used here (flask, gunicorn, pandas, torch CPU
+   wheels, websocket-client) publish aarch64 Linux wheels; `setup.sh`
+   works unmodified.
+
+Then continue with the generic steps below (SSH in as the `ubuntu` user).
+
 ## One-time setup
 
-### 1. Prerequisites on the mini PC
+### 1. Prerequisites on the box
 
 ```bash
 sudo apt update && sudo apt install -y python3-venv git nodejs npm curl
