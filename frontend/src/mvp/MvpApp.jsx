@@ -5,14 +5,26 @@ import {
   useMemo,
   useState,
 } from "react";
+import { getBackendBase } from "../config/api.js";
 import "../styles/mvp-shell.css";
 
+const APP_DASHBOARD_PATH = "/app/dashboard";
+const APP_WATCHLISTS_PATH = "/app/watchlists";
+const APP_PORTFOLIO_PATH = "/app/portfolio";
+const APP_SETTINGS_PATH = "/app/settings";
+
 const protectedPaths = new Set([
-  "/dashboard",
-  "/watchlists",
-  "/portfolio",
-  "/settings",
+  APP_DASHBOARD_PATH,
+  APP_WATCHLISTS_PATH,
+  APP_PORTFOLIO_PATH,
+  APP_SETTINGS_PATH,
 ]);
+
+const legacyMemberRouteMap = {
+  "/watchlists": APP_WATCHLISTS_PATH,
+  "/portfolio": APP_PORTFOLIO_PATH,
+  "/settings": APP_SETTINGS_PATH,
+};
 
 const publicShowcase = [
   {
@@ -192,6 +204,49 @@ const initialSessions = [
   },
 ];
 
+const defaultSession = {
+  isAuthenticated: false,
+  name: "Jane Doe",
+  email: "jane@example.com",
+  username: "janedoe",
+  plan: "Free Account",
+};
+
+const API_BASE = getBackendBase();
+
+function buildApiUrl(pathname) {
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return `${API_BASE}${path}`;
+}
+
+async function apiRequest(pathname, options = {}) {
+  const { method = "GET", body } = options;
+  const requestOptions = {
+    method,
+    credentials: "include",
+    headers: {},
+  };
+  if (body !== undefined) {
+    requestOptions.headers["Content-Type"] = "application/json";
+    requestOptions.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(buildApiUrl(pathname), requestOptions);
+  const contentType = response.headers.get("content-type") || "";
+  let payload = {};
+  if (contentType.includes("application/json")) {
+    payload = await response.json();
+  }
+  if (!response.ok) {
+    const message =
+      payload?.error ||
+      payload?.message ||
+      `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+  return payload;
+}
+
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
 }
@@ -269,8 +324,14 @@ function initials(name) {
 }
 
 function matchRoute(pathname) {
-  if (protectedPaths.has(pathname) || pathname === "/" || pathname === "/login" || pathname === "/signup") {
-    return { name: pathname };
+  if (
+    protectedPaths.has(pathname) ||
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    Object.prototype.hasOwnProperty.call(legacyMemberRouteMap, pathname)
+  ) {
+    return { name: pathname, params: {} };
   }
   if (pathname.startsWith("/u/")) {
     return {
@@ -369,8 +430,8 @@ function PublicHeader({ navigate, session, currentPath }) {
       <div className="mw-public-actions">
         {session.isAuthenticated ? (
           <>
-            <AppLink to="/dashboard" navigate={navigate} className="mw-button mw-button--ghost">
-              Dashboard
+            <AppLink to={APP_WATCHLISTS_PATH} navigate={navigate} className="mw-button mw-button--ghost">
+              Watchlists
             </AppLink>
             <button type="button" className="mw-button mw-button--primary">
               {session.plan}
@@ -547,7 +608,7 @@ function HomePage({ navigate }) {
   );
 }
 
-function AuthPage({ mode, navigate, onSubmit }) {
+function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage = "" }) {
   const [formState, setFormState] = useState({
     name: "",
     email: "",
@@ -566,7 +627,7 @@ function AuthPage({ mode, navigate, onSubmit }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSubmit(formState);
+    onSubmit(formState, mode);
   };
 
   return (
@@ -647,9 +708,14 @@ function AuthPage({ mode, navigate, onSubmit }) {
             )}
           </div>
 
-          <button type="submit" className="mw-button mw-button--primary mw-button--block">
-            {isSignup ? "Create Account" : "Log In"}
+          <button
+            type="submit"
+            className="mw-button mw-button--primary mw-button--block"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : isSignup ? "Create Account" : "Log In"}
           </button>
+          {errorMessage ? <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p> : null}
         </form>
         <div className="mw-auth-links">
           {isSignup ? (
@@ -698,10 +764,10 @@ function MemberShell({
   onLogout,
 }) {
   const navItems = [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Watchlists", to: "/watchlists" },
-    { label: "Portfolio", to: "/portfolio" },
-    { label: "Settings", to: "/settings" },
+    { label: "Dashboard", to: APP_DASHBOARD_PATH },
+    { label: "Watchlists", to: APP_WATCHLISTS_PATH },
+    { label: "Portfolio", to: APP_PORTFOLIO_PATH },
+    { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
   const totalItems = watchlists.reduce((count, watchlist) => count + watchlist.items.length, 0);
@@ -812,10 +878,10 @@ function DashboardPage({ session, watchlists, portfolio, navigate }) {
             </p>
           </div>
           <div className="mw-inline-actions">
-            <AppLink to="/watchlists" navigate={navigate} className="mw-button mw-button--primary">
+            <AppLink to={APP_WATCHLISTS_PATH} navigate={navigate} className="mw-button mw-button--primary">
               New Watchlist
             </AppLink>
-            <AppLink to="/portfolio" navigate={navigate} className="mw-button mw-button--ghost">
+            <AppLink to={APP_PORTFOLIO_PATH} navigate={navigate} className="mw-button mw-button--ghost">
               View Portfolio
             </AppLink>
           </div>
@@ -862,15 +928,15 @@ function DashboardPage({ session, watchlists, portfolio, navigate }) {
             <span>Keep the workflow moving</span>
           </div>
           <div className="mw-action-grid">
-            <AppLink to="/watchlists" navigate={navigate} className="mw-action-card">
+            <AppLink to={APP_WATCHLISTS_PATH} navigate={navigate} className="mw-action-card">
               <strong>Manage watchlists</strong>
               <span>Create, rename, filter, and refine the core data.</span>
             </AppLink>
-            <AppLink to="/portfolio" navigate={navigate} className="mw-action-card">
+            <AppLink to={APP_PORTFOLIO_PATH} navigate={navigate} className="mw-action-card">
               <strong>Edit portfolio</strong>
               <span>Update the profile and choose which lists get featured publicly.</span>
             </AppLink>
-            <AppLink to="/settings" navigate={navigate} className="mw-action-card">
+            <AppLink to={APP_SETTINGS_PATH} navigate={navigate} className="mw-action-card">
               <strong>Review settings</strong>
               <span>Handle sessions, passwords, notifications, and account controls.</span>
             </AppLink>
@@ -892,6 +958,7 @@ function WatchlistsPage({
   onRemoveItem,
   onUpdateWatchlistNotes,
   onUpdateItemNotes,
+  syncMessage = "",
 }) {
   const selectedWatchlist =
     watchlists.find((watchlist) => watchlist.id === selectedWatchlistId) || watchlists[0];
@@ -1072,7 +1139,7 @@ function WatchlistsPage({
               </thead>
               <tbody>
                 {visibleItems.map((item) => (
-                  <tr key={item.id}>
+                  <tr key={`${item.id}:${item.notes}`}>
                     <td>
                       <strong>{item.title}</strong>
                       <span>{item.itemKey}</span>
@@ -1081,8 +1148,8 @@ function WatchlistsPage({
                     <td>
                       <input
                         type="text"
-                        value={item.notes}
-                        onChange={(event) =>
+                        defaultValue={item.notes}
+                        onBlur={(event) =>
                           onUpdateItemNotes(selectedWatchlist.id, item.id, event.target.value)
                         }
                       />
@@ -1109,12 +1176,21 @@ function WatchlistsPage({
               <h3>Notes</h3>
               <span>Save context next to each list</span>
             </div>
-            <span className="mw-status-chip">API sync pending</span>
+            <span
+              className={classNames(
+                "mw-status-chip",
+                !syncMessage && "mw-status-chip--accent"
+              )}
+            >
+              {syncMessage ? "Sync issue" : "Backend synced"}
+            </span>
           </div>
+          {syncMessage ? <p className="mw-auth-feedback mw-auth-feedback--error">{syncMessage}</p> : null}
           <textarea
             className="mw-notes-area"
-            value={selectedWatchlist.notes}
-            onChange={(event) =>
+            key={`${selectedWatchlist.id}:${selectedWatchlist.notes}`}
+            defaultValue={selectedWatchlist.notes}
+            onBlur={(event) =>
               onUpdateWatchlistNotes(selectedWatchlist.id, event.target.value)
             }
           />
@@ -1414,24 +1490,120 @@ export default function MvpApp() {
   const { pathname, navigate } = useRouter();
   const route = matchRoute(pathname);
 
-  const [session, setSession] = useState({
-    isAuthenticated: false,
-    name: "Jane Doe",
-    email: "jane@example.com",
-    username: "janedoe",
-    plan: "Free Account",
-  });
+  const [session, setSession] = useState(defaultSession);
   const [watchlists, setWatchlists] = useState(initialWatchlists);
   const [selectedWatchlistId, setSelectedWatchlistId] = useState(initialWatchlists[0].id);
   const [portfolio, setPortfolio] = useState(initialPortfolio);
   const [settings, setSettings] = useState(initialSettings);
   const [sessions, setSessions] = useState(initialSessions);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [watchlistSyncError, setWatchlistSyncError] = useState("");
+  const [authHydrated, setAuthHydrated] = useState(false);
+
+  const applyAuthPayload = (payload) => {
+    const user = payload?.user || {};
+    const nextWatchlists = Array.isArray(payload?.watchlists)
+      ? payload.watchlists
+      : [];
+
+    setSession({
+      isAuthenticated: true,
+      name: user.name || defaultSession.name,
+      email: user.email || defaultSession.email,
+      username:
+        user.username ||
+        slugifyUsername(user.name || user.email?.split("@")[0] || defaultSession.username),
+      plan: user.plan || defaultSession.plan,
+    });
+    setWatchlists(nextWatchlists);
+    setSelectedWatchlistId(nextWatchlists[0]?.id || "");
+    setPortfolio((current) => {
+      const currentFeatured = current.featuredWatchlistIds.filter((id) =>
+        nextWatchlists.some((watchlist) => watchlist.id === id)
+      );
+      const nextFeatured = currentFeatured.length
+        ? currentFeatured
+        : nextWatchlists.slice(0, 2).map((watchlist) => watchlist.id);
+      return {
+        ...current,
+        displayName: user.name || current.displayName,
+        featuredWatchlistIds: nextFeatured.slice(0, 3),
+      };
+    });
+    setSessions([
+      {
+        id: `session-${Date.now()}`,
+        deviceName: "Current Device",
+        location: "Authenticated session",
+        lastSeenAt: new Date().toISOString(),
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const bootstrapSession = async () => {
+      try {
+        const payload = await apiRequest("/api/auth/session");
+        if (cancelled) return;
+        applyAuthPayload(payload);
+      } catch (_error) {
+        if (cancelled) return;
+        setSession(defaultSession);
+      } finally {
+        if (!cancelled) setAuthHydrated(true);
+      }
+    };
+    bootstrapSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextPath = legacyMemberRouteMap[pathname];
+    if (!nextPath) return;
+    navigate(nextPath, { replace: true });
+  }, [navigate, pathname]);
+
+  useEffect(() => {
+    if (!authHydrated) return;
+    if (protectedPaths.has(route.name) && !session.isAuthenticated) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (
+      session.isAuthenticated &&
+      (route.name === "/login" || route.name === "/signup")
+    ) {
+      navigate(APP_WATCHLISTS_PATH, { replace: true });
+    }
+  }, [authHydrated, navigate, route.name, session.isAuthenticated]);
 
   useEffect(() => {
     if (!watchlists.some((watchlist) => watchlist.id === selectedWatchlistId)) {
       setSelectedWatchlistId(watchlists[0]?.id || "");
     }
   }, [selectedWatchlistId, watchlists]);
+
+  useEffect(() => {
+    setPortfolio((current) => ({
+      ...current,
+      featuredWatchlistIds: current.featuredWatchlistIds
+        .filter((id) => watchlists.some((watchlist) => watchlist.id === id))
+        .slice(0, 3),
+    }));
+  }, [watchlists]);
+
+  const replaceWatchlistInState = (nextWatchlist) => {
+    if (!nextWatchlist?.id) return;
+    setWatchlists((current) =>
+      current.map((watchlist) =>
+        watchlist.id === nextWatchlist.id ? nextWatchlist : watchlist
+      )
+    );
+  };
 
   const updateWatchlist = (watchlistId, updater) => {
     setWatchlists((current) =>
@@ -1447,25 +1619,81 @@ export default function MvpApp() {
     );
   };
 
-  const handleAuth = (formState) => {
-    const displayName = formState.name?.trim() || session.name;
-    const email = formState.email?.trim() || session.email;
-    setSession((current) => ({
-      ...current,
-      isAuthenticated: true,
-      name: displayName,
-      email,
-      username: slugifyUsername(displayName || email.split("@")[0]),
-    }));
-    navigate("/dashboard");
+  const handleAuth = async (formState, mode) => {
+    const isSignup = mode === "signup";
+    if (isSignup && !formState.acceptTerms) {
+      setAuthError("Please accept the terms to create an account.");
+      return;
+    }
+    if (isSignup && formState.password !== formState.confirmPassword) {
+      setAuthError("Passwords do not match.");
+      return;
+    }
+
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const payload = await apiRequest(
+        isSignup ? "/api/auth/signup" : "/api/auth/login",
+        {
+          method: "POST",
+          body: {
+            name: formState.name?.trim(),
+            email: formState.email?.trim(),
+            password: formState.password,
+            remember: formState.remember,
+          },
+        }
+      );
+      applyAuthPayload(payload);
+      setWatchlistSyncError("");
+      navigate(APP_WATCHLISTS_PATH);
+    } catch (error) {
+      setAuthError(error.message || "Authentication failed.");
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
-  const handleLogout = () => {
-    setSession((current) => ({ ...current, isAuthenticated: false }));
+  const handleLogout = async () => {
+    try {
+      await apiRequest("/api/auth/logout", { method: "POST" });
+    } catch (_error) {
+      // Keep local logout behavior even if network request fails.
+    }
+    setSession(defaultSession);
+    setWatchlists(initialWatchlists);
+    setSelectedWatchlistId(initialWatchlists[0]?.id || "");
+    setPortfolio(initialPortfolio);
+    setSettings(initialSettings);
+    setSessions(initialSessions);
+    setAuthError("");
+    setWatchlistSyncError("");
     navigate("/");
   };
 
-  const handleCreateWatchlist = () => {
+  const handleCreateWatchlist = async () => {
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest("/api/watchlists", {
+          method: "POST",
+          body: {
+            name: `Watchlist ${watchlists.length + 1}`,
+            description: "New list ready for custom symbols and notes.",
+            notes: "Use this space for catalysts, theses, and risk notes.",
+          },
+        });
+        if (payload?.watchlist) {
+          setWatchlists((current) => [...current, payload.watchlist]);
+          setSelectedWatchlistId(payload.watchlist.id);
+          setWatchlistSyncError("");
+        }
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not create watchlist.");
+      }
+      return;
+    }
+
     const nextId = createId("watchlist");
     const nextWatchlist = {
       id: nextId,
@@ -1479,13 +1707,46 @@ export default function MvpApp() {
     setSelectedWatchlistId(nextId);
   };
 
-  const handleRenameWatchlist = (watchlistId, nextName) => {
+  const handleRenameWatchlist = async (watchlistId, nextName) => {
     const trimmed = nextName.trim();
     if (!trimmed) return;
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(`/api/watchlists/${encodeURIComponent(watchlistId)}`, {
+          method: "PATCH",
+          body: { name: trimmed },
+        });
+        replaceWatchlistInState(payload.watchlist);
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not rename watchlist.");
+      }
+      return;
+    }
     updateWatchlist(watchlistId, () => ({ name: trimmed }));
   };
 
-  const handleDeleteWatchlist = (watchlistId) => {
+  const handleDeleteWatchlist = async (watchlistId) => {
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(`/api/watchlists/${encodeURIComponent(watchlistId)}`, {
+          method: "DELETE",
+        });
+        if (Array.isArray(payload.watchlists)) {
+          setWatchlists(payload.watchlists);
+          setSelectedWatchlistId(payload.watchlists[0]?.id || "");
+        } else {
+          setWatchlists((current) =>
+            current.filter((watchlist) => watchlist.id !== watchlistId)
+          );
+        }
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not delete watchlist.");
+      }
+      return;
+    }
+
     setWatchlists((current) => {
       if (current.length === 1) {
         return [
@@ -1503,9 +1764,31 @@ export default function MvpApp() {
     });
   };
 
-  const handleAddItem = (watchlistId, rawValue) => {
+  const handleAddItem = async (watchlistId, rawValue) => {
     const symbol = normalizeSymbol(rawValue);
     if (!symbol) return;
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(
+          `/api/watchlists/${encodeURIComponent(watchlistId)}/items`,
+          {
+            method: "POST",
+            body: {
+              itemKey: symbol,
+              itemType: guessItemType(symbol),
+              title: formatItemTitle(symbol),
+              notes: "New entry.",
+            },
+          }
+        );
+        replaceWatchlistInState(payload.watchlist);
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not add item.");
+      }
+      return;
+    }
+
     updateWatchlist(watchlistId, (watchlist) => {
       if (watchlist.items.some((item) => item.itemKey === symbol)) {
         return {};
@@ -1526,7 +1809,21 @@ export default function MvpApp() {
     });
   };
 
-  const handleRemoveItem = (watchlistId, itemId) => {
+  const handleRemoveItem = async (watchlistId, itemId) => {
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(
+          `/api/watchlists/${encodeURIComponent(watchlistId)}/items/${encodeURIComponent(itemId)}`,
+          { method: "DELETE" }
+        );
+        replaceWatchlistInState(payload.watchlist);
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not remove item.");
+      }
+      return;
+    }
+
     updateWatchlist(watchlistId, (watchlist) => ({
       items: watchlist.items
         .filter((item) => item.id !== itemId)
@@ -1534,7 +1831,21 @@ export default function MvpApp() {
     }));
   };
 
-  const handleUpdateItemNotes = (watchlistId, itemId, nextNotes) => {
+  const handleUpdateItemNotes = async (watchlistId, itemId, nextNotes) => {
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(
+          `/api/watchlists/${encodeURIComponent(watchlistId)}/items/${encodeURIComponent(itemId)}`,
+          { method: "PATCH", body: { notes: nextNotes } }
+        );
+        replaceWatchlistInState(payload.watchlist);
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not save item notes.");
+      }
+      return;
+    }
+
     updateWatchlist(watchlistId, (watchlist) => ({
       items: watchlist.items.map((item) =>
         item.id === itemId ? { ...item, notes: nextNotes } : item
@@ -1542,7 +1853,21 @@ export default function MvpApp() {
     }));
   };
 
-  const handleUpdateWatchlistNotes = (watchlistId, nextNotes) => {
+  const handleUpdateWatchlistNotes = async (watchlistId, nextNotes) => {
+    if (session.isAuthenticated) {
+      try {
+        const payload = await apiRequest(`/api/watchlists/${encodeURIComponent(watchlistId)}`, {
+          method: "PATCH",
+          body: { notes: nextNotes },
+        });
+        replaceWatchlistInState(payload.watchlist);
+        setWatchlistSyncError("");
+      } catch (error) {
+        setWatchlistSyncError(error.message || "Could not save watchlist notes.");
+      }
+      return;
+    }
+
     updateWatchlist(watchlistId, () => ({ notes: nextNotes }));
   };
 
@@ -1570,10 +1895,26 @@ export default function MvpApp() {
       case "/":
         return <HomePage navigate={navigate} />;
       case "/login":
-        return <AuthPage mode="login" navigate={navigate} onSubmit={handleAuth} />;
+        return (
+          <AuthPage
+            mode="login"
+            navigate={navigate}
+            onSubmit={handleAuth}
+            isSubmitting={authBusy}
+            errorMessage={authError}
+          />
+        );
       case "/signup":
-        return <AuthPage mode="signup" navigate={navigate} onSubmit={handleAuth} />;
-      case "/dashboard":
+        return (
+          <AuthPage
+            mode="signup"
+            navigate={navigate}
+            onSubmit={handleAuth}
+            isSubmitting={authBusy}
+            errorMessage={authError}
+          />
+        );
+      case APP_DASHBOARD_PATH:
         return (
           <DashboardPage
             session={session}
@@ -1582,7 +1923,7 @@ export default function MvpApp() {
             navigate={navigate}
           />
         );
-      case "/watchlists":
+      case APP_WATCHLISTS_PATH:
         return (
           <WatchlistsPage
             watchlists={watchlists}
@@ -1595,9 +1936,10 @@ export default function MvpApp() {
             onRemoveItem={handleRemoveItem}
             onUpdateWatchlistNotes={handleUpdateWatchlistNotes}
             onUpdateItemNotes={handleUpdateItemNotes}
+            syncMessage={watchlistSyncError}
           />
         );
-      case "/portfolio":
+      case APP_PORTFOLIO_PATH:
         return (
           <PortfolioPage
             session={session}
@@ -1606,7 +1948,7 @@ export default function MvpApp() {
             onUpdatePortfolio={handleUpdatePortfolio}
           />
         );
-      case "/settings":
+      case APP_SETTINGS_PATH:
         return (
           <SettingsPage
             session={session}
@@ -1628,6 +1970,8 @@ export default function MvpApp() {
         return <NotFoundPage navigate={navigate} />;
     }
   }, [
+    authBusy,
+    authError,
     handleAuth,
     navigate,
     portfolio,
@@ -1637,6 +1981,7 @@ export default function MvpApp() {
     session,
     sessions,
     settings,
+    watchlistSyncError,
     watchlists,
   ]);
 

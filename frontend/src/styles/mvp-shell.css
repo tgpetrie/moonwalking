@@ -1,15 +1,15 @@
 .mw-app {
-  --mw-bg: #061821;
-  --mw-bg-deep: #031019;
-  --mw-panel: rgba(9, 28, 39, 0.78);
-  --mw-panel-strong: rgba(13, 36, 50, 0.92);
-  --mw-line: rgba(163, 197, 214, 0.16);
-  --mw-text: #f4fbff;
-  --mw-muted: #96afbf;
-  --mw-accent: #3ed5b5;
-  --mw-accent-strong: #16b490;
-  --mw-signal: #ffbf69;
-  --mw-danger: #ff8d7a;
+  --mw-bg: var(--bh-bg, #050308);
+  --mw-bg-deep: #09050d;
+  --mw-panel: rgba(10, 8, 15, 0.74);
+  --mw-panel-strong: rgba(12, 9, 18, 0.9);
+  --mw-line: rgba(255, 255, 255, 0.12);
+  --mw-text: rgba(255, 255, 255, 0.92);
+  --mw-muted: rgba(255, 255, 255, 0.58);
+  --mw-accent: var(--bh-loss, #c084fc);
+  --mw-accent-strong: #a855f7;
+  --mw-signal: var(--bh-gain, #ffb347);
+  --mw-danger: #ff9fb4;
   --mw-radius: 28px;
   min-height: 100vh;
   position: relative;
@@ -26,17 +26,20 @@
 
 .mw-app h1,
 .mw-app h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  letter-spacing: -0.02em;
+  font-family: "Raleway", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .mw-background-layer {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at top left, rgba(62, 213, 181, 0.14), transparent 34%),
-    radial-gradient(circle at 85% 12%, rgba(255, 191, 105, 0.18), transparent 28%),
-    linear-gradient(180deg, rgba(10, 36, 50, 0.94), rgba(3, 14, 21, 0.98));
+    radial-gradient(circle at 14% 12%, rgba(192, 132, 252, 0.18), transparent 30%),
+    radial-gradient(circle at 86% 10%, rgba(255, 179, 71, 0.2), transparent 26%),
+    radial-gradient(circle at 50% 120%, rgba(192, 132, 252, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(7, 4, 10, 0.96), rgba(4, 3, 7, 0.99));
   pointer-events: none;
   z-index: 0;
 }
@@ -75,7 +78,10 @@
   padding: 18px 24px;
   border: 1px solid var(--mw-line);
   border-radius: 999px;
-  background: rgba(5, 24, 34, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+    rgba(8, 6, 12, 0.76);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
   position: sticky;
   top: 16px;
   z-index: 5;
@@ -101,10 +107,10 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--mw-accent), rgba(62, 213, 181, 0.3));
-  color: #022b24;
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.96), rgba(192, 132, 252, 0.88));
+  color: #120b08;
   font-weight: 800;
-  box-shadow: 0 18px 50px rgba(62, 213, 181, 0.22);
+  box-shadow: 0 18px 50px rgba(192, 132, 252, 0.2);
 }
 
 .mw-logo-type {
@@ -151,6 +157,7 @@
 .mw-public-nav__link:hover {
   color: var(--mw-text);
   background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(192, 132, 252, 0.16);
 }
 
 .mw-button {
@@ -165,6 +172,8 @@
   background: transparent;
   color: var(--mw-text);
   font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
   text-decoration: none;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
@@ -178,14 +187,16 @@
 }
 
 .mw-button--primary {
-  background: linear-gradient(135deg, var(--mw-signal), #ffdba5);
-  color: #221809;
-  box-shadow: 0 18px 40px rgba(255, 191, 105, 0.24);
+  border-color: rgba(255, 179, 71, 0.4);
+  background: linear-gradient(135deg, var(--mw-signal), #ffd49a);
+  color: #1d1406;
+  box-shadow: 0 18px 40px rgba(255, 179, 71, 0.2);
 }
 
 .mw-button--ghost {
   border-color: var(--mw-line);
   background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(14px);
 }
 
 .mw-button--danger {
@@ -227,8 +238,11 @@
   border-radius: calc(var(--mw-radius) + 6px);
   border: 1px solid var(--mw-line);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-    rgba(6, 24, 33, 0.78);
+    radial-gradient(circle at top right, rgba(255, 179, 71, 0.08), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(192, 132, 252, 0.08), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    rgba(8, 6, 12, 0.8);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
   animation: mw-rise 420ms ease;
 }
 
@@ -289,7 +303,10 @@
 .mw-profile-hero {
   border-radius: var(--mw-radius);
   border: 1px solid var(--mw-line);
-  background: var(--mw-panel);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012)),
+    var(--mw-panel);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
 }
 
 .mw-hero-stat,
@@ -367,8 +384,8 @@
 .mw-featured-card.is-active,
 .mw-watchlist-chip.is-active {
   color: var(--mw-text);
-  border-color: rgba(62, 213, 181, 0.42);
-  background: rgba(62, 213, 181, 0.14);
+  border-color: rgba(192, 132, 252, 0.38);
+  background: rgba(192, 132, 252, 0.14);
 }
 
 .mw-public-footer {
@@ -415,10 +432,20 @@
   min-height: 48px;
   padding: 13px 14px;
   border-radius: 18px;
-  border: 1px solid rgba(163, 197, 214, 0.18);
-  background: rgba(2, 12, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(4, 4, 8, 0.56);
   color: var(--mw-text);
   box-sizing: border-box;
+  backdrop-filter: blur(12px);
+}
+
+.mw-field input:focus,
+.mw-field textarea:focus,
+.mw-table input:focus,
+.mw-notes-area:focus {
+  outline: none;
+  border-color: rgba(192, 132, 252, 0.38);
+  box-shadow: 0 0 0 3px rgba(192, 132, 252, 0.12);
 }
 
 .mw-field textarea,
@@ -445,6 +472,21 @@
   gap: 10px;
 }
 
+.mw-auth-feedback {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--mw-muted);
+}
+
+.mw-auth-feedback--error {
+  color: #ff9f9f;
+}
+
+.mw-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .mw-member-shell {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
@@ -454,7 +496,9 @@
 .mw-sidebar {
   padding: 28px 22px;
   border-right: 1px solid var(--mw-line);
-  background: rgba(3, 16, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
+    rgba(7, 5, 11, 0.84);
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -482,7 +526,7 @@
 .mw-sidebar__link:hover {
   color: var(--mw-text);
   border-color: var(--mw-line);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(192, 132, 252, 0.1);
 }
 
 .mw-sidebar__meta {
@@ -491,7 +535,7 @@
   padding: 18px;
   border-radius: 24px;
   border: 1px solid var(--mw-line);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .mw-sidebar__meta span {
@@ -593,7 +637,7 @@
   padding: 18px;
   border-radius: 22px;
   border: 1px solid var(--mw-line);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .mw-watchlists-layout {

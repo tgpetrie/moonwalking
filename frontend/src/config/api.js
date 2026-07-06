@@ -6,7 +6,7 @@
 // ============================================================================
 // BLOCKED PORTS (legacy/deprecated)
 // ============================================================================
-const BLOCKED_PORTS = [8001, 8003];
+const BLOCKED_PORTS = [8001];
 const BLOCKED_PORT_RE = new RegExp(`:(?:${BLOCKED_PORTS.join('|')})$`, 'i');
 
 // ============================================================================
@@ -57,23 +57,22 @@ export function getBackendCandidates() {
 }
 
 // ============================================================================
-// BRAINS CONFIG (insights/intelligence service - STRICT PORTS ONLY)
+// BRAINS CONFIG (insights/intelligence service)
 // ============================================================================
 
 /**
- * STRICT brains port: 8002 only
- * If brains isn't reachable here, it's offline - no port hunting
- */
-export const BRAINS_STRICT_BASES = [
-  "http://127.0.0.1:8002",
-  "http://localhost:8002",
-];
-
-/**
- * Get brains base URLs (STRICT - no discovery, no fallback to random ports)
+ * Frontend stays proxy-first by default.
+ * Direct brains URLs are only allowed when explicitly injected via env.
  */
 export function getBrainsCandidates() {
-  return [...BRAINS_STRICT_BASES];
+  const candidates = [
+    import.meta.env.VITE_SENTIMENT_BASE_URL,
+    import.meta.env.VITE_SENTIMENT_URL,
+  ]
+    .map((value) => sanitizeBase(value || ""))
+    .filter(Boolean);
+
+  return candidates.filter((value, index, list) => list.indexOf(value) === index);
 }
 
 // ============================================================================

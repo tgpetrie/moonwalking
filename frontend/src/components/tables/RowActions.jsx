@@ -41,6 +41,7 @@ export function RowStar({ starred, onToggleStar, className = "" }) {
       className={`bh-row-action ${starred ? "is-active" : ""} ${className}`}
       onClick={handleStarClick}
       aria-label="Toggle watchlist"
+      title={starred ? "Remove from watchlist" : "Add to watchlist"}
     >
       <StarIcon filled={starred} className="bh-row-icon" />
     </button>
@@ -58,8 +59,8 @@ export function RowInfo({ onInfoClick, className = "" }) {
       className={`bh-row-action bh-action bh-action--info ${className}`}
       onMouseDown={(e) => { if (e) { e.preventDefault(); e.stopPropagation(); } }}
       onClick={handleInfoClick}
-      aria-label="Open trading page"
-      title="Open trading page"
+      aria-label="Open Coinbase Advanced Trade"
+      title="Open Coinbase Advanced Trade"
     >
       <TradeIcon className="bh-row-icon" />
     </button>
