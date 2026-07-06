@@ -1,0 +1,20 @@
+# Moonwalking sentiment pipeline (FastAPI/uvicorn).
+# Optional but recommended; the board degrades gracefully without it.
+
+[Unit]
+Description=Moonwalking sentiment pipeline
+After=network-online.target moonwalking-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moonwalking
+Group=moonwalking
+WorkingDirectory=/opt/moonwalking/backend
+EnvironmentFile=/opt/moonwalking/deploy/homeserver/.env
+ExecStart=/opt/moonwalking/.venv/bin/python sentiment_api.py --host 127.0.0.1 --port 8003
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

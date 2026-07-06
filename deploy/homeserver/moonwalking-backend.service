@@ -1,0 +1,28 @@
+# Moonwalking board backend (Flask via gunicorn).
+# Install: see deploy/homeserver/README.md
+# Edit User/Group and the /opt/moonwalking paths to match your machine.
+
+[Unit]
+Description=Moonwalking board backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moonwalking
+Group=moonwalking
+WorkingDirectory=/opt/moonwalking/backend
+EnvironmentFile=/opt/moonwalking/deploy/homeserver/.env
+# IMPORTANT: exactly one worker. The app keeps market caches, pollers, and
+# snapshot writers in process memory; multiple workers would run duplicate
+# pollers and serve inconsistent boards. Threads provide request concurrency.
+ExecStart=/opt/moonwalking/.venv/bin/gunicorn app:app \
+    --bind 127.0.0.1:5003 \
+    --workers 1 \
+    --threads 8 \
+    --timeout 120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -739,9 +739,12 @@ app.config["SECRET_KEY"] = _secret_key
 # rewrite of /api/* to Render) keep API requests same-origin from the
 # browser's perspective, so Lax is correct. Set SESSION_COOKIE_SAMESITE=None
 # only if the frontend ever calls the backend origin directly cross-site.
+_cookie_secure_env = os.environ.get(
+    "SESSION_COOKIE_SECURE", "1" if _IS_PRODUCTION else "0"
+)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=_IS_PRODUCTION,
+    SESSION_COOKIE_SECURE=_cookie_secure_env.strip().lower() in ("1", "true", "yes"),
     SESSION_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
 )
@@ -13476,6 +13479,40 @@ def api_data():
         }, 200
 
     return data_aggregate()
+
+
+# =============================================================================
+# OPTIONAL: SERVE BUILT FRONTEND (single-box deploys, e.g. home server)
+# =============================================================================
+# With SERVE_FRONTEND_DIST=1 the backend serves frontend/dist on the same
+# origin as the API, so no CORS or cross-site cookies are involved. Explicit
+# API rules always outrank the catch-all path converter in Werkzeug routing.
+
+if os.environ.get("SERVE_FRONTEND_DIST", "0") == "1":
+    from flask import send_from_directory
+
+    _dist_root = os.path.abspath(
+        os.environ.get(
+            "FRONTEND_DIST_DIR",
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist"
+            ),
+        )
+    )
+
+    def _serve_frontend_index():
+        return send_from_directory(_dist_root, "index.html")
+
+    @app.route("/<path:_spa_path>")
+    def _serve_frontend_asset(_spa_path):
+        if os.path.isfile(os.path.join(_dist_root, _spa_path)):
+            return send_from_directory(_dist_root, _spa_path)
+        # SPA fallback: client-side routes like /app/watchlists load index.html
+        return _serve_frontend_index()
+
+    # The JSON board payload normally served at "/" moves aside so the SPA
+    # owns the root URL; the board is still available at /data and /api/data.
+    app.view_functions["root"] = _serve_frontend_index
 
 
 # =============================================================================

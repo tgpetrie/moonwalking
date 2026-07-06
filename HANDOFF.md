@@ -89,15 +89,16 @@ in that doc is still accurate.
 
 ## Next exact step
 
-Deploy the watchlist backend so cross-device actually works:
+Deployment decision made (2026-07-06): self-host on the user's N100 mini PC
+with SQLite + Tailscale — no Render disk, no Supabase migration. The full
+kit is ready in `deploy/homeserver/` (README runbook, `setup.sh`, systemd
+units, env template); the backend gained `SERVE_FRONTEND_DIST=1` single-box
+SPA serving and a `SESSION_COOKIE_SECURE` override for TLS-terminating
+proxies. The mini PC is unavailable until roughly 2026-07-13, so:
 
-1. Decide storage: Render paid disk (config already in `render.yaml`) OR
-   migrate `backend/watchlist.py` storage to Supabase Postgres (free tier).
-2. Sync the Render blueprint; confirm `SECRET_KEY` is generated and
-   `/api/auth/signup` works on the deployed URL.
-3. Verify from two devices: sign up on one, log in on the other, same
-   watchlist appears.
-4. Then move to track 2 (Coinbase WebSocket live board).
+1. When the mini PC is back: follow `deploy/homeserver/README.md` end to
+   end, then verify cross-device login from two devices.
+2. Meanwhile, continue with track 2 (Coinbase WebSocket live board).
 
 ## Resume prompt for another device
 
