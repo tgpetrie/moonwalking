@@ -1,506 +1,106 @@
-# Advanced Sentiment Popup - Architecture
+# Moonwalking Architecture
 
-## Component Structure
+This document describes the current runtime. Product and data truth rules remain authoritative in `MW_SPEC.md`.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 YOUR APPLICATION                         │
-│                                                          │
-│  ┌────────────────────────────────────────────────┐    │
-│  │         Any Component (Header, Card, etc)      │    │
-│  │                                                 │    │
-│  │   <SentimentTriggerButton symbol="BTC" />      │    │
-│  │                    │                            │    │
-│  │                    ▼                            │    │
-│  │   ┌─────────────────────────────────────────┐  │    │
-│  │   │   SentimentPopupAdvanced                │  │    │
-│  │   │   (Full-screen overlay popup)           │  │    │
-│  │   │                                         │  │    │
-│  │   │  ┌──────────────────────────────────┐  │  │    │
-│  │   │  │  Header                          │  │  │    │
-│  │   │  │  • Title: "Sentiment Analysis"   │  │  │    │
-│  │   │  │  • LIVE indicator (pulsing)      │  │  │    │
-│  │   │  │  • Close button                  │  │  │    │
-│  │   │  └──────────────────────────────────┘  │  │    │
-│  │   │                                         │  │    │
-│  │   │  ┌──────────────────────────────────┐  │  │    │
-│  │   │  │  Tab Navigation                  │  │  │    │
-│  │   │  │  [Overview] [Sources] [Charts]   │  │  │    │
-│  │   │  │           [Insights]             │  │  │    │
-│  │   │  └──────────────────────────────────┘  │  │    │
-│  │   │                                         │  │    │
-│  │   │  ┌──────────────────────────────────┐  │  │    │
-│  │   │  │  Tab Content (scrollable)        │  │  │    │
-│  │   │  │                                  │  │  │    │
-│  │   │  │  ┌────────────────────────────┐ │  │  │    │
-│  │   │  │  │ Overview Tab               │ │  │  │    │
-│  │   │  │  │ • Stats grid (4 cards)     │ │  │  │    │
-│  │   │  │  │ • Animated gauge           │ │  │  │    │
-│  │   │  │  │ • Top insight box          │ │  │  │    │
-│  │   │  │  │ • Explainer                │ │  │  │    │
-│  │   │  │  └────────────────────────────┘ │  │  │    │
-│  │   │  │                                  │  │  │    │
-│  │   │  │  ┌────────────────────────────┐ │  │  │    │
-│  │   │  │  │ Sources Tab                │ │  │  │    │
-│  │   │  │  │ • Tier legend              │ │  │  │    │
-│  │   │  │  │ • Source cards (list)      │ │  │  │    │
-│  │   │  │  │   - Fear & Greed Index     │ │  │  │    │
-│  │   │  │  │   - CoinGecko              │ │  │  │    │
-│  │   │  │  │   - Reddit                 │ │  │  │    │
-│  │   │  │  │   - Twitter/X              │ │  │  │    │
-│  │   │  │  │   - News Feeds             │ │  │  │    │
-│  │   │  │  └────────────────────────────┘ │  │  │    │
-│  │   │  │                                  │  │  │    │
-│  │   │  │  ┌────────────────────────────┐ │  │  │    │
-│  │   │  │  │ Charts Tab                 │ │  │  │    │
-│  │   │  │  │ • Trend chart (24h)        │ │  │  │    │
-│  │   │  │  │ • Source breakdown (pie)   │ │  │  │    │
-│  │   │  │  │ • Tier comparison (bar)    │ │  │  │    │
-│  │   │  │  │ • Price correlation        │ │  │  │    │
-│  │   │  │  └────────────────────────────┘ │  │  │    │
-│  │   │  │                                  │  │  │    │
-│  │   │  │  ┌────────────────────────────┐ │  │  │    │
-│  │   │  │  │ Insights Tab               │ │  │  │    │
-│  │   │  │  │ • AI-generated insights    │ │  │  │    │
-│  │   │  │  │ • Disclaimer               │ │  │  │    │
-│  │   │  │  └────────────────────────────┘ │  │  │    │
-│  │   │  └──────────────────────────────────┘  │  │    │
-│  │   │                                         │  │    │
-│  │   │  ┌──────────────────────────────────┐  │  │    │
-│  │   │  │  Footer                          │  │  │    │
-│  │   │  │  • "Powered by X sources"        │  │  │    │
-│  │   │  │  • [Refresh Now] button          │  │  │    │
-│  │   │  └──────────────────────────────────┘  │  │    │
-│  │   └─────────────────────────────────────────┘  │    │
-│  └────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+## Runtime topology
+
+### Local development
+
+`./start_app.sh` is the canonical entrypoint and starts exactly three services:
+
+1. Vite frontend at `http://127.0.0.1:5173`
+2. Flask board API at `http://127.0.0.1:5003`
+3. FastAPI real-source sentiment service at `http://127.0.0.1:8003`
+
+Vite talks to Flask. Flask proxies the dedicated sentiment service through `/api/sentiment/latest`, so browser code has one API authority. The old bridge service and ports 5001/5002/5100/8002 are not part of the active runtime.
+
+### Single-box production
+
+The supported deployment is the kit under `deploy/homeserver/` on an Oracle Cloud Always Free ARM VM or compatible Linux host:
+
+- The frontend is built once and served by Flask on the same origin.
+- Gunicorn runs one worker because the price, volume, and alert engines are in-process singleton workers.
+- The sentiment service runs as a separate local process on port 8003.
+- Tailscale provides private access; no public application port is required.
+- SQLite stores price snapshots, alerts, volume baselines, and account-backed watchlists on the same box.
+
+The current MVP is deliberately one-box. Multiple Flask workers or replicas would duplicate market workers and require a separate job system and shared database first.
+
+## Data flow
+
+```text
+Coinbase WebSocket + bounded REST fallback
+                 |
+                 v
+      Flask singleton market worker
+                 |
+       SQLite baselines + snapshots
+                 |
+      /data + /api/alerts + /api/insights
+                 |
+                 v
+       DataContext (single UI poller)
+                 |
+                 v
+ price banner -> 1m -> 3m -> intelligence -> watchlist -> volume banner
+
+Alternative.me + CoinGecko
+                 |
+                 v
+  FastAPI sentiment service (:8003)
+                 |
+                 v
+  Flask /api/sentiment/latest proxy
+                 |
+                 v
+       Market-wide sentiment UI
 ```
 
-## Data Flow Architecture
+## Backend responsibilities
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    BACKEND (Python)                         │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  /sentiment/latest API Endpoint                      │  │
-│  │                                                       │  │
-│  │  • Fear & Greed Index API                            │  │
-│  │  • Reddit scraper                                    │  │
-│  │  • Twitter/X scraper                                 │  │
-│  │  • News RSS feeds                                    │  │
-│  │  • CoinGecko API                                     │  │
-│  │                                                       │  │
-│  │  Returns:                                            │  │
-│  │  {                                                   │  │
-│  │    overall_sentiment: 0.68,                          │  │
-│  │    fear_greed_index: 62,                             │  │
-│  │    source_breakdown: {...},                          │  │
-│  │    sentiment_history: [...]                          │  │
-│  │  }                                                   │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            │ HTTP GET
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   FRONTEND (React)                          │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  useSentimentLatest(symbol) Hook                     │  │
-│  │  • Uses SWR for caching                               │  │
-│  │  • 30-second TTL                                      │  │
-│  │  • Auto-refresh                                       │  │
-│  │  • Error handling                                     │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                            │                                │
-│                            ▼                                │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  normalizeSentiment(raw) Adapter                     │  │
-│  │  • Converts snake_case → camelCase                   │  │
-│  │  • Validates data ranges                             │  │
-│  │  • Provides fallbacks                                │  │
-│  │                                                       │  │
-│  │  Returns:                                            │  │
-│  │  {                                                   │  │
-│  │    overall: 0.68,                                    │  │
-│  │    fearGreedIndex: 62,                               │  │
-│  │    sourceBreakdown: {...},                           │  │
-│  │    sentimentHistory: [...]                           │  │
-│  │  }                                                   │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                            │                                │
-│                            ▼                                │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  SentimentPopupAdvanced Component                    │  │
-│  │                                                       │  │
-│  │  const { data, loading, error } =                    │  │
-│  │    useSentimentLatest(symbol);                       │  │
-│  │                                                       │  │
-│  │  • Renders tabs                                      │  │
-│  │  • Initializes charts                                │  │
-│  │  • Formats data                                      │  │
-│  │  • Handles interactions                              │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                            │                                │
-│                            ▼                                │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Chart.js                                            │  │
-│  │  • Trend chart                                       │  │
-│  │  • Pie chart                                         │  │
-│  │  • Bar chart                                         │  │
-│  │  • Correlation chart                                 │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+### Flask board API
 
-## File Organization
+- Owns the Coinbase price feed and bounded REST fallback.
+- Maintains one price/snapshot worker and one 1h-volume worker.
+- Computes 1m, 3m, and 1h price changes from real timestamped baselines.
+- Computes 1h volume movement from real candle or SQLite baselines.
+- Publishes the canonical `/data` snapshot and the alert stream.
+- Serves local tape-based coin insights at `/api/insights/<symbol>`.
+- Serves real external coin context at `/api/coin-intel?symbol=<symbol>`.
+- Owns SQLite-backed signup, login, sessions, and persistent watchlists.
 
-```
-moonwalkings/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── SentimentPopupAdvanced.jsx       ← Main popup
-│   │   │   ├── SentimentTriggerButton.jsx       ← Trigger button
-│   │   │   ├── InsightsPanelWithSentiment.jsx   ← Example integration
-│   │   │   └── ... (your existing components)
-│   │   │
-│   │   ├── styles/
-│   │   │   ├── sentiment-popup-advanced.css     ← All popup styles
-│   │   │   └── ... (your existing styles)
-│   │   │
-│   │   ├── hooks/
-│   │   │   ├── useSentimentLatest.js            ← Existing hook
-│   │   │   └── ... (your existing hooks)
-│   │   │
-│   │   └── adapters/
-│   │       ├── normalizeSentiment.js            ← Existing adapter
-│   │       └── ... (your existing adapters)
-│   │
-│   └── package.json                              ← Updated with chart.js
-│
-├── backend/
-│   ├── app.py
-│   ├── sentiment_api.py                          ← Existing API
-│   └── ... (your existing backend)
-│
-├── QUICK-START.md                                ← Start here!
-├── INTEGRATION-GUIDE.md                          ← Full docs
-├── SENTIMENT-POPUP-README.md                     ← Overview
-└── ARCHITECTURE.md                               ← This file
-```
+Script startup occurs only after the complete Flask route table has been registered. Request handling cannot silently create a second sentiment worker.
 
-## State Management
+### Sentiment service
 
-```
-SentimentPopupAdvanced
-│
-├─ Props (from parent)
-│  ├─ isOpen: boolean
-│  ├─ onClose: function
-│  └─ symbol: string (e.g., "BTC")
-│
-├─ State (internal)
-│  ├─ activeTab: string ("overview" | "sources" | "charts" | "insights")
-│  └─ isRefreshing: boolean
-│
-├─ Data (from hook)
-│  ├─ data: object (sentiment data)
-│  ├─ loading: boolean
-│  ├─ error: Error | null
-│  └─ refresh: function
-│
-└─ Refs
-   ├─ trendChartRef: canvas element
-   ├─ pieChartRef: canvas element
-   ├─ tierChartRef: canvas element
-   ├─ correlationChartRef: canvas element
-   └─ chartInstancesRef: { trend, pie, tier, correlation }
-```
+- Fetches Alternative.me Fear and Greed and CoinGecko global market data.
+- Returns explicit `live`, `stale`, or `offline` state with source provenance.
+- Leaves social, history, topics, and divergence fields null or empty when no real provider exists.
+- Never manufactures neutral scores, headlines, social counts, or history.
 
-## Lifecycle
+Market-wide sentiment is labeled market-wide even when a coin triggered the popup. Coin-specific pressure comes from real local tape and alert evidence, not cloned market sentiment.
 
-```
-1. User clicks SentimentTriggerButton
-   │
-   ▼
-2. setIsPopupOpen(true)
-   │
-   ▼
-3. SentimentPopupAdvanced mounts
-   │
-   ├─ useSentimentLatest fetches data
-   │  │
-   │  ├─ Shows loading state
-   │  │
-   │  ▼
-   │  Data received → Updates UI
-   │
-   ├─ Sets up keyboard listeners (ESC)
-   │
-   └─ Sets up click-outside handler
-   │
-   ▼
-4. User switches to Charts tab
-   │
-   ├─ initCharts() called
-   │  │
-   │  ├─ Creates Chart.js instances
-   │  │
-   │  └─ Renders visualizations
-   │
-   ▼
-5. User clicks Refresh
-   │
-   ├─ setIsRefreshing(true)
-   │
-   ├─ refresh() → useSentimentLatest refetches
-   │
-   └─ setIsRefreshing(false)
-   │
-   ▼
-6. User presses ESC or clicks outside
-   │
-   ├─ onClose()
-   │
-   └─ Popup unmounts
-      │
-      ├─ Destroys Chart.js instances
-      │
-      ├─ Removes event listeners
-      │
-      └─ Restores body overflow
-```
+## Frontend responsibilities
 
-## CSS Architecture
+- `frontend/src/main.jsx` mounts `App.jsx`.
+- `/` renders `DashboardShell`; `/login`, `/signup`, and `/app/*` render the product shell.
+- `DataContext` is the only board polling orchestrator.
+- `WatchlistContext` keeps guest entries local and switches to API-backed persistence only for authenticated sessions.
+- The board uses one continuous wrapper and stable action hit targets; data cells may animate without translating whole rows.
+- Missing data stays null and renders as warming, unavailable, stale, or offline.
 
-```
-:root
-├─ CSS Variables
-│  ├─ Colors (sentiment-pos, sentiment-neg, sentiment-neu)
-│  ├─ Spacing (padding, gaps, radius)
-│  └─ Transitions (fast, base, slow)
-│
-├─ Overlay & Container
-│  ├─ .sentiment-overlay (z-index: 9999, backdrop blur)
-│  └─ .sentiment-popup (max-width: 800px, flex column)
-│
-├─ Layout Components
-│  ├─ .popup-header
-│  ├─ .tab-nav
-│  ├─ .tab-content (scrollable)
-│  └─ .popup-footer
-│
-├─ Tab-Specific Styles
-│  ├─ Overview
-│  │  ├─ .stats-grid (4-column grid)
-│  │  ├─ .gauge-container (animated SVG)
-│  │  └─ .insight-box
-│  │
-│  ├─ Sources
-│  │  ├─ .tier-legend
-│  │  └─ .source-card (with tier borders)
-│  │
-│  ├─ Charts
-│  │  └─ .chart-container (220px height)
-│  │
-│  └─ Insights
-│     └─ .insights-list
-│
-└─ Utilities
-   ├─ Responsive breakpoints (@media)
-   ├─ Animations (@keyframes)
-   └─ Scrollbar styling
-```
+## Identity and storage
 
-## Chart.js Integration
+- Canonical asset identity is Coinbase `product_id`; display text is the base symbol.
+- Guest watchlist state lives in browser local storage.
+- Authenticated watchlists live in `backend/data/watchlists.sqlite` unless `WATCHLIST_DB_PATH` overrides it.
+- Session cookies are HttpOnly; production requires a stable `SECRET_KEY`.
+- No AI provider, cloud database, telemetry service, or exchange credential is required for the core board.
 
-```
-Charts Tab Active
-│
-▼
-initCharts()
-│
-├─ initTrendChart()
-│  ├─ Get canvas ref
-│  ├─ Destroy existing chart (if any)
-│  ├─ Extract history data
-│  ├─ Format labels (timestamps)
-│  ├─ Create datasets (sentiment, F&G)
-│  └─ new Chart(canvas, config)
-│
-├─ initPieChart()
-│  ├─ Get source breakdown
-│  ├─ Create donut chart
-│  └─ Show tier distribution
-│
-├─ initTierChart()
-│  ├─ Calculate avg by tier
-│  ├─ Create bar chart
-│  └─ Color by tier
-│
-└─ initCorrelationChart()
-   ├─ Get history + price data
-   ├─ Create dual-axis chart
-   └─ Link sentiment to price
-```
+## Operational constraints
 
-## Color Scheme
-
-```
-Sentiment States
-│
-├─ Positive/Bullish
-│  ├─ Primary: #45ffb3 (mint green)
-│  ├─ Usage: Score ≥60, Tier 1 badge
-│  └─ Context: Optimistic, buying opportunity
-│
-├─ Neutral/Caution
-│  ├─ Primary: #f1b43a (gold)
-│  ├─ Usage: Score 40-60, Tier 2 badge
-│  └─ Context: Wait, balanced, research
-│
-└─ Negative/Bearish
-   ├─ Primary: #ae4bf5 (purple)
-   ├─ Usage: Score ≤40, Tier 3 badge
-   └─ Context: Pessimistic, risk-off
-
-Supporting Colors
-├─ Teal: #00d4aa (absolute values)
-├─ Pink: #ff6b9d (alerts, warnings)
-└─ Gray scale: #f8f8f8 → #666666 (text hierarchy)
-```
-
-## Accessibility Features
-
-```
-Keyboard Navigation
-├─ ESC → Close popup
-├─ Tab → Navigate interactive elements
-└─ Enter/Space → Activate buttons
-
-ARIA Labels
-├─ role="dialog" (popup)
-├─ aria-modal="true"
-├─ aria-labelledby="sentimentTitle"
-├─ aria-label (buttons, charts)
-└─ aria-live="polite" (dynamic updates)
-
-Focus Management
-├─ Focus trap when open
-├─ Return focus on close
-└─ Visible focus indicators
-
-Screen Reader Support
-├─ Semantic HTML
-├─ Descriptive labels
-└─ Status announcements
-```
-
-## Performance Optimizations
-
-```
-1. Lazy Chart Initialization
-   • Charts only init when Charts tab is active
-   • Saves ~50KB of processing on popup open
-
-2. Chart Cleanup
-   • Destroys charts when:
-     - Tab changes away from Charts
-     - Popup closes
-   • Prevents memory leaks
-
-3. Conditional Rendering
-   • Only active tab content is visible
-   • Reduces DOM size
-
-4. SWR Caching
-   • Data cached for 30 seconds
-   • Prevents redundant API calls
-   • Stale-while-revalidate pattern
-
-5. CSS Animations
-   • GPU-accelerated transforms
-   • Hardware acceleration for blur effects
-```
-
-## Security Considerations
-
-```
-✅ Sanitized HTML
-   • All user data escaped
-   • No innerHTML with raw data
-
-✅ Safe Links
-   • External links: rel="noopener noreferrer"
-   • Prevents tabnabbing
-
-✅ CSP Compatible
-   • No inline event handlers
-   • No eval() usage
-
-✅ XSS Prevention
-   • React automatic escaping
-   • Manual sanitization where needed
-```
-
-## Browser Support
-
-```
-✅ Modern Browsers (Full Support)
-   • Chrome 90+
-   • Firefox 88+
-   • Safari 14+
-   • Edge 90+
-
-⚠️ Partial Support
-   • IE11: Not supported (uses modern JS)
-   • Chrome <90: May have CSS issues
-
-Required Features
-• CSS Grid
-• CSS Custom Properties
-• Flexbox
-• ES6+ (const, arrow functions, etc.)
-• Fetch API
-• Canvas API (for Chart.js)
-```
-
-## Mobile Responsiveness
-
-```
-Desktop (> 700px)
-├─ 4-column stats grid
-├─ 2-column charts row
-└─ Full tab labels with icons
-
-Tablet (480px - 700px)
-├─ 2-column stats grid
-├─ 1-column charts row
-└─ Full tab labels
-
-Mobile (< 480px)
-├─ 1-column stats grid
-├─ Stacked charts
-├─ Tab icons only (no labels)
-├─ Vertical header layout
-└─ Touch-friendly hit areas (44px min)
-```
-
-## Summary
-
-This advanced sentiment popup is:
-
-✅ **Self-contained** - Drop in anywhere with 1 import
-✅ **Backend agnostic** - Uses your existing API
-✅ **Fully responsive** - Mobile to desktop
-✅ **Accessible** - WCAG 2.1 compliant
-✅ **Performant** - Lazy loading, efficient renders
-✅ **Customizable** - CSS variables, config objects
-✅ **Production-ready** - Error handling, loading states
-
-**Total Lines of Code**: ~2,600
-**Dependencies Added**: 1 (chart.js)
-**Backend Changes Required**: 0
+- Run `./start_app.sh` for local work.
+- Run one Gunicorn worker in the supported deployment.
+- Do not start `backend/app.py` a second time beside the canonical entrypoint.
+- Do not substitute one metric for another. In particular, price movement is not a volume estimate and 24h movement is not a 1h estimate.
+- During baseline warmup, return an empty list plus an explicit warming state.

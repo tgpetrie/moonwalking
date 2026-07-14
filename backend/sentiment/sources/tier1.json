@@ -9,25 +9,37 @@
       "weight": 0.9,
       "update_frequency": 3600,
       "type": "api",
-      "endpoint": "https://api.alternative.me/fng/"
+      "endpoint": "https://api.alternative.me/fng/",
+      "documentation": "https://alternative.me/crypto/fear-and-greed-index/",
+      "access": "free_public",
+      "implemented": true,
+      "scope": "market_wide"
     },
     {
-      "name": "CoinGecko Market Pulse",
-      "description": "CoinGecko social/market composite inputs",
+      "name": "CoinGecko Global Market Data",
+      "description": "Global crypto market cap, volume, market count, and dominance data from CoinGecko",
       "tier": "tier1",
       "weight": 0.85,
       "update_frequency": 300,
       "type": "api",
-      "endpoint": "https://api.coingecko.com/api/v3/coins/markets"
+      "endpoint": "https://api.coingecko.com/api/v3/global",
+      "documentation": "https://docs.coingecko.com/reference/crypto-global",
+      "access": "free_public_demo_or_pro_key",
+      "implemented": true,
+      "scope": "market_wide"
     },
     {
-      "name": "Binance News RSS",
-      "description": "Official Binance feed for exchange-level announcements",
+      "name": "Coinbase Exchange Market Data",
+      "description": "Public market-data endpoints used for local price tape, baselines, movers, and alert context",
       "tier": "tier1",
       "weight": 0.85,
-      "update_frequency": 600,
-      "type": "rss",
-      "endpoint": "https://www.binance.com/en/feed/profile/Binance"
+      "update_frequency": 60,
+      "type": "api",
+      "endpoint": "https://api.exchange.coinbase.com/products",
+      "documentation": "https://docs.cdp.coinbase.com/exchange/introduction/welcome",
+      "access": "free_public_market_data",
+      "implemented": true,
+      "scope": "local_price_tape"
     }
   ]
 }

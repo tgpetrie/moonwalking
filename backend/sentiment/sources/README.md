@@ -7,10 +7,10 @@ outside the repo.
 
 ## Files
 
-- `tier1.json` – institutional / verified feeds (Fear & Greed, CoinGecko, Binance RSS, ...)
-- `tier2.json` – high-signal retail + reputable news
-- `tier3.json` – speculative retail channels
-- `fringe.json` – intentionally noisy sources used only for divergence checks
+- `tier1.json` – implemented public/official market-wide and local market-data sources.
+- `tier2.json` – implemented coin-context providers used by `/api/coin-intel`.
+- `tier3.json` – optional credentialed social providers; these must report unavailable until configured.
+- `fringe.json` – intentionally empty. Scraping/noisy boards are not part of the current supported product contract.
 
 ## Schema (v1)
 
@@ -33,10 +33,16 @@ Source object keys:
 | `tier`              | string      | no       | Defaults to the file name (tier1, tier2, tier3, fringe) |
 | `weight`            | number      | yes      | Trust weighting used by the engine |
 | `update_frequency`  | number      | yes      | Seconds between refreshes |
-| `type`              | string      | yes      | `api`, `rss`, `reddit`, `telegram`, `scrape`, ... |
+| `type`              | string      | yes      | `api`, `rss`, etc. Do not add scrape/social sources unless a compliant provider implementation exists. |
 | `endpoint`/`subreddit`/`channels` | varies | optional | Transport-specific config |
 | `region`            | string      | optional | Use ISO country codes if applicable |
 | `coverage`          | array       | optional | List of tickers, sectors, or tags |
+| `documentation`     | string      | recommended | Primary documentation URL |
+| `access`            | string      | recommended | `free_public`, `free_public_demo_or_pro_key`, `requires_api_key`, etc. |
+| `implemented`       | boolean     | recommended | Whether production code currently fetches this source |
+| `scope`             | string      | recommended | `market_wide`, `local_price_tape`, `coin_context`, or `coin_context_social` |
+
+Catalog entries are not active coverage by themselves. A source only counts as active coverage when a backend provider contributes live or stale data with provenance in the API response.
 
 Unknown schema versions are rejected by the loader so we can evolve the shape safely later. The
 loader is forgiving about additional keys: they are passed through untouched so future pipelines can

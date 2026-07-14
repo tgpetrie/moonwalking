@@ -17,6 +17,11 @@ pytest-mock==3.12.0
 # Production server
 gunicorn==21.2.0
 
+# Dedicated real-source sentiment service
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+pydantic>=2.9,<3
+
 # Environment management
 python-dotenv==1.0.1
 

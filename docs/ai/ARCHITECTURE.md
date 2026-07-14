@@ -1,5 +1,21 @@
-# Architecture
-Frontend :5173 → Dashboard + banners/tables/watchlist/info; hybrid hook (poll/socket).
-Bridge :5100 → emits `gainers1m/gainers3m/losers3m/banner1h/vol1h/heartbeat`.
-Backend :5001 → Coinbase fetch → snapshots → 1m/3m/1h calcs; Ask, Learning, Sentiment; `/api/component/*`.
-Flow: Coinbase → Backend cache → Bridge events+HTTP → Frontend hooks → UI.
+# AI Architecture Summary
+
+The authoritative architecture is the repository-root `ARCHITECTURE.md`.
+
+```text
+Browser :5173
+    |
+    v
+Flask board API :5003
+    |-- Coinbase WebSocket plus bounded REST fallback
+    |-- one price/snapshot worker
+    |-- one volume worker
+    |-- SQLite baselines, alerts, and watchlists
+    |-- /data, /api/alerts, /api/insights, /api/coin-intel
+    |
+    +--> FastAPI sentiment :8003
+         |-- Alternative.me
+         +-- CoinGecko global
+```
+
+Production serves the built frontend from Flask on one origin and runs one Gunicorn worker behind Tailscale.

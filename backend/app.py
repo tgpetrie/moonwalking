@@ -20,7 +20,6 @@ from statistics import median
 from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
-    TimeoutError as FuturesTimeout,
 )
 import logging
 from decimal import Decimal
@@ -878,14 +877,18 @@ except Exception:
         "Skipping blueprint registration during test or mocked environment"
     )
 
-# Register intelligence API blueprint
-try:
-    from intelligence_api import intelligence_bp
+# The old Redis/FinBERT blueprint depends on an unfinished engine and always
+# returned 503 in this build. Coin intelligence is served by /api/coin-intel.
+if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
+    try:
+        from intelligence_api import intelligence_bp
 
-    app.register_blueprint(intelligence_bp)
-    logging.info("✅ Intelligence API blueprint registered")
-except Exception as e:
-    logging.warning(f"Intelligence API blueprint registration skipped: {e}")
+        app.register_blueprint(intelligence_bp)
+        logging.info("Legacy intelligence API blueprint registered")
+    except Exception as e:
+        logging.warning(f"Legacy intelligence API blueprint registration skipped: {e}")
+else:
+    logging.info("Legacy intelligence API disabled; using /api/coin-intel")
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
 # want to turn it off). When disabled, ensure `app.jinja_env` exists so any
@@ -1391,39 +1394,38 @@ def api_health():
 def one_hour_volume():
     """Return 1h volume change rows expected by VolumeBannerScroll."""
     try:
-        if callable(get_1h_volume_weighted_data):
-            rows = get_1h_volume_weighted_data()
-            normalized = []
-            for item in rows or []:
-                vol_now = (
-                    item.get("volume_now")
-                    or item.get("volume")
-                    or item.get("current_volume")
-                )
-                vol_ago = (
-                    item.get("volume_1h_ago")
-                    or item.get("prev_volume")
-                    or item.get("previous_volume")
-                )
-                pct = item.get("volume_change_pct") or item.get("percent_change")
-                if (
-                    pct is None
-                    and isinstance(vol_now, (int, float))
-                    and isinstance(vol_ago, (int, float))
-                    and vol_ago
-                ):
-                    pct = ((vol_now - vol_ago) / vol_ago) * 100.0
-                normalized.append(
-                    {
-                        **item,
-                        "volume_now": vol_now,
-                        "volume_1h_ago": vol_ago,
-                        "volume_change_pct": pct,
-                        "percent_change": pct,
-                    }
-                )
-            return jsonify({"data": normalized}), 200
-        return jsonify({"data": []}), 200
+        rows, last_updated = get_banner_1h_volume(prefer_snapshot=True)
+        normalized = []
+        for item in rows or []:
+            vol_now = item.get("volume_1h_now")
+            if vol_now is None:
+                vol_now = item.get("volume_now")
+            vol_ago = item.get("volume_1h_prev")
+            if vol_ago is None:
+                vol_ago = item.get("volume_1h_ago")
+            pct = item.get("volume_change_1h_pct")
+            if pct is None:
+                pct = item.get("volume_change_pct")
+            normalized.append(
+                {
+                    **item,
+                    "volume_now": vol_now,
+                    "volume_1h_ago": vol_ago,
+                    "volume_change_pct": pct,
+                    "percent_change": pct,
+                }
+            )
+        return (
+            jsonify(
+                {
+                    "data": normalized,
+                    "count": len(normalized),
+                    "last_updated": last_updated,
+                    "warming": not bool(normalized),
+                }
+            ),
+            200,
+        )
     except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
 
@@ -1585,16 +1587,26 @@ def api_mobile_bundle():
         except Exception:
             pass
 
-        # 1h volume placeholder: use top banner symbols with 0 volume change if true 1h volume unavailable
+        # 1h volume uses the same real snapshot as the web ticker. During
+        # warmup the list is empty; price movement is never substituted.
         volume1h_rows = []
         try:
-            for it in banner_rows[:20]:
+            raw_volume_rows, _ = _wrap_rows_and_ts(
+                _mw_get_component_snapshot("banner_1h_volume")
+            )
+            for it in (raw_volume_rows or [])[:20]:
+                pct = it.get("volume_change_1h_pct")
+                if pct is None:
+                    pct = it.get("vol_pct_1h")
+                if pct is None:
+                    continue
+                raw_symbol = str(it.get("symbol") or it.get("product_id") or "")
                 volume1h_rows.append(
                     {
-                        "symbol": it["symbol"],
-                        "price": it["price"],
-                        "volumeChangePct1h": 0.0,
-                        "ts": it["ts"],
+                        "symbol": raw_symbol.split("-", 1)[0],
+                        "price": it.get("current_price"),
+                        "volumeChangePct1h": float(pct),
+                        "ts": int(time.time() * 1000),
                     }
                 )
         except Exception:
@@ -1631,143 +1643,24 @@ def api_mobile_bundle():
 
 @app.route("/api/sentiment")
 def api_sentiment():
-    """Return simple sentiment rows for a comma-separated symbols list."""
-    syms_param = (request.args.get("symbols") or "").strip()
-    if not syms_param:
-        # No symbols provided, return divergence data
-        payload, used_url, err_info = _proxy_pipeline_request(
-            "/sentiment/divergence", timeout=5
-        )
-        if err_info:
-            return _pipeline_error_response(
-                err_info, "Sentiment divergence fetch failed"
-            )
+    """Compatibility alias for the canonical real-only sentiment endpoint.
 
-        divergence_payload = payload or {}
-        return jsonify(
-            {
-                "success": True,
-                "data": divergence_payload,
-                "timestamp": divergence_payload.get(
-                    "timestamp", datetime.utcnow().isoformat()
-                ),
-                "pipeline_url": used_url,
-            }
-        )
-
-    # Process symbols list
-    out = {}
-    # TODO: implement symbol-specific sentiment
-    return jsonify(out)
-
-
-try:
-    from sentiment_orchestrator import get_basic_sentiment
-except Exception:
-    get_basic_sentiment = None
+    Sentiment is currently market-wide. A requested ``symbols`` query is
+    preserved by ``api_sentiment_latest`` as request context, but is never
+    represented as coin-specific coverage.
+    """
+    return api_sentiment_latest()
 
 
 @app.route("/api/sentiment-basic")
 def api_sentiment_basic():
-    """Return a small, fast basic sentiment payload for the frontend SentimentCard.
-
-    If a richer orchestrator is present (get_basic_sentiment), delegate to it.
-    Otherwise return a lightweight mock useful for local development.
-    """
-    if get_basic_sentiment is None:
-        return jsonify(
-            {
-                "fear_greed": {"value": 52, "classification": "neutral"},
-                "btc_funding": {"rate_percentage": 0.0012},
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-            }
-        )
-    try:
-        data = get_basic_sentiment()
-        return jsonify(data)
-    except Exception:
-        return jsonify(
-            {
-                "fear_greed": {"value": 50, "classification": "neutral"},
-                "btc_funding": {"rate_percentage": 0.0},
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-            }
-        )
-
-
-def _get_sentiment_for_symbol(*args, **kwargs):
-    # allow tests to disable sentiment to avoid import cycles
-    if os.getenv("MW_DISABLE_SENTIMENT") == "1":
-        return None
-    try:
-        from sentiment_aggregator import get_sentiment_for_symbol
-
-        return get_sentiment_for_symbol(*args, **kwargs)
-    except Exception:
-        return None
-
-
-try:
-    from sentiment_intelligence import ai_engine
-except Exception:
-
-    class _DummyAIEngine:
-        def score_headlines_local(self, *a, **k):
-            return {"score": 0.0, "label": "neutral", "confidence": 0.0}
-
-        def generate_narrative(self, *a, **k):
-            return ""
-
-    ai_engine = _DummyAIEngine()
-
-_SENTIMENT_CACHE = {}
-_SENTIMENT_CACHE_LOCK = threading.Lock()
-_SENTIMENT_TTL_S = int(os.getenv("SENTIMENT_TTL_S", "60"))
-_SENTIMENT_TIMEOUT_FAST_S = float(os.getenv("SENTIMENT_TIMEOUT_FAST_S", "3"))
-_SENTIMENT_TIMEOUT_SLOW_S = float(os.getenv("SENTIMENT_TIMEOUT_SLOW_S", "25"))
-# Legacy env still supported; falls back to slow timeout if provided
-_SENTIMENT_TIMEOUT_S = float(
-    os.getenv("SENTIMENT_TIMEOUT_S", str(_SENTIMENT_TIMEOUT_SLOW_S))
-)
-
-
-# Sentiment proxy cache settings
-def _sentiment_cache_lookup(symbol):
-    now = time.time()
-    with _SENTIMENT_CACHE_LOCK:
-        entry = _SENTIMENT_CACHE.get(symbol)
-    if not entry:
-        return None, True, None
-    age = now - entry["ts"]
-    return entry["data"], age > _SENTIMENT_TTL_S, entry["ts"]
-
-
-def _sentiment_cache_set(symbol, data):
-    with _SENTIMENT_CACHE_LOCK:
-        _SENTIMENT_CACHE[symbol] = {"ts": time.time(), "data": data}
-
-
-def _load_cache(path: Path):
-    try:
-        with path.open("r") as f:
-            return json.load(f)
-    except Exception:
-        return None
-
-
-def _save_cache(path: Path, payload: dict):
-    try:
-        path.parent.mkdir(exist_ok=True, parents=True)
-        with path.open("w") as f:
-            json.dump(payload, f)
-    except Exception:
-        pass
+    """Compatibility alias for the canonical real-only sentiment endpoint."""
+    return api_sentiment_latest()
 
 
 def _now_iso():
     return (
-        datetime.utcnow()
-        .replace(tzinfo=timezone.utc)
+        datetime.now(timezone.utc)
         .isoformat()
         .replace("+00:00", "Z")
     )
@@ -1804,30 +1697,69 @@ def _build_proxy_meta(
     return meta
 
 
+def _sentiment_meta_from_proxy_payload(
+    payload: dict | None,
+    *,
+    pipeline_running: bool,
+    fallback_age_seconds: int | None = None,
+):
+    """Translate upstream provenance into the frontend truth-state contract."""
+    data = payload if isinstance(payload, dict) else {}
+    status = str(data.get("data_status") or "offline").lower()
+    source_rows = data.get("sources") if isinstance(data.get("sources"), list) else []
+    ages = []
+    for block_name in ("fear_greed", "market_pulse"):
+        block = data.get(block_name)
+        if not isinstance(block, dict):
+            continue
+        try:
+            ages.append(int(block.get("stale_age_seconds") or 0))
+        except (TypeError, ValueError):
+            continue
+
+    stale_seconds = max(ages, default=0)
+    if fallback_age_seconds is not None:
+        stale_seconds = max(stale_seconds, int(fallback_age_seconds))
+
+    has_real_data = bool(source_rows) and status in {"live", "stale"}
+    return {
+        "ok": has_real_data and pipeline_running,
+        "pipelineRunning": bool(pipeline_running),
+        "staleSeconds": stale_seconds,
+        "lastOkTs": data.get("timestamp") if has_real_data else None,
+        "lastTryTs": _now_iso(),
+        "source": "external_real",
+        "scope": data.get("scope") or "market_wide",
+        "dataStatus": status,
+        "sources": source_rows,
+    }
+
+
 @app.route("/api/sentiment/latest")
 def api_sentiment_latest():
-    """Strict proxy to sentiment pipeline for canonical sentiment payload.
-
-    sentiment_meta comes ONLY from _get_sentiment_snapshot() (single source of truth).
-    This route NEVER overrides sentiment_meta values - the polling mechanism is
-    authoritative for: ok, pipelineRunning, staleSeconds, lastOkTs, lastTryTs, error.
-    """
+    """Proxy the real-only external sentiment service with explicit provenance."""
     global _LATEST_PROXY_CACHE, _LATEST_PROXY_TS, _LATEST_PROXY_URL
 
-    symbol = request.args.get("symbol")
+    symbol = (request.args.get("symbol") or "").strip()
+    requested_symbols = [
+        item.strip().upper()
+        for item in (request.args.get("symbols") or "").split(",")
+        if item.strip()
+    ]
+    if symbol:
+        symbol = symbol.upper()
+        requested_symbols = [symbol]
+    elif len(requested_symbols) == 1:
+        symbol = requested_symbols[0]
     params = {}
     if symbol:
-        params["symbol"] = symbol.upper()
+        params["symbol"] = symbol
 
     start = time.time()
     payload, used_url, err_info = _proxy_pipeline_request(
         "/sentiment/latest", params=params, timeout=1.0
     )
     latency_ms = (time.time() - start) * 1000
-
-    # Single source of truth: sentiment_meta from the polling snapshot.
-    # DO NOT override any fields here - the poller is authoritative.
-    _, sentiment_meta = _get_local_sentiment_payload()
 
     if payload:
         payload_sanitized = _strip_emoji_payload(payload)
@@ -1838,8 +1770,13 @@ def api_sentiment_latest():
             used_url, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=False
         )
         out = dict(payload_sanitized)
+        out["scope"] = out.get("scope") or "market_wide"
+        out["requested_symbol"] = symbol or None
+        out["requested_symbols"] = requested_symbols
         out["proxy_meta"] = proxy_meta
-        out["sentiment_meta"] = sentiment_meta
+        out["sentiment_meta"] = _sentiment_meta_from_proxy_payload(
+            out, pipeline_running=True
+        )
         return jsonify(out)
 
     if _LATEST_PROXY_CACHE and _LATEST_PROXY_TS:
@@ -1847,11 +1784,20 @@ def api_sentiment_latest():
             _LATEST_PROXY_URL, latency_ms, cache_ts=_LATEST_PROXY_TS, stale=True
         )
         out = dict(_LATEST_PROXY_CACHE)
+        if out.get("data_status") != "offline":
+            out["data_status"] = "stale"
+        out["scope"] = out.get("scope") or "market_wide"
+        out["requested_symbol"] = symbol or None
+        out["requested_symbols"] = requested_symbols
         out["proxy_meta"] = proxy_meta
-        out["sentiment_meta"] = sentiment_meta
+        out["sentiment_meta"] = _sentiment_meta_from_proxy_payload(
+            out,
+            pipeline_running=False,
+            fallback_age_seconds=int(time.time() - _LATEST_PROXY_TS),
+        )
         return jsonify(out)
 
-    # No cached data available - return minimal response with canonical sentiment_meta
+    # No cached data available: say offline instead of manufacturing neutral values.
     status_code = err_info.get("status", 503) if err_info else 503
     proxy_meta = _build_proxy_meta(used_url, latency_ms, cache_ts=None, stale=True)
     return (
@@ -1859,8 +1805,14 @@ def api_sentiment_latest():
             {
                 "ok": False,
                 "message": "Sentiment pipeline offline",
+                "scope": "market_wide",
+                "data_status": "offline",
+                "requested_symbol": symbol or None,
+                "requested_symbols": requested_symbols,
                 "proxy_meta": proxy_meta,
-                "sentiment_meta": sentiment_meta,  # unchanged from snapshot
+                "sentiment_meta": _sentiment_meta_from_proxy_payload(
+                    None, pipeline_running=False
+                ),
             }
         ),
         status_code,
@@ -1870,107 +1822,16 @@ def api_sentiment_latest():
 # Legacy endpoint - keeping for backward compatibility
 @app.route("/api/sentiment/latest_legacy")
 def api_sentiment_latest_legacy():
-    """Legacy aggregator-based sentiment (deprecated - use /api/sentiment/latest instead)."""
-    symbol = request.args.get("symbol", "BTC").upper()
-    fresh = request.args.get("fresh", "0") == "1"
-
-    timeout_budget = _SENTIMENT_TIMEOUT_SLOW_S if fresh else _SENTIMENT_TIMEOUT_FAST_S
-
-    cached, is_stale, cache_ts = _sentiment_cache_lookup(symbol)
-    if cached and not is_stale:
-        payload = dict(cached)
-        payload["symbol"] = payload.get("symbol") or symbol
-        payload["stale"] = False
-        payload["ts_cache"] = cache_ts
-        return jsonify(payload)
-
-    try:
-        data = _get_sentiment_for_symbol(symbol, timeout_s=timeout_budget)
-        _sentiment_cache_set(symbol, data)
-        payload = dict(data)
-        payload["symbol"] = payload.get("symbol") or symbol
-        payload["stale"] = False
-        payload["ts_cache"] = time.time()
-        return jsonify(payload)
-    except FuturesTimeout as exc:
-        if cached:
-            payload = dict(cached)
-            payload["symbol"] = payload.get("symbol") or symbol
-            payload["stale"] = True
-            payload["ts_cache"] = cache_ts
-            payload["error"] = f"timeout:{exc}"
-            payload["upstream_url"] = SENTIMENT_PIPELINE_URL
-            payload["hint"] = (
-                f"sentiment aggregator exceeded timeout ({timeout_budget}s)"
-            )
-            return jsonify(payload)
-        import hashlib
-
-        seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
-        fallback = {
-            "symbol": symbol,
-            "overall_sentiment": (50 + seed) / 100,
-            "fear_greed_index": 50 + seed,
-            "total_sources": 0,
-            "sources": [],
-            "sentiment_history": [],
-            "social_breakdown": {
-                "reddit": 0.5,
-                "twitter": 0.5,
-                "telegram": 0.5,
-                "news": 0.5,
-            },
-            "social_metrics": {
-                "volume_change": 0,
-                "engagement_rate": 0,
-                "mentions_24h": 0,
-            },
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "error": f"timeout:{exc}",
-            "upstream_url": SENTIMENT_PIPELINE_URL,
-            "hint": f"sentiment aggregator exceeded timeout ({timeout_budget}s)",
-            "stale": True,
-        }
-        return jsonify(fallback)
-    except Exception as exc:
-        print(f"[Sentiment API] Error: {exc}")
-        import random, hashlib
-
-        seed = int(hashlib.md5(symbol.encode()).hexdigest()[:8], 16) % 30
-        if cached:
-            payload = dict(cached)
-            payload["symbol"] = payload.get("symbol") or symbol
-            payload["stale"] = True
-            payload["ts_cache"] = cache_ts
-            payload["error"] = str(exc)
-            payload["upstream_url"] = SENTIMENT_PIPELINE_URL
-            payload["hint"] = "sentiment aggregator error; serving cached payload"
-            return jsonify(payload)
-        fallback = {
-            "symbol": symbol,
-            "overall_sentiment": (50 + seed) / 100,
-            "fear_greed_index": 50 + seed,
-            "total_sources": 0,
-            "sources": [],
-            "sentiment_history": [],
-            "social_breakdown": {
-                "reddit": 0.5,
-                "twitter": 0.5,
-                "telegram": 0.5,
-                "news": 0.5,
-            },
-            "social_metrics": {
-                "volume_change": 0,
-                "engagement_rate": 0,
-                "mentions_24h": 0,
-            },
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "error": str(exc),
-            "upstream_url": SENTIMENT_PIPELINE_URL,
-            "hint": "sentiment aggregator error; serving synthetic fallback",
-            "stale": True,
-        }
-        return jsonify(fallback)
+    """The fabricated legacy fallback was removed from the product contract."""
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": "Removed. Use /api/sentiment/latest.",
+            }
+        ),
+        410,
+    )
 
 
 # ============================================================================
@@ -2596,6 +2457,13 @@ def _sentiment_polling_loop():
 
 
 def _get_sentiment_snapshot():
+    # The canonical real-source sentiment service is managed as its own process
+    # by start_app.sh. This legacy in-process cache is opt-in only; on the
+    # default path, return truthful local tape heat without starting a hidden
+    # polling thread from an incoming request.
+    if os.environ.get("MW_ENABLE_EXTERNAL_SENTIMENT", "0") != "1":
+        return _get_local_sentiment_payload()
+
     # If poller hasn't started yet, kick it off in background (non-blocking).
     try:
         thread_ref = globals().get("_MW_SENTIMENT_THREAD")
@@ -2877,142 +2745,34 @@ def get_sentiment_divergence():
 
 @app.route("/api/social-sentiment/<symbol>")
 def get_social_sentiment_endpoint(symbol):
-    try:
-        clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
-        mock_headlines = [
-            f"{clean_symbol} sees massive inflow from institutional investors",
-            f"Regulators approve new {clean_symbol} trading vehicle",
-            f"Market volatility increases as {clean_symbol} tests new highs",
-        ]
-
-        sentiment_result = ai_engine.score_headlines_local(mock_headlines)
-        narrative = ai_engine.generate_narrative(clean_symbol, mock_headlines, 45000.00)
-
-        return jsonify(
+    clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
+    return (
+        jsonify(
             {
-                "success": True,
-                "data": {
-                    "symbol": clean_symbol,
-                    "overall_score": sentiment_result["score"],
-                    "label": sentiment_result["label"],
-                    "narrative": narrative,
-                    "sources_breakdown": {
-                        "finbert_confidence": sentiment_result["confidence"],
-                        "headlines_analyzed": len(mock_headlines),
-                    },
-                },
+                "success": False,
+                "available": False,
+                "symbol": clean_symbol,
+                "error": "No real coin-scoped social sentiment provider is configured.",
             }
-        )
-    except Exception as e:
-        app.logger.error(f"Error in sentiment endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        ),
+        503,
+    )
 
 
 @app.route("/api/intelligence-report/<symbol>")
 def api_intelligence_report(symbol):
-    """
-    Returns Hybrid Intelligence Report for Divergence Detection.
-
-    Combines:
-    - FinBERT local inference (institutional sentiment)
-    - Fear & Greed Index (retail sentiment)
-    - Social volume metrics
-    - Gemini-generated narrative explaining divergence
-    """
-    try:
-        from sentiment_data_sources import (
-            fetch_fear_and_greed_index,
-            fetch_coingecko_social,
-            COINGECKO_ID_MAP,
-        )
-        from sentiment_aggregator import fetch_reddit_count
-
-        clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
-
-        # Get current price from Coinbase
-        try:
-            price_resp = requests.get(
-                f"https://api.coinbase.com/v2/prices/{clean_symbol}-USD/spot", timeout=3
-            )
-            price_data = price_resp.json()
-            current_price = (
-                float(price_data["data"]["amount"]) if price_data.get("data") else None
-            )
-        except Exception:
-            current_price = None
-
-        # Fetch RSS headlines for FinBERT analysis (mock for now, replace with real RSS)
-        mock_headlines = [
-            f"{clean_symbol} institutional adoption accelerates as major funds enter",
-            f"Regulatory clarity improves for {clean_symbol} trading infrastructure",
-            f"{clean_symbol} network activity reaches new highs amid market uncertainty",
-        ]
-
-        # Score headlines with FinBERT (local M3/N100 inference)
-        finbert_result = ai_engine.score_headlines_local(mock_headlines)
-
-        # Fetch Fear & Greed Index (retail sentiment)
-        fg_data = fetch_fear_and_greed_index()
-        fear_greed_value = fg_data["value"] if fg_data else 50
-
-        # Fetch social volume (Reddit mentions)
-        try:
-            reddit_count = (
-                fetch_reddit_count(clean_symbol) if "fetch_reddit_count" in dir() else 0
-            )
-        except Exception:
-            reddit_count = 0
-
-        # Bundle metrics for Gemini prompt
-        metrics_bundle = {
-            "finbert_score": finbert_result["score"],
-            "finbert_label": finbert_result["label"],
-            "fear_greed": fear_greed_value,
-            "social_volume": reddit_count,
-            "confidence": finbert_result["confidence"],
-        }
-
-        # Generate divergence narrative with Gemini
-        divergence_prompt = f"""
-ROLE: Senior Crypto Market Analyst
-ASSET: {clean_symbol} at ${current_price or 'N/A'}
-
-INPUT DATA:
-- Institutional News (FinBERT Local Score): {metrics_bundle['finbert_score']:.2f} (Range -1 to 1)
-- Retail Heat (Reddit/RSS Count): {metrics_bundle['social_volume']} mentions
-- Market Context (Fear & Greed Index): {metrics_bundle['fear_greed']} (0-100)
-- Key Headlines: {mock_headlines[:3]}
-
-TASK:
-Analyze the relationship between these data points. Specifically, identify any DIVERGENCE
-(e.g., news is Bullish but the Fear & Greed index is Low).
-
-OUTPUT FORMAT:
-One concise sentence (max 25 words). Start with the primary driver. Be decisive.
-"""
-
-        narrative = ai_engine.generate_narrative(
-            clean_symbol, [divergence_prompt], current_price or 0
-        )
-
-        return jsonify(
+    """Retired fabricated report route; /api/coin-intel is canonical."""
+    clean_symbol = symbol.upper().replace("-USD", "").replace("USD", "")
+    return (
+        jsonify(
             {
-                "success": True,
-                "data": {
-                    "symbol": clean_symbol,
-                    "metrics": metrics_bundle,
-                    "narrative": narrative,
-                    "raw_context": {
-                        "top_headlines": mock_headlines,
-                        "price": current_price,
-                    },
-                },
+                "success": False,
+                "symbol": clean_symbol,
+                "message": "Removed. Use /api/coin-intel?symbol=<symbol>.",
             }
-        )
-
-    except Exception as e:
-        app.logger.error(f"Error in intelligence-report endpoint: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        ),
+        410,
+    )
 
 
 @app.get("/api/coin-intel")
@@ -4573,7 +4333,9 @@ def _get_candle_volume_for_symbols(symbols):
     results = []
     with _CANDLE_VOLUME_CACHE_LOCK:
         for sym in symbols:
-            product_id = f"{sym}-USD"
+            raw = str(sym).upper()
+            product_id = raw if raw.endswith("-USD") else f"{raw}-USD"
+            base_symbol = product_id.rsplit("-USD", 1)[0]
             cached = _CANDLE_VOLUME_CACHE.get(product_id)
             if not cached:
                 continue
@@ -4602,7 +4364,7 @@ def _get_candle_volume_for_symbols(symbols):
 
             results.append(
                 {
-                    "symbol": sym,
+                    "symbol": base_symbol,
                     "product_id": product_id,
                     "vol1h": vol1h,
                     "vol1h_prev": vol1h_prev,
@@ -4628,8 +4390,15 @@ def calculate_1hour_volume_changes(current_prices):
     if not symbols:
         return []
 
-    # Update candle cache for these symbols (background fetch)
-    _update_candle_volume_cache([f"{sym}-USD" for sym in symbols[:60]])
+    # Price maps may already use Coinbase product ids, so never append a
+    # second quote currency (for example, ``MORPHO-USD-USD``).
+    product_ids = [
+        str(sym).upper()
+        if str(sym).upper().endswith("-USD")
+        else f"{str(sym).upper()}-USD"
+        for sym in symbols[:60]
+    ]
+    _update_candle_volume_cache(product_ids)
 
     # Get cached volume data
     volume_data = _get_candle_volume_for_symbols(symbols)
@@ -4638,7 +4407,10 @@ def calculate_1hour_volume_changes(current_prices):
     results = []
     for vol_entry in volume_data:
         symbol = vol_entry["symbol"]
-        current_price = current_prices.get(symbol, 0)
+        product_id = vol_entry.get("product_id") or f"{symbol}-USD"
+        current_price = current_prices.get(product_id)
+        if current_price is None:
+            current_price = current_prices.get(symbol, 0)
 
         if current_price <= 0:
             continue
@@ -6820,7 +6592,12 @@ def calculate_interval_changes(current_prices, snapshot_ts_s: int | None = None)
 
         formatted_data.append(
             {
-                "symbol": symbol,
+                "symbol": str(symbol).split("-", 1)[0].upper(),
+                "product_id": (
+                    str(symbol).upper()
+                    if str(symbol).upper().endswith("-USD")
+                    else f"{str(symbol).upper()}-USD"
+                ),
                 "current_price": price_f,
                 "initial_price_3min": baseline_price,
                 "previous_price_3m": baseline_price,
@@ -7077,10 +6854,13 @@ def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = No
         if price <= 0:
             continue
 
-        history = price_history_1hour[symbol]
-        if len(history) < 2:
-            continue
+        symbol = _norm_base(symbol)
+        if "-" in symbol:
+            symbol = symbol.split("-", 1)[0]
+        product_id = f"{symbol}-USD"
 
+        # SQLite is the durable baseline source; an in-memory history is not
+        # required after a process restart.
         baseline = _db_baseline_for_window(symbol, now_ts_s, "1h")
         if not baseline:
             continue
@@ -7099,6 +6879,7 @@ def calculate_1hour_price_changes(current_prices, snapshot_ts_s: int | None = No
         formatted_data.append(
             {
                 "symbol": symbol,
+                "product_id": product_id,
                 "current_price": price,
                 "price_1h_ago": baseline_price,
                 "price_change_1h": price_change,
@@ -7180,16 +6961,6 @@ def get_coinbase_24h_top_movers():
                 if current_price > 0 and open_24h > 0:
                     price_change_24h = pct_change(current_price, open_24h)
 
-                    # Estimate 1h change using a simple fraction of the 24h move
-                    price_1h_estimate = current_price - (
-                        (current_price - open_24h) * 0.04
-                    )
-                    price_change_1h = (
-                        pct_change(current_price, price_1h_estimate)
-                        if price_1h_estimate > 0
-                        else 0.0
-                    )
-
                     # Always record volume snapshot for later 1h delta computation
                     try:
                         volume_history_24h[product["id"]].append(
@@ -7215,11 +6986,12 @@ def get_coinbase_24h_top_movers():
                             "symbol": product["id"],
                             "current_price": current_price,
                             "initial_price_24h": open_24h,
-                            "initial_price_1h": price_1h_estimate,
+                            "initial_price_1h": None,
                             "price_change_24h": price_change_24h,
-                            "price_change_1h": price_change_1h,
+                            "price_change_1h": None,
                             "volume_24h": volume_24h,
                             "market_cap": 0,
+                            "source": "coinbase_24h",
                         }
             except Exception as e:
                 logging.warning(
@@ -7300,6 +7072,8 @@ def format_crypto_data(crypto_data):
     return [
         {
             "symbol": coin["symbol"],
+            "product_id": coin.get("product_id")
+            or f"{str(coin['symbol']).split('-', 1)[0]}-USD",
             "current": coin["current_price"],
             "initial_3min": coin["initial_price_3min"],
             "previous_price_3m": coin.get("previous_price_3m"),
@@ -7326,17 +7100,20 @@ def format_crypto_data_1min(crypto_data):
 
 
 def format_banner_data(banner_data):
-    """Format 24h banner data for frontend"""
+    """Format real 1-hour baseline rows for the frontend banner."""
     return [
         {
             "symbol": coin["symbol"],
+            "product_id": coin.get("product_id")
+            or f"{str(coin['symbol']).split('-', 1)[0]}-USD",
             "current_price": coin["current_price"],
-            "initial_price_24h": coin["initial_price_24h"],
-            "initial_price_1h": coin["initial_price_1h"],
-            "price_change_24h": coin["price_change_24h"],
-            "price_change_1h": coin["price_change_1h"],
-            "volume_24h": coin["volume_24h"],
+            "initial_price_24h": coin.get("initial_price_24h"),
+            "initial_price_1h": coin.get("initial_price_1h"),
+            "price_change_24h": coin.get("price_change_24h"),
+            "price_change_1h": coin.get("price_change_1h"),
+            "volume_24h": coin.get("volume_24h"),
             "market_cap": coin.get("market_cap", 0),
+            "source": coin.get("source"),
         }
         for coin in banner_data
     ]
@@ -7426,15 +7203,33 @@ def get_crypto_data(current_prices=None, *, force_refresh: bool = False):
         top_losers = losers[:8]
         top24h = (top_gainers + top_losers)[:15]
 
-        # Get 24h top movers for banner
-        banner_24h_movers = get_24h_top_movers()
+        # The 1h banner must use an actual 1h SQLite baseline. During warmup it
+        # stays empty rather than estimating 1h movement from a 24h candle.
+        hour_changes = calculate_1hour_price_changes(current_prices, snapshot_ts_s)
+        banner_1h_rows = []
+        for change in sorted(
+            hour_changes or [],
+            key=lambda row: row.get("price_change_1h", 0),
+            reverse=True,
+        )[:20]:
+            banner_1h_rows.append(
+                {
+                    "symbol": change.get("symbol"),
+                    "product_id": change.get("product_id") or change.get("symbol"),
+                    "current_price": change.get("current_price"),
+                    "initial_price_1h": change.get("price_1h_ago"),
+                    "price_change_1h": change.get("price_change_1h"),
+                    "market_cap": None,
+                    "source": "coinbase_sqlite_1h",
+                }
+            )
 
         limit = int(CONFIG.get("MAX_COINS_PER_CATEGORY", 30))
         result = {
             "gainers": format_crypto_data(gainers[:limit]),
             "losers": format_crypto_data(losers[:limit]),
             "top24h": format_crypto_data(top24h),
-            "banner": format_banner_data(banner_24h_movers[:20]),
+            "banner": format_banner_data(banner_1h_rows),
             # Baseline readiness metadata for 3m tables
             "baseline_ready_3m": bool(baseline_meta.get("ready")),
             "baseline_ts_3m": baseline_meta.get("baseline_ts"),
@@ -7644,50 +7439,17 @@ def get_top_banner():
         # Get baseline metadata
         baseline_meta = _get_baseline_meta_1h()
 
-        # If warming up (no 1h baseline yet), fall back to 24h top movers with estimates
+        # A 1h banner without a real 1h baseline is unavailable, not estimated.
         if not baseline_meta.get("ready") or not hour_changes:
-            logging.info(
-                "Top banner: 1h baseline warming, using 24h top movers fallback"
-            )
-            banner_data = get_24h_top_movers()
-            if not banner_data:
-                return jsonify({"error": "No banner data available"}), 503
-
-            items = []
-            for coin in banner_data:
-                try:
-                    pct = float(coin.get("price_change_1h", 0) or 0)
-                except Exception:
-                    pct = 0.0
-                if pct < 0:
-                    continue
-                symbol = coin["symbol"]
-                items.append(
-                    {
-                        "symbol": symbol,
-                        "product_id": coin.get("product_id") or symbol,
-                        "current_price": coin.get("current_price")
-                        or coin.get("current")
-                        or 0,
-                        "price_change_1h": pct,  # estimated
-                        "pct_1h": pct,
-                        "pct_change_1h": pct,
-                        "market_cap": coin.get("market_cap", 0),
-                        "_source": "24h_fallback",
-                    }
-                )
-
-            items.sort(key=lambda r: r.get("price_change_1h", 0), reverse=True)
-            items = items[:20]
-
             return jsonify(
                 {
-                    "items": items,
-                    "count": len(items),
+                    "items": [],
+                    "count": 0,
                     "limit": 20,
-                    "age_seconds": 0,
+                    "age_seconds": baseline_meta.get("age_seconds"),
                     "stale": True,
                     "warming": True,
+                    "unavailable_reason": "warming_1h_baseline",
                     "ts": int(time.time()),
                 }
             )
@@ -7707,7 +7469,7 @@ def get_top_banner():
             items.append(
                 {
                     "symbol": symbol,
-                    "product_id": change.get("product_id") or symbol,
+                    "product_id": change.get("product_id") or f"{symbol}-USD",
                     "current_price": change["current_price"],
                     "price_change_1h": pct,
                     "pct_1h": pct,
@@ -7744,41 +7506,17 @@ def get_bottom_banner():
         # Calculate REAL 1h volume changes from candles
         volume_changes = calculate_1hour_volume_changes(current_prices)
 
-        # If no volume data yet, fall back to 24h top movers sorted by volume
+        # Do not substitute price movement for missing volume movement.
         if not volume_changes:
-            logging.info("Bottom banner: No 1h volume data, using 24h volume fallback")
-            banner_data = get_24h_top_movers()
-            if not banner_data:
-                return jsonify({"error": "No banner data available"}), 503
-
-            volume_sorted = sorted(
-                banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True
-            )
-
-            items = []
-            for coin in volume_sorted[:20]:
-                # Use 1h price change as fallback until volume data warms up
-                price_change_1h_fallback = coin.get("price_change_1h", 0) or 0
-                items.append(
-                    {
-                        "symbol": coin["symbol"],
-                        "volume_24h": coin.get("volume_24h", 0),
-                        "volume_change_1h": price_change_1h_fallback,  # Fallback to price % until volume data ready
-                        "current_price": coin.get("current_price")
-                        or coin.get("current")
-                        or 0,
-                        "_source": "24h_fallback_using_price_change",
-                    }
-                )
-
             return jsonify(
                 {
-                    "items": items,
-                    "count": len(items),
+                    "items": [],
+                    "count": 0,
                     "limit": 20,
                     "age_seconds": 0,
                     "stale": True,
                     "warming": True,
+                    "unavailable_reason": "warming_1h_volume_baseline",
                     "ts": int(time.time()),
                 }
             )
@@ -7869,15 +7607,23 @@ def get_tables_3min():
 # Resilient helper for top banner (never raises NameError)
 def _compute_top_banner_data_safe():
     """
-    Build top-banner rows using the existing 24h movers logic without sparkline/trend fields.
+    Build top-banner rows from actual SQLite-backed 1h baselines.
     Returns list[dict] with keys used by the web ticker:
       symbol, current_price, initial_price_1h, price_change_1h, market_cap
     """
+    snapshot = _mw_get_component_snapshot("banner_1h_price")
+    if isinstance(snapshot, dict):
+        snapshot_rows = snapshot.get("data")
+        if isinstance(snapshot_rows, list) and snapshot_rows:
+            return [dict(row) for row in snapshot_rows if isinstance(row, dict)]
+
     try:
-        rows = get_24h_top_movers() or []
+        current_prices = last_current_prices.get("data") or {}
+        snapshot_ts_s = int(last_current_prices.get("timestamp") or time.time())
+        rows = calculate_1hour_price_changes(current_prices, snapshot_ts_s)
     except Exception as e:
         try:
-            app.logger.warning(f"Banner fallback due to error: {e}")
+            app.logger.warning(f"1h banner unavailable: {e}")
         except Exception:
             pass
         rows = []
@@ -7885,20 +7631,23 @@ def _compute_top_banner_data_safe():
     out = []
     for coin in rows:
         try:
-            pct = float(coin.get("price_change_1h", 0) or 0)
-            if pct < 0:
+            pct_raw = coin.get("price_change_1h")
+            if pct_raw is None:
                 continue
+            pct = float(pct_raw)
             sym = coin.get("symbol")
             out.append(
                 {
                     "symbol": sym,
-                    "product_id": coin.get("product_id") or sym,
+                    "product_id": coin.get("product_id")
+                    or (f"{sym}-USD" if sym else None),
                     "current_price": float(coin.get("current_price", 0) or 0),
-                    "initial_price_1h": float(coin.get("initial_price_1h", 0) or 0),
+                    "initial_price_1h": float(coin.get("price_1h_ago")),
                     "price_change_1h": pct,
                     "pct_1h": pct,
                     "pct_change_1h": pct,
-                    "market_cap": float(coin.get("market_cap", 0) or 0),
+                    "market_cap": None,
+                    "source": "coinbase_sqlite_1h",
                 }
             )
         except Exception:
@@ -8400,7 +8149,9 @@ def data_aggregate():
                         if rr.get("pct_change_1h") is not None
                         else pct
                     )
-                    rr["product_id"] = rr.get("product_id") or rr.get("symbol")
+                    rr["product_id"] = rr.get("product_id") or (
+                        f"{rr.get('symbol')}-USD" if rr.get("symbol") else None
+                    )
                     norm_b1h.append(rr)
                 snap_b1h = norm_b1h
 
@@ -9345,91 +9096,13 @@ def get_top_banner_scroll():
 def get_bottom_banner_scroll():
     """Individual endpoint for bottom scrolling banner - 1-hour volume change data"""
     try:
-        # Get 1-hour volume change data (24h banner data has volume info)
-        banner_data = get_24h_top_movers()
-        if not banner_data:
-            return jsonify({"error": ERROR_NO_DATA}), 503
-
-        # Sort by 24h volume for bottom banner (as we don't have hourly volume data)
-        volume_sorted = sorted(
-            banner_data, key=lambda x: x.get("volume_24h", 0), reverse=True
-        )
-
-        bottom_scroll_data = []
-        for coin in volume_sorted[:20]:  # Top 20 by volume
-            sym = coin["symbol"]
-            vol_now = float(coin.get("volume_24h", 0) or 0)
-            # Compute 1h volume change from history (rolling 24h cumulative volume difference)
-            vol_change_1h = None
-            vol_change_1h_pct = None
-            try:
-                hist = volume_history_24h.get(sym, deque())
-                if hist:
-                    now_ts = time.time()
-                    # Only compute a "real" 1h volume change if we have a snapshot at least 3600s old.
-                    vol_then = None
-                    for ts, vol in hist:
-                        if now_ts - ts >= 3600:
-                            vol_then = vol
-                            break
-                    # If we don't yet have >=1h history, leave vol_change_1h_pct as None
-                    if vol_then is not None:
-                        vol_change_1h = vol_now - vol_then
-                        vol_change_1h_pct = pct_change(vol_now, vol_then)
-            except Exception:
-                pass
-            # Fallback metric for trend if we lack 1h volume delta
-            ch_metric = float(
-                vol_change_1h_pct
-                if vol_change_1h_pct is not None
-                else (coin.get("price_change_1h", 0) or 0)
-            )
-            prev = one_hour_volume_trends.get(
-                sym, {"last": ch_metric, "streak": 0, "last_dir": "flat", "score": 0.0}
-            )
-            direction = (
-                "up"
-                if ch_metric > prev["last"]
-                else ("down" if ch_metric < prev["last"] else "flat")
-            )
-            streak = (
-                prev["streak"] + 1
-                if direction != "flat" and direction == prev["last_dir"]
-                else (1 if direction != "flat" else prev["streak"])
-            )
-            score = round(prev["score"] * 0.9 + abs(ch_metric) * 0.1, 3)
-            one_hour_volume_trends[sym] = {
-                "last": ch_metric,
-                "streak": streak,
-                "last_dir": direction,
-                "score": score,
-            }
-            _maybe_fire_trend_alert("1h_volume", sym, direction, streak, score)
-
-            bottom_scroll_data.append(
-                {
-                    "symbol": sym,
-                    "current_price": coin["current_price"],
-                    "volume_24h": vol_now,
-                    "price_change_1h": coin["price_change_1h"],
-                    "volume_change_1h": vol_change_1h,
-                    "volume_change_1h_pct": vol_change_1h_pct,
-                    "volume_change_estimate": (
-                        coin["price_change_1h"] * 0.5
-                        if vol_change_1h_pct is None
-                        else None
-                    ),
-                    "volume_change_is_estimated": vol_change_1h_pct is None,
-                    "volume_category": (
-                        "high"
-                        if vol_now > 10000000
-                        else "medium" if vol_now > 1000000 else "low"
-                    ),
-                    "trend_direction": direction,
-                    "trend_streak": streak,
-                    "trend_score": score,
-                }
-            )
+        rows, snapshot_ts = get_banner_1h_volume(prefer_snapshot=True)
+        bottom_scroll_data = [
+            row
+            for row in (rows or [])
+            if row.get("volume_change_1h_pct") is not None
+            or row.get("vol_pct_1h") is not None
+        ][:20]
 
         return jsonify(
             {
@@ -9440,7 +9113,8 @@ def get_bottom_banner_scroll():
                 "focus": "volume_change",
                 "scroll_speed": "slow",
                 "update_interval": 60000,  # 1 minute updates for 1-hour data
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": snapshot_ts or datetime.now().isoformat(),
+                "warming": len(bottom_scroll_data) == 0,
             }
         )
     except Exception as e:
@@ -12182,40 +11856,33 @@ def get_popular_charts():
 
 @app.route("/api/market-overview")
 def get_market_overview():
-    """Get overall market overview with key metrics (CoinGecko removed)"""
-    try:
-        # CoinGecko global market data removed. Returning default values.
-        overview = {
-            "total_market_cap_usd": 0,
-            "total_volume_24h_usd": 0,
-            "market_cap_change_24h": 0,
-            "active_cryptocurrencies": 0,
-            "markets": 0,
-            "btc_dominance": 0,
+    """Return real CoinGecko global and Fear & Greed data when available."""
+    payload, _used_url, err_info = _proxy_pipeline_request(
+        "/sentiment/latest", timeout=2.0
+    )
+    if err_info:
+        return _pipeline_error_response(err_info, "Market overview is unavailable")
+
+    data = payload if isinstance(payload, dict) else {}
+    pulse = data.get("market_pulse") if isinstance(data.get("market_pulse"), dict) else {}
+    fear_greed = data.get("fear_greed") if isinstance(data.get("fear_greed"), dict) else None
+    return jsonify(
+        {
+            "market_overview": {
+                "total_market_cap_usd": pulse.get("total_market_cap_usd"),
+                "total_volume_24h_usd": pulse.get("total_volume_usd"),
+                "market_cap_change_24h": pulse.get("mcap_change_24h_pct"),
+                "btc_dominance": pulse.get("btc_dominance"),
+                "source": pulse.get("source"),
+                "source_url": pulse.get("source_url"),
+                "stale": pulse.get("stale"),
+            },
+            "trending_coins": [],
+            "fear_greed_index": fear_greed,
+            "data_status": data.get("data_status") or "offline",
+            "last_updated": data.get("timestamp"),
         }
-
-        # Trending coins now returns empty list
-        trending = get_trending_coins()[:5]
-
-        # Get fear & greed index (mock data since API requires key)
-        fear_greed_index = {
-            "value": 65,  # You can integrate real Fear & Greed API here
-            "classification": "Greed",
-            "last_update": datetime.now().isoformat(),
-        }
-
-        return jsonify(
-            {
-                "market_overview": overview,
-                "trending_coins": trending,
-                "fear_greed_index": fear_greed_index,
-                "last_updated": datetime.now().isoformat(),
-            }
-        )
-
-    except Exception as e:
-        logging.error(f"Error fetching market overview: {e}")
-        return jsonify({"error": "Failed to fetch market overview"}), 500
+    )
 
 
 @app.route("/api/config_legacy", methods=["GET"])
@@ -12333,50 +12000,24 @@ def get_technical_analysis_endpoint(symbol):
 
 @app.route("/api/news/<symbol>")
 def get_crypto_news(symbol):
-    """Get news for a specific cryptocurrency (placeholder for now)"""
+    """Return real coin-intel news, or an explicit unavailable state."""
     try:
-        # Placeholder implementation - in real app you'd integrate with news APIs
         symbol = symbol.upper().replace("-USD", "")
-
-        # Mock news data for demonstration
-        mock_news = [
-            {
-                "id": 1,
-                "title": f"{symbol} Shows Strong Technical Momentum",
-                "summary": f"Technical analysis suggests {symbol} may continue its current trend based on recent price action and volume indicators.",
-                "source": "Crypto Technical Analysis",
-                "published": (datetime.now() - timedelta(hours=2)).isoformat(),
-                "sentiment": "neutral",
-                "url": f"https://example.com/news/{symbol.lower()}-analysis",
-            },
-            {
-                "id": 2,
-                "title": f"Market Update: {symbol} Trading Volume Analysis",
-                "summary": f"Recent trading patterns in {symbol} indicate increased institutional interest and potential breakout scenarios.",
-                "source": "Market Insights",
-                "published": (datetime.now() - timedelta(hours=6)).isoformat(),
-                "sentiment": "positive",
-                "url": f"https://example.com/news/{symbol.lower()}-volume",
-            },
-            {
-                "id": 3,
-                "title": f"{symbol} Price Action Review",
-                "summary": f"Weekly review of {symbol} price movements and key support/resistance levels for traders to monitor.",
-                "source": "Trading Weekly",
-                "published": (datetime.now() - timedelta(days=1)).isoformat(),
-                "sentiment": "neutral",
-                "url": f"https://example.com/news/{symbol.lower()}-review",
-            },
-        ]
+        intel = fetch_coin_intel(symbol)
+        news = intel.get("news") if isinstance(intel, dict) else None
+        if not isinstance(news, dict):
+            news = {}
+        articles = news.get("items") if isinstance(news.get("items"), list) else []
 
         return jsonify(
             {
-                "success": True,
+                "success": news.get("status") in {"live", "stale"},
                 "symbol": symbol,
-                "articles": mock_news,
-                "count": len(mock_news),
-                "timestamp": datetime.now().isoformat(),
-                "note": "Demo data - integrate with real news API for production",
+                "status": news.get("status") or "offline",
+                "articles": articles,
+                "count": len(articles),
+                "timestamp": intel.get("ts") if isinstance(intel, dict) else None,
+                "error": news.get("error"),
             }
         )
 
@@ -12673,7 +12314,8 @@ def _compute_snapshots_from_cache():
                     b1h_price_rows.append(
                         {
                             "symbol": symbol,
-                            "product_id": coin.get("product_id") or symbol,
+                            "product_id": coin.get("product_id")
+                            or (f"{symbol}-USD" if symbol else None),
                             "current_price": float(coin.get("current_price", 0) or 0),
                             "initial_price_1h": float(
                                 coin.get("initial_price_1h", 0) or 0
@@ -12681,7 +12323,8 @@ def _compute_snapshots_from_cache():
                             "price_change_1h": pct,
                             "pct_1h": pct,
                             "pct_change_1h": pct,
-                            "market_cap": float(coin.get("market_cap", 0) or 0),
+                            "market_cap": _to_float(coin.get("market_cap")),
+                            "source": coin.get("source") or "coinbase_sqlite_1h",
                         }
                     )
                 except Exception:
@@ -12719,7 +12362,8 @@ def _compute_snapshots_from_cache():
                             extra.append(
                                 {
                                     "symbol": sym,
-                                    "product_id": change.get("product_id") or sym,
+                                    "product_id": change.get("product_id")
+                                    or f"{sym}-USD",
                                     "current_price": float(
                                         change.get("current_price", 0) or 0
                                     ),
@@ -12729,7 +12373,7 @@ def _compute_snapshots_from_cache():
                                     "price_change_1h": pct,
                                     "pct_1h": pct,
                                     "pct_change_1h": pct,
-                                    "market_cap": 0.0,
+                                    "market_cap": None,
                                 }
                             )
                         extra.sort(key=lambda r: r.get("pct_1h", 0), reverse=True)
@@ -13336,9 +12980,9 @@ def _mw_ensure_background_started():
                 except Exception:
                     pass
 
-    # External sentiment pipeline thread is now DISABLED — we use local tape-based
-    # market heat instead. The thread is kept for future use when a real pipeline
-    # (Redis-backed, API-key-gated) is available. Guard with env var to opt-in.
+    # This legacy in-process sentiment poller is disabled by default. The
+    # canonical real-source sentiment service is launched separately by
+    # start_app.sh and proxied by /api/sentiment/latest.
     if os.environ.get("MW_ENABLE_EXTERNAL_SENTIMENT", "0") == "1":
         with _MW_SENTIMENT_LOCK:
             if _MW_SENTIMENT_THREAD is None or not _MW_SENTIMENT_THREAD.is_alive():
@@ -13363,7 +13007,7 @@ def _mw_ensure_background_started():
     else:
         try:
             app.logger.info(
-                "External sentiment pipeline DISABLED (using local tape heat). Set MW_ENABLE_EXTERNAL_SENTIMENT=1 to enable."
+                "Legacy in-process sentiment poller disabled; canonical real-source service is managed separately."
             )
         except Exception:
             pass
@@ -13557,7 +13201,8 @@ if os.environ.get("SERVE_FRONTEND_DIST", "0") == "1":
 # APPLICATION STARTUP
 # =============================================================================
 
-if __name__ == "__main__":
+def main():
+    """Start the development server after the complete route table is defined."""
     # Parse command line arguments
     args = parse_arguments()
 
@@ -13573,9 +13218,6 @@ if __name__ == "__main__":
     if args.cache_ttl:
         CONFIG["CACHE_TTL"] = args.cache_ttl
         cache["ttl"] = CONFIG["CACHE_TTL"]
-
-    # Log configuration
-    log_config()
 
     # Handle port conflicts
     target_port = CONFIG["PORT"]
@@ -13640,31 +13282,11 @@ if __name__ == "__main__":
     except Exception:
         logging.debug("Unexpected error during cache warmup after DEV seeding")
 
-    # Start volume 1h updater thread (candles → SQLite)
-    try:
-        ensure_volume_db()
-        vol_thread = threading.Thread(target=_volume1h_updater_loop)
-        vol_thread.daemon = True
-        vol_thread.start()
-        logging.info("Volume 1h updater thread started")
-    except Exception as e:
-        logging.warning(f"Failed to start volume 1h updater thread: {e}")
-
-    # Start background thread for periodic updates
-    background_thread = threading.Thread(target=background_crypto_updates)
-    background_thread.daemon = True
-    background_thread.start()
-
-    logging.info("Background update thread started")
-
-    # Start sentiment polling thread
-    try:
-        sentiment_thread = threading.Thread(target=_sentiment_polling_loop)
-        sentiment_thread.daemon = True
-        sentiment_thread.start()
-        logging.info("Sentiment polling thread started")
-    except Exception as e:
-        logging.warning(f"Failed to start sentiment poller thread: {e}")
+    # Use the same guarded bootstrap as `flask run` and request-time startup.
+    # Registering these thread references prevents the first HTTP request from
+    # launching a duplicate price/volume worker set.
+    _mw_ensure_background_started()
+    logging.info("Background services started")
     logging.info(f"Server starting on http://{CONFIG['HOST']}:{CONFIG['PORT']}")
 
     try:
@@ -13684,17 +13306,16 @@ if __name__ == "__main__":
             logging.error(f"Error starting server: {e}")
         exit(1)
 
-else:
+if __name__ != "__main__":
     # Production mode for Vercel
-    log_config()
     logging.info("Running in production mode (Vercel)")
 
 # Legacy get_mobile_bundle route removed; consolidated into /api/mobile/bundle above.
 
 # ------------------------------
-# Dev stub endpoints (added to avoid 404s during local dev)
-# These return minimal JSON so the UI can render while the real
-# implementations (alerts, metrics, components) are being wired up.
+# Compatibility endpoints retained for older clients. They either expose real
+# data or explicitly report retirement; they never manufacture placeholder
+# values to make a feature appear available.
 # ------------------------------
 try:
     app  # type: ignore  # ensure an app instance exists
@@ -13742,7 +13363,8 @@ def api_insights(symbol):
 
     # Try several variants to find a matching price key
     current_price = None
-    for key in (sym, sym.replace("-", ""), sym.split("-")[0]):
+    base_symbol = sym.split("-", 1)[0]
+    for key in (sym, sym.replace("-", ""), base_symbol, f"{base_symbol}-USD"):
         if key in current_prices:
             current_price = current_prices.get(key)
             break
@@ -13752,75 +13374,44 @@ def api_insights(symbol):
 
     now = time.time()
 
-    # Build snapshots from in-memory price history structures
-    # price_history_1min and price_history are deques of (ts, price)
-    price_1m_ago = None
-    try:
-        hist1 = (
-            price_history_1min.get(sym)
-            or price_history_1min.get(sym.replace("-", ""))
-            or deque()
-        )
-        # Find point at least ~60s old
-        for ts, p in reversed(hist1):
-            if now - ts >= 55:
-                price_1m_ago = p
-                break
-        if price_1m_ago is None and len(hist1) > 0:
-            price_1m_ago = hist1[0][1]
-    except Exception:
-        price_1m_ago = None
+    # Use the same SQLite baseline windows as the canonical boards. If a
+    # window is not mature yet, leave it null so the popup can say WARMING.
+    product_variants = [sym, base_symbol, f"{base_symbol}-USD"]
 
-    price_3m_ago = None
-    try:
-        hist_all = (
-            price_history.get(sym) or price_history.get(sym.replace("-", "")) or deque()
-        )
-        for ts, p in reversed(hist_all):
-            if now - ts >= 175:  # prefer a bit more than 3 minutes to cover gaps
-                price_3m_ago = p
-                break
-        if price_3m_ago is None and len(hist_all) > 0:
-            price_3m_ago = hist_all[0][1]
-    except Exception:
-        price_3m_ago = None
+    def _insight_baseline_price(window_key):
+        for product_id in product_variants:
+            try:
+                baseline = _db_baseline_for_window(product_id, int(now), window_key)
+            except Exception:
+                baseline = None
+            if baseline:
+                return baseline[1]
+        return None
 
-    price_1h_ago = None
-    try:
-        hist_1h = (
-            price_history_1hour.get(sym)
-            or price_history_1hour.get(sym.replace("-", ""))
-            or deque()
-        )
-        # Find point at least ~3600s (1 hour) old
-        for ts, p in reversed(hist_1h):
-            if now - ts >= 3540:  # 59 minutes minimum to cover gaps
-                price_1h_ago = p
-                break
-        if price_1h_ago is None and len(hist_1h) > 0:
-            price_1h_ago = hist_1h[0][1]
-    except Exception:
-        price_1h_ago = None
+    price_1m_ago = _insight_baseline_price("1m")
+    price_3m_ago = _insight_baseline_price("3m")
+    price_1h_ago = _insight_baseline_price("1h")
 
     # Volume: use volume_history_24h to estimate 1h current and previous volumes
     vol_1h_now = None
     vol_1h_prev = None
     try:
-        vol_hist = (
-            volume_history_24h.get(sym)
-            or volume_history_24h.get(sym.replace("-", ""))
-            or deque()
+        vol_hist = next(
+            (
+                volume_history_24h.get(product_id)
+                for product_id in product_variants
+                if volume_history_24h.get(product_id)
+            ),
+            deque(),
         )
         if len(vol_hist) >= 1:
             vol_1h_now = vol_hist[-1][1]
         if len(vol_hist) >= 2:
-            # find an entry roughly 1 hour ago; fall back to second-last
+            # Only accept a true hour-old volume snapshot.
             for ts, v in reversed(vol_hist):
                 if now - ts >= 3500:  # roughly 1 hour (3600s) tolerance
                     vol_1h_prev = v
                     break
-            if vol_1h_prev is None and len(vol_hist) >= 2:
-                vol_1h_prev = vol_hist[-2][1]
     except Exception:
         vol_1h_now = vol_1h_prev = None
 
@@ -13832,39 +13423,24 @@ def api_insights(symbol):
         "volume_1h_prev": vol_1h_prev,
     }
 
-    # Build insights via the helper if available, else return a minimal derived blob
+    # Build insights via the real tape/source helper. If that module is absent,
+    # expose the unavailable state instead of manufacturing neutral values.
     try:
         if callable(build_asset_insights):
             payload = build_asset_insights(
                 sym, current_price, snapshots, COINGECKO_ID_MAP
             )
         else:
-            # Minimal fallback: compute a few derived fields
-            def _pct(a, b):
-                try:
-                    if b in (None, 0):
-                        return None
-                    return (float(a) - float(b)) / float(b) * 100.0
-                except Exception:
-                    return None
-
-            payload = {
-                "symbol": sym,
-                "price": current_price,
-                "change_1m": _pct(current_price, price_1m_ago),
-                "change_3m": _pct(current_price, price_3m_ago),
-                "change_1h": _pct(current_price, price_1h_ago),
-                "volume_change_1h": _pct(vol_1h_now, vol_1h_prev),
-                "heat_score": 50.0,
-                "trend": "FLAT",
-                "social": None,
-                "market_sentiment": None,
-                "sources": {
-                    "price_volume": "coinbase_snapshots",
-                    "social": "none",
-                    "macro": "none",
-                },
-            }
+            return (
+                jsonify(
+                    {
+                        "available": False,
+                        "error": "coin_insights_unavailable",
+                        "symbol": sym,
+                    }
+                ),
+                503,
+            )
     except Exception as e:
         logging.exception("Failed to build insights for %s: %s", sym, e)
         return jsonify({"error": str(e)}), 500
@@ -13874,46 +13450,31 @@ def api_insights(symbol):
 
 @app.get("/metrics")
 def _dev_metrics():
-    return jsonify(
-        {
-            "ok": True,
-            "latency_ms": 5,
-            "requests_in_window": 0,
-            "time": time.time(),
-        }
-    )
+    return metrics()
 
 
 @app.get("/alerts/recent")
 def _dev_alerts_recent():
-    try:
-        limit = int(request.args.get("limit", 25))
-    except Exception:
-        limit = 25
-    return jsonify(
-        {
-            "ok": True,
-            "alerts": _normalize_alerts(list(alerts_log))[-limit:],
-            "limit": limit,
-        }
-    )
+    return get_recent_alerts()
 
 
 @app.get("/component/<name>")
 def _dev_component(name: str):
-    # Provide shape-compatible dummy payloads per component name
-    payload = {"ok": True, "component": name}
-    if name.endswith("gainers-table") or name.startswith("gainers-table"):
-        payload["rows"] = []
-    elif name.endswith("losers-table") or name.startswith("losers-table"):
-        payload["rows"] = []
-    elif name in ("top-banner-scroll", "bottom-banner-scroll"):
-        payload["items"] = []
-    else:
-        payload["data"] = []
-    return jsonify(payload)
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "component": name,
+                "message": "Removed. Use /api/component/<component-name>.",
+            }
+        ),
+        410,
+    )
 
 
-# End dev stubs
+# Start only after every route above has been registered. Keeping this call at
+# EOF prevents script mode from blocking before compatibility routes exist.
+if __name__ == "__main__":
+    main()
 
 __all__ = ["process_product_data", "format_crypto_data", "format_banner_data"]

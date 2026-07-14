@@ -25,11 +25,14 @@ _EVENTS_URL = "https://api.coinpaprika.com/v1/coins/{coin_id}/events"
 _TWITTER_URL = "https://api.coinpaprika.com/v1/coins/{coin_id}/twitter"
 _LUNARCRUSH_URL = "https://api.lunarcrush.com/v2"
 _COINGECKO_SEARCH_URL = "https://api.coingecko.com/api/v3/search?query={query}"
+_COINGECKO_TRENDING_URL = "https://api.coingecko.com/api/v3/search/trending"
 _COINGECKO_COIN_URL = (
     "https://api.coingecko.com/api/v3/coins/{coin_id}"
     "?localization=false&tickers=false&market_data=false"
     "&community_data=true&developer_data=false&sparkline=false"
 )
+_EVENT_RECENCY_WINDOW_S = 365 * 24 * 60 * 60
+_SOCIAL_RECENCY_WINDOW_S = 90 * 24 * 60 * 60
 
 _CACHE_LOCK = threading.Lock()
 _COIN_LIST_CACHE: dict[str, Any] = {
@@ -316,6 +319,8 @@ def _empty_social_metrics(source: str = "none") -> dict[str, Any]:
         "posts_60m": None,
         "posts_24h": None,
         "unique_authors_24h": None,
+        "trending_rank": None,
+        "trending_source": None,
         "source": source,
         "updated_at": None,
     }
@@ -500,6 +505,7 @@ def _cache_set(key: str, payload: dict[str, Any]) -> None:
 def _normalize_events(data: Any) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         return []
+    now_s = _now_s()
     out: list[dict[str, Any]] = []
     for row in data:
         if not isinstance(row, dict):
@@ -507,31 +513,49 @@ def _normalize_events(data: Any) -> list[dict[str, Any]]:
         title = str(row.get("name") or row.get("title") or "").strip()
         if not title:
             continue
+        when = row.get("date") or row.get("date_event") or row.get("created_at") or None
+        ts_s = _normalize_ts_s(when)
+        # CoinPaprika's events endpoint often returns ancient historical rows.
+        # Keep upcoming catalysts and recent events only; old history is real,
+        # but not useful as a current Coin Pressure driver.
+        if ts_s is not None and ts_s < now_s - _EVENT_RECENCY_WINDOW_S:
+            continue
         item = {
             "id": str(row.get("id") or row.get("date_event") or title),
             "title": title,
-            "when": row.get("date")
-            or row.get("date_event")
-            or row.get("created_at")
-            or None,
+            "when": when,
             "description": str(row.get("description") or "").strip()[:300] or None,
             "source_url": row.get("link") or row.get("proof_image_link") or None,
+            "source": "coinpaprika",
+            "status": "upcoming" if ts_s is not None and ts_s > now_s else "recent",
         }
         out.append(item)
-        if len(out) >= 10:
-            break
-    return out
+    out.sort(
+        key=lambda item: (
+            0 if (_normalize_ts_s(item.get("when")) or 0) >= now_s else 1,
+            abs((_normalize_ts_s(item.get("when")) or now_s) - now_s),
+        )
+    )
+    return out[:10]
 
 
 def _normalize_social(data: Any) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         return []
+    now_s = _now_s()
     out: list[dict[str, Any]] = []
     for row in data:
         if not isinstance(row, dict):
             continue
         text = str(row.get("status") or row.get("text") or "").strip()
         if not text:
+            continue
+        when = row.get("date") or row.get("created_at") or None
+        ts_s = _normalize_ts_s(when)
+        # The CoinPaprika twitter endpoint is deprecated and can return old
+        # official-project timeline items. Keep only recent items so the UI
+        # does not confuse historical announcements with active attention.
+        if ts_s is not None and ts_s < now_s - _SOCIAL_RECENCY_WINDOW_S:
             continue
         engagement = 0
         for key in (
@@ -563,10 +587,11 @@ def _normalize_social(data: Any) -> list[dict[str, Any]]:
             ),
             "text": text[:280],
             "author": row.get("user_name") or row.get("user") or None,
-            "when": row.get("date") or row.get("created_at") or None,
+            "when": when,
             "source_url": row.get("status_link") or row.get("url") or None,
             "engagement": engagement if engagement > 0 else None,
             "sentiment": sentiment,
+            "source": "coinpaprika_official_timeline",
         }
         out.append(item)
         if len(out) >= 20:
@@ -941,6 +966,78 @@ def fetch_coingecko_social_metrics(symbol: str | None) -> dict[str, Any]:
     }
 
 
+def fetch_coingecko_trending_metrics(symbol: str | None) -> dict[str, Any]:
+    sym = _normalize_symbol(symbol)
+    now_ts = _now_ts()
+    if not sym:
+        return {
+            "status": "offline",
+            "metrics": None,
+            "ts": now_ts,
+            "error": "symbol_missing",
+        }
+
+    cache_key = "coingecko:trending"
+    cached = _cache_get(cache_key)
+    if cached and isinstance(cached.get("payload"), dict):
+        age = _now_s() - float(cached.get("ts") or 0.0)
+        payload = dict(cached.get("payload") or {})
+        if age < _ENDPOINT_TTL_S:
+            return _extract_trending_metric(sym, payload, stale=False)
+
+    status, data, err = _http_get_json(_COINGECKO_TRENDING_URL)
+    if status == 200 and isinstance(data, dict):
+        payload = {"status": "live", "data": data, "ts": now_ts}
+        _cache_set(cache_key, payload)
+        return _extract_trending_metric(sym, payload, stale=False)
+
+    if cached and isinstance(cached.get("payload"), dict):
+        return _extract_trending_metric(
+            sym, dict(cached.get("payload") or {}), stale=True
+        )
+
+    return {
+        "status": "offline",
+        "metrics": None,
+        "ts": now_ts,
+        "error": "rate_limited" if status == 429 else (err or "unavailable"),
+    }
+
+
+def _extract_trending_metric(
+    symbol: str, payload: dict[str, Any], *, stale: bool
+) -> dict[str, Any]:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    coins = data.get("coins") if isinstance(data, dict) else []
+    for idx, row in enumerate(coins or [], start=1):
+        item = row.get("item") if isinstance(row, dict) else None
+        if not isinstance(item, dict):
+            continue
+        item_sym = _normalize_symbol(item.get("symbol"))
+        if item_sym != symbol:
+            continue
+        metrics = _empty_social_metrics(source="coingecko")
+        metrics.update(
+            {
+                "trending_rank": idx,
+                "trending_source": "coingecko_search_trending",
+                "social_rank": _to_int(item.get("market_cap_rank")),
+                "updated_at": _now_ts(),
+            }
+        )
+        return {
+            "status": "stale" if stale else "live",
+            "metrics": metrics,
+            "ts": _now_ts(),
+        }
+    return {
+        "status": "stale" if stale else "live",
+        "metrics": None,
+        "ts": _now_ts(),
+        "error": "not_trending",
+    }
+
+
 def _extract_lunar_asset(payload: Any, symbol: str) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
@@ -1176,6 +1273,7 @@ def _resolve_social_metrics(symbol: str, social_feed: dict[str, Any]) -> dict[st
         "posts_24h",
         "posts_60m",
         "unique_authors_24h",
+        "trending_rank",
     )
 
     merged_metrics = fallback_metrics
@@ -1213,6 +1311,27 @@ def _resolve_social_metrics(symbol: str, social_feed: dict[str, Any]) -> dict[st
         if gecko_error:
             errors.append(gecko_error)
 
+    trending_bundle = fetch_coingecko_trending_metrics(symbol)
+    trending_status = str(trending_bundle.get("status") or "offline")
+    trending_metrics = trending_bundle.get("metrics")
+    if isinstance(trending_metrics, dict):
+        has_base_data = any(
+            _is_meaningful_metric(merged_metrics.get(k)) for k in metric_keys
+        )
+        merged_metrics = _merge_metrics(
+            primary=trending_metrics,
+            fallback=merged_metrics,
+            source="mixed" if has_base_data else "coingecko",
+        )
+        statuses.append(trending_status)
+    else:
+        # "not_trending" is a live negative signal, not an outage.
+        if trending_bundle.get("error") != "not_trending":
+            statuses.append(trending_status)
+            trending_error = str(trending_bundle.get("error") or "").strip()
+            if trending_error:
+                errors.append(trending_error)
+
     lunar_bundle = fetch_lunarcrush_social_metrics(symbol)
     lunar_status = str(lunar_bundle.get("status") or "offline")
     lunar_metrics = lunar_bundle.get("metrics")
@@ -1244,6 +1363,66 @@ def _resolve_social_metrics(symbol: str, social_feed: dict[str, Any]) -> dict[st
     return out
 
 
+def _provider_rows(
+    *,
+    coin_id: str | None,
+    gecko_id: str | None,
+    events: dict[str, Any] | None = None,
+    social: dict[str, Any] | None = None,
+    social_metrics: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    lunar_key_present = bool(
+        (os.getenv("LUNARCRUSH_API_KEY") or os.getenv("LUNARCRUSH_KEY") or "").strip()
+    )
+
+    def provider_status(block: dict[str, Any] | None, fallback: str) -> str:
+        status = str((block or {}).get("status") or fallback)
+        items = (block or {}).get("items")
+        if status == "live" and isinstance(items, list) and not items:
+            return "quiet"
+        return status
+
+    rows = [
+        {
+            "name": "CoinPaprika events",
+            "status": provider_status(events, "live" if coin_id else "offline"),
+            "access": "free_public",
+            "scope": "coin_context",
+            "configured": bool(coin_id),
+            "detail": "Recent/upcoming events only; old events are filtered out.",
+        },
+        {
+            "name": "CoinPaprika official timeline",
+            "status": provider_status(social, "live" if coin_id else "offline"),
+            "access": "free_public_deprecated_endpoint",
+            "scope": "coin_context",
+            "configured": bool(coin_id),
+            "detail": "Recent official timeline items only; deprecated upstream endpoint.",
+        },
+        {
+            "name": "CoinGecko community + trending",
+            "status": (
+                "live"
+                if gecko_id or (social_metrics or {}).get("status") in {"live", "stale"}
+                else "offline"
+            ),
+            "access": "free_public_demo_or_pro_key",
+            "scope": "attention_proxy",
+            "configured": bool(gecko_id),
+            "detail": "Community and search-trending proxy, not direct sentiment.",
+        },
+        {
+            "name": "LunarCrush",
+            "status": "configured" if lunar_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "coin_context_social",
+            "configured": lunar_key_present,
+            "detail": "Best fit for creator/social sentiment without direct Reddit/X keys.",
+        },
+    ]
+    return rows
+
+
 def fetch_coin_intel(symbol: str | None) -> dict[str, Any]:
     sym = _normalize_symbol(symbol)
     now_ts = _now_ts()
@@ -1260,13 +1439,20 @@ def fetch_coin_intel(symbol: str | None) -> dict[str, Any]:
             "events": events,
             "news": events,
             "social": social,
+            "providers": _provider_rows(
+                coin_id=None,
+                gecko_id=None,
+                events=events,
+                social=social,
+                social_metrics=None,
+            ),
             "ts": now_ts,
             "error": "symbol_missing",
         }
 
     coin_id = coinpaprika_coin_id(sym)
+    gecko_id = coingecko_coin_id(sym)
     if not coin_id:
-        gecko_id = coingecko_coin_id(sym)
         events = {"status": "offline", "items": [], "error": "coin_not_found"}
         social_seed = {
             "status": "offline",
@@ -1291,6 +1477,13 @@ def fetch_coin_intel(symbol: str | None) -> dict[str, Any]:
             "events": events,
             "news": events,
             "social": social,
+            "providers": _provider_rows(
+                coin_id=None,
+                gecko_id=gecko_id,
+                events=events,
+                social=social,
+                social_metrics=social_metrics,
+            ),
             "ts": now_ts,
         }
 
@@ -1318,5 +1511,12 @@ def fetch_coin_intel(symbol: str | None) -> dict[str, Any]:
         "events": events,
         "news": events,
         "social": social_payload,
+        "providers": _provider_rows(
+            coin_id=coin_id,
+            gecko_id=gecko_id,
+            events=events,
+            social=social_payload,
+            social_metrics=social_metrics,
+        ),
         "ts": now_ts,
     }

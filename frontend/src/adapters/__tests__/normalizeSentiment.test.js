@@ -17,7 +17,7 @@ test("normalizeSentiment fills defaults and coerces numbers", () => {
   expect(Array.isArray(norm.sentimentHistory)).toBe(true);
   expect(Array.isArray(norm.trendingTopics)).toBe(true);
   expect(norm.socialBreakdown.reddit).toBe(0.8);
-  expect(norm.socialBreakdown.twitter).toBe(0);
+  expect(norm.socialBreakdown.twitter).toBeNull();
 });
 
 test("normalizeSentiment tolerates nullish input", () => {
@@ -25,5 +25,31 @@ test("normalizeSentiment tolerates nullish input", () => {
   expect(norm.sentimentHistory).toEqual([]);
   expect(norm.socialHistory).toEqual([]);
   expect(norm.trendingTopics).toEqual([]);
-  expect(norm.overallSentiment).toBe(0);
+  expect(norm.overallSentiment).toBeNull();
+  expect(norm.socialMetrics.volumeChange).toBeNull();
+  expect(norm.socialBreakdown.reddit).toBeNull();
+  expect(norm.pipelineStatus).toBe("OFFLINE");
+});
+
+test("normalizeSentiment reports stale and offline truthfully", () => {
+  const stale = normalizeSentiment({
+    overall_sentiment: 0.28,
+    sentiment_meta: {
+      ok: true,
+      pipelineRunning: true,
+      staleSeconds: 301,
+      dataStatus: "stale",
+    },
+  });
+  expect(stale.pipelineStatus).toBe("STALE");
+
+  const offline = normalizeSentiment({
+    sentiment_meta: {
+      ok: false,
+      pipelineRunning: true,
+      staleSeconds: 0,
+      dataStatus: "offline",
+    },
+  });
+  expect(offline.pipelineStatus).toBe("OFFLINE");
 });

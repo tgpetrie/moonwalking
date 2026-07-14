@@ -395,9 +395,7 @@ function AppLink({ to, navigate, className, children, accent = false }) {
 
 function PublicHeader({ navigate, session, currentPath }) {
   const navItems = [
-    { label: "Home", to: "/" },
-    { label: "Features", to: "/#features" },
-    { label: "Pricing", to: "/#pricing" },
+    { label: "Live Board", to: "/" },
   ];
 
   return (
@@ -460,10 +458,9 @@ function PublicFooter() {
         <span>Moonwalking</span>
       </div>
       <div className="mw-footer-links">
-        <a href="#about">About</a>
-        <a href="#terms">Terms</a>
-        <a href="#privacy">Privacy</a>
-        <a href="#contact">Contact</a>
+        <a href="/">Live Board</a>
+        <a href="/login">Login</a>
+        <a href="/signup">Sign Up</a>
       </div>
     </footer>
   );
@@ -474,11 +471,11 @@ function HomePage({ navigate }) {
     <div className="mw-home">
       <section className="mw-hero-card">
         <div className="mw-hero-copy">
-          <p className="mw-eyebrow">Cloud-first watchlists for distributed investing workflows</p>
+          <p className="mw-eyebrow">Account-backed watchlists for a live market workflow</p>
           <h1>Access your watchlists anywhere</h1>
           <p className="mw-hero-text">
-            Create an account, save your watchlists in the cloud, and pick up where you
-            left off from any device.
+            Create an account, save watchlists to your Moonwalking server, and pick up
+            where you left off from another connected browser.
           </p>
           <div className="mw-hero-actions">
             <AppLink to="/signup" navigate={navigate} className="mw-button mw-button--primary" accent>
@@ -502,7 +499,7 @@ function HomePage({ navigate }) {
               <p>Let guests see the value before asking them to create an account.</p>
             </article>
             <article className="mw-surface">
-              <span className="mw-surface__eyebrow">Save in the cloud</span>
+              <span className="mw-surface__eyebrow">Save to your account</span>
               <h3>Every list follows the user</h3>
               <p>Load the same watchlists at home, on mobile, or on a new machine.</p>
             </article>
@@ -634,11 +631,11 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
     <section className="mw-auth-layout">
       <div className="mw-auth-card">
         <p className="mw-eyebrow">{isSignup ? "Create your account" : "Welcome back"}</p>
-        <h1>{isSignup ? "Start saving watchlists in the cloud." : "Return to your dashboard."}</h1>
+        <h1>{isSignup ? "Save watchlists to your Moonwalking account." : "Return to your dashboard."}</h1>
         <p>
           {isSignup
-            ? "Sign up fast, then move straight into the watchlists workflow."
-            : "Log in to fetch your saved watchlists and continue from any device."}
+            ? "Sign up, then move straight into the live board and saved watchlists."
+            : "Log in to load the watchlists saved to your account on this Moonwalking server."}
         </p>
         <form className="mw-auth-form" onSubmit={handleSubmit}>
           {isSignup ? (
@@ -742,13 +739,13 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
       <aside className="mw-auth-side">
         <article className="mw-surface">
           <span className="mw-surface__eyebrow">Core value</span>
-          <h3>Same watchlists everywhere</h3>
-          <p>Account-backed storage means users are not trapped on one browser or one device.</p>
+          <h3>Watchlists tied to your account</h3>
+          <p>Your saved assets follow your login across browsers connected to this server.</p>
         </article>
         <article className="mw-surface">
-          <span className="mw-surface__eyebrow">MVP scope</span>
-          <h3>Three screens matter first</h3>
-          <p>Home, auth, and watchlists establish the product loop before premium features exist.</p>
+          <span className="mw-surface__eyebrow">Product loop</span>
+          <h3>Live signals become saved context</h3>
+          <p>Move from the real-time board to persistent tracking without losing your baseline.</p>
         </article>
       </aside>
     </section>
@@ -1547,7 +1544,11 @@ export default function MvpApp() {
       try {
         const payload = await apiRequest("/api/auth/session");
         if (cancelled) return;
-        applyAuthPayload(payload);
+        if (payload?.authenticated) {
+          applyAuthPayload(payload);
+        } else {
+          setSession(defaultSession);
+        }
       } catch (_error) {
         if (cancelled) return;
         setSession(defaultSession);

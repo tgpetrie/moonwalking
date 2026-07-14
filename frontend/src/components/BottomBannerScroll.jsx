@@ -24,7 +24,7 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
             const symbol = nr.symbol || r.symbol || '--';
             const currentPrice = nr.currentPrice ?? r.current_price ?? 0;
             // Use 1h volume change as `pctChange` so styling and sign color map correctly
-            const pctChange = r.volume_change_1h ?? nr.volumeChangePct ?? r.volume_change_1h_pct ?? r.volume_change_estimate ?? 0;
+            const pctChange = r.volume_change_1h ?? nr.volumeChangePct ?? r.volume_change_1h_pct ?? null;
             return {
               symbol,
               currentPrice,
@@ -38,22 +38,10 @@ const BottomBannerScroll = ({ refreshTrigger }) => {
           return;
         }
 
-        // fallback
-        if (mounted && items.length === 0) {
-          setItems([
-            { symbol: 'SUKU', currentPrice: 0.0295, pctChange: 3.51 },
-            { symbol: 'HNT', currentPrice: 2.3, pctChange: 0.97 },
-            { symbol: 'OCEAN', currentPrice: 0.3162, pctChange: 0.6 },
-          ]);
-        }
+        if (mounted) setItems([]);
       } catch (err) {
         console.error('BottomBannerScroll load error', err);
-        if (mounted && items.length === 0) {
-          setItems([
-            { symbol: 'SUKU', currentPrice: 0.0295, pctChange: 3.51 },
-            { symbol: 'HNT', currentPrice: 2.3, pctChange: 0.97 },
-          ]);
-        }
+        if (mounted) setItems([]);
       }
     };
 

@@ -208,7 +208,7 @@ export async function addToWatchlist(symbol, price = null) {
       // Add as object with price info
       const newItem = {
         symbol,
-        priceAtAdd: price || Math.random() * 1000 // fallback random price if not provided
+        priceAtAdd: Number.isFinite(Number(price)) ? Number(price) : null,
       };
       list.push(newItem);
       localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list));

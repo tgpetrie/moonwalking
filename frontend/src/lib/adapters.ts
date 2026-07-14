@@ -13,14 +13,9 @@ export function normalizeBannerRow(row: any) {
   let volumeChangePct: number | null = null;
   if (row.volume_change_1h_pct != null && !Number.isNaN(Number(row.volume_change_1h_pct))) {
     volumeChangePct = Number(row.volume_change_1h_pct);
-  } else if (row.volume_change_estimate != null && !Number.isNaN(Number(row.volume_change_estimate))) {
-    volumeChangePct = Number(row.volume_change_estimate);
-  } else if (priceChange1h != null && !Number.isNaN(Number(priceChange1h))) {
-    // fallback heuristic preserved from existing code: estimate from price change
-    volumeChangePct = Number(priceChange1h) * 0.5;
   }
 
-  const isEstimated = !(row.volume_change_1h_pct != null && !Number.isNaN(Number(row.volume_change_1h_pct)));
+  const isEstimated = Boolean(row.volume_change_is_estimated);
 
   return {
     // canonical fields used across UI
@@ -30,7 +25,7 @@ export function normalizeBannerRow(row: any) {
     priceChange1h: priceChange1h == null ? null : Number(priceChange1h),
     volumeNow,
     volumeChangePct: volumeChangePct == null ? null : Number(volumeChangePct),
-    volumeChangeIsEstimated: Boolean(row.volume_change_is_estimated ?? isEstimated),
+    volumeChangeIsEstimated: isEstimated,
     // keep raw for debugging
     _raw: row,
   };

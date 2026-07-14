@@ -256,6 +256,8 @@ const parseSocialMetrics = (value) => {
     posts60m: toNumber(root.posts_60m ?? root.posts60m),
     posts24h: toNumber(root.posts_24h ?? root.posts24h),
     uniqueAuthors24h: toNumber(root.unique_authors_24h ?? root.uniqueAuthors24h),
+    trendingRank: toNumber(root.trending_rank ?? root.trendingRank),
+    trendingSource: String(root.trending_source ?? root.trendingSource ?? '').trim() || null,
     source: String(root.source || '').trim().toLowerCase() || null,
     updatedAt: root.updated_at ?? root.updatedAt ?? null,
   };
@@ -285,6 +287,7 @@ const parseIntel = (payload) => {
       items: Array.isArray(social.items) ? social.items : [],
       metrics: parseSocialMetrics(social.metrics),
     },
+    providers: Array.isArray(root.providers) ? root.providers : [],
     ts: root.ts || null,
   };
 };
@@ -365,6 +368,115 @@ const priorityFamilyBonus = (alert, bucket) => {
     return 4;
   }
   return 0;
+};
+
+const alertTradeSemantics = (alert) => {
+  const raw = rawTypeKey(alert);
+  if (!raw) {
+    return {
+      label: 'NO SIGNAL',
+      tone: 'neutral',
+      intent: 'No alert family is driving this coin yet.',
+      reason: 'Wait for tape, volume, or sentiment context to confirm.',
+    };
+  }
+
+  if (raw.includes('fakeout')) {
+    return {
+      label: 'NO CHASE',
+      tone: 'negative',
+      intent: 'Breakout rejected. Do not buy extension.',
+      reason: 'Needs reclaim plus fresh tape confirmation.',
+    };
+  }
+  if (raw.includes('exhaustion_top') || raw.includes('exhaustion')) {
+    return {
+      label: 'PROTECT',
+      tone: 'negative',
+      intent: 'Late momentum is losing energy.',
+      reason: 'Tighten risk; avoid new late entries until reset.',
+    };
+  }
+  if (raw.includes('crater') || raw.includes('dump') || raw.includes('breadth_failure') || raw.includes('persistent_loser') || raw.includes('trend_break_down') || raw.includes('reversal_down')) {
+    return {
+      label: 'AVOID LONG',
+      tone: 'negative',
+      intent: 'Downside pressure is active.',
+      reason: 'Wait for reclaim/base formation before buying.',
+    };
+  }
+  if (raw.includes('divergence')) {
+    return {
+      label: 'TRAP RISK',
+      tone: 'negative',
+      intent: 'Price, volume, or timeframes disagree.',
+      reason: 'Require confirmation before acting on the move.',
+    };
+  }
+  if (raw.includes('liquidity_shock') || raw.includes('stealth') || raw.includes('whale')) {
+    return {
+      label: 'WATCH',
+      tone: 'neutral',
+      intent: 'Participation is showing before clean direction.',
+      reason: 'Useful early smoke, not a buy by itself.',
+    };
+  }
+  if (raw.includes('breadth_thrust') || raw.includes('trend_break_up')) {
+    return {
+      label: 'BUY WATCH',
+      tone: 'positive',
+      intent: 'Upside pressure has broader support.',
+      reason: 'Favor pullbacks or clean retests over chasing.',
+    };
+  }
+  if (raw.includes('moonshot') || raw.includes('breakout') || raw.includes('squeeze_break') || raw.includes('persistent_gainer')) {
+    return {
+      label: 'RECONFIRM',
+      tone: 'positive',
+      intent: 'Momentum is active, but extension risk is real.',
+      reason: 'Buy quality improves after a hold/retest, not at max stretch.',
+    };
+  }
+  if (raw.includes('fomo')) {
+    return {
+      label: 'HIGH HEAT',
+      tone: 'neutral',
+      intent: 'Coin is accelerating in hot tape.',
+      reason: 'High opportunity and high chase risk; demand a fresh push.',
+    };
+  }
+  if (raw.includes('reversal_up')) {
+    return {
+      label: 'RECLAIM WATCH',
+      tone: 'neutral',
+      intent: 'A bullish flip is starting.',
+      reason: 'Better after retest holds above the reclaim.',
+    };
+  }
+
+  const bucket = priorityBucketForAlert(alert);
+  if (bucket === 'bullish') {
+    return {
+      label: 'BUY WATCH',
+      tone: 'positive',
+      intent: 'Upside tape is present.',
+      reason: 'Confirm with volume, breadth, and freshness.',
+    };
+  }
+  if (bucket === 'bearish') {
+    return {
+      label: 'AVOID LONG',
+      tone: 'negative',
+      intent: 'Bearish tape is present.',
+      reason: 'Wait for a reclaim before buying.',
+    };
+  }
+  return {
+    label: 'WATCH',
+    tone: 'neutral',
+    intent: 'Signal needs context.',
+    reason: 'Use this as attention, not as a standalone entry.',
+  };
 };
 
 const toEpochMs = (value) => {
@@ -977,6 +1089,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const socialPosts60m = toNumber(socialMetrics?.posts60m);
   const socialPosts24h = toNumber(socialMetrics?.posts24h);
   const socialUniqueAuthors24h = toNumber(socialMetrics?.uniqueAuthors24h);
+  const socialTrendingRank = toNumber(socialMetrics?.trendingRank);
+  const socialTrendingSource = String(socialMetrics?.trendingSource || '').trim() || null;
   const socialSentiment = socialMetrics?.sentiment24h || null;
   const socialSentimentLabel = String(socialSentiment?.label || '').trim() || null;
   const socialSentimentNet = toNumber(socialSentiment?.netScore);
@@ -1021,6 +1135,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     (socialRank !== null && socialRank > 0) ||
     (socialPosts60m !== null && socialPosts60m > 0) ||
     (socialUniqueAuthors24h !== null && socialUniqueAuthors24h > 0) ||
+    (socialTrendingRank !== null && socialTrendingRank > 0) ||
     Boolean(socialSentimentDisplay) ||
     Boolean(socialUpdatedAt)
   ), [
@@ -1031,6 +1146,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     socialRank,
     socialPosts60m,
     socialUniqueAuthors24h,
+    socialTrendingRank,
     socialSentimentDisplay,
     socialUpdatedAt,
   ]);
@@ -1059,6 +1175,23 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     }
     return null;
   }, [change3m, socialHeat, socialHeatTrend, socialIsProxy]);
+
+  const providerRows = useMemo(() => (
+    Array.isArray(coinIntel?.providers) ? coinIntel.providers : []
+  ), [coinIntel]);
+
+  const providerSummary = useMemo(() => {
+    if (!providerRows.length) return 'Provider map unavailable';
+    const active = providerRows.filter((row) => {
+      const status = String(row?.status || '').toLowerCase();
+      return ['live', 'stale', 'configured', 'quiet'].includes(status);
+    }).length;
+    const missing = providerRows.filter((row) => {
+      const status = String(row?.status || '').toLowerCase();
+      return ['offline', 'not_configured'].includes(status);
+    }).length;
+    return `${active} active/configured · ${missing} missing`;
+  }, [providerRows]);
 
   const dataStaleAgeSeconds = useMemo(() => {
     if (Number.isFinite(staleSeconds)) return Math.max(0, Number(staleSeconds));
@@ -1285,6 +1418,93 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     return { label: 'Wait', detail: 'Nothing here deserves urgency yet.', tone: 'neutral' };
   }, [metricsReady, coinHero]);
 
+  const quickBuyRead = useMemo(() => {
+    if (!metricsReady) {
+      return {
+        label: 'WAIT',
+        tone: 'neutral',
+        intent: 'Tape is still warming.',
+        reason: 'Do not use the coin read until the 1m/3m windows and baselines are populated.',
+        sentiment: 'No reliable sentiment context yet.',
+        confirmation: 'Need live tape first.',
+      };
+    }
+
+    const topAlert = coinAlerts[0] || null;
+    const semantic = alertTradeSemantics(topAlert);
+    const hasFreshConfirm = freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS;
+    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const breadthDown = Number(marketPressureSummary?.breadth_down ?? 0) || 0;
+    const breadthText = breadthUp >= 0.56
+      ? 'breadth supports upside'
+      : breadthUp <= 0.44
+        ? 'breadth is hostile'
+        : breadthDown >= 0.56
+          ? 'breadth supports downside'
+          : 'breadth is mixed';
+    const attentionParts = [];
+    if (socialTrendingRank !== null && socialTrendingRank > 0) {
+      attentionParts.push(`trending #${socialTrendingRank}${socialTrendingSource ? ` via ${socialTrendingSource}` : ''}`);
+    }
+    if (socialVolume24h !== null && socialVolume24h > 0) {
+      attentionParts.push(`${formatCompactNumber(socialVolume24h)} 24h social mentions`);
+    }
+    if (socialActionLine) {
+      attentionParts.push(socialActionLine);
+    } else if (socialIsProxy && hasMeaningfulSocialMetrics) {
+      attentionParts.push('attention proxy only; no true social sentiment score');
+    } else if (!hasMeaningfulSocialMetrics) {
+      attentionParts.push('no meaningful external sentiment driver');
+    }
+
+    let label = semantic.label;
+    let tone = semantic.tone;
+    let intent = semantic.intent;
+    let confirmation = `${volumeConfirms ? 'volume confirms' : 'volume missing'} · ${breadthText}`;
+
+    if (semantic.tone === 'positive') {
+      if (!volumeConfirms || !hasFreshConfirm || breadthUp < 0.45 || signalFlags.hasFakeout || signalFlags.hasExhaustion) {
+        label = 'RECONFIRM';
+        tone = 'neutral';
+        intent = 'Upside exists, but it is not clean enough for a blind quick buy.';
+        confirmation = `${hasFreshConfirm ? 'fresh' : 'needs fresh push'} · ${confirmation}`;
+      } else if (coinHero.state === 'Dominant' || coinHero.state === 'Building') {
+        label = 'BUY WATCH';
+        tone = 'positive';
+        intent = 'Fast tape, participation, and context are aligned enough to watch for an entry.';
+      }
+    }
+
+    if (semantic.tone === 'negative' || coinHero.state === 'Fragile' || coinHero.state === 'Fading') {
+      label = semantic.label === 'NO SIGNAL' ? 'WAIT' : semantic.label;
+      tone = 'negative';
+      intent = semantic.intent;
+    }
+
+    return {
+      label,
+      tone,
+      intent,
+      reason: semantic.reason,
+      sentiment: attentionParts.filter(Boolean).slice(0, 2).join(' · '),
+      confirmation,
+    };
+  }, [
+    metricsReady,
+    coinAlerts,
+    freshAgeMs,
+    marketPressureSummary,
+    socialTrendingRank,
+    socialTrendingSource,
+    socialVolume24h,
+    socialActionLine,
+    socialIsProxy,
+    hasMeaningfulSocialMetrics,
+    volumeConfirms,
+    signalFlags,
+    coinHero,
+  ]);
+
   const pulseTrigger = useMemo(() => {
     if (!metricsReady) return 'Need more tape';
     if (freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS) return `Fresh ${ageLabel(freshAgeMs)}`;
@@ -1403,9 +1623,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const intelSupport = useMemo(() => ([
     { label: 'Attention', value: socialHeatTrend ? (socialHeatTrend === 'rising' ? 'Rising' : socialHeatTrend === 'collapsing' ? 'Fading' : 'Flat') : 'Quiet', tone: socialHeatTrend === 'rising' ? 'positive' : socialHeatTrend === 'collapsing' ? 'negative' : 'neutral' },
     { label: 'Source mix', value: socialSourceLabel || (coinIntel?.events?.items?.length ? 'Events only' : 'Tape only'), tone: 'neutral' },
+    { label: 'Provider map', value: providerSummary, tone: providerRows.length ? 'neutral' : 'negative' },
     { label: 'Trust level', value: coinIntelError ? 'Low' : coinIntel?.status === 'live' ? 'High' : 'Medium', tone: coinIntelError ? 'negative' : coinIntel?.status === 'live' ? 'positive' : 'neutral' },
     { label: 'Last external update', value: humanTime(socialUpdatedAt || coinIntel?.ts), tone: 'neutral' },
-  ]), [socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError, socialUpdatedAt]);
+  ]), [socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError, socialUpdatedAt, providerSummary, providerRows.length]);
 
   const handleOverlayClick = (event) => {
     if (event.target.classList.contains('sentiment-overlay')) onClose();
@@ -1629,6 +1850,21 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   </section>
 
                   <section className="cp-section">
+                    <article className={`cp-quick-read cp-quick-read--${quickBuyRead.tone}`}>
+                      <div className="cp-quick-read__main">
+                        <span className="cp-quick-read__eyebrow">Quick Buy Read</span>
+                        <strong className="cp-quick-read__label">{quickBuyRead.label}</strong>
+                        <p>{quickBuyRead.intent}</p>
+                      </div>
+                      <div className="cp-quick-read__checks">
+                        <span>{quickBuyRead.confirmation}</span>
+                        <span>{quickBuyRead.sentiment || 'sentiment/attention unavailable'}</span>
+                        <span>{quickBuyRead.reason}</span>
+                      </div>
+                    </article>
+                  </section>
+
+                  <section className="cp-section">
                     <SupportRail items={pulseSupportRail} />
                   </section>
 
@@ -1766,6 +2002,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                               <strong>#{Math.round(socialRank)}</strong>
                             </div>
                           ) : null}
+                          {socialTrendingRank !== null && socialTrendingRank > 0 ? (
+                            <div className="mw-chip positive">
+                              <span>CoinGecko Trending</span>
+                              <strong>#{Math.round(socialTrendingRank)}</strong>
+                            </div>
+                          ) : null}
                           {socialUniqueAuthors24h !== null && socialUniqueAuthors24h > 0 ? (
                             <div className="mw-chip neutral">
                               <span>Authors 24h</span>
@@ -1792,12 +2034,46 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                           ) : null}
                         </div>
                         {socialIsProxy ? (
-                          <div className="coin-history-note">Community proxy (not sentiment).</div>
+                          <div className="coin-history-note">
+                            Community proxy only: this is audience/search/context data, not direct Reddit/X sentiment.
+                            {socialTrendingSource ? ` Trending source: ${socialTrendingSource}.` : ''}
+                          </div>
                         ) : null}
                         {socialActionLine ? <div className="coin-history-note mw-intel-action">{socialActionLine}</div> : null}
                       </>
                     ) : (
                       <div className="tab-empty tab-empty--compact">No meaningful external context detected. Treat this as tape-first until something confirms.</div>
+                    )}
+                  </div>
+
+                  <div className="info-section">
+                    <div className="section-header">
+                      <h3>Source Coverage</h3>
+                      <p className="section-desc">What the app could actually read for this coin. Missing providers are shown explicitly.</p>
+                    </div>
+                    {providerRows.length ? (
+                      <div className="feed-list">
+                        {providerRows.map((provider, idx) => {
+                          const status = String(provider?.status || 'unknown').toLowerCase();
+                          const isGood = ['live', 'stale', 'configured'].includes(status);
+                          const isMissing = ['offline', 'not_configured'].includes(status);
+                          return (
+                            <div className="news-item" key={`provider-${provider?.name || idx}`}>
+                              <div className="news-item-header">
+                                <span className="news-item-source">{provider?.name || 'Provider'}</span>
+                                <span className={`news-item-time ${isGood ? 'positive' : isMissing ? 'negative' : ''}`}>
+                                  {status.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              <div className="news-item-title">
+                                {provider?.detail || provider?.scope || 'No provider detail available.'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="tab-empty tab-empty--compact">Provider coverage map unavailable.</div>
                     )}
                   </div>
 

@@ -9,12 +9,18 @@ import {
 import { tickerFromSymbol } from "../utils/format";
 import { getBackendCandidates, normalizeBase } from "../config/api.js";
 
-const STORAGE_KEY = "bhabit_watchlist_v2";
+const STORAGE_KEY = "mw_watchlist";
+const LEGACY_STORAGE_KEY = "bhabit_watchlist_v2";
 const WatchlistContext = createContext(null);
 
 const normalizeSymbol = (value) => {
   const ticker = tickerFromSymbol(value) || value;
   return String(ticker || "").trim().toUpperCase();
+};
+
+const canonicalProductId = (value) => {
+  const symbol = normalizeSymbol(value);
+  return symbol ? `${symbol}-USD` : "";
 };
 
 const toAddedPrice = (value) => {
@@ -23,8 +29,9 @@ const toAddedPrice = (value) => {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 };
 
-const buildGuestItem = ({ symbol, addedPrice, addedAt, id = null }) => ({
+const buildGuestItem = ({ symbol, productId, addedPrice, addedAt, id = null }) => ({
   id: id || `guest-${symbol}-${addedAt || Date.now()}`,
+  productId: canonicalProductId(productId || symbol),
   symbol,
   addedPrice,
   addedAt: addedAt || Date.now(),
@@ -34,15 +41,20 @@ const dedupeItems = (items = []) => {
   const seen = new Set();
   const out = [];
   for (const entry of items) {
-    const symbol = normalizeSymbol(entry?.symbol);
-    if (!symbol || seen.has(symbol)) continue;
-    seen.add(symbol);
+    const productId = canonicalProductId(
+      entry?.product_id || entry?.productId || entry?.itemKey || entry?.symbol
+    );
+    const symbol = normalizeSymbol(productId || entry?.symbol);
+    if (!productId || !symbol || seen.has(productId)) continue;
+    seen.add(productId);
     out.push(
       buildGuestItem({
         id: entry?.id || entry?.itemId || null,
+        productId,
         symbol,
-        addedPrice: toAddedPrice(entry?.addedPrice),
-        addedAt: entry?.addedAt || entry?.createdAt || Date.now(),
+        addedPrice: toAddedPrice(entry?.added_price ?? entry?.addedPrice),
+        addedAt:
+          entry?.added_ts_ms || entry?.addedAt || entry?.createdAt || Date.now(),
       })
     );
   }
@@ -51,9 +63,16 @@ const dedupeItems = (items = []) => {
 
 function readGuestItems() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const canonicalRaw = localStorage.getItem(STORAGE_KEY);
+    const legacyRaw = canonicalRaw ? null : localStorage.getItem(LEGACY_STORAGE_KEY);
+    const raw = canonicalRaw || legacyRaw;
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? dedupeItems(parsed) : [];
+    const items = Array.isArray(parsed) ? dedupeItems(parsed) : [];
+    if (!canonicalRaw && legacyRaw) {
+      writeGuestItems(items);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    return items;
   } catch {
     return [];
   }
@@ -69,18 +88,22 @@ function writeGuestItems(items = []) {
 
 function serializeGuestItems(items = []) {
   return items.map((entry) => ({
-    id: entry.id || null,
+    product_id: canonicalProductId(entry.productId || entry.symbol),
     symbol: normalizeSymbol(entry.symbol),
-    addedPrice: toAddedPrice(entry.addedPrice),
-    addedAt: entry.addedAt || Date.now(),
+    added_price: toAddedPrice(entry.addedPrice),
+    added_ts_ms: entry.addedAt || Date.now(),
   }));
 }
 
 function normalizeBackendItem(item = {}) {
-  const symbol = normalizeSymbol(item.itemKey || item.symbol || item.title);
+  const productId = canonicalProductId(
+    item.product_id || item.productId || item.itemKey || item.symbol || item.title
+  );
+  const symbol = normalizeSymbol(productId);
   if (!symbol) return null;
   return {
     id: item.id || null,
+    productId,
     symbol,
     addedPrice: toAddedPrice(item.addedPrice),
     addedAt: item.addedAt || item.createdAt || Date.now(),
@@ -204,13 +227,14 @@ export function WatchlistProvider({ children }) {
       (primary.items || [])
         .map(normalizeBackendItem)
         .filter(Boolean)
-        .map((entry) => entry.symbol)
+        .map((entry) => entry.productId)
     );
 
     const pending = guestItems.filter((entry) => {
       const symbol = normalizeSymbol(entry.symbol);
+      const productId = canonicalProductId(entry.productId || symbol);
       const addedPrice = toAddedPrice(entry.addedPrice);
-      return symbol && addedPrice !== null && !existingSymbols.has(symbol);
+      return productId && addedPrice !== null && !existingSymbols.has(productId);
     });
 
     if (pending.length === 0) {
@@ -228,8 +252,9 @@ export function WatchlistProvider({ children }) {
 
     for (const entry of pending) {
       const symbol = normalizeSymbol(entry.symbol);
+      const productId = canonicalProductId(entry.productId || symbol);
       const addedPrice = toAddedPrice(entry.addedPrice);
-      if (!symbol || addedPrice === null) {
+      if (!productId || !symbol || addedPrice === null) {
         continue;
       }
 
@@ -239,7 +264,7 @@ export function WatchlistProvider({ children }) {
           {
             method: "POST",
             body: {
-              itemKey: symbol,
+              itemKey: productId,
               itemType: "Asset",
               title: symbol,
               notes: "",
@@ -283,7 +308,7 @@ export function WatchlistProvider({ children }) {
 
         if (cancelled) return;
 
-        if (result.ok) {
+        if (result.ok && result.payload?.authenticated) {
           const synced = await syncGuestItemsToBackend(
             result.payload?.watchlists || [],
             result.base
@@ -322,25 +347,33 @@ export function WatchlistProvider({ children }) {
 
   const has = useCallback(
     (symbol) => {
-      const normalized = normalizeSymbol(symbol);
-      return items.some((entry) => normalizeSymbol(entry.symbol) === normalized);
+      const productId = canonicalProductId(symbol);
+      return items.some(
+        (entry) => canonicalProductId(entry.productId || entry.symbol) === productId
+      );
     },
     [items]
   );
 
   const addGuestItem = useCallback(({ symbol, price = null, baseline = null }) => {
     const normalized = normalizeSymbol(symbol);
+    const productId = canonicalProductId(normalized);
     const addedPrice = toAddedPrice(baseline ?? price);
     if (!normalized || addedPrice === null) return;
 
     setItems((current) => {
-      if (current.some((entry) => normalizeSymbol(entry.symbol) === normalized)) {
+      if (
+        current.some(
+          (entry) => canonicalProductId(entry.productId || entry.symbol) === productId
+        )
+      ) {
         return current;
       }
       return [
         ...current,
         buildGuestItem({
           symbol: normalized,
+          productId,
           addedPrice,
           addedAt: Date.now(),
         }),
@@ -349,15 +382,18 @@ export function WatchlistProvider({ children }) {
   }, []);
 
   const removeGuestItem = useCallback((symbol) => {
-    const normalized = normalizeSymbol(symbol);
+    const productId = canonicalProductId(symbol);
     setItems((current) =>
-      current.filter((entry) => normalizeSymbol(entry.symbol) !== normalized)
+      current.filter(
+        (entry) => canonicalProductId(entry.productId || entry.symbol) !== productId
+      )
     );
   }, []);
 
   const add = useCallback(
     async ({ symbol, baseline = null, price = null }) => {
       const normalized = normalizeSymbol(symbol);
+      const productId = canonicalProductId(normalized);
       const addedPrice = toAddedPrice(baseline ?? price);
       if (!normalized) return;
 
@@ -374,7 +410,7 @@ export function WatchlistProvider({ children }) {
           {
             method: "POST",
             body: {
-              itemKey: normalized,
+              itemKey: productId,
               itemType: "Asset",
               title: normalized,
               notes: "",

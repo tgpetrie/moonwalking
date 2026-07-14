@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT="${PORT:-5001}"
+PORT="${PORT:-5003}"
 HOST="${HOST:-127.0.0.1}"
 
 echo "[strict] starting backend on ${HOST}:${PORT} (no auto-port fallback)"

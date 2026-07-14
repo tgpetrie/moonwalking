@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const STORAGE_KEY = "bhabit_watchlist_v2";
+const STORAGE_KEY = "mw_watchlist";
+const LEGACY_STORAGE_KEY = "bhabit_watchlist_v2";
 
 describe("WatchlistContext", () => {
   beforeEach(() => {
@@ -18,7 +19,14 @@ describe("WatchlistContext", () => {
   it("falls back to guest localStorage items when no authenticated session exists", async () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify([{ symbol: "BTC", addedPrice: 100000, addedAt: 123 }])
+      JSON.stringify([
+        {
+          product_id: "BTC-USD",
+          symbol: "BTC",
+          added_price: 100000,
+          added_ts_ms: 123,
+        },
+      ])
     );
 
     const fetchMock = vi.fn(async (url) => {
@@ -133,10 +141,17 @@ describe("WatchlistContext", () => {
     expect(screen.getByText("2500")).toBeInTheDocument();
   });
 
-  it("migrates legacy local watchlist items into the authenticated backend watchlist", async () => {
+  it("syncs canonical local watchlist items into the authenticated backend watchlist", async () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify([{ symbol: "BTC", addedPrice: 100000, addedAt: 123 }])
+      JSON.stringify([
+        {
+          product_id: "BTC-USD",
+          symbol: "BTC",
+          added_price: 100000,
+          added_ts_ms: 123,
+        },
+      ])
     );
 
     const fetchMock = vi.fn(async (url, options = {}) => {
@@ -177,7 +192,7 @@ describe("WatchlistContext", () => {
         options.method === "POST"
       ) {
         const body = JSON.parse(options.body);
-        expect(body.itemKey).toBe("BTC");
+        expect(body.itemKey).toBe("BTC-USD");
         expect(body.addedPrice).toBe(100000);
         return {
           ok: true,
@@ -236,5 +251,47 @@ describe("WatchlistContext", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("[]");
+  });
+
+  it("migrates the old guest key without losing saved items", async () => {
+    window.localStorage.setItem(
+      LEGACY_STORAGE_KEY,
+      JSON.stringify([{ symbol: "SOL", addedPrice: 75, addedAt: 456 }])
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: async () => ({ authenticated: false, user: null, watchlists: [] }),
+      }))
+    );
+
+    const { WatchlistProvider, useWatchlist } = await import("./WatchlistContext.jsx");
+
+    function Probe() {
+      const { items, ready } = useWatchlist();
+      return <div>{ready ? items.map((item) => item.productId).join(",") : "loading"}</div>;
+    }
+
+    render(
+      <WatchlistProvider>
+        <Probe />
+      </WatchlistProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText("SOL-USD")).toBeInTheDocument());
+
+    expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY))).toEqual([
+      {
+        product_id: "SOL-USD",
+        symbol: "SOL",
+        added_price: 75,
+        added_ts_ms: 456,
+      },
+    ]);
   });
 });

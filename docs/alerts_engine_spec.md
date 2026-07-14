@@ -74,6 +74,49 @@ Thresholds and cooldown/dedupe parameters live in:
 
 - `backend/alerts_engine.py` (`DEFAULT_THRESHOLDS`)
 
+## Operator meaning
+
+Alerts should be treated as scan/attention signals. The UI translates alert families into quick-read trading intent:
+
+| Alert family | UI intent | Notes |
+|---|---|---|
+| `moonshot`, `breakout`, `coin_squeeze_break`, `coin_persistent_gainer`, `coin_fomo` | `RECONFIRM` | Strong move, but high chase risk. Needs fresh hold/retest/volume. |
+| `coin_breadth_thrust`, `coin_trend_break_up` | `BUY WATCH` | Better setup quality because breadth or trend structure supports the move. |
+| `whale_move`, `stealth_move`, `coin_liquidity_shock` | `WATCH` | Participation/volume smoke before clean direction. Not a standalone buy signal. |
+| `coin_fakeout`, `divergence`, `coin_exhaustion_*` | `NO CHASE` / `TRAP RISK` / `PROTECT` | Risk-control families. Avoid buying extension until reclaim. |
+| `crater`, `dump`, `coin_breadth_failure`, `coin_trend_break_down`, `coin_persistent_loser`, `coin_reversal_down` | `AVOID LONG` | Downside pressure or failed support. |
+
+The UI may downgrade a bullish family from `BUY WATCH` to `RECONFIRM` when freshness, volume, or breadth is missing. It must not promote proxy social data to real coin sentiment.
+
+## Default threshold summary
+
+These are current defaults from `DEFAULT_THRESHOLDS`:
+
+| Key | Default |
+|---|---:|
+| `moonshot_1m_pct` | `1.00` |
+| `moonshot_3m_pct` | `2.60` |
+| `breakout_1m_pct` | `0.55` |
+| `breakout_3m_pct` | `1.90` |
+| `impulse_1m_pct` | `1.25` |
+| `impulse_3m_pct` | `2.0` |
+| `whale_z_score` | `3.0` |
+| `whale_cluster_z` | `2.5` |
+| `whale_candle_pct` | `0.3` |
+| `whale_surge_1h_pct` | `150.0` |
+| `stealth_vol_min_pct` | `110.0` |
+| `stealth_price_max_abs_pct` | `1.2` |
+| `divergence_1m_threshold` / `divergence_3m_threshold` | `0.65` |
+| `coin_fomo_mpi_min` | `72` |
+| `coin_fomo_pct3m_min` / `coin_fomo_pct1m_min` | `1.8` / `0.6` |
+| `coin_thrust_breadth_min` | `0.65` |
+| `coin_failure_breadth_max` | `0.35` |
+| `persist_min_streak` | `3` |
+| `liq_shock_z_min` | `2.6` |
+| `squeeze_break_pct_1m_min` | `0.8` |
+| `exhaustion_min_streak` | `4` |
+| `alerts_max_total` / `alerts_max_per_symbol` | `24` / `2` |
+
 ## Cooldown / dedupe
 
 Engine-level dedupe:

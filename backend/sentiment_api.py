@@ -8,21 +8,38 @@ import contextlib
 import logging
 import math
 import os
-import random
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.sentiment.providers import get_provider
 from backend.sentiment.source_loader import load_sources, SentimentSourceLoaderError
 
 logger = logging.getLogger("sentiment_api")
-app = FastAPI(title="Moonwalking Sentiment API")
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(application: FastAPI):
+    task = None
+    if SENTIMENT_CACHE_TTL > 0:
+        task = asyncio.create_task(_cache_refresher_loop())
+        application.state.sentiment_cache_task = task
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
+app = FastAPI(title="Moonwalking Sentiment API", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,17 +86,17 @@ class SocialPlatform(str, Enum):
 
 
 class SentimentMetric(BaseModel):
-    overall_sentiment: float
-    fear_greed_index: int
-    social_volume_change: float
-    trend: str
+    overall_sentiment: Optional[float] = None
+    fear_greed_index: Optional[int] = None
+    social_volume_change: Optional[float] = None
+    trend: Optional[str] = None
 
 
 class SocialBreakdown(BaseModel):
-    reddit: float
-    twitter: float
-    telegram: float
-    chan: float
+    reddit: Optional[float] = None
+    twitter: Optional[float] = None
+    telegram: Optional[float] = None
+    chan: Optional[float] = None
 
 
 class SourceBreakdown(BaseModel):
@@ -112,21 +129,26 @@ class DataSource(BaseModel):
 
 
 class SentimentResponse(BaseModel):
-    overall_sentiment: float
+    overall_sentiment: Optional[float] = None
     fear_greed_index: Optional[int] = None
-    social_metrics: Dict[str, Any]
-    social_breakdown: SocialBreakdown
-    source_breakdown: SourceBreakdown
-    sentiment_history: List[HistoricalPoint]
-    social_history: List[SocialHistoryPoint]
-    trending_topics: List[Dict[str, str]]
-    divergence_alerts: List[Dict[str, str]]
+    social_metrics: Dict[str, Any] = Field(default_factory=dict)
+    social_breakdown: SocialBreakdown = Field(default_factory=SocialBreakdown)
+    source_breakdown: SourceBreakdown = Field(
+        default_factory=lambda: SourceBreakdown(tier1=0, tier2=0, tier3=0, fringe=0)
+    )
+    sentiment_history: List[HistoricalPoint] = Field(default_factory=list)
+    social_history: List[SocialHistoryPoint] = Field(default_factory=list)
+    trending_topics: List[Dict[str, str]] = Field(default_factory=list)
+    divergence_alerts: List[Dict[str, str]] = Field(default_factory=list)
     fear_greed: Optional[Dict[str, Any]] = None
     market_pulse: Optional[Dict[str, Any]] = None
     timestamp: Optional[datetime] = None
     confidence: Optional[float] = None
     regime: Optional[str] = None
     reasons: Optional[List[str]] = None
+    scope: str = "market_wide"
+    data_status: str = "offline"
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 _STATIC_DATA_SOURCES = [
@@ -135,63 +157,63 @@ _STATIC_DATA_SOURCES = [
         description="Institutional news & analysis",
         tier=SentimentTier.TIER_1,
         trust_weight=0.9,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="CoinDesk",
         description="Leading crypto journalism",
         tier=SentimentTier.TIER_1,
         trust_weight=0.85,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="Fear & Greed Index",
         description="Market sentiment gauge",
         tier=SentimentTier.TIER_1,
         trust_weight=0.9,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="r/CryptoCurrency",
         description="Main crypto community (5M+ members)",
         tier=SentimentTier.TIER_2,
         trust_weight=0.7,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="LunarCrush",
         description="Social intelligence platform",
         tier=SentimentTier.TIER_2,
         trust_weight=0.75,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="CryptoSlate",
         description="Community-driven news",
         tier=SentimentTier.TIER_2,
         trust_weight=0.65,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="r/SatoshiStreetBets",
         description="Retail trading community",
         tier=SentimentTier.TIER_3,
         trust_weight=0.5,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="Telegram Channels",
         description="Early retail signals",
         tier=SentimentTier.TIER_3,
         trust_weight=0.45,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
     DataSource(
         name="4chan /biz/",
         description="Fringe discussion board",
         tier=SentimentTier.FRINGE,
         trust_weight=0.3,
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc),
     ),
 ]
 
@@ -214,9 +236,9 @@ def _hydrate_data_sources(entries: List[Dict[str, Any]]) -> List[DataSource]:
             try:
                 last_dt = datetime.fromisoformat(last_updated)
             except ValueError:
-                last_dt = datetime.utcnow()
+                last_dt = datetime.now(timezone.utc)
         else:
-            last_dt = datetime.utcnow()
+            last_dt = datetime.now(timezone.utc)
 
         hydrated.append(
             DataSource(
@@ -259,7 +281,7 @@ async def _hydrate_sentiment_cache(force: bool = False) -> SentimentResponse:
     if SENTIMENT_CACHE_TTL <= 0 and not force:
         return await _build_sentiment_payload()
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if (
         not force
         and _SENTIMENT_CACHE
@@ -275,112 +297,129 @@ async def _hydrate_sentiment_cache(force: bool = False) -> SentimentResponse:
 
 
 async def _build_sentiment_payload() -> SentimentResponse:
-    base_payload: Dict[str, Any] = {}
+    """Build a real-only market-wide sentiment snapshot.
+
+    Missing providers stay missing. The service never manufactures social
+    scores, histories, topics, or divergence alerts to fill UI space.
+    """
+    provider_payload: Dict[str, Any] = {}
 
     if USE_REAL_SENTIMENT:
         provider = get_provider(SENTIMENT_PROVIDER_NAME)
         if provider:
             try:
                 data = await provider.fetch_latest()
-                base_payload = dict(data or {})
+                provider_payload = dict(data or {})
             except Exception:
                 logger.exception(
-                    "Sentiment provider '%s' failed; falling back to mocks",
+                    "Sentiment provider '%s' failed; continuing with public sources",
                     provider.name,
                 )
         else:
             logger.warning("USE_REAL_SENTIMENT=1 but no provider is registered")
 
-    if not base_payload:
-        base_payload = {
-            "overall_sentiment": generate_sentiment_score(),
-            "social_metrics": {
-                "volume_change": round(random.uniform(-20, 30), 1),
-                "engagement_rate": round(random.uniform(0.5, 0.9), 2),
-                "mentions_24h": random.randint(10000, 50000),
-            },
-            "social_breakdown": generate_social_breakdown(),
-            "source_breakdown": _current_source_breakdown(),
-            "sentiment_history": generate_sentiment_history(7),
-            "social_history": generate_social_history(7),
-            "trending_topics": generate_trending_topics(),
-            "divergence_alerts": generate_divergence_alerts(),
-        }
-
-    # Canonical fear & greed
-    fear_greed_payload = await _get_fear_greed_payload()
-    if fear_greed_payload is not None:
-        base_payload["fear_greed"] = fear_greed_payload
-        base_payload["fear_greed_index"] = fear_greed_payload.get("value")
-    else:
-        base_payload["fear_greed"] = None
-        base_payload["fear_greed_index"] = None
-
-    # Canonical market pulse
-    market_pulse_payload = await _get_market_pulse_payload()
-    base_payload["market_pulse"] = market_pulse_payload
-
-    # Always stamp current response time
-    base_payload["timestamp"] = datetime.utcnow().replace(tzinfo=timezone.utc)
-
-    # Confidence, regime, reasons (deterministic, no new sources)
-    confidence = _compute_confidence(base_payload)
-    # Need stability_gate and breadth_gate reused for reasons/regime
-    sb_raw = base_payload.get("source_breakdown") or {}
-    if hasattr(sb_raw, "dict"):
-        sb = sb_raw.dict()
-    else:
-        sb = sb_raw if isinstance(sb_raw, dict) else {}
-    total_sources = 0
-    for k in ("tier1", "tier2", "tier3", "fringe"):
-        try:
-            total_sources += int(
-                (sb.get(k) if isinstance(sb, dict) else getattr(sb, k, 0)) or 0
-            )
-        except Exception:
-            continue
-    if total_sources >= 10:
-        breadth_gate = 1.0
-    elif total_sources >= 6:
-        breadth_gate = 0.85
-    elif total_sources >= 3:
-        breadth_gate = 0.70
-    elif total_sources >= 1:
-        breadth_gate = 0.55
-    else:
-        breadth_gate = 0.40
-
-    sentiments = []
-    for p in base_payload.get("sentiment_history") or []:
-        try:
-            v = p.get("sentiment")
-            if v is None:
-                continue
-            f = float(v)
-            if math.isfinite(f):
-                sentiments.append(f)
-        except Exception:
-            continue
-    if len(sentiments) < 5:
-        stability_gate = 0.75
-    else:
-        sd = _stddev(sentiments) or 0.0
-        if sd <= 0.05:
-            stability_gate = 1.0
-        elif sd <= 0.10:
-            stability_gate = 0.85
-        elif sd <= 0.18:
-            stability_gate = 0.70
-        else:
-            stability_gate = 0.55
-
-    base_payload["confidence"] = confidence
-    base_payload["regime"] = _compute_regime(base_payload, confidence, stability_gate)
-    base_payload["reasons"] = _build_reasons(
-        base_payload, confidence, stability_gate, breadth_gate
+    fear_greed_payload, market_pulse_payload = await asyncio.gather(
+        _get_fear_greed_payload(),
+        _get_market_pulse_payload(),
     )
 
-    return SentimentResponse(**base_payload)
+    sources: List[Dict[str, Any]] = []
+    for name, source_payload in (
+        ("alternative_me", fear_greed_payload),
+        ("coingecko_global", market_pulse_payload),
+    ):
+        if not source_payload:
+            continue
+        sources.append(
+            {
+                "name": name,
+                "status": "stale" if source_payload.get("stale") else "live",
+                "tier": "tier1",
+                "scope": "market_wide",
+                "updated_at": source_payload.get("updated_at"),
+                "source_url": source_payload.get("source_url"),
+            }
+        )
+
+    provider_sources = provider_payload.get("sources")
+    if isinstance(provider_sources, list):
+        sources.extend(item for item in provider_sources if isinstance(item, dict))
+
+    if not sources:
+        data_status = "offline"
+    elif any(source.get("status") == "live" for source in sources):
+        data_status = "live"
+    else:
+        data_status = "stale"
+
+    fear_greed_index = (
+        fear_greed_payload.get("value") if fear_greed_payload is not None else None
+    )
+    overall_sentiment = _safe_float(provider_payload.get("overall_sentiment"))
+    if overall_sentiment is None and fear_greed_index is not None:
+        overall_sentiment = max(0.0, min(1.0, fear_greed_index / 100.0))
+
+    active_source_count = len(sources)
+    live_source_count = sum(source.get("status") == "live" for source in sources)
+    confidence = 0.0
+    if active_source_count:
+        confidence = min(1.0, (active_source_count / 2.0) * 0.8)
+        confidence *= 0.7 + (0.3 * live_source_count / active_source_count)
+        confidence = round(confidence, 3)
+
+    if data_status == "offline":
+        regime = "offline"
+    elif fear_greed_index is not None and fear_greed_index <= 25:
+        regime = "stressed"
+    elif fear_greed_index is not None and fear_greed_index >= 75:
+        regime = "heated"
+    else:
+        regime = "steady" if data_status == "live" else "unknown"
+
+    reasons: List[str] = []
+    if fear_greed_payload:
+        reasons.append(
+            f"Fear & Greed is {fear_greed_payload.get('label', 'Unknown')} "
+            f"({fear_greed_index})"
+            f"{' and stale' if fear_greed_payload.get('stale') else ''}."
+        )
+    if market_pulse_payload:
+        reasons.append(
+            "CoinGecko global market data is "
+            f"{'stale' if market_pulse_payload.get('stale') else 'live'}."
+        )
+    if not reasons:
+        reasons.append("No external sentiment source is currently available.")
+    if not provider_payload.get("social_metrics"):
+        reasons.append(
+            "Social sentiment is unavailable; no social provider is configured."
+        )
+
+    return SentimentResponse(
+        overall_sentiment=overall_sentiment,
+        fear_greed_index=fear_greed_index,
+        social_metrics=provider_payload.get("social_metrics") or {},
+        social_breakdown=provider_payload.get("social_breakdown") or {},
+        source_breakdown={
+            "tier1": active_source_count,
+            "tier2": 0,
+            "tier3": 0,
+            "fringe": 0,
+        },
+        sentiment_history=provider_payload.get("sentiment_history") or [],
+        social_history=provider_payload.get("social_history") or [],
+        trending_topics=provider_payload.get("trending_topics") or [],
+        divergence_alerts=provider_payload.get("divergence_alerts") or [],
+        fear_greed=fear_greed_payload,
+        market_pulse=market_pulse_payload,
+        timestamp=datetime.now(timezone.utc),
+        confidence=confidence,
+        regime=regime,
+        reasons=reasons,
+        scope="market_wide",
+        data_status=data_status,
+        sources=sources,
+    )
 
 
 async def _cache_refresher_loop() -> None:
@@ -399,93 +438,9 @@ def _current_source_breakdown() -> SourceBreakdown:
     return SourceBreakdown(**SOURCE_COUNTS)
 
 
-def generate_sentiment_score() -> float:
-    return round(0.5 + random.uniform(-0.3, 0.3), 2)
-
-
-def generate_fear_greed_index() -> int:
-    return random.randint(45, 85)
-
-
-def generate_social_breakdown() -> SocialBreakdown:
-    return SocialBreakdown(
-        reddit=round(random.uniform(0.6, 0.9), 2),
-        twitter=round(random.uniform(0.5, 0.8), 2),
-        telegram=round(random.uniform(0.7, 0.95), 2),
-        chan=round(random.uniform(0.3, 0.6), 2),
-    )
-
-
-def generate_source_breakdown() -> SourceBreakdown:
-    return _current_source_breakdown()
-
-
-def generate_sentiment_history(days: int = 7) -> List[HistoricalPoint]:
-    history: List[HistoricalPoint] = []
-    base_time = datetime.utcnow() - timedelta(days=days)
-    for i in range(days):
-        timestamp = base_time + timedelta(days=i)
-        sentiment = round(0.5 + (i * 0.05) + random.uniform(-0.1, 0.1), 2)
-        price = round(60 + (i * 2) + random.uniform(-3, 3), 2)
-        history.append(
-            HistoricalPoint(
-                timestamp=timestamp,
-                sentiment=sentiment,
-                price_normalized=price,
-            )
-        )
-    return history
-
-
-def generate_social_history(days: int = 7) -> List[SocialHistoryPoint]:
-    history: List[SocialHistoryPoint] = []
-    base_time = datetime.utcnow() - timedelta(days=days)
-    for i in range(days):
-        timestamp = base_time + timedelta(days=i)
-        history.append(
-            SocialHistoryPoint(
-                timestamp=timestamp,
-                reddit=round(0.65 + (i * 0.03) + random.uniform(-0.05, 0.05), 2),
-                twitter=round(0.58 + (i * 0.02) + random.uniform(-0.05, 0.05), 2),
-                telegram=round(0.70 + (i * 0.04) + random.uniform(-0.05, 0.05), 2),
-                chan=round(0.45 + random.uniform(-0.1, 0.1), 2),
-            )
-        )
-    return history
-
-
-def generate_trending_topics() -> List[Dict[str, str]]:
-    return [
-        {"tag": "#Bitcoin", "sentiment": "bullish", "volume": "+124%"},
-        {"tag": "#HODL", "sentiment": "bullish", "volume": "+89%"},
-        {"tag": "#Lightning", "sentiment": "bullish", "volume": "+45%"},
-        {"tag": "#ToTheMoon", "sentiment": "neutral", "volume": "+12%"},
-        {"tag": "#Correction", "sentiment": "bearish", "volume": "+67%"},
-    ]
-
-
-def generate_divergence_alerts() -> List[Dict[str, str]]:
-    alerts: List[Dict[str, str]] = []
-    if random.random() > 0.5:
-        alerts.append(
-            {
-                "type": "warning",
-                "message": "Divergence Detected: Fringe sources showing extreme bullishness (+45%) while Tier 1 sources remain neutral.",
-            }
-        )
-    if random.random() > 0.7:
-        alerts.append(
-            {
-                "type": "success",
-                "message": "Alignment: Chinese sources and Western sources are aligned, reducing regional risk.",
-            }
-        )
-    return alerts
-
-
 def _iso_utc(dt: Optional[datetime] = None) -> str:
     if dt is None:
-        dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+        dt = datetime.now(timezone.utc)
     elif dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     else:
@@ -506,7 +461,9 @@ def _safe_float(val) -> Optional[float]:
 def _age_seconds(ts: Optional[datetime]) -> Optional[float]:
     if ts is None:
         return None
-    return (datetime.utcnow() - ts).total_seconds()
+    now = datetime.now(timezone.utc)
+    normalized_ts = ts if ts.tzinfo is not None else ts.replace(tzinfo=timezone.utc)
+    return (now - normalized_ts).total_seconds()
 
 
 def _fear_greed_label(value: int) -> str:
@@ -542,7 +499,7 @@ def _stamp_payload(
 
 async def _get_fear_greed_payload() -> Optional[Dict[str, Any]]:
     global _FNG_CACHE, _FNG_CACHE_TS
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if _FNG_CACHE and _FNG_CACHE_TS:
         age = _age_seconds(_FNG_CACHE_TS) or 0
@@ -576,13 +533,15 @@ async def _get_fear_greed_payload() -> Optional[Dict[str, Any]]:
         logger.warning("Fear & Greed fetch failed: %s", exc)
 
     if _FNG_CACHE and _FNG_CACHE_TS:
-        return _stamp_payload(_FNG_CACHE, _FNG_CACHE_TS, FNG_CACHE_TTL_SEC)
+        age = _age_seconds(_FNG_CACHE_TS) or 0
+        if age <= FNG_STALE_SEC:
+            return _stamp_payload(_FNG_CACHE, _FNG_CACHE_TS, FNG_CACHE_TTL_SEC)
     return None
 
 
 async def _get_market_pulse_payload() -> Optional[Dict[str, Any]]:
     global _CG_CACHE, _CG_CACHE_TS
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if _CG_CACHE and _CG_CACHE_TS:
         age = _age_seconds(_CG_CACHE_TS) or 0
@@ -616,7 +575,9 @@ async def _get_market_pulse_payload() -> Optional[Dict[str, Any]]:
         logger.warning("CoinGecko global fetch failed: %s", exc)
 
     if _CG_CACHE and _CG_CACHE_TS:
-        return _stamp_payload(_CG_CACHE, _CG_CACHE_TS, CG_CACHE_TTL_SEC)
+        age = _age_seconds(_CG_CACHE_TS) or 0
+        if age <= CG_STALE_SEC:
+            return _stamp_payload(_CG_CACHE, _CG_CACHE_TS, CG_CACHE_TTL_SEC)
     return None
 
 
@@ -879,39 +840,30 @@ def _build_reasons(
     return reasons[:4]
 
 
-@app.on_event("startup")
-async def _startup_event() -> None:
-    _refresh_data_sources(force=True)
-    if SENTIMENT_CACHE_TTL > 0:
-        app.state.sentiment_cache_task = asyncio.create_task(_cache_refresher_loop())
-
-
-@app.on_event("shutdown")
-async def _shutdown_event() -> None:
-    task = getattr(app.state, "sentiment_cache_task", None)
-    if task:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-
-
 @app.get("/")
 async def root() -> Dict[str, Any]:
     return {
         "status": "online",
         "service": "Moonwalking Sentiment API",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
+    active_sources = len(_SENTIMENT_CACHE.sources) if _SENTIMENT_CACHE else 0
+    data_status = _SENTIMENT_CACHE.data_status if _SENTIMENT_CACHE else "warming"
+    configured_sources = 2
+    if USE_REAL_SENTIMENT and get_provider(SENTIMENT_PROVIDER_NAME):
+        configured_sources += 1
     return {
         "status": "healthy",
         "uptime": "running",
-        "active_sources": len(_refresh_data_sources()),
-        "last_update": datetime.utcnow().isoformat(),
+        "active_sources": active_sources,
+        "configured_sources": configured_sources,
+        "data_status": data_status,
+        "last_update": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -921,15 +873,17 @@ async def get_latest_sentiment() -> SentimentResponse:
     return await _hydrate_sentiment_cache()
 
 
-@app.get("/sentiment/sources", response_model=List[DataSource])
-async def get_data_sources() -> List[DataSource]:
-    return _refresh_data_sources()
+@app.get("/sentiment/sources")
+async def get_data_sources() -> List[Dict[str, Any]]:
+    """Return only providers that contributed to the current real snapshot."""
+    payload = await _hydrate_sentiment_cache()
+    return payload.sources
 
 
 @app.get("/sentiment/sources/{tier}")
-async def get_sources_by_tier(tier: SentimentTier) -> List[DataSource]:
-    sources = _refresh_data_sources()
-    return [s for s in sources if s.tier == tier]
+async def get_sources_by_tier(tier: SentimentTier) -> List[Dict[str, Any]]:
+    sources = await get_data_sources()
+    return [source for source in sources if source.get("tier") == tier.value]
 
 
 @app.get("/sentiment/history/{days}")
@@ -938,55 +892,51 @@ async def get_sentiment_history(days: int = 30) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Maximum 365 days of history")
     return {
         "days": days,
-        "sentiment_history": generate_sentiment_history(days),
-        "social_history": generate_social_history(days),
+        "available": False,
+        "reason": "No historical sentiment provider is configured.",
+        "sentiment_history": [],
+        "social_history": [],
     }
 
 
 @app.get("/sentiment/social/{platform}")
 async def get_platform_sentiment(platform: SocialPlatform) -> Dict[str, Any]:
-    breakdown = generate_social_breakdown()
-    platform_scores = {
-        SocialPlatform.REDDIT: breakdown.reddit,
-        SocialPlatform.TWITTER: breakdown.twitter,
-        SocialPlatform.TELEGRAM: breakdown.telegram,
-        SocialPlatform.CHAN: breakdown.chan,
-    }
     return {
         "platform": platform,
-        "sentiment_score": platform_scores[platform],
-        "volume_change": round(random.uniform(-30, 50), 1),
-        "trending_topics": generate_trending_topics()[:3],
-        "timestamp": datetime.utcnow().isoformat(),
+        "available": False,
+        "reason": "No social sentiment provider is configured.",
+        "sentiment_score": None,
+        "volume_change": None,
+        "trending_topics": [],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @app.get("/sentiment/divergence")
 async def get_divergence_endpoint() -> Dict[str, Any]:
     return {
-        "alerts": generate_divergence_alerts(),
-        "tier_comparison": {
-            "tier1_sentiment": round(random.uniform(0.4, 0.6), 2),
-            "tier2_sentiment": round(random.uniform(0.5, 0.7), 2),
-            "tier3_sentiment": round(random.uniform(0.6, 0.9), 2),
-            "divergence_score": round(random.uniform(0, 0.5), 2),
-        },
-        "timestamp": datetime.utcnow().isoformat(),
+        "available": False,
+        "reason": "Divergence requires multiple real sentiment providers.",
+        "alerts": [],
+        "tier_comparison": None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @app.get("/sentiment/stats")
 async def get_statistics() -> Dict[str, Any]:
-    sources = _refresh_data_sources()
+    sources = await get_data_sources()
     total_sources = len(sources)
-    avg_weight = 0.0
-    if total_sources:
-        avg_weight = sum(s.trust_weight for s in sources) / total_sources
+    sources_by_tier = {"tier1": 0, "tier2": 0, "tier3": 0, "fringe": 0}
+    for source in sources:
+        tier = source.get("tier")
+        if tier in sources_by_tier:
+            sources_by_tier[tier] += 1
     return {
         "total_sources": total_sources,
-        "sources_by_tier": SOURCE_COUNTS,
-        "average_trust_weight": round(avg_weight, 2),
-        "last_update": datetime.utcnow().isoformat(),
+        "sources_by_tier": sources_by_tier,
+        "average_trust_weight": None,
+        "last_update": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -1000,15 +950,11 @@ async def websocket_sentiment(websocket: WebSocket) -> None:
     try:
         while True:
             await asyncio.sleep(30)
+            payload = await _hydrate_sentiment_cache()
             await websocket.send_json(
                 {
                     "type": "sentiment_update",
-                    "data": {
-                        "overall_sentiment": generate_sentiment_score(),
-                        "fear_greed_index": generate_fear_greed_index(),
-                        "social_breakdown": generate_social_breakdown().dict(),
-                        "timestamp": datetime.utcnow().isoformat(),
-                    },
+                    "data": jsonable_encoder(payload),
                 }
             )
     finally:

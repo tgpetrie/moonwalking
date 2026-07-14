@@ -70,25 +70,25 @@ case "${1:-help}" in
         print_status "Running development environment setup..."
         ./setup_dev.sh
         ;;
-    
+
     "start")
         print_status "Starting BHABIT CBMOONERS..."
         ./start_app.sh
         ;;
-    
+
     "backend")
         print_status "Starting backend server only..."
         activate_venv
         cd backend
         python app.py
         ;;
-    
+
     "frontend")
         print_status "Starting frontend server only..."
         cd frontend
         npm run dev
         ;;
-    
+
         "test")
         print_status "Running all tests..."
         activate_venv
@@ -102,7 +102,7 @@ case "${1:-help}" in
         fi
         cd ..
         ;;
-    
+
         "smoke")
                 print_status "Running backend smoke test..."
                 activate_venv
@@ -111,7 +111,7 @@ case "${1:-help}" in
                 SMOKE_BASE_URL="$BASE_URL" SMOKE_START_DELAY="$SMOKE_START_DELAY" \
                     python backend/smoke_test.py
                 ;;
-    
+
     "test-backend")
         print_status "Running backend tests..."
         activate_venv
@@ -123,7 +123,7 @@ case "${1:-help}" in
         fi
         cd ..
         ;;
-    
+
     "build")
         print_status "Building frontend for production..."
         cd frontend
@@ -131,7 +131,7 @@ case "${1:-help}" in
         print_success "Frontend built successfully!"
         cd ..
         ;;
-    
+
     "clean")
         print_status "Cleaning build artifacts and caches..."
         # Clean frontend
@@ -154,7 +154,7 @@ case "${1:-help}" in
         fi
         print_success "Cleanup completed!"
         ;;
-    
+
     "install")
         print_status "Installing/updating dependencies..."
         activate_venv
@@ -166,17 +166,17 @@ case "${1:-help}" in
         cd ..
         print_success "Dependencies updated!"
         ;;
-    
+
     "health")
         print_status "Checking application health..."
-        
+
         # Check if virtual environment exists
         if [ -d ".venv" ]; then
             print_success "Virtual environment: OK"
         else
             print_error "Virtual environment: Missing"
         fi
-        
+
         # Check backend dependencies
         activate_venv
         cd backend
@@ -186,7 +186,7 @@ case "${1:-help}" in
             print_error "Backend dependencies: Issues found"
         fi
         cd ..
-        
+
         # Check frontend dependencies
         cd frontend
         if [ -d "node_modules" ]; then
@@ -195,21 +195,21 @@ case "${1:-help}" in
             print_error "Frontend dependencies: Missing"
         fi
         cd ..
-        
+
         # Check if ports are available
-        if ! lsof -i :5001 >/dev/null 2>&1; then
-            print_success "Port 5001 (backend): Available"
+        if ! lsof -i :5003 >/dev/null 2>&1; then
+            print_success "Port 5003 (backend): Available"
         else
-            print_error "Port 5001 (backend): In use"
+            print_error "Port 5003 (backend): In use"
         fi
-        
+
         if ! lsof -i :5173 >/dev/null 2>&1; then
             print_success "Port 5173 (frontend): Available"
         else
             print_error "Port 5173 (frontend): In use"
         fi
         ;;
-    
+
     "logs")
         print_status "Showing backend logs..."
         if [ -f "backend/logs/app.log" ]; then
@@ -220,12 +220,12 @@ case "${1:-help}" in
             print_error "No log files found. Start the backend server to generate logs."
         fi
         ;;
-    
+
     "diagnose")
         print_status "Running comprehensive diagnostic for frontend data issues..."
         ./diagnose_and_fix.sh
         ;;
-    
+
     "deploy")
         print_status "Deployment options for BHABIT CBMOONERS..."
         echo ""
@@ -247,7 +247,7 @@ case "${1:-help}" in
         echo ""
         echo "For detailed instructions, see the Deployment section in README.md"
         ;;
-    
+
     "help"|*)
         show_help
         ;;

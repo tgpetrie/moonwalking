@@ -1,20 +1,42 @@
 {
-  "name": "BHABIT CBMo4ers",
-  "version": "1.0",
+  "name": "BHABIT Moonwalking",
+  "version": "2.0",
   "services": {
-    "backend": { "port": 5001, "health": "/api/health" },
-    "bridge":  { "port": 5100 },
-    "frontend": { "port": 5173, "entry": "frontend/src/main.jsx" }
+    "frontend": {
+      "port": 5173,
+      "entry": "frontend/src/main.jsx"
+    },
+    "backend": {
+      "port": 5003,
+      "health": "/api/health",
+      "board": "/data"
+    },
+    "sentiment": {
+      "port": 8003,
+      "browser_entry": "/api/sentiment/latest"
+    }
   },
   "ui": {
-    "root_component": "Dashboard",
-    "no_loader_demos": true,
-    "components": ["GainersTable1Min","GainersTable3Min","LosersTable3Min","TopBannerScroll","VolumeBannerScroll","WatchlistPanel","SymbolInfoPanel"]
+    "root_component": "App",
+    "board_component": "DashboardShell",
+    "data_context": "DataContext",
+    "watchlist_context": "WatchlistContext"
   },
-  "events": ["gainers1m","gainers3m","losers3m","banner1h","vol1h","heartbeat"],
-  "http_components": ["/api/component/gainers-table-1min","/api/component/gainers-table","/api/component/losers-table","/api/component/top-movers-bar","/api/component/banner-volume-1h"],
-  "ask_bhabit": { "log": "/api/ask/log", "metrics": "/api/ask/metrics" },
-  "learning":   { "complete": "/api/learn/complete", "state": "/api/learn/state" },
-  "sentiment":  { "history": "/api/sentiment/history", "batch": "/api/sentiment/batch" },
-  "docs": { "index": "docs/ai/AI_INDEX.md", "routes": "docs/ai/ROUTES.md", "shapes": "docs/ai/DATA_SHAPES.md", "style": "docs/ai/STYLE_GUIDE.md" }
+  "truth_contract": {
+    "real_data_only": true,
+    "market_sentiment_scope": "market_wide",
+    "missing_data_state": ["warming", "unavailable", "stale", "offline"],
+    "canonical_asset_key": "product_id"
+  },
+  "docs": {
+    "spec": "MW_SPEC.md",
+    "backlog": "MW_BACKLOG.md",
+    "architecture": "ARCHITECTURE.md",
+    "handoff": "HANDOFF.md",
+    "ai_index": "docs/ai/AI_INDEX.md",
+    "alerts_guide": "docs/user-guides/ALERTS_USE_GUIDE.md",
+    "alerts_contract": "docs/alerts_engine_spec.md",
+    "sentiment_sources": "docs/SENTIMENT_SOURCES.md",
+    "current_audit": "docs/MOONWALKINGS_APP_AUDIT_2026-07-14.md"
+  }
 }

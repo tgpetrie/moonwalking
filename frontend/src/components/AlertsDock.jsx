@@ -6,13 +6,13 @@ const LS_SEEN_KEY = "mw_alerts_last_seen_id";
 export default function AlertsDock({ onOpenAlerts }) {
   const { activeAlerts = [], alertsRecent = [] } = useData() || {};
 
-  // Track unread state via latest alert id
-  const latestId = useMemo(() => {
+  // Track unread state via stable alert ids ordered newest-first.
+  const orderedAlertIds = useMemo(() => {
     const merged = [
       ...(Array.isArray(activeAlerts) ? activeAlerts : []),
       ...(Array.isArray(alertsRecent) ? alertsRecent : []),
     ];
-    if (!merged.length) return null;
+    if (!merged.length) return [];
 
     merged.sort((a, b) => {
       const ta = Number(a?.event_ts_ms ?? a?.ts_ms ?? 0) || 0;
@@ -20,16 +20,25 @@ export default function AlertsDock({ onOpenAlerts }) {
       return tb - ta;
     });
 
+    const ids = [];
+    const seen = new Set();
     for (const a of merged) {
-      if (a?.id != null) return String(a.id);
-      if (a?.alert_id != null) return String(a.alert_id);
+      let id = null;
+      if (a?.id != null) id = String(a.id);
+      else if (a?.alert_id != null) id = String(a.alert_id);
       const sym = String(a?.symbol || a?.product_id || "");
       const type = String(a?.type_key || a?.type || "");
       const ts = Number(a?.event_ts_ms ?? a?.ts_ms ?? 0) || 0;
-      if (sym || type || ts) return `${sym}:${type}:${ts}`;
+      if (!id && (sym || type || ts)) id = `${sym}:${type}:${ts}`;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
     }
-    return null;
+    return ids;
   }, [activeAlerts, alertsRecent]);
+
+  const latestId = orderedAlertIds[0] || null;
 
   const [lastSeenId, setLastSeenId] = useState(() => {
     try {
@@ -39,7 +48,12 @@ export default function AlertsDock({ onOpenAlerts }) {
     }
   });
 
-  const unread = Boolean(latestId && latestId !== lastSeenId);
+  const unreadCount = useMemo(() => {
+    if (!latestId || latestId === lastSeenId) return 0;
+    const seenIndex = orderedAlertIds.indexOf(lastSeenId);
+    return seenIndex >= 0 ? seenIndex : orderedAlertIds.length;
+  }, [latestId, lastSeenId, orderedAlertIds]);
+  const unread = unreadCount > 0;
 
   const handleClick = () => {
     // Mark as seen
@@ -61,10 +75,14 @@ export default function AlertsDock({ onOpenAlerts }) {
         type="button"
         className="bh-alerts-btn"
         onClick={handleClick}
-        title={unread ? "New alerts" : "Alerts"}
+        title={unread ? `${unreadCount} unread alerts` : "Alerts"}
       >
         <span className="bh-alerts-btn-label">ALERTS</span>
-        {unread ? <span className="bh-alerts-badge" aria-label="unread alerts" /> : null}
+        {unread ? (
+          <span className="bh-alerts-badge" aria-label={`${unreadCount} unread alerts`}>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        ) : null}
       </button>
     </div>
   );

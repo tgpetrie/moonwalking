@@ -72,7 +72,7 @@ def build_asset_insights(
         "market_sentiment": fg,
         "sources": {
             "price_volume": "coinbase_snapshots",
-            "social": "coingecko" if social else "derived",
+            "social": "coingecko" if social else "none",
             "macro": "alternative.me" if fg else "none",
         },
     }

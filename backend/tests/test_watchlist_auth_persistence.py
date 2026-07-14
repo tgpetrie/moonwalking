@@ -55,3 +55,16 @@ def test_authenticated_watchlist_item_persists_added_price(tmp_path):
         assert session_payload.status_code == 200
         auth_data = session_payload.get_json()
         assert auth_data["watchlists"][0]["items"][0]["addedPrice"] == 101234.56
+
+
+def test_session_discovery_is_not_an_error_for_guests(tmp_path):
+    app = make_test_app(tmp_path)
+
+    response = app.test_client().get("/api/auth/session")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "authenticated": False,
+        "user": None,
+        "watchlists": [],
+    }

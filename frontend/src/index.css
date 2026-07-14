@@ -449,6 +449,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.58);
   color: rgba(255, 255, 255, 0.88);
+  font-family: "Raleway", sans-serif;
   font-size: 0.7rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -461,11 +462,19 @@ body {
 }
 
 .bh-alerts-badge {
-  width: 8px;
-  height: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   background: rgba(255, 80, 80, 0.95);
   box-shadow: 0 0 18px rgba(255, 80, 80, 0.35);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .bh-alerts-panel {
@@ -5568,8 +5577,10 @@ html, body {
   --mw-row-amp: 1.4px;
   --mw-i: 0;
   --mw-seed: 0;
-  animation: mwRowCarrier 7.2s ease-in-out infinite;
-  will-change: transform;
+  /* Keep the row and its action hit targets anchored. Individual data cells
+     retain the Moonwalking cadence below without moving the star buttons. */
+  animation: none;
+  will-change: auto;
 }
 
 /* Keep hover transform authoritative over row drift */

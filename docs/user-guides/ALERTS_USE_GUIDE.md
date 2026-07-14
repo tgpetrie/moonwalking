@@ -8,11 +8,62 @@ It means: in ~2 minutes, you can prove whether alerts are functioning, or exactl
 
 - The alerts shown in the UI and served by the API are **main alerts** derived from real mover computation (1m/3m).
 - Trend/score alerts are debug-only and must not pollute the main stream.
+- The executable source of truth is `backend/alerts_engine.py`. Older alert files are historical unless the Flask app calls them.
+- Alerts are **operator attention signals**, not automatic buy/sell orders. The Pulse tab translates them into quick-read labels such as `BUY WATCH`, `RECONFIRM`, `NO CHASE`, `PROTECT`, and `AVOID LONG`.
 - The critical chain is:
 
   `prices → baselines → 1m/3m movers → main alerts → UI`
 
 If movers are empty, alerts will be empty — by design.
+
+## What alerts are trying to tell you
+
+| Quick read | Main alert families | Meaning for fast buying |
+|---|---|---|
+| `BUY WATCH` | `coin_breadth_thrust`, `coin_trend_break_up`, confirmed upside `breakout` | Upside exists with better participation. Look for a pullback, retest, or fresh rank hold; do not buy purely because the label is green. |
+| `RECONFIRM` | `moonshot`, `breakout`, `coin_squeeze_break`, `coin_persistent_gainer`, `coin_fomo` | Momentum is live but extension/chase risk is high. Demand another fresh push, volume support, or stable rank hold. |
+| `WATCH` | `whale_move`, `stealth_move`, `coin_liquidity_shock`, neutral external attention | Participation or attention is showing before clean price direction. Useful early smoke, not an entry by itself. |
+| `NO CHASE` | `coin_fakeout`, late `coin_exhaustion_*`, disagreement after extension | A move may have rejected or become late. Wait for reclaim confirmation. |
+| `PROTECT` / `AVOID LONG` | `crater`, `dump`, `coin_breadth_failure`, `coin_trend_break_down`, `coin_persistent_loser`, `coin_reversal_down` | Downside pressure is active. Protect longs; wait for reclaim/base before buying. |
+| `TRAP RISK` | `divergence` | Price/timeframe/volume are disagreeing. Do not treat the visible move as clean until confirmation appears. |
+
+The quick-read card also checks:
+
+- **freshness**: fresh confirmation inside roughly 2 minutes is treated better than old alerts;
+- **volume**: volume confirmation improves buy quality;
+- **breadth**: broad tape support makes upside alerts more useful and weak breadth downgrades them;
+- **sentiment/attention**: credentialed social sources can support a move; CoinGecko/CoinPaprika community data is labeled as an attention proxy, not true sentiment.
+
+## Current default thresholds
+
+These defaults come from `DEFAULT_THRESHOLDS` in `backend/alerts_engine.py`.
+
+| Family | Default requirement |
+|---|---|
+| Moonshot / crater | `abs(1m) >= 1.00%` or `abs(3m) >= 2.60%` |
+| Breakout / dump | `abs(1m) >= 0.55%` or `abs(3m) >= 1.90%` |
+| Generic impulse consideration | `1m >= 1.25%` or `3m >= 2.0%` |
+| Whale move | minute-volume z-score `>= 3.0`, 3-candle cluster z-score `>= 2.5`, candle move `>= 0.3%`, or 1h volume surge `>= 150%`; minimum absolute volume `500` |
+| Stealth move | 1h volume change `> 110%` while `abs(3m price) < 1.2%` |
+| Divergence | opposite/disagreeing 1m and 3m moves with each side `>= 0.65%` |
+| Coin FOMO | MPI `>= 72`, MPI delta over 60s `>= 6`, 3m `>= 1.8%`, 1m `>= 0.6%`, acceleration `>= 0.9` |
+| Breadth thrust | breadth `>= 0.65`, 3m `>= 1.2%`, relative strength `>= 0.8`, persistence `>= 0.35` |
+| Breadth failure | breadth `<= 0.35`, 3m `<= -1.2%`, relative strength `<= -0.9` |
+| Reversal | previous move `>= 2.0%`, flip move `>= 0.6%` |
+| Fakeout | breakout leg `>= 1.6%`, rejection `>= 0.6%` |
+| Persistent mover | streak `>= 3`, move `>= 1.1%` |
+| Volatility expansion | current/previous realized-vol ratio `>= 1.7` |
+| Liquidity shock | minute-volume z-score `>= 2.6`, latest volume `>= 75`, price muted under `0.25%` |
+| Trend break | fast/slow return EMA difference `>= 0.08`, volume confirm `>= 15%` or volume ratio `>= 1.20` |
+| Squeeze break | compressed volatility percentile `<= 0.25`, 1m move `>= 0.8%`, volume ratio `>= 1.6` |
+| Exhaustion | streak `>= 4`, 1m flip `>= 0.6%`, 3m context move `>= 1.0%` |
+
+Default caps and freshness:
+
+- max total active alerts: `24`
+- max per symbol: `2`
+- common cooldowns: impulse `90s`, whale `180s`, stealth `420s`, divergence `180s`, coin FOMO `240s`, breadth thrust/failure `180s`
+- common TTLs: impulse `5m`, whale `8m`, stealth `5m`, divergence `5m`, coin mood `5m`, reversal `10m`, fakeout `8m`
 
 ## Daily run
 

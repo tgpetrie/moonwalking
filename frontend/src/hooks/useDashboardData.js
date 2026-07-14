@@ -2,14 +2,6 @@
 import { useEffect, useRef } from "react";
 import { useData } from "../context/DataContext";
 
-const LS_KEY = "bh_last_payload_v1";
-
-function writeLastPayload(value) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(value));
-  } catch {}
-}
-
 // map raw backend row to UI row while preserving ALL backend fields
 function mapRowWithInitial(x = {}) {
   // normalize symbol display
@@ -100,6 +92,12 @@ function mergeAlertLists(lists, limit = 80) {
 export function useDashboardData() {
   const { data, error, loading, oneMinRows, threeMin, banners, alerts, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, activeAlerts, alertsRecent, alertsMeta } = useData();
 
+  useEffect(() => {
+    try {
+      localStorage.removeItem("bh_last_payload_v1");
+    } catch {}
+  }, []);
+
   const payload = data || {};
   const alertsList = mergeAlertLists(
     [
@@ -175,16 +173,6 @@ export function useDashboardData() {
   for (const r of [...gainers1m, ...gainers3m, ...losers3m]) {
     if (r && r.symbol) priceMap[r.symbol] = r.price;
   }
-
-  // Persist last good payload for instant reloads
-  const prevDataRef = useRef(null);
-  useEffect(() => {
-    if (!data || error) return;
-    if (prevDataRef.current !== data) {
-      prevDataRef.current = data;
-      writeLastPayload(data);
-    }
-  }, [data, error]);
 
   // Last updated timestamp:
   // prefer fetch heartbeat time, then backend-provided payload.updated_at.

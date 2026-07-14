@@ -21,7 +21,10 @@ const toNum = (v, d = 0) => {
   return Number.isFinite(n) ? n : d;
 };
 
-const clamp01 = (v) => Math.max(0, Math.min(1, toNum(v, 0)));
+const clamp01OrNull = (v) => {
+  const n = toNum(v, null);
+  return n === null ? null : Math.max(0, Math.min(1, n));
+};
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 
@@ -33,17 +36,21 @@ const arr = (v) => (Array.isArray(v) ? v : []);
  */
 const computePipelineStatus = (meta, hasData) => {
   if (!meta) return hasData ? "STALE" : "OFFLINE";
-  if (meta.ok && meta.pipelineRunning) return "LIVE"; 
-  if (meta.pipelineRunning || hasData) {
-    const staleSeconds = meta.staleSeconds ?? Infinity;
-    return staleSeconds < STALE_THRESHOLD_SECONDS ? "LIVE" : "STALE";
-  }
+  const staleSeconds = toNum(meta.staleSeconds, Infinity);
+  const dataStatus = String(meta.dataStatus || meta.data_status || "").toLowerCase();
+  if (
+    meta.ok &&
+    meta.pipelineRunning &&
+    dataStatus !== "stale" &&
+    staleSeconds < STALE_THRESHOLD_SECONDS
+  ) return "LIVE";
+  if (hasData) return "STALE";
   return "OFFLINE";
 };
 
 export function normalizeSentiment(raw = {}) {
   // accept both snake_case and camelCase
-  const overallSentiment = clamp01(
+  const overallSentiment = clamp01OrNull(
     pick(raw, "overall_sentiment", "overallSentiment")
   );
 
@@ -74,7 +81,7 @@ export function normalizeSentiment(raw = {}) {
     mcapChangePct: toNum(
       pick(
         marketPulseRaw,
-        "mcap_change_pct",
+        "mcap_change_24h_pct",
         "mcap_change_pct"
       ),
       null
@@ -92,20 +99,23 @@ export function normalizeSentiment(raw = {}) {
 
   const socialMetricsRaw = pick(raw, "social_metrics", "socialMetrics") || {};
   const socialMetrics = {
-    volumeChange: toNum(pick(socialMetricsRaw, "volume_change", "volumeChange"), 0),
-    engagementRate: clamp01(pick(socialMetricsRaw, "engagement_rate", "engagementRate")),
-    mentions: toNum(pick(socialMetricsRaw, "mentions", "mentions_1h", "mentions1h"), 0),
+    volumeChange: toNum(pick(socialMetricsRaw, "volume_change", "volumeChange"), null),
+    engagementRate: clamp01OrNull(pick(socialMetricsRaw, "engagement_rate", "engagementRate")),
+    mentions: toNum(
+      pick(socialMetricsRaw, "mentions", "mentions_1h", "mentions1h", "mentions_24h"),
+      null,
+    ),
   };
 
   const socialBreakdownRaw =
     pick(raw, "social_breakdown", "socialBreakdown") || {};
   const socialBreakdown = {
-    reddit: clamp01(pick(socialBreakdownRaw, "reddit")),
-    twitter: clamp01(pick(socialBreakdownRaw, "twitter")),
-    telegram: clamp01(pick(socialBreakdownRaw, "telegram")),
-    stocktwits: clamp01(pick(socialBreakdownRaw, "stocktwits")),
-    chan: clamp01(pick(socialBreakdownRaw, "chan")),
-    custom: clamp01(pick(socialBreakdownRaw, "custom")),
+    reddit: clamp01OrNull(pick(socialBreakdownRaw, "reddit")),
+    twitter: clamp01OrNull(pick(socialBreakdownRaw, "twitter")),
+    telegram: clamp01OrNull(pick(socialBreakdownRaw, "telegram")),
+    stocktwits: clamp01OrNull(pick(socialBreakdownRaw, "stocktwits")),
+    chan: clamp01OrNull(pick(socialBreakdownRaw, "chan")),
+    custom: clamp01OrNull(pick(socialBreakdownRaw, "custom")),
   };
 
   const sourceBreakdownRaw =
@@ -122,18 +132,18 @@ export function normalizeSentiment(raw = {}) {
   );
   const sentimentHistory = sentimentHistoryRaw.map((p) => ({
     timestamp: pick(p, "timestamp"),
-    sentiment: clamp01(pick(p, "sentiment")),
-    priceNormalized: toNum(pick(p, "price_normalized", "priceNormalized"), 0),
+    sentiment: clamp01OrNull(pick(p, "sentiment")),
+    priceNormalized: toNum(pick(p, "price_normalized", "priceNormalized"), null),
   }));
 
   const socialHistoryRaw = arr(pick(raw, "social_history", "socialHistory"));
   const socialHistory = socialHistoryRaw.map((p) => ({
     timestamp: pick(p, "timestamp"),
-    reddit: clamp01(pick(p, "reddit")),
-    twitter: clamp01(pick(p, "twitter")),
-    telegram: clamp01(pick(p, "telegram")),
-    chan: clamp01(pick(p, "chan")),
-    custom: clamp01(pick(p, "custom")),
+    reddit: clamp01OrNull(pick(p, "reddit")),
+    twitter: clamp01OrNull(pick(p, "twitter")),
+    telegram: clamp01OrNull(pick(p, "telegram")),
+    chan: clamp01OrNull(pick(p, "chan")),
+    custom: clamp01OrNull(pick(p, "custom")),
   }));
 
   const trendingTopicsRaw = arr(
@@ -156,22 +166,22 @@ export function normalizeSentiment(raw = {}) {
   // Tiered sentiment data (optional, from sentiment pipeline)
   const tierScoresRaw = pick(raw, "tier_scores", "tierScores") || {};
   const tierScores = tierScoresRaw ? {
-    tier1: clamp01(pick(tierScoresRaw, "tier1")),
-    tier2: clamp01(pick(tierScoresRaw, "tier2")),
-    tier3: clamp01(pick(tierScoresRaw, "tier3")),
-    fringe: clamp01(pick(tierScoresRaw, "fringe")),
+    tier1: clamp01OrNull(pick(tierScoresRaw, "tier1")),
+    tier2: clamp01OrNull(pick(tierScoresRaw, "tier2")),
+    tier3: clamp01OrNull(pick(tierScoresRaw, "tier3")),
+    fringe: clamp01OrNull(pick(tierScoresRaw, "fringe")),
   } : null;
 
   const hasTieredData = pick(raw, "has_tiered_data", "hasTieredData") || false;
   const totalDataPoints = toNum(pick(raw, "total_data_points", "totalDataPoints"), 0);
-  const confidence = clamp01(pick(raw, "confidence"));
+  const confidence = clamp01OrNull(pick(raw, "confidence"));
   const pipelineTimestamp = pick(raw, "pipeline_timestamp", "pipelineTimestamp") || null;
 
   const updatedAt = pick(raw, "updated_at", "updatedAt", "ts", "timestamp") || null;
 
   // Extract sentiment_meta from backend response
   const sentimentMeta = pick(raw, "sentiment_meta", "sentimentMeta") || null;
-  const hasData = overallSentiment > 0 || fearGreedIndex !== null;
+  const hasData = overallSentiment !== null || fearGreedIndex !== null;
   const pipelineStatus = computePipelineStatus(sentimentMeta, hasData);
 
   return {

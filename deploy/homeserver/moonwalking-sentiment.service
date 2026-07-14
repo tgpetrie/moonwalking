@@ -10,9 +10,9 @@ Wants=network-online.target
 Type=simple
 User=moonwalking
 Group=moonwalking
-WorkingDirectory=/opt/moonwalking/backend
+WorkingDirectory=/opt/moonwalking
 EnvironmentFile=/opt/moonwalking/deploy/homeserver/.env
-ExecStart=/opt/moonwalking/.venv/bin/python sentiment_api.py --host 127.0.0.1 --port 8003
+ExecStart=/opt/moonwalking/.venv/bin/python -m backend.sentiment_api --host 127.0.0.1 --port 8003
 Restart=on-failure
 RestartSec=10
 

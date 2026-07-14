@@ -15,6 +15,9 @@ Real-time crypto tracking with stable 1‑minute movers, accurate 1‑hour price
 
 Operational runbooks:
 - [Alerts – Operational Use Guide](docs/user-guides/ALERTS_USE_GUIDE.md)
+- [Alerts Engine Spec](docs/alerts_engine_spec.md)
+- [Sentiment Sources](docs/SENTIMENT_SOURCES.md)
+- [App Audit 2026-07-14](docs/MOONWALKINGS_APP_AUDIT_2026-07-14.md)
 
 **Before modifying the UI**, read the canonical specification:
 - **[`docs/UI_HOME_DASHBOARD.md`](docs/UI_HOME_DASHBOARD.md)** – Authoritative UI layout, data contracts, and implementation paths
@@ -27,11 +30,11 @@ For AI assistance:
 ## Dev Checklist (top-level)
 
 - `docs/UI_HOME_DASHBOARD.md`: canonical UI spec — read before changing the home dashboard.
-- Layout order: **1-MIN hero (full-width)** → **3-MIN gainers (left)** / **3-MIN losers (right)** → **Watchlist under losers**.
+- Layout order: **1h price banner** → **1m movers** → **3m gainers/losers** → **Intelligence Log** → **Watchlist** → **1h volume banner**.
 - Percent formatting: backend provides percentages; use `formatPct` with dynamic decimals (abs < 1 → 3, else 2).
 - Watchlist model: store `{ symbol, baseline, current }` and compute `deltaPct = ((current - baseline)/baseline)*100`.
 - `TokenRow` requirement: parent must pass `changeKey` (`price_change_percentage_1min` or `_3min`) and actions must be stacked (star above info).
-- Insights wiring: clicking the % cell or info button opens `InsightsTabbed` with symbol/row context.
+- Coin-pressure wiring: clicking a row opens `SentimentPopupAdvanced` with real local tape and external coin context.
 - CSS invariants: update the authoritative block in `frontend/src/index.css` — `.one-min-grid`, `.bh-token-actions`, `.bh-insight-float`.
 - Data hook: use `useData` (SWR-style) that returns `data` and `bySymbol`; mutate on refresh.
 - Do NOT reintroduce the legacy header or alerts bar ("BHABIT Crypto Dashboard / Alerts 25 NEW").
@@ -39,7 +42,7 @@ For AI assistance:
 
 ## Overview
 
-BHABIT CBMOONERS shows live market data with server‑ordered top movers across 1‑minute and 3‑minute windows, plus 1‑hour price and volume trend banners. The React + Vite frontend stays smooth via WebSocket with REST fallback; the Flask backend owns ranking, hysteresis/peak‑hold, and streak‑based alerts.
+BHABIT Moonwalking shows live market data with server-ordered top movers across 1-minute and 3-minute windows, plus real-baseline 1-hour price and volume banners. The Flask backend consumes Coinbase WebSocket data with a bounded REST fallback and owns ranking, hysteresis, persistence, and alerts; the React frontend has one polling orchestrator.
 
 ---
 
@@ -48,8 +51,9 @@ BHABIT CBMOONERS shows live market data with server‑ordered top movers across 
 * Server‑ordered top movers (no client resorting)
 * 1‑minute table stability: hysteresis + dwell + 60s peak‑hold
 * Trend metrics across scopes: direction, streak, score
-* True 1‑hour volume deltas (with price‑based fallback)
+* True 1-hour price and volume deltas; missing baselines show warming instead of estimates
 * Alert hygiene: streak thresholds with cooldowns; recent alerts API
+* Coin Pressure quick-read labels that translate alerts into `BUY WATCH`, `RECONFIRM`, `WATCH`, `NO CHASE`, `PROTECT`, and `AVOID LONG`
 * Smooth UI: tiny sparklines, trend‑strength arrows, WS + adaptive polling fallback
 
 ---
@@ -124,8 +128,7 @@ BHABIT CBMOONERS/
    # Frontend
    [ -f frontend/.env.example ] && cp frontend/.env.example frontend/.env || true
 
-   # Sentiment API base (defaults to the FastAPI dev server)
-   echo "VITE_SENTIMENT_API_BASE=http://127.0.0.1:8001" >> frontend/.env
+   # start_app.sh writes the canonical local API configuration.
    ```
 
 ---
@@ -162,7 +165,15 @@ BHABIT CBMOONERS/
 
 ### Manual Mode
 
-1. **Start the backend server**
+Manual mode is for diagnostics. The supported development path is `./start_app.sh`, which also starts the sentiment service.
+
+1. **Start the sentiment service from the repository root**
+
+   ```bash
+   .venv/bin/python -m backend.sentiment_api --host 127.0.0.1 --port 8003
+   ```
+
+2. **Start the backend server**
 
    ```bash
    source .venv/bin/activate
@@ -172,7 +183,7 @@ BHABIT CBMOONERS/
 
    Runs on: `http://127.0.0.1:5003`
 
-2. **Start the frontend server**
+3. **Start the frontend server**
 
    ```bash
    cd frontend
@@ -394,4 +405,3 @@ If you’re having issues:
 
 **BHABIT — Profits Buy Impulse**
 **by Tom Petrie | GUISAN DESIGN**
-

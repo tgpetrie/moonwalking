@@ -1,92 +1,114 @@
-# Moonwalkings Living Backlog (MW_BACKLOG)
+# Moonwalkings Living Backlog
 
-This file is the living work queue.
-Rules live in MW_SPEC.md.
+Rules live in `MW_SPEC.md`. This file records durable work status.
 
-Status keys
-- Open
-- In progress
-- Done
-- Blocked
+Status keys: Open, In progress, Done, Blocked.
 
-Owners
-- Codex: implements patches
-- Claude: plans and guards against regressions
-- Gemini: verifier only (runs checks, confirms behavior, reports)
+## Done and verified on 2026-07-13
 
+### P0.1 One-board layout and control stability
 
-## Done (locked)
-- Rabbit watermark centered + bloom hover correct (mark Done only if confirmed in current build)
+Status: Done
 
+- The public board uses one continuous wrapper with aligned rails and no desktop or mobile horizontal overflow.
+- Watchlist and Intelligence Log remain inside the canonical board flow.
+- Whole-row translation was removed so star, info, and trade actions have stable click targets; data-cell motion remains.
 
-## P0 (Open now)
+Verification: desktop and mobile browser passes, normal Playwright clicks, overflow measurements.
 
-[ ] P0.1 Two boards seam fix (includes rails alignment + spacing contract)
-Owner: Codex
-Scope: unify the page under one canonical board wrapper/grid so there is no tint split/seam; ensure Watchlist + Intelligence align under same rails and the vertical rhythm is consistent.
-Definition of Done:
-- Page is one continuous background/overlay stack (no mid-page seam).
-- Watchlist + Intelligence align to table rails under the same wrapper.
-- Clear spacing between: banners -> 1m -> 3m -> bottom banner/panels.
-Verification:
-- Scroll top to bottom: no seam, no overlay shift.
-- Screenshot: edges line up across sections.
+### P0.2 Alerts system
 
-[ ] P0.2 Alerts system restore: real Moonwalking alerts only (no trend/score)
-Owner: Codex
-Scope: alerts data source + Alerts panel UI + Intelligence Log rendering
-Definition of Done:
-- Floating Alerts button shows unread count only; no toasts/popups cover the board.
-- Clicking opens a glass drawer/panel matching Sentiment panel design language.
-- Alerts show only main Moonwalking alert taxonomy types (no trend/score feed anywhere).
-- Alerts can be organized/grouped by taxonomy category.
-- Intelligence Log renders the same alert objects in its matrix/list style (no card redesign).
-- Alert rows include: symbol (no -USD), age/timestamp, type/severity chips, message, Advanced Trade link.
-Verification:
-- Badge increments as alerts arrive; Mark read works; Clear works.
-- Panel count equals Intelligence Log count in the same moment.
-- Click 10 Advanced Trade links: correct pairs.
+Status: Done
 
-[ ] P0.3 3m movers reliability (3m is lacking)
-Owner: Codex
-Scope: baseline windows + cadence + fallback method if needed
-Definition of Done:
-- 3m gainers and losers reliably populate (not stuck sparse) during normal conditions.
-- 3m values are computed from real baselines and remain stable under publish cadence.
-Verification:
-- /data shows reasonable counts for gainers_3m and losers_3m.
-- Values persist across several minutes without collapsing to tiny lists.
+- Alerts Center renders the real canonical alert stream and taxonomy.
+- Opening the center marks the current stream read.
+- The floating control displays an unread count and clears it after opening.
+- Active and Recent views, close behavior, market pressure, and alert details were browser-tested.
+- Intelligence Log consumes the same underlying alert objects.
 
+Verification: live alert arrival, unread/read transition, panel tabs, close behavior, console check.
 
-## P1 (Next)
+### P0.3 3m movers reliability
 
-[ ] P1.1 Sentiment truth audit (no fake defaults, per-symbol correctness)
-Owner: Codex
-Scope: ensure per-symbol lookup is used; offline states are honest; remove any null->0.5 normalization presented as signal.
-Definition of Done:
-- Different symbols can show different sentiment when available.
-- When missing: UI shows OFFLINE/UNAVAILABLE/STALE with timestamps; no fake midpoint.
-Verification:
-- Spot check several symbols; confirm no cloned panels.
+Status: Done
 
-[ ] P1.2 Watchlist truth audit (baseline + dedupe + full rails)
-Owner: Codex
-Scope: baseline at add time, no duplicates, full rails alignment, renders through brief data blips
-Definition of Done:
-- Watchlist change-since-added is correct and stable.
-- No duplicate product_id.
-- Visual alignment matches tables.
-Verification:
-- Add/remove several assets; verify baseline stays fixed and math is consistent.
+- 3m gainers and losers use real SQLite timestamp baselines.
+- Last-good snapshots survive partial price fetches.
+- Both sides populated during a multi-minute live run and did not collapse during normal refreshes.
 
+Verification: repeated `/data` coverage checks and live browser observation after warmup.
 
-## Intake (paste new tasks here)
-Template:
-[ ] P?.? Title
-Owner:
-Scope:
-Definition of Done:
-Verification:
+### P1.1 Sentiment truth audit
 
+Status: Done
 
-⸻
+- Removed random, MD5, mock-news, and neutral-value sentiment fallbacks.
+- Real sources expose provenance and `live`, `stale`, or `offline` state; the active source catalog lists only providers that contributed data.
+- Market-wide sentiment is labeled market-wide and never presented as coin-specific.
+- Missing social/history/topics/divergence data remains null or empty.
+- Local coin pressure uses real tape baselines; external coin context uses `/api/coin-intel`.
+
+Verification: backend truth tests, endpoint inspection, coin-popup browser pass, zero popup console errors.
+
+### P1.2 Watchlist and auth truth audit
+
+Status: Done
+
+- Guest session discovery returns a normal unauthenticated response instead of a console-producing 401.
+- Guest add/remove works with a fixed added-price baseline and no duplicates.
+- Guest storage uses the canonical `mw_watchlist` key and `product_id` schema, with a tested migration from the old key.
+- Authenticated SQLite persistence is covered by integration tests.
+- Watchlist controls remain clickable while the board is moving.
+
+Verification: browser add/remove, local-storage inspection, backend persistence tests, frontend context tests.
+
+### P1.3 Runtime architecture repair
+
+Status: Done
+
+- Canonical ports are Vite 5173, Flask 5003, and sentiment 8003.
+- Startup creates one price worker and one volume worker.
+- The complete Flask route table registers before script startup.
+- The legacy in-process sentiment poller is disabled by default and cannot start from a request.
+- Legacy fabricated compatibility endpoints now retire explicitly or proxy canonical real data.
+
+Verification: clean restart logs, route regression tests, health/smoke checks.
+
+### P1.4 Truthful 1h banners
+
+Status: Done
+
+- 1h price movement uses a real SQLite 1h baseline.
+- 1h volume movement uses real candle or SQLite baselines.
+- 24h price movement is no longer converted into a fake 1h value.
+- Price movement is no longer substituted for missing volume movement.
+- Component and snapshot compatibility endpoints reuse the canonical background banner snapshots.
+- Warmup returns empty rows with explicit warming state.
+
+Verification: regression tests and live baseline inspection.
+
+## Open deployment and expansion work
+
+### P2.1 Deploy the current one-box build
+
+Status: Open
+
+Scope: deploy `deploy/homeserver/` to the selected Oracle ARM VM, configure Tailscale and the persistent data directory, then verify login and watchlist sync from two devices.
+
+### P2.2 Add real coin-specific social providers
+
+Status: Open
+
+Scope: implement provider modules for approved Reddit/RSS or other real sources, with rate limits, provenance, TTLs, and explicit unavailable states. Do not add a provider merely to fill empty UI sections.
+
+### P2.3 Personal Coinbase integration
+
+Status: Open
+
+Scope: design a decision record for read-only credentials, backend-only secret storage, portfolio contracts, and revocation before implementation.
+
+### P2.4 Persist portfolio and settings
+
+Status: Open
+
+Scope: replace product-shell seeded state with the chosen local/account-backed persistence model after deployment is stable.

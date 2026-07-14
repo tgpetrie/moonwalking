@@ -3,31 +3,43 @@
   "tier": "tier2",
   "sources": [
     {
-      "name": "Reddit r/CryptoCurrency",
-      "description": "Mainstream retail crowd discussion",
+      "name": "CoinPaprika Coin Events",
+      "description": "Coin-scoped project events used in the coin-intel popup when available",
       "tier": "tier2",
       "weight": 0.75,
       "update_frequency": 600,
-      "type": "reddit",
-      "subreddit": "CryptoCurrency"
+      "type": "api",
+      "endpoint": "https://api.coinpaprika.com/v1/coins/{coin_id}/events",
+      "documentation": "https://coinpaprika.com/api/",
+      "access": "free_public",
+      "implemented": true,
+      "scope": "coin_context"
     },
     {
-      "name": "CoinDesk RSS",
-      "description": "High-volume crypto newswire",
+      "name": "CoinPaprika Coin Twitter Timeline",
+      "description": "Coin-scoped official timeline items when CoinPaprika exposes them; treated as context, not market-wide sentiment",
       "tier": "tier2",
       "weight": 0.8,
       "update_frequency": 600,
-      "type": "rss",
-      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      "type": "api",
+      "endpoint": "https://api.coinpaprika.com/v1/coins/{coin_id}/twitter",
+      "documentation": "https://coinpaprika.com/api/",
+      "access": "free_public",
+      "implemented": true,
+      "scope": "coin_context"
     },
     {
-      "name": "CryptoSlate RSS",
-      "description": "Broader crypto industry coverage",
+      "name": "CoinGecko Coin Community Data",
+      "description": "Coin-scoped community and attention metrics used only as a proxy when richer social data is unavailable",
       "tier": "tier2",
       "weight": 0.7,
       "update_frequency": 900,
-      "type": "rss",
-      "endpoint": "https://cryptoslate.com/feed/"
+      "type": "api",
+      "endpoint": "https://api.coingecko.com/api/v3/coins/{coin_id}",
+      "documentation": "https://docs.coingecko.com/reference/coins-id",
+      "access": "free_public_demo_or_pro_key",
+      "implemented": true,
+      "scope": "coin_context_proxy"
     }
   ]
 }

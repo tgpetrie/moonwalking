@@ -8,8 +8,6 @@ const API_BASE =
 const apiBase = API_BASE.replace(/\/$/, "");
 const POLL_MS = Number(import.meta.env.VITE_INTEL_POLL_MS || 300000); // 5 minutes default
 const MIN_FETCH_MS = Number(import.meta.env.VITE_INTEL_MIN_FETCH_MS || 60000); // minimum 1 minute between fetches
-const BATCH_RETRY_MS = Number(import.meta.env.VITE_INTEL_BATCH_RETRY_MS || 180000); // 3 minutes cooldown after 429/5xx
-const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || "false") === "true";
 
 const normalizeCoinIntelAsReport = (symbol, payload) => {
     const eventsCount = Array.isArray(payload?.events?.items) ? payload.events.items.length : 0;
@@ -58,8 +56,6 @@ export function IntelligenceProvider({ children, watchSymbols }) {
     const failCountRef = useRef(0);
     const lastFetchOkRef = useRef(true);
     const pollStartedRef = useRef(false);
-    const batchUnsupportedRef = useRef(false);
-    const batchRetryAtRef = useRef(0);
 
     const fetchBatch = useCallback(async () => {
         if (!symbols.length) return true;
@@ -80,101 +76,26 @@ export function IntelligenceProvider({ children, watchSymbols }) {
         setLoading(true);
         setLastError(null);
 
-        if (USE_MOCK) {
-            // Mock mode for UI testing
-            const mock = {};
-            for (const sym of symbols) {
-                mock[sym] = {
-                    symbol: sym,
-                    price: 0,
-                    metrics: {
-                        finbert_score: 0.9,
-                        finbert_label: "Bullish",
-                        fear_greed_index: 20,
-                        social_volume: 450,
-                        confidence: 0.92,
-                        divergence: "bullish_divergence"
-                    },
-                    narrative: "Mock divergence: institutional tone bullish into retail fear.",
-                    freshness: "fresh",
-                    generated_at: new Date().toISOString(),
-                    ttl_seconds: 300,
-                    model: { name: "mock", device: "cpu", quantized: false }
-                };
-            }
-            setReports(prev => ({ ...prev, ...mock }));
-            setLoading(false);
-            failCountRef.current = 0;
-            if (!lastFetchOkRef.current) {
-                console.info("[Intelligence] Batch fetch recovered");
-                lastFetchOkRef.current = true;
-            }
-            return true;
-        }
-
         try {
-            let merged = null;
+            const pairs = await Promise.all(
+                symbols.map(async (sym) => {
+                    const res = await fetch(`${apiBase}/api/coin-intel?symbol=${encodeURIComponent(sym)}`, {
+                        cache: "no-store",
+                        signal: ac.signal,
+                    });
+                    if (!res.ok) return [sym, null];
 
-            const nowMs = Date.now();
-            const canTryBatch = !batchUnsupportedRef.current && nowMs >= batchRetryAtRef.current;
-            if (canTryBatch) {
-                try {
-                    const qs = encodeURIComponent(symbols.join(","));
-                    const res = await fetch(
-                        `${apiBase}/api/intelligence-reports?symbols=${qs}`,
-                        { cache: "no-store", signal: ac.signal }
-                    );
-
-                    if (res.status === 404) {
-                        batchUnsupportedRef.current = true;
-                    } else if (res.status === 429 || res.status >= 500) {
-                        batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
-                    } else if (!res.ok) {
-                        throw new Error(`HTTP ${res.status}`);
-                    } else {
-                        // JSON safety: check content-type before parsing
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                            console.warn('[Intelligence] Non-JSON response from /api/intelligence-reports:', contentType);
-                            batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
-                        } else {
-                            const json = await res.json();
-                            if (!json.success) {
-                                batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
-                            } else {
-                                merged = json.data || {};
-                            }
-                        }
+                    const contentType = res.headers.get("content-type") || "";
+                    if (!contentType.includes("application/json")) {
+                        console.warn(`[Intelligence] Non-JSON response from /api/coin-intel (${sym}):`, contentType);
+                        return [sym, null];
                     }
-                } catch (err) {
-                    if (err?.name === "AbortError") throw err;
-                    batchRetryAtRef.current = Date.now() + BATCH_RETRY_MS;
-                }
-            }
 
-            // Fallback path: coin intel endpoint is canonical for this build.
-            if (batchUnsupportedRef.current || !merged) {
-                const pairs = await Promise.all(
-                    symbols.map(async (sym) => {
-                        const res = await fetch(`${apiBase}/api/coin-intel?symbol=${encodeURIComponent(sym)}`, {
-                            cache: "no-store",
-                            signal: ac.signal,
-                        });
-                        if (!res.ok) return [sym, null];
-
-                        // JSON safety: check content-type before parsing
-                        const contentType = res.headers.get("content-type") || "";
-                        if (!contentType.includes("application/json")) {
-                            console.warn(`[Intelligence] Non-JSON response from /api/coin-intel (${sym}):`, contentType);
-                            return [sym, null];
-                        }
-
-                        const payload = await res.json();
-                        return [sym, normalizeCoinIntelAsReport(sym, payload)];
-                    }),
-                );
-                merged = Object.fromEntries(pairs.filter(([, val]) => val));
-            }
+                    const payload = await res.json();
+                    return [sym, normalizeCoinIntelAsReport(sym, payload)];
+                }),
+            );
+            const merged = Object.fromEntries(pairs.filter(([, val]) => val));
 
             setReports(prev => ({ ...prev, ...(merged || {}) }));
             failCountRef.current = 0;

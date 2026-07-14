@@ -49,7 +49,11 @@ Tasks live in MW_BACKLOG.md.
 - mw_backend_base (only if it equals the canonical base in local dev)
 - mw_last_good_data
 - mw_last_good_at
+- mw_last_good_sentiment, mw_last_good_sentiment_at
 - mw_watchlist
+- mw_coin_history_v1 (bounded recent alert context per coin)
+- mw_alerts_last_seen_id (local unread marker)
+- mw_spot_universe_v1, mw_spot_universe_ts_v1 (bounded Coinbase product cache)
 - mw_debug_1m, mw_debug_sentiment, mw_debug_volume (debug toggles only)
 - mw_1m_mode (presentation mode only)
 

@@ -335,21 +335,21 @@ def _require_auth_user():
 
 @watchlist_bp.route("/api/auth/session", methods=["GET"])
 def auth_session():
-    user_id, error = _require_auth_user()
-    if error:
-        return error
+    user_id = _session_user_id()
+    if not user_id:
+        return jsonify({"authenticated": False, "user": None, "watchlists": []})
 
     with _DB_LOCK:
         conn = _db_connect()
         try:
             if not _user_by_id(conn, user_id):
                 session.pop(_SESSION_USER_KEY, None)
-                return jsonify({"error": "Session invalid"}), 401
+                return jsonify({"authenticated": False, "user": None, "watchlists": []})
             _seed_default_watchlist(conn, user_id)
             payload = _auth_payload(conn, user_id)
             if not payload:
                 session.pop(_SESSION_USER_KEY, None)
-                return jsonify({"error": "Session invalid"}), 401
+                return jsonify({"authenticated": False, "user": None, "watchlists": []})
             conn.commit()
             return jsonify(payload)
         finally:

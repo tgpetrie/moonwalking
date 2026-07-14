@@ -1,42 +1,47 @@
-version: '3.8'
-
 services:
+  sentiment:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command:
+      - python
+      - -m
+      - backend.sentiment_api
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8003"
+    working_dir: /app
+    environment:
+      SENTIMENT_HOST: 0.0.0.0
+      SENTIMENT_PORT: 8003
+    expose:
+      - "8003"
+    restart: unless-stopped
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    depends_on:
+      - sentiment
     ports:
       - "5003:5003"
     environment:
-      - FLASK_ENV=production
-      - FLASK_DEBUG=False
-      - HOST=0.0.0.0
-      - PORT=5003
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+      FLASK_ENV: production
+      HOST: 0.0.0.0
+      PORT: 5003
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting Compose}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-0}
+      DISABLE_TALISMAN: ${DISABLE_TALISMAN:-1}
+      SERVE_FRONTEND_DIST: 1
+      FRONTEND_DIST_DIR: /app/frontend/dist
+      WATCHLIST_DB_PATH: /var/lib/moonwalking/watchlists.sqlite
+      SENTIMENT_HOST: sentiment
+      SENTIMENT_PORT: 8003
     volumes:
-      - ./backend:/app
-    networks:
-      - bhabit-network
-
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://backend:5003
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-    networks:
-      - bhabit-network
-
-networks:
-  bhabit-network:
-    driver: bridge
+      - moonwalking_data:/var/lib/moonwalking
+    restart: unless-stopped
 
 volumes:
-  backend_data:
-  frontend_data:
+  moonwalking_data:

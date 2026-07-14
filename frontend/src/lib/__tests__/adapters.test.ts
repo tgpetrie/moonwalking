@@ -18,6 +18,19 @@ describe('adapters.normalizeBannerRow', () => {
     expect(out.volumeChangePct).toBeCloseTo(12.34, 6);
     expect(out.volumeChangeIsEstimated).toBe(false);
   });
+
+  it('does not infer volume movement from price movement', () => {
+    const out = normalizeBannerRow({
+      symbol: 'BTC-USD',
+      price_change_1h: 4.2,
+      volume_change_estimate: 2.1,
+      volume_change_is_estimated: true,
+    } as any);
+
+    expect(out.priceChange1h).toBe(4.2);
+    expect(out.volumeChangePct).toBeNull();
+    expect(out.volumeChangeIsEstimated).toBe(true);
+  });
 });
 
 describe('adapters.normalizeTableRow', () => {

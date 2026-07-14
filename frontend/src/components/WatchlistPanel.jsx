@@ -175,12 +175,23 @@ export default function WatchlistPanel({ onInfo }) {
   }, []);
 
   useEffect(() => {
-    const CACHE_KEY = "bh_spot_universe_v1";
-    const TS_KEY = "bh_spot_universe_ts_v1";
+    const CACHE_KEY = "mw_spot_universe_v1";
+    const TS_KEY = "mw_spot_universe_ts_v1";
+    const LEGACY_CACHE_KEY = "bh_spot_universe_v1";
+    const LEGACY_TS_KEY = "bh_spot_universe_ts_v1";
     const TTL_MS = 6 * 60 * 60 * 1000;
     try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
-      const ts = Number(localStorage.getItem(TS_KEY) || 0);
+      const cachedRaw =
+        localStorage.getItem(CACHE_KEY) || localStorage.getItem(LEGACY_CACHE_KEY);
+      const tsRaw = localStorage.getItem(TS_KEY) || localStorage.getItem(LEGACY_TS_KEY);
+      const cached = JSON.parse(cachedRaw || "null");
+      const ts = Number(tsRaw || 0);
+      if (!localStorage.getItem(CACHE_KEY) && cachedRaw) {
+        localStorage.setItem(CACHE_KEY, cachedRaw);
+        localStorage.setItem(TS_KEY, String(ts));
+        localStorage.removeItem(LEGACY_CACHE_KEY);
+        localStorage.removeItem(LEGACY_TS_KEY);
+      }
       if (Array.isArray(cached) && cached.length && Date.now() - ts < TTL_MS) {
         setSpotUniverse(cached);
         return;

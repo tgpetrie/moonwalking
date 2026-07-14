@@ -1,46 +1,41 @@
-# Dockerfile for CBMo4ers Backend
+FROM node:22-alpine AS frontend-build
 
-# Use a slim Python base image for smaller size
-FROM python:3.13-slim
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN VITE_API_BASE= VITE_API_BASE_URL= VITE_API_URL= npm run build
 
-# Set environment variables
+FROM python:3.12-slim
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    SERVE_FRONTEND_DIST=1 \
+    HOST=0.0.0.0 \
+    PORT=5003
 
-# Install system dependencies required for some Python packages (e.g., psutil)
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt requirements.txt
+COPY backend/ ./backend/
+COPY --from=frontend-build /src/frontend/dist ./frontend/dist/
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
+RUN groupadd --gid 1001 moonwalking \
+    && useradd --uid 1001 --gid 1001 --system --create-home moonwalking \
+    && mkdir -p /var/lib/moonwalking \
+    && chown -R moonwalking:moonwalking /app /var/lib/moonwalking
 
-# Copy the rest of the application code
-COPY . .
+USER moonwalking
+WORKDIR /app/backend
 
-# Create a non-root user for security best practices
-RUN groupadd --gid 1001 cbmo4ers && \
-    useradd --uid 1001 --gid 1001 --system --create-home cbmo4ers
-
-# Change ownership of the application directory
-RUN chown -R cbmo4ers:cbmo4ers /app
-
-# Switch to the non-root user
-USER cbmo4ers
-
-# Expose the port the application will run on
 EXPOSE 5003
 
-# Health check for container orchestration platforms
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5003/api/health', timeout=5)" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD python -c "import requests; requests.get('http://127.0.0.1:5003/api/health', timeout=5).raise_for_status()"
 
-# Command to run the application using Gunicorn
-CMD ["gunicorn", "app:app", "--workers", "1", "--threads", "1"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5003", "--workers", "1", "--threads", "8", "--timeout", "120"]

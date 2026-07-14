@@ -178,9 +178,9 @@ export async function fetchBoardData() {
 
 Rules:
 	•	Use relative paths (/data, /api/data) so that:
-	•	Dev: Vite proxy forwards to http://127.0.0.1:5001.
+	•	Dev: Vite proxy forwards to http://127.0.0.1:5003.
 	•	Prod: same-origin path via reverse proxy (nginx, Caddy, Cloudflare, etc.).
-	•	Do not hard-code http://127.0.0.1:5001 or any host/port in React components.
+	•	Do not hard-code http://127.0.0.1:5003 or any host/port in React components.
 
 ⸻
 
@@ -389,7 +389,7 @@ If the backend has different exact fields, they must be reflected here and in an
 	•	Dev:
 	•	Browser → http://127.0.0.1:5173 (Vite).
 	•	All board calls → fetch("/data").
-	•	Vite dev server proxies /data → http://127.0.0.1:5001/data.
+	•	Vite dev server proxies /data → http://127.0.0.1:5003/data.
 	•	Prod:
 	•	Browser → https://<domain> (reverse proxy).
 	•	Reverse proxy routes /data → Flask backend.

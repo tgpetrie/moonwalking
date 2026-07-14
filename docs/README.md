@@ -2,8 +2,8 @@
 
 Welcome to the Moonwalkings documentation hub. This directory contains all technical documentation for the cryptocurrency sentiment analysis and tracking platform.
 
-**Last Updated:** 2025-12-22
-**Current System Version:** Unified Aggregator v2.0
+**Last Updated:** 2026-07-14
+**Current System Version:** Real-source board + limited sentiment context
 
 ---
 
@@ -13,7 +13,8 @@ Welcome to the Moonwalkings documentation hub. This directory contains all techn
 Documentation for end-users and getting started quickly.
 
 - **[Quick Start Guide](user-guides/README-QUICK-START.md)** - 5-minute setup guide for the sentiment popup feature
-- **[Alerts – 2-minute verification](user-guides/ALERTS_USE_GUIDE.md)** - Prove alerts are alive (or localize the break) in ~2 minutes
+- **[Alerts – Operational Use Guide](user-guides/ALERTS_USE_GUIDE.md)** - Prove alerts are alive, understand thresholds, and interpret quick-buy labels.
+- **[Sentiment Sources](SENTIMENT_SOURCES.md)** - Active public sources, optional credentialed providers, and unavailable sources.
 
 ### 👨‍💻 Developer Documentation
 Technical guides for developers working on the platform.
@@ -45,26 +46,25 @@ Historical documentation and project status snapshots.
 
 The Moonwalkings platform is a cryptocurrency sentiment analysis and tracking system that combines:
 
-- **Multi-tier Sentiment Aggregation** - Weighted scoring from 50+ data sources
-- **Real-time Data Collection** - Fear & Greed Index, CoinGecko, RSS feeds, Reddit, Twitter (planned)
-- **VADER Sentiment Analysis** - Natural language processing with custom crypto lexicon
-- **Coin-Specific Intelligence** - Unique sentiment scores per cryptocurrency symbol
+- **Limited real-source sentiment** - Alternative.me and CoinGecko market context with explicit provenance.
+- **Coin-specific context** - Coinbase tape, CoinPaprika events/timeline, CoinGecko community/trending proxy, and optional credentialed providers.
+- **Quick-glance operator labels** - Coin Pressure maps alert families into `BUY WATCH`, `RECONFIRM`, `WATCH`, `NO CHASE`, `PROTECT`, and `AVOID LONG`.
 - **Interactive Frontend** - React-based dashboard with charts and popups
-- **Caching & Performance** - TTL-based caching with async architecture
+- **Caching & Performance** - TTL-based caching with stale/offline states instead of fabricated fallback data.
 
 ### Key Features
 
-✅ **Multi-Source Aggregation**
-- Fear & Greed Index (Tier 1 - weight 0.90)
-- CoinGecko metrics (Tier 1 - weight 0.85)
-- RSS feeds from CoinDesk, CryptoSlate, Bitcoin Magazine (Tier 2 - weight 0.75)
-- Reddit sentiment from 5+ subreddits (Tier 2-3 - weight 0.60-0.75)
+✅ **Real-source context**
+- Alternative.me Fear & Greed Index for market-wide sentiment
+- CoinGecko global market data for market pulse
+- Coinbase Exchange data for local tape, movers, price, and volume baselines
+- CoinPaprika coin events/timeline for context
+- CoinGecko community/trending data as an attention proxy
 
 ✅ **Advanced Analytics**
-- Divergence detection between institutional (Tier 1) and retail (Tier 3) sentiment
-- Trending topics extraction from social media and news
-- Historical sentiment tracking (planned)
-- Price correlation analysis
+- Canonical alert engine with impulse, whale, stealth, divergence, breadth, reversal, fakeout, volatility, liquidity, trend-break, squeeze, and exhaustion families
+- Coin Pressure quick-read interpretation for fast scanning
+- Source provenance, timestamps, stale/offline states, and no invented sentiment values
 
 ✅ **Production-Ready Architecture**
 - Async/await for parallel data fetching
@@ -79,8 +79,8 @@ The Moonwalkings platform is a cryptocurrency sentiment analysis and tracking sy
 ### Backend
 - **Framework:** Flask (Python)
 - **Async:** aiohttp, asyncio
-- **Sentiment Analysis:** VADER (vaderSentiment)
-- **Data Sources:** requests, praw (Reddit), feedparser (RSS)
+- **Sentiment Analysis:** Limited external metrics; no fabricated NLP score when no source exists
+- **Data Sources:** requests/http clients for official/public APIs; optional credentialed providers only when configured
 - **Configuration:** PyYAML
 
 ### Frontend
@@ -121,8 +121,8 @@ The Moonwalkings platform is a cryptocurrency sentiment analysis and tracking sy
 ### Primary Endpoints
 
 **GET `/api/sentiment/latest?symbol=BTC`**
-- Returns comprehensive sentiment analysis for a specific cryptocurrency
-- Includes sources breakdown, coin metrics, social metrics, divergence alerts
+- Returns limited real-source sentiment context with provenance and data status.
+- Market-wide values remain market-wide even when a coin symbol is supplied.
 
 **GET `/api/sentiment?symbols=BTC,ETH`**
 - Simple social sentiment format for multiple symbols

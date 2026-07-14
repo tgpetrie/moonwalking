@@ -3,31 +3,70 @@
   "tier": "tier3",
   "sources": [
     {
-      "name": "r/SatoshiStreetBets",
-      "description": "High-volatility retail sentiment spikes",
+      "name": "LunarCrush Social Metrics",
+      "description": "Optional credentialed social metrics provider for coin-scoped social heat and sentiment",
       "tier": "tier3",
-      "weight": 0.55,
-      "update_frequency": 900,
-      "type": "reddit",
-      "subreddit": "SatoshiStreetBets"
-    },
-    {
-      "name": "Telegram Alpha Feeds",
-      "description": "Curated list of Telegram rooms for alpha",
-      "tier": "tier3",
-      "weight": 0.45,
+      "weight": 0.65,
       "update_frequency": 600,
-      "type": "telegram",
-      "channels": ["whale_alert", "alpha_calls"]
+      "type": "api",
+      "endpoint": "https://api.lunarcrush.com/v2",
+      "documentation": "https://lunarcrush.com/developers",
+      "access": "requires_api_key",
+      "implemented": true,
+      "enabled_by": "LUNARCRUSH_API_KEY",
+      "scope": "coin_context_social"
     },
     {
-      "name": "Twitter High-Signal Traders",
-      "description": "Short list of credible traders and analysts",
+      "name": "Santiment SanAPI",
+      "description": "Optional social, development, and on-chain metrics provider for crypto assets",
       "tier": "tier3",
-      "weight": 0.5,
-      "update_frequency": 300,
-      "type": "twitter",
-      "accounts": ["@cryptocred", "@impulsive_eth", "@lightcrypto"]
+      "weight": 0.7,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://api.santiment.net/graphql",
+      "documentation": "https://academy.santiment.net/sanapi/",
+      "access": "requires_api_key_or_subscription",
+      "implemented": false,
+      "scope": "coin_context_social_onchain"
+    },
+    {
+      "name": "Messari Signal Sentiment",
+      "description": "Optional sentiment feed derived from crypto social conversations",
+      "tier": "tier3",
+      "weight": 0.7,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://api.messari.io",
+      "documentation": "https://docs.messari.io/api-reference/endpoints/signal/sentiment/overview",
+      "access": "requires_api_key_or_subscription",
+      "implemented": false,
+      "scope": "coin_context_social"
+    },
+    {
+      "name": "Kaito API",
+      "description": "Optional crypto mindshare and narrative intelligence provider",
+      "tier": "tier3",
+      "weight": 0.7,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://docs.kaito.ai",
+      "documentation": "https://docs.kaito.ai/overview/kaito-pro-ai-platform",
+      "access": "requires_api_key_or_commercial_access",
+      "implemented": false,
+      "scope": "mindshare_narratives"
+    },
+    {
+      "name": "The Tie Data API",
+      "description": "Optional institutional news and sentiment provider",
+      "tier": "tier3",
+      "weight": 0.75,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://www.thetie.io/solutions/api",
+      "documentation": "https://www.thetie.io/solutions/api",
+      "access": "requires_commercial_access",
+      "implemented": false,
+      "scope": "news_social_sentiment"
     }
   ]
 }

@@ -1,115 +1,101 @@
-# HANDOFF
+# Moonwalking Handoff
 
 ## Snapshot
 
-- Date: 2026-07-06
-- Current branch: `codex/ai-ml-next-step-plan` (pushed to origin; sits ahead of `main`)
-- Repo purpose: BHABIT Moonwalking is a React + Vite frontend and Flask backend for a live crypto tracking dashboard with alerts, movers, watchlist/insights tooling, and a product-shell pivot toward account-backed, cross-device watchlists.
+- Date: 2026-07-14
+- Branch: `codex/ai-ml-next-step-plan`
+- Repository: `/Users/cdmxx/Documents/moonwalkings`
+- Product: BHABIT Moonwalking live crypto board plus account-backed product shell.
+- Git policy: Tom explicitly requested committing/pushing this change set after verification.
 
-## Product direction (four tracks, in priority order)
+## Current outcome
 
-1. Cross-device watchlist — code complete, deploy pending (see below).
-2. Near-live gainers/losers — DONE (backend side): `backend/coinbase_ws.py`
-   consumes the Coinbase ticker WebSocket and `get_coinbase_prices()` serves
-   tick-fresh prices first, REST only as fallback (measured: warm cycle 0.1s
-   vs 1.2s cold, zero REST ticker calls). Default on; kill switch
-   `ENABLE_COINBASE_WS=0`; freshness knob `COINBASE_WS_MAX_AGE_S` (10s).
-   Possible follow-up: push updates to the browser (SSE) instead of polling.
-3. Real sentiment tracking — only Fear & Greed and CoinGecko fetchers are real
-   (`backend/sentiment_data_sources.py`). The tier configs in
-   `backend/sentiment/sources/*.json` describe Reddit/RSS/Telegram/Twitter
-   sources but `backend/sentiment/providers/` has no implementations yet.
-   Next win: Reddit public JSON + RSS/VADER providers honoring the
-   truth-state rules in `docs/developer/SENTIMENT_ONE_BOARD.md`; remove the
-   fabricated MD5 fallback documented in
-   `docs/developer/SENTIMENT_ARCHITECTURE.md`. Not started.
-4. Personal Coinbase integration — read-only API key, backend-only storage,
-   `/api/portfolio` summary endpoint. Deliberately last; rides on deployed
-   auth. Not started.
+The local MVP now has one canonical, verified runtime:
 
-## Important recent work (July 6, 2026)
+- Vite frontend: `127.0.0.1:5173`
+- Flask board API: `127.0.0.1:5003`
+- FastAPI sentiment service: `127.0.0.1:8003`
+- Start command: `./start_app.sh`
 
-### Cross-device watchlist backend + wiring (DONE)
+The public board, 1m/3m tables, real 1h banners, alerts, coin popup, guest watchlist, account session discovery, login/signup routes, and SQLite-backed authenticated watchlists are wired. The supported production shape remains one Flask worker plus the sentiment service on an Oracle/Tailscale single-box deployment.
 
-- Commit `c46e6ceb` — `feat(watchlist): SQLite-backed accounts with auth and guest sync`
-  - `backend/watchlist.py`: user signup/login with hashed passwords, session
-    handling, SQLite persistence (`data/watchlists.sqlite`), guest-watchlist
-    sync into the authenticated account.
-  - `frontend/src/mvp/MvpApp.jsx`: session restore (`/api/auth/session`),
-    login/signup/logout, full watchlist CRUD against `/api/watchlists*`.
-    Routes moved under `/app/*`.
-  - `frontend/src/context/WatchlistContext.jsx`: guest-vs-authenticated sync.
-  - Tests: `backend/tests/test_watchlist_auth_persistence.py`,
-    `frontend/src/context/WatchlistContext.test.jsx`.
-- Commit `fcc99ce3` — `feat(auth): production-ready session config`
-  - `SECRET_KEY` required in production (boot fails without it).
-  - HttpOnly/Secure cookies, SameSite=Lax (prod API traffic is same-origin
-    via the Vercel `/api/*` rewrite to Render in `vercel.json`), 30-day
-    persistent sessions.
-  - CORS explicit-origins branch now sends `supports_credentials`.
-  - `WATCHLIST_DB_PATH` env override + Render persistent disk in `render.yaml`.
+## Work completed in the current change set
 
-Remaining gaps in this track:
+### Runtime and routing
 
-- NOT DEPLOYED. Render disks need a paid instance; the free-tier alternative
-  is migrating watchlist storage to Postgres (Supabase). Until deployed,
-  cross-device does not actually work.
-- `/app/portfolio` and `/app/settings` state in `MvpApp.jsx` is still seeded
-  `useState` only (around line 1494) — watchlists persist, portfolio/settings
-  do not.
+- Standardized every active local start path on ports 5173/5003/8003.
+- Removed duplicate background-worker startup from script mode.
+- Moved the script entrypoint below the complete Flask route table. `/api/insights/<symbol>` and the remaining compatibility routes now exist in script mode as they do under imports.
+- Prevented request-time code from silently creating a legacy sentiment poller.
+- Disabled the unfinished legacy intelligence blueprint by default; `/api/coin-intel` is canonical.
+- Guest `/api/auth/session` now returns HTTP 200 with `authenticated: false`.
 
-### Earlier UI/board lane (still matters, do not regress)
+### Data truth
 
-- `17c9cbb6` / `7420683d` / `8eab79f5` — row cue hierarchy, SVG cue
-  indicators, canonical board CSS.
-- `51a96574` — row cue legend (`frontend/src/utils/rowCue.js`), shared
-  polling cadence config (`frontend/src/config/cadence.js`), DataContext
-  rework.
-- `433bf6a1` — 1h volume banner snapshot rebuild fix; sentiment service
-  default port moved 8002 → 8003.
+- Rebuilt the sentiment service as real-source only: Alternative.me plus CoinGecko global market data, with explicit provenance and live/stale/offline state.
+- Removed fabricated random sentiment, social metrics, topics, history, divergence, MD5 values, mock headlines, and mock news.
+- Market-wide sentiment remains labeled market-wide when a coin opened the panel.
+- The source catalog and source counts include only providers that contributed to the current real snapshot.
+- Missing external coverage remains null or empty.
+- Replaced estimated 1h price movement with actual SQLite timestamp baselines.
+- Removed price-as-volume and 24h-as-1h fallbacks. Banners now show real rows or warming state.
+- Compatibility banner and volume-snapshot endpoints now reuse the same canonical background snapshots as `/data`.
+- Fixed candle product-id normalization so `MORPHO-USD` cannot become `MORPHO-USD-USD`.
 
-## Performance notes
+### Frontend and interaction
 
-`PERFORMANCE_OPTIMIZATIONS.md` ("one fetch, three clocks") is still the right
-mental model, but the tuning knobs changed: cadence now derives from
-`frontend/src/config/cadence.js` (`VITE_FAST_1M_MS`, `VITE_BACKOFF_1M_MS`,
-`VITE_PUBLISH_UI_MS`, `VITE_PUBLISH_3M_MS`, `VITE_PUBLISH_BANNER_MS`,
-`VITE_POLL_JITTER_MS`) plus `VITE_ROW_STAGGER_MS` in `DataContext.jsx`.
-`VITE_FETCH_MS` no longer exists. The banner-scroll troubleshooting section
-in that doc is still accurate.
+- Preserved motion on data cells while anchoring whole rows, making star/info/trade controls reliably clickable.
+- Preserved missing sentiment values as null in the central adapter.
+- Removed frontend volume estimates and hardcoded banner samples.
+- Guest watchlist add/remove and baseline storage work through the canonical `mw_watchlist`/`product_id` contract; the old browser key migrates without data loss.
+- Auth screens link back to the live board and describe server-backed behavior without unsupported cloud claims.
+- Alerts Center active/recent flows work; the dock now shows a numeric unread count and opening marks the current stream read.
+- The coin popup loads both real local pressure and real external coin context without 404s.
+- Coin Pressure now includes a Pulse-tab `Quick Buy Read` that translates the canonical alert engine into operator labels:
+  - `BUY WATCH`: supported upside, still prefer pullback/retest.
+  - `RECONFIRM`: active momentum but not clean enough for blind chase.
+  - `WATCH`: early volume/attention smoke without clean direction.
+  - `NO CHASE` / `TRAP RISK` / `PROTECT`: fakeout, divergence, exhaustion, or risk-control families.
+  - `AVOID LONG`: active downside pressure.
+- The quick-read mapping lives in `frontend/src/components/SentimentPopupAdvanced.jsx` and uses real alert families plus freshness, volume confirmation, breadth, and labeled sentiment/attention context.
+- The row legend now defines quick-read labels in addition to streaks, peaks, arrows, and volume warmup.
 
-## Known repo hygiene issues
+### Alerts and sentiment documentation
 
-- The eslint pre-commit hook in `.pre-commit-config.yaml` can never pass
-  (ESLint 10 needs a flat config; the repo has no ESLint config or dependency
-  at all). Commit frontend work with `SKIP=eslint git commit ...` until the
-  hook is fixed or removed.
-- Legacy `frontend/src/Dashboard.jsx` hover-emitter code and disabled rabbit
-  hover/glow CSS blocks in `frontend/src/index.css` are dead weight; the
-  active entry is `App.jsx` → `MvpApp.jsx` (with `DashboardShell` mounted for
-  the board view).
-- `moonwalking_mobile/` contains only a `.DS_Store`; safe to delete.
+- `docs/user-guides/ALERTS_USE_GUIDE.md` now explains what alerts are trying to tell the operator, the current default thresholds, cooldowns, TTLs, and quick-buy interpretation.
+- `docs/alerts_engine_spec.md` now documents the UI quick-read mapping and threshold summary from `backend/alerts_engine.py`.
+- `docs/SENTIMENT_SOURCES.md` is the source matrix for active public sources and optional credentialed providers. Reddit/X remain unavailable until official API credentials and compliant ingestion exist.
+- `backend/sentiment/sources/tier3.json` catalogs optional credentialed providers such as LunarCrush, Santiment, Messari, Kaito, and The Tie without counting them as active coverage unless credentials are configured.
 
-## Next exact step
+## Verification completed
 
-Deployment decision (revised 2026-07-06): single-box deploy with SQLite +
-Tailscale on an **Oracle Cloud Always Free ARM VM** (the mini PC timeline
-slipped and may not be permanent; the same kit works on either box, and
-Hetzner ~$4/mo is the fallback if Oracle signup/capacity is a hassle). No
-Render disk, no Supabase migration. Kit: `deploy/homeserver/` — the README
-now has an Oracle quickstart (A1.Flex ARM VM, PAYG upgrade to dodge idle
-reclamation, iptables gotcha, no inbound ports needed thanks to Tailscale).
+- Backend suite passed with 52 tests; 65 legacy/provider tests are intentionally skipped.
+- Runtime/banner, sentiment provenance, and active-source catalog regressions are covered.
+- Frontend production build and unit suite passed; the current suite contains 26 tests, including canonical watchlist migration.
+- Guardrails passed.
+- Smoke endpoints passed against the live backend.
+- Browser QA covered desktop and mobile layout, board population, alerts, watchlist add/remove, coin popup, login/signup routes, click stability, horizontal overflow, and console errors.
+- Clean startup logs showed one price worker, one volume worker, one sentiment service, and no legacy intelligence import failure.
 
-1. User creates the Oracle account + VM (console steps in the README),
-   then follows the generic setup end to end and verifies cross-device
-   login from two devices.
-2. Development continues meanwhile — next is track 3 (real sentiment
-   providers).
+Run the final verification commands after any subsequent edit:
 
-## Resume prompt for another device
+```bash
+npm run guardrails
+.venv/bin/python -m pytest -q backend/tests
+(cd frontend && npm run verify)
+bash scripts/smoke_check.sh
+bash scripts/smoke_sentiment_proxy.sh BTC
+```
 
-Read `HANDOFF.md`. Watchlist auth/persistence is code-complete on branch
-`codex/ai-ml-next-step-plan` (commits `c46e6ceb`, `fcc99ce3`) but not
-deployed. Pick up at "Next exact step": choose Render disk vs Supabase
-Postgres, deploy, verify cross-device login, then start the Coinbase
-WebSocket live-board track. Keep the row cue and board CSS lanes intact.
+## Honest limitations
+
+- Cross-device behavior is code-complete but not proven until the one-box deployment is online and tested from two devices.
+- Sentiment has market-wide real sources plus coin-context attention proxies. True coin-specific social sentiment requires a credentialed provider such as LunarCrush, Santiment, Messari, Kaito, or The Tie.
+- `/app/portfolio` and `/app/settings` still use seeded in-memory product-shell state.
+- Personal Coinbase integration has not been designed or implemented.
+- On a fresh database, 1m, 3m, and 1h sections deliberately show warming until their real baseline windows mature. Existing SQLite history shortens this after normal restarts.
+- The backend remains a large module. Runtime responsibilities are now explicit, but extracting workers and routes into narrow modules is a future maintainability task, not required for the current one-box MVP.
+
+## Recommended next action
+
+Deploy the current build with `deploy/homeserver/`, verify account login and watchlist sync from two devices over Tailscale, and only then begin personal Coinbase or new sentiment-provider work.
