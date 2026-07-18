@@ -90,6 +90,7 @@ except ImportError as e:
 
 
 from watchlist import watchlist_bp, watchlist_db
+from portfolio_mode import portfolio_bp
 
 try:
     from reliability import stale_while_revalidate
@@ -875,6 +876,13 @@ try:
 except Exception:
     logging.exception(
         "Skipping blueprint registration during test or mocked environment"
+    )
+
+try:
+    app.register_blueprint(portfolio_bp)
+except Exception:
+    logging.exception(
+        "Skipping Portfolio Mode blueprint registration during test or mocked environment"
     )
 
 # The old Redis/FinBERT blueprint depends on an unfinished engine and always

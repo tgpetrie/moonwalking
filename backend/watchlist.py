@@ -333,6 +333,24 @@ def _require_auth_user():
     return user_id, None
 
 
+def get_authenticated_user():
+    """Return safe metadata for the signed-in user, or None.
+
+    Private member blueprints use this instead of reaching into the watchlist
+    database or trusting a user id supplied by the browser.
+    """
+    user_id = _session_user_id()
+    if not user_id:
+        return None
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            row = _user_by_id(conn, user_id)
+            return _serialize_user(row) if row else None
+        finally:
+            conn.close()
+
+
 @watchlist_bp.route("/api/auth/session", methods=["GET"])
 def auth_session():
     user_id = _session_user_id()

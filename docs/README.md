@@ -2,7 +2,7 @@
 
 Welcome to the Moonwalkings documentation hub. This directory contains all technical documentation for the cryptocurrency sentiment analysis and tracking platform.
 
-**Last Updated:** 2026-07-14
+**Last Updated:** 2026-07-18
 **Current System Version:** Real-source board + limited sentiment context
 
 ---
@@ -15,6 +15,7 @@ Documentation for end-users and getting started quickly.
 - **[Quick Start Guide](user-guides/README-QUICK-START.md)** - 5-minute setup guide for the sentiment popup feature
 - **[Alerts – Operational Use Guide](user-guides/ALERTS_USE_GUIDE.md)** - Prove alerts are alive, understand thresholds, and interpret quick-buy labels.
 - **[Sentiment Sources](SENTIMENT_SOURCES.md)** - Active public sources, optional credentialed providers, and unavailable sources.
+- **[Private Portfolio Mode](PORTFOLIO_MODE.md)** - View-only Coinbase setup, security contract, cost-basis truth, and staged rollout.
 
 ### 👨‍💻 Developer Documentation
 Technical guides for developers working on the platform.

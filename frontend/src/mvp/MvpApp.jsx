@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { getBackendBase } from "../config/api.js";
+import PortfolioModePage from "./PortfolioModePage.jsx";
 import "../styles/mvp-shell.css";
 
 const APP_DASHBOARD_PATH = "/app/dashboard";
@@ -930,8 +931,8 @@ function DashboardPage({ session, watchlists, portfolio, navigate }) {
               <span>Create, rename, filter, and refine the core data.</span>
             </AppLink>
             <AppLink to={APP_PORTFOLIO_PATH} navigate={navigate} className="mw-action-card">
-              <strong>Edit portfolio</strong>
-              <span>Update the profile and choose which lists get featured publicly.</span>
+              <strong>Open Portfolio Mode</strong>
+              <span>Review private Coinbase holdings, cost-basis coverage, and current BHABIT reads.</span>
             </AppLink>
             <AppLink to={APP_SETTINGS_PATH} navigate={navigate} className="mw-action-card">
               <strong>Review settings</strong>
@@ -1194,117 +1195,6 @@ function WatchlistsPage({
         </article>
       </div>
     </section>
-  );
-}
-
-function PortfolioPage({ session, watchlists, portfolio, onUpdatePortfolio }) {
-  const featuredLists = watchlists.filter((watchlist) =>
-    portfolio.featuredWatchlistIds.includes(watchlist.id)
-  );
-
-  return (
-    <div className="mw-stack">
-      <section className="mw-portfolio-hero">
-        <article className="mw-panel mw-portfolio-card">
-          <div className="mw-portfolio-card__head">
-            <div className="mw-avatar mw-avatar--large">{initials(portfolio.displayName)}</div>
-            <div>
-              <p className="mw-eyebrow">Portfolio</p>
-              <h2>{portfolio.displayName}</h2>
-              <p>{portfolio.headline}</p>
-            </div>
-          </div>
-          <label className="mw-field">
-            <span>Display Name</span>
-            <input
-              type="text"
-              value={portfolio.displayName}
-              onChange={(event) => onUpdatePortfolio("displayName", event.target.value)}
-            />
-          </label>
-          <label className="mw-field">
-            <span>Bio</span>
-            <textarea
-              value={portfolio.bio}
-              onChange={(event) => onUpdatePortfolio("bio", event.target.value)}
-            />
-          </label>
-          <label className="mw-field">
-            <span>Website</span>
-            <input
-              type="url"
-              value={portfolio.website}
-              onChange={(event) => onUpdatePortfolio("website", event.target.value)}
-            />
-          </label>
-        </article>
-
-        <article className="mw-panel">
-          <div className="mw-panel__header">
-            <div>
-              <h3>Visibility</h3>
-              <span>Control what public visitors can see.</span>
-            </div>
-            <span className="mw-status-chip mw-status-chip--accent">
-              /u/{session.username}
-            </span>
-          </div>
-
-          <div className="mw-toggle-group">
-            {["public", "private"].map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={classNames(
-                  "mw-toggle",
-                  portfolio.visibility === option && "is-active"
-                )}
-                onClick={() => onUpdatePortfolio("visibility", option)}
-              >
-                {titleize(option)}
-              </button>
-            ))}
-          </div>
-
-          <div className="mw-panel__header">
-            <div>
-              <h3>Featured Lists</h3>
-              <span>Select watchlists to showcase on the public profile.</span>
-            </div>
-          </div>
-          <div className="mw-featured-grid">
-            {watchlists.map((watchlist) => {
-              const featured = portfolio.featuredWatchlistIds.includes(watchlist.id);
-              return (
-                <button
-                  key={watchlist.id}
-                  type="button"
-                  className={classNames("mw-featured-card", featured && "is-active")}
-                  onClick={() => {
-                    const nextIds = featured
-                      ? portfolio.featuredWatchlistIds.filter((id) => id !== watchlist.id)
-                      : [...portfolio.featuredWatchlistIds, watchlist.id].slice(-3);
-                    onUpdatePortfolio("featuredWatchlistIds", nextIds);
-                  }}
-                >
-                  <strong>{watchlist.name}</strong>
-                  <span>{watchlist.items.length} items</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mw-mini-list">
-            {featuredLists.map((watchlist) => (
-              <div key={watchlist.id} className="mw-mini-list__row">
-                <strong>{watchlist.name}</strong>
-                <span>{watchlist.description}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-    </div>
   );
 }
 
@@ -1872,10 +1762,6 @@ export default function MvpApp() {
     updateWatchlist(watchlistId, () => ({ notes: nextNotes }));
   };
 
-  const handleUpdatePortfolio = (key, value) => {
-    setPortfolio((current) => ({ ...current, [key]: value }));
-  };
-
   const handleUpdateSettings = (key, value) => {
     setSettings((current) => ({ ...current, [key]: value }));
   };
@@ -1941,14 +1827,7 @@ export default function MvpApp() {
           />
         );
       case APP_PORTFOLIO_PATH:
-        return (
-          <PortfolioPage
-            session={session}
-            watchlists={watchlists}
-            portfolio={portfolio}
-            onUpdatePortfolio={handleUpdatePortfolio}
-          />
-        );
+        return <PortfolioModePage />;
       case APP_SETTINGS_PATH:
         return (
           <SettingsPage

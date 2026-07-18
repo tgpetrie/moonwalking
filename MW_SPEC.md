@@ -28,6 +28,14 @@ Tasks live in MW_BACKLOG.md.
 - Canonical asset key is product_id.
 - Display symbol is base symbol only (no “-USD” in UI).
 
+0.6 Private portfolio safety
+- Portfolio Mode is available only inside an authenticated member route and only to the configured owner account.
+- Coinbase credentials stay server-side and must never be returned by an API or embedded in the frontend bundle.
+- Stage 1 accepts View-only Coinbase keys. If the key can Trade or Transfer, BHABIT must refuse to load portfolio data until it is replaced with a View-only key.
+- Stage 1 exposes no create-order, cancel-order, transfer, withdrawal, or preview mutation route.
+- Missing or incomplete fill history must render partial or unavailable cost basis. Never infer transferred-in acquisition cost.
+- Personalized condition labels are descriptive market states, not promises or implicit order controls.
+
 
 ## 1) Ports, hosts, and environment (canonical)
 
