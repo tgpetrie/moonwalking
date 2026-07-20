@@ -736,6 +736,46 @@
   color: #e4d3ff;
 }
 
+.bh-signal-promo[data-promo="EVENT"] {
+  border: 1px solid rgba(0, 226, 209, 0.38);
+  background: rgba(0, 171, 163, 0.12);
+  color: rgba(131, 255, 244, 0.9);
+}
+
+.bh-signal-context {
+  padding: 2px 6px;
+  border: 1px solid rgba(0, 226, 209, 0.3);
+  background: rgba(0, 171, 163, 0.08);
+  color: rgba(151, 245, 237, 0.82);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.065em;
+  line-height: 1.2;
+}
+
+.bh-signal-context[data-tone="flow"] {
+  border-color: rgba(255, 174, 92, 0.38);
+  background: rgba(255, 157, 64, 0.1);
+  color: #ffd2a3;
+}
+
+.bh-signal-context[data-tone="risk"] {
+  border-color: rgba(190, 112, 255, 0.42);
+  background: rgba(151, 74, 214, 0.11);
+  color: #e2c5ff;
+}
+
+.bh-signal-confidence {
+  min-width: 28px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 174, 92, 0.42);
+  color: #ffd2a3;
+  background: rgba(255, 157, 64, 0.12);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .bh-signal-bias {
   font-size: 9px;
   font-weight: 700;
@@ -799,10 +839,127 @@
   min-width: 0;
 }
 
+.bh-event-read {
+  display: grid;
+  gap: 3px;
+  padding: 6px 8px;
+  border-left: 2px solid rgba(156, 128, 196, 0.52);
+  background: linear-gradient(90deg, rgba(93, 64, 129, 0.13), transparent 86%);
+}
+
+.bh-event-read[data-tone="favorable"] {
+  border-left-color: rgba(255, 172, 86, 0.88);
+  background: linear-gradient(90deg, rgba(255, 139, 54, 0.12), transparent 86%);
+}
+
+.bh-event-read[data-tone="watch"] {
+  border-left-color: rgba(0, 226, 209, 0.68);
+  background: linear-gradient(90deg, rgba(0, 180, 170, 0.09), transparent 86%);
+}
+
+.bh-event-read[data-tone="caution"],
+.bh-event-read[data-tone="risk"] {
+  border-left-color: rgba(190, 112, 255, 0.86);
+  background: linear-gradient(90deg, rgba(151, 74, 214, 0.13), transparent 86%);
+}
+
+.bh-event-read__eyebrow {
+  color: color-mix(in srgb, var(--bh-fg, #fff) 44%, transparent);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.bh-event-read__line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.bh-event-read__label {
+  color: color-mix(in srgb, var(--bh-fg, #fff) 92%, transparent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.bh-event-read__condition {
+  color: color-mix(in srgb, var(--bh-fg, #fff) 58%, transparent);
+  font-size: 9px;
+}
+
+.bh-event-read__condition::before {
+  content: "· ";
+  color: color-mix(in srgb, var(--bh-fg, #fff) 30%, transparent);
+}
+
+.bh-event-read__summary {
+  color: color-mix(in srgb, var(--bh-fg, #fff) 67%, transparent);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.bh-event-read__risk {
+  color: rgba(222, 189, 255, 0.82);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.bh-event-read__risk::before {
+  content: "WATCH · ";
+  color: rgba(190, 112, 255, 0.92);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.bh-event-read__history {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 46%, transparent);
+  font-size: 8px;
+  letter-spacing: 0.035em;
+}
+
+.bh-event-read__history > :first-child {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.bh-event-read__history[data-status="measured"] {
+  color: rgba(255, 194, 132, 0.8);
+}
+
 .bh-signal-metrics {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
+}
+
+.bh-event-evolution {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 68%, transparent);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+.bh-event-evolution__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bh-event-evolution__arrow {
+  color: rgba(194, 132, 255, 0.75);
+}
+
+.bh-event-evolution__count {
+  margin-left: 4px;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 46%, transparent);
 }
 
 .bh-metric {

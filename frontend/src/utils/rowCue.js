@@ -12,34 +12,34 @@ const toNum = (value) => {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const THRESHOLDS = {
-  change_1m: { moonwalking: 8, heating: 3.5, building: 1.1, cooling: -1.1, risk: -3.5, critical: -8 },
-  change_3m: { moonwalking: 12, heating: 6, building: 2.2, cooling: -2.2, risk: -6, critical: -12 },
-  change_watch: { moonwalking: 14, heating: 6, building: 2.5, cooling: -2.5, risk: -6, critical: -12 },
-  default: { moonwalking: 10, heating: 4, building: 1.5, cooling: -1.5, risk: -4, critical: -9 },
+  change_1m: { moonwalking: 1, breakout: 0.55, building: 0.25, cooling: -0.25, dump: -0.55, critical: -1 },
+  change_3m: { moonwalking: 2.6, breakout: 1.9, building: 0.8, cooling: -0.8, dump: -1.9, critical: -2.6 },
+  change_watch: { moonwalking: 2.6, breakout: 1.9, building: 0.8, cooling: -0.8, dump: -1.9, critical: -2.6 },
+  default: { moonwalking: 1, breakout: 0.55, building: 0.25, cooling: -0.25, dump: -0.55, critical: -1 },
 };
 
 const ALERT_STATE_MAP = {
-  moonshot: { key: "moonwalking", label: "Moonwalking", tone: "positive", emoji: "✦", alertOnly: true },
+  moonshot: { key: "moonwalking", label: "Moonwalking", tone: "moon", emoji: "☾", alertOnly: true },
   breakout: { key: "breakout", label: "Breakout", tone: "positive", emoji: "↗", alertOnly: true },
-  whale: { key: "whale", label: "Whale", tone: "neutral", emoji: "◉", alertOnly: true },
+  whale: { key: "whale", label: "Whale", tone: "neutral", emoji: "🐋", alertOnly: true },
   stealth: { key: "stealth", label: "Stealth", tone: "neutral", emoji: "◌", alertOnly: true },
   divergence: { key: "reversal-risk", label: "Reversal Risk", tone: "warning", emoji: "⟁", alertOnly: true },
   dump: { key: "cooling", label: "Cooling", tone: "negative", emoji: "↘", alertOnly: true },
   crater: { key: "critical", label: "Critical", tone: "negative", emoji: "⨯", alertOnly: true },
   fear: { key: "reversal-risk", label: "Risk", tone: "negative", emoji: "⊘", alertOnly: true },
-  fomo: { key: "heating", label: "Heating", tone: "positive", emoji: "✶", alertOnly: true },
-  volume: { key: "whale", label: "Volume Event", tone: "neutral", emoji: "◍", alertOnly: true },
+  fomo: { key: "heating", label: "Heating", tone: "positive", emoji: "♨", alertOnly: true },
+  volume: { key: "whale", label: "Volume Event", tone: "neutral", emoji: "🐋", alertOnly: true },
   sentiment: { key: "heating", label: "Sentiment", tone: "neutral", emoji: "∿", alertOnly: true },
   move: { key: "move", label: "Move", tone: "neutral", emoji: "~", alertOnly: true },
   unknown: { key: "alert", label: "Alert", tone: "neutral", emoji: "•", alertOnly: true },
 };
 
 const STATE_EMOJI_MAP = {
-  moonwalking: "✦",
+  moonwalking: "☾",
   breakout: "↗",
-  whale: "◉",
+  whale: "🐋",
   stealth: "◌",
-  heating: "✶",
+  heating: "♨",
   building: "▵",
   cooling: "↘",
   critical: "⨯",
@@ -51,93 +51,106 @@ const STATE_EMOJI_MAP = {
 export const ROW_CUE_LEGEND = [
   {
     key: "moonwalking",
-    emoji: "✦",
-    tone: "positive",
+    emoji: "☾",
+    tone: "moon",
     label: "Moonwalking",
-    detail: "Strong upside impulse or moonshot-style alert.",
+    source: "Alert + board",
+    detail: "Moonshot: strongest upside move is at least +1.00% in 1m or +2.60% in 3m.",
   },
   {
     key: "breakout",
     emoji: "↗",
     tone: "positive",
     label: "Breakout",
-    detail: "Fresh upside expansion or breakout confirmation.",
+    source: "Alert + board",
+    detail: "Upside move is at least +0.55% in 1m or +1.90% in 3m, but below Moonwalking.",
   },
   {
     key: "heating",
-    emoji: "✶",
+    emoji: "♨",
     tone: "positive",
     label: "Heating",
-    detail: "Momentum is building quickly right now.",
+    source: "Alert engine",
+    detail: "A FOMO, thrust, bullish reversal, squeeze-break, trend-break, or persistent-gainer alert is active.",
   },
   {
     key: "building",
     emoji: "▵",
     tone: "positive",
     label: "Building",
-    detail: "Early constructive move, not fully heated yet.",
+    source: "Board fallback",
+    detail: "Display-only early move: at least +0.25% in 1m or +0.80% in 3m, below Breakout.",
   },
   {
     key: "whale",
-    emoji: "◉",
+    emoji: "🐋",
     tone: "neutral",
     label: "Whale / Volume",
-    detail: "Unusual size or volume expansion is driving attention.",
+    source: "Alert + board",
+    detail: "Aggregated USD flow: 3σ 1m volume with ≥0.3% impact and $25k notional; a 2.5σ three-candle cluster with ≥0.4% impact and $50k; absorption; or +150% 1h volume with ≥$250k. Not a single trader.",
   },
   {
     key: "stealth",
     emoji: "◌",
     tone: "neutral",
     label: "Stealth",
-    detail: "Volume is waking up quietly before a larger move.",
+    source: "Alert + board",
+    detail: "1h volume is at least +110% while absolute 3m price movement stays at or below 1.2%.",
   },
   {
     key: "sentiment",
     emoji: "∿",
     tone: "neutral",
     label: "Sentiment",
-    detail: "External mood or social context is part of the signal.",
+    source: "Alert engine",
+    detail: "A real external social or sentiment alert is attached to this coin.",
   },
   {
     key: "move",
     emoji: "~",
     tone: "neutral",
     label: "Move",
-    detail: "Short-term move alert without a stronger special cue.",
+    source: "Alert engine",
+    detail: "A generic move or impulse alert exists but does not qualify for a stronger named family.",
   },
   {
     key: "reversal-risk",
     emoji: "⟁",
     tone: "warning",
     label: "Reversal Risk",
-    detail: "Move is vulnerable to failure or reversal.",
+    source: "Alert engine",
+    detail: "Usually 1m and 3m point in opposite directions and both exceed 0.65%, or another explicit reversal/failure alert fired.",
   },
   {
     key: "fear",
     emoji: "⊘",
     tone: "negative",
     label: "Risk / Fear",
-    detail: "Risk-off or fear-style alert is active.",
+    source: "Alert engine",
+    detail: "A fear-family risk alert is active; the market extreme uses pressure at or below 20 and Fear & Greed at or below 30.",
   },
   {
     key: "cooling",
     emoji: "↘",
     tone: "negative",
     label: "Cooling",
-    detail: "Momentum is fading or rolling over.",
+    source: "Alert + board",
+    detail: "Downside begins at -0.25% in 1m or -0.80% in 3m; Dump level begins at -0.55% or -1.90%.",
   },
   {
     key: "critical",
     emoji: "⨯",
     tone: "negative",
     label: "Critical",
-    detail: "Severe downside or crater-style cue.",
+    source: "Alert + board",
+    detail: "Crater: strongest downside move is at most -1.00% in 1m or -2.60% in 3m.",
   },
   {
     key: "alert",
     emoji: "•",
     tone: "neutral",
     label: "Generic Alert",
+    source: "Alert engine",
     detail: "Fallback alert marker when no stronger category applies.",
   },
 ];
@@ -176,11 +189,11 @@ const alertTsMs = (alert) => {
 };
 
 const CUE_STATE_META = {
-  moonwalking: { key: "moonwalking", label: "Moonwalking", tone: "positive", emoji: "✦" },
+  moonwalking: { key: "moonwalking", label: "Moonwalking", tone: "moon", emoji: "☾" },
   breakout: { key: "breakout", label: "Breakout", tone: "positive", emoji: "↗" },
-  whale: { key: "whale", label: "Whale", tone: "neutral", emoji: "◉" },
+  whale: { key: "whale", label: "Whale", tone: "neutral", emoji: "🐋" },
   stealth: { key: "stealth", label: "Stealth", tone: "neutral", emoji: "◌" },
-  heating: { key: "heating", label: "Heating", tone: "positive", emoji: "✶" },
+  heating: { key: "heating", label: "Heating", tone: "positive", emoji: "♨" },
   building: { key: "building", label: "Building", tone: "positive", emoji: "▵" },
   sentiment: { key: "sentiment", label: "Sentiment", tone: "neutral", emoji: "∿" },
   move: { key: "move", label: "Move", tone: "neutral", emoji: "~" },
@@ -272,7 +285,7 @@ const resolveAlertCue = (alert) => {
     return { ...cueFromKey("stealth"), family: "liquidity", severity };
   }
   if (raw.includes("volume")) {
-    return { ...cueFromKey("whale", { label: "Volume Event", emoji: "◍" }), family: "liquidity", severity };
+    return { ...cueFromKey("whale", { label: "Volume Event", emoji: "🐋" }), family: "liquidity", severity };
   }
   if (raw.includes("moonshot")) {
     return { ...cueFromKey("moonwalking", { label: "Moonshot" }), family: "impulse", severity };
@@ -333,13 +346,13 @@ const resolveAlertCue = (alert) => {
   };
 };
 
-const heuristicState = ({ pct, changeField, volumePct }) => {
+const heuristicState = ({ pct, pct3m, changeField, volumePct, quoteVolume, volumeBaselineReady }) => {
   const thresholds = THRESHOLDS[changeField] || THRESHOLDS.default;
 
-  if (Number.isFinite(volumePct) && Math.abs(volumePct) >= 125 && Math.abs(pct || 0) < thresholds.heating) {
+  if (volumeBaselineReady && Number.isFinite(volumePct) && volumePct >= 150 && Number.isFinite(quoteVolume) && quoteVolume >= 250000) {
     return cueFromKey("whale", { label: "Volume" });
   }
-  if (Number.isFinite(volumePct) && Math.abs(volumePct) >= 70 && Math.abs(pct || 0) < thresholds.building) {
+  if (volumeBaselineReady && Number.isFinite(volumePct) && volumePct >= 110 && Number.isFinite(pct3m) && Math.abs(pct3m) <= 1.2) {
     return cueFromKey("stealth");
   }
   if (!Number.isFinite(pct)) {
@@ -348,8 +361,8 @@ const heuristicState = ({ pct, changeField, volumePct }) => {
   if (pct >= thresholds.moonwalking) {
     return cueFromKey("moonwalking");
   }
-  if (pct >= thresholds.heating) {
-    return cueFromKey("heating");
+  if (pct >= thresholds.breakout) {
+    return cueFromKey("breakout");
   }
   if (pct >= thresholds.building) {
     return cueFromKey("building");
@@ -357,8 +370,8 @@ const heuristicState = ({ pct, changeField, volumePct }) => {
   if (pct <= thresholds.critical) {
     return cueFromKey("critical");
   }
-  if (pct <= thresholds.risk) {
-    return cueFromKey("reversal-risk", { label: "Fragile" });
+  if (pct <= thresholds.dump) {
+    return cueFromKey("cooling", { label: "Dump" });
   }
   if (pct <= thresholds.cooling) {
     return cueFromKey("cooling");
@@ -473,8 +486,11 @@ export function deriveRowCue({
       token?.volumeChangePct ??
       token?.volume_change_pct
   );
+  const quoteVolume = toNum(token?.quote_volume_1h_now ?? token?.quoteVolume1hNow);
+  const volumeBaselineReady = token?.baseline_ready === true || token?.volume_baseline_ready === true;
+  const pct3m = toNum(token?.change_3m ?? token?.price_change_percentage_3min);
 
-  const fallbackCue = heuristicState({ pct, changeField, volumePct });
+  const fallbackCue = heuristicState({ pct, pct3m, changeField, volumePct, quoteVolume, volumeBaselineReady });
   const activeCandidate = buildAlertCandidate(activeAlert, nowMs, { enforceTtl: false });
 
   let primaryCue = fallbackCue?.key !== "normal"

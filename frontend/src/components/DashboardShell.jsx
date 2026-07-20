@@ -19,6 +19,12 @@ import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
+    symbol: "CONFIRMED",
+    tone: "neutral",
+    label: "Move quality",
+    detail: "Confirmed means multiple timeframes and evidence agree. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
+  },
+  {
     symbol: "+2 / -2",
     tone: "neutral",
     label: "Board rank shift",
@@ -75,13 +81,35 @@ function LegendPersistenceIcon() {
 }
 
 function BoardRowLegend() {
+  const detailsRef = useRef(null);
+
+  useEffect(() => {
+    const closeLegend = () => {
+      if (detailsRef.current) detailsRef.current.open = false;
+    };
+    const handlePointerDown = (event) => {
+      const details = detailsRef.current;
+      if (details?.open && !details.contains(event.target)) closeLegend();
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") closeLegend();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   return (
-    <details className="bh-board-help">
-      <summary className="bh-board-help__toggle">Row legend</summary>
+    <details ref={detailsRef} className="bh-board-help">
+      <summary className="bh-board-help__toggle">Legend</summary>
       <div className="bh-board-help__popover" role="note">
         <div className="bh-board-help__title">How to read the row symbols</div>
         <div className="bh-board-help__note bh-board-help__note--lead">
-          Each row can show one current cue, one recent-memory cue from the last few minutes, and one persistence marker.
+          These are v0.2 heuristic rules aligned with the running alert engine, not yet statistically calibrated. Each row can show one current cue, one recent-memory cue from the last few minutes, and one persistence marker.
         </div>
 
         <section className="bh-board-help__section" aria-label="Cue symbols">
@@ -93,7 +121,10 @@ function BoardRowLegend() {
                   {item.emoji}
                 </span>
                 <span className="bh-board-help__copy">
-                  <span className="bh-board-help__label">{item.label}</span>
+                  <span className="bh-board-help__label-line">
+                    <span className="bh-board-help__label">{item.label}</span>
+                    <span className="bh-board-help__source">{item.source}</span>
+                  </span>
                   <span className="bh-board-help__desc">{item.detail}</span>
                 </span>
               </div>
@@ -105,12 +136,12 @@ function BoardRowLegend() {
           <div className="bh-board-help__section-title">Recent Context</div>
           <div className="bh-board-help__row">
             <span className="bh-board-help__icon bh-board-help__icon--neutral" aria-hidden="true">
-              ◉
+              •
             </span>
             <span className="bh-board-help__copy">
-              <span className="bh-board-help__label">Secondary recent cue</span>
+              <span className="bh-board-help__label">Small blue marker</span>
               <span className="bh-board-help__desc">
-                A smaller second icon means this coin had another meaningful alert recently, even if that is not why it is on the board right now.
+                A second distinct alert is still in memory: 10m for liquidity, 8m for impulse/risk, and 5m for heating/context.
               </span>
             </span>
           </div>
@@ -119,9 +150,9 @@ function BoardRowLegend() {
               <LegendPersistenceIcon />
             </span>
             <span className="bh-board-help__copy">
-              <span className="bh-board-help__label">Persistence marker</span>
+              <span className="bh-board-help__label">Small purple dot</span>
               <span className="bh-board-help__desc">
-                Small BHABIT-purple dot means repeat or consecutive board presence. A tiny count appears only for stronger persistence.
+                Repeat board presence or streak of at least 2 refreshes. A count appears at 3 or more and caps visually at 9x.
               </span>
             </span>
           </div>
@@ -163,10 +194,76 @@ function BoardRowLegend() {
   );
 }
 
+function LiveRankingRail({ items = [], onInfo }) {
+  const leaders = Array.isArray(items) ? items.slice(0, 8) : [];
+  if (!leaders.length) return null;
+
+  return (
+    <section className="bh-live-leaders" aria-label="Live strength ranking">
+      <div className="bh-live-leaders__head">
+        <span>Live Strength</span>
+        <span>relative setup rank · price + volume + confirmation + persistence</span>
+      </div>
+      <div className="bh-live-leaders__rail">
+        {leaders.map((item) => {
+          const evidence = Array.isArray(item?.live_reasons) ? item.live_reasons.join(" · ") : "";
+          const inputRead = Number.isFinite(Number(item?.observed_inputs))
+            ? `${item.observed_inputs}/${item.expected_inputs || 6} inputs live`
+            : `${item.data_quality ?? 0}% input coverage`;
+          const title = `#${item.live_rank} of ${item.universe_size} · ${item.live_score}/100 ${item.live_label || ""} · ${inputRead}${evidence ? ` · ${evidence}` : ""}`;
+          return (
+            <button
+              type="button"
+              className="bh-live-leader"
+              key={item.symbol}
+              title={title}
+              onClick={() => onInfo?.(item.symbol)}
+            >
+              <span className="bh-live-leader__rank">{item.live_rank}</span>
+              <span className="bh-live-leader__symbol">{item.symbol}</span>
+              <span className="bh-live-leader__score">{item.live_score}</span>
+              <span className="bh-live-leader__label">{item.live_label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function BoardEvidenceLine({ summary }) {
+  const sampleSize = Number(summary?.sample_size || 0);
+  if (!summary || summary?.status !== "measured") {
+    const minimumSamples = Number(summary?.minimum_samples || 100);
+    const spanDays = Number(summary?.collection_span_days || 0);
+    const minimumDays = Number(summary?.minimum_span_days || 14);
+    const matched = Number(summary?.matched_sample_size || 0);
+    return (
+      <div className="board-section-evidence">
+        Learning clean episodes · n={sampleSize}/{minimumSamples} · {spanDays.toFixed(1)}/{minimumDays} days
+        {matched ? ` · ${matched} matched controls` : ""} · instant signals stay live
+      </div>
+    );
+  }
+  const continuation = Number(summary?.continuation_rate);
+  const reversal = Number(summary?.reversal_rate);
+  const lift = Number(summary?.continuation_lift_vs_control);
+  const cost = Number(summary?.estimated_round_trip_cost_pct);
+  return (
+    <div className="board-section-evidence" title="Independent 15-minute episodes, net of estimated costs, compared with same-direction non-board movers">
+      {summary.read} · 15m continuation {Number.isFinite(continuation) ? `${Math.round(continuation * 100)}%` : "—"}
+      {Number.isFinite(lift) ? ` · lift ${lift >= 0 ? "+" : ""}${Math.round(lift * 100)} pts` : ""}
+      {Number.isFinite(reversal) ? ` · reversal ${Math.round(reversal * 100)}%` : ""}
+      {Number.isFinite(cost) ? ` · net of ${cost.toFixed(2)}% cost` : ""} · n={sampleSize}
+    </div>
+  );
+}
+
 export default function DashboardShell({ onInfo }) {
   const BANNER_SPEED = 36;
   // Use centralized data hook with loading states
-  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta } = useDashboardData();
+  const { gainers1m, gainers3m, losers3m, bannerVolume1h, bannerPrice1h, alerts, loading, error, lastUpdated, fatal, coverage, warming, warming3m, staleSeconds, partial, lastGoodTs, alertsMeta, liveRankings, boardOutcomes } = useDashboardData();
+  const boardStats = boardOutcomes?.boards || {};
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
@@ -351,9 +448,15 @@ export default function DashboardShell({ onInfo }) {
         </div>
       </header>
 
-      <div ref={boardRef} className="board-core mw-board" data-board="1">
-        <div className="rabbit-bg" aria-hidden="true" />
+      <section className="bh-brand-hero" aria-label="BHABIT">
+        <img
+          src="/bhabit-logo.png"
+          alt="BHABIT"
+          className="bh-brand-hero__logo"
+        />
+      </section>
 
+      <div ref={boardRef} className="board-core mw-board" data-board="1">
         {/* 1 Hour Price Change Banner - Full Width */}
         <div className="bh-banner-block">
           <div className="bh-banner-label">1H PRICE</div>
@@ -370,11 +473,14 @@ export default function DashboardShell({ onInfo }) {
                       <BoardRowLegend />
                     </div>
 
+                    <LiveRankingRail items={liveRankings} onInfo={onInfoProp} />
+
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
                         <div className="board-section">
-                          <div className="board-section-header board-section-header--center">
-                            <div className="board-section-title board-section-title--center">TOP MOVERS (1M)</div>
+                          <div className="board-section-header board-section-header--center board-section-header--gain">
+                            <div className="board-section-title board-section-title--center">IGNITION (1M)</div>
+                            <BoardEvidenceLine summary={boardStats.ignition_1m} />
                           </div>
                           <GainersTable1Min
                             tokens={gainers1m}
@@ -391,8 +497,9 @@ export default function DashboardShell({ onInfo }) {
                       <section className="bh-3m-grid">
                         <div className="bh-panel bh-panel-half" data-hover-origin="right">
                           <div className="board-section">
-                            <div className="board-section-header board-section-header--center">
-                              <div className="board-section-title board-section-title--center">TOP GAINERS (3M)</div>
+                            <div className="board-section-header board-section-header--center board-section-header--gain">
+                              <div className="board-section-title board-section-title--center">CONFIRMATION · GAINERS (3M)</div>
+                              <BoardEvidenceLine summary={boardStats.confirmation_3m_up} />
                             </div>
                             <GainersTable3Min
                               tokens={gainers3m}
@@ -406,8 +513,9 @@ export default function DashboardShell({ onInfo }) {
                         </div>
                         <div className="bh-panel bh-panel-half" data-hover-origin="left">
                           <div className="board-section">
-                            <div className="board-section-header board-section-header--center">
-                              <div className="board-section-title board-section-title--center">TOP LOSERS (3M)</div>
+                            <div className="board-section-header board-section-header--center board-section-header--loss">
+                              <div className="board-section-title board-section-title--center">CONFIRMATION · LOSERS (3M)</div>
+                              <BoardEvidenceLine summary={boardStats.confirmation_3m_down} />
                             </div>
                             <LosersTable3Min
                               tokens={losers3m}

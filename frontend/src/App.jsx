@@ -38,8 +38,14 @@ function LegacyDashboardApp() {
     <DataProvider>
       <WatchlistProvider>
         <IntelligenceBridge>
-          <div className="bh-shell">
-            <DashboardShell />
+          <div className="bh-legacy-stage">
+            <div className="bh-page-backdrop" aria-hidden="true" />
+            <div className="bh-legacy-rabbit" aria-hidden="true">
+              <img src="/purple-rabbit-bg.png" alt="" />
+            </div>
+            <div className="bh-shell">
+              <DashboardShell />
+            </div>
           </div>
         </IntelligenceBridge>
       </WatchlistProvider>

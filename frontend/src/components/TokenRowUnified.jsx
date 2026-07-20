@@ -5,6 +5,7 @@ import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { deriveRowCue } from "../utils/rowCue.js";
+import { getMoveStatus } from "../utils/moveStatus.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -184,6 +185,21 @@ export function TokenRowUnified({
     : dataSide === "loser"
       ? `Moved ${rankDelta > 0 ? "up" : "down"} ${rankMoveMagnitude} position${rankMoveMagnitude === 1 ? "" : "s"} on losers board`
       : `Board position shift ${rankMoveLabel}`;
+  const liveRank = Number(token?.live_rank);
+  const liveScore = Number(token?.live_score);
+  const liveUniverse = Number(token?.universe_size);
+  const hasLiveRank = Number.isFinite(liveRank) && Number.isFinite(liveScore);
+  const liveEvidence = Array.isArray(token?.live_reasons) ? token.live_reasons.join(" · ") : "";
+  const liveRisks = Array.isArray(token?.live_risks) ? token.live_risks.map((item) => String(item).toLowerCase()) : [];
+  const dataQuality = Number(token?.data_quality) || 0;
+  const moveStatus = getMoveStatus(token, dataSide);
+  const moveTone = moveStatus.toLowerCase();
+  const liveInputRead = Number.isFinite(Number(token?.observed_inputs))
+    ? `${token.observed_inputs}/${token.expected_inputs || 6} inputs live`
+    : `${dataQuality}% input coverage`;
+  const liveRankTitle = hasLiveRank
+    ? `${moveStatus} move · live strength #${liveRank}${Number.isFinite(liveUniverse) ? ` of ${liveUniverse}` : ""} · ${liveScore}/100 ${token?.live_label || ""} · ${liveInputRead}${liveEvidence ? ` · ${liveEvidence}` : ""}${liveRisks.length ? ` · risk: ${liveRisks.join(" · ")}` : ""}`
+    : "";
 
   const renderCells = () => (
     <>
@@ -200,6 +216,15 @@ export function TokenRowUnified({
           <div className="bh-symbol-line">
             <div className="bh-symbol">{token.symbol}</div>
             <div className="bh-symbol-markers">
+              {hasLiveRank ? (
+                <span
+                  className={`bh-live-rank bh-live-rank--${moveTone}`}
+                  title={liveRankTitle}
+                  aria-label={liveRankTitle}
+                >
+                  {moveStatus}
+                </span>
+              ) : null}
               {primaryCue?.emoji ? (
                 <span
                   className={`bh-symbol-cue bh-symbol-cue--${primaryCue.tone === "warning" ? "negative" : primaryCue.tone || "neutral"}`}

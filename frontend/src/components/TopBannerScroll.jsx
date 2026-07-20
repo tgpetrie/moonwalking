@@ -264,7 +264,7 @@ export default function TopBannerScroll(props) {
           {showFallback ? (
             <div className="bh-banner-chip mw-hover-hook bh-banner-chip--muted" data-side="flat">
               <span className="bh-banner-chip__rank">LIVE</span>
-              <span className="bh-banner-chip__sym">Waiting for banner data</span>
+              <span className="bh-banner-chip__sym">Building real 1H baseline · ready after ~55 min</span>
               <span className="bh-banner-chip__pct">—</span>
               <span className="bh-banner-chip__price">{fetchErr ? "fetch failed" : ""}</span>
             </div>

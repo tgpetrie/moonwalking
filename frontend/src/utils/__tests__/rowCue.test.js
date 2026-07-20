@@ -26,7 +26,7 @@ describe("deriveRowCue", () => {
 
   it("retains whale-style recent memory inside its longer ttl window", () => {
     const cue = deriveRowCue({
-      token: { symbol: "XRP", change_3m: 2.8 },
+      token: { symbol: "XRP", change_3m: 1.2 },
       changeField: "change_3m",
       recentAlerts: [
         makeAlert("whale", 6),
@@ -50,5 +50,38 @@ describe("deriveRowCue", () => {
       count: 4,
       compactCount: "4x",
     });
+  });
+
+  it("uses the alert-engine thresholds for board fallback cues", () => {
+    const breakout = deriveRowCue({
+      token: { symbol: "APE", change_1m: 0.55 },
+      changeField: "change_1m",
+      nowMs: NOW_MS,
+    });
+    const moonwalking = deriveRowCue({
+      token: { symbol: "APE", change_3m: 2.6 },
+      changeField: "change_3m",
+      nowMs: NOW_MS,
+    });
+
+    expect(breakout.primary).toMatchObject({ key: "breakout", emoji: "↗" });
+    expect(moonwalking.primary).toMatchObject({ key: "moonwalking", emoji: "☾" });
+  });
+
+  it("uses the whale symbol for aggregate volume events", () => {
+    const cue = deriveRowCue({
+      token: {
+        symbol: "XRP",
+        change_1m: 0.1,
+        change_3m: 0.2,
+        volume_change_1h_pct: 151,
+        quote_volume_1h_now: 250001,
+        baseline_ready: true,
+      },
+      changeField: "change_1m",
+      nowMs: NOW_MS,
+    });
+
+    expect(cue.primary).toMatchObject({ key: "whale", emoji: "🐋" });
   });
 });

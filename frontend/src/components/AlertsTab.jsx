@@ -681,6 +681,13 @@ const sortAlertRows = (rows, { sort = "IMPORTANCE", feed = "ACTIVE" }) => {
   if (sort === "TIME") {
     return out.sort((a, b) => (pickTsMs(b) || 0) - (pickTsMs(a) || 0));
   }
+  if (feed === "SIGNALS") {
+    return out.sort((a, b) => {
+      const confidenceDelta = Number(b?.confidence ?? 0) - Number(a?.confidence ?? 0);
+      if (confidenceDelta) return confidenceDelta;
+      return (pickTsMs(b) || 0) - (pickTsMs(a) || 0);
+    });
+  }
   if (feed === "ACTIVE") return out;
   return out.sort((a, b) => {
     const sb = SEV_RANK[String(b?.severity || "info").toLowerCase()] || 0;
@@ -855,7 +862,8 @@ function SignalRow({
   isWatchlisted = false,
   onToggleWatchlist = null,
 }) {
-  const type = toUpperType(a);
+  const eventState = String(a?.primary_state || "").trim();
+  const type = eventState ? eventState.toUpperCase() : toUpperType(a);
   const sev = String(a?.severity || "info").toLowerCase();
   const promotion = String(a?.promotion || "").toUpperCase();
   const sourceLabel = String(a?.source || "")
@@ -867,6 +875,12 @@ function SignalRow({
   const absTs = formatAlertTimestamp(a);
   const age = ts ? ageLabel(nowMs - ts) : "\u2014";
   const windowLabel = String(a?.window || a?.evidence?.window || "").trim();
+  const eventModifier = String(a?.modifier || "").trim();
+  const eventConfidence = Number(a?.confidence);
+  const evolution = Array.isArray(a?.evolution) ? a.evolution : [];
+  const eventRead = a?.the_read && typeof a.the_read === "object" ? a.the_read : null;
+  const readHistory = eventRead?.history && typeof eventRead.history === "object" ? eventRead.history : null;
+  const contextBadges = Array.isArray(a?.context_badges) ? a.context_badges.slice(0, 2) : [];
 
   // Build clean message without repeating coin name
   let rawMsg = String(a?.message || a?.title || TYPE_HELP[type] || "")
@@ -956,6 +970,17 @@ function SignalRow({
       <div className="bh-signal-main">
         <div className="bh-signal-meta">
           <span className="bh-signal-type">{type}</span>
+          {eventModifier ? <span className="bh-signal-promo" data-promo="EVENT">{eventModifier.toUpperCase()}</span> : null}
+          {contextBadges.map((badge, index) => (
+            <span
+              key={`${badge?.label || "context"}:${index}`}
+              className="bh-signal-context"
+              data-tone={badge?.tone || "context"}
+            >
+              {String(badge?.label || "").toUpperCase()}
+            </span>
+          ))}
+          {Number.isFinite(eventConfidence) ? <span className="bh-signal-confidence">{eventConfidence}</span> : null}
           {windowLabel ? <span className="bh-signal-window">{windowLabel}</span> : null}
           <span className="bh-signal-sev" data-sev={sev}>{String(a?.severity || "INFO").toUpperCase()}</span>
           {promotion ? <span className="bh-signal-promo" data-promo={promotion}>{promotion}</span> : null}
@@ -969,9 +994,38 @@ function SignalRow({
           <div className="bh-signal-msg">{detailContent}</div>
         </div>
 
+        {eventRead ? (
+          <div className="bh-event-read" data-tone={eventRead.tone || "neutral"} aria-label="The Read">
+            <div className="bh-event-read__eyebrow">THE READ</div>
+            <div className="bh-event-read__line">
+              <span className="bh-event-read__label">{eventRead.label}</span>
+              {eventRead.condition ? <span className="bh-event-read__condition">{eventRead.condition}</span> : null}
+            </div>
+            {eventRead.summary ? <div className="bh-event-read__summary">{eventRead.summary}</div> : null}
+            {eventRead.risk_note ? <div className="bh-event-read__risk">{eventRead.risk_note}</div> : null}
+            {readHistory?.label ? (
+              <div className="bh-event-read__history" data-status={readHistory.status || "collecting"}>
+                <span>HISTORY</span>
+                <span>{readHistory.label}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {volText ? (
           <div className="bh-signal-metrics">
             <span className="bh-metric bh-metric--vol">{volText}</span>
+          </div>
+        ) : null}
+        {evolution.length ? (
+          <div className="bh-event-evolution" aria-label="Event evolution">
+            {evolution.map((step, index) => (
+              <span key={`${step.ts_ms || index}:${step.to || index}`} className="bh-event-evolution__step">
+                {index ? <span className="bh-event-evolution__arrow" aria-hidden="true">→</span> : null}
+                <span>{step.to}</span>
+              </span>
+            ))}
+            <span className="bh-event-evolution__count">{Number(a?.alert_count || 0)} detections</span>
           </div>
         ) : null}
       </div>
@@ -1001,6 +1055,8 @@ export default function AlertsTab({
   const {
     activeAlerts = [],
     alertsRecent = [],
+    pulseAlerts = [],
+    signalEvents = [],
     alertsMeta = {},
     latestBySymbol = {},
     gainers_1m = [],
@@ -1014,7 +1070,7 @@ export default function AlertsTab({
     return raw || null;
   }, [filterSymbol]);
 
-  const [feed, setFeed] = useState("ACTIVE");
+  const [feed, setFeed] = useState("SIGNALS");
   const [typeTab, setTypeTab] = useState("ALL");
   const [sev, setSev] = useState("ALL");
   const [sort, setSort] = useState(() => "IMPORTANCE");
@@ -1034,7 +1090,7 @@ export default function AlertsTab({
   }, []);
 
   useEffect(() => {
-    setSort(feed === "ACTIVE" ? "IMPORTANCE" : "TIME");
+    setSort(feed === "SIGNALS" ? "IMPORTANCE" : "TIME");
   }, [feed]);
 
   const fallbackForcedActive = useMemo(() => {
@@ -1057,25 +1113,41 @@ export default function AlertsTab({
     return fallbackForcedRecent;
   }, [forcedCoin, alertsRecent, fallbackForcedRecent]);
 
+  const effectiveSignalEvents = useMemo(() => {
+    const source = Array.isArray(signalEvents) && signalEvents.length
+      ? signalEvents
+      : effectiveActiveAlerts;
+    if (!forcedCoin) return source;
+    return source.filter((a) => alertSymbol(a) === forcedCoin);
+  }, [forcedCoin, signalEvents, effectiveActiveAlerts]);
+
+  const effectivePulseAlerts = useMemo(() => {
+    const source = Array.isArray(pulseAlerts) && pulseAlerts.length
+      ? pulseAlerts
+      : effectiveRecentAlerts;
+    if (!forcedCoin) return source;
+    return source.filter((a) => alertSymbol(a) === forcedCoin);
+  }, [forcedCoin, pulseAlerts, effectiveRecentAlerts]);
+
   const effectiveMeta = useMemo(() => alertsMeta || {}, [alertsMeta]);
 
-  const source = feed === "ACTIVE" ? effectiveActiveAlerts : effectiveRecentAlerts;
+  const source = feed === "SIGNALS" ? effectiveSignalEvents : effectivePulseAlerts;
   const effectiveCoinFilter = forcedCoin || coinFilter;
 
   // Build coin options from available alerts
   const coinOptions = useMemo(() => {
     if (forcedCoin) return [forcedCoin];
     const set = new Set(["ALL"]);
-    for (const a of alertsRecent || []) {
+    for (const a of effectivePulseAlerts || []) {
       const s = alertSymbol(a);
       if (s) set.add(s);
     }
-    for (const a of activeAlerts || []) {
+    for (const a of effectiveSignalEvents || []) {
       const s = alertSymbol(a);
       if (s) set.add(s);
     }
     return Array.from(set).sort();
-  }, [forcedCoin, alertsRecent, activeAlerts]);
+  }, [forcedCoin, effectivePulseAlerts, effectiveSignalEvents]);
 
   const tabSeedRows = useMemo(() => {
     let out = Array.isArray(source) ? source : [];
@@ -1128,7 +1200,7 @@ export default function AlertsTab({
   }, [effectiveRecentAlerts, effectiveCoinFilter, typeTab, sev]);
 
   const compactFallbackToRecent =
-    compact && feed === "ACTIVE" && rows.length === 0 && compactRecentFallbackRows.length > 0;
+    compact && feed === "SIGNALS" && rows.length === 0 && compactRecentFallbackRows.length > 0;
   const rowsForRender = compactFallbackToRecent ? compactRecentFallbackRows : rows;
   const displayedRows = useMemo(
     () => rowsForRender.slice(0, compact ? 8 : 8),
@@ -1137,15 +1209,15 @@ export default function AlertsTab({
 
   const watchlistAttentionRows = useMemo(() => {
     if (compact || forcedCoin) return [];
-    const filtered = filterAlertRows(effectiveActiveAlerts, {
+    const filtered = filterAlertRows(effectiveSignalEvents, {
       coinFilter: effectiveCoinFilter,
       typeTab,
       sev,
     }).filter((alert) => watchHas(sentimentSymbolForAlert(alert)));
-    return sortAlertRows(filtered, { sort, feed: "ACTIVE" }).slice(0, 4);
-  }, [compact, forcedCoin, effectiveActiveAlerts, effectiveCoinFilter, typeTab, sev, sort, watchHas]);
+    return sortAlertRows(filtered, { sort, feed: "SIGNALS" }).slice(0, 4);
+  }, [compact, forcedCoin, effectiveSignalEvents, effectiveCoinFilter, typeTab, sev, sort, watchHas]);
 
-  const allAlertsTitle = forcedCoin ? `${forcedCoin} Signals` : "All Alerts";
+  const allAlertsTitle = forcedCoin ? `${forcedCoin} Evolution` : "Signal Evolution";
 
   const toggleAlertWatch = useCallback(
     (alert) => {
@@ -1186,7 +1258,7 @@ export default function AlertsTab({
   const resolvedEmptyCopy = useMemo(() => {
     if (emptyCopy) return emptyCopy;
     if (!forcedCoin) {
-      return feed === "ACTIVE" ? "No active signals right now." : "No recent signals yet.";
+      return feed === "SIGNALS" ? "No evolving signals right now." : "No Pulse detections yet.";
     }
     if (boardContext) {
       return `No live coin signal right now. ${forcedCoin} is still on the board: ${boardContext}.`;
@@ -1361,18 +1433,18 @@ export default function AlertsTab({
                 <div className="bh-alerts-head-actions">
                   <div className="bh-alerts-toggle" role="tablist" aria-label="Signals feed">
                     <button
-                      className={`bh-toggle-btn ${feed === "ACTIVE" ? "active" : ""}`}
-                      onClick={() => setFeed("ACTIVE")}
+                      className={`bh-toggle-btn ${feed === "SIGNALS" ? "active" : ""}`}
+                      onClick={() => setFeed("SIGNALS")}
                       type="button"
                     >
-                      Active
+                      Signals
                     </button>
                     <button
-                      className={`bh-toggle-btn ${feed === "RECENT" ? "active" : ""}`}
-                      onClick={() => setFeed("RECENT")}
+                      className={`bh-toggle-btn ${feed === "PULSE" ? "active" : ""}`}
+                      onClick={() => setFeed("PULSE")}
                       type="button"
                     >
-                      Recent
+                      Pulse
                     </button>
                   </div>
 
@@ -1448,10 +1520,19 @@ export default function AlertsTab({
               <div className="bh-alerts-help-title">What you are looking at</div>
               <div className="bh-alerts-help-body">
                 <div className="bh-alerts-help-line">
-                  <strong>Active</strong> shows the strongest signal per coin and signal type.
+                  <strong>Signals</strong> groups one coin's related detections into Building, Breakout, Moonwalking, and Reversal Risk evolution.
                 </div>
                 <div className="bh-alerts-help-line">
-                  <strong>Recent</strong> shows everything detected, newest first.
+                  <strong>Pulse</strong> preserves the raw fast detector stream, newest first.
+                </div>
+                <div className="bh-alerts-help-line">
+                  <strong>The Read</strong> turns the evidence into plain language. It describes the setup; it is not a buy or sell instruction.
+                </div>
+                <div className="bh-alerts-help-line">
+                  <strong>Context tags</strong> explain whether a coin is breaking away from the market, moving with it, seeing sampled spot buying or selling, or trading with a wide spread. They add context, not more alerts.
+                </div>
+                <div className="bh-alerts-help-line">
+                  <strong>History</strong> starts showing a measured follow-through rate after 20 comparable completed events.
                 </div>
               </div>
 
@@ -1509,12 +1590,12 @@ export default function AlertsTab({
           ) : null}
           {compactFallbackToRecent ? (
             <div className="bh-alerts-inline-note">
-              No active signals right now. Showing recent matches.
+              No evolving signals right now. Showing Pulse matches.
             </div>
           ) : null}
           {!compact && !forcedCoin ? (
             <div className="bh-alerts-feed-section__head bh-alerts-feed-section__head--all">
-              <div className="bh-alerts-feed-section__title">All Alerts</div>
+              <div className="bh-alerts-feed-section__title">{feed === "SIGNALS" ? "Evolving Events" : "Raw Pulse"}</div>
               <div className="bh-alerts-feed-section__meta">{displayedRows.length} shown</div>
             </div>
           ) : null}

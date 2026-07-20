@@ -163,7 +163,11 @@ export function VolumeBannerScroll({
     const out = [];
     for (let i = 0; i < rawList.length; i += 1) {
       const n = normalizeVolItem(rawList[i], i);
-      if (n) out.push(n);
+      // This banner is an expansion scanner, not a gainers/losers board.
+      // Only show coins whose current 1h volume is above the prior 1h window.
+      if (n && Number.isFinite(n.pct) && n.pct > 0) {
+        out.push({ ...n, rank: out.length + 1 });
+      }
     }
     return out;
   }, [rawList]);
@@ -270,7 +274,7 @@ export function VolumeBannerScroll({
   const onLeave = useCallback(() => setPaused(false), []);
 
   if (showFallback) {
-    const emptyCopy = loading ? "Warming up volume feed…" : "No 1h volume activity yet.";
+    const emptyCopy = loading ? "Warming up volume feed…" : "No positive 1h volume expansion right now.";
     return (
       <div className="bh-banner bh-banner--bottom">
         <div className="bh-banner-wrap" onMouseEnter={onEnter} onMouseLeave={onLeave}>

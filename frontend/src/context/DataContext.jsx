@@ -85,6 +85,9 @@ function normalizeApiData(payload) {
   const banner_1h_price  = root.banner_1h_price  ?? root.banner_1h ?? root.top_banner_1h ?? [];
   const banner_1h_volume = root.banner_1h_volume ?? root.volume_banner_1h ?? [];
   const volume1h = root.volume1h ?? [];
+  const live_rankings = root.live_rankings ?? root.liveRankings ?? [];
+  const ranking_meta = root.ranking_meta ?? root.rankingMeta ?? null;
+  const board_outcomes = root.board_outcomes ?? root.boardOutcomes ?? {};
   const alertsRaw = root.alerts ?? [];
   const market_pressure = root.market_pressure ?? payload?.market_pressure ?? null;
 
@@ -160,6 +163,9 @@ function normalizeApiData(payload) {
     banner_1h_price: Array.isArray(banner_1h_price) ? banner_1h_price : [],
     banner_1h_volume: Array.isArray(banner_1h_volume) ? banner_1h_volume : [],
     volume1h: Array.isArray(volume1h) ? volume1h : [],
+    live_rankings: Array.isArray(live_rankings) ? live_rankings : [],
+    ranking_meta: ranking_meta && typeof ranking_meta === "object" ? ranking_meta : null,
+    board_outcomes: board_outcomes && typeof board_outcomes === "object" ? board_outcomes : {},
     alerts,
     latest_by_symbol: typeof latest_by_symbol === "object" && latest_by_symbol ? latest_by_symbol : {},
     updated_at,
@@ -313,6 +319,9 @@ export function DataProvider({ children }) {
   }));
   const [latestBySymbol, setLatestBySymbol] = useState(() => cachedNormalized?.latest_by_symbol ?? {});
   const [volume1h, setVolume1h] = useState(() => cachedNormalized?.volume1h ?? []);
+  const [liveRankings, setLiveRankings] = useState(() => cachedNormalized?.live_rankings ?? []);
+  const [rankingMeta, setRankingMeta] = useState(() => cachedNormalized?.ranking_meta ?? null);
+  const [boardOutcomes, setBoardOutcomes] = useState(() => cachedNormalized?.board_outcomes ?? {});
   const [alerts, setAlerts] = useState(() => cachedNormalized?.alerts ?? []);
   const [sentiment, setSentiment] = useState(() => cachedNormalized?.sentiment ?? null);
   const [sentimentMeta, setSentimentMeta] = useState(() => cachedNormalized?.sentiment_meta ?? null);
@@ -321,6 +330,9 @@ export function DataProvider({ children }) {
   // Canonical /api/alerts state (active + recent + meta including market_pressure)
   const [activeAlerts, setActiveAlerts] = useState([]);
   const [alertsRecent, setAlertsRecent] = useState([]);
+  const [pulseAlerts, setPulseAlerts] = useState([]);
+  const [signalEvents, setSignalEvents] = useState([]);
+  const [notifyEvents, setNotifyEvents] = useState([]);
   const [alertsMeta, setAlertsMeta] = useState({});
 
   const [error, setError] = useState(null);
@@ -437,6 +449,9 @@ export function DataProvider({ children }) {
         banner_1h_volume: norm.banner_1h_volume,
         latest_by_symbol: norm.latest_by_symbol,
         volume1h: norm.volume1h,
+        live_rankings: norm.live_rankings,
+        ranking_meta: norm.ranking_meta,
+        board_outcomes: norm.board_outcomes,
         alerts: norm.alerts,
         updated_at: norm.updated_at,
         meta: norm.meta,
@@ -578,6 +593,9 @@ export function DataProvider({ children }) {
       persistLastGood(mergedNorm, baseUrl);
       setLatestBySymbol(norm.latest_by_symbol || {});
       setVolume1h(norm.volume1h || []);
+      setLiveRankings(norm.live_rankings || []);
+      setRankingMeta(norm.ranking_meta || null);
+      setBoardOutcomes(norm.board_outcomes || {});
       const snapshotAlerts = Array.isArray(norm.alerts) ? norm.alerts : [];
       setAlerts(snapshotAlerts);
       cacheCoinHistoryRows(snapshotAlerts);
@@ -916,6 +934,9 @@ export function DataProvider({ children }) {
 
         const activeList = Array.isArray(json.active) ? json.active : [];
         const recentList = Array.isArray(json.recent) ? json.recent : [];
+        const pulseList = Array.isArray(json.pulse) ? json.pulse : recentList;
+        const signalList = Array.isArray(json.signals) ? json.signals : [];
+        const notifyList = Array.isArray(json.notify) ? json.notify : [];
 
         // Contract can be temporarily empty while /data already has alert rows.
         // In that case, hydrate from /data so the Alerts UI doesn't go dead.
@@ -938,6 +959,9 @@ export function DataProvider({ children }) {
 
         setActiveAlerts(activeList);
         setAlertsRecent(recentList);
+        setPulseAlerts(pulseList);
+        setSignalEvents(signalList);
+        setNotifyEvents(notifyList);
         cacheCoinHistoryRows([...activeList, ...recentList]);
         if (json.meta && typeof json.meta === "object") {
           setAlertsMeta({ ...json.meta, fallback_from_data: false });
@@ -972,10 +996,13 @@ export function DataProvider({ children }) {
     volume_banner_1h: banners.volume, // Legacy alias
     latest_by_symbol: latestBySymbol,
     volume1h,
+    live_rankings: liveRankings,
+    ranking_meta: rankingMeta,
+    board_outcomes: boardOutcomes,
     alerts,
     market_pressure: marketPressure,
     updated_at: latestNormalizedRef.current?.updated_at ?? lastGoodAtRef.current ?? Date.now(),
-  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h, alerts, marketPressure]);
+  }), [oneMinRows, threeMin, banners, latestBySymbol, volume1h, liveRankings, rankingMeta, boardOutcomes, alerts, marketPressure]);
 
   const alertsBySymbol = useMemo(() => {
     const map = {};
@@ -1068,6 +1095,9 @@ export function DataProvider({ children }) {
     partial,
     lastGoodTs,
     volume1h,
+    liveRankings,
+    rankingMeta,
+    boardOutcomes,
     connectionStatus,
     backendBase,
     sentiment,
@@ -1078,8 +1108,11 @@ export function DataProvider({ children }) {
     backendFailCount: failCountRef.current,
     activeAlerts,
     alertsRecent,
+    pulseAlerts,
+    signalEvents,
+    notifyEvents,
     alertsMeta,
-  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, alertsRecentBySymbol, getActiveAlert, getRecentAlerts, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, alertsMeta]);
+  }), [combinedData, oneMinRows, threeMin, banners, latestBySymbol, alerts, alertsBySymbol, alertsRecentBySymbol, getActiveAlert, getRecentAlerts, error, loading, fetchData, heartbeatPulse, lastFetchTs, warming, warming3m, staleSeconds, partial, lastGoodTs, volume1h, liveRankings, rankingMeta, boardOutcomes, connectionStatus, backendBase, sentiment, sentimentMeta, marketPressure, activeAlerts, alertsRecent, pulseAlerts, signalEvents, notifyEvents, alertsMeta]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

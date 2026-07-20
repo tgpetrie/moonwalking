@@ -72,9 +72,11 @@
 }
 
 .sentiment-popup {
-    width: 100%;
-    max-width: 800px;
+    width: min(1120px, calc(100vw - 2rem));
+    max-width: none;
     max-height: 90vh;
+    --popup-padding: 1rem;
+    --section-gap: 1rem;
     background:
         linear-gradient(160deg, rgba(0, 0, 0, 0.92), rgba(6, 3, 10, 0.94) 55%, rgba(12, 6, 18, 0.9));
     border: 1px solid var(--sentiment-border);
@@ -149,6 +151,51 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+.coinbase-trade-cta {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.48rem 0.78rem;
+    border: 1px solid rgba(69, 255, 179, 0.48);
+    background: linear-gradient(135deg, rgba(69, 255, 179, 0.2), rgba(0, 212, 170, 0.08));
+    color: var(--sentiment-pos);
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    line-height: 1;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.coinbase-trade-cta:hover {
+    background: linear-gradient(135deg, rgba(69, 255, 179, 0.32), rgba(0, 212, 170, 0.14));
+    border-color: var(--sentiment-pos);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.coinbase-trade-cta:focus-visible {
+    outline: 2px solid var(--sentiment-pos);
+    outline-offset: 2px;
+}
+
+.coinbase-trade-cta-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 800;
 }
 
 .live-indicator {
@@ -702,6 +749,76 @@
     color: var(--sentiment-text);
 }
 
+/* Chart source selector — compact control in the Coin Pressure visual language. */
+.mini-toggle {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    width: fit-content;
+    margin-top: 0.65rem;
+    padding: 0.25rem;
+    border: 1px solid rgba(174, 75, 245, 0.2);
+    border-radius: 999px;
+    background: rgba(5, 7, 13, 0.62);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.mini-toggle-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.38rem 0.72rem;
+    background: transparent;
+    color: var(--sentiment-subtext);
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.67rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.mini-toggle-btn:hover {
+    color: var(--sentiment-text);
+    border-color: rgba(125, 211, 252, 0.22);
+    background: rgba(125, 211, 252, 0.06);
+}
+
+.mini-toggle-btn:focus-visible {
+    outline: 2px solid rgba(125, 211, 252, 0.7);
+    outline-offset: 2px;
+}
+
+.mini-toggle-btn.active {
+    color: #f8f4ff;
+    border-color: rgba(174, 75, 245, 0.48);
+    background: linear-gradient(135deg, rgba(174, 75, 245, 0.34), rgba(125, 211, 252, 0.13));
+    box-shadow: 0 0 14px rgba(174, 75, 245, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.mini-toggle-label {
+    padding: 0 0.58rem 0 0.42rem;
+    color: rgba(196, 131, 255, 0.84);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .mini-toggle {
+        border-radius: 0.75rem;
+    }
+
+    .mini-toggle-label {
+        flex-basis: 100%;
+        padding: 0.25rem 0.55rem 0.15rem;
+    }
+}
+
 .disclaimer-box {
     display: flex;
     gap: 0.75rem;
@@ -982,6 +1099,67 @@ a.news-item-title:hover {
     display: flex;
     flex-direction: column;
     gap: 0.7rem;
+}
+
+/* Intel is an at-a-glance evidence layer, so use width before vertical space. */
+.cp-intel-panel .info-section {
+    margin-bottom: 0.9rem;
+}
+
+.cp-intel-panel .section-header {
+    margin-bottom: 0.55rem;
+}
+
+.cp-intel-panel .section-header h3 {
+    margin-bottom: 0.3rem;
+}
+
+.cp-intel-panel .feed-list {
+    gap: 0.4rem;
+}
+
+.cp-intel-panel .news-item {
+    padding: 0.55rem 0.7rem;
+}
+
+.cp-intel-panel .news-item-header {
+    margin-bottom: 0.25rem;
+}
+
+.cp-intel-panel .news-item-title {
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.cp-provider-row {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 0.22fr) minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 2.5rem;
+}
+
+.cp-provider-row .news-item-source,
+.cp-provider-row .news-item-time {
+    white-space: nowrap;
+}
+
+@media (min-width: 680px) {
+    .cp-intel-feed {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 679px) {
+    .cp-provider-row {
+        grid-template-columns: minmax(0, 1fr) max-content;
+    }
+
+    .cp-provider-row .news-item-title {
+        grid-column: 1 / -1;
+    }
 }
 
 .feed-row {
@@ -1493,6 +1671,28 @@ a.news-item-title:hover {
     .header-right {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .sentiment-popup[data-sentiment-symbol] .header-right {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.55rem;
+    }
+
+    .coinbase-trade-cta {
+        grid-column: 1 / -1;
+        width: 100%;
+        min-height: 42px;
+        font-size: 0.8rem;
+    }
+
+    .data-link-state {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .close-btn {
+        justify-self: end;
     }
 
     .tab-nav {
@@ -2162,6 +2362,176 @@ a.news-item-title:hover {
 /* ============================================================
    COIN PRESSURE HIERARCHY
    ============================================================ */
+
+.cp-simple-read {
+    --cp-read-accent: var(--sentiment-neu);
+    display: grid;
+    gap: 0.72rem;
+    margin-bottom: 0.75rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid rgba(241, 180, 58, 0.25);
+    border-left: 3px solid var(--cp-read-accent);
+    background: linear-gradient(100deg, rgba(241, 180, 58, 0.07), rgba(0, 0, 0, 0.32) 42%);
+}
+
+.cp-simple-read--positive {
+    --cp-read-accent: var(--sentiment-pos);
+    border-color: rgba(69, 255, 179, 0.24);
+    background: linear-gradient(100deg, rgba(69, 255, 179, 0.075), rgba(0, 0, 0, 0.32) 42%);
+}
+
+.cp-simple-read--negative {
+    --cp-read-accent: var(--sentiment-neg);
+    border-color: rgba(174, 75, 245, 0.28);
+    background: linear-gradient(100deg, rgba(174, 75, 245, 0.09), rgba(0, 0, 0, 0.32) 42%);
+}
+
+.cp-simple-read__topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--sentiment-subtext);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.cp-simple-read__topline span:last-child {
+    color: rgba(255, 255, 255, 0.48);
+    font-family: 'Fragment Mono', 'JetBrains Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+}
+
+.cp-simple-read__answer {
+    color: var(--cp-read-accent);
+    font-size: clamp(1.7rem, 3vw, 2.35rem);
+    line-height: 0.95;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.cp-simple-read h2 {
+    margin: 0;
+    color: var(--sentiment-text);
+    font-size: 1rem;
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+.cp-simple-read__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    padding-top: 0.15rem;
+}
+
+.cp-simple-read__columns > div {
+    min-width: 0;
+    padding: 0.58rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.cp-simple-read__columns h3 {
+    margin: 0 0 0.35rem;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.62rem;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.cp-simple-read__columns ul {
+    display: grid;
+    gap: 0.24rem;
+    margin: 0;
+    padding: 0 0 0 1rem;
+}
+
+.cp-simple-read__columns li,
+.cp-simple-read__columns p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.76rem;
+    line-height: 1.35;
+}
+
+.cp-simple-read__next,
+.cp-simple-read__fails {
+    display: grid;
+    grid-template-columns: 10.5rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0.7rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cp-simple-read__next span,
+.cp-simple-read__fails span {
+    color: var(--cp-read-accent);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+}
+
+.cp-simple-read__next strong,
+.cp-simple-read__fails strong {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.74rem;
+    line-height: 1.35;
+    font-weight: 500;
+}
+
+.cp-simple-read__history {
+    color: rgba(241, 180, 58, 0.82);
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+.cp-evidence-drawer {
+    margin-bottom: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.cp-evidence-drawer > summary {
+    cursor: pointer;
+    padding: 0.65rem 0.8rem;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.cp-evidence-drawer[open] > summary {
+    color: var(--sentiment-text);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cp-evidence-drawer__body {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .cp-simple-read__topline,
+    .cp-simple-read__next,
+    .cp-simple-read__fails {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+
+    .cp-simple-read__columns {
+        grid-template-columns: 1fr;
+    }
+}
 
 .cp-strip {
     position: relative;

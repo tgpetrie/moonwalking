@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
 import { getCoinEvents } from '../utils/coinHistoryCache';
 import { getMarketPressure } from '../utils/marketPressure';
+import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import '../styles/sentiment-popup-advanced.css';
 
@@ -138,9 +139,13 @@ const parseCoinInsights = (payload) => {
         : Array.isArray(root.metrics?.tape)
           ? root.metrics.tape
           : Array.isArray(root.samples)
-            ? root.samples
+          ? root.samples
             : [],
     updatedAt: root.updated_at ?? root.updatedAt ?? root.timestamp ?? null,
+    history: root.history && typeof root.history === 'object' ? root.history : null,
+    baselineStatus: root.baseline_status && typeof root.baseline_status === 'object' ? root.baseline_status : null,
+    sources: root.sources && typeof root.sources === 'object' ? root.sources : {},
+    marketSentiment: root.market_sentiment && typeof root.market_sentiment === 'object' ? root.market_sentiment : null,
   };
 };
 
@@ -809,6 +814,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     gainers_1m = [],
     gainers_3m = [],
     losers_3m = [],
+    liveRankings = [],
   } = useData() || {};
 
   const [activeTab, setActiveTab] = useState(normalizeTab(defaultTab));
@@ -824,6 +830,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [coinIntelError, setCoinIntelError] = useState(null);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
+  const coinbaseTradeUrl = useMemo(
+    () => coinbaseSpotUrl({ symbol: coinSymbol }),
+    [coinSymbol]
+  );
+  const coinLiveRanking = useMemo(
+    () => (Array.isArray(liveRankings)
+      ? liveRankings.find((row) => normalizeSymbol(row?.symbol || row?.product_id) === coinSymbol) || null
+      : null),
+    [liveRankings, coinSymbol]
+  );
 
   useEffect(() => {
     if (isOpen) setActiveTab(normalizeTab(defaultTab));
@@ -986,6 +1002,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const change1h = toNumber(coinInsights?.change1h);
   const volumeChange1h = toNumber(coinInsights?.volumeChange1h);
   const tape = Array.isArray(coinInsights?.tape) ? coinInsights.tape : [];
+  const storedTapeSamples = Math.max(0, Number(coinInsights?.history?.samples) || tape.length || 0);
+  const tapeIsPersistent = coinInsights?.history?.persistent === true;
   const tapeCount = Math.max(
     tape.length,
     coinAlerts.length,
@@ -1136,8 +1154,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     (socialPosts60m !== null && socialPosts60m > 0) ||
     (socialUniqueAuthors24h !== null && socialUniqueAuthors24h > 0) ||
     (socialTrendingRank !== null && socialTrendingRank > 0) ||
-    Boolean(socialSentimentDisplay) ||
-    Boolean(socialUpdatedAt)
+    Boolean(socialSentimentDisplay)
   ), [
     socialHeat,
     socialVolume24h,
@@ -1148,7 +1165,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     socialUniqueAuthors24h,
     socialTrendingRank,
     socialSentimentDisplay,
-    socialUpdatedAt,
   ]);
 
   const socialActionLine = useMemo(() => {
@@ -1175,23 +1191,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     }
     return null;
   }, [change3m, socialHeat, socialHeatTrend, socialIsProxy]);
-
-  const providerRows = useMemo(() => (
-    Array.isArray(coinIntel?.providers) ? coinIntel.providers : []
-  ), [coinIntel]);
-
-  const providerSummary = useMemo(() => {
-    if (!providerRows.length) return 'Provider map unavailable';
-    const active = providerRows.filter((row) => {
-      const status = String(row?.status || '').toLowerCase();
-      return ['live', 'stale', 'configured', 'quiet'].includes(status);
-    }).length;
-    const missing = providerRows.filter((row) => {
-      const status = String(row?.status || '').toLowerCase();
-      return ['offline', 'not_configured'].includes(status);
-    }).length;
-    return `${active} active/configured · ${missing} missing`;
-  }, [providerRows]);
 
   const dataStaleAgeSeconds = useMemo(() => {
     if (Number.isFinite(staleSeconds)) return Math.max(0, Number(staleSeconds));
@@ -1240,6 +1239,70 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     () => getMarketPressure({ market_pressure }),
     [market_pressure]
   );
+
+  const sourceHealth = useMemo(() => {
+    const baseline = coinInsights?.baselineStatus || {};
+    const socialStatus = String(coinIntel?.social?.status || 'offline').toLowerCase();
+    const newsStatus = String(coinIntel?.news?.status || coinIntel?.events?.status || 'offline').toLowerCase();
+    const newsCount = Math.max(
+      coinIntel?.news?.items?.length || 0,
+      coinIntel?.events?.items?.length || 0
+    );
+    const breadthUp = Number(marketPressureSummary?.breadth_up);
+    const breadthDown = Number(marketPressureSummary?.breadth_down);
+    const breadthLive = Number.isFinite(breadthUp) && Number.isFinite(breadthDown);
+    const breadthUniverse = Number(market_pressure?.symbol_count);
+    const macroLive = Number.isFinite(Number(coinInsights?.marketSentiment?.value));
+    return [
+      {
+        label: 'Price tape',
+        value: metricsReady ? 'Live' : coinInsightsLoading ? 'Warming' : 'Unavailable',
+        tone: metricsReady ? 'positive' : 'neutral',
+        sub: metricsReady ? 'Coinbase snapshots are current.' : 'Short windows are still filling.',
+      },
+      {
+        label: 'Volume',
+        value: baseline.volume_1h ? 'Live' : 'Unavailable',
+        tone: baseline.volume_1h ? 'positive' : 'negative',
+        sub: baseline.volume_1h ? 'Current and prior 1h windows are present.' : 'No trustworthy 1h comparison yet.',
+      },
+      {
+        label: 'Market breadth',
+        value: breadthLive ? 'Live' : 'Unavailable',
+        tone: breadthLive ? 'positive' : 'negative',
+        sub: breadthLive
+          ? (Number.isFinite(breadthUniverse) && breadthUniverse > 0 ? `${breadthUniverse} Coinbase markets tracked.` : 'Cross-market participation is current.')
+          : 'Broad-market participation is missing.',
+      },
+      {
+        label: 'Macro mood',
+        value: macroLive ? 'Live' : 'Unavailable',
+        tone: macroLive ? 'positive' : 'negative',
+        sub: macroLive ? `${coinInsights.marketSentiment.classification || 'Fear & Greed'} · market-wide only.` : 'No market-wide mood source.',
+      },
+      {
+        label: 'Coin social',
+        value: hasMeaningfulSocialMetrics ? 'Live' : socialStatus === 'stale' ? 'Stale / empty' : 'Unavailable',
+        tone: hasMeaningfulSocialMetrics ? 'positive' : 'negative',
+        sub: hasMeaningfulSocialMetrics ? `${socialSourceLabel || 'External'} coin context is present.` : 'Not included in the trading read.',
+      },
+      {
+        label: 'News / events',
+        value: newsStatus === 'live' ? (newsCount ? `Live · ${newsCount}` : 'Live · no items') : 'Unavailable',
+        tone: newsStatus === 'live' ? (newsCount ? 'positive' : 'neutral') : 'negative',
+        sub: newsCount ? 'Coin-specific catalyst items are present.' : 'No catalyst is being assumed.',
+      },
+    ];
+  }, [
+    coinInsights,
+    coinInsightsLoading,
+    coinIntel,
+    market_pressure,
+    marketPressureSummary,
+    metricsReady,
+    hasMeaningfulSocialMetrics,
+    socialSourceLabel,
+  ]);
 
   const priorityEntries = useMemo(
     () =>
@@ -1524,6 +1587,106 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     return badges;
   }, [breakoutState, signalFlags, metricsReady, volumeConfirms, marketPressureSummary, coinPriorityEntry]);
 
+  const simpleCoinRead = useMemo(() => {
+    if (!metricsReady) {
+      return {
+        label: 'WAIT',
+        tone: 'neutral',
+        headline: 'Not enough live tape yet.',
+        supports: [],
+        blockers: ['The short-term windows are still filling.'],
+        upgrade: 'Check again after the next few live updates.',
+        invalidation: 'No setup is valid until the data is ready.',
+        history: null,
+      };
+    }
+
+    const score = Number(coinLiveRanking?.live_score ?? 50);
+    const evidence = Number(coinLiveRanking?.data_quality ?? 0);
+    const observedInputs = Number(coinLiveRanking?.observed_inputs ?? Math.round(evidence * 6 / 100));
+    const expectedInputs = Number(coinLiveRanking?.expected_inputs || 6);
+    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const alignedUp = alignmentLabel === 'Aligned Up';
+    const alignedDown = alignmentLabel === 'Aligned Down';
+    const persistenceGood = ['Dominant', 'Persistent'].includes(coinPriorityEntry?.stateLabel) || persistenceStreak >= 3;
+    const persistenceWeak = ['Fading', 'Fragile'].includes(coinPriorityEntry?.stateLabel) || !persistenceGood;
+    const breakoutUp = breakoutState === 'Breakout Up' || signalFlags.hasMomentum;
+    const hardRisk = signalFlags.hasFakeout || signalFlags.hasReversal || signalFlags.hasExhaustion || coinPriorityEntry?.stateLabel === 'Reversal Risk';
+    const historyLabel = coinAlerts.find((alert) => alert?.the_read?.history?.label)?.the_read?.history?.label || null;
+    const historyPctMatch = String(historyLabel || '').match(/(\d+(?:\.\d+)?)%/);
+    const historyPct = historyPctMatch ? Number(historyPctMatch[1]) : null;
+    const historyWeak = Number.isFinite(historyPct) && historyPct < 35;
+
+    const supports = [];
+    if (breakoutUp) supports.push('A breakout signal is active.');
+    if (volumeConfirms) supports.push('Volume is supporting the move.');
+    if (alignedUp) supports.push('The short timeframes agree upward.');
+    if (score >= 65) supports.push(`Live strength is ${score}/100.`);
+    const liveReasons = Array.isArray(coinLiveRanking?.live_reasons) ? coinLiveRanking.live_reasons : [];
+    if (liveReasons.some((reason) => /spot buying/i.test(reason))) supports.push('Real spot buying is present.');
+    if (liveReasons.some((reason) => /breaking away/i.test(reason))) supports.push('It is outperforming the wider market.');
+
+    const blockers = [];
+    if (alignmentLabel === 'Mixed') blockers.push('The 1m, 3m, and 1h views do not agree.');
+    if (alignedDown) blockers.push('Short-term direction is still down.');
+    if (persistenceWeak) blockers.push('The move has not held its rank yet.');
+    if (!volumeConfirms) blockers.push('Volume has not confirmed the move.');
+    if (breadthUp < 0.45) blockers.push('Most of the market is not helping it.');
+    if (historyWeak) blockers.push(`Comparable signals only worked ${historyPct}% of the time.`);
+    if (evidence > 0 && evidence < 50) blockers.push(`Only ${observedInputs}/${expectedInputs} live inputs are available.`);
+    if (hardRisk) blockers.push('A failure or reversal warning is active.');
+
+    let label = 'WAIT';
+    let tone = 'neutral';
+    let headline = breakoutUp
+      ? 'Breakout detected, but confirmation is incomplete.'
+      : 'No clean setup is active right now.';
+    if (hardRisk || alignedDown || score < 42) {
+      label = 'STAY CLEAR';
+      tone = 'negative';
+      headline = 'Risk is stronger than the opportunity right now.';
+    } else if (score >= 70 && alignedUp && volumeConfirms && persistenceGood && breadthUp >= 0.45 && !historyWeak) {
+      label = 'STRONG SETUP';
+      tone = 'positive';
+      headline = 'Price, volume, and follow-through are aligned.';
+    } else if (score >= 60 && volumeConfirms && alignedUp && !hardRisk) {
+      label = 'WATCH CLOSE';
+      tone = 'positive';
+      headline = 'The setup is improving, but still needs a clean hold.';
+    }
+
+    let upgrade = 'Wait for the 1m and 3m directions to agree and for the coin to hold its rank on the next updates.';
+    if (!volumeConfirms) upgrade = 'Wait for volume to turn positive and confirm the price move.';
+    else if (alignmentLabel === 'Mixed') upgrade = 'Wait for 1m and 3m to point the same way, then hold for at least two updates.';
+    else if (!persistenceGood) upgrade = 'Wait for the coin to hold or improve its live rank on the next two updates.';
+    else if (breadthUp < 0.45) upgrade = 'Wait for broader market support or unusually strong independent spot buying.';
+    else if (label === 'STRONG SETUP') upgrade = 'Favor a controlled pullback or fresh hold; do not chase a sudden extension.';
+
+    return {
+      label,
+      tone,
+      headline,
+      supports: supports.slice(0, 3),
+      blockers: blockers.slice(0, 4),
+      upgrade,
+      invalidation: breakoutUp
+        ? 'Stop trusting it if the breakout fails, volume fades, or the rank drops sharply.'
+        : 'There is no active edge to invalidate yet.',
+      history: historyLabel,
+    };
+  }, [
+    metricsReady,
+    coinLiveRanking,
+    marketPressureSummary,
+    alignmentLabel,
+    coinPriorityEntry,
+    persistenceStreak,
+    breakoutState,
+    signalFlags,
+    coinAlerts,
+    volumeConfirms,
+  ]);
+
   const coinSupportRail = useMemo(() => ([
     {
       label: 'Alignment',
@@ -1547,9 +1710,12 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       label: 'Updated',
       value: humanTime(lastCoinUpdateTs),
       tone: 'neutral',
-      sub: freshAgeMs !== null ? `fresh ${ageLabel(freshAgeMs)}` : 'waiting for next tape sample',
+      sub: [
+        freshAgeMs !== null ? `fresh ${ageLabel(freshAgeMs)}` : 'waiting for next tape sample',
+        storedTapeSamples ? `${storedTapeSamples} recent samples shown` : null,
+      ].filter(Boolean).join(' · '),
     },
-  ]), [alignmentLabel, alignmentDetail, setupQuality, coinPriorityEntry, persistenceStreak, lastCoinUpdateTs, freshAgeMs]);
+  ]), [alignmentLabel, alignmentDetail, setupQuality, coinPriorityEntry, persistenceStreak, lastCoinUpdateTs, freshAgeMs, storedTapeSamples]);
 
   const pulseWhy = useMemo(() => {
     const reasons = [];
@@ -1581,9 +1747,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     },
     {
       label: 'Persistence',
-      value: coinPriorityEntry?.stateLabel || 'Forming',
+      value: coinPriorityEntry?.stateLabel || 'No streak yet',
       tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
-      sub: coinPriorityEntry?.rankSummary || 'No stable rank hold yet.',
+      sub: coinPriorityEntry?.rankSummary || 'This coin has not repeated enough to confirm persistence.',
     },
     {
       label: 'Breadth',
@@ -1621,12 +1787,15 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   }, [coinIntel, hasMeaningfulSocialMetrics, coinIntelError, socialActionLine, socialHeatTrend, socialIsProxy]);
 
   const intelSupport = useMemo(() => ([
+    {
+      label: 'Live rank',
+      value: coinLiveRanking ? `#${coinLiveRanking.live_rank} · ${coinLiveRanking.live_score}` : 'Building',
+      tone: (coinLiveRanking?.live_score ?? 50) >= 65 ? 'positive' : (coinLiveRanking?.live_score ?? 50) < 45 ? 'negative' : 'neutral',
+    },
     { label: 'Attention', value: socialHeatTrend ? (socialHeatTrend === 'rising' ? 'Rising' : socialHeatTrend === 'collapsing' ? 'Fading' : 'Flat') : 'Quiet', tone: socialHeatTrend === 'rising' ? 'positive' : socialHeatTrend === 'collapsing' ? 'negative' : 'neutral' },
     { label: 'Source mix', value: socialSourceLabel || (coinIntel?.events?.items?.length ? 'Events only' : 'Tape only'), tone: 'neutral' },
-    { label: 'Provider map', value: providerSummary, tone: providerRows.length ? 'neutral' : 'negative' },
     { label: 'Trust level', value: coinIntelError ? 'Low' : coinIntel?.status === 'live' ? 'High' : 'Medium', tone: coinIntelError ? 'negative' : coinIntel?.status === 'live' ? 'positive' : 'neutral' },
-    { label: 'Last external update', value: humanTime(socialUpdatedAt || coinIntel?.ts), tone: 'neutral' },
-  ]), [socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError, socialUpdatedAt, providerSummary, providerRows.length]);
+  ]), [coinLiveRanking, socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError]);
 
   const handleOverlayClick = (event) => {
     if (event.target.classList.contains('sentiment-overlay')) onClose();
@@ -1669,6 +1838,19 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           </div>
 
           <div className="header-right">
+            {coinbaseTradeUrl ? (
+              <a
+                className="coinbase-trade-cta"
+                href={coinbaseTradeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Trade ${coinSymbol} on Coinbase Advanced`}
+                title={`Open ${coinSymbol}-USD on Coinbase Advanced Trade`}
+              >
+                <span className="coinbase-trade-cta-icon" aria-hidden="true">$</span>
+                <span>Trade {coinSymbol}</span>
+              </a>
+            ) : null}
             <div className={`live-indicator ${liveClass}`}>
               <span className={`pulse ${liveClass}`} aria-hidden="true" />
               <span className="live-text">{liveLabelRaw}</span>
@@ -1731,98 +1913,119 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
-                  <section className="cp-section cp-section--hero">
-                    <div className={`cp-coin-header cp-coin-header--${coinHero.tone} ${coinHeroProminence === 'elevated' ? 'is-elevated' : ''}`}>
-                      <div className="cp-coin-header__main">
-                        <div className="cp-coin-header__eyebrow">Coin Anchor</div>
-                        <div className="cp-coin-header__symbol">{coinSymbol}</div>
-                        <div className="cp-coin-header__subline">
-                          <span className={`cp-state-pill cp-state-pill--${coinHero.tone}`}>{coinHero.state}</span>
-                          <span>{coinHeroLine}</span>
+                  <section className={`cp-simple-read cp-simple-read--${simpleCoinRead.tone}`}>
+                    <div className="cp-simple-read__topline">
+                      <span>{coinSymbol} · RIGHT NOW</span>
+                      <span>
+                        {coinLiveRanking
+                          ? `#${coinLiveRanking.live_rank} of ${coinLiveRanking.universe_size} · ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live`
+                          : `updated ${humanTime(lastCoinUpdateTs)}`}
+                      </span>
+                    </div>
+                    <div className="cp-simple-read__answer">{simpleCoinRead.label}</div>
+                    <h2>{simpleCoinRead.headline}</h2>
+
+                    <div className="cp-simple-read__columns">
+                      <div>
+                        <h3>What helps</h3>
+                        {simpleCoinRead.supports.length ? (
+                          <ul>{simpleCoinRead.supports.map((item) => <li key={item}>{item}</li>)}</ul>
+                        ) : (
+                          <p>Nothing meaningful is confirming the setup yet.</p>
+                        )}
+                      </div>
+                      <div>
+                        <h3>What blocks it</h3>
+                        {simpleCoinRead.blockers.length ? (
+                          <ul>{simpleCoinRead.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
+                        ) : (
+                          <p>No major blocker is active.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="cp-simple-read__next">
+                      <span>WHAT WOULD IMPROVE IT</span>
+                      <strong>{simpleCoinRead.upgrade}</strong>
+                    </div>
+                    <div className="cp-simple-read__fails">
+                      <span>WHEN TO STOP TRUSTING IT</span>
+                      <strong>{simpleCoinRead.invalidation}</strong>
+                    </div>
+                    {simpleCoinRead.history ? (
+                      <div className="cp-simple-read__history">History: {simpleCoinRead.history}</div>
+                    ) : null}
+                  </section>
+
+                  <details className="cp-evidence-drawer">
+                    <summary>See the evidence</summary>
+                    <div className="cp-evidence-drawer__body">
+                      <SupportRail items={coinSupportRail} />
+
+                      <div className="section-header">
+                        <h3>Source health</h3>
+                        <p className="section-desc">Unavailable sources are excluded; they are never filled with neutral guesses.</p>
+                      </div>
+                      <SupportRail items={sourceHealth} />
+
+                      {coinBadges.length ? (
+                        <div className="cp-badge-rail">
+                          {coinBadges.map((badge) => (
+                            <span key={badge.label} className={`cp-badge cp-badge--${badge.tone}`}>{badge.label}</span>
+                          ))}
                         </div>
-                        <p className="cp-coin-header__detail">{coinHero.sub}</p>
-                      </div>
-                      <div className="cp-coin-header__meta">
-                        <span>Updated</span>
-                        <strong>{humanTime(lastCoinUpdateTs)}</strong>
-                      </div>
+                      ) : null}
+
+                      {coinInsightsLoading && !coinInsights ? (
+                        <div className="coin-history-note coin-history-note--compact">Advanced insights are still loading.</div>
+                      ) : null}
+                      {coinInsightsError ? (
+                        <div className="coin-history-note coin-history-note--compact error mw-fetch-note">Some supporting evidence is temporarily unavailable.</div>
+                      ) : null}
+
+                      <AlertsTab
+                        filterSymbol={coinSymbol}
+                        compact
+                        hideHeader
+                        hideFoot
+                        emptyCopy={coinEvidenceEmptyCopy}
+                      />
                     </div>
-                  </section>
+                  </details>
 
-                  {!metricsReady ? (
-                    <div className="bh-coin-warmup">
-                      <div className="bh-coin-warmup__title">Warming up</div>
-                      <div className="bh-coin-warmup__sub">Collecting enough tape to trust the local state.</div>
-                      <div className="bh-coin-warmup__meta">
-                        Tape samples: {tapeCount}/{TAPE_MIN}{hasLastCoinUpdate ? ` · Last update ${humanTime(lastCoinUpdateTs)}` : ''}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <section className="cp-section">
-                    <SupportRail items={coinSupportRail} />
-                  </section>
-
-                  {coinBadges.length ? (
-                    <section className="cp-section">
-                      <div className="cp-badge-rail">
-                        {coinBadges.map((badge) => (
-                          <span key={badge.label} className={`cp-badge cp-badge--${badge.tone}`}>{badge.label}</span>
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {coinInsightsLoading && !coinInsights ? (
-                    <div className="coin-history-note coin-history-note--compact">Advanced insights warming up. Tape-only signals will fill in first.</div>
-                  ) : null}
-                  {coinInsightsError ? (
-                    <div className="coin-history-note coin-history-note--compact error mw-fetch-note">Advanced insights are still building. Showing live tape signals and chart in the meantime.</div>
-                  ) : null}
-
-                  <section className="cp-section">
-                    <div className="section-header">
-                      <h3>Tape Signals</h3>
-                      <p className="section-desc">Coin-specific signals only. Market-wide leaders stay in the global alerts panel.</p>
-                    </div>
-                    <AlertsTab
-                      filterSymbol={coinSymbol}
-                      compact
-                      hideHeader
-                      hideFoot
-                      emptyCopy={coinEvidenceEmptyCopy}
-                    />
-                  </section>
-
-                  <div className="info-section mw-coin-chart-block">
-                    <div className="section-header">
-                      <h3>Chart</h3>
-                      <p className="section-desc">Utility layer only. Use state and tape first, then zoom into the chart.</p>
-                      <div className="mini-toggle">
+                  <details className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block">
+                    <summary>Open chart</summary>
+                    <div className="cp-evidence-drawer__body">
+                      <div className="section-header">
+                        <p className="section-desc">Use the chart only to verify the simple read above.</p>
+                      <div className="mini-toggle" role="group" aria-label="Chart source">
                         {['auto', 'coinbase', 'binance'].map((opt) => (
                           <button
                             key={opt}
+                            type="button"
                             className={`mini-toggle-btn ${chartExchange === opt ? 'active' : ''}`}
                             onClick={() => setChartExchange(opt)}
+                            aria-pressed={chartExchange === opt}
                           >
                             {opt === 'auto' ? 'Auto' : opt === 'coinbase' ? 'Coinbase' : 'Binance'}
                           </button>
                         ))}
-                        <span className="mini-toggle-label">Source: {tvResolved.source}</span>
+                        <span className="mini-toggle-label">Using {tvResolved.source}</span>
+                      </div>
+                      </div>
+                      <div className="tradingview-widget-container" style={{ height: '360px' }}>
+                        <iframe
+                          key={`${tvResolved.symbol}-${tvResolved.source}`}
+                          src={tvUrl}
+                          style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+                          title={`${coinSymbol} chart`}
+                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                        />
                       </div>
                     </div>
-                    <div className="tradingview-widget-container" style={{ height: '360px' }}>
-                      <iframe
-                        key={`${tvResolved.symbol}-${tvResolved.source}`}
-                        src={tvUrl}
-                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
-                        title={`${coinSymbol} chart`}
-                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
+                  </details>
 
                   <div className="cp-meta-footer">
                     <span>Feed {liveLabelRaw}</span>
@@ -1898,7 +2101,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
           )}
 
           {activeTab === 'intel' && (
-            <section className="tab-panel active" role="tabpanel">
+            <section className="tab-panel active cp-intel-panel" role="tabpanel">
               {!coinSymbol ? (
                 <div className="tab-empty tab-empty--compact">Select a coin to load external context.</div>
               ) : (
@@ -1936,7 +2139,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                       <p className="section-desc">External catalyst evidence. If this is empty, the move is probably tape-led.</p>
                     </div>
                     {coinIntel?.events?.items?.length ? (
-                      <div className="feed-list">
+                      <div className="feed-list cp-intel-feed">
                         {coinIntel.events.items.slice(0, 5).map((item, idx) => (
                           <div className="news-item" key={`ev-${item.id || idx}`}>
                             <div className="news-item-header">
@@ -2048,42 +2251,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
 
                   <div className="info-section">
                     <div className="section-header">
-                      <h3>Source Coverage</h3>
-                      <p className="section-desc">What the app could actually read for this coin. Missing providers are shown explicitly.</p>
-                    </div>
-                    {providerRows.length ? (
-                      <div className="feed-list">
-                        {providerRows.map((provider, idx) => {
-                          const status = String(provider?.status || 'unknown').toLowerCase();
-                          const isGood = ['live', 'stale', 'configured'].includes(status);
-                          const isMissing = ['offline', 'not_configured'].includes(status);
-                          return (
-                            <div className="news-item" key={`provider-${provider?.name || idx}`}>
-                              <div className="news-item-header">
-                                <span className="news-item-source">{provider?.name || 'Provider'}</span>
-                                <span className={`news-item-time ${isGood ? 'positive' : isMissing ? 'negative' : ''}`}>
-                                  {status.replace(/_/g, ' ')}
-                                </span>
-                              </div>
-                              <div className="news-item-title">
-                                {provider?.detail || provider?.scope || 'No provider detail available.'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="tab-empty tab-empty--compact">Provider coverage map unavailable.</div>
-                    )}
-                  </div>
-
-                  <div className="info-section">
-                    <div className="section-header">
                       <h3>Social Pulse</h3>
                       <p className="section-desc">Recent external items, shown only as supporting evidence.</p>
                     </div>
                     {coinIntel?.social?.items?.length ? (
-                      <div className="feed-list">
+                      <div className="feed-list cp-intel-feed">
                         {coinIntel.social.items.slice(0, 5).map((item, idx) => (
                           <div className="news-item" key={`so-${item.id || idx}`}>
                             <div className="news-item-header">
@@ -2114,7 +2286,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
         <footer className="popup-footer">
           <div className="footer-left">
             <span className="data-source">
-              Powered by Coinbase tape data · Coin scope only
+              Coinbase live tape
+              {storedTapeSamples ? ` · latest ${storedTapeSamples} shown` : ''}
+              {tapeIsPersistent && Number(coinInsights?.history?.retention_seconds) ? ` · ${Math.round(Number(coinInsights.history.retention_seconds) / 3600)}h retained` : ''}
+              {' · Coin scope only'}
             </span>
           </div>
           <div className="footer-right">

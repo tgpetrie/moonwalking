@@ -437,6 +437,33 @@ body {
   right: 18px;
   bottom: 18px;
   z-index: 1400;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bh-alerts-notify-btn {
+  padding: 8px 10px;
+  border: 1px solid rgba(176, 107, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(10, 6, 14, 0.72);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: "Raleway", sans-serif;
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.bh-alerts-notify-btn[data-enabled="true"] {
+  border-color: rgba(0, 226, 209, 0.54);
+  color: rgba(109, 255, 239, 0.94);
+  box-shadow: 0 0 14px rgba(0, 226, 209, 0.12);
+}
+
+.bh-alerts-notify-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .bh-alerts-btn {
@@ -5484,6 +5511,7 @@ html, body {
 .board-section-header--center {
   justify-content: center;
   text-align: center;
+  flex-direction: column;
 }
 .board-section-title,
 .table-title {
@@ -5501,6 +5529,19 @@ html, body {
 }
 .table-title {
   margin: 0.2rem 0 0.7rem;
+}
+
+.board-section-evidence {
+  width: 100%;
+  margin-top: 0.28rem;
+  color: rgba(255, 255, 255, 0.48);
+  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-size: 0.52rem;
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: none;
 }
 
 /* ===== Micro Animations (Per-Cell + Orchestrated) ===== */
@@ -6186,6 +6227,57 @@ html, body {
   min-width: 0;
 }
 
+.bh-live-rank {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.14rem 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.68);
+  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+  font-size: 0.52rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.bh-live-rank--strong {
+  color: rgba(255, 211, 118, 0.98);
+  border-color: rgba(255, 174, 52, 0.28);
+  background: rgba(255, 174, 52, 0.09);
+}
+
+.bh-live-rank--weak {
+  color: rgba(217, 162, 255, 0.9);
+  border-color: rgba(174, 75, 245, 0.25);
+  background: rgba(174, 75, 245, 0.08);
+}
+
+.bh-live-rank--confirmed {
+  color: rgba(255, 211, 118, 0.98);
+  border-color: rgba(255, 174, 52, 0.3);
+  background: rgba(255, 174, 52, 0.1);
+}
+
+.bh-live-rank--unconfirmed {
+  color: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.bh-live-rank--extended {
+  color: rgba(255, 169, 104, 0.96);
+  border-color: rgba(255, 128, 66, 0.28);
+  background: rgba(255, 128, 66, 0.09);
+}
+
+.bh-live-rank--thin {
+  color: rgba(217, 162, 255, 0.92);
+  border-color: rgba(174, 75, 245, 0.28);
+  background: rgba(174, 75, 245, 0.09);
+}
+
 .bh-symbol-cue {
   display: inline-flex;
   align-items: center;
@@ -6216,6 +6308,11 @@ html, body {
 
 .bh-symbol-cue--neutral {
   color: rgba(152, 196, 255, 0.94);
+}
+
+.bh-symbol-cue--moon {
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 0 7px rgba(255, 255, 255, 0.24);
 }
 
 .bh-row.bh-row-grid {
@@ -6503,6 +6600,114 @@ html, body {
   margin: 0 0 10px;
 }
 
+.bh-live-leaders {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0 0 0.7rem;
+  padding: 0.55rem 0.65rem 0.62rem;
+  border: 1px solid rgba(255, 174, 52, 0.14);
+  background: linear-gradient(90deg, rgba(255, 174, 52, 0.045), rgba(174, 75, 245, 0.035));
+}
+
+.bh-live-leaders__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: rgba(255, 190, 76, 0.92);
+  font-size: 0.62rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.bh-live-leaders__head span:last-child {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.52rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.bh-live-leaders__rail {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.bh-live-leader {
+  appearance: none;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.38rem 0.42rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.34);
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bh-live-leader:hover,
+.bh-live-leader:focus-visible {
+  border-color: rgba(255, 174, 52, 0.35);
+  background: rgba(255, 174, 52, 0.075);
+  outline: none;
+}
+
+.bh-live-leader__rank,
+.bh-live-leader__score {
+  font-family: "Fragment Mono", "JetBrains Mono", monospace;
+}
+
+.bh-live-leader__rank {
+  color: rgba(255, 186, 65, 0.95);
+  font-size: 0.64rem;
+}
+
+.bh-live-leader__symbol {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bh-live-leader__score {
+  color: rgba(69, 255, 179, 0.92);
+  font-size: 0.64rem;
+}
+
+.bh-live-leader__label {
+  grid-column: 2 / -1;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.48rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1050px) {
+  .bh-live-leaders__rail {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .bh-live-leaders__head span:last-child {
+    display: none;
+  }
+
+  .bh-live-leaders__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .bh-board-help__toggle {
   list-style: none;
   cursor: pointer;
@@ -6587,6 +6792,25 @@ html, body {
   font-weight: 600;
 }
 
+.bh-board-help__label-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bh-board-help__source {
+  border: 1px solid rgba(152, 196, 255, 0.16);
+  border-radius: 999px;
+  padding: 1px 5px;
+  color: rgba(152, 196, 255, 0.74);
+  font-size: 0.48rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
 .bh-board-help__desc {
   color: rgba(255, 255, 255, 0.58);
   font-size: 0.64rem;
@@ -6627,6 +6851,11 @@ html, body {
 
 .bh-board-help__icon--neutral {
   color: rgba(152, 196, 255, 0.94);
+}
+
+.bh-board-help__icon--moon {
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 0 7px rgba(255, 255, 255, 0.24);
 }
 
 .bh-board-help__icon--warning {
@@ -6882,8 +7111,7 @@ html, body {
 }
 
 .board-core .bh-row.bh-row-grid:hover::before,
-.board-core .bh-row.bh-row-grid:focus-visible::before,
-.board-core .bh-row.bh-row-grid.bh-row--hot::before {
+.board-core .bh-row.bh-row-grid:focus-visible::before {
   opacity: 0.98 !important;
   transform: scale(1) !important;
 }
@@ -6909,4 +7137,531 @@ html, body {
   border-radius: 0 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* Section accents belong to the headings, never to whichever coin happens to be hot. */
+.board-core .board-section-header--center {
+  position: relative;
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.55rem;
+}
+
+.board-core .board-section-header--center::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: min(150px, 34%);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(255, 181, 61, 0.78), transparent);
+  box-shadow: 0 0 8px rgba(255, 181, 61, 0.12);
+  pointer-events: none;
+}
+
+.board-core .board-section-header--loss::after {
+  background: linear-gradient(90deg, transparent, rgba(187, 118, 255, 0.76), transparent);
+  box-shadow: 0 0 8px rgba(187, 118, 255, 0.14);
+}
+
+.board-core .bh-row.bh-row-grid.bh-row--hot:not(:hover):not(:focus-visible)::before {
+  opacity: 0 !important;
+  transform: scale(0.992) !important;
+}
+
+/* =========================================================
+   Early-September BHABIT identity restoration
+   Fixed 640px rabbit + centered wordmark from the Sep 1–12 UI.
+   ========================================================= */
+
+.bh-brand-hero {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 116px;
+  padding: 8px 1rem 14px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.bh-brand-hero__logo {
+  display: block;
+  width: clamp(260px, 34vw, 420px);
+  max-width: 82vw;
+  height: auto;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 10px rgba(255, 103, 31, 0.12))
+    drop-shadow(0 0 20px rgba(255, 36, 179, 0.08));
+  animation: bh-brand-breathe 5.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes bh-brand-breathe {
+  0%, 100% {
+    opacity: 0.9;
+    transform: scale(0.988);
+    filter:
+      drop-shadow(0 0 8px rgba(255, 103, 31, 0.1))
+      drop-shadow(0 0 16px rgba(255, 36, 179, 0.06));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+    filter:
+      drop-shadow(0 0 12px rgba(255, 103, 31, 0.17))
+      drop-shadow(0 0 24px rgba(255, 36, 179, 0.11));
+  }
+}
+
+/*
+ * Keep the original three-plane illusion:
+ * page atmosphere -> fixed rabbit -> transparent dashboard content.
+ * The rabbit is visually behind the rows, while their glass hover can
+ * brighten it and all text/actions remain fully legible above it.
+ */
+.board-core {
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+.board-core .rabbit-bg,
+.board-core[data-row-hover="1"] .rabbit-bg,
+.board-core:hover .rabbit-bg,
+.board-core:focus-within .rabbit-bg {
+  position: fixed !important;
+  inset: 50% auto auto 50% !important;
+  width: 640px !important;
+  height: 640px !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background: url("/purple-rabbit-bg.png") center / contain no-repeat !important;
+  opacity: 0.05 !important;
+  mix-blend-mode: screen !important;
+  filter: none !important;
+  transform: translate(-50%, -50%) translateZ(0) !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+.board-core > .bh-banner-block,
+.board-core > .bh-main {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.board-core .bh-row.bh-row-grid {
+  isolation: auto !important;
+}
+
+@media (max-width: 1023px) {
+  .board-core .rabbit-bg,
+  .board-core[data-row-hover="1"] .rabbit-bg,
+  .board-core:hover .rabbit-bg,
+  .board-core:focus-within .rabbit-bg {
+    width: 512px !important;
+    height: 512px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .bh-brand-hero {
+    min-height: 88px;
+    padding-top: 2px;
+    padding-bottom: 8px;
+  }
+
+  .bh-brand-hero__logo {
+    width: min(290px, 78vw);
+  }
+
+  .board-core .rabbit-bg,
+  .board-core[data-row-hover="1"] .rabbit-bg,
+  .board-core:hover .rabbit-bg,
+  .board-core:focus-within .rabbit-bg {
+    width: 384px !important;
+    height: 384px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-brand-hero__logo {
+    animation: none;
+  }
+}
+
+/* =========================================================
+   Canonical Sep 1–9 full-page artwork stack
+   These are real sibling layers, matching the original JSX.
+   ========================================================= */
+
+.bh-legacy-stage {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100vh;
+  background: #000;
+}
+
+.bh-page-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #000;
+  background-image: url("/background-linear.svg");
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+}
+
+.bh-legacy-rabbit {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.bh-legacy-rabbit img {
+  display: block;
+  width: 640px;
+  height: 640px;
+  max-width: none;
+  object-fit: contain;
+  opacity: 0.012;
+  filter: brightness(0.94) saturate(0.98);
+}
+
+.bh-legacy-stage > .bh-shell {
+  position: relative;
+  z-index: 2;
+}
+
+/* The original September wordmark breathed over three seconds. */
+.bh-brand-hero__logo {
+  animation: bh-brand-breathe-september 3s ease-in-out infinite;
+}
+
+@keyframes bh-brand-breathe-september {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 1023px) {
+  .bh-legacy-rabbit img {
+    width: 512px;
+    height: 512px;
+  }
+}
+
+@media (max-width: 639px) {
+  .bh-legacy-rabbit img {
+    width: 384px;
+    height: 384px;
+    opacity: 0.012;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-brand-hero__logo {
+    animation: none;
+  }
+}
+
+/* =========================================================
+   September rabbit row reveal
+   The full rabbit is a ghost at rest. Each hovered row paints only
+   the viewport-aligned slice directly underneath that row.
+   ========================================================= */
+
+.board-core .bh-row.bh-row-grid {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Borderless banner-style color lens: orange for gainers, purple for losers. */
+.board-core .bh-row.bh-row-grid .bh-row-breathe {
+  position: absolute !important;
+  inset: 5px 4px !important;
+  z-index: 0 !important;
+  display: block !important;
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  opacity: 0 !important;
+  filter: blur(8px) !important;
+  transform: scale(0.92) !important;
+  transform-origin: var(--mw-row-origin-x, 50%) 50% !important;
+  transition: opacity 150ms ease, transform 150ms ease, filter 150ms ease !important;
+}
+
+.board-core .bh-row.bh-row-grid[data-side="gainer"] .bh-row-breathe {
+  background: radial-gradient(
+    ellipse 92% 180% at var(--mw-row-origin-x, 50%) 50%,
+    rgba(255, 184, 77, 0.34) 0%,
+    rgba(255, 158, 36, 0.16) 30%,
+    rgba(255, 158, 36, 0.045) 56%,
+    rgba(255, 158, 36, 0) 78%
+  ) !important;
+}
+
+.board-core .bh-row.bh-row-grid[data-side="loser"] .bh-row-breathe {
+  background: radial-gradient(
+    ellipse 92% 180% at var(--mw-row-origin-x, 50%) 50%,
+    rgba(183, 118, 255, 0.36) 0%,
+    rgba(150, 72, 235, 0.17) 30%,
+    rgba(150, 72, 235, 0.05) 56%,
+    rgba(150, 72, 235, 0) 78%
+  ) !important;
+}
+
+.board-core .bh-row.bh-row-grid:hover .bh-row-breathe,
+.board-core .bh-row.bh-row-grid:focus-visible .bh-row-breathe {
+  opacity: 0.96 !important;
+  filter: blur(10px) !important;
+  transform: scale(1) !important;
+}
+
+.board-core .bh-row.bh-row-grid::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 1px 6px !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background-color: transparent !important;
+  background-image: url("/purple-rabbit-bg.png") !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-size: 640px 640px !important;
+  background-attachment: fixed !important;
+  opacity: 0 !important;
+  mix-blend-mode: screen !important;
+  filter: brightness(1.28) saturate(1.12) !important;
+  -webkit-mask-image: radial-gradient(
+    ellipse 82% 180% at var(--mw-row-origin-x, 50%) 50%,
+    #000 0%,
+    rgba(0, 0, 0, 0.9) 42%,
+    rgba(0, 0, 0, 0.35) 64%,
+    transparent 82%
+  ) !important;
+  mask-image: radial-gradient(
+    ellipse 82% 180% at var(--mw-row-origin-x, 50%) 50%,
+    #000 0%,
+    rgba(0, 0, 0, 0.9) 42%,
+    rgba(0, 0, 0, 0.35) 64%,
+    transparent 82%
+  ) !important;
+  box-shadow: none !important;
+  transform: scale(0.992) !important;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease !important;
+}
+
+.board-core .bh-row.bh-row-grid:hover::after,
+.board-core .bh-row.bh-row-grid:focus-visible::after {
+  opacity: 0.24 !important;
+  transform: scale(1) !important;
+  box-shadow: none !important;
+}
+
+.board-core .bh-row.bh-row-grid > * {
+  position: relative;
+  z-index: 2;
+}
+
+.board-core .bh-row.bh-row-grid > .bh-row-breathe {
+  position: absolute !important;
+  z-index: 0 !important;
+}
+
+@media (max-width: 1023px) {
+  .board-core .bh-row.bh-row-grid::after {
+    background-size: 512px 512px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .board-core .bh-row.bh-row-grid::after {
+    background-size: 384px 384px !important;
+  }
+}
+
+/* =========================================================
+   Mobile mover rows
+   Keep the live-board hierarchy legible when each board column
+   collapses to a narrow phone-width lane.
+   ========================================================= */
+
+@media (max-width: 620px) {
+  .bh-row.bh-row-grid,
+  .token-row.table-row.bh-row-grid {
+    grid-template-columns: 28px minmax(0, 1fr) auto 48px !important;
+    grid-template-rows: 24px 22px !important;
+    column-gap: 8px !important;
+    row-gap: 2px !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    height: 62px !important;
+    min-height: 62px !important;
+    padding: 6px 0 !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-rank,
+  .token-row.table-row.bh-row-grid > .bh-cell-rank {
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    width: 28px !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-symbol,
+  .token-row.table-row.bh-row-grid > .bh-cell-symbol {
+    grid-column: 2 / 4 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+    overflow: hidden !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-price,
+  .token-row.table-row.bh-row-grid > .bh-cell-price {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    min-width: 0 !important;
+    justify-self: start !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-change,
+  .token-row.table-row.bh-row-grid > .bh-cell-change {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    min-width: 0 !important;
+    justify-self: end !important;
+    text-align: right !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-actions,
+  .token-row.table-row.bh-row-grid > .bh-cell-actions {
+    grid-column: 4 !important;
+    grid-row: 1 / 3 !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    justify-self: end !important;
+  }
+
+  .bh-row.bh-row-grid .bh-row-actions,
+  .token-row.table-row.bh-row-grid .bh-row-actions {
+    width: 48px !important;
+    min-width: 48px !important;
+    gap: 0.34rem !important;
+  }
+
+  .bh-row.bh-row-grid .bh-symbol-stack,
+  .bh-row.bh-row-grid .bh-symbol-line,
+  .token-row.table-row.bh-row-grid .bh-symbol-stack,
+  .token-row.table-row.bh-row-grid .bh-symbol-line {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .bh-row.bh-row-grid .bh-symbol-markers,
+  .token-row.table-row.bh-row-grid .bh-symbol-markers {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .bh-row.bh-row-grid .bh-live-rank,
+  .token-row.table-row.bh-row-grid .bh-live-rank {
+    padding: 0.12rem 0.24rem !important;
+    font-size: 0.48rem !important;
+  }
+
+  .bh-row.bh-row-grid .bh-symbol-cue--recent,
+  .bh-row.bh-row-grid .bh-symbol-persist,
+  .bh-row.bh-row-grid .bh-symbol-move,
+  .token-row.table-row.bh-row-grid .bh-symbol-cue--recent,
+  .token-row.table-row.bh-row-grid .bh-symbol-persist,
+  .token-row.table-row.bh-row-grid .bh-symbol-move,
+  .bh-row.bh-row-grid .bh-price-previous,
+  .token-row.table-row.bh-row-grid .bh-price-previous {
+    display: none !important;
+  }
+
+  .bh-row.bh-row-grid .bh-price-current,
+  .token-row.table-row.bh-row-grid .bh-price-current {
+    font-size: 0.78rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .bh-row.bh-row-grid .bh-change,
+  .token-row.table-row.bh-row-grid .bh-change {
+    font-size: 0.82rem !important;
+    line-height: 1.1 !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .bh-row.bh-row-grid,
+  .token-row.table-row.bh-row-grid {
+    grid-template-columns: 24px minmax(0, 1fr) auto 42px !important;
+    column-gap: 6px !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-rank,
+  .token-row.table-row.bh-row-grid > .bh-cell-rank {
+    width: 24px !important;
+  }
+
+  .bh-row.bh-row-grid > .bh-cell-price,
+  .token-row.table-row.bh-row-grid > .bh-cell-price {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .bh-row.bh-row-grid .bh-row-actions,
+  .token-row.table-row.bh-row-grid .bh-row-actions,
+  .bh-row.bh-row-grid > .bh-cell-actions,
+  .token-row.table-row.bh-row-grid > .bh-cell-actions {
+    width: 42px !important;
+    min-width: 42px !important;
+    gap: 0.24rem !important;
+  }
+
+  .bh-row.bh-row-grid .bh-price-current,
+  .token-row.table-row.bh-row-grid .bh-price-current {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 0.7rem !important;
+  }
+
+  .bh-row.bh-row-grid .bh-change,
+  .token-row.table-row.bh-row-grid .bh-change {
+    font-size: 0.76rem !important;
+  }
 }
