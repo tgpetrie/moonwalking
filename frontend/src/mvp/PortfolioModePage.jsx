@@ -60,14 +60,16 @@ function CostBasisStatus({ holding }) {
   );
 }
 
-function SetupState({ state, onRetry }) {
+function SetupState({ state, onRetry, onConnectCoinbase }) {
   const code = state?.code || "coinbase_not_configured";
   const ownerOnly = code === "portfolio_owner_only";
   const unsafe = code === "unsafe_coinbase_permissions";
   const dependency = code === "coinbase_auth_dependency_missing";
+
   let title = "Connect a View-only Coinbase portfolio";
   let copy =
     "Add the owner email, Coinbase key name, and private key as encrypted Railway variables. The key must be scoped to one portfolio with View only.";
+
   if (ownerOnly) {
     title = "This portfolio is private";
     copy = "Sign in with the configured owner account to view Coinbase balances and fills.";
@@ -79,6 +81,8 @@ function SetupState({ state, onRetry }) {
     copy = "Install the backend deployment requirements, then restart the service.";
   }
 
+  const showOAuthButton = !ownerOnly && code === "coinbase_not_configured" && onConnectCoinbase;
+
   return (
     <section className="mw-panel mw-portfolio-setup">
       <div className="mw-portfolio-setup__mark" aria-hidden="true">P</div>
@@ -86,7 +90,7 @@ function SetupState({ state, onRetry }) {
         <p className="mw-eyebrow">Private Portfolio Mode</p>
         <h2>{title}</h2>
         <p>{state?.error || copy}</p>
-        {!ownerOnly ? (
+        {!ownerOnly && !showOAuthButton ? (
           <div className="mw-portfolio-secret-list" aria-label="Required server variables">
             <code>COINBASE_PORTFOLIO_OWNER_EMAIL</code>
             <code>COINBASE_API_KEY_NAME</code>
@@ -94,9 +98,19 @@ function SetupState({ state, onRetry }) {
           </div>
         ) : null}
         <div className="mw-inline-actions">
-          <button type="button" className="mw-button mw-button--primary" onClick={onRetry}>
-            Check Again
-          </button>
+          {showOAuthButton ? (
+            <button
+              type="button"
+              className="mw-button mw-button--primary"
+              onClick={onConnectCoinbase}
+            >
+              Connect Coinbase OAuth
+            </button>
+          ) : (
+            <button type="button" className="mw-button mw-button--primary" onClick={onRetry}>
+              Check Again
+            </button>
+          )}
           <span className="mw-portfolio-safety-note">No trading routes are enabled.</span>
         </div>
       </div>
@@ -220,6 +234,34 @@ export default function PortfolioModePage() {
     });
   }, []);
 
+  const handleDisconnectCoinbase = useCallback(async () => {
+    if (!window.confirm("Disconnect your Coinbase OAuth connection?")) return;
+
+    try {
+      const response = await fetch("/api/oauth/coinbase/disconnect", { method: "POST" });
+      if (response.ok) {
+        load({ force: true });
+      } else {
+        setState((current) => ({
+          ...current,
+          error: {
+            code: "disconnect_error",
+            error: "Failed to disconnect Coinbase OAuth.",
+          },
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to disconnect Coinbase OAuth:", error);
+      setState((current) => ({
+        ...current,
+        error: {
+          code: "disconnect_error",
+          error: "Failed to disconnect Coinbase OAuth.",
+        },
+      }));
+    }
+  }, [load]);
+
   useEffect(() => { load(); }, [load]);
 
   const rankings = useMemo(() => indexLiveRankings(marketContext), [marketContext]);
@@ -238,7 +280,7 @@ export default function PortfolioModePage() {
     );
   }
   if (state.error && !portfolio) {
-    return <SetupState state={state.error} onRetry={() => load({ force: true })} />;
+    return <SetupState state={state.error} onRetry={() => load({ force: true })} onConnectCoinbase={handleConnectCoinbase} />;
   }
 
   return (
@@ -257,6 +299,9 @@ export default function PortfolioModePage() {
           <span>Updated {dateTime(portfolio?.updated_at)}</span>
           <button type="button" className="mw-button mw-button--ghost" disabled={state.loading} onClick={() => load({ force: true })}>
             {state.loading ? "Refreshing" : "Refresh Coinbase"}
+          </button>
+          <button type="button" className="mw-button mw-button--ghost" onClick={handleDisconnectCoinbase}>
+            Disconnect OAuth
           </button>
         </div>
       </section>

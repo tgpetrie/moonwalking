@@ -99,6 +99,15 @@ except ImportError as e:
 
 from watchlist import watchlist_bp, watchlist_db
 from portfolio_mode import portfolio_bp
+from coinbase_oauth import (
+    CoinbaseOAuthConfig,
+    OAuthTokenError,
+    generate_authorization_url,
+    exchange_authorization_code,
+    get_valid_access_token,
+    compute_expiry_timestamp,
+    get_user_info,
+)
 
 try:
     from reliability import stale_while_revalidate
@@ -928,6 +937,182 @@ if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
         logging.warning(f"Legacy intelligence API blueprint registration skipped: {e}")
 else:
     logging.info("Legacy intelligence API disabled; using /api/coin-intel")
+
+
+# =============================================================================
+# Coinbase OAuth Routes
+# =============================================================================
+
+
+@app.route("/api/oauth/coinbase/authorize", methods=["GET"])
+def oauth_coinbase_authorize():
+    """Start the Coinbase OAuth flow by redirecting to Coinbase login."""
+    from flask import redirect, session as flask_session
+
+    user_id = flask_session.get("mw_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    config = CoinbaseOAuthConfig()
+    if not config.is_configured():
+        return (
+            jsonify({"error": "Coinbase OAuth is not configured on this server"}),
+            503,
+        )
+
+    try:
+        auth_url, state = generate_authorization_url(config, user_id)
+        flask_session["coinbase_oauth_state"] = state
+        return redirect(auth_url)
+    except OAuthTokenError as e:
+        return jsonify({"error": str(e)}), 503
+
+
+@app.route("/api/oauth/coinbase/callback", methods=["GET"])
+def oauth_coinbase_callback():
+    """Handle the Coinbase OAuth callback and store the tokens."""
+    from flask import session as flask_session, redirect as flask_redirect
+    from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
+
+    code = request.args.get("code")
+    state = request.args.get("state")
+    error = request.args.get("error")
+
+    if error:
+        return jsonify({"error": f"Coinbase OAuth error: {error}"}), 400
+
+    if not code or not state:
+        return jsonify({"error": "Missing authorization code or state"}), 400
+
+    user_id = flask_session.get("mw_user_id")
+    if not user_id:
+        return jsonify({"error": "Session expired"}), 401
+
+    expected_state = flask_session.pop("coinbase_oauth_state", None)
+    if not expected_state or state != expected_state:
+        return jsonify({"error": "State validation failed"}), 403
+
+    config = CoinbaseOAuthConfig()
+    if not config.is_configured():
+        return jsonify({"error": "Coinbase OAuth is not configured"}), 503
+
+    try:
+        # Exchange code for tokens
+        token_data = exchange_authorization_code(config, code)
+        access_token = token_data.get("access_token")
+        refresh_token = token_data.get("refresh_token")
+        expires_in = token_data.get("expires_in", 3600)
+
+        if not access_token:
+            return jsonify({"error": "No access token in response"}), 503
+
+        # Get user info to validate scope and get their portfolio ID
+        user_info = get_user_info(config, access_token)
+
+        # Store tokens in database
+        with _DB_LOCK:
+            conn = _db_connect()
+            try:
+                expires_at = compute_expiry_timestamp(expires_in)
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET coinbase_oauth_access_token = ?,
+                        coinbase_oauth_refresh_token = ?,
+                        coinbase_oauth_expires_at = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        access_token,
+                        refresh_token or "",
+                        expires_at,
+                        _utc_now_iso(),
+                        user_id,
+                    ),
+                )
+                conn.commit()
+                logging.info(f"Stored Coinbase OAuth tokens for user {user_id}")
+            finally:
+                conn.close()
+
+        # Redirect back to portfolio page
+        return flask_redirect("/mvp/portfolio")
+    except OAuthTokenError as e:
+        logging.error(f"OAuth token exchange failed: {e}")
+        return jsonify({"error": str(e)}), 503
+    except Exception as e:
+        logging.exception(f"Unexpected error in OAuth callback: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/oauth/coinbase/disconnect", methods=["POST"])
+def oauth_coinbase_disconnect():
+    """Disconnect Coinbase OAuth and clear stored tokens."""
+    from flask import session as flask_session
+    from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
+
+    user_id = flask_session.get("mw_user_id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            conn.execute(
+                """
+                UPDATE users
+                SET coinbase_oauth_access_token = NULL,
+                    coinbase_oauth_refresh_token = NULL,
+                    coinbase_oauth_expires_at = NULL,
+                    coinbase_portfolio_id = NULL,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (_utc_now_iso(), user_id),
+            )
+            conn.commit()
+            logging.info(f"Disconnected Coinbase OAuth for user {user_id}")
+        finally:
+            conn.close()
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/oauth/coinbase/status", methods=["GET"])
+def oauth_coinbase_status():
+    """Check if user has active Coinbase OAuth connection."""
+    from flask import session as flask_session
+    from watchlist import _db_connect
+
+    user_id = flask_session.get("mw_user_id")
+    if not user_id:
+        return jsonify({"connected": False}), 200
+
+    conn = _db_connect()
+    try:
+        row = conn.execute(
+            "SELECT coinbase_oauth_access_token, coinbase_oauth_expires_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row[0]:
+        return jsonify({"connected": False}), 200
+
+    if row[1]:
+        try:
+            from datetime import datetime, timezone
+
+            expires_dt = datetime.fromisoformat(row[1].replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) >= expires_dt:
+                return jsonify({"connected": False, "reason": "token_expired"}), 200
+        except Exception:
+            pass
+
+    return jsonify({"connected": True}), 200
+
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
 # want to turn it off). When disabled, ensure `app.jinja_env` exists so any

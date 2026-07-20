@@ -99,20 +99,23 @@ class PageResult:
 
 
 class CoinbaseAdvancedTradeClient:
-    """Small read-only Advanced Trade client using Coinbase App JWT auth."""
+    """Small read-only Advanced Trade client using Coinbase App JWT auth or OAuth Bearer token."""
 
     def __init__(
         self,
-        api_key_name: str,
-        api_key_secret: str,
+        api_key_name: str = "",
+        api_key_secret: str = "",
         *,
+        oauth_access_token: str = "",
         http_session: requests.Session | None = None,
         timeout: float = 10.0,
     ):
         self.api_key_name = str(api_key_name or "").strip()
         self.api_key_secret = _normalize_secret(api_key_secret)
+        self.oauth_access_token = str(oauth_access_token or "").strip()
         self.http = http_session or requests.Session()
         self.timeout = timeout
+        self.auth_method = "oauth" if self.oauth_access_token else "jwt"
 
     @classmethod
     def from_environment(cls) -> "CoinbaseAdvancedTradeClient":
@@ -145,11 +148,16 @@ class CoinbaseAdvancedTradeClient:
 
     def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
+            if self.auth_method == "oauth":
+                auth_header = f"Bearer {self.oauth_access_token}"
+            else:
+                auth_header = f"Bearer {self._jwt('GET', path)}"
+
             response = self.http.get(
                 f"{COINBASE_BASE_URL}{path}",
                 params=params or None,
                 headers={
-                    "Authorization": f"Bearer {self._jwt('GET', path)}",
+                    "Authorization": auth_header,
                     "Accept": "application/json",
                     "Cache-Control": "no-cache",
                 },
@@ -610,8 +618,14 @@ _SERVICE: PortfolioService | None = None
 _SERVICE_LOCK = threading.Lock()
 
 
-def get_portfolio_service() -> PortfolioService:
+def get_portfolio_service(
+    client: CoinbaseAdvancedTradeClient | None = None,
+) -> PortfolioService:
     global _SERVICE
+    if client is not None:
+        # Return a new service with the provided client (for OAuth use)
+        return PortfolioService(client)
+
     with _SERVICE_LOCK:
         if _SERVICE is None:
             _SERVICE = PortfolioService(CoinbaseAdvancedTradeClient.from_environment())
@@ -650,6 +664,97 @@ def portfolio_snapshot():
             401,
         )
 
+    user_id = user.get("id")
+    user_email = str(user.get("email") or "").strip().lower()
+
+    # Try OAuth first
+    try:
+        from coinbase_oauth import (
+            CoinbaseOAuthConfig,
+            refresh_access_token,
+            compute_expiry_timestamp,
+            OAuthTokenError,
+        )
+        from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
+        from datetime import datetime, timezone, timedelta
+
+        conn = _db_connect()
+        try:
+            oauth_row = conn.execute(
+                "SELECT coinbase_oauth_access_token, coinbase_oauth_refresh_token, coinbase_oauth_expires_at FROM users WHERE id = ?",
+                (user_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+        if oauth_row and oauth_row[0]:
+            config = CoinbaseOAuthConfig()
+            if config.is_configured():
+                access_token, refresh_token, expires_at = (
+                    oauth_row[0],
+                    oauth_row[1],
+                    oauth_row[2],
+                )
+                needs_refresh = False
+                if expires_at:
+                    try:
+                        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                        needs_refresh = datetime.now(timezone.utc) >= exp - timedelta(
+                            minutes=5
+                        )
+                    except Exception:
+                        needs_refresh = True
+
+                if needs_refresh and refresh_token:
+                    try:
+                        token_data = refresh_access_token(config, refresh_token)
+                        access_token = token_data.get("access_token", access_token)
+                        new_refresh = token_data.get("refresh_token", refresh_token)
+                        new_expires = compute_expiry_timestamp(
+                            token_data.get("expires_in", 3600)
+                        )
+                        with _DB_LOCK:
+                            wconn = _db_connect()
+                            try:
+                                wconn.execute(
+                                    "UPDATE users SET coinbase_oauth_access_token=?, coinbase_oauth_refresh_token=?, coinbase_oauth_expires_at=?, updated_at=? WHERE id=?",
+                                    (
+                                        access_token,
+                                        new_refresh,
+                                        new_expires,
+                                        _utc_now_iso(),
+                                        user_id,
+                                    ),
+                                )
+                                wconn.commit()
+                            finally:
+                                wconn.close()
+                    except OAuthTokenError:
+                        pass
+
+                if access_token:
+                    force = str(request.args.get("refresh") or "").lower() in {
+                        "1",
+                        "true",
+                        "yes",
+                    }
+                    try:
+                        client = CoinbaseAdvancedTradeClient(
+                            oauth_access_token=access_token
+                        )
+                        return jsonify(
+                            get_portfolio_service(client).snapshot(force=force)
+                        )
+                    except PortfolioModeError as error:
+                        return _error_payload(error)
+    except ImportError:
+        pass
+    except Exception:
+        logging.debug(
+            "OAuth portfolio path failed, falling back to env vars", exc_info=True
+        )
+
+    # Fall back to environment-variable based auth
     owner_email = (
         str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
     )
@@ -670,7 +775,7 @@ def portfolio_snapshot():
             ),
             503,
         )
-    if str(user.get("email") or "").strip().lower() != owner_email:
+    if user_email != owner_email:
         return (
             jsonify(
                 {

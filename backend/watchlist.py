@@ -94,7 +94,11 @@ def _ensure_watchlist_schema():
                     username TEXT NOT NULL UNIQUE,
                     plan TEXT NOT NULL DEFAULT 'Free Account',
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    coinbase_oauth_access_token TEXT,
+                    coinbase_oauth_refresh_token TEXT,
+                    coinbase_oauth_expires_at TEXT,
+                    coinbase_portfolio_id TEXT
                 );
 
                 CREATE TABLE IF NOT EXISTS watchlists (
@@ -129,12 +133,34 @@ def _ensure_watchlist_schema():
                 CREATE INDEX IF NOT EXISTS idx_watchlist_items_item_key ON watchlist_items(item_key);
                 """
             )
+            # Migrate watchlist_items
             columns = {
                 row["name"]
                 for row in conn.execute("PRAGMA table_info(watchlist_items)").fetchall()
             }
             if "added_price" not in columns:
                 conn.execute("ALTER TABLE watchlist_items ADD COLUMN added_price REAL")
+
+            # Migrate users table for OAuth support
+            user_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(users)").fetchall()
+            }
+            if "coinbase_oauth_access_token" not in user_columns:
+                conn.execute(
+                    "ALTER TABLE users ADD COLUMN coinbase_oauth_access_token TEXT"
+                )
+            if "coinbase_oauth_refresh_token" not in user_columns:
+                conn.execute(
+                    "ALTER TABLE users ADD COLUMN coinbase_oauth_refresh_token TEXT"
+                )
+            if "coinbase_oauth_expires_at" not in user_columns:
+                conn.execute(
+                    "ALTER TABLE users ADD COLUMN coinbase_oauth_expires_at TEXT"
+                )
+            if "coinbase_portfolio_id" not in user_columns:
+                conn.execute("ALTER TABLE users ADD COLUMN coinbase_portfolio_id TEXT")
+
             conn.commit()
         finally:
             conn.close()
