@@ -89,6 +89,20 @@ Verification: regression tests and live baseline inspection.
 
 ## Open deployment and expansion work
 
+### P1.5 Indicator legend and Coin Pressure chart controls
+
+Status: Done
+
+- The board exposes one expandable control named `Legend` that explains row cues, recent-context markers, persistence, rank movement, and row actions.
+- The small blue recent-context marker and small purple persistence dot are named explicitly.
+- Cue definitions disclose their exact thresholds and source layer; board fallbacks now match the canonical alert engine.
+- Moonwalking uses a white moon mark, aggregate volume uses a whale, and Heating uses a distinct heat mark.
+- The legend closes on outside click or Escape, and all three board headings own their correctly colored underline.
+- Coin Pressure chart-source controls use the popup's dark glass, purple, and cyan design language instead of browser-default buttons.
+- The empty 1-hour price banner explains its real-baseline warm-up instead of looking like a failed data request.
+
+Verification: frontend build and test suite.
+
 ### P2.1 Deploy the current one-box build
 
 Status: Open
@@ -103,12 +117,48 @@ Scope: implement provider modules for approved Reddit/RSS or other real sources,
 
 ### P2.3 Personal Coinbase integration
 
-Status: Open
+Status: Done
 
-Scope: design a decision record for read-only credentials, backend-only secret storage, portfolio contracts, and revocation before implementation.
+- Added authenticated, configured-owner-only `/api/portfolio` access.
+- Coinbase CDP credentials stay server-side and are documented for encrypted Railway variables.
+- Stage 1 checks key permissions first and refuses keys with Trade or Transfer enabled.
+- Added balances, held funds, current valuation, allocation, open-order visibility, and weighted Advanced Trade fill cost basis.
+- Transferred-in or history-uncovered quantity is marked partial or unavailable instead of receiving an invented acquisition price.
+- Replaced the member portfolio placeholder with a private cockpit that combines portfolio truth with the existing live-strength feed.
+- Historical probabilities, target ranges, and protection levels remain explicitly unavailable until comparable evidence is adequate.
+- No order, cancel, transfer, or withdrawal route was added.
+
+Verification: all 92 runnable backend tests passed (65 provider-dependent tests skipped), all 35 frontend tests passed, the production frontend build passed, Python compilation passed, and route inspection confirmed that `/api/portfolio` exposes GET only.
 
 ### P2.4 Persist portfolio and settings
 
 Status: Open
 
 Scope: replace product-shell seeded state with the chosen local/account-backed persistence model after deployment is stable.
+
+### P2.5 Calibrate indicator thresholds
+
+Status: Open
+
+Scope: implement `docs/SIGNAL_SYSTEM_V1_PROPOSAL.md`: preserve v0 as a versioned baseline, build full-universe relative returns and quote-volume history, run a shadow v1 engine, measure forward outcomes, then release evidence-based thresholds instead of silently tuning them by feel.
+
+### P1.6 Alert and volume signal audit
+
+Status: Done
+
+- Confirmed frontend price fallbacks match the executable v0 backend thresholds.
+- Measured live and retained alert frequency and established that detector telemetry is too noisy for direct notifications.
+- Audited the candle cache, SQLite volume pipeline, active/recent alert contract, frontend unread behavior, and current external sentiment coverage.
+- Documented polling-time window errors, partial-universe breadth, raw-unit volume gates, limited historical retention, and proxy social-field risks.
+- Produced a versioned relative-signal, volume-history, confidence, and delivery proposal.
+- Added Event Evolution: raw detector hits remain available as `Pulse`, while related per-symbol hits become evolving `Signals` with Building, Breakout, Moonwalking, and Reversal Risk states.
+- Added `The Read`, a deterministic conditional interpretation on every evolving Signal. It summarizes whether the evidence favors continuation, remains early, conflicts, or shows reversal/downside risk without producing buy/sell instructions or invented historical statistics.
+- Corrected mislabeled poll-count windows to wall-clock minute samples, populated full-universe returns before breadth, normalized volume gates to quote USD, and made per-alert expiry canonical.
+- Extended raw minute-volume retention to 48 hours and added 90-day hourly quote-volume rollups.
+- Added a high-confidence `notify` slice with per-symbol cooldown, a six-per-hour global budget, transition dedupe, opt-in browser notifications, and configurable email, Telegram, and Discord delivery.
+- Added a persistent local-service runner so leaving the launching terminal does not stop the local app.
+- Added live Coinbase context to each grouped Signal: full-market relative movement, sampled aggressive spot flow, and bid/ask spread risk. Context is capped at two layman-friendly tags and cannot increase notification volume.
+- Added a durable forward-outcome recorder for every published signal transition, including 5/15/30/60-minute returns, target-before-adverse grading, and measured comparable-event history after a 20-event minimum.
+- Added truthful provider-readiness rows for CoinGlass derivatives, Arkham labeled on-chain flows, and CoinMarketCal catalysts; they remain `not_configured` until licensed credentials and adapters are supplied.
+
+Verification: 65 backend tests passed (65 provider-dependent tests skipped), 28 frontend tests passed, production frontend build passed, live Signals/Pulse switching passed, and the browser console remained clean.

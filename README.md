@@ -156,6 +156,17 @@ BHABIT CBMOONERS/
 ./start_app.sh
 ```
 
+`start_app.sh` is a foreground development session and stops when its terminal exits. To keep local services running independently of the terminal, use:
+
+```bash
+./scripts/local_services.sh start
+./scripts/local_services.sh status
+./scripts/local_services.sh restart  # apply backend changes
+./scripts/local_services.sh stop
+```
+
+Persistent-run logs are stored under `.runtime/`.
+
 **Optional utility script:**
 
 ```bash
@@ -292,6 +303,10 @@ VITE_ALERTS_POLL_MS=30000
 ---
 
 ## Deployment
+
+### Recommended public deployment
+
+For the current continuously running scanner, use one Railway container behind Cloudflare rather than splitting the React frontend from the stateful API. This keeps auth same-origin and lets Cloudflare continue to own `bhabit.net`, HTTPS, and caching. See [deploy/railway/README.md](deploy/railway/README.md).
 
 ### Frontend (Vercel)
 

@@ -108,6 +108,7 @@ moonwalking_mobile/node_modules/
 **/node_modules/
 
 # Dev runtime logs (do not commit)
+.runtime/
 # Dev runtime logs (do not commit)
 backend/*.stdout
 bridge.stdout
