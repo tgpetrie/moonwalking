@@ -646,5 +646,40 @@ def build_event_evolution(
     return events
 
 
-def notification_candidates(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [dict(event) for event in events or [] if bool(event.get("notify_eligible"))]
+def notification_candidates(
+    events: Iterable[dict[str, Any]],
+    *,
+    priority_symbols: Iterable[str] | None = None,
+    priority_min_confidence: int = 65,
+) -> list[dict[str, Any]]:
+    """Filter events to deliverable notifications.
+
+    Symbols in priority_symbols (user's portfolio holdings and watchlist)
+    qualify at the lower Alerts-Center confidence bar instead of the
+    standard notify bar, and are tagged so delivery/UI can surface that the
+    event concerns something the user actually holds.
+    """
+    priority = {
+        str(sym).split("-")[0].upper() for sym in (priority_symbols or []) if sym
+    }
+    out: list[dict[str, Any]] = []
+    for event in events or []:
+        row = dict(event)
+        base = str(row.get("symbol") or "").split("-")[0].upper()
+        is_priority = base in priority
+        if is_priority:
+            row["priority"] = "holding"
+        standard = bool(row.get("notify_eligible"))
+        elevated = (
+            is_priority
+            and not standard
+            and int(row.get("confidence") or 0) >= int(priority_min_confidence)
+        )
+        if not (standard or elevated):
+            continue
+        if elevated:
+            row["notify_eligible"] = True
+            row["delivery_tier"] = "notify"
+            row["notify_reason"] = "holding_priority"
+        out.append(row)
+    return out

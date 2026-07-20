@@ -402,6 +402,27 @@ class PortfolioService:
             self._cache_time = now
             return snapshot
 
+    def held_symbols(self, *, fetch: bool = False) -> set[str]:
+        """Non-cash currencies currently held, as base symbols (e.g. {"BTC"}).
+
+        With fetch=False this only reads the in-memory cache and never touches
+        the network, so it is safe on request paths. fetch=True may refresh
+        via snapshot() and belongs in background threads only.
+        """
+        snapshot: dict[str, Any] | None
+        if fetch:
+            snapshot = self.snapshot()
+        else:
+            with self._lock:
+                snapshot = deepcopy(self._cache) if self._cache else None
+        if not snapshot:
+            return set()
+        return {
+            str(row.get("currency") or "").upper()
+            for row in snapshot.get("holdings") or []
+            if row.get("currency") and not row.get("is_cash")
+        }
+
     def _load(self) -> dict[str, Any]:
         permissions = self._safe_permissions(self.client.get_key_permissions())
         if not permissions["can_view"]:
@@ -595,6 +616,18 @@ def get_portfolio_service() -> PortfolioService:
         if _SERVICE is None:
             _SERVICE = PortfolioService(CoinbaseAdvancedTradeClient.from_environment())
         return _SERVICE
+
+
+def get_held_symbols(*, fetch: bool = False) -> set[str]:
+    """Best-effort held-symbol set; empty when Portfolio Mode is unconfigured.
+
+    Never raises: notification prioritization must degrade to standard
+    behavior rather than break alert delivery.
+    """
+    try:
+        return get_portfolio_service().held_symbols(fetch=fetch)
+    except Exception:
+        return set()
 
 
 def _error_payload(error: PortfolioModeError):

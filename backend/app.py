@@ -10891,7 +10891,10 @@ def get_alerts_contract():
             if isinstance(item, dict)
         ]
         signals = _enrich_signal_events(build_event_evolution(event_source))[:limit]
-        notify = notification_candidates(signals)
+        # Request path: cached holdings only (never a network call here).
+        notify = notification_candidates(
+            signals, priority_symbols=_notification_priority_symbols(fetch=False)
+        )
         active_meta = {
             "pre_family_cap_count": len(active_raw),
             "post_family_cap_count": len(active_capped),
@@ -12352,6 +12355,26 @@ _SIGNAL_CONTEXT_LOCK = threading.Lock()
 _SIGNAL_CONTEXT_BY_SYMBOL = {}
 
 
+def _notification_priority_symbols(*, fetch=False):
+    """Symbols the user personally cares about: portfolio holdings + watchlist.
+
+    Used to elevate signal notifications for held/watched coins. Always
+    degrades to an empty set — prioritization must never break delivery.
+    """
+    symbols = set()
+    try:
+        from portfolio_mode import get_held_symbols
+
+        symbols |= get_held_symbols(fetch=fetch)
+    except Exception:
+        pass
+    try:
+        symbols |= {str(sym).upper() for sym in watchlist_db if sym}
+    except Exception:
+        pass
+    return symbols
+
+
 def _enrich_signal_events(events, *, include_history=True):
     """Attach the latest market context and measured comparable outcomes."""
     with _SIGNAL_CONTEXT_LOCK:
@@ -13007,7 +13030,12 @@ def _compute_snapshots_from_cache():
             )
             delivery_events = _enrich_signal_events(delivery_events)
             alert_delivery_dispatcher.dispatch_async(
-                notification_candidates(delivery_events)
+                notification_candidates(
+                    delivery_events,
+                    # Background thread: allowed to refresh the portfolio
+                    # holdings cache over the network.
+                    priority_symbols=_notification_priority_symbols(fetch=True),
+                )
             )
 
             # Store market pressure for the UI
