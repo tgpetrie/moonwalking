@@ -19,6 +19,9 @@ The executable source of truth is `backend/alerts_engine.py`, wired from `backen
   - Returns:
     - `active`: deduped/ranked active alerts within TTL window
     - `recent`: recent stream items
+    - `pulse`: raw recent detector output for fast-scanner use
+    - `signals`: symbol-grouped events with state evolution
+    - `notify`: newly high-conviction or confirmed-risk event candidates
     - `meta`: stream/input freshness metadata
 - `/api/alerts/recent`
   - Returns `{ count, limit, alerts, meta }`.
@@ -40,6 +43,7 @@ Each alert emitted by `_make_alert(...)` includes:
 - `title`
 - `message`
 - `direction`
+- `rule_version`
 - `evidence` (dict)
 - `ttl_seconds`
 - `expires_at`
@@ -54,9 +58,12 @@ Each alert emitted by `_make_alert(...)` includes:
 - `severity` (lowercase; default `info`)
 - `event_ts_ms` (int; synthesized if missing)
 - `id` (synthesized if missing)
+- `rule_version` (current executable rule-set identifier when missing)
 - `evidence` (dict; default `{}`)
 
 ## Classification and thresholds
+
+User-facing grouping and delivery are defined in `docs/ALERT_EVENT_EVOLUTION.md`. Detector output remains available and is not discarded when the event layer combines several detections.
 
 Core families (Coinbase-only):
 
@@ -90,6 +97,10 @@ The UI may downgrade a bullish family from `BUY WATCH` to `RECONFIRM` when fresh
 
 ## Default threshold summary
 
+These defaults are the current `v0.2-evolution-2026-07-14` rules. They describe executable behavior but have not been validated as optimal through a recorded forward-outcome backtest. The proposed relative calibration layer is documented in `docs/SIGNAL_SYSTEM_V1_PROPOSAL.md`.
+
+Every canonical alert exposes this identifier as `rule_version`. A future threshold or detector-definition change must publish a new identifier rather than silently changing the meaning of an existing version.
+
 These are current defaults from `DEFAULT_THRESHOLDS`:
 
 | Key | Default |
@@ -104,6 +115,8 @@ These are current defaults from `DEFAULT_THRESHOLDS`:
 | `whale_cluster_z` | `2.5` |
 | `whale_candle_pct` | `0.3` |
 | `whale_surge_1h_pct` | `150.0` |
+| `whale_min_quote_1m_usd` / `whale_min_quote_cluster_usd` | `$25,000` / `$50,000` |
+| `whale_min_quote_1h_usd` | `$250,000` |
 | `stealth_vol_min_pct` | `110.0` |
 | `stealth_price_max_abs_pct` | `1.2` |
 | `divergence_1m_threshold` / `divergence_3m_threshold` | `0.65` |
@@ -113,6 +126,7 @@ These are current defaults from `DEFAULT_THRESHOLDS`:
 | `coin_failure_breadth_max` | `0.35` |
 | `persist_min_streak` | `3` |
 | `liq_shock_z_min` | `2.6` |
+| `liq_shock_min_latest_quote_usd` | `$10,000` |
 | `squeeze_break_pct_1m_min` | `0.8` |
 | `exhaustion_min_streak` | `4` |
 | `alerts_max_total` / `alerts_max_per_symbol` | `24` / `2` |
@@ -148,6 +162,17 @@ Stream-level dedupe:
 - Fixed snapshots -> deterministic outputs.
 - Boundary tests around thresholds (below / at / above).
 - Contract tests ensure required fields survive normalization.
+
+## Remaining v0.2 limitations
+
+- Fixed percent thresholds are not adjusted to per-asset volatility or liquidity.
+- USD notional gates are bootstrap values pending historical calibration by liquidity cohort.
+- The engine now samples return-history and EMA detectors once per wall-clock minute, but full recorded replay remains required to validate their thresholds.
+- Full-universe 1m/3m returns now feed breadth before board selection; stablecoin/wrapped-asset cohort exclusions remain to be formalized.
+- Alert expiry is canonical when supplied; legacy alerts without expiry still use the endpoint fallback TTL.
+- Browser notifications require explicit user opt-in and are available only while a compatible browser profile permits them; they are not a native mobile push service.
+- Email, Telegram, and Discord delivery require channel credentials and remain disabled by default.
+- Raw detector telemetry remains intentionally frequent and is exposed as `pulse`; only grouped, confidence-gated event transitions enter `notify`.
 
 ## Changelog notes
 

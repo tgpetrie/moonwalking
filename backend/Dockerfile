@@ -15,11 +15,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=5003
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc g++ \
+    && apt-get install -y --no-install-recommends gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY backend/requirements.txt ./requirements.txt
+COPY backend/requirements.deploy.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
@@ -28,14 +28,14 @@ COPY --from=frontend-build /src/frontend/dist ./frontend/dist/
 RUN groupadd --gid 1001 moonwalking \
     && useradd --uid 1001 --gid 1001 --system --create-home moonwalking \
     && mkdir -p /var/lib/moonwalking \
+    && chmod +x /app/backend/production_entrypoint.sh \
     && chown -R moonwalking:moonwalking /app /var/lib/moonwalking
 
-USER moonwalking
 WORKDIR /app/backend
 
 EXPOSE 5003
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python -c "import requests; requests.get('http://127.0.0.1:5003/api/health', timeout=5).raise_for_status()"
+    CMD python -c "import os, requests; port=os.getenv('PORT', '5003'); requests.get(f'http://127.0.0.1:{port}/api/health', timeout=5).raise_for_status()"
 
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5003", "--workers", "1", "--threads", "8", "--timeout", "120"]
+ENTRYPOINT ["/app/backend/production_entrypoint.sh"]

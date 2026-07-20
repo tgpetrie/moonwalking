@@ -112,3 +112,25 @@ def test_compute_volume_bootstrap_when_partial_window(tmp_path: Path):
     assert pytest.approx(res["volume_1h_now"], rel=1e-6) == expected_now
     assert pytest.approx(res["volume_1h_prev"], rel=1e-6) == expected_prev
     assert pytest.approx(res["volume_change_1h_pct"], rel=1e-6) == expected_pct
+
+
+def test_hourly_rollup_stores_quote_volume_and_coverage(tmp_path: Path):
+    tmp_db = tmp_path / "volume_1h.sqlite"
+    store.DB_PATH = tmp_db
+    store.ensure_db()
+    hour_ts = store.floor_minute(int(time.time())) // 3600 * 3600
+    for minute in range(60):
+        store.upsert_minute(
+            "ROLL-USD",
+            hour_ts + minute * 60,
+            2.0,
+            close=100.0 + minute,
+        )
+
+    assert store.rollup_product_hours("ROLL-USD", hour_ts, hour_ts + 3599) == 1
+    rows = store.fetch_hours("ROLL-USD", hour_ts, hour_ts)
+
+    assert len(rows) == 1
+    assert rows[0]["minute_coverage"] == 60
+    assert rows[0]["base_volume"] == 120.0
+    assert rows[0]["quote_volume_usd"] > 12_000

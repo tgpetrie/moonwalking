@@ -40,6 +40,7 @@ try:
         prune_old,
         get_price_at_or_before,
         get_price_at_or_after,
+        get_recent_price_snapshots,
     )
     from volume_1h_store import ensure_db as ensure_volume_db
     from volume_1h_candles import refresh_product_minutes, RateLimitError
@@ -58,6 +59,9 @@ except ImportError as e:
     def get_price_at_or_after(product_id, target_ts):
         return None
 
+    def get_recent_price_snapshots(product_id, *, limit=60, since_ts=None):
+        return []
+
     def compute_volume_1h():
         return []
 
@@ -69,6 +73,7 @@ try:
         prune_old,
         get_price_at_or_before,
         get_price_at_or_after,
+        get_recent_price_snapshots,
     )
 except ImportError as e:
     logging.warning(f"Price DB imports failed: {e}")
@@ -87,6 +92,9 @@ except ImportError as e:
 
     def get_price_at_or_after(product_id, target_ts):
         return None
+
+    def get_recent_price_snapshots(product_id, *, limit=60, since_ts=None):
+        return []
 
 
 from watchlist import watchlist_bp, watchlist_db
@@ -160,7 +168,23 @@ except Exception:
 import uuid
 from pyd_schemas import HealthResponse, MetricsResponse, Gainers1mComponent
 from social_sentiment import get_social_sentiment
-from alerts_engine import compute_alerts, AlertEngineState, compute_market_pressure
+from alerts_engine import (
+    ALERT_RULE_VERSION,
+    AlertEngineState,
+    compute_alerts,
+    compute_market_pressure,
+)
+from alert_events import (
+    EVENT_RULE_VERSION,
+    build_event_evolution,
+    enrich_event,
+    notification_candidates,
+)
+from alert_delivery import dispatcher as alert_delivery_dispatcher
+from signal_context import build_signal_context
+from signal_outcomes import store as signal_outcome_store
+from board_outcomes import store as board_outcome_store
+from live_ranking import LIVE_RANKING_MODEL_VERSION, build_live_rankings
 
 try:
     from coin_intel_external import fetch_coin_intel
@@ -618,6 +642,13 @@ _setup_logging()
 
 # Flask App Setup (final app instance)
 app = Flask(__name__)
+# Railway and Cloudflare terminate HTTPS before forwarding to this process.
+# Trust one proxy hop so Flask/Talisman see the original scheme and host,
+# preventing redirect loops and keeping secure-cookie behavior correct.
+if os.environ.get("FLASK_ENV", "").lower() == "production":
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # In non-production environments, default to disabling Talisman to avoid
 # automatic HTTPS/redirect enforcement during local development and tests.
 if os.environ.get("FLASK_ENV", "").lower() != "production":
@@ -1667,11 +1698,7 @@ def api_sentiment_basic():
 
 
 def _now_iso():
-    return (
-        datetime.now(timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 @app.route("/api/sentiment/fng")
@@ -4198,15 +4225,13 @@ def _compute_1h_volume_from_candles(product_id):
     Also stores per-minute volume+price series in _CANDLE_MINUTE_VOLUMES
     for z-score whale detection.
 
-    Returns:
-        (vol1h, vol1h_prev, vol1h_pct_change, baseline_mode, baseline_minutes)
-        or (None, None, None, None, 0) on error
+    Returns base-volume and quote-notional current/previous hour values.
     """
     # Need 120+ candles: 60 for current hour, 60 for previous hour (pct change)
     candles = _fetch_coinbase_candles(product_id, granularity=60, count=130)
 
     if not candles or len(candles) < 60:
-        return None, None, None, None, 0
+        return None, None, None, None, None, None, None, 0
 
     try:
         # Candles are [[timestamp, low, high, open, close, volume], ...]
@@ -4223,7 +4248,7 @@ def _compute_1h_volume_from_candles(product_id):
             complete_candles = candles
 
         # Store per-minute volume series for z-score whale detection
-        # Each entry: (timestamp, volume, open, close, high, low)
+        # Store both native base units and comparable quote-USD notional.
         minute_series = []
         for c in complete_candles[:70]:  # Keep last ~70 minutes
             if len(c) > 5:
@@ -4231,6 +4256,7 @@ def _compute_1h_volume_from_candles(product_id):
                     {
                         "ts": int(c[0]),
                         "vol": float(c[5]),
+                        "quote_vol": float(c[5]) * float(c[4]),
                         "open": float(c[3]),
                         "close": float(c[4]),
                         "high": float(c[2]),
@@ -4241,8 +4267,13 @@ def _compute_1h_volume_from_candles(product_id):
 
         # Sum last 60 candles for 1h volume
         vol1h = sum(float(c[5]) for c in complete_candles[:60] if len(c) > 5)
+        quote_vol1h = sum(
+            float(c[5]) * float(c[4]) for c in complete_candles[:60] if len(c) > 5
+        )
         vol1h_prev = None
+        quote_vol1h_prev = None
         vol1h_pct = None
+        quote_vol1h_pct = None
         baseline_mode = None
         baseline_minutes = 0
 
@@ -4251,8 +4282,17 @@ def _compute_1h_volume_from_candles(product_id):
             vol1h_prev = sum(
                 float(c[5]) for c in complete_candles[60:120] if len(c) > 5
             )
+            quote_vol1h_prev = sum(
+                float(c[5]) * float(c[4])
+                for c in complete_candles[60:120]
+                if len(c) > 5
+            )
             if vol1h_prev > 0:
                 vol1h_pct = ((vol1h - vol1h_prev) / vol1h_prev) * 100.0
+                if quote_vol1h_prev > 0:
+                    quote_vol1h_pct = (
+                        (quote_vol1h - quote_vol1h_prev) / quote_vol1h_prev
+                    ) * 100.0
                 baseline_mode = "full"
                 baseline_minutes = 60
         else:
@@ -4265,15 +4305,36 @@ def _compute_1h_volume_from_candles(product_id):
             if len(older) >= 10:
                 baseline_per_min = float(median(older))
                 vol1h_prev = baseline_per_min * 60.0
+                older_quote = [
+                    float(c[5]) * float(c[4])
+                    for c in complete_candles[60:]
+                    if len(c) > 5 and float(c[5]) >= 0
+                ]
+                quote_vol1h_prev = (
+                    float(median(older_quote)) * 60.0 if older_quote else None
+                )
                 if vol1h_prev > 0:
                     vol1h_pct = ((vol1h - vol1h_prev) / vol1h_prev) * 100.0
+                    if quote_vol1h_prev and quote_vol1h_prev > 0:
+                        quote_vol1h_pct = (
+                            (quote_vol1h - quote_vol1h_prev) / quote_vol1h_prev
+                        ) * 100.0
                     baseline_mode = "bootstrap"
                     baseline_minutes = len(older)
 
-        return vol1h, vol1h_prev, vol1h_pct, baseline_mode, baseline_minutes
+        return (
+            vol1h,
+            vol1h_prev,
+            vol1h_pct,
+            quote_vol1h,
+            quote_vol1h_prev,
+            quote_vol1h_pct,
+            baseline_mode,
+            baseline_minutes,
+        )
     except Exception as e:
         logging.debug(f"[Candles] Volume compute error for {product_id}: {e}")
-        return None, None, None, None, 0
+        return None, None, None, None, None, None, None, 0
 
 
 def _update_candle_volume_cache(product_ids):
@@ -4297,15 +4358,25 @@ def _update_candle_volume_cache(product_ids):
             if now - ts_computed < 30:
                 continue  # Skip, too recent
 
-            vol1h, vol1h_prev, vol1h_pct, baseline_mode, baseline_minutes = (
-                _compute_1h_volume_from_candles(product_id)
-            )
+            (
+                vol1h,
+                vol1h_prev,
+                vol1h_pct,
+                quote_vol1h,
+                quote_vol1h_prev,
+                quote_vol1h_pct,
+                baseline_mode,
+                baseline_minutes,
+            ) = _compute_1h_volume_from_candles(product_id)
 
             if vol1h is not None:
                 _CANDLE_VOLUME_CACHE[product_id] = {
                     "vol1h": vol1h,
                     "vol1h_prev": vol1h_prev,
                     "vol1h_pct_change": vol1h_pct,
+                    "quote_vol1h": quote_vol1h,
+                    "quote_vol1h_prev": quote_vol1h_prev,
+                    "quote_vol1h_pct_change": quote_vol1h_pct,
                     "baseline_mode": baseline_mode,
                     "baseline_minutes": baseline_minutes,
                     "ts_computed": now,
@@ -4318,6 +4389,9 @@ def _update_candle_volume_cache(product_ids):
                         "vol1h": None,
                         "vol1h_prev": None,
                         "vol1h_pct_change": None,
+                        "quote_vol1h": None,
+                        "quote_vol1h_prev": None,
+                        "quote_vol1h_pct_change": None,
                         "baseline_mode": None,
                         "baseline_minutes": 0,
                         "ts_computed": now,
@@ -4401,9 +4475,11 @@ def calculate_1hour_volume_changes(current_prices):
     # Price maps may already use Coinbase product ids, so never append a
     # second quote currency (for example, ``MORPHO-USD-USD``).
     product_ids = [
-        str(sym).upper()
-        if str(sym).upper().endswith("-USD")
-        else f"{str(sym).upper()}-USD"
+        (
+            str(sym).upper()
+            if str(sym).upper().endswith("-USD")
+            else f"{str(sym).upper()}-USD"
+        )
         for sym in symbols[:60]
     ]
     _update_candle_volume_cache(product_ids)
@@ -4448,6 +4524,8 @@ _MW_COMPONENT_SNAPSHOTS = {
     "volume_1h_candles": None,
     "market_pressure": None,
     "alerts": None,
+    "live_rankings": None,
+    "board_outcomes": None,
     "updated_at": None,
 }
 _MW_COMPONENT_SNAPSHOTS_LOCK = threading.Lock()
@@ -4801,6 +4879,9 @@ def _ensure_alert_contract(a: dict) -> dict:
     # severity — always lowercase string
     sev = out.get("severity")
     out["severity"] = str(sev).lower().strip() if sev else "info"
+
+    # Keep detector definitions inspectable and prevent silent rule drift.
+    out.setdefault("rule_version", ALERT_RULE_VERSION)
 
     # event_ts_ms — always int
     ts_ms = _to_ts_ms(
@@ -5761,6 +5842,7 @@ def _normalize_alert(raw: dict) -> dict:
         "product_id": raw.get("product_id") or symbol,
         "type": alert_type,
         "type_key": type_key,
+        "rule_version": raw.get("rule_version") or ALERT_RULE_VERSION,
         "severity": severity,
         "title": title_text,
         "message": message_text,
@@ -7961,6 +8043,8 @@ def data_aggregate():
         snap_volume1h_obj = _mw_get_component_snapshot("volume1h")
         snap_pressure_obj = _mw_get_component_snapshot("market_pressure")
         snap_alerts_obj = _mw_get_component_snapshot("alerts")
+        snap_rankings_obj = _mw_get_component_snapshot("live_rankings")
+        snap_board_outcomes_obj = _mw_get_component_snapshot("board_outcomes")
 
         snap_g1, _g1_ts = _wrap_rows_and_ts(snap_g1_obj)
         snap_g3, _g3_ts = _wrap_rows_and_ts(snap_g3_obj)
@@ -7970,6 +8054,10 @@ def data_aggregate():
         snap_v1h, _v1h_ts = _wrap_rows_and_ts(snap_v1h_obj)
         snap_volume1h, _vol1h_ts = _wrap_rows_and_ts(snap_volume1h_obj)
         snap_alerts, _alerts_ts = _wrap_rows_and_ts(snap_alerts_obj)
+        snap_rankings, _rankings_ts = _wrap_rows_and_ts(snap_rankings_obj)
+        snap_board_outcomes, _board_outcomes_ts = _wrap_rows_and_ts(
+            snap_board_outcomes_obj
+        )
         snap_pressure_data = None
         if isinstance(snap_pressure_obj, dict):
             snap_pressure_data = _strip_emoji_payload(snap_pressure_obj.get("data"))
@@ -8178,6 +8266,42 @@ def data_aggregate():
                     rr["product_id"] = rr.get("product_id") or rr.get("symbol")
                     norm_bv.append(rr)
                 snap_bv = norm_bv
+
+            ranking_by_symbol = {
+                str(row.get("symbol") or "").upper(): row
+                for row in (snap_rankings or [])
+                if isinstance(row, dict) and row.get("symbol")
+            }
+
+            def _attach_live_rank(rows):
+                enriched = []
+                for row in rows or []:
+                    if not isinstance(row, dict):
+                        continue
+                    sym = str(row.get("symbol") or row.get("product_id") or "").upper()
+                    sym = (
+                        sym.replace("-USD", "")
+                        .replace("-USDT", "")
+                        .replace("-PERP", "")
+                    )
+                    ranking = ranking_by_symbol.get(sym)
+                    enriched.append({**row, **ranking} if ranking else row)
+                return enriched
+
+            snap_g1 = _attach_live_rank(snap_g1)
+            snap_g3 = _attach_live_rank(snap_g3)
+            snap_l3 = _attach_live_rank(snap_l3)
+            snap_b1h = _attach_live_rank(snap_b1h)
+            snap_bv = _attach_live_rank(snap_bv)
+            for sym, ranking in ranking_by_symbol.items():
+                if sym in latest_by_symbol:
+                    latest_by_symbol[sym].update(
+                        {
+                            "live_rank": ranking.get("live_rank"),
+                            "live_score": ranking.get("live_score"),
+                            "live_label": ranking.get("live_label"),
+                        }
+                    )
             payload = {
                 "gainers_1m": snap_g1 or [],
                 "gainers_3m": snap_g3 or [],
@@ -8187,6 +8311,16 @@ def data_aggregate():
                 "volume_1h_candles": snap_v1h or [],
                 "volume1h": snap_volume1h or [],
                 "market_pressure": snap_pressure_data,
+                "live_rankings": snap_rankings or [],
+                "ranking_meta": {
+                    "model_version": LIVE_RANKING_MODEL_VERSION,
+                    "universe_size": len(snap_rankings or []),
+                    "updated_at": _rankings_ts,
+                    "meaning": "relative_live_strength_not_advice",
+                },
+                "board_outcomes": (
+                    snap_board_outcomes if isinstance(snap_board_outcomes, dict) else {}
+                ),
                 "alerts": alerts_normalized,
                 "sentiment": sentiment_payload,
                 "sentiment_meta": sentiment_meta,
@@ -8241,6 +8375,7 @@ def data_aggregate():
                     "volume_1h_candles": len(snap_v1h or []),
                     "volume1h": 0,
                     "market_pressure": 1 if snap_pressure_data else 0,
+                    "live_rankings": len(snap_rankings or []),
                     "gainers_1m": len(snap_g1 or []),
                     "gainers_3m": len(snap_g3 or []),
                     "losers_3m": len(snap_l3 or []),
@@ -8261,6 +8396,9 @@ def data_aggregate():
                 "volume_1h_candles": payload["volume_1h_candles"],
                 "volume1h": payload["volume1h"],
                 "market_pressure": payload["market_pressure"],
+                "live_rankings": payload["live_rankings"],
+                "ranking_meta": payload["ranking_meta"],
+                "board_outcomes": payload["board_outcomes"],
                 "alerts": alerts_normalized,
                 "latest_by_symbol": payload["latest_by_symbol"],
                 "updated_at": payload["updated_at"],
@@ -8297,6 +8435,14 @@ def data_aggregate():
             "volume_1h_candles": [],
             "volume1h": [],
             "market_pressure": snap_pressure_data,
+            "live_rankings": [],
+            "ranking_meta": {
+                "model_version": LIVE_RANKING_MODEL_VERSION,
+                "universe_size": 0,
+                "updated_at": None,
+                "meaning": "relative_live_strength_not_advice",
+            },
+            "board_outcomes": {},
             "alerts": [],
             "sentiment": sentiment_payload,
             "sentiment_meta": sentiment_meta,
@@ -8349,6 +8495,7 @@ def data_aggregate():
                 "volume_1h_candles": 0,
                 "volume1h": 0,
                 "market_pressure": 1 if snap_pressure_data else 0,
+                "live_rankings": 0,
                 "gainers_1m": 0,
                 "gainers_3m": 0,
                 "losers_3m": 0,
@@ -8368,6 +8515,14 @@ def data_aggregate():
             "banner_1h_volume": [],
             "volume1h": [],
             "market_pressure": snap_pressure_data,
+            "live_rankings": [],
+            "ranking_meta": {
+                "model_version": LIVE_RANKING_MODEL_VERSION,
+                "universe_size": 0,
+                "updated_at": None,
+                "meaning": "relative_live_strength_not_advice",
+            },
+            "board_outcomes": {},
             "alerts": [],
             "latest_by_symbol": {},
             "updated_at": warming_ts,
@@ -9367,6 +9522,7 @@ def _build_recent_alerts_payload(limit: int):
     }
     alerts_meta["volume_warming_count"] = warming_count
     alerts_meta["market_pressure"] = pressure_data
+    alerts_meta["rule_version"] = ALERT_RULE_VERSION
     if updated_at is not None:
         alerts_meta["snapshot_updated_at"] = updated_at
 
@@ -9579,9 +9735,9 @@ def _alert_score(a: dict, now_ms: int) -> float:
 
 
 def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
-    """One best alert per (symbol, type) within TTL window, scored."""
+    """One best alert per (symbol, type), honoring the alert's own expiry."""
     now_ms = _utc_now_ts_ms()
-    ttl_ms = max(10_000, int(ttl_s) * 1000)
+    fallback_ttl_ms = max(10_000, int(ttl_s) * 1000)
     best: dict[str, tuple[float, dict]] = {}  # key -> (score, alert)
 
     for a in items or []:
@@ -9592,7 +9748,16 @@ def _reduce_active_alerts(items: list[dict], ttl_s: int = 120) -> list[dict]:
         )
         if ts_ms is None:
             continue
-        if (now_ms - ts_ms) > ttl_ms:
+        expires_ms = _to_ts_ms(a.get("expires_at"))
+        if expires_ms is None:
+            own_ttl_s = _num_or_none(a.get("ttl_seconds"))
+            ttl_ms = (
+                int(max(10.0, own_ttl_s) * 1000)
+                if own_ttl_s is not None
+                else fallback_ttl_ms
+            )
+            expires_ms = ts_ms + ttl_ms
+        if now_ms > expires_ms:
             continue
         k = _active_key(a)
         if not k.strip("|"):
@@ -9775,6 +9940,9 @@ def _alerts_contract_fallback_payload(
     return {
         "active": [],
         "recent": [],
+        "pulse": [],
+        "signals": [],
+        "notify": [],
         "meta": {
             "ok": False,
             "degraded": True,
@@ -10715,6 +10883,15 @@ def get_alerts_contract():
             limit=limit,
         )
         recent = recent_capped
+        # Event Evolution keeps raw Pulse detections while grouping related
+        # observations into one per-symbol signal with a transition history.
+        event_source = [
+            _ensure_alert_contract(dict(item))
+            for item in list(alerts_log_main)
+            if isinstance(item, dict)
+        ]
+        signals = _enrich_signal_events(build_event_evolution(event_source))[:limit]
+        notify = notification_candidates(signals)
         active_meta = {
             "pre_family_cap_count": len(active_raw),
             "post_family_cap_count": len(active_capped),
@@ -10732,10 +10909,19 @@ def get_alerts_contract():
                     "per_symbol_family_max": 2,
                 },
             },
+            "event_evolution": {
+                "rule_version": EVENT_RULE_VERSION,
+                "pulse_count": len(recent),
+                "signal_count": len(signals),
+                "notify_count": len(notify),
+            },
         }
         payload = {
             "active": active,
             "recent": recent,
+            "pulse": recent,
+            "signals": signals,
+            "notify": notify,
             "meta": {**(alerts_meta or {}), "active_shaping": active_meta},
         }
 
@@ -10767,6 +10953,32 @@ def get_alerts_contract():
             limit=limit, active_ttl_s=active_ttl_s, detail=str(e)
         )
         return jsonify(fallback), 200
+
+
+@app.get("/api/signals/outcomes/status")
+def get_signal_outcome_status():
+    """Expose measurement progress without exposing the local outcome database."""
+    try:
+        return jsonify({"status": "live", **signal_outcome_store.status()})
+    except Exception as exc:
+        logging.exception("Signal outcome status failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/boards/outcomes/status")
+def get_board_outcome_status():
+    """Expose mover-board sample sizes, forward returns, and uncertainty."""
+    try:
+        return jsonify({"status": "live", **board_outcome_store.status()})
+    except Exception as exc:
+        logging.exception("Board outcome status failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/notifications/status")
+def get_notification_delivery_status():
+    """Expose channel readiness and budgets without exposing credentials."""
+    return jsonify(_json_sanitize_for_api(alert_delivery_dispatcher.status()))
 
 
 # EXISTING ENDPOINTS (Updated root to show new individual endpoints)
@@ -11872,8 +12084,12 @@ def get_market_overview():
         return _pipeline_error_response(err_info, "Market overview is unavailable")
 
     data = payload if isinstance(payload, dict) else {}
-    pulse = data.get("market_pulse") if isinstance(data.get("market_pulse"), dict) else {}
-    fear_greed = data.get("fear_greed") if isinstance(data.get("fear_greed"), dict) else None
+    pulse = (
+        data.get("market_pulse") if isinstance(data.get("market_pulse"), dict) else {}
+    )
+    fear_greed = (
+        data.get("fear_greed") if isinstance(data.get("fear_greed"), dict) else None
+    )
     return jsonify(
         {
             "market_overview": {
@@ -12132,6 +12348,29 @@ _MW_LAST_HEAVY_SNAPSHOT_AT = 0.0
 # Alert engine state + canonical snapshot adapters
 # ---------------------------------------------------------------------------
 _ALERT_ENGINE_STATE = AlertEngineState()
+_SIGNAL_CONTEXT_LOCK = threading.Lock()
+_SIGNAL_CONTEXT_BY_SYMBOL = {}
+
+
+def _enrich_signal_events(events, *, include_history=True):
+    """Attach the latest market context and measured comparable outcomes."""
+    with _SIGNAL_CONTEXT_LOCK:
+        contexts = dict(_SIGNAL_CONTEXT_BY_SYMBOL)
+    enriched = []
+    for event in events or []:
+        if not isinstance(event, dict):
+            continue
+        symbol = str(event.get("symbol") or event.get("product_id") or "").upper()
+        symbol = symbol.split("-")[0]
+        history = signal_outcome_store.history_for(event) if include_history else None
+        enriched.append(
+            enrich_event(
+                event,
+                context=contexts.get(symbol),
+                historical_result=history,
+            )
+        )
+    return enriched
 
 
 def _rows_from_component(comp):
@@ -12144,10 +12383,52 @@ def _rows_from_component(comp):
 
 
 def mw_build_price_snapshot(
-    *, g1m_rows, g3m_rows, l3m_rows, banner_rows, cached_prices=None
+    *,
+    g1m_rows,
+    g3m_rows,
+    l3m_rows,
+    banner_rows,
+    cached_prices=None,
+    snapshot_ts_s=None,
+    history_1m=None,
+    history_3m=None,
 ):
-    """Build canonical per-symbol price snapshot: {sym: {price, pct_1m, pct_3m, pct_1h}}."""
+    """Build full-universe prices and returns before board-row selection."""
     snap = {}
+    sample_ts = int(snapshot_ts_s or time.time())
+    history_1m = price_history_1min if history_1m is None else history_1m
+    history_3m = price_history if history_3m is None else history_3m
+
+    def history_pct(symbol, price, history_map, window_key):
+        try:
+            current = float(price)
+        except Exception:
+            return None
+        if current <= 0:
+            return None
+        try:
+            rows = list((history_map or {}).get(symbol) or [])
+        except Exception:
+            rows = []
+        spec = BASELINE_WINDOWS.get(window_key) or {}
+        target = int(spec.get("target_s") or (60 if window_key == "1m" else 180))
+        min_age = int(spec.get("min_s") or max(1, target // 2))
+        max_age = int(spec.get("max_s") or target * 2)
+        best_price = None
+        best_error = None
+        for ts_value, historic_price in rows:
+            try:
+                age = sample_ts - int(ts_value)
+                historic = float(historic_price)
+            except Exception:
+                continue
+            if historic <= 0 or age < min_age or age > max_age:
+                continue
+            error = abs(age - target)
+            if best_error is None or error < best_error:
+                best_error = error
+                best_price = historic
+        return pct_change(current, best_price) if best_price else None
 
     # 1m gainers (also covers 1m losers emitted from the same SWR builder)
     for r in g1m_rows or []:
@@ -12157,6 +12438,8 @@ def mw_build_price_snapshot(
         d = snap.setdefault(sym, {})
         d["price"] = r.get("current_price")
         d["pct_1m"] = r.get("price_change_percentage_1min")
+        if r.get("trend_streak") is not None:
+            d["trend_streak"] = r.get("trend_streak")
 
     # 3m gainers
     for r in g3m_rows or []:
@@ -12166,6 +12449,11 @@ def mw_build_price_snapshot(
         d = snap.setdefault(sym, {})
         d["price"] = r.get("current_price")
         d["pct_3m"] = r.get("price_change_percentage_3min")
+        if r.get("trend_streak") is not None:
+            d["trend_streak"] = max(
+                float(d.get("trend_streak") or 0),
+                float(r.get("trend_streak") or 0),
+            )
 
     # 3m losers
     for r in l3m_rows or []:
@@ -12196,6 +12484,17 @@ def mw_build_price_snapshot(
             if d.get("price") is None:
                 d["price"] = px
 
+    # Populate 1m and 3m returns for the complete cached-price universe. Board
+    # cohorts may override these with their already-calculated values, but they
+    # no longer define the breadth universe.
+    for sym, d in snap.items():
+        price = d.get("price")
+        if d.get("pct_1m") is None:
+            d["pct_1m"] = history_pct(sym, price, history_1m, "1m")
+        if d.get("pct_3m") is None:
+            d["pct_3m"] = history_pct(sym, price, history_3m, "3m")
+        d["sample_ts"] = sample_ts
+
     # Ensure all keys present
     for d in snap.values():
         d.setdefault("pct_1m", None)
@@ -12216,14 +12515,21 @@ def mw_build_volume_snapshot(candle_volume_cache=None):
             continue
         sym = str(product_id).split("-")[0] if "-" in product_id else product_id
         prev = v.get("vol1h_prev")
+        quote_prev = v.get("quote_vol1h_prev")
         ts = v.get("ts_computed")
         out[sym] = {
             "volume_1h_now": v.get("vol1h"),
             "volume_1h_prev": prev,
-            "volume_change_1h_pct": v.get("vol1h_pct_change"),
+            "volume_change_1h_pct": (
+                v.get("quote_vol1h_pct_change")
+                if v.get("quote_vol1h_pct_change") is not None
+                else v.get("vol1h_pct_change")
+            ),
+            "quote_volume_1h_now": v.get("quote_vol1h"),
+            "quote_volume_1h_prev": quote_prev,
             "baseline_mode": v.get("baseline_mode"),
             "baseline_minutes": v.get("baseline_minutes"),
-            "baseline_ready": bool(prev and prev > 0 and ts),
+            "baseline_ready": bool((quote_prev or prev) and ts),
         }
 
     return out
@@ -12610,6 +12916,9 @@ def _compute_snapshots_from_cache():
             logging.debug(f"Market heat compute skip: {e}")
 
         # --- Alert Engine: build canonical snapshots + compute_alerts() ---
+        price_snapshot = {}
+        volume_snapshot = {}
+        signal_context = {}
         try:
             global _ALERT_ENGINE_STATE
 
@@ -12624,7 +12933,25 @@ def _compute_snapshots_from_cache():
                 l3m_rows=l3m_rows,
                 banner_rows=b1h_price_rows,
                 cached_prices=last_current_prices.get("data"),
+                snapshot_ts_s=last_current_prices.get("timestamp"),
             )
+
+            # Supporting context only: market-relative movement, sampled spot
+            # buying/selling, and current spread. These labels enrich a living
+            # event and deliberately do not create more raw alerts.
+            tape_snapshot = {}
+            try:
+                if coinbase_ws_get_feed is not None:
+                    tape_snapshot = coinbase_ws_get_feed().market_snapshot(
+                        max_age_s=15,
+                        flow_window_s=60,
+                    )
+            except Exception as exc:
+                logging.debug("Coinbase tape context unavailable: %s", exc)
+            signal_context = build_signal_context(price_snapshot, tape_snapshot)
+            with _SIGNAL_CONTEXT_LOCK:
+                _SIGNAL_CONTEXT_BY_SYMBOL.clear()
+                _SIGNAL_CONTEXT_BY_SYMBOL.update(signal_context)
 
             # Build canonical volume snapshot from candle cache
             with _CANDLE_VOLUME_CACHE_LOCK:
@@ -12648,7 +12975,8 @@ def _compute_snapshots_from_cache():
                 os.getenv("MW_MARKET_SIRENS", "0") or "0"
             ).strip().lower() in {"1", "true", "yes", "on"}
 
-            # Run the engine (impulse OFF — SWR builders handle moonshot/crater/breakout/dump)
+            # Run the canonical engine with impulse alerts enabled. The older
+            # SWR impulse emitters remain disabled below.
             engine_alerts, _ALERT_ENGINE_STATE, engine_pressure = compute_alerts(
                 price_snapshot=price_snapshot,
                 volume_snapshot=volume_snapshot,
@@ -12661,6 +12989,26 @@ def _compute_snapshots_from_cache():
 
             # Append engine alerts through the shared stream-level dedupe gate
             _append_alerts_deduped(alerts_log_main, engine_alerts)
+
+            # Delivery consumes grouped event transitions, never the raw
+            # detector batch. The dispatcher is disabled unless explicitly
+            # configured and runs outside the scanner thread.
+            delivery_events = build_event_evolution(
+                [dict(item) for item in list(alerts_log_main) if isinstance(item, dict)]
+            )
+            delivery_events = _enrich_signal_events(
+                delivery_events,
+                include_history=False,
+            )
+            signal_outcome_store.observe(
+                delivery_events,
+                last_current_prices.get("data") or {},
+                now_ts=int(time.time()),
+            )
+            delivery_events = _enrich_signal_events(delivery_events)
+            alert_delivery_dispatcher.dispatch_async(
+                notification_candidates(delivery_events)
+            )
 
             # Store market pressure for the UI
             updates["market_pressure"] = {
@@ -12702,6 +13050,7 @@ def _compute_snapshots_from_cache():
 
         # Alerts snapshot (main only). Trend alerts are debug-only and do not
         # mix into the main UI stream.
+        alerts_items = []
         try:
             alerts_items, _alerts_meta = _mw_get_alerts_normalized_with_sticky()
             updates["alerts"] = {
@@ -12711,6 +13060,58 @@ def _compute_snapshots_from_cache():
             }
         except Exception:
             pass
+
+        # Rank the complete cached-price universe from the same canonical tape
+        # used by the detector engine. This is local computation only—no per-coin
+        # network fan-out and no synthetic sentiment values.
+        try:
+            live_rankings = build_live_rankings(
+                price_snapshot=price_snapshot,
+                volume_snapshot=volume_snapshot,
+                context_snapshot=signal_context,
+                alerts=alerts_items,
+            )
+            updates["live_rankings"] = {
+                "component": "live_rankings",
+                "data": live_rankings,
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "model_version": LIVE_RANKING_MODEL_VERSION,
+            }
+        except Exception as exc:
+            logging.warning("Live ranking compute skipped: %s", exc)
+
+        # Measure what happens after a coin enters the exact top-eight cohorts
+        # published by the dashboard.  Membership transitions and 5/15/30/60m
+        # directional returns share the persistent signal database, so deploys
+        # do not reset the sample.
+        try:
+
+            def _board_rows(name):
+                component = updates.get(name)
+                if component is None:
+                    component = _mw_get_component_snapshot(name)
+                return (
+                    _rows_from_component(component)
+                    if isinstance(component, dict)
+                    else None
+                )
+
+            board_outcome_store.observe(
+                {
+                    "ignition_1m": _board_rows("gainers_1m"),
+                    "confirmation_3m_up": _board_rows("gainers_3m"),
+                    "confirmation_3m_down": _board_rows("losers_3m"),
+                },
+                price_snapshot,
+                now_ts=int(time.time()),
+            )
+            updates["board_outcomes"] = {
+                "component": "board_outcomes",
+                "data": board_outcome_store.status(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:
+            logging.warning("Board outcome measurement skipped: %s", exc)
 
         _mw_set_component_snapshots(**updates)
         if do_heavy:
@@ -12739,8 +13140,9 @@ def _fetch_prices_and_update_history():
                 ]
                 insert_price_snapshot(now_ts, rows)
 
-                # Prune snapshots older than retention window (default 2 hours)
-                retention = int(os.environ.get("PRICE_DB_RETENTION_SECONDS", 7200))
+                # Keep a full intraday tape on persistent storage. Coin Pressure
+                # hydrates from this after deploys/restarts instead of re-forming.
+                retention = int(os.environ.get("PRICE_DB_RETENTION_SECONDS", 86400))
                 prune_old(now_ts - retention)
             except Exception as e:
                 logging.error(f"SQLite price snapshot persistence failed: {e}")
@@ -13209,6 +13611,7 @@ if os.environ.get("SERVE_FRONTEND_DIST", "0") == "1":
 # APPLICATION STARTUP
 # =============================================================================
 
+
 def main():
     """Start the development server after the complete route table is defined."""
     # Parse command line arguments
@@ -13314,6 +13717,7 @@ def main():
             logging.error(f"Error starting server: {e}")
         exit(1)
 
+
 if __name__ != "__main__":
     # Production mode for Vercel
     logging.info("Running in production mode (Vercel)")
@@ -13384,7 +13788,25 @@ def api_insights(symbol):
 
     # Use the same SQLite baseline windows as the canonical boards. If a
     # window is not mature yet, leave it null so the popup can say WARMING.
-    product_variants = [sym, base_symbol, f"{base_symbol}-USD"]
+    product_variants = list(dict.fromkeys([sym, base_symbol, f"{base_symbol}-USD"]))
+
+    # Hydrate the coin-scoped tape from persistent SQLite history. This is the
+    # same real Coinbase snapshot stream used by the boards and survives
+    # Railway process restarts through the mounted data volume.
+    tape_rows = []
+    tape_product_id = None
+    for product_id in product_variants:
+        try:
+            candidate = get_recent_price_snapshots(
+                product_id,
+                limit=60,
+                since_ts=int(now) - 3600,
+            )
+        except Exception:
+            candidate = []
+        if len(candidate) > len(tape_rows):
+            tape_rows = candidate
+            tape_product_id = product_id
 
     def _insight_baseline_price(window_key):
         for product_id in product_variants:
@@ -13403,23 +13825,51 @@ def api_insights(symbol):
     # Volume: use volume_history_24h to estimate 1h current and previous volumes
     vol_1h_now = None
     vol_1h_prev = None
+
+    # First use the USD-normalized candle cache that powers the live volume
+    # engine. Fall back to base units only when quote volume is unavailable.
     try:
-        vol_hist = next(
-            (
-                volume_history_24h.get(product_id)
-                for product_id in product_variants
-                if volume_history_24h.get(product_id)
-            ),
-            deque(),
-        )
-        if len(vol_hist) >= 1:
-            vol_1h_now = vol_hist[-1][1]
-        if len(vol_hist) >= 2:
-            # Only accept a true hour-old volume snapshot.
-            for ts, v in reversed(vol_hist):
-                if now - ts >= 3500:  # roughly 1 hour (3600s) tolerance
-                    vol_1h_prev = v
-                    break
+        with _CANDLE_VOLUME_CACHE_LOCK:
+            candle_volume = next(
+                (
+                    dict(_CANDLE_VOLUME_CACHE.get(product_id) or {})
+                    for product_id in product_variants
+                    if _CANDLE_VOLUME_CACHE.get(product_id)
+                ),
+                {},
+            )
+        if candle_volume:
+            vol_1h_now = (
+                candle_volume.get("quote_vol1h")
+                if candle_volume.get("quote_vol1h") is not None
+                else candle_volume.get("vol1h")
+            )
+            vol_1h_prev = (
+                candle_volume.get("quote_vol1h_prev")
+                if candle_volume.get("quote_vol1h_prev") is not None
+                else candle_volume.get("vol1h_prev")
+            )
+    except Exception:
+        vol_1h_now = vol_1h_prev = None
+
+    try:
+        if vol_1h_now is None or vol_1h_prev is None:
+            vol_hist = next(
+                (
+                    volume_history_24h.get(product_id)
+                    for product_id in product_variants
+                    if volume_history_24h.get(product_id)
+                ),
+                deque(),
+            )
+            if vol_1h_now is None and len(vol_hist) >= 1:
+                vol_1h_now = vol_hist[-1][1]
+            if vol_1h_prev is None and len(vol_hist) >= 2:
+                # Only accept a true hour-old volume snapshot.
+                for ts, v in reversed(vol_hist):
+                    if now - ts >= 3500:  # roughly 1 hour (3600s) tolerance
+                        vol_1h_prev = v
+                        break
     except Exception:
         vol_1h_now = vol_1h_prev = None
 
@@ -13452,6 +13902,44 @@ def api_insights(symbol):
     except Exception as e:
         logging.exception("Failed to build insights for %s: %s", sym, e)
         return jsonify({"error": str(e)}), 500
+
+    latest_tape_ts = (
+        tape_rows[-1][0]
+        if tape_rows
+        else int(last_current_prices.get("timestamp") or now)
+    )
+    payload.update(
+        {
+            "available": True,
+            "updated_at": datetime.fromtimestamp(
+                latest_tape_ts, tz=timezone.utc
+            ).isoformat(),
+            "tape": [
+                {
+                    "ts": int(ts),
+                    "price": float(price),
+                }
+                for ts, price in tape_rows
+            ],
+            "history": {
+                "source": "sqlite_price_snapshots",
+                "persistent": True,
+                "product_id": tape_product_id,
+                "samples": len(tape_rows),
+                "oldest_ts": tape_rows[0][0] if tape_rows else None,
+                "newest_ts": tape_rows[-1][0] if tape_rows else None,
+                "retention_seconds": int(
+                    os.environ.get("PRICE_DB_RETENTION_SECONDS", 86400)
+                ),
+            },
+            "baseline_status": {
+                "price_1m": price_1m_ago is not None,
+                "price_3m": price_3m_ago is not None,
+                "price_1h": price_1h_ago is not None,
+                "volume_1h": vol_1h_now is not None and vol_1h_prev is not None,
+            },
+        }
+    )
 
     return jsonify(payload), 200
 

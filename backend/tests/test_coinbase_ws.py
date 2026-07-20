@@ -38,6 +38,31 @@ def test_ticker_message_updates_store():
     assert feed.status()["messages"] == 1
 
 
+def test_ticker_market_snapshot_exposes_spread_and_aggressive_side():
+    store = TickerStore()
+    now = time.monotonic()
+    base = {
+        "price": "100",
+        "last_size": "100",
+        "best_bid": "99.9",
+        "best_ask": "100.1",
+        "best_bid_size": "5",
+        "best_ask_size": "3",
+    }
+    # Coinbase side is maker side: sell-maker means an aggressive buyer.
+    store.update_market("KITE", {**base, "side": "sell"}, ts=now)
+    store.update_market("KITE", {**base, "side": "sell", "last_size": "50"}, ts=now)
+    store.update_market("KITE", {**base, "side": "buy", "last_size": "10"}, ts=now)
+
+    snapshot = store.market_snapshot(max_age_s=15, flow_window_s=60, now=now)["KITE"]
+
+    assert round(snapshot["spread_bps"], 2) == 20.0
+    assert snapshot["aggressive_buy_usd"] == 15000.0
+    assert snapshot["aggressive_sell_usd"] == 1000.0
+    assert snapshot["trade_imbalance"] > 0.8
+    assert snapshot["trade_count"] == 3
+
+
 def test_non_ticker_messages_ignored():
     feed = CoinbaseTickerFeed()
     feed._on_message(None, json.dumps({"type": "subscriptions"}))

@@ -45,3 +45,32 @@ def test_prune_enforces_max_key_cap():
     # Oldest keys should be evicted first.
     assert "k5" not in app._ALERT_STREAM_LAST_SEEN
     assert "k4" not in app._ALERT_STREAM_LAST_SEEN
+
+
+def test_active_reducer_honors_alert_expiry_over_endpoint_fallback(monkeypatch):
+    now_ms = 1_800_000_000_000
+    monkeypatch.setattr(app, "_utc_now_ts_ms", lambda: now_ms)
+    rows = [
+        {
+            "id": "expired",
+            "symbol": "SOL-USD",
+            "type_key": "breakout",
+            "severity": "high",
+            "event_ts_ms": now_ms - 30_000,
+            "expires_at": now_ms - 1_000,
+            "evidence": {},
+        },
+        {
+            "id": "still-live",
+            "symbol": "BTC-USD",
+            "type_key": "breakout",
+            "severity": "high",
+            "event_ts_ms": now_ms - 500_000,
+            "expires_at": now_ms + 10_000,
+            "evidence": {},
+        },
+    ]
+
+    active = app._reduce_active_alerts(rows, ttl_s=120)
+
+    assert [row["id"] for row in active] == ["still-live"]

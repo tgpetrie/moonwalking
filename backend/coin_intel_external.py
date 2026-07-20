@@ -1374,6 +1374,9 @@ def _provider_rows(
     lunar_key_present = bool(
         (os.getenv("LUNARCRUSH_API_KEY") or os.getenv("LUNARCRUSH_KEY") or "").strip()
     )
+    coinglass_key_present = bool((os.getenv("COINGLASS_API_KEY") or "").strip())
+    arkham_key_present = bool((os.getenv("ARKHAM_API_KEY") or "").strip())
+    coinmarketcal_key_present = bool((os.getenv("COINMARKETCAL_API_KEY") or "").strip())
 
     def provider_status(block: dict[str, Any] | None, fallback: str) -> str:
         status = str((block or {}).get("status") or fallback)
@@ -1418,6 +1421,30 @@ def _provider_rows(
             "scope": "coin_context_social",
             "configured": lunar_key_present,
             "detail": "Best fit for creator/social sentiment without direct Reddit/X keys.",
+        },
+        {
+            "name": "CoinGlass",
+            "status": "configured" if coinglass_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "derivatives_context",
+            "configured": coinglass_key_present,
+            "detail": "Would separate spot-led moves from leverage, crowding, squeezes, and liquidations.",
+        },
+        {
+            "name": "Arkham",
+            "status": "configured" if arkham_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "onchain_context",
+            "configured": arkham_key_present,
+            "detail": "Would add labeled whale, exchange-deposit, and smart-money context.",
+        },
+        {
+            "name": "CoinMarketCal",
+            "status": "configured" if coinmarketcal_key_present else "not_configured",
+            "access": "requires_api_key",
+            "scope": "catalyst_context",
+            "configured": coinmarketcal_key_present,
+            "detail": "Would explain moves near listings, launches, votes, upgrades, and other catalysts.",
         },
     ]
     return rows

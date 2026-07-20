@@ -39,27 +39,40 @@ def compute_volume_1h(product_id: str, now_ts: int) -> Optional[Dict]:
     prev_cut = now_ts - 60 * 60
     vol_prev = 0.0
     vol_now = 0.0
+    quote_prev = 0.0
+    quote_now = 0.0
     prev_minute_vols = []
+    prev_minute_quote_vols = []
     now_minutes = 0
     prev_minutes = 0
 
     for r in rows:
         ts = r.get("minute_ts")
         vol = r.get("vol_base") or 0.0
+        close = r.get("close")
         if ts is None:
             continue
         if ts < prev_cut:
             vol_f = float(vol)
             vol_prev += vol_f
             prev_minute_vols.append(vol_f)
+            if close is not None and float(close) > 0:
+                quote_value = vol_f * float(close)
+                quote_prev += quote_value
+                prev_minute_quote_vols.append(quote_value)
             prev_minutes += 1
         else:
             vol_now += float(vol)
+            if close is not None and float(close) > 0:
+                quote_now += float(vol) * float(close)
             now_minutes += 1
 
     baseline_mode = "full"
     baseline_minutes = prev_minutes
     pct = ((vol_now - vol_prev) / vol_prev) * 100.0 if vol_prev > 0 else None
+    quote_pct = (
+        ((quote_now - quote_prev) / quote_prev) * 100.0 if quote_prev > 0 else None
+    )
 
     needs_bootstrap = (
         len(distinct_minutes) < MIN_FULL_MINUTES
@@ -75,6 +88,13 @@ def compute_volume_1h(product_id: str, now_ts: int) -> Optional[Dict]:
                 pct = ((vol_now - vol_prev) / vol_prev) * 100.0
                 baseline_mode = "bootstrap"
                 baseline_minutes = len(prev_minute_vols)
+                if prev_minute_quote_vols:
+                    quote_prev = float(median(prev_minute_quote_vols)) * 60.0
+                    quote_pct = (
+                        ((quote_now - quote_prev) / quote_prev) * 100.0
+                        if quote_prev > 0
+                        else None
+                    )
         else:
             return None
 
@@ -84,6 +104,9 @@ def compute_volume_1h(product_id: str, now_ts: int) -> Optional[Dict]:
         "volume_1h_now": vol_now,
         "volume_1h_prev": vol_prev,
         "volume_change_1h_pct": pct,
+        "quote_volume_1h_now": quote_now or None,
+        "quote_volume_1h_prev": quote_prev or None,
+        "quote_volume_change_1h_pct": quote_pct,
         "baseline_ready": True,
         "baseline_mode": baseline_mode,
         "baseline_minutes": baseline_minutes,

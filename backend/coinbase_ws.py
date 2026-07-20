@@ -14,6 +14,7 @@ import logging
 import os
 import threading
 import time
+from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,8 @@ class TickerStore:
     def __init__(self):
         self._lock = threading.Lock()
         self._prices = {}
+        self._quotes = {}
+        self._trades = defaultdict(lambda: deque(maxlen=5000))
 
     def update(self, symbol, price, ts=None):
         if not symbol:
@@ -56,6 +59,109 @@ class TickerStore:
             return {
                 sym: price for sym, (price, ts) in self._prices.items() if ts >= cutoff
             }
+
+    def update_market(self, symbol, message, ts=None):
+        """Store BBO plus an approximate recent aggressive-trade sample."""
+        if not symbol or not isinstance(message, dict):
+            return
+        now = ts if ts is not None else time.monotonic()
+        try:
+            price = float(message.get("price"))
+        except (TypeError, ValueError):
+            price = None
+        try:
+            bid = float(message.get("best_bid"))
+            ask = float(message.get("best_ask"))
+        except (TypeError, ValueError):
+            bid = ask = None
+        try:
+            bid_size = float(message.get("best_bid_size"))
+        except (TypeError, ValueError):
+            bid_size = None
+        try:
+            ask_size = float(message.get("best_ask_size"))
+        except (TypeError, ValueError):
+            ask_size = None
+        side = str(message.get("side") or "").lower()
+        try:
+            size = float(message.get("last_size"))
+        except (TypeError, ValueError):
+            size = None
+
+        key = str(symbol).upper()
+        with self._lock:
+            if bid and ask and bid > 0 and ask > bid:
+                self._quotes[key] = {
+                    "bid": bid,
+                    "ask": ask,
+                    "bid_size": bid_size,
+                    "ask_size": ask_size,
+                    "ts": now,
+                }
+            if price and price > 0 and size and size > 0 and side in {"buy", "sell"}:
+                # Coinbase documents side as the maker side. A sell-maker match
+                # is an up-tick/aggressive buy; a buy-maker match is the inverse.
+                aggressive = "buy" if side == "sell" else "sell"
+                self._trades[key].append((now, aggressive, price * size))
+
+    def market_snapshot(self, max_age_s=15, flow_window_s=60, now=None):
+        """Return recent spread and sampled Coinbase trade-side pressure."""
+        now = now if now is not None else time.monotonic()
+        quote_cutoff = now - float(max_age_s)
+        trade_cutoff = now - float(flow_window_s)
+        out = {}
+        with self._lock:
+            symbols = set(self._quotes) | set(self._trades)
+            for symbol in symbols:
+                quote = self._quotes.get(symbol) or {}
+                trades = self._trades.get(symbol)
+                if trades is not None:
+                    while trades and trades[0][0] < trade_cutoff:
+                        trades.popleft()
+                active_trades = list(trades or [])
+                buy_usd = sum(row[2] for row in active_trades if row[1] == "buy")
+                sell_usd = sum(row[2] for row in active_trades if row[1] == "sell")
+                observed = buy_usd + sell_usd
+                imbalance = ((buy_usd - sell_usd) / observed) if observed > 0 else None
+
+                spread_bps = None
+                book_imbalance = None
+                if quote and float(quote.get("ts") or 0) >= quote_cutoff:
+                    bid = float(quote.get("bid") or 0)
+                    ask = float(quote.get("ask") or 0)
+                    mid = (bid + ask) / 2.0 if bid > 0 and ask > bid else 0
+                    spread_bps = ((ask - bid) / mid) * 10_000 if mid > 0 else None
+                    bid_size = float(quote.get("bid_size") or 0)
+                    ask_size = float(quote.get("ask_size") or 0)
+                    bid_notional = bid * bid_size
+                    ask_notional = ask * ask_size
+                    total_book = bid_notional + ask_notional
+                    book_imbalance = (
+                        (bid_notional - ask_notional) / total_book
+                        if total_book > 0
+                        else None
+                    )
+
+                if spread_bps is None and not active_trades:
+                    continue
+                out[symbol] = {
+                    "spread_bps": (
+                        round(spread_bps, 4) if spread_bps is not None else None
+                    ),
+                    "top_book_imbalance": (
+                        round(book_imbalance, 4) if book_imbalance is not None else None
+                    ),
+                    "aggressive_buy_usd": round(buy_usd, 2),
+                    "aggressive_sell_usd": round(sell_usd, 2),
+                    "observed_quote_usd": round(observed, 2),
+                    "trade_imbalance": (
+                        round(imbalance, 4) if imbalance is not None else None
+                    ),
+                    "trade_count": len(active_trades),
+                    "window_seconds": int(flow_window_s),
+                    "coverage": "coinbase_ticker_sample",
+                }
+        return out
 
     def size(self):
         with self._lock:
@@ -109,6 +215,9 @@ class CoinbaseTickerFeed:
 
     def fresh_prices(self, max_age_s):
         return self.store.fresh_prices(max_age_s)
+
+    def market_snapshot(self, max_age_s=15, flow_window_s=60):
+        return self.store.market_snapshot(max_age_s, flow_window_s)
 
     def status(self):
         with self._sub_lock:
@@ -189,6 +298,7 @@ class CoinbaseTickerFeed:
             product_id = msg.get("product_id") or ""
             symbol = product_id.split("-", 1)[0]
             self.store.update(symbol, msg.get("price"))
+            self.store.update_market(symbol, msg)
         elif msg_type == "error":
             logger.warning("coinbase-ws: server error: %s", msg.get("message"))
 

@@ -281,7 +281,13 @@ def test_coin_volatility_expansion_emits_after_regime_shift():
     for i in range(30):
         r = 0.05 if (i % 2 == 0) else -0.04
         prices = {
-            "BTC-USD": {"price": 50000.0, "pct_1m": r, "pct_3m": 0.4, "pct_1h": 1.1},
+            "BTC-USD": {
+                "price": 50000.0,
+                "pct_1m": r,
+                "pct_3m": 0.4,
+                "pct_1h": 1.1,
+                "sample_ts": 1_700_000_000 + (i * 60),
+            },
         }
         _, state, _ = compute_alerts(
             price_snapshot=prices,
@@ -298,7 +304,13 @@ def test_coin_volatility_expansion_emits_after_regime_shift():
 
     # Shock sample: large 1m return causes vol expansion vs baseline.
     final_prices = {
-        "BTC-USD": {"price": 50500.0, "pct_1m": 1.4, "pct_3m": 0.9, "pct_1h": 1.4},
+        "BTC-USD": {
+            "price": 50500.0,
+            "pct_1m": 1.4,
+            "pct_3m": 0.9,
+            "pct_1h": 1.4,
+            "sample_ts": 1_700_001_800,
+        },
     }
     alerts, _, _ = compute_alerts(
         price_snapshot=final_prices,
@@ -388,13 +400,14 @@ def test_coin_trend_break_up_emits_with_volume_support():
     # Decelerate from positive to negative to build a negative fast/slow diff,
     # then snap back up to force a crossover.
     seq = [0.8, 0.6, 0.4, 0.2, -0.2, -0.6, -1.0, -1.2, 0.8, 1.0, 1.2]
-    for r in seq:
+    for i, r in enumerate(seq):
         prices = {
             "BTC-USD": {
                 "price": 50000.0,
                 "pct_1m": r,
                 "pct_3m": r * 1.4,
                 "pct_1h": r * 1.7,
+                "sample_ts": 1_700_000_000 + (i * 60),
             },
         }
         alerts, state, _ = compute_alerts(
@@ -441,6 +454,7 @@ def test_coin_squeeze_break_emits_after_compression_then_break():
                 "pct_1m": r,
                 "pct_3m": r * 0.8,
                 "pct_1h": r * 1.0,
+                "sample_ts": 1_700_000_000 + (i * 60),
             }
         }
         compute_alerts(
@@ -461,7 +475,13 @@ def test_coin_squeeze_break_emits_after_compression_then_break():
     for i in range(20):
         r = 0.03 if (i % 2 == 0) else -0.02
         prices = {
-            "BTC-USD": {"price": 50000.0, "pct_1m": r, "pct_3m": 0.08, "pct_1h": 0.2}
+            "BTC-USD": {
+                "price": 50000.0,
+                "pct_1m": r,
+                "pct_3m": 0.08,
+                "pct_1h": 0.2,
+                "sample_ts": 1_700_005_400 + (i * 60),
+            }
         }
         compute_alerts(
             price_snapshot=prices,
@@ -482,7 +502,13 @@ def test_coin_squeeze_break_emits_after_compression_then_break():
     for i in range(10):
         r = 1.2 if i == 9 else (0.02 if (i % 2 == 0) else -0.02)
         prices = {
-            "BTC-USD": {"price": 50000.0, "pct_1m": r, "pct_3m": 0.5, "pct_1h": 0.8}
+            "BTC-USD": {
+                "price": 50000.0,
+                "pct_1m": r,
+                "pct_3m": 0.5,
+                "pct_1h": 0.8,
+                "sample_ts": 1_700_006_600 + (i * 60),
+            }
         }
         final_alerts, state, _ = compute_alerts(
             price_snapshot=prices,

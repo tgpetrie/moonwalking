@@ -3,6 +3,7 @@ from __future__ import annotations
 try:
     from alerts_engine import (
         AlertEngineState,
+        ALERT_RULE_VERSION,
         compute_alerts,
         compute_market_pressure,
         _prune_alerts,
@@ -10,6 +11,7 @@ try:
 except Exception:  # pragma: no cover - fallback import path
     from backend.alerts_engine import (
         AlertEngineState,
+        ALERT_RULE_VERSION,
         compute_alerts,
         compute_market_pressure,
         _prune_alerts,
@@ -92,6 +94,27 @@ def test_market_alerts_do_not_leak_when_market_mode_off():
         if str(a.get("symbol") or "").upper() in {"MARKET", "MARKET-USD"}
     ]
     assert market_types == []
+
+
+def test_emitted_alerts_disclose_rule_version():
+    alerts, _state, _pressure = compute_alerts(
+        price_snapshot={
+            "AAA-USD": {
+                "price": 1.02,
+                "pct_1m": 1.1,
+                "pct_3m": 2.7,
+                "pct_1h": 3.2,
+            }
+        },
+        volume_snapshot={},
+        minute_volumes={},
+        state=AlertEngineState(),
+        include_impulse=True,
+        include_market_mood=False,
+    )
+
+    assert alerts
+    assert all(a.get("rule_version") == ALERT_RULE_VERSION for a in alerts)
 
 
 def test_breadth_intensity_stays_positive_in_red_tape():

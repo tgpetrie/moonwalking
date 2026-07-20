@@ -104,6 +104,8 @@ class AlertSeverity(str, Enum):
 # Thresholds — per liquidity bucket when applicable
 # ---------------------------------------------------------------------------
 
+ALERT_RULE_VERSION = "v0.2-evolution-2026-07-14"
+
 DEFAULT_THRESHOLDS = {
     # Impulse (MOONSHOT / CRATER / BREAKOUT / DUMP)
     "moonshot_1m_pct": 1.00,  # >= this on 1m -> moonshot/crater
@@ -117,7 +119,9 @@ DEFAULT_THRESHOLDS = {
     "whale_cluster_z": 2.5,  # 3-candle cluster z-score
     "whale_candle_pct": 0.3,  # min abs(candle_pct) for whale move
     "whale_surge_1h_pct": 150.0,  # fallback: hourly vol change %
-    "whale_min_abs_vol": 500,  # minimum absolute volume (units) to qualify
+    "whale_min_quote_1m_usd": 25_000,
+    "whale_min_quote_cluster_usd": 50_000,
+    "whale_min_quote_1h_usd": 250_000,
     # Absorption (sub-type of whale)
     "absorption_z": 2.5,
     "absorption_max_pct": 0.15,
@@ -172,6 +176,7 @@ DEFAULT_THRESHOLDS = {
     "liq_shock_price_max_abs_pct": 0.25,
     "liq_shock_min_samples": 30,
     "liq_shock_min_latest_vol": 75.0,
+    "liq_shock_min_latest_quote_usd": 10_000.0,
     "trend_break_fast_alpha": 0.3333,  # ~EMA(5) on 1m returns
     "trend_break_slow_alpha": 0.0952,  # ~EMA(20) on 1m returns
     "trend_break_min_abs_diff": 0.08,
@@ -285,12 +290,13 @@ class AlertEngineState:
     emit_ring: list[tuple[float, str]] = field(default_factory=list)
     # Coin persistence streaks: symbol -> (streak_count, direction)
     coin_persistence_streaks: dict[str, tuple[int, str]] = field(default_factory=dict)
-    # Coin 1m return history used for volatility expansion detection.
-    coin_return_hist: dict[str, list[float]] = field(default_factory=dict)
+    # One observation per wall-clock minute: symbol -> [(minute_ts, return_1m)].
+    coin_return_hist: dict[str, list[tuple[int, float]]] = field(default_factory=dict)
     # EMA state for micro-structure trend-break detection.
     coin_trend_ema_fast: dict[str, float] = field(default_factory=dict)
     coin_trend_ema_slow: dict[str, float] = field(default_factory=dict)
     coin_trend_last_diff: dict[str, float] = field(default_factory=dict)
+    coin_trend_last_sample_minute: dict[str, int] = field(default_factory=dict)
     # Last seen per-coin volume ratio for exhaustion checks.
     coin_last_vol_ratio: dict[str, float] = field(default_factory=dict)
 
@@ -401,19 +407,43 @@ def _warm_return_hist(
     price_snapshot: dict[str, dict],
     thresholds: dict,
 ) -> None:
-    """Warm and bound per-symbol 1m return history for downstream detectors."""
+    """Record at most one 1m return observation per wall-clock minute."""
     keep = max(60, int(thresholds.get("return_hist_keep", 240) or 240))
-    min_points = max(1, int(thresholds.get("return_hist_min_points", 12) or 12))
+    now_s = int(time.time())
     for sym, pdata in (price_snapshot or {}).items():
         pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
         if pct_1m is None:
             continue
+        sample_raw = _to_float_or_none(
+            (pdata or {}).get("sample_ts_ms") or (pdata or {}).get("sample_ts")
+        )
+        sample_s = (
+            int(sample_raw / 1000.0)
+            if sample_raw and sample_raw > 10_000_000_000
+            else int(sample_raw or now_s)
+        )
+        minute_ts = sample_s - (sample_s % 60)
         hist = state.coin_return_hist.setdefault(sym, [])
-        hist.append(float(pct_1m))
-        if len(hist) < min_points:
-            hist[:0] = [0.0] * (min_points - len(hist))
-        if len(hist) > keep:
-            del hist[: len(hist) - keep]
+        if hist and isinstance(hist[-1], tuple) and hist[-1][0] == minute_ts:
+            hist[-1] = (minute_ts, float(pct_1m))
+        else:
+            hist.append((minute_ts, float(pct_1m)))
+        cutoff = minute_ts - (keep * 60)
+        while hist and isinstance(hist[0], tuple) and hist[0][0] < cutoff:
+            hist.pop(0)
+        if len(hist) > keep + 1:
+            del hist[: len(hist) - (keep + 1)]
+
+
+def _return_hist_values(hist: list[Any]) -> list[float]:
+    """Read timestamped history while tolerating legacy in-memory float rows."""
+    out: list[float] = []
+    for item in hist or []:
+        value = item[1] if isinstance(item, tuple) and len(item) >= 2 else item
+        parsed = _to_float_or_none(value)
+        if parsed is not None:
+            out.append(parsed)
+    return out
 
 
 def compute_market_pressure(
@@ -650,6 +680,7 @@ def _make_alert(
         "title": title,
         "message": message,
         "direction": direction,
+        "rule_version": ALERT_RULE_VERSION,
         "evidence": evidence,
         "ttl_seconds": ttl_minutes * 60,
         "expires_at": (now + timedelta(minutes=ttl_minutes)).isoformat(),
@@ -868,6 +899,20 @@ def _detect_whale_alerts(
         vol1h_pct = vdata.get("volume_change_1h_pct")
         vol1h_now = vdata.get("volume_1h_now", 0)
         vol1h_prev = vdata.get("volume_1h_prev")
+        quote_vol1h_now = _to_float_or_none(vdata.get("quote_volume_1h_now"))
+        quote_vol1h_prev = _to_float_or_none(vdata.get("quote_volume_1h_prev"))
+        if (
+            quote_vol1h_now is None
+            and _to_float_or_none(price)
+            and _to_float_or_none(vol1h_now)
+        ):
+            quote_vol1h_now = float(price) * float(vol1h_now)
+        if (
+            quote_vol1h_prev is None
+            and _to_float_or_none(price)
+            and _to_float_or_none(vol1h_prev)
+        ):
+            quote_vol1h_prev = float(price) * float(vol1h_prev)
         baseline_ready = vdata.get("baseline_ready", False)
 
         product_id = sym if "-" in sym else f"{sym}-USD"
@@ -894,19 +939,30 @@ def _detect_whale_alerts(
         # --- Mode 1: Per-minute z-score whale ---
         if len(rows) >= 15:
             latest = rows[-1]
-            latest_vol = latest.get("vol", 0) or 0
+            latest_base_vol = latest.get("vol", 0) or 0
             latest_close = latest.get("close", 0)
             latest_open = latest.get("open", 0)
+            latest_vol = _to_float_or_none(latest.get("quote_vol"))
+            if latest_vol is None:
+                latest_vol = float(latest_base_vol) * float(
+                    latest_close or latest_open or price or 0
+                )
 
             baseline_rows = rows[-61:-1]
             baseline_vols = [
-                (m.get("vol", 0) or 0)
+                (
+                    _to_float_or_none(m.get("quote_vol"))
+                    or ((m.get("vol", 0) or 0) * (m.get("close", 0) or price or 0))
+                )
                 for m in baseline_rows
                 if (m.get("vol", 0) or 0) > 0
             ]
             if len(baseline_vols) < 10:
                 baseline_vols = [
-                    (m.get("vol", 0) or 0)
+                    (
+                        _to_float_or_none(m.get("quote_vol"))
+                        or ((m.get("vol", 0) or 0) * (m.get("close", 0) or price or 0))
+                    )
                     for m in rows[-61:-1]
                     if (m.get("vol", 0) or 0) > 0
                 ]
@@ -929,7 +985,11 @@ def _detect_whale_alerts(
 
                 # 3-candle cluster
                 cluster_vol = (
-                    sum((m.get("vol", 0) or 0) for m in rows[-3:])
+                    sum(
+                        _to_float_or_none(m.get("quote_vol"))
+                        or ((m.get("vol", 0) or 0) * (m.get("close", 0) or price or 0))
+                        for m in rows[-3:]
+                    )
                     if len(rows) >= 3
                     else latest_vol
                 )
@@ -939,11 +999,11 @@ def _detect_whale_alerts(
                 if (
                     z_vol >= t["whale_z_score"]
                     and abs(candle_pct) >= t["whale_candle_pct"]
-                    and latest_vol > 100
+                    and latest_vol >= t["whale_min_quote_1m_usd"]
                 ) or (
                     cluster_z >= t["whale_cluster_z"]
                     and abs(candle_pct) >= 0.4
-                    and cluster_vol > 300
+                    and cluster_vol >= t["whale_min_quote_cluster_usd"]
                 ):
                     direction = "up" if candle_pct > 0 else "down"
                     whale_score = z_vol * abs(candle_pct)
@@ -980,6 +1040,8 @@ def _detect_whale_alerts(
                                 "cluster_z": round(cluster_z, 2),
                                 "latest_vol": round(latest_vol, 2),
                                 "median_vol": round(median_vol, 2),
+                                "latest_volume_usd": round(latest_vol, 2),
+                                "median_volume_usd": round(median_vol, 2),
                                 "price": price,
                                 "baseline_ready": baseline_ready,
                             },
@@ -993,12 +1055,14 @@ def _detect_whale_alerts(
                 if (
                     z_vol >= t["absorption_z"]
                     and abs(candle_pct) < t["absorption_max_pct"]
-                    and latest_vol > 100
+                    and latest_vol >= t["whale_min_quote_1m_usd"]
                 ):
                     # Check repeat pattern
                     absorption_count = 0
                     for m in rows[-6:-1]:
-                        m_vol = m.get("vol", 0) or 0
+                        m_vol = _to_float_or_none(m.get("quote_vol")) or (
+                            (m.get("vol", 0) or 0) * (m.get("close", 0) or price or 0)
+                        )
                         m_z = (m_vol - mean_vol) / std_vol if std_vol > 0 else 0
                         m_pct = (
                             (
@@ -1042,6 +1106,8 @@ def _detect_whale_alerts(
                                     "absorption_pulses": absorption_count + 1,
                                     "latest_vol": round(latest_vol, 2),
                                     "median_vol": round(median_vol, 2),
+                                    "latest_volume_usd": round(latest_vol, 2),
+                                    "median_volume_usd": round(median_vol, 2),
                                     "price": price,
                                     "baseline_ready": baseline_ready,
                                 },
@@ -1053,7 +1119,7 @@ def _detect_whale_alerts(
 
         # --- Mode 2: Hourly volume surge fallback ---
         if vol1h_pct is not None and vol1h_pct >= t["whale_surge_1h_pct"]:
-            if vol1h_now >= t["whale_min_abs_vol"]:
+            if (quote_vol1h_now or 0) >= t["whale_min_quote_1h_usd"]:
                 sev = (
                     AlertSeverity.CRITICAL
                     if vol1h_pct >= 400
@@ -1074,7 +1140,7 @@ def _detect_whale_alerts(
                         alert_type=AlertType.WHALE_MOVE,
                         severity=sev,
                         title=f"WHALE SURGE: {sym}",
-                        message=f"{sym} 1h volume {vol1h_pct:+.0f}% vs prev hour ({vol1h_now:,.0f} units)",
+                        message=f"{sym} 1h volume {vol1h_pct:+.0f}% vs prev hour (${quote_vol1h_now:,.0f})",
                         direction="up",
                         evidence={
                             "window": "1h",
@@ -1085,6 +1151,8 @@ def _detect_whale_alerts(
                             "volume_change_1h_pct": round(vol1h_pct, 1),
                             "volume_1h_now": round(vol1h_now, 2),
                             "volume_1h_prev": vdata.get("volume_1h_prev"),
+                            "quote_volume_1h_now": quote_vol1h_now,
+                            "quote_volume_1h_prev": quote_vol1h_prev,
                             "price": price,
                             "baseline_ready": baseline_ready,
                         },
@@ -1472,12 +1540,9 @@ def _detect_coin_volatility_expansion_alerts(
     ratio_min = float(t.get("volx_ratio_min", 2.0) or 2.0)
     vol_floor = float(t.get("volx_vol_floor", 0.25) or 0.25)
     prev_floor = float(t.get("volx_prev_floor", 0.05) or 0.05)
-    keep = max(120, (n_now + n_prev + 60))
-
-    for sym, hist in list(state.coin_return_hist.items()):
+    for sym, hist_rows in list(state.coin_return_hist.items()):
+        hist = _return_hist_values(hist_rows)
         if sym not in price_snapshot:
-            if len(hist) > keep:
-                del hist[: len(hist) - keep]
             continue
 
         if len(hist) < (n_now + n_prev):
@@ -1530,6 +1595,7 @@ def _detect_coin_volatility_expansion_alerts(
                 "price": _to_float_or_none(pdata.get("price")),
                 "samples_now": len(now_vals),
                 "samples_prev": len(prev_vals),
+                "sample_cadence_seconds": 60,
             },
             ttl_minutes=t["ttl_volx_min"],
         )
@@ -1553,18 +1619,29 @@ def _detect_coin_liquidity_shock_alerts(
     z_min = float(t.get("liq_shock_z_min", 3.0) or 3.0)
     price_cap = float(t.get("liq_shock_price_max_abs_pct", 0.25) or 0.25)
     min_samples = max(10, int(t.get("liq_shock_min_samples", 30) or 30))
-    min_latest_vol = float(t.get("liq_shock_min_latest_vol", 50.0) or 50.0)
+    min_latest_quote = float(
+        t.get("liq_shock_min_latest_quote_usd", 10_000.0) or 10_000.0
+    )
 
     for product_id, rows in (minute_volumes or {}).items():
         if not isinstance(rows, list) or len(rows) < (min_samples + 1):
             continue
         latest = rows[0] if rows else {}
-        latest_vol = _to_float_or_none((latest or {}).get("vol"))
-        if latest_vol is None or latest_vol < min_latest_vol:
+        latest_vol = _to_float_or_none((latest or {}).get("quote_vol"))
+        if latest_vol is None:
+            latest_vol = (_to_float_or_none((latest or {}).get("vol")) or 0.0) * (
+                _to_float_or_none((latest or {}).get("close")) or 0.0
+            )
+        if latest_vol < min_latest_quote:
             continue
 
         baseline_vals = [
-            _to_float_or_none((m or {}).get("vol")) for m in rows[1 : min_samples + 1]
+            _to_float_or_none((m or {}).get("quote_vol"))
+            or (
+                (_to_float_or_none((m or {}).get("vol")) or 0.0)
+                * (_to_float_or_none((m or {}).get("close")) or 0.0)
+            )
+            for m in rows[1 : min_samples + 1]
         ]
         baseline = [float(v) for v in baseline_vals if v is not None and v > 0]
         if len(baseline) < min_samples:
@@ -1618,6 +1695,7 @@ def _detect_coin_liquidity_shock_alerts(
                 "window": "1m",
                 "vol_z": round(vol_z, 4),
                 "vol_1m": round(latest_vol, 4),
+                "quote_volume_1m": round(latest_vol, 4),
                 "avg_1m": round(base_mean, 4),
                 "std_1m": round(base_std, 4),
                 "pct_1m": pct_1m,
@@ -1661,6 +1739,19 @@ def _detect_coin_trend_break_alerts(
         pct_1m = _to_float_or_none((pdata or {}).get("pct_1m"))
         if pct_1m is None:
             continue
+
+        sample_raw = _to_float_or_none(
+            (pdata or {}).get("sample_ts_ms") or (pdata or {}).get("sample_ts")
+        )
+        sample_s = (
+            int(sample_raw / 1000.0)
+            if sample_raw and sample_raw > 10_000_000_000
+            else int(sample_raw or time.time())
+        )
+        sample_minute = sample_s - (sample_s % 60)
+        if state.coin_trend_last_sample_minute.get(sym) == sample_minute:
+            continue
+        state.coin_trend_last_sample_minute[sym] = sample_minute
 
         prev_fast = state.coin_trend_ema_fast.get(sym, pct_1m)
         prev_slow = state.coin_trend_ema_slow.get(sym, pct_1m)
@@ -1733,6 +1824,7 @@ def _detect_coin_trend_break_alerts(
                 "vol_ratio": round(vol_ratio, 4) if vol_ratio is not None else None,
                 "volume_change_1h_pct": vol1h_pct,
                 "price": _to_float_or_none((pdata or {}).get("price")),
+                "sample_cadence_seconds": 60,
             },
             ttl_minutes=t["ttl_trend_break_min"],
         )
@@ -1760,7 +1852,7 @@ def _detect_coin_squeeze_break_alerts(
     vol_jump_min = float(t.get("squeeze_break_vol_ratio_min", 1.6) or 1.6)
 
     for sym, pdata in (price_snapshot or {}).items():
-        hist = state.coin_return_hist.get(sym) or []
+        hist = _return_hist_values(state.coin_return_hist.get(sym) or [])
         if len(hist) < (window_n * 3):
             continue
 
@@ -1835,6 +1927,7 @@ def _detect_coin_squeeze_break_alerts(
                 "pct_3m": _to_float_or_none((pdata or {}).get("pct_3m")),
                 "pct_1h": _to_float_or_none((pdata or {}).get("pct_1h")),
                 "price": _to_float_or_none((pdata or {}).get("price")),
+                "sample_cadence_seconds": 60,
             },
             ttl_minutes=t["ttl_squeeze_break_min"],
         )
