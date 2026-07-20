@@ -1,120 +1,206 @@
-# Moonwalking Handoff
+# Moonwalking / BHABIT Handoff
 
 ## Snapshot
 
 - Date: 2026-07-20
-- Branch: `codex/portfolio-mode` (kept in sync with `main`; both pushed)
-- Repository: `/Users/cdmxx/Documents/moonwalkings`
-- Product: BHABIT Moonwalking live crypto board plus account-backed product shell.
-- Git policy: Tom explicitly requested committing/pushing change sets after verification.
+- Branch: `main` at `478288ad` (all feature branches merged)
+- Repository: `tgpetrie/moonwalking` on GitHub
+- Product: BHABIT — personal crypto trading assistant dashboard at https://bhabit.net
+- Owner: Tom (tgpetrie), solo operator. This is an information-only tool, NOT autonomous trading.
 
-## Production state (2026-07-20)
+## Production
 
-- LIVE at https://bhabit.net — Cloudflare DNS/TLS in front of an always-on
-  Railway container (see `deploy/railway/README.md`, `railway.json`,
-  `backend/Dockerfile`). Verified healthy: /api/server-info, /data, CORS
-  locked to bhabit.net. Deploys are manual via `railway up --service bhabit`
-  from the repo root — pushing to GitHub does NOT redeploy.
-- IMPORTANT GAP: production is running the pre-Event-Evolution build. The
-  alerts overhaul (Signals/Pulse in `/api/alerts/recent`, delivery channels,
-  outcome grading — commits `6d49c487`..`3e5fb35f`, pushed 2026-07-20) is on
-  GitHub but NOT yet deployed. Next deploy picks it up.
-- Private Portfolio Mode (commit `cc5f2239`) is owner-only `/api/portfolio`,
-  view-only Coinbase CDP keys required; activation needs the three Railway
-  secrets documented in `docs/PORTFOLIO_MODE.md`.
-- Notification channels (SMTP/Telegram/Discord) are implemented but disabled
-  until credentials are set (`docs/ALERT_EVENT_EVOLUTION.md`).
-- The Oracle/Tailscale single-box path in `deploy/homeserver/` remains a
-  valid fallback but Railway is the active production home.
+- **Live at https://bhabit.net** — Cloudflare DNS/TLS → Railway container
+- **Deploy config**: `railway.json` (Dockerfile builder pointing at `backend/Dockerfile`)
+- **GitHub repo connected** to Railway (`tgpetrie/moonwalking`, branch `main`). Auto-deploy shows "unavailable" — may need manual deploy trigger from Railway Deployments tab.
+- **Health check**: `/api/health` with 300s timeout
+- **Current deploy gap**: GitHub `main` has all features pushed (including Event Evolution, Portfolio Mode, notification priority). Production may still be running an older build — trigger a deploy from Railway dashboard to pick up new code.
 
-## Current outcome
+## Architecture
 
-The local MVP now has one canonical, verified runtime:
+```
+Frontend (React/Vite)          Backend (Flask, single process)
+  localhost:5173        →        localhost:5003
+                                   ├── Coinbase WS ticker feed (live prices)
+                                   ├── Alert engine (coin pressure detection)
+                                   ├── Event Evolution (signal grouping)
+                                   ├── Signal/Board outcome grading
+                                   ├── Portfolio Mode (read-only Coinbase CDP)
+                                   └── Notification dispatch (SMTP/Telegram/Discord)
 
-- Vite frontend: `127.0.0.1:5173`
-- Flask board API: `127.0.0.1:5003`
-- FastAPI sentiment service: `127.0.0.1:8003`
-- Start command: `./start_app.sh`
-
-The public board, 1m/3m tables, real 1h banners, alerts, coin popup, guest watchlist, account session discovery, login/signup routes, and SQLite-backed authenticated watchlists are wired. The supported production shape remains one Flask worker plus the sentiment service on an Oracle/Tailscale single-box deployment.
-
-## Work completed in the current change set
-
-### Runtime and routing
-
-- Standardized every active local start path on ports 5173/5003/8003.
-- Removed duplicate background-worker startup from script mode.
-- Moved the script entrypoint below the complete Flask route table. `/api/insights/<symbol>` and the remaining compatibility routes now exist in script mode as they do under imports.
-- Prevented request-time code from silently creating a legacy sentiment poller.
-- Disabled the unfinished legacy intelligence blueprint by default; `/api/coin-intel` is canonical.
-- Guest `/api/auth/session` now returns HTTP 200 with `authenticated: false`.
-
-### Data truth
-
-- Rebuilt the sentiment service as real-source only: Alternative.me plus CoinGecko global market data, with explicit provenance and live/stale/offline state.
-- Removed fabricated random sentiment, social metrics, topics, history, divergence, MD5 values, mock headlines, and mock news.
-- Market-wide sentiment remains labeled market-wide when a coin opened the panel.
-- The source catalog and source counts include only providers that contributed to the current real snapshot.
-- Missing external coverage remains null or empty.
-- Replaced estimated 1h price movement with actual SQLite timestamp baselines.
-- Removed price-as-volume and 24h-as-1h fallbacks. Banners now show real rows or warming state.
-- Compatibility banner and volume-snapshot endpoints now reuse the same canonical background snapshots as `/data`.
-- Fixed candle product-id normalization so `MORPHO-USD` cannot become `MORPHO-USD-USD`.
-
-### Frontend and interaction
-
-- Preserved motion on data cells while anchoring whole rows, making star/info/trade controls reliably clickable.
-- Preserved missing sentiment values as null in the central adapter.
-- Removed frontend volume estimates and hardcoded banner samples.
-- Guest watchlist add/remove and baseline storage work through the canonical `mw_watchlist`/`product_id` contract; the old browser key migrates without data loss.
-- Auth screens link back to the live board and describe server-backed behavior without unsupported cloud claims.
-- Alerts Center active/recent flows work; the dock now shows a numeric unread count and opening marks the current stream read.
-- The coin popup loads both real local pressure and real external coin context without 404s.
-- Coin Pressure now includes a Pulse-tab `Quick Buy Read` that translates the canonical alert engine into operator labels:
-  - `BUY WATCH`: supported upside, still prefer pullback/retest.
-  - `RECONFIRM`: active momentum but not clean enough for blind chase.
-  - `WATCH`: early volume/attention smoke without clean direction.
-  - `NO CHASE` / `TRAP RISK` / `PROTECT`: fakeout, divergence, exhaustion, or risk-control families.
-  - `AVOID LONG`: active downside pressure.
-- The quick-read mapping lives in `frontend/src/components/SentimentPopupAdvanced.jsx` and uses real alert families plus freshness, volume confirmation, breadth, and labeled sentiment/attention context.
-- The row legend now defines quick-read labels in addition to streaks, peaks, arrows, and volume warmup.
-
-### Alerts and sentiment documentation
-
-- `docs/user-guides/ALERTS_USE_GUIDE.md` now explains what alerts are trying to tell the operator, the current default thresholds, cooldowns, TTLs, and quick-buy interpretation.
-- `docs/alerts_engine_spec.md` now documents the UI quick-read mapping and threshold summary from `backend/alerts_engine.py`.
-- `docs/SENTIMENT_SOURCES.md` is the source matrix for active public sources and optional credentialed providers. Reddit/X remain unavailable until official API credentials and compliant ingestion exist.
-- `backend/sentiment/sources/tier3.json` catalogs optional credentialed providers such as LunarCrush, Santiment, Messari, Kaito, and The Tie without counting them as active coverage unless credentials are configured.
-
-## Verification completed
-
-- Backend suite passed with 52 tests; 65 legacy/provider tests are intentionally skipped.
-- Runtime/banner, sentiment provenance, and active-source catalog regressions are covered.
-- Frontend production build and unit suite passed; the current suite contains 26 tests, including canonical watchlist migration.
-- Guardrails passed.
-- Smoke endpoints passed against the live backend.
-- Browser QA covered desktop and mobile layout, board population, alerts, watchlist add/remove, coin popup, login/signup routes, click stability, horizontal overflow, and console errors.
-- Clean startup logs showed one price worker, one volume worker, one sentiment service, and no legacy intelligence import failure.
-
-Run the final verification commands after any subsequent edit:
-
-```bash
-npm run guardrails
-.venv/bin/python -m pytest -q backend/tests
-(cd frontend && npm run verify)
-bash scripts/smoke_check.sh
-bash scripts/smoke_sentiment_proxy.sh BTC
+Sentiment Service (FastAPI)
+  localhost:8003         ←     proxied via Flask at /api/sentiment/*
 ```
 
-## Honest limitations
+### Key files and line counts
 
-- Cross-device behavior is code-complete but not proven until the one-box deployment is online and tested from two devices.
-- Sentiment has market-wide real sources plus coin-context attention proxies. True coin-specific social sentiment requires a credentialed provider such as LunarCrush, Santiment, Messari, Kaito, or The Tie.
-- `/app/portfolio` and `/app/settings` still use seeded in-memory product-shell state.
-- Personal Coinbase integration has not been designed or implemented.
-- On a fresh database, 1m, 3m, and 1h sections deliberately show warming until their real baseline windows mature. Existing SQLite history shortens this after normal restarts.
-- The backend remains a large module. Runtime responsibilities are now explicit, but extracting workers and routes into narrow modules is a future maintainability task, not required for the current one-box MVP.
+| File | Lines | Purpose |
+|------|-------|---------|
+| `backend/app.py` | ~14,000 | Main Flask app — routes, background workers, data pipeline |
+| `backend/alert_events.py` | 685 | Event Evolution: groups raw alerts → Signals with state transitions |
+| `backend/signal_outcomes.py` | 309 | Tracks signal accuracy at 5m/15m/30m/60m checkpoints |
+| `backend/board_outcomes.py` | 706 | Tracks mover-board accuracy with Wilson confidence intervals |
+| `backend/portfolio_mode.py` | 699 | Read-only Coinbase CDP API client, permission enforcement |
+| `backend/alert_delivery.py` | 273 | Notification dispatch (SMTP, Telegram, Discord, browser) |
+| `backend/coinbase_ws.py` | 365 | WebSocket ticker feed with reconnect/backoff |
+| `backend/alerts_engine.py` | ~150 | Raw coin pressure detection (feeds into Event Evolution) |
+| `backend/watchlist.py` | ~900 | SQLite-backed user accounts, auth, session handling |
+| `backend/sentiment_api.py` | ~570 | FastAPI sentiment service (Alternative.me + CoinGecko) |
 
-## Recommended next action
+### Frontend components (React/JSX)
 
-Deploy the current build with `deploy/homeserver/`, verify account login and watchlist sync from two devices over Tailscale, and only then begin personal Coinbase or new sentiment-provider work.
+- `DashboardShell.jsx` — main layout, tab routing
+- `TokenRowUnified.jsx` — board row with pressure cues
+- `AlertsTab.jsx` / `AlertsDock.jsx` — Signals/Pulse alert display
+- `SentimentPopupAdvanced.jsx` — coin detail popup with Quick Buy Read
+- `TopBannerScroll.jsx` / `VolumeBannerScroll.jsx` — scrolling ticker banners
+- `AuthPanel.jsx` / `WatchlistPanel.jsx` — login/signup, watchlist management
+- `PortfolioModePage.jsx` — portfolio holdings display (in `frontend/src/mvp/`)
+
+## What's built and working
+
+### 1. Live price board
+Real-time crypto prices via Coinbase WebSocket feed (`coinbase_ws.py`). Falls back to REST polling for products without WS ticks. Board shows 1m/3m gainers/losers with pressure indicators.
+
+### 2. Alert engine → Event Evolution pipeline
+Raw alerts from `alerts_engine.py` (volume spikes, momentum shifts, divergences) feed into `alert_events.py` which groups them into per-coin **Events** with:
+- State machine: `Building → Strengthening → Confirmed → Weakening → Fading`
+- Confidence scores (0-100)
+- Direction classification (up/down/neutral)
+- "The Read" — human-readable interpretation (e.g., `BUY WATCH`, `TRAP RISK`, `NO CHASE`)
+- Transition history with timestamps
+
+### 3. Signal outcome tracking (PARTIALLY COMPLETE — see "What's next")
+Two SQLite-backed stores run in parallel:
+
+**SignalOutcomeStore** (`signal_outcomes.py`):
+- Records entry price when a signal is created
+- Measures directional returns at 5m, 15m, 30m, 60m
+- Tracks max favorable and max adverse excursion
+- Grades outcome as `followed_through` (hit +2% target before -1% stop) or `did_not_follow_through`
+- `history_for(event)` returns historical win rate for same signal type+direction
+- API: `/api/signals/outcomes/status`
+
+**BoardOutcomeStore** (`board_outcomes.py`):
+- Same checkpoint structure for mover-board entries
+- Adds Wilson confidence intervals for small-sample stats
+- Tracks by board type (ignition_1m, confirmation_3m_up, confirmation_3m_down)
+- API: `/api/boards/outcomes/status`
+
+**Both are wired into the main loop** at `app.py:13026` and `app.py:13127` — `observe()` is called every tick with current prices.
+
+### 4. Portfolio Mode (read-only Coinbase integration)
+- Coinbase CDP API with JWT auth (`portfolio_mode.py`)
+- **Permission enforcement**: refuses keys with `can_trade` or `can_transfer` — view-only enforced in code
+- Shows holdings, cost basis, allocation
+- `get_held_symbols()` feeds into notification priority
+- Needs 3 Railway env vars to activate: `COINBASE_API_KEY_NAME`, `COINBASE_API_KEY_SECRET`, `MW_PORTFOLIO_OWNER_TOKEN`
+
+### 5. Portfolio-aware notification priority
+- Coins you hold qualify for notifications at confidence 65+ (vs standard 85+)
+- Implemented in `alert_events.py:notification_candidates()` and wired in `app.py`
+- Tags elevated notifications with `priority: "holding"` and `notify_reason: "holding_priority"`
+- 8 tests in `backend/tests/test_priority_notifications.py`
+
+### 6. Notification delivery channels
+`alert_delivery.py` supports SMTP email, Telegram bot, Discord webhook, and browser push. Per-symbol cooldowns and hourly caps. All channels disabled until credentials are set.
+
+### 7. Cross-device watchlist with auth
+SQLite-backed accounts (`watchlist.py`), session cookies (HttpOnly/Secure/SameSite), CORS with credentials. Guest watchlist migrates to account on signup.
+
+## What's NOT built yet (the gaps)
+
+### A. Outcome scorecard UI (HIGH PRIORITY)
+The outcome data is **collecting in SQLite** but there's **no dashboard to view it**. Need:
+- Aggregate accuracy panel: "Bullish Breakout signals followed through 62% over 200 samples"
+- Per-signal-type breakdown with win rates, median favorable/adverse moves
+- Time-series view showing whether accuracy is improving or degrading
+- Per-coin history (currently `history_for()` groups by type+direction, not by individual coin)
+
+### B. Feedback loop to auto-tune thresholds
+Outcome data doesn't feed back to adjust:
+- Confidence thresholds for notifications (hardcoded 85% standard, 65% held)
+- Alert engine sensitivity parameters
+- Which signal types should even generate notifications vs just log
+
+### C. Notification outcome tracking
+Signals are graded, but there's no separate tracking of "did notifications I *received* lead to useful action?" — the ultimate quality metric for the trading assistant use case.
+
+### D. Notification channel activation
+SMTP, Telegram, Discord, browser push are coded but need credentials configured:
+- `MW_SMTP_HOST`, `MW_SMTP_USER`, `MW_SMTP_PASS`, `MW_NOTIFY_EMAIL_TO`
+- `MW_TELEGRAM_BOT_TOKEN`, `MW_TELEGRAM_CHAT_ID`
+- `MW_DISCORD_WEBHOOK_URL`
+
+### E. Portfolio Mode activation
+Needs Coinbase CDP API key (view-only!) created at https://portal.cdp.coinbase.com and set in Railway:
+- `COINBASE_API_KEY_NAME`
+- `COINBASE_API_KEY_SECRET`
+- `MW_PORTFOLIO_OWNER_TOKEN` (any secret string, used to gate the endpoint)
+
+### F. Production deploy verification
+GitHub→Railway connection is set up but auto-deploy shows "unavailable". Current production may be running old code. Need to:
+1. Trigger manual deploy from Railway Deployments tab
+2. Verify `/api/alerts/recent` returns `signals` and `pulse` fields
+3. Verify `/api/signals/outcomes/status` is reachable
+4. Verify `/api/boards/outcomes/status` is reachable
+
+## Environment variables (production)
+
+Required:
+- `SECRET_KEY` — session encryption (Railway generateValue handles this)
+- `FLASK_ENV=production`
+- `SESSION_COOKIE_SECURE=1`
+- `CORS_ORIGINS=https://bhabit.net`
+- `SERVE_FRONTEND_DIST=1` — serves built frontend from Flask
+
+Optional (enable features):
+- `ENABLE_COINBASE_WS=1` (default on) — live WebSocket prices
+- `COINBASE_API_KEY_NAME` / `COINBASE_API_KEY_SECRET` — portfolio mode
+- `MW_PORTFOLIO_OWNER_TOKEN` — gates portfolio API access
+- `MW_SMTP_*` / `MW_TELEGRAM_*` / `MW_DISCORD_*` — notification channels
+- `WATCHLIST_DB_PATH` — SQLite location (Railway persistent disk)
+- `MW_SIGNAL_OUTCOMES_DB` / `MW_BOARD_OUTCOMES_DB` — outcome store location
+
+## Local development
+
+```bash
+./start_app.sh          # starts Flask (5003) + sentiment (8003) + Vite (5173)
+# OR
+./dev.sh                # alternative dev script
+```
+
+### Tests
+```bash
+.venv/bin/python -m pytest -q backend/tests    # ~52 pass, 65 legacy skipped
+cd frontend && npm run verify                  # 26 frontend tests
+```
+
+### Pre-commit hooks
+- `black` (Python formatting) — auto-fixes, re-stage and retry
+- `trailing-whitespace`, `end-of-file-fixer` — same pattern
+- `detect-secrets` — use `# pragma: allowlist secret` for test fixtures
+- `eslint` — **BROKEN** (ESLint 10 needs flat config, repo has none). Use `SKIP=eslint git commit` for all commits.
+
+## Dependencies
+
+Python: Flask 3.1, flask-cors, flask-socketio, gunicorn, requests, websocket-client, cdp-sdk, FastAPI, uvicorn, sentry-sdk, numpy, pandas, feedparser, vaderSentiment, transformers, torch, PyYAML, beautifulsoup4, redis (Phase 3 cache, not active)
+
+Frontend: React, Vite, standard JS toolchain
+
+## Git branch state
+
+All feature work is merged to `main`. Legacy branches exist but are stale:
+- `codex/event-evolution` — merged to main
+- `codex/portfolio-mode` — merged to main
+- `codex/ai-ml-next-step-plan` — older planning branch
+- `collab/claude-codex-coin-pressure-20260714` — earlier pressure work
+
+## Recommended next actions (priority order)
+
+1. **Trigger Railway deploy** and verify production has Event Evolution + outcome tracking live
+2. **Build the outcome scorecard UI** — the data is collecting, surface it so Tom can see which alerts are actually predictive
+3. **Create Coinbase CDP key** (view-only) and set Railway secrets to activate Portfolio Mode
+4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
+5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset
+6. **Build feedback loop** — use accumulated outcome data to auto-tune notification thresholds
