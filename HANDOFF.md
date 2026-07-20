@@ -2,11 +2,30 @@
 
 ## Snapshot
 
-- Date: 2026-07-14
-- Branch: `codex/ai-ml-next-step-plan`
+- Date: 2026-07-20
+- Branch: `codex/portfolio-mode` (kept in sync with `main`; both pushed)
 - Repository: `/Users/cdmxx/Documents/moonwalkings`
 - Product: BHABIT Moonwalking live crypto board plus account-backed product shell.
-- Git policy: Tom explicitly requested committing/pushing this change set after verification.
+- Git policy: Tom explicitly requested committing/pushing change sets after verification.
+
+## Production state (2026-07-20)
+
+- LIVE at https://bhabit.net — Cloudflare DNS/TLS in front of an always-on
+  Railway container (see `deploy/railway/README.md`, `railway.json`,
+  `backend/Dockerfile`). Verified healthy: /api/server-info, /data, CORS
+  locked to bhabit.net. Deploys are manual via `railway up --service bhabit`
+  from the repo root — pushing to GitHub does NOT redeploy.
+- IMPORTANT GAP: production is running the pre-Event-Evolution build. The
+  alerts overhaul (Signals/Pulse in `/api/alerts/recent`, delivery channels,
+  outcome grading — commits `6d49c487`..`3e5fb35f`, pushed 2026-07-20) is on
+  GitHub but NOT yet deployed. Next deploy picks it up.
+- Private Portfolio Mode (commit `cc5f2239`) is owner-only `/api/portfolio`,
+  view-only Coinbase CDP keys required; activation needs the three Railway
+  secrets documented in `docs/PORTFOLIO_MODE.md`.
+- Notification channels (SMTP/Telegram/Discord) are implemented but disabled
+  until credentials are set (`docs/ALERT_EVENT_EVOLUTION.md`).
+- The Oracle/Tailscale single-box path in `deploy/homeserver/` remains a
+  valid fallback but Railway is the active production home.
 
 ## Current outcome
 
