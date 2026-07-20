@@ -99,6 +99,11 @@ except ImportError as e:
 
 from watchlist import watchlist_bp, watchlist_db
 from portfolio_mode import portfolio_bp
+
+try:
+    from position_intel import enrich_portfolio
+except ImportError:
+    enrich_portfolio = None
 from coinbase_oauth import (
     CoinbaseOAuthConfig,
     OAuthTokenError,
@@ -1112,6 +1117,46 @@ def oauth_coinbase_status():
             pass
 
     return jsonify({"connected": True}), 200
+
+
+@app.route("/api/portfolio/intel", methods=["GET"])
+def portfolio_with_intel():
+    """Portfolio snapshot enriched with signal intelligence and order analysis."""
+    if enrich_portfolio is None:
+        return jsonify({"error": "Position intelligence module not available"}), 503
+
+    from portfolio_mode import get_portfolio_service, PortfolioModeError
+    from watchlist import get_authenticated_user
+
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    owner_email = (
+        str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    )
+    user_email = str(user.get("email") or "").strip().lower()
+    if not owner_email or user_email != owner_email:
+        return jsonify({"error": "Portfolio access denied"}), 403
+
+    force = str(request.args.get("refresh") or "").lower() in {"1", "true", "yes"}
+    try:
+        snapshot = get_portfolio_service().snapshot(force=force)
+    except PortfolioModeError as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    event_source = [
+        _ensure_alert_contract(dict(item))
+        for item in list(alerts_log_main)
+        if isinstance(item, dict)
+    ]
+    signals = build_event_evolution(event_source)
+    active_alerts = [
+        dict(item) for item in list(alerts_log_main) if isinstance(item, dict)
+    ]
+
+    enriched = enrich_portfolio(snapshot, signals=signals, active_alerts=active_alerts)
+    return jsonify(enriched)
 
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
