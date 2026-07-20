@@ -102,10 +102,26 @@ Two SQLite-backed stores run in parallel:
 - Tags elevated notifications with `priority: "holding"` and `notify_reason: "holding_priority"`
 - 8 tests in `backend/tests/test_priority_notifications.py`
 
-### 6. Notification delivery channels
+### 6. Coinbase OAuth integration
+- Full OAuth 2.0 flow in `backend/coinbase_oauth.py` (250 lines)
+- 4 routes in `app.py`: authorize, callback, disconnect, status
+- CSRF state validation, token refresh with persistence to SQLite
+- `portfolio_mode.py` tries OAuth first, falls back to env-var CDP keys
+- Schema migration in `watchlist.py` adds token columns to users table
+- For single-user: just set `COINBASE_PORTFOLIO_OWNER_EMAIL` env var (simpler path)
+
+### 7. Position Intelligence
+- `backend/position_intel.py` enriches portfolio with signal context
+- API: `/api/portfolio/intel` — portfolio snapshot + per-holding signal data
+- Per-holding: current signal state, posture (favorable/adverse/fading/developing), historical outcome stats
+- Per-order: stop-loss/take-profit classification, distance from current, signal-aware context ("Signal weakening — consider tightening stop")
+- Cross-references 29K+ graded outcomes from `signal_outcomes.py`
+- 8 tests in `backend/tests/test_position_intel.py`
+
+### 8. Notification delivery channels
 `alert_delivery.py` supports SMTP email, Telegram bot, Discord webhook, and browser push. Per-symbol cooldowns and hourly caps. All channels disabled until credentials are set.
 
-### 7. Cross-device watchlist with auth
+### 9. Cross-device watchlist with auth
 SQLite-backed accounts (`watchlist.py`), session cookies (HttpOnly/Secure/SameSite), CORS with credentials. Guest watchlist migrates to account on signup.
 
 ## What's NOT built yet (the gaps)
@@ -198,9 +214,9 @@ All feature work is merged to `main`. Legacy branches exist but are stale:
 
 ## Recommended next actions (priority order)
 
-1. **Trigger Railway deploy** and verify production has Event Evolution + outcome tracking live
-2. **Build the outcome scorecard UI** — the data is collecting, surface it so Tom can see which alerts are actually predictive
-3. **Create Coinbase CDP key** (view-only) and set Railway secrets to activate Portfolio Mode
+1. **Build the outcome scorecard UI** — 29K+ graded signals in SQLite, surface accuracy stats per signal type so Tom can see which alerts are actually predictive
+2. **Wire position intelligence into the Portfolio UI** — `/api/portfolio/intel` endpoint is live, frontend needs to display the `intel` field on each holding card and order
+3. **Add v2 API cost basis fallback** — CDP keys may support `/v2/accounts/{id}/transactions` for buy history on coins without Advanced Trade fills (most of Tom's 81 holdings show "partial cost basis")
 4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
 5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset
 6. **Build feedback loop** — use accumulated outcome data to auto-tune notification thresholds
