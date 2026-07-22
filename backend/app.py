@@ -1182,6 +1182,83 @@ def _gather_board_data_for_symbols(symbols: set) -> dict:
     return {k: v for k, v in board.items() if v}
 
 
+# Descriptive-levels candle cache: raw OHLC per product, TTL-refreshed on demand.
+# Candles (not computed levels) are cached because the HTTP fetch is the cost;
+# levels are recomputed each request against the holding's live price.
+_LEVELS_CANDLE_CACHE: dict = {}
+_LEVELS_CANDLE_LOCK = threading.Lock()
+_LEVELS_CANDLE_TTL_S = float(os.environ.get("MW_LEVELS_CANDLE_TTL_S", "300"))
+_LEVELS_GRANULARITY_S = 3600  # 1h candles
+_LEVELS_CANDLE_COUNT = 50  # ~50h swing window
+_LEVELS_FETCH_PER_REQUEST = int(os.environ.get("MW_LEVELS_FETCH_PER_REQUEST", "30"))
+_LEVELS_FETCH_WORKERS = 6
+
+
+def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
+    """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
+
+    Fetches missing/stale candles on demand with bounded concurrency, capped per
+    request so a large portfolio warms the cache progressively rather than firing
+    dozens of calls at once. Symbols still cold this request simply get no levels
+    yet (the card renders without them).
+    """
+    try:
+        from position_levels import compute_levels
+    except Exception:
+        return {}
+
+    now = time.time()
+    fresh_candles: dict = {}
+    to_fetch: list[str] = []
+
+    with _LEVELS_CANDLE_LOCK:
+        for sym in symbols:
+            product_id = f"{sym}-USD"
+            cached = _LEVELS_CANDLE_CACHE.get(product_id)
+            if cached and (now - cached.get("ts", 0)) < _LEVELS_CANDLE_TTL_S:
+                fresh_candles[sym] = cached.get("candles")
+            else:
+                to_fetch.append(sym)
+
+    # Cap new network work per request; the rest warm up on later refreshes.
+    to_fetch = to_fetch[:_LEVELS_FETCH_PER_REQUEST]
+
+    if to_fetch:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _fetch(sym):
+            candles = _fetch_coinbase_candles(
+                f"{sym}-USD",
+                granularity=_LEVELS_GRANULARITY_S,
+                count=_LEVELS_CANDLE_COUNT,
+            )
+            return sym, candles
+
+        with ThreadPoolExecutor(max_workers=_LEVELS_FETCH_WORKERS) as pool:
+            for sym, candles in pool.map(_fetch, to_fetch):
+                if candles:
+                    with _LEVELS_CANDLE_LOCK:
+                        _LEVELS_CANDLE_CACHE[f"{sym}-USD"] = {
+                            "candles": candles,
+                            "ts": time.time(),
+                        }
+                    fresh_candles[sym] = candles
+
+    levels: dict = {}
+    for sym, candles in fresh_candles.items():
+        try:
+            computed = compute_levels(
+                candles,
+                price_by_symbol.get(sym),
+                granularity_seconds=_LEVELS_GRANULARITY_S,
+            )
+        except Exception:
+            computed = None
+        if computed:
+            levels[sym] = computed
+    return levels
+
+
 @app.route("/api/portfolio/intel", methods=["GET"])
 def portfolio_with_intel():
     """Portfolio snapshot enriched with signal intelligence and order analysis."""
@@ -1213,6 +1290,18 @@ def portfolio_with_intel():
     except PortfolioModeError as exc:
         return jsonify({"error": str(exc)}), 503
 
+    # Overlay user-entered cost basis so holdings without Advanced Trade fills
+    # (transferred-in coins) still show P&L. Verified fills always win.
+    try:
+        from portfolio_mode import apply_manual_cost_basis
+        from watchlist import get_manual_cost_basis
+
+        manual_map = get_manual_cost_basis(user["id"])
+        if manual_map:
+            apply_manual_cost_basis(snapshot, manual_map)
+    except Exception:
+        logging.debug("[Portfolio] manual cost-basis overlay skipped", exc_info=True)
+
     held_symbols = {
         str(h.get("symbol") or h.get("currency") or "").upper()
         for h in snapshot.get("holdings") or []
@@ -1225,6 +1314,17 @@ def portfolio_with_intel():
         sync_result = None
 
     board_data = _gather_board_data_for_symbols(held_symbols)
+
+    price_by_symbol = {
+        str(h.get("symbol") or "").upper(): h.get("price_usd")
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+    try:
+        levels_data = _gather_levels_for_symbols(held_symbols, price_by_symbol)
+    except Exception:
+        logging.debug("[Portfolio] levels gather skipped", exc_info=True)
+        levels_data = {}
 
     event_source = [
         _ensure_alert_contract(dict(item))
@@ -1241,10 +1341,69 @@ def portfolio_with_intel():
         signals=signals,
         active_alerts=active_alerts,
         board_data=board_data,
+        levels_data=levels_data,
     )
     if sync_result:
         enriched["watchlist_sync"] = sync_result
     return jsonify(enriched)
+
+
+def _require_portfolio_owner():
+    """Return (user, None) for the configured portfolio owner, else (None, resp).
+
+    Mirrors the owner gate on /api/portfolio/intel so the cost-basis write
+    routes stay consistent with who can see the portfolio.
+    """
+    from watchlist import get_authenticated_user
+
+    user = get_authenticated_user()
+    if not user:
+        return None, (jsonify({"error": "Not authenticated"}), 401)
+    owner_email = (
+        str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    )
+    user_email = str(user.get("email") or "").strip().lower()
+    if not owner_email or user_email != owner_email:
+        return None, (jsonify({"error": "Portfolio access denied"}), 403)
+    return user, None
+
+
+@app.route("/api/portfolio/cost-basis", methods=["POST"])
+def portfolio_set_cost_basis():
+    """Save the owner's manual average cost for a holding (unlocks P&L)."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+
+    from watchlist import set_manual_cost_basis
+
+    payload = request.get_json(silent=True) or {}
+    symbol = payload.get("symbol")
+    average_price = payload.get("average_price")
+    note = payload.get("note") or ""
+
+    record = set_manual_cost_basis(user["id"], symbol, average_price, note)
+    if record is None:
+        return (
+            jsonify(
+                {"error": "A symbol and a positive average_price are required."}
+            ),
+            400,
+        )
+    return jsonify({"status": "saved", "cost_basis": record})
+
+
+@app.route("/api/portfolio/cost-basis/<symbol>", methods=["DELETE"])
+def portfolio_delete_cost_basis(symbol):
+    """Remove the owner's manual cost basis for a symbol."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+
+    from watchlist import delete_manual_cost_basis
+
+    removed = delete_manual_cost_basis(user["id"], symbol)
+    return jsonify({"status": "deleted" if removed else "not_found", "symbol": symbol})
 
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may

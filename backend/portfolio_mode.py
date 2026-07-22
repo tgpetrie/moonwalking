@@ -324,6 +324,120 @@ def reconstruct_cost_basis(
     }
 
 
+def apply_manual_cost_basis(
+    snapshot: dict[str, Any],
+    manual_map: dict[str, dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Overlay user-entered average cost onto holdings whose fill-based cost
+    basis is ``partial`` or ``unavailable``, unlocking unrealized P&L.
+
+    manual_map: ``{SYMBOL: {"average_price": float, "note": str | None}}``.
+
+    - ``partial`` fills → blend: known fill cost + (unknown qty × manual avg),
+      status becomes ``blended``.
+    - ``unavailable`` (no USD fills) → the manual average defines the whole
+      position, status becomes ``manual``.
+    - ``complete`` is left untouched; verified fills always win over an estimate.
+
+    Mutates and returns the snapshot (summary aggregates are recomputed so the
+    P&L and coverage headline stay consistent). Pure otherwise — no I/O.
+    """
+    if not manual_map:
+        return snapshot
+
+    normalized = {str(k).upper(): v for k, v in manual_map.items() if v}
+
+    for holding in snapshot.get("holdings") or []:
+        if holding.get("is_cash"):
+            continue
+        symbol = str(holding.get("symbol") or "").upper()
+        manual = normalized.get(symbol)
+        if not manual:
+            continue
+        avg = _decimal(manual.get("average_price"))
+        if avg <= 0:
+            continue
+
+        basis = holding.get("cost_basis") or {}
+        status = basis.get("status")
+        quantity = _decimal(holding.get("quantity"))
+        if quantity <= 0 or status not in ("partial", "unavailable"):
+            continue
+
+        if status == "partial":
+            known_cost = _decimal(basis.get("known_cost_usd"))
+            unknown_quantity = _decimal(basis.get("unknown_quantity"))
+            total_cost = known_cost + (unknown_quantity * avg)
+            new_status = "blended"
+            source = "advanced_trade_fills_plus_manual"
+        else:  # unavailable — manual entry defines the whole position
+            total_cost = quantity * avg
+            new_status = "manual"
+            source = "manual_entry"
+
+        new_average = total_cost / quantity if quantity > 0 else None
+        basis.update(
+            {
+                "status": new_status,
+                "average_price": _float(new_average),
+                "known_quantity": _float(quantity),
+                "unknown_quantity": 0.0,
+                "known_cost_usd": _float(total_cost),
+                "source": source,
+                "manual_average_price": _float(avg),
+                "manual_note": manual.get("note") or None,
+            }
+        )
+        holding["cost_basis"] = basis
+
+        market_value = holding.get("market_value_usd")
+        if market_value is not None and total_cost > 0:
+            unrealized = _decimal(market_value) - total_cost
+            holding["unrealized_pnl_usd"] = _float(unrealized)
+            holding["unrealized_pnl_pct"] = _float((unrealized / total_cost) * Decimal("100"))
+
+    _recompute_cost_basis_summary(snapshot)
+    return snapshot
+
+
+_COVERED_STATUSES = ("complete", "blended", "manual")
+
+
+def _recompute_cost_basis_summary(snapshot: dict[str, Any]) -> None:
+    """Recompute P&L and cost-basis-coverage aggregates after a manual overlay."""
+    summary = snapshot.get("summary")
+    if not isinstance(summary, dict):
+        return
+    holdings = snapshot.get("holdings") or []
+
+    known_pnl = sum(
+        (
+            _decimal(row.get("unrealized_pnl_usd"))
+            for row in holdings
+            if row.get("unrealized_pnl_usd") is not None
+        ),
+        Decimal("0"),
+    )
+    covered_value = sum(
+        (
+            _decimal(row.get("market_value_usd"))
+            for row in holdings
+            if not row.get("is_cash")
+            and row.get("market_value_usd") is not None
+            and (row.get("cost_basis") or {}).get("status") in _COVERED_STATUSES
+        ),
+        Decimal("0"),
+    )
+    crypto_value = _decimal(summary.get("crypto_value_usd"))
+
+    summary["known_unrealized_pnl_usd"] = _float(known_pnl)
+    summary["cost_basis_coverage_pct"] = _float(
+        (covered_value / crypto_value) * Decimal("100")
+        if crypto_value > 0
+        else Decimal("100")
+    )
+
+
 def _account_quantity(account: dict[str, Any]) -> tuple[Decimal, Decimal, Decimal]:
     available = _decimal((account.get("available_balance") or {}).get("value"))
     held = _decimal((account.get("hold") or {}).get("value"))
@@ -816,4 +930,5 @@ __all__ = [
     "UnsafeCoinbasePermissions",
     "portfolio_bp",
     "reconstruct_cost_basis",
+    "apply_manual_cost_basis",
 ]
