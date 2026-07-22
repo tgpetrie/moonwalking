@@ -11296,6 +11296,22 @@ def get_board_outcome_status():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/scorecard")
+def get_scorecard():
+    """Unified outcome scorecard: signal accuracy + board continuation rates."""
+    try:
+        signal_card = signal_outcome_store.scorecard()
+        board_card = board_outcome_store.status()
+        return jsonify({
+            "status": "live",
+            "signals": signal_card,
+            "boards": board_card,
+        })
+    except Exception as exc:
+        logging.exception("Scorecard failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/notifications/status")
 def get_notification_delivery_status():
     """Expose channel readiness and budgets without exposing credentials."""
