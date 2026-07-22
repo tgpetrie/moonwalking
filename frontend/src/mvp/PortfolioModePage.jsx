@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchPortfolio, fetchPortfolioMarketContext } from "./portfolioApi.js";
+import {
+  fetchPortfolio,
+  fetchPortfolioMarketContext,
+  fetchCoinbaseOAuthStatus,
+  coinbaseAuthorizeUrl,
+  disconnectCoinbaseOAuth,
+} from "./portfolioApi.js";
 import {
   concentrationLabel,
   deriveHoldingRead,
@@ -66,9 +72,9 @@ function SetupState({ state, onRetry, onConnectCoinbase }) {
   const unsafe = code === "unsafe_coinbase_permissions";
   const dependency = code === "coinbase_auth_dependency_missing";
 
-  let title = "Connect a View-only Coinbase portfolio";
+  let title = "Connect your Coinbase account";
   let copy =
-    "Add the owner email, Coinbase key name, and private key as encrypted Railway variables. The key must be scoped to one portfolio with View only.";
+    "Sign in with Coinbase to load your balances and fills. BHABIT requests read-only access — no trading or transfer scopes are granted.";
 
   if (ownerOnly) {
     title = "This portfolio is private";
@@ -81,7 +87,11 @@ function SetupState({ state, onRetry, onConnectCoinbase }) {
     copy = "Install the backend deployment requirements, then restart the service.";
   }
 
-  const showOAuthButton = !ownerOnly && code === "coinbase_not_configured" && onConnectCoinbase;
+  // Offer the personal-OAuth path for every recoverable setup state — anything
+  // that isn't "another owner's private portfolio", an unsafe key, or a missing
+  // backend dependency. Connecting your own Coinbase account resolves all of
+  // those (server-config codes included), so it should be the primary CTA.
+  const showOAuthButton = Boolean(onConnectCoinbase) && !ownerOnly && !unsafe && !dependency;
 
   return (
     <section className="mw-panel mw-portfolio-setup">
@@ -211,7 +221,17 @@ function OpenOrders({ orders }) {
 export default function PortfolioModePage() {
   const [portfolio, setPortfolio] = useState(null);
   const [marketContext, setMarketContext] = useState(null);
+  const [oauthConnected, setOauthConnected] = useState(false);
   const [state, setState] = useState({ loading: true, error: null });
+
+  const refreshOAuthStatus = useCallback(async () => {
+    try {
+      const status = await fetchCoinbaseOAuthStatus();
+      setOauthConnected(Boolean(status?.connected));
+    } catch {
+      setOauthConnected(false);
+    }
+  }, []);
 
   const load = useCallback(async ({ force = false } = {}) => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -219,6 +239,7 @@ export default function PortfolioModePage() {
       fetchPortfolio({ force }),
       fetchPortfolioMarketContext(),
     ]);
+    refreshOAuthStatus();
     if (marketResult.status === "fulfilled") setMarketContext(marketResult.value);
     if (portfolioResult.status === "fulfilled") {
       setPortfolio(portfolioResult.value);
@@ -232,24 +253,20 @@ export default function PortfolioModePage() {
         error: portfolioResult.reason?.message || "Portfolio data is unavailable.",
       },
     });
+  }, [refreshOAuthStatus]);
+
+  // Full-page navigation: the browser is handed to Coinbase's consent screen and
+  // returned to /mvp/portfolio by the backend callback once tokens are stored.
+  const handleConnectCoinbase = useCallback(() => {
+    window.location.href = coinbaseAuthorizeUrl();
   }, []);
 
   const handleDisconnectCoinbase = useCallback(async () => {
     if (!window.confirm("Disconnect your Coinbase OAuth connection?")) return;
-
     try {
-      const response = await fetch("/api/oauth/coinbase/disconnect", { method: "POST" });
-      if (response.ok) {
-        load({ force: true });
-      } else {
-        setState((current) => ({
-          ...current,
-          error: {
-            code: "disconnect_error",
-            error: "Failed to disconnect Coinbase OAuth.",
-          },
-        }));
-      }
+      await disconnectCoinbaseOAuth();
+      setOauthConnected(false);
+      load({ force: true });
     } catch (error) {
       console.error("Failed to disconnect Coinbase OAuth:", error);
       setState((current) => ({
@@ -300,9 +317,11 @@ export default function PortfolioModePage() {
           <button type="button" className="mw-button mw-button--ghost" disabled={state.loading} onClick={() => load({ force: true })}>
             {state.loading ? "Refreshing" : "Refresh Coinbase"}
           </button>
-          <button type="button" className="mw-button mw-button--ghost" onClick={handleDisconnectCoinbase}>
-            Disconnect OAuth
-          </button>
+          {oauthConnected ? (
+            <button type="button" className="mw-button mw-button--ghost" onClick={handleDisconnectCoinbase}>
+              Disconnect OAuth
+            </button>
+          ) : null}
         </div>
       </section>
 

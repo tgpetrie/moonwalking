@@ -38,3 +38,25 @@ export function fetchPortfolio({ force = false } = {}) {
 export function fetchPortfolioMarketContext() {
   return jsonRequest("/data");
 }
+
+export function fetchCoinbaseOAuthStatus() {
+  return jsonRequest("/api/oauth/coinbase/status");
+}
+
+// The authorize route responds with a 302 to Coinbase's consent screen, so the
+// browser must navigate to it directly — this is not an XHR-able endpoint.
+export function coinbaseAuthorizeUrl() {
+  return apiUrl("/api/oauth/coinbase/authorize");
+}
+
+export async function disconnectCoinbaseOAuth() {
+  const response = await fetch(apiUrl("/api/oauth/coinbase/disconnect"), {
+    method: "POST",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new PortfolioApiError("Failed to disconnect Coinbase OAuth.", response, {});
+  }
+  return response.json().catch(() => ({ success: true }));
+}
