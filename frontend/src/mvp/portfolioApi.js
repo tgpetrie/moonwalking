@@ -52,6 +52,42 @@ export async function fetchPortfolioIntel({ force = false } = {}) {
   }
 }
 
+// Save the owner's manual average cost for a holding, unlocking its P&L.
+export async function saveManualCostBasis({ symbol, averagePrice, note = "" }) {
+  const response = await fetch(apiUrl("/api/portfolio/cost-basis"), {
+    method: "POST",
+    credentials: "include",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ symbol, average_price: averagePrice, note }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new PortfolioApiError(
+      payload?.error || "Failed to save cost basis.",
+      response,
+      payload
+    );
+  }
+  return payload;
+}
+
+export async function deleteManualCostBasis(symbol) {
+  const response = await fetch(apiUrl(`/api/portfolio/cost-basis/${encodeURIComponent(symbol)}`), {
+    method: "DELETE",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new PortfolioApiError(
+      payload?.error || "Failed to remove cost basis.",
+      response,
+      payload
+    );
+  }
+  return payload;
+}
+
 export function fetchPortfolioMarketContext() {
   return jsonRequest("/data");
 }

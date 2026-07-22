@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   concentrationLabel,
   deriveHoldingRead,
+  describeEvidenceTier,
   indexLiveRankings,
 } from "./portfolioSignals.js";
 
@@ -55,5 +56,41 @@ describe("Portfolio Mode holding reads", () => {
       live_rankings: [{ product_id: "SOL-USD", live_score: 75 }],
     });
     expect(index.SOL.live_score).toBe(75);
+  });
+});
+
+describe("Evidence tiers (graded 'proof' gate)", () => {
+  it("returns a no-history tier for zero, null, or missing samples", () => {
+    for (const n of [0, null, undefined, -3]) {
+      const tier = describeEvidenceTier(n);
+      expect(tier.key).toBe("none");
+      expect(tier.quoteRate).toBe(false);
+      expect(tier.label).toBe("No history yet");
+    }
+  });
+
+  it("does not quote a rate for a thin sample", () => {
+    const tier = describeEvidenceTier(4);
+    expect(tier.key).toBe("emerging");
+    expect(tier.quoteRate).toBe(false);
+    expect(tier.label).toBe("Emerging · 4");
+  });
+
+  it("grades the sample size across band boundaries", () => {
+    expect(describeEvidenceTier(9).key).toBe("emerging");
+    expect(describeEvidenceTier(10).key).toBe("building");
+    expect(describeEvidenceTier(29).key).toBe("building");
+    expect(describeEvidenceTier(30).key).toBe("solid");
+    expect(describeEvidenceTier(99).key).toBe("solid");
+    expect(describeEvidenceTier(100).key).toBe("strong");
+  });
+
+  it("allows quoting a rate only from the building tier up", () => {
+    expect(describeEvidenceTier(10).quoteRate).toBe(true);
+    expect(describeEvidenceTier(250).quoteRate).toBe(true);
+  });
+
+  it("caps the displayed count at 100+", () => {
+    expect(describeEvidenceTier(4200).label).toBe("Strong · 100+");
   });
 });

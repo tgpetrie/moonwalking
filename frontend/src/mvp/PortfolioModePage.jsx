@@ -5,11 +5,14 @@ import {
   fetchCoinbaseOAuthStatus,
   coinbaseAuthorizeUrl,
   disconnectCoinbaseOAuth,
+  saveManualCostBasis,
+  deleteManualCostBasis,
 } from "./portfolioApi.js";
 import {
   concentrationLabel,
   deriveHoldingRead,
   describePosture,
+  describeEvidenceTier,
   indexLiveRankings,
 } from "./portfolioSignals.js";
 
@@ -57,17 +60,21 @@ function dateTime(value) {
   }).format(parsed);
 }
 
+const COST_BASIS_LABELS = {
+  complete: "Complete",
+  partial: "Partial",
+  unavailable: "Unavailable",
+  blended: "Blended (manual)",
+  manual: "Manual entry",
+};
+
 function CostBasisStatus({ holding }) {
   const basis = holding?.cost_basis || {};
   if (holding?.is_cash) return <span className="mw-portfolio-basis is-complete">Cash</span>;
-  const label =
-    basis.status === "complete"
-      ? "Complete"
-      : basis.status === "partial"
-        ? "Partial"
-        : "Unavailable";
+  const status = basis.status || "unavailable";
+  const label = COST_BASIS_LABELS[status] || "Unavailable";
   return (
-    <span className={`mw-portfolio-basis is-${basis.status || "unavailable"}`}>
+    <span className={`mw-portfolio-basis is-${status}`}>
       {label} cost basis
     </span>
   );
@@ -140,7 +147,9 @@ function HoldingIntel({ intel }) {
   const posture = describePosture(intel);
   const history = intel.history || {};
   const board = intel.board || {};
-  const hasHistory = history.sample_size >= 5 && history.follow_through_pct !== null
+  const evidence = describeEvidenceTier(history.sample_size);
+  const canQuoteRate = evidence.quoteRate
+    && history.follow_through_pct !== null
     && history.follow_through_pct !== undefined;
   const change1m = finiteOrNull(board.change_1m);
   const change3m = finiteOrNull(board.change_3m);
@@ -154,6 +163,11 @@ function HoldingIntel({ intel }) {
           {posture.label}
           {posture.confidence !== null ? ` · ${posture.confidence}` : ""}
         </span>
+        {posture.isDescriptive ? (
+          <span className="mw-holding-intel__tag" title="Plain 24h price read — not a predictive BHABIT signal">
+            24h price read
+          </span>
+        ) : null}
         {intel.active_alert_count ? (
           <span className="mw-holding-intel__alerts">
             {intel.active_alert_count} active alert{intel.active_alert_count === 1 ? "" : "s"}
@@ -170,26 +184,206 @@ function HoldingIntel({ intel }) {
           {volChange !== null ? <span>1h vol {percent(volChange, { signed: true })}</span> : null}
         </div>
       ) : null}
-      {hasHistory ? (
-        <p className="mw-holding-intel__history">
-          Historical follow-through <strong>{percent(history.follow_through_pct)}</strong>
-          {" "}across {history.sample_size} comparable signals
-          {finiteOrNull(history.median_favorable_pct) !== null
-            ? ` · median favorable ${percent(history.median_favorable_pct, { signed: true })}`
-            : ""}
-        </p>
-      ) : (
-        <p className="mw-holding-intel__history is-muted">
-          Not enough comparable-signal history yet.
-        </p>
-      )}
+      <div className="mw-holding-intel__evidence">
+        <span className={`mw-evidence-tier is-${evidence.tone}`} title="How much comparable forward-outcome history backs this read">
+          {evidence.label}
+        </span>
+        {canQuoteRate ? (
+          <p className="mw-holding-intel__history">
+            Follow-through <strong>{percent(history.follow_through_pct)}</strong>
+            {finiteOrNull(history.median_favorable_pct) !== null
+              ? ` · median favorable ${percent(history.median_favorable_pct, { signed: true })}`
+              : ""}
+          </p>
+        ) : (
+          <p className="mw-holding-intel__history is-muted">{evidence.blurb}</p>
+        )}
+      </div>
     </div>
   );
 }
 
-function HoldingCard({ holding, liveRow }) {
+// Manual cost-basis entry. Coins transferred in (or bought elsewhere) have no
+// Advanced Trade fills, so P&L stays locked until the owner supplies an average
+// price. Only shown for holdings BHABIT could not fully price from fills.
+function CostBasisEntry({ holding, onSaved }) {
+  const basis = holding.cost_basis || {};
+  const status = basis.status;
+  const isManual = status === "manual" || status === "blended";
+  const editable = status === "partial" || status === "unavailable" || isManual;
+
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(
+    basis.manual_average_price != null ? String(basis.manual_average_price) : ""
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!editable || holding.is_cash) return null;
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const price = Number(value);
+    if (!Number.isFinite(price) || price <= 0) {
+      setError("Enter a positive average price.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await saveManualCostBasis({ symbol: holding.symbol, averagePrice: price });
+      setOpen(false);
+      onSaved?.();
+    } catch (err) {
+      setError(err?.payload?.error || err?.message || "Could not save.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteManualCostBasis(holding.symbol);
+      onSaved?.();
+    } catch (err) {
+      setError(err?.payload?.error || err?.message || "Could not remove.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div className="mw-cost-basis-entry">
+        {isManual ? (
+          <>
+            <span className="mw-cost-basis-entry__current">
+              Manual average {money(basis.manual_average_price)}
+            </span>
+            <button type="button" className="mw-cost-basis-entry__link" onClick={() => setOpen(true)}>
+              Edit
+            </button>
+            <button type="button" className="mw-cost-basis-entry__link is-danger" onClick={remove} disabled={busy}>
+              Remove
+            </button>
+          </>
+        ) : (
+          <button type="button" className="mw-cost-basis-entry__link" onClick={() => setOpen(true)}>
+            + Add cost basis to unlock P&amp;L
+          </button>
+        )}
+        {error ? <span className="mw-cost-basis-entry__error">{error}</span> : null}
+      </div>
+    );
+  }
+
+  return (
+    <form className="mw-cost-basis-entry is-open" onSubmit={submit}>
+      <label className="mw-cost-basis-entry__label" htmlFor={`cb-${holding.symbol}`}>
+        Average price paid per {holding.symbol} (USD)
+      </label>
+      <div className="mw-cost-basis-entry__row">
+        <input
+          id={`cb-${holding.symbol}`}
+          type="number"
+          step="any"
+          min="0"
+          inputMode="decimal"
+          className="mw-cost-basis-entry__input"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="0.00"
+          autoFocus
+        />
+        <button type="submit" className="mw-button mw-button--primary mw-button--sm" disabled={busy}>
+          {busy ? "Saving" : "Save"}
+        </button>
+        <button type="button" className="mw-button mw-button--ghost mw-button--sm" onClick={() => setOpen(false)} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+      {status === "partial" ? (
+        <p className="mw-cost-basis-entry__hint">
+          Applied to the {number(basis.unknown_quantity)} {holding.symbol} without a verified fill; your known fills are kept.
+        </p>
+      ) : null}
+      {error ? <span className="mw-cost-basis-entry__error">{error}</span> : null}
+    </form>
+  );
+}
+
+const RANGE_ZONE_LABELS = {
+  near_support: "Near support",
+  lower_range: "Lower range",
+  mid_range: "Mid-range",
+  upper_range: "Upper range",
+  near_resistance: "Near resistance",
+};
+
+// Descriptive price levels from recent candles (swing support/resistance, ATR
+// band, range position, volatility, momentum, volume). Explicitly labeled
+// "not yet outcome-validated" — BHABIT reports what price did, it does not
+// claim these levels predict anything.
+function HoldingLevels({ levels }) {
+  if (!levels) return null;
+  const support = finiteOrNull(levels.support);
+  const resistance = finiteOrNull(levels.resistance);
+  const bandLow = finiteOrNull(levels.band_low);
+  const bandHigh = finiteOrNull(levels.band_high);
+  const rangePos = finiteOrNull(levels.range_position_pct);
+  const volatility = finiteOrNull(levels.volatility_pct);
+  const momentum = finiteOrNull(levels.momentum_1h_pct);
+  const volumeRatio = finiteOrNull(levels.volume_ratio);
+  const zone = RANGE_ZONE_LABELS[levels.range_zone] || null;
+
+  if (support === null && resistance === null && bandLow === null) return null;
+
+  return (
+    <div className="mw-holding-levels">
+      <div className="mw-holding-levels__header">
+        <span className="mw-holding-levels__title">Recent levels</span>
+        <span className="mw-holding-levels__tag" title="Descriptive price levels — BHABIT has not yet outcome-validated these">
+          not yet outcome-validated
+        </span>
+      </div>
+
+      {support !== null && resistance !== null ? (
+        <div className="mw-holding-levels__range">
+          <span className="mw-holding-levels__end">S {money(support)}</span>
+          <div className="mw-holding-levels__track" aria-hidden="true">
+            {rangePos !== null ? (
+              <span className="mw-holding-levels__marker" style={{ left: `${rangePos}%` }} />
+            ) : null}
+          </div>
+          <span className="mw-holding-levels__end">R {money(resistance)}</span>
+        </div>
+      ) : null}
+
+      <div className="mw-holding-levels__grid">
+        {zone ? <div><span>Position</span><strong>{zone}</strong></div> : null}
+        {bandLow !== null && bandHigh !== null ? (
+          <div><span>ATR band</span><strong>{money(bandLow)} – {money(bandHigh)}</strong></div>
+        ) : null}
+        {volatility !== null ? (
+          <div><span>Volatility</span><strong>{percent(volatility)} ATR</strong></div>
+        ) : null}
+        {momentum !== null ? (
+          <div><span>1h momentum</span><strong>{percent(momentum, { signed: true })}</strong></div>
+        ) : null}
+        {volumeRatio !== null ? (
+          <div><span>Volume vs base</span><strong>{volumeRatio.toFixed(2)}×</strong></div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function HoldingCard({ holding, liveRow, onCostBasisChange }) {
   const read = deriveHoldingRead(holding, liveRow);
   const basis = holding.cost_basis || {};
+  const planEvidence = describeEvidenceTier(holding.intel?.history?.sample_size);
   const pnlKnown = holding.unrealized_pnl_usd !== null
     && holding.unrealized_pnl_usd !== undefined
     && holding.unrealized_pnl_usd !== ""
@@ -235,7 +429,10 @@ function HoldingCard({ holding, liveRow }) {
             {basis.average_price ? ` · ${money(basis.average_price)} average` : ""}
           </strong>
         </div>
-        <div><span>Historical plan</span><strong>Not enough proof</strong></div>
+        <div>
+          <span>Historical plan</span>
+          <strong className={`is-tier-${planEvidence.key}`}>{planEvidence.label}</strong>
+        </div>
       </div>
 
       {basis.status === "partial" ? (
@@ -243,8 +440,12 @@ function HoldingCard({ holding, liveRow }) {
           {number(basis.unknown_quantity)} {holding.symbol} has no verified Advanced Trade fill cost. It may have been transferred in, so BHABIT will not invent an acquisition price.
         </p>
       ) : null}
+      <CostBasisEntry holding={holding} onSaved={onCostBasisChange} />
+      <HoldingLevels levels={holding.levels} />
       <div className="mw-holding-card__plan-lock">
-        Protection levels, target ranges, and historical probabilities stay locked until comparable-event evidence is statistically adequate.
+        {planEvidence.quoteRate
+          ? `Levels above are descriptive; follow-through draws on ${planEvidence.count >= 100 ? "100+" : planEvidence.count} comparable outcomes — a base rate, not a guarantee.`
+          : "Levels above describe recent price behavior only. BHABIT won't attach target probabilities until comparable outcomes accumulate."}
       </div>
     </article>
   );
@@ -425,10 +626,15 @@ export default function PortfolioModePage() {
         <div className="mw-portfolio-section-title">
           <div><p className="mw-eyebrow">Holdings</p><h2>One uncomplicated answer per position</h2></div>
           {intelAvailable && intelSummary ? (
-            <span className="mw-intel-coverage" title="Holdings with a live BHABIT signal">
+            <span className="mw-intel-coverage" title="Holdings with a live BHABIT signal — vs. holdings with any read (signal or descriptive 24h)">
               Signal coverage {percent(intelSummary.signal_coverage_pct)}
               {" · "}
               {intelSummary.holdings_with_signals}/{intelSummary.total_holdings} holdings
+              {intelSummary.read_coverage_pct !== undefined && intelSummary.read_coverage_pct !== null ? (
+                <span className="mw-intel-coverage__read">
+                  {" · "}reads {percent(intelSummary.read_coverage_pct)}
+                </span>
+              ) : null}
             </span>
           ) : (
             <span>Labels describe current evidence, not promised outcomes.</span>
@@ -437,7 +643,7 @@ export default function PortfolioModePage() {
         {cryptoHoldings.length ? (
           <div className="mw-portfolio-holding-grid">
             {cryptoHoldings.map((holding) => (
-              <HoldingCard key={holding.account_id || holding.symbol} holding={holding} liveRow={rankings[holding.symbol]} />
+              <HoldingCard key={holding.account_id || holding.symbol} holding={holding} liveRow={rankings[holding.symbol]} onCostBasisChange={() => load({ force: true })} />
             ))}
           </div>
         ) : <article className="mw-panel mw-portfolio-empty-copy">Coinbase returned no non-cash holdings for this portfolio.</article>}
@@ -446,8 +652,25 @@ export default function PortfolioModePage() {
       <OpenOrders orders={Array.isArray(portfolio?.open_orders) ? portfolio.open_orders : []} />
 
       <section className="mw-panel mw-portfolio-proof">
-        <div><p className="mw-eyebrow">Historical calibration</p><h3>Not enough proof</h3></div>
-        <p>BHABIT is collecting forward outcomes, but Stage 1 does not yet claim target probabilities, protection prices, or expected results for portfolio holdings.</p>
+        {(() => {
+          const dbSize = finiteOrNull(intelSummary?.outcome_db_size) || 0;
+          const systemTier = describeEvidenceTier(dbSize);
+          return (
+            <>
+              <div>
+                <p className="mw-eyebrow">Historical calibration</p>
+                <h3 className={`is-tier-${systemTier.key}`}>
+                  {dbSize > 0 ? `${systemTier.label} base` : "No history yet"}
+                </h3>
+              </div>
+              <p>
+                {dbSize > 0
+                  ? `BHABIT has graded ${number(dbSize)} forward outcomes system-wide. Per-holding confidence varies — each card shows how much comparable evidence backs its own read, from Emerging to Strong.`
+                  : "BHABIT is still collecting forward outcomes. Until comparable evidence accumulates, holding reads stay descriptive rather than claiming target probabilities or protection prices."}
+              </p>
+            </>
+          );
+        })()}
       </section>
     </div>
   );
