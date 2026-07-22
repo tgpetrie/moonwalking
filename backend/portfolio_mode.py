@@ -10,6 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+import logging
 import os
 import threading
 import time
@@ -789,9 +790,23 @@ def portfolio_snapshot():
 
     force = str(request.args.get("refresh") or "").lower() in {"1", "true", "yes"}
     try:
-        return jsonify(get_portfolio_service().snapshot(force=force))
+        snapshot = get_portfolio_service().snapshot(force=force)
     except PortfolioModeError as error:
         return _error_payload(error)
+
+    try:
+        from watchlist import sync_portfolio_to_watchlist
+
+        held = {
+            str(h.get("symbol") or h.get("currency") or "").upper()
+            for h in snapshot.get("holdings") or []
+            if not h.get("is_cash") and (h.get("symbol") or h.get("currency"))
+        }
+        sync_portfolio_to_watchlist(user_id, held)
+    except Exception:
+        pass
+
+    return jsonify(snapshot)
 
 
 __all__ = [

@@ -956,6 +956,81 @@ def latest_alerts_for_symbols():
     return jsonify({"latest": result})
 
 
+def sync_portfolio_to_watchlist(user_id: int, held_symbols: set[str]) -> dict:
+    """Add portfolio holdings to the user's first watchlist.
+
+    Returns {"added": [...], "already_present": [...]} without removing
+    anything the user manually added.
+    """
+    if not held_symbols:
+        return {"added": [], "already_present": []}
+
+    added = []
+    already = []
+
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            wl = conn.execute(
+                "SELECT id FROM watchlists WHERE user_id = ? ORDER BY position ASC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if not wl:
+                _seed_default_watchlist(conn, user_id)
+                conn.commit()
+                wl = conn.execute(
+                    "SELECT id FROM watchlists WHERE user_id = ? ORDER BY position ASC LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+            if not wl:
+                return {"added": [], "already_present": []}
+            watchlist_id = wl["id"]
+
+            existing = {
+                row["item_key"]
+                for row in conn.execute(
+                    "SELECT item_key FROM watchlist_items WHERE watchlist_id = ?",
+                    (watchlist_id,),
+                ).fetchall()
+            }
+
+            max_pos = (
+                conn.execute(
+                    "SELECT COALESCE(MAX(position), 0) FROM watchlist_items WHERE watchlist_id = ?",
+                    (watchlist_id,),
+                ).fetchone()[0]
+                or 0
+            )
+
+            now = _utc_now_iso()
+            for sym in sorted(held_symbols):
+                normalized = _normalize_symbol(sym)
+                if not normalized:
+                    continue
+                if normalized in existing:
+                    already.append(normalized)
+                    continue
+                max_pos += 1
+                item_id = f"item-{uuid.uuid4().hex[:10]}"
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO watchlist_items
+                        (id, watchlist_id, item_key, item_type, title, notes, position, created_at, updated_at)
+                    VALUES (?, ?, ?, 'Asset', ?, 'Auto-added from portfolio', ?, ?, ?)
+                    """,
+                    (item_id, watchlist_id, normalized, normalized, max_pos, now, now),
+                )
+                _sync_legacy_symbol_set(conn, normalized)
+                added.append(normalized)
+
+            if added:
+                conn.commit()
+        finally:
+            conn.close()
+
+    return {"added": added, "already_present": already}
+
+
 try:
     _ensure_watchlist_schema()
 except Exception:
