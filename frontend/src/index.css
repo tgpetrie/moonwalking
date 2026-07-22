@@ -46,14 +46,7 @@ html, body {
   /* Typography */
   --bh-font-sans: 'Raleway', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Rails + glass accents */
   --bh-rail: rgba(255, 255, 255, 0.10);
-  --bh-rail-idle: 0.35;
-  --bh-rail-hover: 1;
-  --bh-glass-idle: 0;
-  --bh-glass-hover: 1;
-  --bh-bunny-idle: 0.012;
-  --bh-bunny-hover: 0.11;
 
   /* Unified Row Specs (single source of truth for row geometry) */
   --bh-row-cols: var(--bh-col-rank) minmax(0, 1fr) var(--bh-col-price) var(--bh-col-pct) var(--bh-col-actions);
@@ -837,21 +830,6 @@ body {
   flex-direction: column;
   gap: 8px;
 }
-
-/* ===== BOARD WRAPPER & RABBIT LAYER (panel-scoped) ===== */
-
-/* Lasso: DISABLED — authoritative block at end of file handles all ::after */
-
-/* Rabbit mural: board-level, behind all rows.
-   The rabbit is painted via ::before. Row ::after lasso uses
-   backdrop-filter to brighten it through the hovered row only. */
-.board-core {
-  position: relative;
-  isolation: isolate;
-}
-
-/* Rabbit moved to #root::before (fixed) — see end of file */
-
 
 /* ===== Market Signal — compact inline strip ===== */
 .mw-market-signal {
@@ -2242,61 +2220,7 @@ a.bh-row {
 }
 
 
-/* Bunny layer and mural: enabled. Row hover wakes them via backdrop-filter. */
-
-/* =========================================================
-   DISABLED — Old rabbit + row flashlight
-   ========================================================= */
-/*
-.board-core{
-  position: relative;
-  isolation: isolate;
-}
-
-.board-core .rabbit-bg{
-  position: absolute;
-  inset: 90px 0 120px 0;
-  z-index: 0;
-  pointer-events: none;
-  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010;
-  mix-blend-mode: screen;
-  filter: brightness(0.80) contrast(0.92) saturate(0.95);
-}
-*/
-
-/* All board content sits above the bunny */
-.board-core > *{ position: relative; z-index: 2; }
-
-/* ------------------------------------------------------------
-   Rabbit hover bridge
-   Lets a hovered row "wake up" the background rabbit layer.
-   No refactors, no grid changes.
------------------------------------------------------------- */
-
-/* Rabbit hover bridge — DISABLED.
-   The rabbit must stay at constant low opacity. Row ::after backdrop-filter
-   naturally reveals the rabbit slice underneath without changing the mural itself. */
-.board-core { --bh-bunny-hover: 0; }
-
-.board-core .bh-bunny-layer,
-.board-core .rabbit-bg,
-.board-core .bh-bunny-layer {
-  opacity: 0.012;
-  mix-blend-mode: screen;
-  filter: brightness(0.98) contrast(0.98) saturate(0.95);
-  transition: opacity 280ms cubic-bezier(.2,.9,.2,1), filter 320ms cubic-bezier(.2,.9,.2,1);
-}
-
-/* ===== RABBIT SPRITES: lively independent motion ===== */
-.rabbit-bg {
-  position: absolute;
-  inset: 90px 0 120px 0;
-  z-index: 0;
-  pointer-events: none;
-  display: block;
-}
-
+/* ===== RABBIT SPRITES ===== */
 .rabbit-sprite {
   --d: 3s;
   --delay: 0s;
@@ -2334,15 +2258,6 @@ a.bh-row {
     transform: translate(-50%, -50%) translateX(calc(var(--tx) * -1)) translateY(calc(var(--ty) * -1)) scale(calc(var(--scale) * 1.03)) rotate(calc(var(--r) * -1));
   }
 }
-
-/* DISABLED — rabbit must never change opacity or filter on hover.
-   The row backdrop-filter reveals it naturally.
-.board-core[data-row-hover="1"] .bh-bunny-layer,
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.12;
-  filter: brightness(1.08) contrast(1.04) saturate(1.06);
-}
-*/
 
 /* ---------------------------------------------------------
    ROW + BANNER HOVER — transparent lasso film only.
@@ -2441,33 +2356,6 @@ a.bh-row {
 @media (max-width: 1100px){
   .style-tuner{ width: 300px; right: 16px; top: 76px; }
 }
-
-/* ===== Row rails (always-on bottom border) ===== */
-.bh-row,
-.token-row.table-row {
-  position: relative;
-}
-
-.bh-row::before,
-.token-row.table-row::before {
-  content: "";
-  position: absolute;
-  left: var(--bh-row-px, 14px);
-  right: var(--bh-row-px, 14px);
-  bottom: 0;
-  height: 1px;
-  opacity: 0.35;
-  pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.00) 0%,
-    rgba(255, 165, 0, 0.10) 33%,
-    rgba(179, 140, 255, 0.10) 66%,
-    rgba(255, 255, 255, 0.00) 100%
-  );
-}
-
-/* .bh-row:hover::before opacity: DISABLED — authoritative ::before at end of file */
 
 /* ===== Kill header rails ===== */
 .bh-table thead tr::after,
@@ -3141,166 +3029,6 @@ body {
   grid-template-columns: 1fr !important;
 }
 
-/* Contract hook — board-level hover flag (JS sets data-row-hover="1") */
-.board-core[data-row-hover="1"] {
-  --bh-row-hover-flag: 1;
-}
-
-/* =========================================================
-   AUTHORITATIVE CANONICAL ROW HOVER — FINAL
-   This block is the ONLY source of truth for:
-   - .bh-row::before (rail)
-   - .bh-row::after (hover glass)
-   Do not add hover rules above this line.
-   ========================================================= */
-
-/* Always-on row rail (subtle) */
-.board-core .bh-row::before{
-  content:"";
-  position:absolute;
-  left:0; right:0; bottom:0;
-  height:1px;
-  pointer-events:none;
-  opacity: 0.35;
-  background: linear-gradient(90deg,
-    rgba(255,176,46,0.10),
-    rgba(120,80,255,0.06),
-    rgba(255,90,170,0.06)
-  );
-  transition: opacity 140ms ease;
-}
-/* .board-core .bh-row:hover::before opacity: DISABLED — authoritative at end of file */
-
-/* Base: NO SLAB */
-.board-core .bh-row,
-.board-core .bh-row:hover{
-  background: transparent !important;
-  background-color: transparent !important;
-  border: 0 !important;
-}
-
-/* One hover layer: DISABLED — authoritative block at end of file */
-
-/* Inner-glass hover: DISABLED — authoritative block at end of file handles this */
-
-/* =========================================================
-   Rabbit: nearly invisible until row hover spotlight
-   Requires JS setting --emit-x/--emit-y and data-row-hover
-   ========================================================= */
-
-.board-core{
-  position: relative;
-  isolation: isolate;
-  --emit-x: 50%;
-  --emit-y: 50%;
-}
-
-.board-core .rabbit-bg{
-  position:absolute;
-  inset: 60px 0 60px 0;
-  pointer-events:none;
-  z-index: 1;
-  background: url("/purple-rabbit-bg.png") center / min(980px, 82vw) no-repeat;
-  opacity: 0.010;
-  mix-blend-mode: screen;
-  filter: brightness(0.78) contrast(1.05) saturate(0.95);
-  transition: opacity 160ms ease, filter 180ms ease;
-  -webkit-mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
-  );
-  mask-image: radial-gradient(
-    180px 260px at var(--emit-x) var(--emit-y),
-    rgba(0,0,0,1.0) 0%,
-    rgba(0,0,0,0.55) 34%,
-    rgba(0,0,0,0.0) 72%
-  );
-}
-
-.board-core[data-row-hover="1"] .rabbit-bg{
-  opacity: 0.045;
-  filter: brightness(0.92) contrast(1.06) saturate(1.02);
-}
-
-/* =========================================================
-   WATCHLIST LAYOUT OVERRIDE — Always single-column
-   ========================================================= */
-
-.watchlist-panel .panel-row--1m,
-.bh-watchlist .panel-row--1m,
-[data-panel="watchlist"] .panel-row--1m {
-  grid-template-columns: 1fr !important;
-  row-gap: 0;
-}
-
-.watchlist-panel .bh-1m-grid,
-.bh-watchlist .bh-1m-grid {
-  grid-template-columns: 1fr !important;
-}
-
-/* Contract hook — board-level hover flag (JS sets data-row-hover="1") */
-.board-core[data-row-hover="1"] {
-  --bh-row-hover-flag: 1;
-}
-.bh-row[data-side="gainer"],
-.bh-row[data-side="loser"] {
-  --bh-side-presence: 1;
-}
-
-/* =========================================================
-   RABBIT SPOTLIGHT — TIGHT ROW-LOCAL + SILHOUETTE ONLY
-   Paste at END of index.css so it overrides earlier rabbit-bg rules.
-   ========================================================= */
-
-/* Base rabbit: almost invisible, darkened, no color-pop */
-/* DISABLED - was hiding rabbit completely */
-/*
-.board-core .rabbit-bg {
-  opacity: 0;
-  filter: saturate(0.55) brightness(0.55) contrast(1.15);
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-}
-*/
-
-/* Tight mask centered on JS-provided emit coords */
-.board-core .rabbit-bg {
-  -webkit-mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-  mask-image: radial-gradient(
-    ellipse 160px 58px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(255,255,255,0.95) 0%,
-    rgba(255,255,255,0.65) 45%,
-    rgba(255,255,255,0.12) 62%,
-    rgba(255,255,255,0.00) 72%
-  );
-
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-
-/* When a row is hovered, reveal slightly — still subtle */
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.14;
-  filter:
-    saturate(0.65)
-    brightness(0.62)
-    contrast(1.18)
-    drop-shadow(0 0 10px rgba(150,110,255,0.22)); /* soft violet glow */
-}
-
-/* Optional: if you want it even tighter (almost row height),
-   replace 160px 58px above with 140px 46px */
-
 /* =========================================================
    SINGLE BACKGROUND PAINTER (BODY ONLY)
    Prevent "two canvases stacked" seams by ensuring inner wrappers never
@@ -3345,36 +3073,7 @@ body {
   box-shadow: none !important;
 }
 
-/* Kill pseudo overlays that can paint “invisible” gradients */
-#root::before,
-#root::after,
-.bh-shell::before,
-.bh-shell::after,
-.bh-app::before,
-.bh-app::after,
-.bh-main::before,
-.bh-main::after,
-.dashboard-main::before,
-.dashboard-main::after,
-.bh-board::before,
-.bh-board::after,
-.dashboard-shell::before,
-.dashboard-shell::after,
-.bh-board-shell::before,
-.bh-board-shell::after,
-.board-shell::before,
-.board-shell::after,
-.board-wrapper::before,
-.board-wrapper::after {
-  content: none !important;
-  display: none !important;
-  background: none !important;
-  filter: none !important;
-  backdrop-filter: none !important;
-}
-
-/* Prevent accidental stacking contexts — but KEEP board-core's
-   isolation:isolate (needed for backdrop-filter rabbit reveal) */
+/* Prevent accidental stacking contexts */
 .bh-board,
 .board-wrapper {
   isolation: auto !important;
@@ -3398,102 +3097,6 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
-
-/* =========================================================
-   FINAL: Local rabbit reveal + inner-fill row glow
-   (lights only the hovered row area)
-   ========================================================= */
-
-/* Legacy bunny layers stay off */
-.board-core .bh-bunny-layer {
-  display: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
-}
-
-/* Fixed watermark layer: off to avoid double exposure */
-.bh-bunny-fixed {
-  display: none !important;
-}
-
-.board-core {
-  position: relative;
-  isolation: auto !important;
-}
-
-.board-core .rabbit-bg {
-  position: absolute;
-  inset: 0 0 120px 0 !important; /* lift upward */
-  z-index: 0;
-  pointer-events: none;
-  background: url("/purple-rabbit-bg.png") 50% -32px / min(1100px, 92vw) auto no-repeat !important;
-  opacity: 0.012 !important; /* very faint at rest */
-  mix-blend-mode: screen !important;
-  filter: brightness(0.78) contrast(0.96) saturate(0.90) !important;
-  -webkit-mask-image: radial-gradient(
-    ellipse 150px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.7) 36%,
-    rgba(0,0,0,0.18) 58%,
-    rgba(0,0,0,0) 78%
-  ) !important;
-  mask-image: radial-gradient(
-    ellipse 150px 60px at var(--emit-x, 50%) var(--emit-y, 50%),
-    rgba(0,0,0,1) 0%,
-    rgba(0,0,0,0.7) 36%,
-    rgba(0,0,0,0.18) 58%,
-    rgba(0,0,0,0) 78%
-  ) !important;
-}
-
-/* DISABLED - was making rabbit less visible on hover */
-/*
-.board-core[data-row-hover="1"] .rabbit-bg {
-  opacity: 0.028 !important;
-  filter: brightness(0.92) contrast(1.04) saturate(1.02) !important;
-}
-*/
-
-/* Keep content above the glow */
-.board-core > * {
-  position: relative;
-  z-index: 2;
-}
-
-/* Row base (transparent, no slab) */
-.board-core .bh-row {
-  position: relative !important;
-  isolation: auto !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Keep a thin rail, but very soft */
-.board-core .bh-row::before {
-  content: "";
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 0;
-  height: 1px;
-  opacity: 0.28;
-  pointer-events: none;
-  background: linear-gradient(90deg,
-    rgba(255,176,46,0.12),
-    rgba(176,96,255,0.10),
-    rgba(255,90,170,0.08)
-  );
-  transition: opacity 140ms ease;
-}
-/* .board-core .bh-row:hover::before opacity: DISABLED — authoritative at end of file */
-
-/* Hover rim: DISABLED — authoritative block at end of file */
-
-/* Hover rim: DISABLED — authoritative block at end of file handles this */
-
-.board-core .bh-row > * { position: relative; z-index: 2; }
-/* ===== Rabbit watermark (wrapper) + row glass hover ===== */
-/* (rabbit handled by .rabbit-bg inside .board-core) */
 
 .token-row{
   position: relative;
@@ -3561,75 +3164,6 @@ body {
 .intelligence-log .token-row:hover::after{
   opacity: 0 !important;
   transform: none !important;
-}
-
-/* =========================================================
-   FINAL OVERRIDES — Sept-8 rabbit + inner hover slab
-   (keep at end so it wins)
-   ========================================================= */
-
-/* Rabbit: constant low opacity, no spotlight, no cursor tracking.
-   Row ::after backdrop-filter reveals it naturally on hover. */
-
-.board-core > *{
-  position: relative;
-  z-index: 2;
-}
-
-/* Row: inner hover glow slab (no border, no outer aura) */
-.board-core .bh-row{
-  position: relative !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* .board-core .bh-row::after: DISABLED — authoritative block at end of file */
-
-/* All hover glass/rim/glow: DISABLED — single authoritative block at end of file */
-
-/* Gainer/loser stained glass: DISABLED — authoritative block at end of file */
-
-/* =========================================================
-   ABSOLUTE FINAL — Desktop Lasso Hover
-   Uses ROW BACKGROUND directly (no pseudo-elements)
-   ========================================================= */
-
-/* KILL old ::after effects on .bh-row (not .bh-row-grid) */
-.board-core .bh-row:not(.bh-row-grid)::after,
-.board-core .bh-row::before {
-  content: none !important;
-  display: none !important;
-}
-
-/* Base row style */
-.board-core .bh-row.bh-row-grid {
-  position: relative !important;
-  background-color: transparent !important;
-  transition: background 180ms ease !important;
-  border-bottom: none !important;
-}
-
-/* Gradient line divider REMOVED - after is used for backdrop-filter rabbit reveal */
-
-/* Column-specific hover glows: DISABLED — ::after at end of file handles all hover */
-
-/* Fix page width — prevent horizontal overflow */
-html, body {
-  overflow-x: hidden !important;
-  max-width: 100vw !important;
-}
-
-/* Hover-hook glow: DISABLED — ::after at end of file handles all hover */
-
-/* mw-hover-hook hover glows: DISABLED — authoritative ::after at end of file */
-/* mw-row ::before hover glows: DISABLED — authoritative ::after at end of file */
-/* mw-row loss background overrides: DISABLED — authoritative ::after at end of file */
-.bh-shell {
-  overflow-x: hidden !important;
-  max-width: 100vw !important;
-}
-.board-core {
-  overflow-x: hidden !important;
 }
 
 /* ===== Table Headers (Centered, Token-Weight) ===== */
@@ -4177,18 +3711,6 @@ html, body {
   content: none !important;
   display: none !important;
 }
-
-/* Base row style */
-.board-core .bh-row.bh-row-grid {
-  position: relative !important;
-  background-color: transparent !important;
-  transition: background 180ms ease !important;
-  border-bottom: none !important;
-}
-
-/* Gradient line divider REMOVED - after is used for backdrop-filter rabbit reveal */
-
-/* Column-specific hover backgrounds: DISABLED — authoritative ::after at end of file */
 
 /* Fix page width — prevent horizontal overflow */
 html, body {
@@ -5090,33 +4612,6 @@ html, body {
   position: relative !important;
   overflow: visible !important;
 }
-
-.board-core .bh-row.bh-row-grid[data-side="loser"],
-.board-core .bh-row.bh-row-grid[data-side="loss"],
-.board-core .bh-row.bh-row-grid.bh-row--loss {
-  --bh-row-hover-core: rgba(192,132,252,0.24);
-  --bh-row-hover-mid: rgba(192,132,252,0.12);
-  --bh-row-hover-sheen: rgba(255,255,255,0.07);
-  --bh-row-hover-rim: rgba(192,132,252,0.34);
-  --bh-row-hover-bloom: rgba(192,132,252,0.18);
-  --bh-row-hover-outer: rgba(192,132,252,0.12);
-}
-
-.board-core .bh-1m-grid .bh-col:first-child .bh-row.bh-row-grid,
-.board-core [data-hover-origin="right"] .bh-row.bh-row-grid {
-  --mw-row-origin-x: 100%;
-}
-
-.board-core .bh-1m-grid .bh-col:last-child .bh-row.bh-row-grid,
-.board-core [data-hover-origin="left"] .bh-row.bh-row-grid {
-  --mw-row-origin-x: 0%;
-}
-
-.board-core [data-hover-origin="center"] .bh-row.bh-row-grid {
-  --mw-row-origin-x: 50%;
-}
-
-/* ::before hover layer + hover trigger: DISABLED — authoritative ::after at end of file */
 
 .board-core .bh-row.bh-row-grid,
 .board-core .bh-row.bh-row-grid:hover,
