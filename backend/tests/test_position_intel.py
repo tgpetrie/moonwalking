@@ -92,6 +92,36 @@ def test_limit_buy_order():
     assert assessment["discount_pct"] > 0
 
 
+def test_holding_with_board_data():
+    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    board = {
+        "change_1m": 2.5,
+        "change_3m": 4.1,
+        "volume_1h_now": 5000000,
+        "volume_1h_prev": 3000000,
+        "sentiment": {"pressure": "bullish", "direction": "up", "strength": 72},
+    }
+    intel = _assess_holding(
+        _holding("SOL", 150.0, 300.0, 15.0), signal, None, None, board_row=board
+    )
+    assert intel["posture"] == "momentum_favorable"
+    assert "board" in intel
+    assert intel["board"]["change_1m"] == 2.5
+    assert intel["board"]["change_3m"] == 4.1
+    assert intel["board"]["volume_1h_now"] == 5000000
+    assert intel["board"]["volume_change_1h_pct"] > 0
+    assert intel["board"]["sentiment"]["pressure"] == "bullish"
+
+
+def test_holding_board_data_no_signal():
+    board = {"change_1m": -1.2, "momentum": "moderate"}
+    intel = _assess_holding(
+        _holding("COTI", 0.01, 10.0, 0.5), None, None, None, board_row=board
+    )
+    assert intel["posture"] == "no_signal"
+    assert intel["board"]["change_1m"] == -1.2
+
+
 def test_enrich_portfolio_adds_intel():
     snapshot = {
         "holdings": [
@@ -116,3 +146,20 @@ def test_enrich_portfolio_adds_intel():
     assert enriched["open_orders"][0].get("intel") is not None
     assert enriched.get("intel_summary") is not None
     assert enriched["intel_summary"]["holdings_with_signals"] == 1
+
+
+def test_enrich_portfolio_with_board_data():
+    snapshot = {
+        "holdings": [
+            _holding("SOL", 150.0, 300.0, 50.0),
+            _holding("COTI", 0.01, 10.0, 2.0),
+        ],
+        "open_orders": [],
+        "summary": {"holding_count": 2},
+    }
+    board_data = {
+        "SOL": {"change_1m": 3.2, "change_3m": 5.0, "momentum": "strong"},
+    }
+    enriched = enrich_portfolio(snapshot, board_data=board_data)
+    assert enriched["holdings"][0]["intel"]["board"]["change_1m"] == 3.2
+    assert "board" not in enriched["holdings"][1].get("intel", {})

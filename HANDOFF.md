@@ -117,6 +117,7 @@ Two SQLite-backed stores run in parallel:
 - Per-order: stop-loss/take-profit classification, distance from current, signal-aware context ("Signal weakening — consider tightening stop")
 - Cross-references 29K+ graded outcomes from `signal_outcomes.py`
 - 8 tests in `backend/tests/test_position_intel.py`
+- **DECISION (2026-07-22): `/api/portfolio/intel` is intentionally env-var owner-only for now, NOT OAuth-aware.** Unlike `/api/portfolio` (which tries the user's OAuth token first), the intel route still gates on `COINBASE_PORTFOLIO_OWNER_EMAIL` and builds the client from static CDP keys. Rationale: no frontend consumes `/api/portfolio/intel` yet, so opening it to all OAuth users would be a speculative multi-user feature with no UI to validate against. Extending OAuth is a ~20-line refactor (lift the OAuth-lookup block from `portfolio_snapshot()` into a shared helper both routes call) — defer it to whenever the intel UI is actually built, and wire both in one stroke.
 
 ### 8. Notification delivery channels
 `alert_delivery.py` supports SMTP email, Telegram bot, Discord webhook, and browser push. Per-symbol cooldowns and hourly caps. All channels disabled until credentials are set.

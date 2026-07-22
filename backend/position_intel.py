@@ -104,6 +104,7 @@ def _assess_holding(
     signal: dict[str, Any] | None,
     outcome_stats: dict[str, Any] | None,
     active_alerts: list[dict[str, Any]] | None,
+    board_row: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build intelligence context for a single portfolio holding."""
     intel: dict[str, Any] = {}
@@ -164,6 +165,44 @@ def _assess_holding(
         if families:
             intel["alert_families"] = sorted(families)
 
+    if board_row:
+        board_intel: dict[str, Any] = {}
+        for key in (
+            "change_1m",
+            "change_3m",
+            "price_change_1m",
+            "price_change_3m",
+            "volume_1h_now",
+            "volume_1h_prev",
+            "volume_change_1h_pct",
+            "momentum",
+        ):
+            val = board_row.get(key)
+            if val is not None:
+                board_intel[key] = val
+        change_1m = board_intel.get("change_1m") or board_intel.get("price_change_1m")
+        change_3m = board_intel.get("change_3m") or board_intel.get("price_change_3m")
+        if change_1m is not None:
+            board_intel["change_1m"] = change_1m
+        if change_3m is not None:
+            board_intel["change_3m"] = change_3m
+
+        vol_now = board_intel.get("volume_1h_now")
+        vol_prev = board_intel.get("volume_1h_prev")
+        if vol_now and vol_prev and vol_prev > 0:
+            board_intel["volume_change_1h_pct"] = round(
+                ((vol_now - vol_prev) / vol_prev) * 100, 1
+            )
+
+        sentiment = board_row.get("sentiment")
+        if isinstance(sentiment, dict):
+            board_intel["sentiment"] = sentiment
+        elif isinstance(sentiment, (int, float)):
+            board_intel["sentiment_score"] = sentiment
+
+        if board_intel:
+            intel["board"] = board_intel
+
     return intel
 
 
@@ -172,8 +211,12 @@ def enrich_portfolio(
     *,
     signals: list[dict[str, Any]] | None = None,
     active_alerts: list[dict[str, Any]] | None = None,
+    board_data: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Add position intelligence to every holding and open order in a portfolio snapshot.
+
+    board_data: symbol → row dict with keys like change_1m, change_3m,
+    volume_1h_now, volume_1h_prev, sentiment, momentum.
 
     Modifies snapshot in place and returns it.
     """
@@ -188,6 +231,8 @@ def enrich_portfolio(
         sym = _symbol(alert.get("symbol") or alert.get("product_id"))
         if sym:
             alerts_by_symbol.setdefault(sym, []).append(alert)
+
+    board_by_symbol = board_data or {}
 
     for holding in snapshot.get("holdings") or []:
         sym = _symbol(holding.get("symbol"))
@@ -207,6 +252,7 @@ def enrich_portfolio(
             signal,
             outcome_stats,
             alerts_by_symbol.get(sym),
+            board_row=board_by_symbol.get(sym),
         )
 
     for order in snapshot.get("open_orders") or []:

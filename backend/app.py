@@ -1119,6 +1119,69 @@ def oauth_coinbase_status():
     return jsonify({"connected": True}), 200
 
 
+def _gather_board_data_for_symbols(symbols: set) -> dict:
+    """Collect 1m/3m price changes, volume stats, and sentiment for a set of symbols."""
+    board: dict = {}
+    for sym in symbols:
+        board[sym] = {}
+
+    g1 = _mw_get_component_snapshot("gainers_1m") or {}
+    g3 = _mw_get_component_snapshot("gainers_3m") or {}
+    l3 = _mw_get_component_snapshot("losers_3m") or {}
+    v1h = _mw_get_component_snapshot("volume_1h_candles") or {}
+
+    def _extract_board_rows(snap):
+        for row in snap.get("data") or []:
+            sym = (
+                str(row.get("symbol") or row.get("product_id") or "")
+                .split("-")[0]
+                .upper()
+            )
+            if sym not in board:
+                continue
+            entry = board[sym]
+            for key in (
+                "change_1m",
+                "change_3m",
+                "price_change_1m",
+                "price_change_3m",
+                "gain",
+                "momentum",
+            ):
+                val = row.get(key)
+                if val is not None and key not in entry:
+                    entry[key] = val
+
+    _extract_board_rows(g1)
+    _extract_board_rows(g3)
+    _extract_board_rows(l3)
+
+    for row in v1h.get("data") or []:
+        sym = str(row.get("product_id") or "").split("-")[0].upper()
+        if sym not in board:
+            continue
+        entry = board[sym]
+        for key in ("volume_1h_now", "volume_1h_prev", "volume_change_1h_pct"):
+            val = row.get(key)
+            if val is not None:
+                entry[key] = val
+
+    try:
+        sentiment_snap = _mw_get_component_snapshot("market_pressure") or {}
+        for item in sentiment_snap.get("coins") or []:
+            sym = str(item.get("symbol") or "").upper()
+            if sym in board:
+                board[sym]["sentiment"] = {
+                    "pressure": item.get("pressure"),
+                    "direction": item.get("direction"),
+                    "strength": item.get("strength"),
+                }
+    except Exception:
+        pass
+
+    return {k: v for k, v in board.items() if v}
+
+
 @app.route("/api/portfolio/intel", methods=["GET"])
 def portfolio_with_intel():
     """Portfolio snapshot enriched with signal intelligence and order analysis."""
@@ -1126,12 +1189,17 @@ def portfolio_with_intel():
         return jsonify({"error": "Position intelligence module not available"}), 503
 
     from portfolio_mode import get_portfolio_service, PortfolioModeError
-    from watchlist import get_authenticated_user
+    from watchlist import get_authenticated_user, sync_portfolio_to_watchlist
 
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
 
+    # NOTE: intentionally env-var owner-only, NOT OAuth-aware (unlike
+    # /api/portfolio). No UI consumes this endpoint yet, so per-user OAuth here
+    # would be speculative. When the intel UI is built, lift the OAuth-lookup
+    # block from portfolio_mode.portfolio_snapshot() into a shared helper and
+    # wire both routes. See HANDOFF.md §7 "Position Intelligence".
     owner_email = (
         str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
     )
@@ -1145,6 +1213,19 @@ def portfolio_with_intel():
     except PortfolioModeError as exc:
         return jsonify({"error": str(exc)}), 503
 
+    held_symbols = {
+        str(h.get("symbol") or h.get("currency") or "").upper()
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+
+    try:
+        sync_result = sync_portfolio_to_watchlist(user["id"], held_symbols)
+    except Exception:
+        sync_result = None
+
+    board_data = _gather_board_data_for_symbols(held_symbols)
+
     event_source = [
         _ensure_alert_contract(dict(item))
         for item in list(alerts_log_main)
@@ -1155,7 +1236,14 @@ def portfolio_with_intel():
         dict(item) for item in list(alerts_log_main) if isinstance(item, dict)
     ]
 
-    enriched = enrich_portfolio(snapshot, signals=signals, active_alerts=active_alerts)
+    enriched = enrich_portfolio(
+        snapshot,
+        signals=signals,
+        active_alerts=active_alerts,
+        board_data=board_data,
+    )
+    if sync_result:
+        enriched["watchlist_sync"] = sync_result
     return jsonify(enriched)
 
 
