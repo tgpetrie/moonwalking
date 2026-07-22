@@ -199,6 +199,28 @@ cd frontend && npm run verify                  # 26 frontend tests
 - `detect-secrets` — use `# pragma: allowlist secret` for test fixtures
 - `eslint` — **BROKEN** (ESLint 10 needs flat config, repo has none). Use `SKIP=eslint git commit` for all commits.
 
+### Runtime gotcha: `cdp-sdk` must be installed in the interpreter the server actually runs (2026-07-22)
+
+**Symptom:** `/api/portfolio` and `/api/portfolio/intel` return 503
+`"Coinbase authentication support is not installed on this server."`
+(`PortfolioDependencyMissing`, raised in `portfolio_mode.CoinbaseAdvancedTradeClient._jwt`).
+
+**Cause:** the JWT signer does a lazy `from cdp.auth.utils.jwt import JwtOptions, generate_jwt`.
+`cdp-sdk>=1.28,<2` is in `requirements.txt`, but on 2026-07-22 the running Flask
+process was launched with **system Python 3.13** (`/Library/Frameworks/Python.framework/...`),
+not the project `.venv` (3.12) — and neither interpreter had `cdp-sdk` installed. Result:
+owner is authenticated, keys are loaded, but every Coinbase call fails at import.
+
+**Fix (no restart needed):** the import is lazy, so installing into the *running*
+interpreter is picked up on the next request without losing in-memory keys:
+`<that-interpreter>/python3 -m pip install 'cdp-sdk>=1.28,<2'`.
+Cleaner long-term: install `requirements.txt` into the `.venv` and launch the server
+from it (`start_app.sh`) so the interpreter is deterministic.
+
+**Watch out:** `cdp-sdk` pulls heavy deps (web3, solana, eth-*) and bumps `pydantic`
+to 2.13.x, which conflicts with `gradio` (`<2.12`). Installing into a **venv** (not the
+global framework Python) avoids polluting other tools; pin `pydantic` if gradio is needed.
+
 ## Dependencies
 
 Python: Flask 3.1, flask-cors, flask-socketio, gunicorn, requests, websocket-client, cdp-sdk, FastAPI, uvicorn, sentry-sdk, numpy, pandas, feedparser, vaderSentiment, transformers, torch, PyYAML, beautifulsoup4, redis (Phase 3 cache, not active)
@@ -216,7 +238,7 @@ All feature work is merged to `main`. Legacy branches exist but are stale:
 ## Recommended next actions (priority order)
 
 1. **Build the outcome scorecard UI** — 29K+ graded signals in SQLite, surface accuracy stats per signal type so Tom can see which alerts are actually predictive
-2. **Wire position intelligence into the Portfolio UI** — `/api/portfolio/intel` endpoint is live, frontend needs to display the `intel` field on each holding card and order
+2. **~~Wire position intelligence into the Portfolio UI~~ — DONE (2026-07-22)** — `PortfolioModePage` now fetches `/api/portfolio/intel` (progressive enhancement: falls back to `/api/portfolio` on 403/503), renders posture chip + board momentum + historical follow-through per holding, context rows under open orders, and a signal-coverage chip. Live-verified against real data (81 holdings, e.g. ARX "Pressure adverse · 78"). NEXT: raise coverage — signals only exist for ~9/81 held symbols (board movers), so most cards show "No live signal"; see below.
 3. **Add v2 API cost basis fallback** — CDP keys may support `/v2/accounts/{id}/transactions` for buy history on coins without Advanced Trade fills (most of Tom's 81 holdings show "partial cost basis")
 4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
 5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset
