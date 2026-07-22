@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  fetchPortfolio,
+  fetchPortfolioIntel,
   fetchPortfolioMarketContext,
   fetchCoinbaseOAuthStatus,
   coinbaseAuthorizeUrl,
@@ -9,6 +9,7 @@ import {
 import {
   concentrationLabel,
   deriveHoldingRead,
+  describePosture,
   indexLiveRankings,
 } from "./portfolioSignals.js";
 
@@ -36,6 +37,12 @@ function percent(value, { signed = false } = {}) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "Unavailable";
   return `${signed && parsed > 0 ? "+" : ""}${parsed.toFixed(2)}%`;
+}
+
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function dateTime(value) {
@@ -128,6 +135,58 @@ function SetupState({ state, onRetry, onConnectCoinbase }) {
   );
 }
 
+function HoldingIntel({ intel }) {
+  if (!intel) return null;
+  const posture = describePosture(intel);
+  const history = intel.history || {};
+  const board = intel.board || {};
+  const hasHistory = history.sample_size >= 5 && history.follow_through_pct !== null
+    && history.follow_through_pct !== undefined;
+  const change1m = finiteOrNull(board.change_1m);
+  const change3m = finiteOrNull(board.change_3m);
+  const volChange = finiteOrNull(board.volume_change_1h_pct);
+  const hasBoard = change1m !== null || change3m !== null || volChange !== null;
+
+  return (
+    <div className="mw-holding-intel">
+      <div className="mw-holding-intel__header">
+        <span className={`mw-posture-chip is-${posture.tone}`}>
+          {posture.label}
+          {posture.confidence !== null ? ` · ${posture.confidence}` : ""}
+        </span>
+        {intel.active_alert_count ? (
+          <span className="mw-holding-intel__alerts">
+            {intel.active_alert_count} active alert{intel.active_alert_count === 1 ? "" : "s"}
+          </span>
+        ) : null}
+      </div>
+      {posture.shortRead ? (
+        <p className="mw-holding-intel__read">{posture.shortRead}</p>
+      ) : null}
+      {hasBoard ? (
+        <div className="mw-holding-intel__board">
+          {change1m !== null ? <span>1m {percent(change1m, { signed: true })}</span> : null}
+          {change3m !== null ? <span>3m {percent(change3m, { signed: true })}</span> : null}
+          {volChange !== null ? <span>1h vol {percent(volChange, { signed: true })}</span> : null}
+        </div>
+      ) : null}
+      {hasHistory ? (
+        <p className="mw-holding-intel__history">
+          Historical follow-through <strong>{percent(history.follow_through_pct)}</strong>
+          {" "}across {history.sample_size} comparable signals
+          {finiteOrNull(history.median_favorable_pct) !== null
+            ? ` · median favorable ${percent(history.median_favorable_pct, { signed: true })}`
+            : ""}
+        </p>
+      ) : (
+        <p className="mw-holding-intel__history is-muted">
+          Not enough comparable-signal history yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function HoldingCard({ holding, liveRow }) {
   const read = deriveHoldingRead(holding, liveRow);
   const basis = holding.cost_basis || {};
@@ -149,6 +208,8 @@ function HoldingCard({ holding, liveRow }) {
       </div>
 
       <p className="mw-holding-card__read-copy">{read.explanation}</p>
+
+      <HoldingIntel intel={holding.intel} />
 
       <div className="mw-holding-card__metrics">
         <div><span>Value</span><strong>{money(holding.market_value_usd)}</strong></div>
@@ -201,15 +262,39 @@ function OpenOrders({ orders }) {
           <table className="mw-table">
             <thead><tr><th>Asset</th><th>Side</th><th>Size</th><th>Limit</th><th>Status</th></tr></thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order.order_id}>
-                  <td><strong>{order.symbol}</strong><span>{dateTime(order.created_at)}</span></td>
-                  <td>{order.side || "Unavailable"}</td>
-                  <td>{number(order.base_size ?? order.quote_size)}</td>
-                  <td>{money(order.limit_price)}</td>
-                  <td>{order.status}</td>
-                </tr>
-              ))}
+              {orders.map((order) => {
+                const intel = order.intel || {};
+                const hint = intel.order_type_hint
+                  ? intel.order_type_hint.replace(/_/g, " ")
+                  : null;
+                const distance = finiteOrNull(intel.distance_from_current_pct);
+                return (
+                  <Fragment key={order.order_id}>
+                    <tr>
+                      <td><strong>{order.symbol}</strong><span>{dateTime(order.created_at)}</span></td>
+                      <td>{order.side || "Unavailable"}</td>
+                      <td>{number(order.base_size ?? order.quote_size)}</td>
+                      <td>{money(order.limit_price)}</td>
+                      <td>{order.status}</td>
+                    </tr>
+                    {hint || intel.context ? (
+                      <tr className="mw-order-intel-row">
+                        <td colSpan={5}>
+                          {hint ? <span className="mw-order-intel-tag">{hint}</span> : null}
+                          {distance !== null ? (
+                            <span className="mw-order-intel-distance">
+                              {percent(distance, { signed: true })} from current
+                            </span>
+                          ) : null}
+                          {intel.context ? (
+                            <span className="mw-order-intel-context">{intel.context}</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -236,7 +321,7 @@ export default function PortfolioModePage() {
   const load = useCallback(async ({ force = false } = {}) => {
     setState((current) => ({ ...current, loading: true, error: null }));
     const [portfolioResult, marketResult] = await Promise.allSettled([
-      fetchPortfolio({ force }),
+      fetchPortfolioIntel({ force }),
       fetchPortfolioMarketContext(),
     ]);
     refreshOAuthStatus();
@@ -286,6 +371,8 @@ export default function PortfolioModePage() {
   const cryptoHoldings = holdings.filter((holding) => !holding.is_cash);
   const cashHoldings = holdings.filter((holding) => holding.is_cash);
   const summary = portfolio?.summary || {};
+  const intelSummary = portfolio?.intel_summary || null;
+  const intelAvailable = Boolean(portfolio?.intel_available);
 
   if (state.loading && !portfolio) {
     return (
@@ -337,7 +424,15 @@ export default function PortfolioModePage() {
       <section className="mw-portfolio-holdings" aria-label="Portfolio holdings">
         <div className="mw-portfolio-section-title">
           <div><p className="mw-eyebrow">Holdings</p><h2>One uncomplicated answer per position</h2></div>
-          <span>Labels describe current evidence, not promised outcomes.</span>
+          {intelAvailable && intelSummary ? (
+            <span className="mw-intel-coverage" title="Holdings with a live BHABIT signal">
+              Signal coverage {percent(intelSummary.signal_coverage_pct)}
+              {" · "}
+              {intelSummary.holdings_with_signals}/{intelSummary.total_holdings} holdings
+            </span>
+          ) : (
+            <span>Labels describe current evidence, not promised outcomes.</span>
+          )}
         </div>
         {cryptoHoldings.length ? (
           <div className="mw-portfolio-holding-grid">

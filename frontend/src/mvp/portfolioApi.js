@@ -35,6 +35,23 @@ export function fetchPortfolio({ force = false } = {}) {
   return jsonRequest(`/api/portfolio${force ? "?refresh=1" : ""}`);
 }
 
+// Progressive enhancement: prefer the signal-enriched snapshot, but fall back
+// to the plain one when intel is unavailable to this user (currently owner-only,
+// returns 403 for OAuth users). The base snapshot has the same shape minus the
+// `.intel` fields, so callers render intel only when present.
+export async function fetchPortfolioIntel({ force = false } = {}) {
+  try {
+    const enriched = await jsonRequest(`/api/portfolio/intel${force ? "?refresh=1" : ""}`);
+    return { ...enriched, intel_available: true };
+  } catch (error) {
+    if (error instanceof PortfolioApiError && (error.status === 403 || error.status === 503)) {
+      const base = await fetchPortfolio({ force });
+      return { ...base, intel_available: false };
+    }
+    throw error;
+  }
+}
+
 export function fetchPortfolioMarketContext() {
   return jsonRequest("/data");
 }

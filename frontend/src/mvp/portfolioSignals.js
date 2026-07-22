@@ -83,6 +83,29 @@ export function deriveHoldingRead(holding, liveRow) {
   };
 }
 
+// Maps a holding.intel.posture (from /api/portfolio/intel) to display text and a
+// tone that reuses the existing card tone classes (positive/warning/danger/muted).
+const POSTURE_PRESENTATION = {
+  momentum_favorable: { label: "Momentum favorable", tone: "positive" },
+  pressure_adverse: { label: "Pressure adverse", tone: "danger" },
+  momentum_fading: { label: "Momentum fading", tone: "warning" },
+  developing: { label: "Developing", tone: "info" },
+  neutral: { label: "Neutral", tone: "muted" },
+  no_signal: { label: "No live signal", tone: "muted" },
+};
+
+export function describePosture(intel) {
+  const posture = intel?.posture || "no_signal";
+  const base = POSTURE_PRESENTATION[posture] || POSTURE_PRESENTATION.no_signal;
+  const confidence = finite(intel?.signal?.confidence);
+  return {
+    ...base,
+    posture,
+    confidence,
+    shortRead: intel?.signal?.short_read || intel?.signal?.label || null,
+  };
+}
+
 export function indexLiveRankings(payload) {
   const rows = Array.isArray(payload?.live_rankings) ? payload.live_rankings : [];
   return rows.reduce((index, row) => {
