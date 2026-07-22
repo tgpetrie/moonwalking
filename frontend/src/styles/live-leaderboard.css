@@ -1,0 +1,488 @@
+/* Live Leaderboard — design system tokens */
+
+/* ── Overlay ───────────────────────────────── */
+
+.lb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 16px;
+  overflow-y: auto;
+  animation: lb-fade-in 200ms ease;
+}
+
+@keyframes lb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Panel ─────────────────────────────────── */
+
+.lb-panel {
+  width: 100%;
+  max-width: 860px;
+  background: rgba(18, 18, 22, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  animation: lb-slide-up 250ms ease;
+}
+
+@keyframes lb-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ────────────────────────────────── */
+
+.lb-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.lb-header__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-header__subtitle {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 2px;
+  display: block;
+}
+
+.lb-explainer {
+  padding: 12px 24px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 179, 71, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.lb-header__close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 2px;
+  transition: color 150ms ease;
+}
+
+.lb-header__close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Distribution bar ──────────────────────── */
+
+.lb-distribution {
+  padding: 16px 24px;
+  flex-shrink: 0;
+}
+
+.lb-dist-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.lb-dist-seg {
+  min-width: 2px;
+  transition: flex 400ms ease;
+}
+
+.lb-dist-seg--leading { background: var(--brand-teal, #10ae9b); }
+.lb-dist-seg--strong { background: var(--brand-amber, #ffb347); }
+.lb-dist-seg--mixed { background: rgba(255, 255, 255, 0.15); }
+.lb-dist-seg--weak { background: var(--brand-purple, #c084fc); }
+
+.lb-dist-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-dist-legend b {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  margin-right: 3px;
+}
+
+/* ── Filters ───────────────────────────────── */
+
+.lb-filters {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px 12px;
+  flex-shrink: 0;
+}
+
+.lb-filter {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  font-family: "Raleway", system-ui, sans-serif;
+  transition: all 160ms ease;
+}
+
+.lb-filter:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.lb-filter.is-active {
+  background: rgba(255, 179, 71, 0.12);
+  border-color: rgba(255, 179, 71, 0.3);
+  color: var(--brand-amber, #ffb347);
+}
+
+/* ── Table header ──────────────────────────── */
+
+.lb-table-head {
+  display: grid;
+  grid-template-columns: 44px 1fr 56px 80px 56px 90px 28px;
+  align-items: center;
+  padding: 0 24px;
+  height: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.lb-th {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-th--score,
+.lb-th--quality,
+.lb-th--price {
+  text-align: right;
+}
+
+/* ── List ──────────────────────────────────── */
+
+.lb-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.lb-empty {
+  text-align: center;
+  padding: 32px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.85rem;
+}
+
+/* ── Row ───────────────────────────────────── */
+
+.lb-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.lb-row__main {
+  display: grid;
+  grid-template-columns: 44px 1fr 56px 80px 56px 90px 28px;
+  align-items: center;
+  padding: 0 24px;
+  height: 40px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: background 150ms ease;
+}
+
+.lb-row__main:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.lb-row--expanded .lb-row__main {
+  background: rgba(255, 179, 71, 0.03);
+}
+
+.lb-row__rank {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.lb-row__symbol {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-row__score {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  text-align: right;
+}
+
+.lb-row__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-label--leading { color: var(--brand-teal, #10ae9b); }
+.lb-label--strong { color: var(--brand-teal, #10ae9b); opacity: 0.7; }
+.lb-label--building { color: var(--brand-amber, #ffb347); }
+.lb-label--mixed { color: rgba(255, 255, 255, 0.4); }
+.lb-label--weak { color: var(--brand-purple, #c084fc); opacity: 0.7; }
+.lb-label--fading { color: var(--brand-purple, #c084fc); }
+
+.lb-row__quality {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  text-align: right;
+}
+
+.lb-row__price {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  text-align: right;
+}
+
+.lb-row__chevron {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.2);
+  text-align: center;
+}
+
+/* ── Expanded detail ───────────────────────── */
+
+.lb-row__detail {
+  padding: 12px 24px 16px 68px;
+  background: rgba(255, 255, 255, 0.015);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  animation: lb-detail-in 180ms ease;
+}
+
+@keyframes lb-detail-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lb-row__detail-summary {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.lb-row__comp-header {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.25);
+  margin-bottom: 6px;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+/* ── Component bars ────────────────────────── */
+
+.lb-row__components {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.lb-comp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lb-comp__label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.3);
+  width: 32px;
+  flex-shrink: 0;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-comp__track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.lb-comp__center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lb-comp__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  transition: width 300ms ease, left 300ms ease;
+}
+
+.lb-comp__val {
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Meta: reasons & risks ─────────────────── */
+
+.lb-row__meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.lb-meta-label {
+  display: block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.25);
+  margin-bottom: 4px;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.lb-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lb-chip {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.lb-chip--reason {
+  background: rgba(16, 174, 155, 0.1);
+  color: var(--brand-teal, #10ae9b);
+  border: 1px solid rgba(16, 174, 155, 0.2);
+}
+
+.lb-chip--risk {
+  background: rgba(192, 132, 252, 0.08);
+  color: var(--brand-purple, #c084fc);
+  border: 1px solid rgba(192, 132, 252, 0.15);
+}
+
+.lb-row__info-btn {
+  background: rgba(255, 179, 71, 0.08);
+  border: 1px solid rgba(255, 179, 71, 0.2);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 0.72rem;
+  color: var(--brand-amber, #ffb347);
+  cursor: pointer;
+  font-family: "Raleway", system-ui, sans-serif;
+  transition: all 160ms ease;
+}
+
+.lb-row__info-btn:hover {
+  background: rgba(255, 179, 71, 0.15);
+}
+
+/* ── Rail trigger (added to LiveRankingRail) ─ */
+
+.bh-live-leaders__head {
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.bh-live-leaders__head:hover {
+  color: var(--brand-amber, #ffb347);
+}
+
+.bh-live-leaders__expand {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.3);
+  margin-left: 8px;
+  transition: color 150ms ease;
+}
+
+.bh-live-leaders__head:hover .bh-live-leaders__expand {
+  color: var(--brand-amber, #ffb347);
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 640px) {
+  .lb-overlay {
+    padding: 16px 8px;
+  }
+
+  .lb-table-head,
+  .lb-row__main {
+    grid-template-columns: 36px 1fr 48px 60px 44px 28px;
+  }
+
+  .lb-th--price,
+  .lb-row__price {
+    display: none;
+  }
+
+  .lb-row__components {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lb-row__detail {
+    padding-left: 40px;
+  }
+}
