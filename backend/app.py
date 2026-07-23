@@ -4745,6 +4745,104 @@ def _fetch_coinbase_candles(product_id, granularity=60, count=70):
         return None
 
 
+_BACKFILL_1H_LOCK = threading.Lock()
+_BACKFILL_1H_STARTED = False
+
+
+def _backfill_1h_baseline_from_candles(product_ids, *, max_products=200):
+    """Seed SQLite price snapshots from Coinbase 1-min candles.
+
+    The 1h baseline (change_1h, the `price_1h` readiness flag, and therefore the
+    Coin Pressure verdict's 1h-agreement input) is normally built by accumulating
+    ~55 min of live tape after boot. A 1h candle is free and instant, so we seed
+    ~75 min of history up front and let the existing DB baseline reader pick it up.
+
+    Best-effort and purely additive: it only inserts historical (ts, price) rows
+    the baseline logic already understands. Any failure leaves the app in its
+    normal warmup state.
+    """
+    by_ts: dict[int, list[tuple[str, float]]] = {}
+    fetched = 0
+    for idx, pid in enumerate(list(product_ids)[:max_products]):
+        candles = _fetch_coinbase_candles(pid, granularity=60, count=75)
+        if candles:
+            for candle in candles:
+                try:
+                    ts = int(candle[0])
+                    close = float(candle[4])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                if close > 0:
+                    by_ts.setdefault(ts, []).append((pid, close))
+            fetched += 1
+        # Stay polite to the public candles endpoint.
+        if idx % 20 == 19:
+            time.sleep(0.5)
+
+    inserted = 0
+    for ts, rows in by_ts.items():
+        try:
+            insert_price_snapshot(ts, rows)
+            inserted += len(rows)
+        except Exception:
+            continue
+    return inserted, fetched
+
+
+def _backfill_1h_baseline_thread():
+    """Background worker: resolve the live universe, then seed its 1h baseline."""
+    try:
+        data = None
+        for _ in range(30):  # wait for the first live price cycle
+            data = (last_current_prices or {}).get("data")
+            if data:
+                break
+            time.sleep(1)
+        if not data:
+            return
+        raw_symbols = (
+            list(data.keys())
+            if isinstance(data, dict)
+            else [r.get("symbol") for r in data if isinstance(r, dict)]
+        )
+        product_ids, seen = [], set()
+        for sym in raw_symbols:
+            base = _norm_base(str(sym or "")).split("-", 1)[0]
+            if not base:
+                continue
+            pid = f"{base}-USD"
+            if pid not in seen:
+                seen.add(pid)
+                product_ids.append(pid)
+        if not product_ids:
+            return
+        inserted, fetched = _backfill_1h_baseline_from_candles(product_ids)
+        logging.info(
+            "[1h-backfill] seeded %s snapshot rows from %s products; "
+            "1h baseline live without the ~55m warmup",
+            inserted,
+            fetched,
+        )
+    except Exception as e:  # never let the seeder break startup
+        logging.debug(f"[1h-backfill] skipped: {e}")
+
+
+def _maybe_start_1h_backfill():
+    """Spawn the 1h-baseline seeder once per process."""
+    global _BACKFILL_1H_STARTED
+    with _BACKFILL_1H_LOCK:
+        if _BACKFILL_1H_STARTED:
+            return
+        _BACKFILL_1H_STARTED = True
+    try:
+        bt = threading.Thread(
+            target=_backfill_1h_baseline_thread, name="mw-1h-backfill", daemon=True
+        )
+        bt.start()
+    except Exception:
+        pass
+
+
 def _compute_1h_volume_from_candles(product_id):
     """Compute 1h volume by summing recent 1-minute candles.
 
@@ -13949,6 +14047,8 @@ def _mw_ensure_background_started():
         except Exception:
             pass
 
+    _maybe_start_1h_backfill()
+
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
             return
@@ -14255,6 +14355,8 @@ def main():
         logging.info("SQLite price snapshot database initialized")
     except Exception as e:
         logging.error(f"Failed to initialize price database: {e}")
+
+    _maybe_start_1h_backfill()
 
     # DEV: seed volume history if requested (helps banner 1h display during dev)
     try:
