@@ -458,3 +458,45 @@
   }
 }
 
+
+/* Market positioning (derivatives health) — small, unobtrusive context block */
+.mw-positioning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--sentiment-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mw-positioning__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.mw-positioning__label {
+  color: var(--sentiment-subtext);
+}
+
+.mw-positioning__value {
+  color: var(--sentiment-text);
+  text-align: right;
+}
+
+.mw-positioning--live .mw-positioning__value {
+  color: var(--sentiment-pos);
+}
+
+.mw-positioning--stale .mw-positioning__value {
+  color: var(--sentiment-neu);
+}
+
+.mw-positioning--unavailable .mw-positioning__value {
+  color: var(--sentiment-subtext);
+  font-style: italic;
+}

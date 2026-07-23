@@ -120,3 +120,18 @@ def test_rejects_unknown_schema_version(tmp_path):
 
     with pytest.raises(SentimentSourceLoaderError):
         load_sources(tmp_path, force_reload=True)
+
+
+def test_current_catalog_marks_live_planned_and_retired_sources():
+    catalog = load_sources(force_reload=True)
+    entries = catalog.serialized()
+
+    by_name = {entry["name"]: entry for entry in entries}
+
+    assert by_name["Fear & Greed Index"]["implemented"] is True
+    assert by_name["CoinGecko Global Market Data"]["implemented"] is True
+    assert by_name["Binance USD-M Futures Positioning"]["implemented"] is True
+    assert by_name["OKX Swap Positioning"]["implemented"] is True
+    assert by_name["Bybit V5 Derivatives Positioning"]["implemented"] is True
+    assert by_name["CoinGlass Derivatives Aggregates"]["signal_role"] == "paid_upgrade"
+    assert by_name["SentiCrypt Legacy API"]["scope"] == "retired_legacy"

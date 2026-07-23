@@ -10,6 +10,9 @@ def test_sentiment_payload_stays_unavailable_without_real_sources(monkeypatch):
     monkeypatch.setattr(sentiment_api, "USE_REAL_SENTIMENT", False)
     monkeypatch.setattr(sentiment_api, "_get_fear_greed_payload", no_source)
     monkeypatch.setattr(sentiment_api, "_get_market_pulse_payload", no_source)
+    monkeypatch.setattr(
+        sentiment_api, "_get_derivatives_positioning_payload", no_source
+    )
 
     payload = asyncio.run(sentiment_api._build_sentiment_payload())
     data = payload.model_dump(mode="json")
@@ -52,9 +55,32 @@ def test_sentiment_payload_reports_real_source_provenance(monkeypatch):
             "stale_age_seconds": 10,
         }
 
+    async def derivatives():
+        return {
+            "source": "derivatives_positioning",
+            "source_url": f"{sentiment_api.BINANCE_FAPI_BASE_URL}/fapi/v1/premiumIndex",
+            "scope": "market_positioning",
+            "updated_at": "2026-07-13T00:00:00Z",
+            "stale": False,
+            "stale_age_seconds": 10,
+            "exchanges": ["binance", "okx"],
+            "symbols": [
+                {
+                    "exchange": "binance",
+                    "symbol": "BTCUSDT",
+                    "base_asset": "BTC",
+                    "funding_rate": 0.0001,
+                    "open_interest": 1000.0,
+                }
+            ],
+        }
+
     monkeypatch.setattr(sentiment_api, "USE_REAL_SENTIMENT", False)
     monkeypatch.setattr(sentiment_api, "_get_fear_greed_payload", fear_greed)
     monkeypatch.setattr(sentiment_api, "_get_market_pulse_payload", market_pulse)
+    monkeypatch.setattr(
+        sentiment_api, "_get_derivatives_positioning_payload", derivatives
+    )
 
     payload = asyncio.run(sentiment_api._build_sentiment_payload())
     data = payload.model_dump(mode="json")
@@ -63,7 +89,7 @@ def test_sentiment_payload_reports_real_source_provenance(monkeypatch):
     assert data["overall_sentiment"] == 0.28
     assert data["fear_greed_index"] == 28
     assert data["source_breakdown"] == {
-        "tier1": 2,
+        "tier1": 3,
         "tier2": 0,
         "tier3": 0,
         "fringe": 0,
@@ -71,8 +97,10 @@ def test_sentiment_payload_reports_real_source_provenance(monkeypatch):
     assert [source["name"] for source in data["sources"]] == [
         "alternative_me",
         "coingecko_global",
+        "derivatives_positioning",
     ]
     assert all(source["tier"] == "tier1" for source in data["sources"])
+    assert "derivatives_positioning" in data["social_metrics"]
 
 
 def test_source_catalog_exposes_only_contributing_real_providers(monkeypatch):
@@ -105,3 +133,29 @@ def test_source_catalog_exposes_only_contributing_real_providers(monkeypatch):
         "fringe": 0,
     }
     assert stats["average_trust_weight"] is None
+
+
+def test_derivatives_summary_penalizes_thin_exchange_coverage():
+    summary = sentiment_api._summarize_derivatives_positioning(
+        [
+            {
+                "exchange": "okx",
+                "base_asset": "BTC",
+                "funding_rate": 0.0001,
+                "open_interest": 1000.0,
+            },
+            {
+                "exchange": "okx",
+                "base_asset": "ETH",
+                "funding_rate": 0.00008,
+                "open_interest": 2000.0,
+            },
+        ],
+        configured_exchange_count=3,
+    )
+
+    assert summary["funding_bias"] == "longs_pay"
+    assert summary["live_exchange_count"] == 1
+    assert summary["configured_exchange_count"] == 3
+    assert summary["coverage_ratio"] == 0.333
+    assert summary["confidence_penalty"] == 0.667

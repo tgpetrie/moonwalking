@@ -1,5 +1,48 @@
 {
   "schema_version": 1,
   "tier": "fringe",
-  "sources": []
+  "sources": [
+    {
+      "name": "SentiCrypt Legacy API",
+      "description": "Old free sentiment endpoint from the original config; keep retired unless endpoint health and data quality are reverified",
+      "tier": "fringe",
+      "weight": 0.1,
+      "update_frequency": 7200,
+      "type": "api",
+      "endpoint": "https://api.senticrypt.com/v2/all.json",
+      "documentation": "https://github.com/danmoreng/senticrypt",
+      "access": "unknown_legacy_free",
+      "implemented": false,
+      "scope": "retired_legacy",
+      "signal_role": "do_not_use_without_reverification"
+    },
+    {
+      "name": "CoinyBubble Fear & Greed API",
+      "description": "Unverified fear/greed source from the original config; Alternative.me and CoinMarketCap are safer current defaults",
+      "tier": "fringe",
+      "weight": 0.2,
+      "update_frequency": 3600,
+      "type": "api",
+      "endpoint": "https://api.coinybubble.com/api/v1/fear-greed-index",
+      "documentation": "https://coinybubble.com",
+      "access": "unknown_public",
+      "implemented": false,
+      "scope": "retired_legacy",
+      "signal_role": "do_not_use_without_reverification"
+    },
+    {
+      "name": "CryptoMeter Trend Indicator",
+      "description": "Black-box vendor trend endpoint from the original config; keep out of V1 until output semantics are validated",
+      "tier": "fringe",
+      "weight": 0.35,
+      "update_frequency": 300,
+      "type": "api",
+      "endpoint": "https://api.cryptometer.io/trend-indicator-v3/",
+      "documentation": "https://www.cryptometer.io/api-doc/",
+      "access": "requires_api_key_or_subscription",
+      "implemented": false,
+      "scope": "vendor_signal",
+      "signal_role": "black_box_optional"
+    }
+  ]
 }
