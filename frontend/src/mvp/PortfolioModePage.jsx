@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import CoinPositioning from "../components/CoinPositioning.jsx";
 import {
   fetchPortfolioIntel,
   fetchPortfolioMarketContext,
@@ -182,6 +183,11 @@ function HoldingIntel({ intel }) {
           {change1m !== null ? <span>1m {percent(change1m, { signed: true })}</span> : null}
           {change3m !== null ? <span>3m {percent(change3m, { signed: true })}</span> : null}
           {volChange !== null ? <span>1h vol {percent(volChange, { signed: true })}</span> : null}
+        </div>
+      ) : null}
+      {intel.positioning ? (
+        <div className="mw-holding-intel__positioning">
+          <CoinPositioning positioning={intel.positioning} compact />
         </div>
       ) : null}
       <div className="mw-holding-intel__evidence">

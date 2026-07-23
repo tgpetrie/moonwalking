@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
 import { getCoinEvents } from '../utils/coinHistoryCache';
 import { getMarketPressure } from '../utils/marketPressure';
+import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import '../styles/sentiment-popup-advanced.css';
@@ -829,6 +830,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [coinIntelLoading, setCoinIntelLoading] = useState(false);
   const [coinIntelError, setCoinIntelError] = useState(null);
 
+  const [coinPositioning, setCoinPositioning] = useState(null);
+  const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
+
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
     () => coinbaseSpotUrl({ symbol: coinSymbol }),
@@ -858,6 +862,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setCoinPositioning(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setCoinPositioningLoading(true);
+    const change = coinLiveRanking?.price_change_percentage_24h;
+    const suffix = Number.isFinite(change) ? `?change_24h_pct=${change}` : '';
+    fetchData(`/api/positioning/${encodeURIComponent(coinSymbol)}${suffix}`)
+      .then((p) => { if (!cancelled) setCoinPositioning(p); })
+      .catch(() => { if (!cancelled) setCoinPositioning(null); })
+      .finally(() => { if (!cancelled) setCoinPositioningLoading(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, coinSymbol, coinLiveRanking]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -2127,6 +2147,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                               : 'Last external refresh.',
                     }))} />
                   </section>
+
+                  <div className="info-section">
+                    <div className="section-header">
+                      <h3>Positioning</h3>
+                      <p className="section-desc">Derivatives funding &amp; open interest (Hyperliquid). Context, not a signal.</p>
+                    </div>
+                    {coinPositioningLoading && !coinPositioning ? (
+                      <div className="tab-empty tab-empty--compact">Loading positioning...</div>
+                    ) : (
+                      <CoinPositioning positioning={coinPositioning} />
+                    )}
+                  </div>
 
                   {coinIntelLoading && !coinIntel ? <div className="coin-history-note coin-history-note--compact">Loading coin intel...</div> : null}
                   {coinIntelError ? (

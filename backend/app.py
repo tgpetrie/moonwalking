@@ -104,6 +104,10 @@ try:
     from position_intel import enrich_portfolio
 except ImportError:
     enrich_portfolio = None
+try:
+    from derivatives_positioning import get_symbol_positioning
+except ImportError:
+    get_symbol_positioning = None
 from coinbase_oauth import (
     CoinbaseOAuthConfig,
     OAuthTokenError,
@@ -1194,6 +1198,39 @@ _LEVELS_FETCH_PER_REQUEST = int(os.environ.get("MW_LEVELS_FETCH_PER_REQUEST", "3
 _LEVELS_FETCH_WORKERS = 6
 
 
+def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dict:
+    """Return {SYMBOL: positioning_dict} for held symbols with a Hyperliquid perp.
+
+    Runs the async per-coin positioning fetch once with bounded concurrency.
+    Coins without a perp market (or on fetch failure) are simply omitted, so the
+    holdings card renders without a positioning block for them.
+    """
+    if not get_symbol_positioning or not symbols:
+        return {}
+    import asyncio
+
+    syms = [s for s in symbols if s]
+
+    async def _run():
+        results = await asyncio.gather(
+            *(
+                get_symbol_positioning(s, price_change_pct=change_by_symbol.get(s))
+                for s in syms
+            ),
+            return_exceptions=True,
+        )
+        return {
+            s: r
+            for s, r in zip(syms, results)
+            if isinstance(r, dict) and r.get("available")
+        }
+
+    try:
+        return asyncio.run(_run())
+    except RuntimeError:
+        return {}
+
+
 def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
     """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
 
@@ -1326,6 +1363,19 @@ def portfolio_with_intel():
         logging.debug("[Portfolio] levels gather skipped", exc_info=True)
         levels_data = {}
 
+    change_by_symbol = {
+        str(h.get("symbol") or "").upper(): h.get("price_change_24h_pct")
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+    try:
+        positioning_data = _gather_positioning_for_symbols(
+            held_symbols, change_by_symbol
+        )
+    except Exception:
+        logging.debug("[Portfolio] positioning gather skipped", exc_info=True)
+        positioning_data = {}
+
     event_source = [
         _ensure_alert_contract(dict(item))
         for item in list(alerts_log_main)
@@ -1342,6 +1392,7 @@ def portfolio_with_intel():
         active_alerts=active_alerts,
         board_data=board_data,
         levels_data=levels_data,
+        positioning_data=positioning_data,
     )
     if sync_result:
         enriched["watchlist_sync"] = sync_result
@@ -1385,9 +1436,7 @@ def portfolio_set_cost_basis():
     record = set_manual_cost_basis(user["id"], symbol, average_price, note)
     if record is None:
         return (
-            jsonify(
-                {"error": "A symbol and a positive average_price are required."}
-            ),
+            jsonify({"error": "A symbol and a positive average_price are required."}),
             400,
         )
     return jsonify({"status": "saved", "cost_basis": record})
@@ -11461,11 +11510,13 @@ def get_scorecard():
     try:
         signal_card = signal_outcome_store.scorecard()
         board_card = board_outcome_store.status()
-        return jsonify({
-            "status": "live",
-            "signals": signal_card,
-            "boards": board_card,
-        })
+        return jsonify(
+            {
+                "status": "live",
+                "signals": signal_card,
+                "boards": board_card,
+            }
+        )
     except Exception as exc:
         logging.exception("Scorecard failed")
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
@@ -12744,6 +12795,33 @@ def get_crypto_news(symbol):
     except Exception as e:
         logging.error(f"Error getting news for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/positioning/<symbol>")
+def get_positioning_endpoint(symbol):
+    """Per-coin derivatives positioning (funding/OI) from Hyperliquid.
+
+    Returns {available: false} for coins with no perp market (or when the fetch
+    is unavailable) so the UI can honestly render "no derivatives market".
+    """
+    symbol = symbol.upper().replace("-USD", "")
+    if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 12:
+        return jsonify({"error": "Invalid symbol format"}), 400
+    if not get_symbol_positioning:
+        return jsonify({"available": False, "symbol": symbol}), 200
+
+    change_pct = request.args.get("change_24h_pct", type=float)
+    try:
+        import asyncio
+
+        data = asyncio.run(get_symbol_positioning(symbol, price_change_pct=change_pct))
+    except Exception as e:
+        logging.debug(f"positioning fetch failed for {symbol}: {e}")
+        data = None
+
+    if not data:
+        return jsonify({"available": False, "symbol": symbol}), 200
+    return jsonify(data), 200
 
 
 # /api/social-sentiment already registered above (line ~2266)

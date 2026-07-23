@@ -161,6 +161,7 @@ def _assess_holding(
     outcome_stats: dict[str, Any] | None,
     active_alerts: list[dict[str, Any]] | None,
     board_row: dict[str, Any] | None = None,
+    positioning: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build intelligence context for a single portfolio holding."""
     intel: dict[str, Any] = {}
@@ -278,6 +279,12 @@ def _assess_holding(
         if board_intel:
             intel["board"] = board_intel
 
+    # Derivatives positioning is *context* that qualifies the price case. It is
+    # intentionally a distinct key and is NOT a real signal — the signal-coverage
+    # stat keys off read_source/signal only, so this never inflates coverage.
+    if positioning and positioning.get("available"):
+        intel["positioning"] = positioning
+
     return intel
 
 
@@ -298,6 +305,7 @@ def enrich_portfolio(
     active_alerts: list[dict[str, Any]] | None = None,
     board_data: dict[str, dict[str, Any]] | None = None,
     levels_data: dict[str, dict[str, Any]] | None = None,
+    positioning_data: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Add position intelligence to every holding and open order in a portfolio snapshot.
 
@@ -324,6 +332,7 @@ def enrich_portfolio(
 
     board_by_symbol = board_data or {}
     levels_by_symbol = levels_data or {}
+    positioning_by_symbol = positioning_data or {}
 
     for holding in snapshot.get("holdings") or []:
         sym = _symbol(holding.get("symbol"))
@@ -344,6 +353,7 @@ def enrich_portfolio(
             outcome_stats,
             alerts_by_symbol.get(sym),
             board_row=board_by_symbol.get(sym),
+            positioning=positioning_by_symbol.get(sym),
         )
 
         levels = levels_by_symbol.get(sym)
@@ -357,9 +367,9 @@ def enrich_portfolio(
             ):
                 phrase = _range_zone_phrase(levels.get("range_zone", ""))
                 if phrase:
-                    intel["read"]["short"] = (
-                        f"{intel['read']['short']} Currently {phrase}."
-                    )
+                    intel["read"][
+                        "short"
+                    ] = f"{intel['read']['short']} Currently {phrase}."
 
     for order in snapshot.get("open_orders") or []:
         sym = _symbol(order.get("symbol") or order.get("product_id"))

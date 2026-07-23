@@ -16,8 +16,18 @@ exactly; those rows are marked **verify live**. Everything else is cited below.
 - ✅ **Coinalyze** wired but **inert until `COINALYZE_API_KEY` is set** (free key).
   When unset it is not counted among configured exchanges. Symbol format
   (`BTCUSDT_PERP.A`) is best-effort — verify against the key when activated.
+- ✅ **Per-coin positioning** (`backend/derivatives_positioning.py`) — Hyperliquid
+  keyed by bare symbol, keyless. Funding crowding + OI level + an OI×price read
+  (falls back to funding×price until the in-memory OI snapshot store has a real
+  span). Surfaced in two places: portfolio position-intel card
+  (`intel.positioning`, context — not counted in signal coverage) and SymbolPanel
+  overview via `/api/positioning/<symbol>`. Coins with no perp show "no derivatives
+  market". Shared `CoinPositioning.jsx` renders both. In the live UI the per-coin
+  card is surfaced in the mounted Coin Pressure panel (`SentimentPopupAdvanced`)
+  Intel tab — the orphaned `SymbolPanel` is not used.
 - ⏳ Not yet built: RSS news, Reddit, Farcaster, Polymarket, DefiLlama, DEX data,
-  AI-native vendors. See rounds below.
+  AI-native vendors. Long/short + liquidations (Coinalyze key) slot into the same
+  per-coin block later. See rounds below.
 
 ## TL;DR — what to actually do
 
