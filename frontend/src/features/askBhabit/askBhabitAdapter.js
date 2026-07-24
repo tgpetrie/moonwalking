@@ -169,6 +169,15 @@ const stateSource = (state, path) => ({
   url: state?.url || null,
 });
 
+const savedThesisReasons = (thesisValue) => {
+  if (!thesisValue || typeof thesisValue !== "object") return [];
+  return [
+    thesisValue.why_entered ? `Saved thesis: ${thesisValue.why_entered}` : null,
+    thesisValue.reconsider_if ? `Reconsider if: ${thesisValue.reconsider_if}` : null,
+    thesisValue.time_horizon ? `Time horizon: ${thesisValue.time_horizon}` : null,
+  ].filter(Boolean);
+};
+
 export function normalizeBackendSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object" || !snapshot.evidence_packet) return snapshot;
 
@@ -201,9 +210,16 @@ export function normalizeBackendSnapshot(snapshot) {
   const thesisSupport = comparison.thesis_support || {};
   const asset = packet.asset_symbol || privateContext.position?.asset_symbol || "";
   const backendIdentity = publicEvidence.asset_identity?.value || {};
+  const thesisAvailable = privateContext.thesis?.status === "available";
+  const thesisValue = privateContext.thesis?.value || {};
+  const positionAvailable = privateContext.position?.status === "available";
+  const savedThesis = savedThesisReasons(thesisValue);
+  const thesisReasons = thesisAvailable
+    ? [...savedThesis, ...arr(thesisSupport.reasons).filter((reason) => !/no thesis supplied/i.test(reason))]
+    : [];
 
   return {
-    request: { asset, has_thesis: privateContext.thesis?.status === "available" },
+    request: { asset, has_thesis: thesisAvailable },
     asset_identity: normalizeAssetIdentity(backendIdentity, asset),
     generated_at: analysis.created_at || snapshot.created_at || packet.retrieved_at || null,
     direct_read: {
@@ -233,7 +249,7 @@ export function normalizeBackendSnapshot(snapshot) {
       allocation_pct: null,
     },
     thesis_check:
-      privateContext.thesis?.status === "available"
+      thesisAvailable
         ? {
             state:
               thesisSupport.direction === "strengthening"
@@ -243,7 +259,7 @@ export function normalizeBackendSnapshot(snapshot) {
                   : thesisSupport.direction === "unchanged"
                     ? "unchanged"
                     : "cannot_determine",
-            reasons: arr(thesisSupport.reasons),
+            reasons: thesisReasons,
           }
         : null,
     evidence: [
@@ -256,6 +272,20 @@ export function normalizeBackendSnapshot(snapshot) {
         : null,
       publicEvidence.price?.status === "available"
         ? { claim: "Current price", detail: fmtPrice(publicEvidence.price.value), tone: "info" }
+        : null,
+      positionAvailable
+        ? {
+            claim: "Position context",
+            detail: `Quantity ${text(positionValue.quantity, "—")} at ${fmtPrice(positionValue.entry_price)}`,
+            tone: "info",
+          }
+        : null,
+      thesisAvailable
+        ? {
+            claim: "Saved thesis",
+            detail: thesisValue.why_entered || "Saved thesis context is available.",
+            tone: "info",
+          }
         : null,
     ].filter(Boolean),
     missing,

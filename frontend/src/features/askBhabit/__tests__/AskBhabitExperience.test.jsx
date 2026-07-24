@@ -227,4 +227,67 @@ describe("failure + trial states", () => {
     expect(screen.getByText("Live backend · SOL")).toBeInTheDocument();
     expect(screen.queryByText(/Demo sample/)).not.toBeInTheDocument();
   });
+
+  it("renders saved thesis context when the live backend model is not configured", async () => {
+    const liveSnapshot = {
+      evidence_packet: {
+        asset_symbol: "SOL",
+        public_market_evidence: {
+          asset_identity: {
+            status: "available",
+            value: { symbol: "SOL", name: "Solana" },
+            source: "asset_registry",
+            retrieved_at: "2026-07-24T14:06:00Z",
+          },
+          price: { status: "not_configured", value: null, source: "market_provider" },
+        },
+        private_context: {
+          position: {
+            status: "available",
+            value: { quantity: 10, entry_price: 100, total_cost_basis: 1000 },
+          },
+          thesis: {
+            status: "available",
+            value: {
+              why_entered: "audit thesis",
+              reconsider_if: "evidence breaks",
+              time_horizon: "swing",
+              tags: ["audit"],
+            },
+            source: "manual_entry",
+            retrieved_at: "2026-07-24T14:06:00Z",
+          },
+        },
+        confidence: {
+          level: "insufficient_evidence",
+          reasons: ["3 evidence fields available", "asset identity, price, and position are required"],
+        },
+      },
+      comparison: { status: "no_previous_snapshot", categories: ["insufficient_evidence"], changes: [] },
+      analysis: {
+        status: "not_configured",
+        created_at: "2026-07-24T14:06:00Z",
+        sections: { direct_assessment: "Analysis generation unavailable: founder/server key or LLM provider is not configured." },
+      },
+    };
+
+    renderExp({ mode: "live", resolveAnalysis: resolverFor(liveSnapshot) });
+    fireEvent.click(screen.getByRole("button", { name: /add a real position/i }));
+    fireEvent.change(screen.getByLabelText("Asset"), { target: { value: "sol" } });
+    fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "10" } });
+    fireEvent.change(screen.getByLabelText("Entry price"), { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: /save position/i }));
+    fireEvent.click(screen.getByRole("button", { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole("button", { name: "What changed?" }));
+
+    expect(await screen.findByText("Model analysis is not configured")).toBeInTheDocument();
+    expect(screen.getByText(/Analysis generation unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText("Saved thesis: audit thesis")).toBeInTheDocument();
+    expect(screen.getByText("3 evidence fields available")).toBeInTheDocument();
+    expect(screen.queryByText(/No thesis on file/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thesis intact/i)).not.toBeInTheDocument();
+    const missing = screen.getByText("6. Missing & uncertain data").closest("section");
+    expect(within(missing).queryByText(/thesis/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Live backend · SOL")).toBeInTheDocument();
+  });
 });

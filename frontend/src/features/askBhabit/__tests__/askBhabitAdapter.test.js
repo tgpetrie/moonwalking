@@ -308,4 +308,74 @@ describe("backend snapshot normalization", () => {
     expect(view.whatChanged.label).toBe("Only price moved");
     expect(view.meta.provenance).toBe("live");
   });
+
+  it("preserves available thesis context when model analysis is not configured", () => {
+    const snapshot = structuredClone(backendSnapshot);
+    snapshot.evidence_packet.private_context.thesis = {
+      status: "available",
+      value: {
+        why_entered: "audit thesis",
+        reconsider_if: "evidence breaks",
+        time_horizon: "swing",
+        tags: ["audit"],
+      },
+      source: "manual_entry",
+      retrieved_at: "2026-07-24T14:04:00Z",
+      freshness: "fresh",
+    };
+    snapshot.comparison.thesis_support = { direction: "unknown", reasons: ["No previous snapshot to compare."] };
+
+    const { state, view } = buildAnalysisView(snapshot);
+    expect(state).toBe(ANALYSIS_STATE.READY);
+    expect(view.directRead.headline).toBe("Model analysis is not configured");
+    expect(view.thesisCheck).not.toBeNull();
+    expect(view.thesisCheck.label).toBe("Cannot determine");
+    expect(view.thesisCheck.reasons).toContain("Saved thesis: audit thesis");
+    expect(view.missing.some((item) => item.metric.toLowerCase().includes("thesis"))).toBe(false);
+    expect(view.evidence.map((item) => item.claim)).toEqual(
+      expect.arrayContaining(["Asset identity", "Current price", "Position context", "Saved thesis"])
+    );
+    expect(view.confidence.reasons).toContain("thin data");
+  });
+
+  it("keeps thesis unavailable as a missing private-context state", () => {
+    const { view } = buildAnalysisView(backendSnapshot);
+    expect(view.thesisCheck).toBeNull();
+    expect(view.missing.some((item) => item.metric.toLowerCase().includes("thesis"))).toBe(true);
+    expect(view.evidence.some((item) => item.claim === "Saved thesis")).toBe(false);
+  });
+
+  it("keeps position and thesis availability independent of model availability", () => {
+    const snapshot = structuredClone(backendSnapshot);
+    snapshot.evidence_packet.private_context.thesis = {
+      status: "available",
+      value: { why_entered: "position-independent thesis" },
+    };
+    snapshot.evidence_packet.private_context.position = { status: "unavailable", value: null };
+
+    const { view } = buildAnalysisView(snapshot);
+    expect(view.directRead.headline).toBe("Model analysis is not configured");
+    expect(view.thesisCheck.reasons).toContain("Saved thesis: position-independent thesis");
+    expect(view.evidence.some((item) => item.claim === "Saved thesis")).toBe(true);
+    expect(view.evidence.some((item) => item.claim === "Position context")).toBe(false);
+  });
+
+  it("provider-not-configured evidence does not erase available private context", () => {
+    const snapshot = structuredClone(backendSnapshot);
+    snapshot.evidence_packet.private_context.thesis = {
+      status: "available",
+      value: { why_entered: "provider outage thesis" },
+    };
+    snapshot.evidence_packet.public_market_evidence.price = {
+      status: "not_configured",
+      value: null,
+      source: "market_provider",
+      missing_data_reason: "provider not configured",
+    };
+
+    const { view } = buildAnalysisView(snapshot);
+    expect(view.missing.some((item) => item.status === MISSING_STATUS.NOT_CONFIGURED)).toBe(true);
+    expect(view.thesisCheck.reasons).toContain("Saved thesis: provider outage thesis");
+    expect(view.evidence.some((item) => item.claim === "Saved thesis")).toBe(true);
+  });
 });
