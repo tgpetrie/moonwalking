@@ -740,7 +740,6 @@ def generate_analysis(
             ],
             "confidence_and_reasons": packet.get("confidence"),
         },
-        "prompt": prompt,
     }
 
 

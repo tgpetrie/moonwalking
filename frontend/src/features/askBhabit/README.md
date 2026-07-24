@@ -21,7 +21,20 @@ Fixture-backed until Codex freezes the backend contract — swap one function
 | `fixtures/` | Sample positions + backend-shaped analysis payloads. |
 | `styles/ask-bhabit.css` | Scoped `.abx-*` styles. No global selectors. |
 | `__tests__/` | Adapter, hook, and experience tests (30 tests). |
-| `demo.jsx` + `../../../askBhabit.html` | Dev-only preview harness (`/askBhabit.html`), not in the app bundle. |
+| `demo.jsx` + `../../../askBhabit.html` | Dev-only preview harness (`/askBhabit.html`), visibly fixture-backed. |
+
+## Integrated Mount
+
+The real application mounts this feature through
+`frontend/src/components/AskBhabitPanel.jsx`, which is rendered from
+`frontend/src/components/DashboardShell.jsx`. The shell uses `mode="live"`:
+manual positions call `/api/ask-bhabit/*`, while sample positions remain
+explicit demo fixtures.
+
+Live mode preserves backend truth states. `analysis.status: not_configured` is
+shown as model-not-configured copy, not a successful generated answer. Missing
+provider states such as `not_configured`, `provider_error`, `stale`,
+`conflicting`, and `unsupported` stay visible in Missing & uncertain data.
 
 ## Mounting
 

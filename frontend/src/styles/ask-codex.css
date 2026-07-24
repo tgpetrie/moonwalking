@@ -53,6 +53,16 @@
   flex-direction: column;
 }
 
+.bh-ask-panel-wide {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(82vh, 820px);
+}
+
+.bh-ask-body-embedded {
+  padding: 14px;
+  overflow: auto;
+}
+
 /* ── Header row ─────────────────────────────────────────────── */
 .bh-ask-head {
   display: flex;

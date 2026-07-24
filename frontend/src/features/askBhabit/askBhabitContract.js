@@ -13,14 +13,24 @@
 /** How much *materially* changed since the prior snapshot. */
 export const CHANGE_KIND = Object.freeze({
   PRICE_ONLY: "price_only",
+  ONLY_PRICE_CHANGED: "only_price_changed",
   MARKET_STRUCTURE: "market_structure",
+  MARKET_STRUCTURE_CHANGED: "market_structure_changed",
   EVIDENCE_QUALITY: "evidence_quality",
+  EVIDENCE_QUALITY_CHANGED: "evidence_quality_changed",
   THESIS_EVIDENCE: "thesis_evidence",
+  THESIS_EVIDENCE_CHANGED: "thesis_evidence_changed",
   INSUFFICIENT_HISTORY: "insufficient_history",
+  INSUFFICIENT_EVIDENCE: "insufficient_evidence",
 });
 
 export const CHANGE_KIND_PRESENTATION = Object.freeze({
   [CHANGE_KIND.PRICE_ONLY]: {
+    label: "Only price moved",
+    tone: "muted",
+    blurb: "Price changed, but the underlying signal structure did not.",
+  },
+  [CHANGE_KIND.ONLY_PRICE_CHANGED]: {
     label: "Only price moved",
     tone: "muted",
     blurb: "Price changed, but the underlying signal structure did not.",
@@ -30,7 +40,17 @@ export const CHANGE_KIND_PRESENTATION = Object.freeze({
     tone: "warning",
     blurb: "Positioning, funding, or liquidity structure shifted — not just price.",
   },
+  [CHANGE_KIND.MARKET_STRUCTURE_CHANGED]: {
+    label: "Market structure changed",
+    tone: "warning",
+    blurb: "Positioning, funding, or liquidity structure shifted — not just price.",
+  },
   [CHANGE_KIND.EVIDENCE_QUALITY]: {
+    label: "Evidence quality changed",
+    tone: "info",
+    blurb: "How much dependable data backs this read has changed.",
+  },
+  [CHANGE_KIND.EVIDENCE_QUALITY_CHANGED]: {
     label: "Evidence quality changed",
     tone: "info",
     blurb: "How much dependable data backs this read has changed.",
@@ -40,10 +60,20 @@ export const CHANGE_KIND_PRESENTATION = Object.freeze({
     tone: "danger",
     blurb: "Evidence tied to why you entered has moved.",
   },
+  [CHANGE_KIND.THESIS_EVIDENCE_CHANGED]: {
+    label: "Thesis evidence changed",
+    tone: "danger",
+    blurb: "Evidence tied to why you entered has moved.",
+  },
   [CHANGE_KIND.INSUFFICIENT_HISTORY]: {
     label: "Not enough history",
     tone: "muted",
     blurb: "There is no comparable prior snapshot to measure change against.",
+  },
+  [CHANGE_KIND.INSUFFICIENT_EVIDENCE]: {
+    label: "Not enough evidence",
+    tone: "muted",
+    blurb: "There is not enough evidence to compare safely.",
   },
 });
 
@@ -68,6 +98,7 @@ export const CONFIDENCE = Object.freeze({
   MEDIUM: "medium",
   LOW: "low",
   INSUFFICIENT: "insufficient",
+  INSUFFICIENT_EVIDENCE: "insufficient_evidence",
 });
 
 export const CONFIDENCE_PRESENTATION = Object.freeze({
@@ -75,6 +106,7 @@ export const CONFIDENCE_PRESENTATION = Object.freeze({
   [CONFIDENCE.MEDIUM]: { label: "Medium", tone: "info" },
   [CONFIDENCE.LOW]: { label: "Low", tone: "warning" },
   [CONFIDENCE.INSUFFICIENT]: { label: "Insufficient evidence", tone: "muted" },
+  [CONFIDENCE.INSUFFICIENT_EVIDENCE]: { label: "Insufficient evidence", tone: "muted" },
 });
 
 /**
@@ -178,7 +210,11 @@ export const ANALYSIS_STATE = Object.freeze({
   LOADING: "loading",
   READY: "ready",
   PROVIDER_ERROR: "provider_error",
+  PROVIDER_NOT_CONFIGURED: "provider_not_configured",
   MODEL_FAILURE: "model_failure",
+  MODEL_NOT_CONFIGURED: "model_not_configured",
+  NETWORK_FAILURE: "network_failure",
+  BACKEND_VALIDATION_FAILURE: "backend_validation_failure",
   TRIAL_EXHAUSTED: "trial_exhausted",
 });
 

@@ -29,6 +29,22 @@ const num = (value) => {
 };
 
 const arr = (value) => (Array.isArray(value) ? value : []);
+const text = (value, fallback = "") =>
+  value === null || value === undefined || value === "" ? fallback : String(value);
+
+const hasStatus = (item) => item && typeof item === "object" && typeof item.status === "string";
+
+function collectEvidenceStates(value, path = [], out = []) {
+  if (hasStatus(value)) {
+    out.push({ path, state: value });
+  }
+  if (Array.isArray(value)) {
+    value.forEach((child, index) => collectEvidenceStates(child, [...path, String(index)], out));
+  } else if (value && typeof value === "object") {
+    Object.entries(value).forEach(([key, child]) => collectEvidenceStates(child, [...path, key], out));
+  }
+  return out;
+}
 
 export const fmtPrice = (value) => {
   const n = num(value);
@@ -86,15 +102,160 @@ const buildPosition = (raw) => {
   };
 };
 
+const changeKindFromCategories = (categories = []) => {
+  if (categories.includes("market_structure_changed")) return "market_structure_changed";
+  if (categories.includes("thesis_evidence_changed")) return "thesis_evidence_changed";
+  if (categories.includes("evidence_quality_changed")) return "evidence_quality_changed";
+  if (categories.includes("only_price_changed")) return "only_price_changed";
+  return categories[0] || "insufficient_evidence";
+};
+
+const metricLabel = (path) =>
+  path
+    .filter((part) => !/^\d+$/.test(part))
+    .slice(-3)
+    .join(" / ")
+    .replaceAll("_", " ") || "Unknown metric";
+
+const stateDetail = (state) => {
+  const parts = [
+    state?.missing_data_reason,
+    state?.provider_error,
+    arr(state?.conflicts).join("; "),
+  ].filter(Boolean);
+  return parts.join(" · ");
+};
+
+const stateSource = (state, path) => ({
+  provider: state?.provider || state?.source || metricLabel(path),
+  claim: metricLabel(path),
+  retrieved_at: state?.retrieved_at || null,
+  freshness: state?.freshness || state?.status || "unknown",
+  url: state?.url || null,
+});
+
+export function normalizeBackendSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || !snapshot.evidence_packet) return snapshot;
+
+  const packet = snapshot.evidence_packet || {};
+  const publicEvidence = packet.public_market_evidence || {};
+  const privateContext = packet.private_context || {};
+  const positionValue = privateContext.position?.value || {};
+  const comparison = snapshot.comparison || {};
+  const analysis = snapshot.analysis || {};
+  const sections = analysis.sections || {};
+  const states = collectEvidenceStates(packet);
+  const missing = states
+    .filter(({ state }) => state.status !== "available")
+    .map(({ path, state }) => ({
+      metric: metricLabel(path),
+      status: state.status,
+      detail: stateDetail(state),
+      source: state.source || null,
+      provider: state.provider || state.source || null,
+      retrieved_at: state.retrieved_at || null,
+      freshness: state.freshness || state.status,
+      conflicts: arr(state.conflicts),
+      provider_error: state.provider_error || null,
+      missing_data_reason: state.missing_data_reason || null,
+    }));
+
+  const directText = sections.direct_assessment || "Ask Bhabit could not generate a model narrative yet.";
+  const modelNotConfigured = analysis.status === "not_configured";
+  const categories = arr(comparison.categories);
+  const thesisSupport = comparison.thesis_support || {};
+  const asset = packet.asset_symbol || privateContext.position?.asset_symbol || "";
+
+  return {
+    request: { asset, has_thesis: privateContext.thesis?.status === "available" },
+    generated_at: analysis.created_at || snapshot.created_at || packet.retrieved_at || null,
+    direct_read: {
+      headline: modelNotConfigured ? "Model analysis is not configured" : "Ask Bhabit assessment",
+      tone: modelNotConfigured ? "warning" : "info",
+      detail: directText,
+    },
+    what_changed: {
+      kind: comparison.status === "no_previous_snapshot" ? "insufficient_history" : changeKindFromCategories(categories),
+      since: null,
+      items: arr(comparison.changes).map((change) => ({
+        label: text(change.field, "Evidence field changed").replaceAll("_", " "),
+        detail:
+          change.type === "numeric_change"
+            ? `${change.from} → ${change.to}`
+            : `${change.from || "unknown"} → ${change.to || "unknown"}`,
+        tone: change.type === "status_change" ? "info" : "warning",
+      })),
+    },
+    position: {
+      quantity: positionValue.quantity,
+      entry_price: positionValue.entry_price,
+      cost_basis: positionValue.total_cost_basis,
+      market_price: publicEvidence.price?.value ?? null,
+      unrealized_pnl: positionValue.unrealized_pnl,
+      unrealized_pnl_pct: positionValue.unrealized_pnl_pct,
+      allocation_pct: null,
+    },
+    thesis_check:
+      privateContext.thesis?.status === "available"
+        ? {
+            state:
+              thesisSupport.direction === "strengthening"
+                ? "strengthened"
+                : thesisSupport.direction === "weakening"
+                  ? "weakened"
+                  : thesisSupport.direction === "unchanged"
+                    ? "unchanged"
+                    : "cannot_determine",
+            reasons: arr(thesisSupport.reasons),
+          }
+        : null,
+    evidence: [
+      publicEvidence.asset_identity?.status === "available"
+        ? {
+            claim: "Asset identity",
+            detail: `${asset} resolved as ${publicEvidence.asset_identity?.value?.name || "known asset"}`,
+            tone: "info",
+          }
+        : null,
+      publicEvidence.price?.status === "available"
+        ? { claim: "Current price", detail: fmtPrice(publicEvidence.price.value), tone: "info" }
+        : null,
+    ].filter(Boolean),
+    missing,
+    confidence: packet.confidence || { level: "insufficient_evidence", reasons: [] },
+    sources: states.filter(({ state }) => state.source || state.provider).map(({ state, path }) => stateSource(state, path)),
+    meta: { mode: "live_backend", backend_status: analysis.status || "unknown", snapshot_id: snapshot.snapshot_id },
+  };
+}
+
 /**
  * Classify a raw payload. Returns { state, ... } where state comes from
  * ANALYSIS_STATE. Callers switch on `.state` and only read `.view` when READY.
  */
 export function buildAnalysisView(raw, { now = Date.now() } = {}) {
+  raw = normalizeBackendSnapshot(raw);
   if (!raw || typeof raw !== "object") {
     return { state: ANALYSIS_STATE.MODEL_FAILURE, message: "No analysis was returned." };
   }
 
+  if (raw.error === "network_failure") {
+    return { state: ANALYSIS_STATE.NETWORK_FAILURE, message: raw.message || "Network request failed." };
+  }
+  if (raw.error === "backend_validation_failure") {
+    return {
+      state: ANALYSIS_STATE.BACKEND_VALIDATION_FAILURE,
+      message: raw.message || "The backend rejected this position or thesis.",
+    };
+  }
+  if (raw.error === "model_not_configured") {
+    return { state: ANALYSIS_STATE.MODEL_NOT_CONFIGURED, message: raw.message || "Model analysis is not configured." };
+  }
+  if (raw.error === "provider_not_configured") {
+    return {
+      state: ANALYSIS_STATE.PROVIDER_NOT_CONFIGURED,
+      message: raw.message || "Evidence provider is not configured.",
+    };
+  }
   if (raw.error === "provider_error") {
     return { state: ANALYSIS_STATE.PROVIDER_ERROR, message: raw.message || "Market data provider unavailable." };
   }

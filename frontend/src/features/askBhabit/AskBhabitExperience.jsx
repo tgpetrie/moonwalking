@@ -12,6 +12,7 @@ import { ANALYSIS_STATE } from "./askBhabitContract.js";
 import { buildAnalysisView } from "./askBhabitAdapter.js";
 import { useBetaAllowance } from "./useBetaAllowance.js";
 import { defaultResolveAnalysis } from "./defaultResolver.js";
+import { AskBhabitClientError, resolveLiveAnalysis } from "./askBhabitClient.js";
 import { ANALYTICS_EVENTS, emit } from "./analytics.js";
 
 import BetaAllowanceMeter from "./components/BetaAllowanceMeter.jsx";
@@ -22,7 +23,13 @@ import ThesisForm from "./components/ThesisForm.jsx";
 import AnswerView from "./components/AnswerView.jsx";
 import FeedbackControls from "./components/FeedbackControls.jsx";
 
-export default function AskBhabitExperience({ resolveAnalysis = defaultResolveAnalysis, betaLimit }) {
+export default function AskBhabitExperience({
+  resolveAnalysis,
+  betaLimit,
+  mode = "demo",
+  showDemoSamples = true,
+}) {
+  const effectiveResolver = resolveAnalysis || (mode === "live" ? resolveLiveAnalysis : defaultResolveAnalysis);
   const allowance = useBetaAllowance(betaLimit);
   const [position, setPosition] = useState(null); // active position (sample or manual)
   const [isSample, setIsSample] = useState(false);
@@ -73,8 +80,9 @@ export default function AskBhabitExperience({ resolveAnalysis = defaultResolveAn
     async (question) => {
       if (!position) return;
 
-      // Only real analyses consume the founder-funded allowance; samples are free.
-      if (!isSample) {
+      // Only demo analyses use the client-side preview allowance. Live mode must
+      // not invent server-funded usage accounting.
+      if (mode === "demo" && !isSample) {
         if (allowance.exhausted) {
           setAnalysis({ state: ANALYSIS_STATE.TRIAL_EXHAUSTED });
           return;
@@ -95,7 +103,7 @@ export default function AskBhabitExperience({ resolveAnalysis = defaultResolveAn
       setAnalysis({ state: ANALYSIS_STATE.LOADING });
 
       try {
-        const raw = await resolveAnalysis({ position, question, isSample });
+        const raw = await effectiveResolver({ position, question, isSample });
         const result = buildAnalysisView(raw);
         setAnalysis(result);
         if (result.state === ANALYSIS_STATE.READY) {
@@ -108,11 +116,17 @@ export default function AskBhabitExperience({ resolveAnalysis = defaultResolveAn
           emit(ANALYTICS_EVENTS.ANSWER_FAILED, { asset, state: result.state });
         }
       } catch (err) {
-        setAnalysis({ state: ANALYSIS_STATE.PROVIDER_ERROR, message: err?.message || "Request failed." });
+        const state =
+          err instanceof AskBhabitClientError && err.kind === "network_failure"
+            ? ANALYSIS_STATE.NETWORK_FAILURE
+            : err instanceof AskBhabitClientError && err.kind === "backend_validation_failure"
+              ? ANALYSIS_STATE.BACKEND_VALIDATION_FAILURE
+              : ANALYSIS_STATE.PROVIDER_ERROR;
+        setAnalysis({ state, message: err?.message || "Request failed." });
         emit(ANALYTICS_EVENTS.ANSWER_FAILED, { asset, error: err?.message });
       }
     },
-    [position, isSample, allowance, resolveAnalysis]
+    [position, isSample, mode, allowance, effectiveResolver]
   );
 
   const rateAnswer = useCallback(
@@ -128,22 +142,28 @@ export default function AskBhabitExperience({ resolveAnalysis = defaultResolveAn
   const showGuided = position && !showThesisForm;
 
   const headerNote = useMemo(() => {
-    if (!position) return "See a sample read, then add your own position.";
-    return isSample ? `Sample position · ${position.asset}` : `Your position · ${position.asset}`;
-  }, [position, isSample]);
+    if (!position) return mode === "live" ? "Live backend mode · demo samples remain fixture-only." : "Demo fixture mode.";
+    return isSample ? `Demo sample · ${position.asset}` : `Live backend · ${position.asset}`;
+  }, [position, isSample, mode]);
 
   return (
     <div className="abx" data-testid="ask-bhabit">
       <header className="abx-head">
         <h2 className="abx-title">Ask Bhabit</h2>
-        <span className="abx-beta">Beta</span>
+        <span className="abx-beta">{mode === "live" ? "Live" : "Demo"}</span>
       </header>
 
-      <BetaAllowanceMeter {...allowance} />
+      {mode === "demo" ? (
+        <BetaAllowanceMeter {...allowance} />
+      ) : (
+        <div className="abx-allowance" role="status">
+          <span>Live backend mode. No client-side usage allowance is applied.</span>
+        </div>
+      )}
 
       {!position ? (
         <>
-          <SamplePositions selectedId={null} onSelect={selectSample} />
+          {showDemoSamples ? <SamplePositions selectedId={null} onSelect={selectSample} /> : null}
           <div className="abx-actions" style={{ marginBottom: 12 }}>
             <button type="button" className="abx-btn abx-btn-ghost" onClick={() => setShowManualForm((v) => !v)}>
               {showManualForm ? "Hide manual entry" : "Add a real position"}
@@ -202,6 +222,14 @@ function AnalysisPane({ analysis, onCitationOpen, onRetry, onRate }) {
       return (
         <StateCard title="Data provider unavailable" detail={analysis.message} tone="danger" onRetry={onRetry} />
       );
+    case ANALYSIS_STATE.PROVIDER_NOT_CONFIGURED:
+      return <StateCard title="Evidence provider not configured" detail={analysis.message} tone="warning" onRetry={onRetry} />;
+    case ANALYSIS_STATE.MODEL_NOT_CONFIGURED:
+      return <StateCard title="Model not configured" detail={analysis.message} tone="warning" onRetry={onRetry} />;
+    case ANALYSIS_STATE.NETWORK_FAILURE:
+      return <StateCard title="Network failure" detail={analysis.message} tone="danger" onRetry={onRetry} />;
+    case ANALYSIS_STATE.BACKEND_VALIDATION_FAILURE:
+      return <StateCard title="Backend validation failed" detail={analysis.message} tone="warning" onRetry={onRetry} />;
     case ANALYSIS_STATE.MODEL_FAILURE:
       return <StateCard title="Analysis failed" detail={analysis.message} tone="danger" onRetry={onRetry} />;
     case ANALYSIS_STATE.TRIAL_EXHAUSTED:
@@ -254,4 +282,6 @@ StateCard.propTypes = {
 AskBhabitExperience.propTypes = {
   resolveAnalysis: PropTypes.func,
   betaLimit: PropTypes.number,
+  mode: PropTypes.oneOf(["demo", "live"]),
+  showDemoSamples: PropTypes.bool,
 };
