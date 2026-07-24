@@ -67,7 +67,19 @@ export const RICH_ANALYSIS = Object.freeze({
 });
 
 export const SPARSE_ANALYSIS = Object.freeze({
-  request: { asset: "SHDW", question_id: "how_doing", question_text: "How is this position doing?", has_thesis: true },
+  request: {
+    asset: "SHDW",
+    question_id: "how_doing",
+    question_text: "How is this position doing?",
+    has_thesis: true,
+    asset_identity: {
+      symbol: "SHDW",
+      name: "Shadow Token",
+      chain: "Solana",
+      contract_address: "SHDWyBxihqiC1b7C5hGaqRpzUT6XQv8x9xqvnYgKPump", // pragma: allowlist secret
+      ambiguous: true,
+    },
+  },
   generated_at: "2026-07-24T14:06:00Z",
   direct_read: {
     headline: "Not enough independent evidence",

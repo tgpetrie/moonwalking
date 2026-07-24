@@ -34,6 +34,13 @@ export const SAMPLE_POSITIONS = Object.freeze([
     coverage: "sparse",
     asset: "SHDW",
     name: "Shadow Token",
+    assetIdentity: {
+      symbol: "SHDW",
+      name: "Shadow Token",
+      chain: "Solana",
+      contractAddress: "SHDWyBxihqiC1b7C5hGaqRpzUT6XQv8x9xqvnYgKPump", // pragma: allowlist secret
+      ambiguous: true,
+    },
     quantity: 5200,
     entryPrice: 0.412,
     costBasis: 2142.4,

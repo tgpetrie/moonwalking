@@ -15,6 +15,8 @@ import {
 } from "../fixtures/analyses.js";
 import { ANALYSIS_STATE, MISSING_STATUS } from "../askBhabitContract.js";
 
+const SHDW_MINT = "SHDWyBxihqiC1b7C5hGaqRpzUT6XQv8x9xqvnYgKPump"; // pragma: allowlist secret
+
 describe("buildAnalysisView — classification", () => {
   it("marks provider and model failures without rendering an answer", () => {
     expect(buildAnalysisView(PROVIDER_ERROR_ENVELOPE).state).toBe(ANALYSIS_STATE.PROVIDER_ERROR);
@@ -48,6 +50,13 @@ describe("What Changed distinctions", () => {
     expect(view.whatChanged.label).toBe("Only price moved");
   });
 
+  it("uses generated_at as the relative-time reference for fixture transactions", () => {
+    const { view } = buildAnalysisView(SPARSE_ANALYSIS);
+    expect(view.whatChanged.since).toBe("2026-07-23T14:00:00Z");
+    expect(view.whatChanged.sinceLabel).toBe("1d ago");
+    expect(view.whatChanged.sinceLabel).not.toBe("18h ago");
+  });
+
   it("handles no prior snapshot (insufficient history)", () => {
     const { view } = buildAnalysisView(NO_PRIOR_ANALYSIS);
     expect(view.whatChanged.hasPrior).toBe(false);
@@ -70,6 +79,17 @@ describe("Missing data — never neutral", () => {
   it("degrades an unknown missing status to a safe default rather than blank", () => {
     const { view } = buildAnalysisView({ ...RICH_ANALYSIS, missing: [{ metric: "X", status: "bogus" }] });
     expect(view.missing[0].label).toBe("Unavailable");
+  });
+
+  it("keeps backend stale status visible regardless of relative-time text", () => {
+    const { view } = buildAnalysisView({
+      ...RICH_ANALYSIS,
+      generated_at: "2026-07-24T14:06:00Z",
+      missing: [{ metric: "Order-book depth", status: "stale", detail: "Last snapshot is old." }],
+    });
+    expect(view.missing[0].status).toBe("stale");
+    expect(view.missing[0].label).toBe("Stale");
+    expect(view.missing[0].tone).toBe("warning");
   });
 });
 
@@ -120,6 +140,47 @@ describe("formatting helpers", () => {
     const now = Date.parse("2026-07-24T14:05:00Z");
     expect(relativeTime("2026-07-24T14:00:00Z", now)).toBe("5m ago");
     expect(relativeTime(null, now)).toBe("unknown time");
+  });
+
+  it("does not render 41-45 minute old sources as just now", () => {
+    const now = Date.parse("2026-07-24T14:06:00Z");
+    expect(relativeTime("2026-07-24T13:25:00Z", now)).toBe("41m ago");
+    expect(relativeTime("2026-07-24T13:21:00Z", now)).toBe("45m ago");
+  });
+
+  it("does not render missing, invalid, or future timestamps as reassuring freshness", () => {
+    const now = Date.parse("2026-07-24T14:06:00Z");
+    expect(relativeTime(null, now)).toBe("unknown time");
+    expect(relativeTime("not-a-date", now)).toBe("unknown time");
+    expect(relativeTime("2026-07-24T14:07:00Z", now)).toBe("timestamp in future");
+  });
+});
+
+describe("provenance and identity", () => {
+  it("marks fixture adapter output as demo provenance only", () => {
+    const { view } = buildAnalysisView(SPARSE_ANALYSIS);
+    expect(view.meta.provenance).toBe("demo");
+    expect(view.meta.mode).toBe("deterministic");
+    expect(view.meta.provenance).not.toBe("live");
+  });
+
+  it("preserves ambiguous SHDW chain identity and canonical shortened mint", () => {
+    const { view } = buildAnalysisView(SPARSE_ANALYSIS);
+    expect(view.assetIdentity.name).toBe("Shadow Token");
+    expect(view.assetIdentity.symbol).toBe("SHDW");
+    expect(view.assetIdentity.chain).toBe("Solana");
+    expect(view.assetIdentity.fullIdentifier).toBe(SHDW_MINT);
+    expect(view.assetIdentity.shortIdentifier).toBe("SHDWyB…Pump");
+  });
+
+  it("keeps position arithmetic unchanged", () => {
+    const { view } = buildAnalysisView(SPARSE_ANALYSIS);
+    expect(view.position.quantity).toBe(5200);
+    expect(view.position.entryPrice).toBe(0.412);
+    expect(view.position.costBasis).toBe(2142.4);
+    expect(view.position.unrealizedPnl).toBe(-265.2);
+    expect(view.position.unrealizedPnlPct).toBe(-12.38);
+    expect(view.position.display.unrealizedPnlPct).toBe("-12.38%");
   });
 });
 
@@ -245,5 +306,6 @@ describe("backend snapshot normalization", () => {
     expect(view.position.display.allocationPct).toBe("—");
     expect(view.confidence.label).toBe("Insufficient evidence");
     expect(view.whatChanged.label).toBe("Only price moved");
+    expect(view.meta.provenance).toBe("live");
   });
 });

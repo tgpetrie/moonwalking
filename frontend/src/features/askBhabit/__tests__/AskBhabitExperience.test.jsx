@@ -68,6 +68,20 @@ describe("structured answer", () => {
     expect(screen.getByText("Insufficient evidence")).toBeInTheDocument();
   });
 
+  it("renders SHDW chain identity with shortened and full canonical mint", async () => {
+    renderExp({ resolveAnalysis: resolverFor(SPARSE_ANALYSIS) });
+    fireEvent.click(screen.getByText("Shadow Token"));
+    fireEvent.click(await screen.findByRole("button", { name: "How is this position doing?" }));
+
+    await screen.findByText(/not enough independent evidence/i);
+    expect(screen.getByText("SHDW")).toBeInTheDocument();
+    expect(screen.getByText("Solana")).toBeInTheDocument();
+    expect(screen.getByText("SHDWyB…Pump")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Full identifier SHDWyBxihqiC1b7C5hGaqRpzUT6XQv8x9xqvnYgKPump")
+    ).toBeInTheDocument();
+  });
+
   it("shows a stale banner when a source is stale", async () => {
     renderExp({ resolveAnalysis: resolverFor(SPARSE_ANALYSIS) });
     fireEvent.click(screen.getByText("Shadow Token"));
@@ -158,5 +172,59 @@ describe("failure + trial states", () => {
     fireEvent.click(screen.getByRole("button", { name: /skip for now/i }));
     fireEvent.click(screen.getByRole("button", { name: "What changed?" }));
     expect(screen.getByText("Beta allowance used")).toBeInTheDocument();
+  });
+
+  it("does not show demo and live provenance together for a fixture transaction in live mount", async () => {
+    renderExp({ mode: "live", resolveAnalysis: resolverFor({ ...SPARSE_ANALYSIS, meta: { mode: "demo_fixture" } }) });
+    fireEvent.click(screen.getByText("Shadow Token"));
+    fireEvent.click(await screen.findByRole("button", { name: "How is this position doing?" }));
+    expect(await screen.findByText(/not enough independent evidence/i)).toBeInTheDocument();
+    expect(screen.getByText("Demo")).toBeInTheDocument();
+    expect(screen.getByText("Demo sample · SHDW")).toBeInTheDocument();
+    expect(screen.getByText("Demo fixture mode. This sample is not live backend data.")).toBeInTheDocument();
+    expect(screen.queryByText("Live backend mode. No client-side usage allowance is applied.")).not.toBeInTheDocument();
+  });
+
+  it("shows live provenance only for live backend not_configured transactions", async () => {
+    const liveSnapshot = {
+      evidence_packet: {
+        asset_symbol: "SOL",
+        public_market_evidence: {
+          asset_identity: {
+            status: "available",
+            value: { symbol: "SOL", name: "Solana" },
+            source: "asset_registry",
+            retrieved_at: "2026-07-24T14:06:00Z",
+          },
+          price: { status: "not_configured", value: null, source: "market_provider" },
+        },
+        private_context: {
+          position: {
+            status: "available",
+            value: { quantity: 10, entry_price: 100, total_cost_basis: 1000 },
+          },
+          thesis: { status: "unavailable", value: null },
+        },
+        confidence: { level: "insufficient_evidence", reasons: ["missing price"] },
+      },
+      comparison: { status: "no_previous_snapshot", categories: ["insufficient_evidence"], changes: [] },
+      analysis: {
+        status: "not_configured",
+        created_at: "2026-07-24T14:06:00Z",
+        sections: { direct_assessment: "Analysis generation unavailable: founder/server key or LLM provider is not configured." },
+      },
+    };
+    renderExp({ mode: "live", resolveAnalysis: resolverFor(liveSnapshot) });
+    fireEvent.click(screen.getByRole("button", { name: /add a real position/i }));
+    fireEvent.change(screen.getByLabelText("Asset"), { target: { value: "sol" } });
+    fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "10" } });
+    fireEvent.change(screen.getByLabelText("Entry price"), { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: /save position/i }));
+    fireEvent.click(screen.getByRole("button", { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole("button", { name: "What changed?" }));
+    expect(await screen.findByText("Model analysis is not configured")).toBeInTheDocument();
+    expect(screen.getByText("Live")).toBeInTheDocument();
+    expect(screen.getByText("Live backend · SOL")).toBeInTheDocument();
+    expect(screen.queryByText(/Demo sample/)).not.toBeInTheDocument();
   });
 });

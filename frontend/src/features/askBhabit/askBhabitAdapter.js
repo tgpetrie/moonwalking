@@ -33,6 +33,7 @@ const text = (value, fallback = "") =>
   value === null || value === undefined || value === "" ? fallback : String(value);
 
 const hasStatus = (item) => item && typeof item === "object" && typeof item.status === "string";
+const SHDW_MINT = "SHDWyBxihqiC1b7C5hGaqRpzUT6XQv8x9xqvnYgKPump"; // pragma: allowlist secret
 
 function collectEvidenceStates(value, path = [], out = []) {
   if (hasStatus(value)) {
@@ -71,13 +72,47 @@ export const relativeTime = (iso, now = Date.now()) => {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return "unknown time";
   const diffMs = now - then;
-  if (diffMs < 0) return "just now";
-  const mins = Math.round(diffMs / 60000);
+  if (diffMs < 0) return "timestamp in future";
+  const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
+  const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
+  const days = Math.floor(hrs / 24);
+  const remHours = hrs % 24;
+  return remHours ? `${days}d ${remHours}h ago` : `${days}d ago`;
+};
+
+const referenceTime = (generatedAt, fallbackNow) => {
+  const parsed = Date.parse(generatedAt || "");
+  return Number.isNaN(parsed) ? fallbackNow : parsed;
+};
+
+const shortenIdentifier = (value) => {
+  const raw = text(value);
+  if (raw.length <= 16) return raw;
+  return `${raw.slice(0, 6)}…${raw.slice(-4)}`;
+};
+
+const normalizeAssetIdentity = (raw, fallbackAsset) => {
+  const identity = raw || {};
+  const symbol = text(identity.symbol || fallbackAsset).toUpperCase();
+  const contract =
+    identity.contract_address ||
+    identity.contractAddress ||
+    identity.contract ||
+    (symbol === "SHDW" ? SHDW_MINT : null);
+  const chain = identity.chain || (symbol === "SHDW" ? "Solana" : null);
+  const ambiguous = Boolean(identity.ambiguous || contract || chain);
+  if (!ambiguous) return null;
+  return {
+    symbol,
+    name: identity.name || (symbol === "SHDW" ? "Shadow Token" : symbol),
+    chain,
+    contractAddress: contract || null,
+    shortIdentifier: contract ? shortenIdentifier(contract) : null,
+    fullIdentifier: contract || null,
+  };
 };
 
 const buildPosition = (raw) => {
@@ -165,9 +200,11 @@ export function normalizeBackendSnapshot(snapshot) {
   const categories = arr(comparison.categories);
   const thesisSupport = comparison.thesis_support || {};
   const asset = packet.asset_symbol || privateContext.position?.asset_symbol || "";
+  const backendIdentity = publicEvidence.asset_identity?.value || {};
 
   return {
     request: { asset, has_thesis: privateContext.thesis?.status === "available" },
+    asset_identity: normalizeAssetIdentity(backendIdentity, asset),
     generated_at: analysis.created_at || snapshot.created_at || packet.retrieved_at || null,
     direct_read: {
       headline: modelNotConfigured ? "Model analysis is not configured" : "Ask Bhabit assessment",
@@ -224,7 +261,7 @@ export function normalizeBackendSnapshot(snapshot) {
     missing,
     confidence: packet.confidence || { level: "insufficient_evidence", reasons: [] },
     sources: states.filter(({ state }) => state.source || state.provider).map(({ state, path }) => stateSource(state, path)),
-    meta: { mode: "live_backend", backend_status: analysis.status || "unknown", snapshot_id: snapshot.snapshot_id },
+    meta: { mode: "live_backend", provenance: "live", backend_status: analysis.status || "unknown", snapshot_id: snapshot.snapshot_id },
   };
 }
 
@@ -267,6 +304,8 @@ export function buildAnalysisView(raw, { now = Date.now() } = {}) {
     return { state: ANALYSIS_STATE.MODEL_FAILURE, message: raw.message || String(raw.error) };
   }
 
+  const generatedAt = raw.generated_at || null;
+  const nowRef = referenceTime(generatedAt, now);
   const change = raw.what_changed || {};
   const changePresentation = presentChangeKind(change.kind);
   const hasPrior = Boolean(change.since) && change.kind !== "insufficient_history";
@@ -285,7 +324,8 @@ export function buildAnalysisView(raw, { now = Date.now() } = {}) {
 
   const view = {
     request: raw.request || {},
-    generatedAt: raw.generated_at || null,
+    generatedAt,
+    assetIdentity: normalizeAssetIdentity(raw.asset_identity || raw.request?.asset_identity, raw.request?.asset),
     directRead: {
       headline: raw.direct_read?.headline || "No direct read available",
       tone: raw.direct_read?.tone || "muted",
@@ -295,7 +335,7 @@ export function buildAnalysisView(raw, { now = Date.now() } = {}) {
       ...changePresentation,
       kind: change.kind || "insufficient_history",
       since: change.since || null,
-      sinceLabel: change.since ? relativeTime(change.since, now) : null,
+      sinceLabel: change.since ? relativeTime(change.since, nowRef) : null,
       hasPrior,
       items: arr(change.items).map((item) => ({
         label: item?.label || "",
@@ -321,11 +361,14 @@ export function buildAnalysisView(raw, { now = Date.now() } = {}) {
       provider: item?.provider || "Unknown source",
       claim: item?.claim || "",
       retrievedAt: item?.retrieved_at || null,
-      retrievedLabel: relativeTime(item?.retrieved_at, now),
+      retrievedLabel: relativeTime(item?.retrieved_at, nowRef),
       freshness: item?.freshness || "unknown",
       url: item?.url || null,
     })),
-    meta: raw.meta || {},
+    meta: {
+      ...(raw.meta || {}),
+      provenance: raw.meta?.provenance || (raw.meta?.model === "fixture" || raw.meta?.mode === "demo_fixture" || raw.meta?.mode === "deterministic" ? "demo" : raw.meta?.mode === "live_backend" ? "live" : "unknown"),
+    },
   };
 
   return { state: ANALYSIS_STATE.READY, view };

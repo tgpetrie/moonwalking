@@ -140,21 +140,34 @@ export default function AskBhabitExperience({
       analysis.view.missing.some((m) => m.status === "stale"));
   const askDisabled = analysis.state === ANALYSIS_STATE.LOADING;
   const showGuided = position && !showThesisForm;
+  const displayedProvenance =
+    analysis.state === ANALYSIS_STATE.READY
+      ? analysis.view.meta.provenance
+      : isSample
+        ? "demo"
+        : mode === "live"
+          ? "live"
+          : "demo";
+  const provenanceLabel = displayedProvenance === "live" ? "Live" : "Demo";
 
   const headerNote = useMemo(() => {
-    if (!position) return mode === "live" ? "Live backend mode · demo samples remain fixture-only." : "Demo fixture mode.";
-    return isSample ? `Demo sample · ${position.asset}` : `Live backend · ${position.asset}`;
-  }, [position, isSample, mode]);
+    if (!position) return mode === "live" ? "Choose a demo sample or add a live backend position." : "Demo fixture mode.";
+    return displayedProvenance === "live" ? `Live backend · ${position.asset}` : `Demo sample · ${position.asset}`;
+  }, [position, mode, displayedProvenance]);
 
   return (
     <div className="abx" data-testid="ask-bhabit">
       <header className="abx-head">
         <h2 className="abx-title">Ask Bhabit</h2>
-        <span className="abx-beta">{mode === "live" ? "Live" : "Demo"}</span>
+        <span className="abx-beta">{provenanceLabel}</span>
       </header>
 
       {mode === "demo" ? (
         <BetaAllowanceMeter {...allowance} />
+      ) : displayedProvenance === "demo" ? (
+        <div className="abx-allowance" role="status">
+          <span>Demo fixture mode. This sample is not live backend data.</span>
+        </div>
       ) : (
         <div className="abx-allowance" role="status">
           <span>Live backend mode. No client-side usage allowance is applied.</span>

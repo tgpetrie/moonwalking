@@ -254,6 +254,39 @@
 }
 .abx-direct-headline { font-size: 0.95rem; font-weight: 700; margin: 0 0 6px; }
 .abx-direct-detail { font-size: 0.82rem; line-height: 1.6; color: var(--abx-ink); margin: 0; }
+.abx-asset-identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.58);
+  font-family: var(--abx-mono);
+  font-size: 0.66rem;
+}
+.abx-asset-identity > span,
+.abx-identity-details > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.abx-identity-details { position: relative; }
+.abx-identity-details > summary { cursor: pointer; list-style: none; }
+.abx-identity-details > summary::-webkit-details-marker { display: none; }
+.abx-full-identifier {
+  display: block;
+  max-width: 100%;
+  margin-top: 6px;
+  padding: 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.42);
+  color: rgba(255, 255, 255, 0.68);
+  overflow-wrap: anywhere;
+}
 
 .abx-badge {
   display: inline-flex;

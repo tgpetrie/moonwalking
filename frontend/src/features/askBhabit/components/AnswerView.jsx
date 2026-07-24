@@ -27,13 +27,14 @@ function Section({ index, title, children }) {
 Section.propTypes = { index: PropTypes.number, title: PropTypes.string, children: PropTypes.node };
 
 export default function AnswerView({ view, onCitationOpen }) {
-  const { directRead, whatChanged, position, thesisCheck, evidence, missing, confidence, sources } = view;
+  const { directRead, whatChanged, position, thesisCheck, evidence, missing, confidence, sources, assetIdentity } = view;
   const pos = position.display;
 
   return (
     <div className="abx-answer">
       {/* 1 — Direct read */}
       <div className={`abx-direct ${toneClass(directRead.tone)}`}>
+        {assetIdentity ? <AssetIdentity identity={assetIdentity} /> : null}
         <p className="abx-direct-headline">{directRead.headline}</p>
         {directRead.detail ? <p className="abx-direct-detail">{directRead.detail}</p> : null}
       </div>
@@ -181,6 +182,34 @@ export default function AnswerView({ view, onCitationOpen }) {
     </div>
   );
 }
+
+function AssetIdentity({ identity }) {
+  return (
+    <div className="abx-asset-identity">
+      <span>{identity.name}</span>
+      <span>{identity.symbol}</span>
+      {identity.chain ? <span>{identity.chain}</span> : null}
+      {identity.shortIdentifier ? (
+        <details className="abx-identity-details">
+          <summary aria-label={`Full identifier ${identity.fullIdentifier}`}>
+            <code>{identity.shortIdentifier}</code>
+          </summary>
+          <code className="abx-full-identifier">{identity.fullIdentifier}</code>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+AssetIdentity.propTypes = {
+  identity: PropTypes.shape({
+    name: PropTypes.string,
+    symbol: PropTypes.string,
+    chain: PropTypes.string,
+    shortIdentifier: PropTypes.string,
+    fullIdentifier: PropTypes.string,
+  }),
+};
 
 function Metric({ label, value, tone }) {
   return (
