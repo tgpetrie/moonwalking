@@ -934,6 +934,15 @@ except Exception:
         "Skipping Portfolio Mode blueprint registration during test or mocked environment"
     )
 
+try:
+    from ask_bhabit import ask_bhabit_bp
+
+    app.register_blueprint(ask_bhabit_bp)
+except Exception:
+    logging.exception(
+        "Skipping Ask Bhabit blueprint registration during test or mocked environment"
+    )
+
 # The old Redis/FinBERT blueprint depends on an unfinished engine and always
 # returned 503 in this build. Coin intelligence is served by /api/coin-intel.
 if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
