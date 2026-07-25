@@ -8,7 +8,7 @@ import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import AlertsDock from "./AlertsDock.jsx";
-import AskBhabitPanel from "./AskBhabitPanel.jsx";
+import AskBhabitExperience from "../features/askBhabit/AskBhabitExperience";
 import { getMarketPressure } from "../utils/marketPressure";
 import BoardWrapper from "./BoardWrapper.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -595,7 +595,7 @@ export default function DashboardShell({ onInfo }) {
         }}
       />
 
-      <AskBhabitPanel />
+      <AskBhabitExperience mode="live" />
       <AlertsDock onOpenAlerts={handleOpenAlerts} />
 
       {leaderboardOpen && (
