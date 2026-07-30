@@ -274,6 +274,7 @@ def test_prompt_injection_asset_metadata_remains_data_only():
 
 def test_api_position_thesis_analysis_latest_and_what_changed(tmp_path, monkeypatch):
     monkeypatch.setenv("ASK_BHABIT_STORE_PATH", str(tmp_path / "api_store.json"))
+    monkeypatch.setenv("MW_INTELLIGENCE_MEMORY_DB", str(tmp_path / "memory.sqlite"))
     monkeypatch.setattr(ask_bhabit, "PROVIDERS", providers())
     app = Flask(__name__)
     app.register_blueprint(ask_bhabit.ask_bhabit_bp)

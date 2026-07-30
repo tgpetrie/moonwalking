@@ -943,6 +943,24 @@ except Exception:
         "Skipping Ask Bhabit blueprint registration during test or mocked environment"
     )
 
+try:
+    from intelligence_feed import intelligence_feed_bp
+
+    app.register_blueprint(intelligence_feed_bp)
+except Exception:
+    logging.exception(
+        "Skipping Intelligence Feed blueprint registration during test or mocked environment"
+    )
+
+try:
+    from intelligence_test import intelligence_test_bp
+
+    app.register_blueprint(intelligence_test_bp)
+except Exception:
+    logging.exception(
+        "Skipping Intelligence Test blueprint registration during test or mocked environment"
+    )
+
 # The old Redis/FinBERT blueprint depends on an unfinished engine and always
 # returned 503 in this build. Coin intelligence is served by /api/coin-intel.
 if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
@@ -14127,6 +14145,24 @@ def _mw_ensure_background_started():
             app.logger.info(
                 "Legacy in-process sentiment poller disabled; canonical real-source service is managed separately."
             )
+        except Exception:
+            pass
+
+    # Proactive intelligence runner. Opt-in via MW_ENABLE_INTELLIGENCE_RUNNER=1;
+    # start_intelligence_runner() is itself idempotent and env-gated.
+    try:
+        from intelligence_runner import start_intelligence_runner
+
+        if start_intelligence_runner():
+            try:
+                app.logger.info(
+                    "Intelligence runner thread started (flask-run bootstrap)"
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        try:
+            app.logger.warning(f"Failed to start intelligence runner thread: {e}")
         except Exception:
             pass
 

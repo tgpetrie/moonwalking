@@ -26,6 +26,11 @@ try:
 except ImportError:  # package imports under pytest
     from backend.derivatives_positioning import get_symbol_positioning
 
+try:
+    from intelligence_memory import record_evidence_packet
+except ImportError:  # package imports under pytest
+    from backend.intelligence_memory import record_evidence_packet
+
 
 ask_bhabit_bp = Blueprint("ask_bhabit", __name__)
 
@@ -804,6 +809,22 @@ def analyze_route():
         "thesis_ref": (data.get("thesis") or {}).get("thesis_id"),
     }
     store.append_snapshot(snapshot)
+    try:
+        record_evidence_packet(
+            packet,
+            scope="ask_bhabit",
+            series_key=f"ask_bhabit:{packet.get('asset_id') or packet.get('asset_symbol')}",
+            asset_id=packet.get("asset_id"),
+            asset_symbol=packet.get("asset_symbol"),
+            position_ref=snapshot.get("position_ref"),
+            thesis_ref=snapshot.get("thesis_ref"),
+            comparison=comparison,
+            analysis=analysis,
+            origin="ask_bhabit.analyze",
+            created_at=snapshot["created_at"],
+        )
+    except Exception:
+        pass
     return _json_ok(snapshot, 201)
 
 
