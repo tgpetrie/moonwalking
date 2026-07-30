@@ -1,0 +1,128 @@
+/* Intelligence Feed — proactive event surface.
+ * Same sober, evidence-led register as Ask Bhabit. Prefix: .ifd-
+ * No global selectors. This is a delivery surface, not a redesign. */
+
+.ifd {
+  --ifd-sans: var(--bh-font-sans, system-ui, sans-serif);
+  --ifd-mono: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+  --ifd-panel: rgba(5, 3, 8, 0.94);
+  --ifd-line: rgba(168, 85, 247, 0.16);
+  --ifd-ink: rgba(236, 231, 223, 0.9);
+  --ifd-muted: rgba(255, 255, 255, 0.34);
+  --ifd-up: #6ee7a8;
+  --ifd-down: #ff9a9a;
+  --ifd-neutral: rgba(255, 255, 255, 0.55);
+
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--ifd-ink);
+  font-family: var(--ifd-sans);
+}
+.ifd *,
+.ifd *::before,
+.ifd *::after { box-sizing: border-box; }
+
+.ifd__title {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ifd-muted);
+  margin: 0 0 0.75rem;
+}
+
+.ifd__state {
+  padding: 1rem;
+  border: 1px solid var(--ifd-line);
+  border-radius: 12px;
+  background: var(--ifd-panel);
+  color: var(--ifd-muted);
+  font-size: 0.9rem;
+}
+
+.ifd__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+
+.ifd-card {
+  border: 1px solid var(--ifd-line);
+  border-radius: 12px;
+  background: var(--ifd-panel);
+  padding: 1rem;
+}
+
+.ifd-card__headline {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.ifd-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  font-size: 0.75rem;
+  color: var(--ifd-muted);
+  margin-bottom: 0.75rem;
+}
+
+.ifd-card__impact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--ifd-mono);
+  margin-bottom: 0.75rem;
+}
+.ifd-card__impact-pct { font-size: 1.35rem; }
+.ifd-card__impact-pct--up { color: var(--ifd-up); }
+.ifd-card__impact-pct--down { color: var(--ifd-down); }
+.ifd-card__impact-pct--flat,
+.ifd-card__impact-pct--unknown { color: var(--ifd-neutral); }
+.ifd-card__impact-usd { font-size: 0.9rem; color: var(--ifd-muted); }
+.ifd-card__impact-range { font-size: 0.75rem; color: var(--ifd-muted); }
+
+.ifd-card__assets { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+.ifd-card__asset {
+  font-family: var(--ifd-mono);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--ifd-line);
+  border-radius: 999px;
+}
+
+.ifd-card__reasons { margin: 0 0 0.75rem; padding-left: 1.1rem; font-size: 0.85rem; }
+.ifd-card__reasons li { margin-bottom: 0.2rem; }
+
+.ifd-card__movers {
+  border-top: 1px solid var(--ifd-line);
+  padding-top: 0.6rem;
+  font-size: 0.78rem;
+  font-family: var(--ifd-mono);
+  color: var(--ifd-muted);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ifd-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--ifd-muted);
+}
+.ifd-card__confidence--factual { color: var(--ifd-neutral); }
+.ifd-card__confidence--muted { color: var(--ifd-muted); font-style: italic; }
+
+.ifd-card__dismiss {
+  background: none;
+  border: 1px solid var(--ifd-line);
+  border-radius: 999px;
+  color: var(--ifd-muted);
+  font: inherit;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+.ifd-card__dismiss:hover { color: var(--ifd-ink); }

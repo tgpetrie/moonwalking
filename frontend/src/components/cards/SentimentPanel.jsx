@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../../styles/sentiment-panel.css";
 import { useMarketHeat } from "../../hooks/useMarketHeat";
 import { baselineOrNull, displayOrDash } from "../../utils/num.js";
+import MarketPositioningStatus from "../MarketPositioningStatus.jsx";
 
 function normalizeSymbol(symbol) {
   return (symbol || "")
@@ -72,6 +73,7 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
   const regimeDisplay = regimeRaw.replace(/_/g, " ").toUpperCase();
   const confidenceVal = Number.isFinite(sentiment.confidence) ? sentiment.confidence : null;
   const reasonLines = Array.isArray(sentiment.reasons) ? sentiment.reasons.slice(0, 2) : [];
+  const marketPositioning = sentiment.marketPositioning || null;
 
   const loading = hookLoading && !raw;
   const fetchError = error;
@@ -287,6 +289,15 @@ export default function SentimentPanel({ open, onClose, row, interval = "3m" }) 
                 {reasonLines.map((r, idx) => (
                   <p key={`reason-${idx}`} style={{margin: '0.25rem 0', opacity: 0.8, fontSize: '0.85em'}}>{r}</p>
                 ))}
+              </div>
+
+              <div className="sentiment-info-section">
+                <h3>Market Positioning</h3>
+                <p className="sentiment-subcopy">
+                  Derivatives context (funding &amp; open interest). Not a
+                  buy/sell signal.
+                </p>
+                <MarketPositioningStatus positioning={marketPositioning} />
               </div>
             </div>
           )}

@@ -67,6 +67,34 @@
       "access": "requires_commercial_access",
       "implemented": false,
       "scope": "news_social_sentiment"
+    },
+    {
+      "name": "X API Social Search",
+      "description": "Optional social chatter source; current pricing and low free access make it a later paid add-on, not a default signal",
+      "tier": "tier3",
+      "weight": 0.45,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://api.x.com/2/tweets/search/recent",
+      "documentation": "https://docs.x.com/x-api/getting-started/pricing",
+      "access": "requires_paid_api_access_for_useful_volume",
+      "implemented": false,
+      "scope": "social_chatter",
+      "signal_role": "noisy_paid_context"
+    },
+    {
+      "name": "Reddit Data API",
+      "description": "Optional subreddit sentiment and attention source; useful later with OAuth, dedupe, and anti-spam scoring",
+      "tier": "tier3",
+      "weight": 0.5,
+      "update_frequency": 900,
+      "type": "api",
+      "endpoint": "https://oauth.reddit.com",
+      "documentation": "https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki",
+      "access": "requires_oauth_client",
+      "implemented": false,
+      "scope": "social_chatter",
+      "signal_role": "noisy_context"
     }
   ]
 }

@@ -104,6 +104,10 @@ try:
     from position_intel import enrich_portfolio
 except ImportError:
     enrich_portfolio = None
+try:
+    from derivatives_positioning import get_symbol_positioning
+except ImportError:
+    get_symbol_positioning = None
 from coinbase_oauth import (
     CoinbaseOAuthConfig,
     OAuthTokenError,
@@ -930,6 +934,33 @@ except Exception:
         "Skipping Portfolio Mode blueprint registration during test or mocked environment"
     )
 
+try:
+    from ask_bhabit import ask_bhabit_bp
+
+    app.register_blueprint(ask_bhabit_bp)
+except Exception:
+    logging.exception(
+        "Skipping Ask Bhabit blueprint registration during test or mocked environment"
+    )
+
+try:
+    from intelligence_feed import intelligence_feed_bp
+
+    app.register_blueprint(intelligence_feed_bp)
+except Exception:
+    logging.exception(
+        "Skipping Intelligence Feed blueprint registration during test or mocked environment"
+    )
+
+try:
+    from intelligence_test import intelligence_test_bp
+
+    app.register_blueprint(intelligence_test_bp)
+except Exception:
+    logging.exception(
+        "Skipping Intelligence Test blueprint registration during test or mocked environment"
+    )
+
 # The old Redis/FinBERT blueprint depends on an unfinished engine and always
 # returned 503 in this build. Coin intelligence is served by /api/coin-intel.
 if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
@@ -1119,6 +1150,179 @@ def oauth_coinbase_status():
     return jsonify({"connected": True}), 200
 
 
+def _gather_board_data_for_symbols(symbols: set) -> dict:
+    """Collect 1m/3m price changes, volume stats, and sentiment for a set of symbols."""
+    board: dict = {}
+    for sym in symbols:
+        board[sym] = {}
+
+    g1 = _mw_get_component_snapshot("gainers_1m") or {}
+    g3 = _mw_get_component_snapshot("gainers_3m") or {}
+    l3 = _mw_get_component_snapshot("losers_3m") or {}
+    v1h = _mw_get_component_snapshot("volume_1h_candles") or {}
+
+    def _extract_board_rows(snap):
+        for row in snap.get("data") or []:
+            sym = (
+                str(row.get("symbol") or row.get("product_id") or "")
+                .split("-")[0]
+                .upper()
+            )
+            if sym not in board:
+                continue
+            entry = board[sym]
+            for key in (
+                "change_1m",
+                "change_3m",
+                "price_change_1m",
+                "price_change_3m",
+                "gain",
+                "momentum",
+            ):
+                val = row.get(key)
+                if val is not None and key not in entry:
+                    entry[key] = val
+
+    _extract_board_rows(g1)
+    _extract_board_rows(g3)
+    _extract_board_rows(l3)
+
+    for row in v1h.get("data") or []:
+        sym = str(row.get("product_id") or "").split("-")[0].upper()
+        if sym not in board:
+            continue
+        entry = board[sym]
+        for key in ("volume_1h_now", "volume_1h_prev", "volume_change_1h_pct"):
+            val = row.get(key)
+            if val is not None:
+                entry[key] = val
+
+    try:
+        sentiment_snap = _mw_get_component_snapshot("market_pressure") or {}
+        for item in sentiment_snap.get("coins") or []:
+            sym = str(item.get("symbol") or "").upper()
+            if sym in board:
+                board[sym]["sentiment"] = {
+                    "pressure": item.get("pressure"),
+                    "direction": item.get("direction"),
+                    "strength": item.get("strength"),
+                }
+    except Exception:
+        pass
+
+    return {k: v for k, v in board.items() if v}
+
+
+# Descriptive-levels candle cache: raw OHLC per product, TTL-refreshed on demand.
+# Candles (not computed levels) are cached because the HTTP fetch is the cost;
+# levels are recomputed each request against the holding's live price.
+_LEVELS_CANDLE_CACHE: dict = {}
+_LEVELS_CANDLE_LOCK = threading.Lock()
+_LEVELS_CANDLE_TTL_S = float(os.environ.get("MW_LEVELS_CANDLE_TTL_S", "300"))
+_LEVELS_GRANULARITY_S = 3600  # 1h candles
+_LEVELS_CANDLE_COUNT = 50  # ~50h swing window
+_LEVELS_FETCH_PER_REQUEST = int(os.environ.get("MW_LEVELS_FETCH_PER_REQUEST", "30"))
+_LEVELS_FETCH_WORKERS = 6
+
+
+def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dict:
+    """Return {SYMBOL: positioning_dict} for held symbols with a Hyperliquid perp.
+
+    Runs the async per-coin positioning fetch once with bounded concurrency.
+    Coins without a perp market (or on fetch failure) are simply omitted, so the
+    holdings card renders without a positioning block for them.
+    """
+    if not get_symbol_positioning or not symbols:
+        return {}
+    import asyncio
+
+    syms = [s for s in symbols if s]
+
+    async def _run():
+        results = await asyncio.gather(
+            *(
+                get_symbol_positioning(s, price_change_pct=change_by_symbol.get(s))
+                for s in syms
+            ),
+            return_exceptions=True,
+        )
+        return {
+            s: r
+            for s, r in zip(syms, results)
+            if isinstance(r, dict) and r.get("available")
+        }
+
+    try:
+        return asyncio.run(_run())
+    except RuntimeError:
+        return {}
+
+
+def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
+    """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
+
+    Fetches missing/stale candles on demand with bounded concurrency, capped per
+    request so a large portfolio warms the cache progressively rather than firing
+    dozens of calls at once. Symbols still cold this request simply get no levels
+    yet (the card renders without them).
+    """
+    try:
+        from position_levels import compute_levels
+    except Exception:
+        return {}
+
+    now = time.time()
+    fresh_candles: dict = {}
+    to_fetch: list[str] = []
+
+    with _LEVELS_CANDLE_LOCK:
+        for sym in symbols:
+            product_id = f"{sym}-USD"
+            cached = _LEVELS_CANDLE_CACHE.get(product_id)
+            if cached and (now - cached.get("ts", 0)) < _LEVELS_CANDLE_TTL_S:
+                fresh_candles[sym] = cached.get("candles")
+            else:
+                to_fetch.append(sym)
+
+    # Cap new network work per request; the rest warm up on later refreshes.
+    to_fetch = to_fetch[:_LEVELS_FETCH_PER_REQUEST]
+
+    if to_fetch:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _fetch(sym):
+            candles = _fetch_coinbase_candles(
+                f"{sym}-USD",
+                granularity=_LEVELS_GRANULARITY_S,
+                count=_LEVELS_CANDLE_COUNT,
+            )
+            return sym, candles
+
+        with ThreadPoolExecutor(max_workers=_LEVELS_FETCH_WORKERS) as pool:
+            for sym, candles in pool.map(_fetch, to_fetch):
+                if candles:
+                    with _LEVELS_CANDLE_LOCK:
+                        _LEVELS_CANDLE_CACHE[f"{sym}-USD"] = {
+                            "candles": candles,
+                            "ts": time.time(),
+                        }
+                    fresh_candles[sym] = candles
+
+    levels: dict = {}
+    for sym, candles in fresh_candles.items():
+        try:
+            computed = compute_levels(
+                candles,
+                price_by_symbol.get(sym),
+                granularity_seconds=_LEVELS_GRANULARITY_S,
+            )
+        except Exception:
+            computed = None
+        if computed:
+            levels[sym] = computed
+    return levels
+
+
 @app.route("/api/portfolio/intel", methods=["GET"])
 def portfolio_with_intel():
     """Portfolio snapshot enriched with signal intelligence and order analysis."""
@@ -1126,12 +1330,17 @@ def portfolio_with_intel():
         return jsonify({"error": "Position intelligence module not available"}), 503
 
     from portfolio_mode import get_portfolio_service, PortfolioModeError
-    from watchlist import get_authenticated_user
+    from watchlist import get_authenticated_user, sync_portfolio_to_watchlist
 
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
 
+    # NOTE: intentionally env-var owner-only, NOT OAuth-aware (unlike
+    # /api/portfolio). No UI consumes this endpoint yet, so per-user OAuth here
+    # would be speculative. When the intel UI is built, lift the OAuth-lookup
+    # block from portfolio_mode.portfolio_snapshot() into a shared helper and
+    # wire both routes. See HANDOFF.md §7 "Position Intelligence".
     owner_email = (
         str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
     )
@@ -1145,6 +1354,55 @@ def portfolio_with_intel():
     except PortfolioModeError as exc:
         return jsonify({"error": str(exc)}), 503
 
+    # Overlay user-entered cost basis so holdings without Advanced Trade fills
+    # (transferred-in coins) still show P&L. Verified fills always win.
+    try:
+        from portfolio_mode import apply_manual_cost_basis
+        from watchlist import get_manual_cost_basis
+
+        manual_map = get_manual_cost_basis(user["id"])
+        if manual_map:
+            apply_manual_cost_basis(snapshot, manual_map)
+    except Exception:
+        logging.debug("[Portfolio] manual cost-basis overlay skipped", exc_info=True)
+
+    held_symbols = {
+        str(h.get("symbol") or h.get("currency") or "").upper()
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+
+    try:
+        sync_result = sync_portfolio_to_watchlist(user["id"], held_symbols)
+    except Exception:
+        sync_result = None
+
+    board_data = _gather_board_data_for_symbols(held_symbols)
+
+    price_by_symbol = {
+        str(h.get("symbol") or "").upper(): h.get("price_usd")
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+    try:
+        levels_data = _gather_levels_for_symbols(held_symbols, price_by_symbol)
+    except Exception:
+        logging.debug("[Portfolio] levels gather skipped", exc_info=True)
+        levels_data = {}
+
+    change_by_symbol = {
+        str(h.get("symbol") or "").upper(): h.get("price_change_24h_pct")
+        for h in snapshot.get("holdings") or []
+        if not h.get("is_cash") and h.get("symbol")
+    }
+    try:
+        positioning_data = _gather_positioning_for_symbols(
+            held_symbols, change_by_symbol
+        )
+    except Exception:
+        logging.debug("[Portfolio] positioning gather skipped", exc_info=True)
+        positioning_data = {}
+
     event_source = [
         _ensure_alert_contract(dict(item))
         for item in list(alerts_log_main)
@@ -1155,8 +1413,73 @@ def portfolio_with_intel():
         dict(item) for item in list(alerts_log_main) if isinstance(item, dict)
     ]
 
-    enriched = enrich_portfolio(snapshot, signals=signals, active_alerts=active_alerts)
+    enriched = enrich_portfolio(
+        snapshot,
+        signals=signals,
+        active_alerts=active_alerts,
+        board_data=board_data,
+        levels_data=levels_data,
+        positioning_data=positioning_data,
+    )
+    if sync_result:
+        enriched["watchlist_sync"] = sync_result
     return jsonify(enriched)
+
+
+def _require_portfolio_owner():
+    """Return (user, None) for the configured portfolio owner, else (None, resp).
+
+    Mirrors the owner gate on /api/portfolio/intel so the cost-basis write
+    routes stay consistent with who can see the portfolio.
+    """
+    from watchlist import get_authenticated_user
+
+    user = get_authenticated_user()
+    if not user:
+        return None, (jsonify({"error": "Not authenticated"}), 401)
+    owner_email = (
+        str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    )
+    user_email = str(user.get("email") or "").strip().lower()
+    if not owner_email or user_email != owner_email:
+        return None, (jsonify({"error": "Portfolio access denied"}), 403)
+    return user, None
+
+
+@app.route("/api/portfolio/cost-basis", methods=["POST"])
+def portfolio_set_cost_basis():
+    """Save the owner's manual average cost for a holding (unlocks P&L)."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+
+    from watchlist import set_manual_cost_basis
+
+    payload = request.get_json(silent=True) or {}
+    symbol = payload.get("symbol")
+    average_price = payload.get("average_price")
+    note = payload.get("note") or ""
+
+    record = set_manual_cost_basis(user["id"], symbol, average_price, note)
+    if record is None:
+        return (
+            jsonify({"error": "A symbol and a positive average_price are required."}),
+            400,
+        )
+    return jsonify({"status": "saved", "cost_basis": record})
+
+
+@app.route("/api/portfolio/cost-basis/<symbol>", methods=["DELETE"])
+def portfolio_delete_cost_basis(symbol):
+    """Remove the owner's manual cost basis for a symbol."""
+    user, error = _require_portfolio_owner()
+    if error:
+        return error
+
+    from watchlist import delete_manual_cost_basis
+
+    removed = delete_manual_cost_basis(user["id"], symbol)
+    return jsonify({"status": "deleted" if removed else "not_found", "symbol": symbol})
 
 
 # Initialize Flask-Talisman only when not explicitly disabled (tests/CI may
@@ -4447,6 +4770,104 @@ def _fetch_coinbase_candles(product_id, granularity=60, count=70):
     except Exception as e:
         logging.debug(f"[Candles] Fetch error for {product_id}: {e}")
         return None
+
+
+_BACKFILL_1H_LOCK = threading.Lock()
+_BACKFILL_1H_STARTED = False
+
+
+def _backfill_1h_baseline_from_candles(product_ids, *, max_products=200):
+    """Seed SQLite price snapshots from Coinbase 1-min candles.
+
+    The 1h baseline (change_1h, the `price_1h` readiness flag, and therefore the
+    Coin Pressure verdict's 1h-agreement input) is normally built by accumulating
+    ~55 min of live tape after boot. A 1h candle is free and instant, so we seed
+    ~75 min of history up front and let the existing DB baseline reader pick it up.
+
+    Best-effort and purely additive: it only inserts historical (ts, price) rows
+    the baseline logic already understands. Any failure leaves the app in its
+    normal warmup state.
+    """
+    by_ts: dict[int, list[tuple[str, float]]] = {}
+    fetched = 0
+    for idx, pid in enumerate(list(product_ids)[:max_products]):
+        candles = _fetch_coinbase_candles(pid, granularity=60, count=75)
+        if candles:
+            for candle in candles:
+                try:
+                    ts = int(candle[0])
+                    close = float(candle[4])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                if close > 0:
+                    by_ts.setdefault(ts, []).append((pid, close))
+            fetched += 1
+        # Stay polite to the public candles endpoint.
+        if idx % 20 == 19:
+            time.sleep(0.5)
+
+    inserted = 0
+    for ts, rows in by_ts.items():
+        try:
+            insert_price_snapshot(ts, rows)
+            inserted += len(rows)
+        except Exception:
+            continue
+    return inserted, fetched
+
+
+def _backfill_1h_baseline_thread():
+    """Background worker: resolve the live universe, then seed its 1h baseline."""
+    try:
+        data = None
+        for _ in range(30):  # wait for the first live price cycle
+            data = (last_current_prices or {}).get("data")
+            if data:
+                break
+            time.sleep(1)
+        if not data:
+            return
+        raw_symbols = (
+            list(data.keys())
+            if isinstance(data, dict)
+            else [r.get("symbol") for r in data if isinstance(r, dict)]
+        )
+        product_ids, seen = [], set()
+        for sym in raw_symbols:
+            base = _norm_base(str(sym or "")).split("-", 1)[0]
+            if not base:
+                continue
+            pid = f"{base}-USD"
+            if pid not in seen:
+                seen.add(pid)
+                product_ids.append(pid)
+        if not product_ids:
+            return
+        inserted, fetched = _backfill_1h_baseline_from_candles(product_ids)
+        logging.info(
+            "[1h-backfill] seeded %s snapshot rows from %s products; "
+            "1h baseline live without the ~55m warmup",
+            inserted,
+            fetched,
+        )
+    except Exception as e:  # never let the seeder break startup
+        logging.debug(f"[1h-backfill] skipped: {e}")
+
+
+def _maybe_start_1h_backfill():
+    """Spawn the 1h-baseline seeder once per process."""
+    global _BACKFILL_1H_STARTED
+    with _BACKFILL_1H_LOCK:
+        if _BACKFILL_1H_STARTED:
+            return
+        _BACKFILL_1H_STARTED = True
+    try:
+        bt = threading.Thread(
+            target=_backfill_1h_baseline_thread, name="mw-1h-backfill", daemon=True
+        )
+        bt.start()
+    except Exception:
+        pass
 
 
 def _compute_1h_volume_from_candles(product_id):
@@ -11208,6 +11629,24 @@ def get_board_outcome_status():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/scorecard")
+def get_scorecard():
+    """Unified outcome scorecard: signal accuracy + board continuation rates."""
+    try:
+        signal_card = signal_outcome_store.scorecard()
+        board_card = board_outcome_store.status()
+        return jsonify(
+            {
+                "status": "live",
+                "signals": signal_card,
+                "boards": board_card,
+            }
+        )
+    except Exception as exc:
+        logging.exception("Scorecard failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/notifications/status")
 def get_notification_delivery_status():
     """Expose channel readiness and budgets without exposing credentials."""
@@ -12483,6 +12922,33 @@ def get_crypto_news(symbol):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/positioning/<symbol>")
+def get_positioning_endpoint(symbol):
+    """Per-coin derivatives positioning (funding/OI) from Hyperliquid.
+
+    Returns {available: false} for coins with no perp market (or when the fetch
+    is unavailable) so the UI can honestly render "no derivatives market".
+    """
+    symbol = symbol.upper().replace("-USD", "")
+    if not symbol.isalpha() or len(symbol) < 2 or len(symbol) > 12:
+        return jsonify({"error": "Invalid symbol format"}), 400
+    if not get_symbol_positioning:
+        return jsonify({"available": False, "symbol": symbol}), 200
+
+    change_pct = request.args.get("change_24h_pct", type=float)
+    try:
+        import asyncio
+
+        data = asyncio.run(get_symbol_positioning(symbol, price_change_pct=change_pct))
+    except Exception as e:
+        logging.debug(f"positioning fetch failed for {symbol}: {e}")
+        data = None
+
+    if not data:
+        return jsonify({"available": False, "symbol": symbol}), 200
+    return jsonify(data), 200
+
+
 # /api/social-sentiment already registered above (line ~2266)
 
 # =============================================================================
@@ -13608,6 +14074,8 @@ def _mw_ensure_background_started():
         except Exception:
             pass
 
+    _maybe_start_1h_backfill()
+
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
             return
@@ -13677,6 +14145,24 @@ def _mw_ensure_background_started():
             app.logger.info(
                 "Legacy in-process sentiment poller disabled; canonical real-source service is managed separately."
             )
+        except Exception:
+            pass
+
+    # Proactive intelligence runner. Opt-in via MW_ENABLE_INTELLIGENCE_RUNNER=1;
+    # start_intelligence_runner() is itself idempotent and env-gated.
+    try:
+        from intelligence_runner import start_intelligence_runner
+
+        if start_intelligence_runner():
+            try:
+                app.logger.info(
+                    "Intelligence runner thread started (flask-run bootstrap)"
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        try:
+            app.logger.warning(f"Failed to start intelligence runner thread: {e}")
         except Exception:
             pass
 
@@ -13914,6 +14400,8 @@ def main():
         logging.info("SQLite price snapshot database initialized")
     except Exception as e:
         logging.error(f"Failed to initialize price database: {e}")
+
+    _maybe_start_1h_backfill()
 
     # DEV: seed volume history if requested (helps banner 1h display during dev)
     try:

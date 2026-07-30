@@ -31,6 +31,73 @@ test("normalizeSentiment tolerates nullish input", () => {
   expect(norm.pipelineStatus).toBe("OFFLINE");
 });
 
+test("normalizeSentiment surfaces market positioning from social_metrics", () => {
+  const norm = normalizeSentiment({
+    social_metrics: {
+      derivatives_positioning: {
+        live_exchanges: ["okx"],
+        blocked_exchanges: ["binance", "bybit"],
+        failed_exchanges: [],
+        configured_exchanges: ["binance", "bybit", "okx"],
+        stale: false,
+        updated_at: "2026-07-22T00:00:00Z",
+        summary: {
+          funding_bias: "neutral",
+          live_exchange_count: 1,
+          configured_exchange_count: 3,
+          coverage_ratio: 0.333,
+          confidence_penalty: 0.667,
+          average_funding_rate: 0.00001,
+        },
+      },
+    },
+  });
+  const mp = norm.marketPositioning;
+  expect(mp.available).toBe(true);
+  expect(mp.status).toBe("LIVE");
+  expect(mp.liveExchanges).toEqual(["okx"]);
+  expect(mp.blockedExchanges).toEqual(["binance", "bybit"]);
+  expect(mp.fundingBias).toBe("neutral");
+  expect(mp.coverageLive).toBe(1);
+  expect(mp.coverageTotal).toBe(3);
+});
+
+test("normalizeSentiment marks positioning stale when the payload is stale", () => {
+  const norm = normalizeSentiment({
+    social_metrics: {
+      derivatives_positioning: {
+        live_exchanges: ["okx"],
+        configured_exchanges: ["binance", "bybit", "okx"],
+        stale: true,
+        summary: { funding_bias: "longs_pay" },
+      },
+    },
+  });
+  expect(norm.marketPositioning.status).toBe("STALE");
+  expect(norm.marketPositioning.available).toBe(true);
+});
+
+test("normalizeSentiment never reports positioning as live without live exchanges", () => {
+  // No live exchanges at all -> must be UNAVAILABLE, never LIVE.
+  const norm = normalizeSentiment({
+    social_metrics: {
+      derivatives_positioning: {
+        live_exchanges: [],
+        blocked_exchanges: ["binance", "bybit", "okx"],
+        configured_exchanges: ["binance", "bybit", "okx"],
+        summary: { funding_bias: "unknown" },
+      },
+    },
+  });
+  expect(norm.marketPositioning.available).toBe(false);
+  expect(norm.marketPositioning.status).toBe("UNAVAILABLE");
+
+  // Missing block entirely -> also UNAVAILABLE.
+  const empty = normalizeSentiment(null);
+  expect(empty.marketPositioning.available).toBe(false);
+  expect(empty.marketPositioning.status).toBe("UNAVAILABLE");
+});
+
 test("normalizeSentiment reports stale and offline truthfully", () => {
   const stale = normalizeSentiment({
     overall_sentiment: 0.28,

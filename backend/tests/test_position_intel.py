@@ -92,6 +92,36 @@ def test_limit_buy_order():
     assert assessment["discount_pct"] > 0
 
 
+def test_holding_with_board_data():
+    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    board = {
+        "change_1m": 2.5,
+        "change_3m": 4.1,
+        "volume_1h_now": 5000000,
+        "volume_1h_prev": 3000000,
+        "sentiment": {"pressure": "bullish", "direction": "up", "strength": 72},
+    }
+    intel = _assess_holding(
+        _holding("SOL", 150.0, 300.0, 15.0), signal, None, None, board_row=board
+    )
+    assert intel["posture"] == "momentum_favorable"
+    assert "board" in intel
+    assert intel["board"]["change_1m"] == 2.5
+    assert intel["board"]["change_3m"] == 4.1
+    assert intel["board"]["volume_1h_now"] == 5000000
+    assert intel["board"]["volume_change_1h_pct"] > 0
+    assert intel["board"]["sentiment"]["pressure"] == "bullish"
+
+
+def test_holding_board_data_no_signal():
+    board = {"change_1m": -1.2, "momentum": "moderate"}
+    intel = _assess_holding(
+        _holding("COTI", 0.01, 10.0, 0.5), None, None, None, board_row=board
+    )
+    assert intel["posture"] == "no_signal"
+    assert intel["board"]["change_1m"] == -1.2
+
+
 def test_enrich_portfolio_adds_intel():
     snapshot = {
         "holdings": [
@@ -116,3 +146,148 @@ def test_enrich_portfolio_adds_intel():
     assert enriched["open_orders"][0].get("intel") is not None
     assert enriched.get("intel_summary") is not None
     assert enriched["intel_summary"]["holdings_with_signals"] == 1
+
+
+def test_enrich_portfolio_with_board_data():
+    snapshot = {
+        "holdings": [
+            _holding("SOL", 150.0, 300.0, 50.0),
+            _holding("COTI", 0.01, 10.0, 2.0),
+        ],
+        "open_orders": [],
+        "summary": {"holding_count": 2},
+    }
+    board_data = {
+        "SOL": {"change_1m": 3.2, "change_3m": 5.0, "momentum": "strong"},
+    }
+    enriched = enrich_portfolio(snapshot, board_data=board_data)
+    assert enriched["holdings"][0]["intel"]["board"]["change_1m"] == 3.2
+    assert "board" not in enriched["holdings"][1].get("intel", {})
+
+
+# --- Descriptive 24h read fallback (coverage for board non-movers) -----------
+
+
+def _holding_24h(symbol, change_24h_pct):
+    h = _holding(symbol, 1.0, 100.0, 1.0)
+    h["price_change_24h_pct"] = change_24h_pct
+    return h
+
+
+def test_descriptive_read_up_moderate():
+    intel = _assess_holding(_holding_24h("ARX", 4.2), None, None, None)
+    assert intel["posture"] == "descriptive_up"
+    assert intel["read_source"] == "descriptive"
+    assert intel["read"]["source"] == "descriptive"
+    assert intel["read"]["change_24h_pct"] == 4.2
+    assert "4.2" in intel["read"]["short"]
+    # A descriptive read is NOT a real signal.
+    assert "signal" not in intel
+
+
+def test_descriptive_read_down_big():
+    intel = _assess_holding(_holding_24h("BILL", -11.5), None, None, None)
+    assert intel["posture"] == "descriptive_down_strong"
+    assert intel["read"]["tone"] == "danger"
+
+
+def test_descriptive_read_quiet_band():
+    intel = _assess_holding(_holding_24h("COTI", 1.4), None, None, None)
+    assert intel["posture"] == "descriptive_flat"
+    assert intel["read"]["tone"] == "muted"
+
+
+def test_descriptive_band_boundaries():
+    # Exactly at the quiet/moving boundary counts as moving.
+    assert _assess_holding(_holding_24h("A", 2.0), None, None, None)["posture"] == (
+        "descriptive_up"
+    )
+    assert _assess_holding(_holding_24h("B", 1.99), None, None, None)["posture"] == (
+        "descriptive_flat"
+    )
+    # Exactly at the big-move boundary counts as big.
+    assert _assess_holding(_holding_24h("C", 8.0), None, None, None)["posture"] == (
+        "descriptive_up_strong"
+    )
+    assert _assess_holding(_holding_24h("D", -8.0), None, None, None)["posture"] == (
+        "descriptive_down_strong"
+    )
+
+
+def test_no_signal_and_no_price_change_stays_no_signal():
+    # No signal and no 24h field -> genuinely no read.
+    intel = _assess_holding(_holding("XYZ", 0.01, 10.0, 0.5), None, None, None)
+    assert intel["posture"] == "no_signal"
+    assert intel["read_source"] == "none"
+    assert "read" not in intel
+
+
+def test_real_signal_marks_read_source_signal():
+    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    intel = _assess_holding(_holding_24h("SOL", 4.2), signal, None, None)
+    # A live signal wins over the descriptive fallback.
+    assert intel["posture"] == "momentum_favorable"
+    assert intel["read_source"] == "signal"
+    assert "read" not in intel
+
+
+def test_levels_attach_and_enrich_descriptive_read():
+    snapshot = {
+        "holdings": [_holding_24h("ARX", 4.2)],
+        "open_orders": [],
+        "summary": {"holding_count": 1},
+    }
+    levels = {
+        "ARX": {
+            "support": 0.5,
+            "resistance": 1.0,
+            "range_zone": "near_resistance",
+            "outcome_validated": False,
+        }
+    }
+    enriched = enrich_portfolio(snapshot, levels_data=levels)
+    holding = enriched["holdings"][0]
+    # Levels are attached at the holding level.
+    assert holding["levels"]["range_zone"] == "near_resistance"
+    assert holding["levels"]["outcome_validated"] is False
+    # The descriptive read gains recent-range context.
+    assert "resistance" in holding["intel"]["read"]["short"].lower()
+
+
+def test_levels_do_not_touch_a_signal_read():
+    signal = _signal("SOL", "Confirmed", "up", 85, "BUY WATCH")
+    snapshot = {
+        "holdings": [_holding_24h("SOL", 4.2)],
+        "open_orders": [],
+        "summary": {"holding_count": 1},
+    }
+    levels = {"SOL": {"range_zone": "near_resistance"}}
+    enriched = enrich_portfolio(snapshot, signals=[signal], levels_data=levels)
+    holding = enriched["holdings"][0]
+    assert holding["levels"]["range_zone"] == "near_resistance"
+    # A real signal read is untouched (no descriptive "read" dict to enrich).
+    assert holding["intel"]["read_source"] == "signal"
+    assert "read" not in holding["intel"]
+
+
+def test_summary_keeps_signal_coverage_pure():
+    snapshot = {
+        "holdings": [
+            _holding_24h("SOL", 4.2),  # real signal below
+            _holding_24h("ARX", -3.1),  # descriptive only
+            _holding_24h("COTI", 0.3),  # descriptive only (quiet)
+            {"symbol": "USD", "is_cash": True, "market_value_usd": 500.0},
+        ],
+        "open_orders": [],
+        "summary": {"holding_count": 3},
+    }
+    signals = [_signal("SOL", "Confirmed", "up", 85)]
+    enriched = enrich_portfolio(snapshot, signals=signals)
+
+    summary = enriched["intel_summary"]
+    # Only SOL has a real signal.
+    assert summary["holdings_with_signals"] == 1
+    assert summary["signal_coverage_pct"] == round(1 / 3 * 100, 1)
+    # All three non-cash holdings have a read (1 signal + 2 descriptive).
+    assert summary["holdings_with_read"] == 3
+    assert summary["read_coverage_pct"] == 100.0

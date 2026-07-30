@@ -7,17 +7,20 @@ import {
 } from "react";
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
+import ScorecardPage from "../components/ScorecardPage.jsx";
 import "../styles/mvp-shell.css";
 
 const APP_DASHBOARD_PATH = "/app/dashboard";
 const APP_WATCHLISTS_PATH = "/app/watchlists";
 const APP_PORTFOLIO_PATH = "/app/portfolio";
+const APP_SCORECARD_PATH = "/app/scorecard";
 const APP_SETTINGS_PATH = "/app/settings";
 
 const protectedPaths = new Set([
   APP_DASHBOARD_PATH,
   APP_WATCHLISTS_PATH,
   APP_PORTFOLIO_PATH,
+  APP_SCORECARD_PATH,
   APP_SETTINGS_PATH,
 ]);
 
@@ -369,13 +372,14 @@ function useRouter() {
   return { pathname, navigate };
 }
 
-function AppLink({ to, navigate, className, children, accent = false }) {
+function AppLink({ to, navigate, className, children, accent = false, external = false }) {
   return (
     <a
       href={to}
       className={classNames(className, accent && "mw-link-accent")}
       onClick={(event) => {
         if (
+          external ||
           event.defaultPrevented ||
           event.button !== 0 ||
           event.metaKey ||
@@ -762,9 +766,11 @@ function MemberShell({
   onLogout,
 }) {
   const navItems = [
+    { label: "Live Board", to: "/", external: true },
     { label: "Dashboard", to: APP_DASHBOARD_PATH },
     { label: "Watchlists", to: APP_WATCHLISTS_PATH },
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
+    { label: "Scorecard", to: APP_SCORECARD_PATH },
     { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
@@ -795,6 +801,7 @@ function MemberShell({
               key={item.to}
               to={item.to}
               navigate={navigate}
+              external={item.external}
               className={classNames(
                 "mw-sidebar__link",
                 currentPath === item.to && "is-active"
@@ -1828,6 +1835,8 @@ export default function MvpApp() {
         );
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;
+      case APP_SCORECARD_PATH:
+        return <ScorecardPage />;
       case APP_SETTINGS_PATH:
         return (
           <SettingsPage

@@ -10,6 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+import logging
 import os
 import threading
 import time
@@ -17,6 +18,15 @@ from typing import Any, Iterable
 
 import requests
 from flask import Blueprint, jsonify, request
+
+try:
+    from intelligence_memory import (
+        record_portfolio_snapshot as record_portfolio_snapshot_memory,
+    )
+except ImportError:  # package imports under pytest
+    from backend.intelligence_memory import (
+        record_portfolio_snapshot as record_portfolio_snapshot_memory,
+    )
 
 try:
     from watchlist import get_authenticated_user
@@ -321,6 +331,122 @@ def reconstruct_cost_basis(
         "history_complete": bool(history_complete),
         "source": "coinbase_advanced_trade_fills",
     }
+
+
+def apply_manual_cost_basis(
+    snapshot: dict[str, Any],
+    manual_map: dict[str, dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Overlay user-entered average cost onto holdings whose fill-based cost
+    basis is ``partial`` or ``unavailable``, unlocking unrealized P&L.
+
+    manual_map: ``{SYMBOL: {"average_price": float, "note": str | None}}``.
+
+    - ``partial`` fills → blend: known fill cost + (unknown qty × manual avg),
+      status becomes ``blended``.
+    - ``unavailable`` (no USD fills) → the manual average defines the whole
+      position, status becomes ``manual``.
+    - ``complete`` is left untouched; verified fills always win over an estimate.
+
+    Mutates and returns the snapshot (summary aggregates are recomputed so the
+    P&L and coverage headline stay consistent). Pure otherwise — no I/O.
+    """
+    if not manual_map:
+        return snapshot
+
+    normalized = {str(k).upper(): v for k, v in manual_map.items() if v}
+
+    for holding in snapshot.get("holdings") or []:
+        if holding.get("is_cash"):
+            continue
+        symbol = str(holding.get("symbol") or "").upper()
+        manual = normalized.get(symbol)
+        if not manual:
+            continue
+        avg = _decimal(manual.get("average_price"))
+        if avg <= 0:
+            continue
+
+        basis = holding.get("cost_basis") or {}
+        status = basis.get("status")
+        quantity = _decimal(holding.get("quantity"))
+        if quantity <= 0 or status not in ("partial", "unavailable"):
+            continue
+
+        if status == "partial":
+            known_cost = _decimal(basis.get("known_cost_usd"))
+            unknown_quantity = _decimal(basis.get("unknown_quantity"))
+            total_cost = known_cost + (unknown_quantity * avg)
+            new_status = "blended"
+            source = "advanced_trade_fills_plus_manual"
+        else:  # unavailable — manual entry defines the whole position
+            total_cost = quantity * avg
+            new_status = "manual"
+            source = "manual_entry"
+
+        new_average = total_cost / quantity if quantity > 0 else None
+        basis.update(
+            {
+                "status": new_status,
+                "average_price": _float(new_average),
+                "known_quantity": _float(quantity),
+                "unknown_quantity": 0.0,
+                "known_cost_usd": _float(total_cost),
+                "source": source,
+                "manual_average_price": _float(avg),
+                "manual_note": manual.get("note") or None,
+            }
+        )
+        holding["cost_basis"] = basis
+
+        market_value = holding.get("market_value_usd")
+        if market_value is not None and total_cost > 0:
+            unrealized = _decimal(market_value) - total_cost
+            holding["unrealized_pnl_usd"] = _float(unrealized)
+            holding["unrealized_pnl_pct"] = _float(
+                (unrealized / total_cost) * Decimal("100")
+            )
+
+    _recompute_cost_basis_summary(snapshot)
+    return snapshot
+
+
+_COVERED_STATUSES = ("complete", "blended", "manual")
+
+
+def _recompute_cost_basis_summary(snapshot: dict[str, Any]) -> None:
+    """Recompute P&L and cost-basis-coverage aggregates after a manual overlay."""
+    summary = snapshot.get("summary")
+    if not isinstance(summary, dict):
+        return
+    holdings = snapshot.get("holdings") or []
+
+    known_pnl = sum(
+        (
+            _decimal(row.get("unrealized_pnl_usd"))
+            for row in holdings
+            if row.get("unrealized_pnl_usd") is not None
+        ),
+        Decimal("0"),
+    )
+    covered_value = sum(
+        (
+            _decimal(row.get("market_value_usd"))
+            for row in holdings
+            if not row.get("is_cash")
+            and row.get("market_value_usd") is not None
+            and (row.get("cost_basis") or {}).get("status") in _COVERED_STATUSES
+        ),
+        Decimal("0"),
+    )
+    crypto_value = _decimal(summary.get("crypto_value_usd"))
+
+    summary["known_unrealized_pnl_usd"] = _float(known_pnl)
+    summary["cost_basis_coverage_pct"] = _float(
+        (covered_value / crypto_value) * Decimal("100")
+        if crypto_value > 0
+        else Decimal("100")
+    )
 
 
 def _account_quantity(account: dict[str, Any]) -> tuple[Decimal, Decimal, Decimal]:
@@ -667,86 +793,44 @@ def portfolio_snapshot():
     user_id = user.get("id")
     user_email = str(user.get("email") or "").strip().lower()
 
-    # Try OAuth first
+    # OAuth path. Credential loading, refresh, and rotated-token persistence all
+    # live in portfolio_credentials so the background intelligence runner takes
+    # the exact same path — a token refreshed here is refreshed there too.
     try:
-        from coinbase_oauth import (
-            CoinbaseOAuthConfig,
-            refresh_access_token,
-            compute_expiry_timestamp,
-            OAuthTokenError,
-        )
-        from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
-        from datetime import datetime, timezone, timedelta
-
-        conn = _db_connect()
         try:
-            oauth_row = conn.execute(
-                "SELECT coinbase_oauth_access_token, coinbase_oauth_refresh_token, coinbase_oauth_expires_at FROM users WHERE id = ?",
-                (user_id,),
-            ).fetchone()
-        finally:
-            conn.close()
+            from portfolio_credentials import resolve_user_credentials
+        except ImportError:
+            from backend.portfolio_credentials import resolve_user_credentials
 
-        if oauth_row and oauth_row[0]:
-            config = CoinbaseOAuthConfig()
-            if config.is_configured():
-                access_token, refresh_token, expires_at = (
-                    oauth_row[0],
-                    oauth_row[1],
-                    oauth_row[2],
-                )
-                needs_refresh = False
-                if expires_at:
-                    try:
-                        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                        needs_refresh = datetime.now(timezone.utc) >= exp - timedelta(
-                            minutes=5
-                        )
-                    except Exception:
-                        needs_refresh = True
+        resolved = resolve_user_credentials(user_id)
+        if resolved.usable:
+            force = str(request.args.get("refresh") or "").lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+            try:
+                snapshot = get_portfolio_service(resolved.client).snapshot(force=force)
+                try:
+                    from watchlist import get_manual_cost_basis
 
-                if needs_refresh and refresh_token:
-                    try:
-                        token_data = refresh_access_token(config, refresh_token)
-                        access_token = token_data.get("access_token", access_token)
-                        new_refresh = token_data.get("refresh_token", refresh_token)
-                        new_expires = compute_expiry_timestamp(
-                            token_data.get("expires_in", 3600)
-                        )
-                        with _DB_LOCK:
-                            wconn = _db_connect()
-                            try:
-                                wconn.execute(
-                                    "UPDATE users SET coinbase_oauth_access_token=?, coinbase_oauth_refresh_token=?, coinbase_oauth_expires_at=?, updated_at=? WHERE id=?",
-                                    (
-                                        access_token,
-                                        new_refresh,
-                                        new_expires,
-                                        _utc_now_iso(),
-                                        user_id,
-                                    ),
-                                )
-                                wconn.commit()
-                            finally:
-                                wconn.close()
-                    except OAuthTokenError:
-                        pass
-
-                if access_token:
-                    force = str(request.args.get("refresh") or "").lower() in {
-                        "1",
-                        "true",
-                        "yes",
-                    }
-                    try:
-                        client = CoinbaseAdvancedTradeClient(
-                            oauth_access_token=access_token
-                        )
-                        return jsonify(
-                            get_portfolio_service(client).snapshot(force=force)
-                        )
-                    except PortfolioModeError as error:
-                        return _error_payload(error)
+                    snapshot_for_memory = deepcopy(snapshot)
+                    manual_map = get_manual_cost_basis(user_id)
+                    if manual_map:
+                        apply_manual_cost_basis(snapshot_for_memory, manual_map)
+                    record_portfolio_snapshot_memory(
+                        user_id,
+                        snapshot_for_memory,
+                        source="portfolio_mode",
+                    )
+                except Exception:
+                    logging.debug(
+                        "[Portfolio] memory snapshot write skipped",
+                        exc_info=True,
+                    )
+                return jsonify(snapshot)
+            except PortfolioModeError as error:
+                return _error_payload(error)
     except ImportError:
         pass
     except Exception:
@@ -789,9 +873,38 @@ def portfolio_snapshot():
 
     force = str(request.args.get("refresh") or "").lower() in {"1", "true", "yes"}
     try:
-        return jsonify(get_portfolio_service().snapshot(force=force))
+        snapshot = get_portfolio_service().snapshot(force=force)
     except PortfolioModeError as error:
         return _error_payload(error)
+
+    try:
+        from watchlist import get_manual_cost_basis
+
+        snapshot_for_memory = deepcopy(snapshot)
+        manual_map = get_manual_cost_basis(user_id)
+        if manual_map:
+            apply_manual_cost_basis(snapshot_for_memory, manual_map)
+        record_portfolio_snapshot_memory(
+            user_id,
+            snapshot_for_memory,
+            source="portfolio_mode",
+        )
+    except Exception:
+        logging.debug("[Portfolio] memory snapshot write skipped", exc_info=True)
+
+    try:
+        from watchlist import sync_portfolio_to_watchlist
+
+        held = {
+            str(h.get("symbol") or h.get("currency") or "").upper()
+            for h in snapshot.get("holdings") or []
+            if not h.get("is_cash") and (h.get("symbol") or h.get("currency"))
+        }
+        sync_portfolio_to_watchlist(user_id, held)
+    except Exception:
+        pass
+
+    return jsonify(snapshot)
 
 
 __all__ = [
@@ -801,4 +914,5 @@ __all__ = [
     "UnsafeCoinbasePermissions",
     "portfolio_bp",
     "reconstruct_cost_basis",
+    "apply_manual_cost_basis",
 ]

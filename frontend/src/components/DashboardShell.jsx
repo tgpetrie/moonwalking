@@ -8,7 +8,7 @@ import AnomalyStream from "./AnomalyStream.jsx";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import AlertsDock from "./AlertsDock.jsx";
-import AskBhabitPanel from "./AskBhabitPanel.jsx";
+import AskBhabitExperience from "../features/askBhabit/AskBhabitExperience";
 import { getMarketPressure } from "../utils/marketPressure";
 import BoardWrapper from "./BoardWrapper.jsx";
 import GainersTable1Min from "./GainersTable1Min.jsx";
@@ -16,6 +16,8 @@ import GainersTable3Min from "./GainersTable3Min.jsx";
 import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
+import LiveLeaderboard from "./LiveLeaderboard.jsx";
+import MarketSignalCard from "./MarketSignalCard.jsx";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -194,15 +196,16 @@ function BoardRowLegend() {
   );
 }
 
-function LiveRankingRail({ items = [], onInfo }) {
+function LiveRankingRail({ items = [], onInfo, onExpand }) {
   const leaders = Array.isArray(items) ? items.slice(0, 8) : [];
   if (!leaders.length) return null;
 
   return (
     <section className="bh-live-leaders" aria-label="Live strength ranking">
-      <div className="bh-live-leaders__head">
+      <div className="bh-live-leaders__head" onClick={onExpand} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onExpand?.()}>
         <span>Live Strength</span>
         <span>relative setup rank · price + volume + confirmation + persistence</span>
+        <span className="bh-live-leaders__expand">View full leaderboard ▸</span>
       </div>
       <div className="bh-live-leaders__rail">
         {leaders.map((item) => {
@@ -269,6 +272,7 @@ export default function DashboardShell({ onInfo }) {
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const partialStreakRef = useRef(0);
   const boardRef = useRef(null);
 
@@ -421,7 +425,7 @@ export default function DashboardShell({ onInfo }) {
     <div className="bh-app">
       <header className="bh-topbar">
         <div className="bh-logo">
-          <span className="bh-logo-icon">🐇</span>
+          <img src="/purple-rabbit-bg.png" alt="" className="bh-logo-rabbit" />
           <span className="bh-logo-text">BHABIT CB INSIGHT</span>
           <div className="live-status">
             <span className={`bh-status-pill bh-status-pill--${status.toLowerCase()}`}>{status}</span>
@@ -433,19 +437,23 @@ export default function DashboardShell({ onInfo }) {
                 {pressurePill.label} {pressurePill.value.toFixed(0)}
               </span>
             ) : null}
+            <MarketSignalCard />
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
           </div>
         </div>
-        <div className="bh-topbar-right">
-          <a href="/login" className="bh-topbar-link bh-topbar-link--ghost">
-            Login
+        <nav className="bh-topbar-right">
+          <a href="/app/portfolio" className="bh-topbar-link bh-topbar-link--ghost">
+            Portfolio
           </a>
-          <a href="/signup" className="bh-topbar-link bh-topbar-link--primary">
-            Sign Up
+          <a href="/app/scorecard" className="bh-topbar-link bh-topbar-link--ghost">
+            Scorecard
           </a>
-        </div>
+          <a href="/app/watchlists" className="bh-topbar-link bh-topbar-link--ghost">
+            Watchlists
+          </a>
+        </nav>
       </header>
 
       <section className="bh-brand-hero" aria-label="BHABIT">
@@ -473,7 +481,7 @@ export default function DashboardShell({ onInfo }) {
                       <BoardRowLegend />
                     </div>
 
-                    <LiveRankingRail items={liveRankings} onInfo={onInfoProp} />
+                    <LiveRankingRail items={liveRankings} onInfo={onInfoProp} onExpand={() => setLeaderboardOpen(true)} />
 
                     <section className="bh-board-row-full">
                       <div className="bh-panel bh-panel--rail" data-hover-origin="center">
@@ -587,8 +595,19 @@ export default function DashboardShell({ onInfo }) {
         }}
       />
 
-      <AskBhabitPanel />
+      <AskBhabitExperience mode="live" />
       <AlertsDock onOpenAlerts={handleOpenAlerts} />
+
+      {leaderboardOpen && (
+        <LiveLeaderboard
+          items={liveRankings}
+          onClose={() => setLeaderboardOpen(false)}
+          onInfo={(symbol) => {
+            setLeaderboardOpen(false);
+            handleInfo(symbol);
+          }}
+        />
+      )}
     </div>
   );
 }

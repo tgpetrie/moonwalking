@@ -128,9 +128,21 @@ def _ensure_watchlist_schema():
                     UNIQUE(watchlist_id, item_key)
                 );
 
+                CREATE TABLE IF NOT EXISTS manual_cost_basis (
+                    user_id INTEGER NOT NULL,
+                    symbol TEXT NOT NULL,
+                    average_price REAL NOT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(user_id, symbol),
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_watchlists_user_id ON watchlists(user_id);
                 CREATE INDEX IF NOT EXISTS idx_watchlist_items_watchlist_id ON watchlist_items(watchlist_id);
                 CREATE INDEX IF NOT EXISTS idx_watchlist_items_item_key ON watchlist_items(item_key);
+                CREATE INDEX IF NOT EXISTS idx_manual_cost_basis_user_id ON manual_cost_basis(user_id);
                 """
             )
             # Migrate watchlist_items
@@ -954,6 +966,166 @@ def latest_alerts_for_symbols():
         if last:
             result[sym] = last
     return jsonify({"latest": result})
+
+
+def sync_portfolio_to_watchlist(user_id: int, held_symbols: set[str]) -> dict:
+    """Add portfolio holdings to the user's first watchlist.
+
+    Returns {"added": [...], "already_present": [...]} without removing
+    anything the user manually added.
+    """
+    if not held_symbols:
+        return {"added": [], "already_present": []}
+
+    added = []
+    already = []
+
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            wl = conn.execute(
+                "SELECT id FROM watchlists WHERE user_id = ? ORDER BY position ASC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if not wl:
+                _seed_default_watchlist(conn, user_id)
+                conn.commit()
+                wl = conn.execute(
+                    "SELECT id FROM watchlists WHERE user_id = ? ORDER BY position ASC LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+            if not wl:
+                return {"added": [], "already_present": []}
+            watchlist_id = wl["id"]
+
+            existing = {
+                row["item_key"]
+                for row in conn.execute(
+                    "SELECT item_key FROM watchlist_items WHERE watchlist_id = ?",
+                    (watchlist_id,),
+                ).fetchall()
+            }
+
+            max_pos = (
+                conn.execute(
+                    "SELECT COALESCE(MAX(position), 0) FROM watchlist_items WHERE watchlist_id = ?",
+                    (watchlist_id,),
+                ).fetchone()[0]
+                or 0
+            )
+
+            now = _utc_now_iso()
+            for sym in sorted(held_symbols):
+                normalized = _normalize_symbol(sym)
+                if not normalized:
+                    continue
+                if normalized in existing:
+                    already.append(normalized)
+                    continue
+                max_pos += 1
+                item_id = f"item-{uuid.uuid4().hex[:10]}"
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO watchlist_items
+                        (id, watchlist_id, item_key, item_type, title, notes, position, created_at, updated_at)
+                    VALUES (?, ?, ?, 'Asset', ?, 'Auto-added from portfolio', ?, ?, ?)
+                    """,
+                    (item_id, watchlist_id, normalized, normalized, max_pos, now, now),
+                )
+                _sync_legacy_symbol_set(conn, normalized)
+                added.append(normalized)
+
+            if added:
+                conn.commit()
+        finally:
+            conn.close()
+
+    return {"added": added, "already_present": already}
+
+
+def get_manual_cost_basis(user_id: int) -> dict[str, dict]:
+    """Return the user's manually entered cost basis, keyed by symbol.
+
+    Shape: ``{SYMBOL: {"average_price": float, "note": str, "updated_at": str}}``.
+    """
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT symbol, average_price, note, updated_at
+                FROM manual_cost_basis
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+    return {
+        row["symbol"]: {
+            "average_price": row["average_price"],
+            "note": row["note"] or "",
+            "updated_at": row["updated_at"],
+        }
+        for row in rows
+    }
+
+
+def set_manual_cost_basis(
+    user_id: int, symbol: str, average_price, note: str = ""
+) -> dict | None:
+    """Insert or update the user's manual average cost for a symbol.
+
+    Returns the stored record, or ``None`` if the symbol/price is invalid.
+    """
+    normalized = _normalize_symbol(symbol)
+    price = _parse_optional_price(average_price)
+    if not normalized or price is None:
+        return None
+    clean_note = str(note or "").strip()[:280]
+    now = _utc_now_iso()
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            conn.execute(
+                """
+                INSERT INTO manual_cost_basis
+                    (user_id, symbol, average_price, note, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, symbol) DO UPDATE SET
+                    average_price = excluded.average_price,
+                    note = excluded.note,
+                    updated_at = excluded.updated_at
+                """,
+                (user_id, normalized, price, clean_note, now, now),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    return {
+        "symbol": normalized,
+        "average_price": price,
+        "note": clean_note,
+        "updated_at": now,
+    }
+
+
+def delete_manual_cost_basis(user_id: int, symbol: str) -> bool:
+    """Remove a manual cost-basis entry. Returns True if a row was deleted."""
+    normalized = _normalize_symbol(symbol)
+    if not normalized:
+        return False
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            cur = conn.execute(
+                "DELETE FROM manual_cost_basis WHERE user_id = ? AND symbol = ?",
+                (user_id, normalized),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
 
 
 try:

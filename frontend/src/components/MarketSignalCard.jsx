@@ -117,31 +117,11 @@ export default function MarketSignalCard() {
     'neutral';
 
   return (
-    <div className="mw-market-signal">
-      <div className="section-header">
-        <h3>Market Signal</h3>
-        <p className="section-desc">Tape-derived conviction and action for the current market regime.</p>
-      </div>
-
-      <div className="mw-signal-grid">
-        <div className="mw-signal-card">
-          <span className="mw-signal-label">Regime</span>
-          <span className={`mw-signal-value ${regimeTone}`}>{signal.regime}</span>
-        </div>
-
-        <div className="mw-signal-card">
-          <span className="mw-signal-label">Conviction</span>
-          <span className={`mw-signal-value ${signal.conviction >= 60 ? 'positive' : signal.conviction <= 40 ? 'negative' : 'neutral'}`}>
-            {signal.conviction}
-          </span>
-          <span className="mw-signal-sub">0–100 scale</span>
-        </div>
-      </div>
-
-      <div className="mw-action-panel">
-        <span className="mw-action-label">Do This Now</span>
-        <p className="mw-action-line">{signal.actionLine}</p>
-      </div>
+    <div className="mw-market-signal" title={signal.actionLine}>
+      <span className={`mw-signal-regime mw-signal-regime--${regimeTone}`}>{signal.regime}</span>
+      <span className="mw-signal-divider" />
+      <span className="mw-signal-conviction">{signal.conviction}</span>
+      <span className="mw-signal-action">{signal.actionLine}</span>
     </div>
   );
 }

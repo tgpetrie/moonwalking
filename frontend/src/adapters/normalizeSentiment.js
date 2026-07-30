@@ -28,6 +28,97 @@ const clamp01OrNull = (v) => {
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+const strList = (v) =>
+  Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.length > 0) : [];
+
+// Shape returned when derivatives positioning is missing entirely. Kept as a
+// named constant so both the "no payload" and "payload but zero live exchanges"
+// paths resolve to an identical, provably-not-live object.
+const UNAVAILABLE_POSITIONING = {
+  available: false,
+  status: "UNAVAILABLE",
+  fundingBias: "unknown",
+  averageFundingRate: null,
+  configuredExchanges: [],
+  liveExchanges: [],
+  blockedExchanges: [],
+  failedExchanges: [],
+  coverageLive: 0,
+  coverageTotal: 0,
+  coverageRatio: 0,
+  confidencePenalty: null,
+  updatedAt: null,
+  stale: false,
+};
+
+/**
+ * Normalize the backend `social_metrics.derivatives_positioning` payload into a
+ * flat, UI-friendly shape.
+ *
+ * Product rule enforced here: an exchange source must never be presented as
+ * live unless the backend actually returned live data for it. `available` is
+ * therefore keyed off `liveExchanges.length`, and `status` can only be "LIVE"
+ * when at least one exchange is live and the payload is not stale.
+ */
+export function buildMarketPositioning(rawPositioning) {
+  if (!rawPositioning || typeof rawPositioning !== "object") {
+    return { ...UNAVAILABLE_POSITIONING };
+  }
+
+  const summary = pick(rawPositioning, "summary") || {};
+  const liveExchanges = strList(
+    pick(rawPositioning, "live_exchanges", "liveExchanges", "exchanges")
+  );
+  const blockedExchanges = strList(
+    pick(rawPositioning, "blocked_exchanges", "blockedExchanges")
+  );
+  const failedExchanges = strList(
+    pick(rawPositioning, "failed_exchanges", "failedExchanges")
+  );
+  const configuredExchanges = strList(
+    pick(rawPositioning, "configured_exchanges", "configuredExchanges")
+  );
+
+  const available = liveExchanges.length > 0;
+  const stale = Boolean(pick(rawPositioning, "stale"));
+  const status = !available ? "UNAVAILABLE" : stale ? "STALE" : "LIVE";
+
+  const coverageLive = toNum(
+    pick(summary, "live_exchange_count", "liveExchangeCount"),
+    liveExchanges.length
+  );
+  const coverageTotal = toNum(
+    pick(summary, "configured_exchange_count", "configuredExchangeCount"),
+    configuredExchanges.length
+  );
+
+  return {
+    available,
+    status,
+    fundingBias: pick(summary, "funding_bias", "fundingBias") || "unknown",
+    averageFundingRate: toNum(
+      pick(summary, "average_funding_rate", "averageFundingRate"),
+      null
+    ),
+    configuredExchanges,
+    liveExchanges,
+    blockedExchanges,
+    failedExchanges,
+    coverageLive,
+    coverageTotal,
+    coverageRatio: toNum(
+      pick(summary, "coverage_ratio", "coverageRatio"),
+      coverageTotal ? coverageLive / coverageTotal : 0
+    ),
+    confidencePenalty: toNum(
+      pick(summary, "confidence_penalty", "confidencePenalty"),
+      null
+    ),
+    updatedAt: pick(rawPositioning, "updated_at", "updatedAt", "ts") || null,
+    stale,
+  };
+}
+
 /**
  * Compute pipeline status from sentiment_meta
  * @param {object|null} meta - sentiment_meta from backend
@@ -106,6 +197,13 @@ export function normalizeSentiment(raw = {}) {
       null,
     ),
   };
+
+  // Derivatives / market-positioning health lives inside social_metrics on the
+  // backend response. Surface it here so every consumer of this adapter gets a
+  // consistent, provenance-aware view instead of reaching into `raw`.
+  const marketPositioning = buildMarketPositioning(
+    pick(socialMetricsRaw, "derivatives_positioning", "derivativesPositioning")
+  );
 
   const socialBreakdownRaw =
     pick(raw, "social_breakdown", "socialBreakdown") || {};
@@ -188,6 +286,7 @@ export function normalizeSentiment(raw = {}) {
     overallSentiment,
     fearGreedIndex,
     socialMetrics,
+    marketPositioning,
     socialBreakdown,
     sourceBreakdown,
     sentimentHistory,

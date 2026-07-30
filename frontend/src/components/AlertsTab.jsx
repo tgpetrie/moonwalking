@@ -102,6 +102,7 @@ const TYPE_HELP = {
 
 const ALERT_TABS = [
   { key: "ALL", label: "All" },
+  { key: "WATCHLIST", label: "Watchlist" },
   { key: "MOONSHOT", label: "Moonshot" },
   { key: "BULLISH", label: "Bullish" },
   { key: "HEATING", label: "Heating Up" },
@@ -212,6 +213,7 @@ const isDumpAlert = (a) => {
 
 const alertMatchesTab = (a, tabKey) => {
   if (tabKey === "ALL") return true;
+  if (tabKey === "WATCHLIST") return true;
   if (tabKey === "HEATING") return isHeatingAlert(a);
   if (tabKey === "BULLISH") return isBullishAlert(a);
   if (tabKey === "WHALE") return isWhaleAlert(a);
@@ -653,12 +655,14 @@ const deriveTapeState = (items, marketPressure) => {
   };
 };
 
-const filterAlertRows = (rows, { coinFilter = "ALL", typeTab = "ALL", sev = "ALL" }) => {
+const filterAlertRows = (rows, { coinFilter = "ALL", typeTab = "ALL", sev = "ALL", watchHas = null }) => {
   let out = Array.isArray(rows) ? rows : [];
   if (coinFilter !== "ALL") {
     out = out.filter((a) => alertSymbol(a) === coinFilter);
   }
-  if (typeTab !== "ALL") {
+  if (typeTab === "WATCHLIST" && watchHas) {
+    out = out.filter((a) => watchHas(sentimentSymbolForAlert(a)));
+  } else if (typeTab !== "ALL") {
     out = out.filter((a) => alertMatchesTab(a, typeTab));
   }
   if (sev !== "ALL") {
@@ -1182,10 +1186,11 @@ export default function AlertsTab({
           coinFilter: effectiveCoinFilter,
           typeTab,
           sev,
+          watchHas,
         }),
         { sort, feed }
       ),
-    [source, effectiveCoinFilter, typeTab, sev, sort, feed]
+    [source, effectiveCoinFilter, typeTab, sev, sort, feed, watchHas]
   );
 
   const compactRecentFallbackRows = useMemo(() => {
@@ -1194,6 +1199,7 @@ export default function AlertsTab({
         coinFilter: effectiveCoinFilter,
         typeTab,
         sev,
+        watchHas,
       }),
       { sort: "TIME", feed: "RECENT" }
     );
@@ -1211,11 +1217,12 @@ export default function AlertsTab({
     if (compact || forcedCoin) return [];
     const filtered = filterAlertRows(effectiveSignalEvents, {
       coinFilter: effectiveCoinFilter,
-      typeTab,
+      typeTab: "ALL",
       sev,
+      watchHas,
     }).filter((alert) => watchHas(sentimentSymbolForAlert(alert)));
-    return sortAlertRows(filtered, { sort, feed: "SIGNALS" }).slice(0, 4);
-  }, [compact, forcedCoin, effectiveSignalEvents, effectiveCoinFilter, typeTab, sev, sort, watchHas]);
+    return sortAlertRows(filtered, { sort, feed: "SIGNALS" }).slice(0, 12);
+  }, [compact, forcedCoin, effectiveSignalEvents, effectiveCoinFilter, sev, sort, watchHas]);
 
   const allAlertsTitle = forcedCoin ? `${forcedCoin} Evolution` : "Signal Evolution";
 

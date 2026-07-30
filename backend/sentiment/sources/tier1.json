@@ -40,6 +40,48 @@
       "access": "free_public_market_data",
       "implemented": true,
       "scope": "local_price_tape"
+    },
+    {
+      "name": "Binance USD-M Futures Positioning",
+      "description": "Public futures funding-rate and open-interest context for BTC/ETH market positioning",
+      "tier": "tier1",
+      "weight": 0.88,
+      "update_frequency": 120,
+      "type": "api",
+      "endpoint": "https://fapi.binance.com/fapi/v1/premiumIndex",
+      "documentation": "https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api",
+      "access": "free_public_market_data",
+      "implemented": true,
+      "scope": "market_positioning",
+      "signal_role": "context_signal"
+    },
+    {
+      "name": "OKX Swap Positioning",
+      "description": "Public swap funding-rate and open-interest source used as a second exchange confirmation layer",
+      "tier": "tier1",
+      "weight": 0.84,
+      "update_frequency": 120,
+      "type": "api",
+      "endpoint": "https://www.okx.com/api/v5/public/funding-rate",
+      "documentation": "https://www.okx.com/docs-v5/en/",
+      "access": "free_public_market_data",
+      "implemented": true,
+      "scope": "market_positioning",
+      "signal_role": "context_signal"
+    },
+    {
+      "name": "Bybit V5 Derivatives Positioning",
+      "description": "Public V5 ticker funding-rate and open-interest source used as another exchange confirmation layer",
+      "tier": "tier1",
+      "weight": 0.82,
+      "update_frequency": 120,
+      "type": "api",
+      "endpoint": "https://api.bybit.com/v5/market/open-interest",
+      "documentation": "https://bybit-exchange.github.io/docs/v5/market/open-interest",
+      "access": "free_public_market_data",
+      "implemented": true,
+      "scope": "market_positioning",
+      "signal_role": "context_signal"
     }
   ]
 }

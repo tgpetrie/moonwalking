@@ -40,6 +40,34 @@
       "access": "free_public_demo_or_pro_key",
       "implemented": true,
       "scope": "coin_context_proxy"
+    },
+    {
+      "name": "CoinGlass Derivatives Aggregates",
+      "description": "Paid/freemium aggregate source for open interest, funding, liquidations, and broader derivatives dashboards",
+      "tier": "tier2",
+      "weight": 0.8,
+      "update_frequency": 300,
+      "type": "api",
+      "endpoint": "https://open-api-v4.coinglass.com",
+      "documentation": "https://docs.coinglass.com/reference/endpoint-overview",
+      "access": "requires_api_key_or_subscription",
+      "implemented": false,
+      "scope": "market_positioning_aggregate",
+      "signal_role": "paid_upgrade"
+    },
+    {
+      "name": "Trusted Crypto News RSS",
+      "description": "Low-cost context layer for CoinDesk, The Block, CoinTelegraph, and Decrypt headlines after dedupe/source scoring",
+      "tier": "tier2",
+      "weight": 0.68,
+      "update_frequency": 900,
+      "type": "rss",
+      "endpoint": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "documentation": "https://www.rssboard.org/rss-specification",
+      "access": "free_public",
+      "implemented": false,
+      "scope": "market_news_context",
+      "signal_role": "context_only"
     }
   ]
 }

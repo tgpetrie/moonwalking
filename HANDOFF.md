@@ -117,6 +117,7 @@ Two SQLite-backed stores run in parallel:
 - Per-order: stop-loss/take-profit classification, distance from current, signal-aware context ("Signal weakening — consider tightening stop")
 - Cross-references 29K+ graded outcomes from `signal_outcomes.py`
 - 8 tests in `backend/tests/test_position_intel.py`
+- **DECISION (2026-07-22): `/api/portfolio/intel` is intentionally env-var owner-only for now, NOT OAuth-aware.** Unlike `/api/portfolio` (which tries the user's OAuth token first), the intel route still gates on `COINBASE_PORTFOLIO_OWNER_EMAIL` and builds the client from static CDP keys. Rationale: no frontend consumes `/api/portfolio/intel` yet, so opening it to all OAuth users would be a speculative multi-user feature with no UI to validate against. Extending OAuth is a ~20-line refactor (lift the OAuth-lookup block from `portfolio_snapshot()` into a shared helper both routes call) — defer it to whenever the intel UI is actually built, and wire both in one stroke.
 
 ### 8. Notification delivery channels
 `alert_delivery.py` supports SMTP email, Telegram bot, Discord webhook, and browser push. Per-symbol cooldowns and hourly caps. All channels disabled until credentials are set.
@@ -198,6 +199,28 @@ cd frontend && npm run verify                  # 26 frontend tests
 - `detect-secrets` — use `# pragma: allowlist secret` for test fixtures
 - `eslint` — **BROKEN** (ESLint 10 needs flat config, repo has none). Use `SKIP=eslint git commit` for all commits.
 
+### Runtime gotcha: `cdp-sdk` must be installed in the interpreter the server actually runs (2026-07-22)
+
+**Symptom:** `/api/portfolio` and `/api/portfolio/intel` return 503
+`"Coinbase authentication support is not installed on this server."`
+(`PortfolioDependencyMissing`, raised in `portfolio_mode.CoinbaseAdvancedTradeClient._jwt`).
+
+**Cause:** the JWT signer does a lazy `from cdp.auth.utils.jwt import JwtOptions, generate_jwt`.
+`cdp-sdk>=1.28,<2` is in `requirements.txt`, but on 2026-07-22 the running Flask
+process was launched with **system Python 3.13** (`/Library/Frameworks/Python.framework/...`),
+not the project `.venv` (3.12) — and neither interpreter had `cdp-sdk` installed. Result:
+owner is authenticated, keys are loaded, but every Coinbase call fails at import.
+
+**Fix (no restart needed):** the import is lazy, so installing into the *running*
+interpreter is picked up on the next request without losing in-memory keys:
+`<that-interpreter>/python3 -m pip install 'cdp-sdk>=1.28,<2'`.
+Cleaner long-term: install `requirements.txt` into the `.venv` and launch the server
+from it (`start_app.sh`) so the interpreter is deterministic.
+
+**Watch out:** `cdp-sdk` pulls heavy deps (web3, solana, eth-*) and bumps `pydantic`
+to 2.13.x, which conflicts with `gradio` (`<2.12`). Installing into a **venv** (not the
+global framework Python) avoids polluting other tools; pin `pydantic` if gradio is needed.
+
 ## Dependencies
 
 Python: Flask 3.1, flask-cors, flask-socketio, gunicorn, requests, websocket-client, cdp-sdk, FastAPI, uvicorn, sentry-sdk, numpy, pandas, feedparser, vaderSentiment, transformers, torch, PyYAML, beautifulsoup4, redis (Phase 3 cache, not active)
@@ -212,10 +235,20 @@ All feature work is merged to `main`. Legacy branches exist but are stale:
 - `codex/ai-ml-next-step-plan` — older planning branch
 - `collab/claude-codex-coin-pressure-20260714` — earlier pressure work
 
+## Session 2026-07-22 (part 2): three Portfolio-card threads shipped
+
+All three are code-complete + unit-tested (backend 150 pass, frontend 48 pass); **not yet live-verified in a browser** (intel endpoint needs the owner-auth + CDP chain up). Nothing pushed.
+
+1. **Confidence tiers** — the binary "not enough proof" gates are gone. `describeEvidenceTier(sampleSize)` in `portfolioSignals.js` grades comparable-outcome history into a ladder: None → Emerging (1–9, rate not quoted) → Building (10–29) → Solid (30–99) → Strong (100+). Used on the intel history line, the "Historical plan" cell, the plan-lock banner, and the page-footer calibration section (graded on `outcome_db_size`). Thresholds live in `EVIDENCE_TIERS` — tune there.
+2. **Cost-basis entry** — unlocks P&L on partial/unavailable holdings. Storage: `manual_cost_basis` table + `set/get/delete_manual_cost_basis()` in `watchlist.py`. Overlay: `portfolio_mode.apply_manual_cost_basis()` (pure) blends known fills + manual avg for the unknown qty (status→`blended`) or defines the whole position (status→`manual`); **`complete` fills are never overwritten**; recomputes summary P&L + coverage. Owner-gated write routes `POST/DELETE /api/portfolio/cost-basis`. UI: `CostBasisEntry` inline form on each partial/unavailable card. Overlay is applied in the intel route before enrich.
+3. **Descriptive levels (targets/protection, not-yet-outcome-validated)** — `position_levels.compute_levels()` (pure) derives swing support/resistance, an ATR(14) band, range position, volatility, 1h momentum, and volume trend from public Coinbase candles (`_fetch_coinbase_candles`, no auth). Route helper `_gather_levels_for_symbols()` caches raw candles per product (TTL `MW_LEVELS_CANDLE_TTL_S`=300s, 1h granularity ×50), fetches on demand with bounded concurrency (6 workers), capped `MW_LEVELS_FETCH_PER_REQUEST`=30/request so a big portfolio warms progressively. Attached as `holding["levels"]`; enriches the descriptive read with a range phrase. UI: `HoldingLevels` block with an S↔R track + marker, labeled "not yet outcome-validated", replacing the old hard plan-lock.
+
+New tests: `test_manual_cost_basis.py` (8), `test_position_levels.py` (9), +4 in `test_position_intel.py`, +cost-basis/levels/tier cases in the frontend suite.
+
 ## Recommended next actions (priority order)
 
 1. **Build the outcome scorecard UI** — 29K+ graded signals in SQLite, surface accuracy stats per signal type so Tom can see which alerts are actually predictive
-2. **Wire position intelligence into the Portfolio UI** — `/api/portfolio/intel` endpoint is live, frontend needs to display the `intel` field on each holding card and order
+2. **~~Wire position intelligence into the Portfolio UI~~ — DONE (2026-07-22)** — `PortfolioModePage` now fetches `/api/portfolio/intel` (progressive enhancement: falls back to `/api/portfolio` on 403/503), renders posture chip + board momentum + historical follow-through per holding, context rows under open orders, and a signal-coverage chip. Live-verified against real data (81 holdings, e.g. ARX "Pressure adverse · 78"). ~~NEXT: raise coverage~~ — **DONE (2026-07-22)**: `position_intel._descriptive_read()` now derives a plain-language 24h read (bands: <2% "Quiet today", 2–8% "Up/Down today", >8% "Up/Down big today") from `price_change_24h_pct` for any held symbol without a live Event Evolution signal, so all 81 cards show content. Reads are marked `read_source="descriptive"` and rendered with a dashed "24h price read" tag so they're visibly distinct from real signals. **Signal coverage stat stays pure** (counts only `read_source=="signal"`, ~9/81); a separate `read_coverage_pct` (~100%) is shown alongside. 8 new backend tests + 1 frontend test. NOTE: not yet live-verified in a running browser — the intel endpoint needs the owner-auth + CDP chain up; logic and render are unit-test-verified.
 3. **Add v2 API cost basis fallback** — CDP keys may support `/v2/accounts/{id}/transactions` for buy history on coins without Advanced Trade fills (most of Tom's 81 holdings show "partial cost basis")
 4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
 5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset

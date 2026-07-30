@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
 import { getCoinEvents } from '../utils/coinHistoryCache';
 import { getMarketPressure } from '../utils/marketPressure';
+import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import '../styles/sentiment-popup-advanced.css';
@@ -829,6 +830,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [coinIntelLoading, setCoinIntelLoading] = useState(false);
   const [coinIntelError, setCoinIntelError] = useState(null);
 
+  const [coinPositioning, setCoinPositioning] = useState(null);
+  const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
+
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
     () => coinbaseSpotUrl({ symbol: coinSymbol }),
@@ -858,6 +862,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setCoinPositioning(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setCoinPositioningLoading(true);
+    const change = coinLiveRanking?.price_change_percentage_24h;
+    const suffix = Number.isFinite(change) ? `?change_24h_pct=${change}` : '';
+    fetchData(`/api/positioning/${encodeURIComponent(coinSymbol)}${suffix}`)
+      .then((p) => { if (!cancelled) setCoinPositioning(p); })
+      .catch(() => { if (!cancelled) setCoinPositioning(null); })
+      .finally(() => { if (!cancelled) setCoinPositioningLoading(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, coinSymbol, coinLiveRanking]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -1587,6 +1607,31 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     return badges;
   }, [breakoutState, signalFlags, metricsReady, volumeConfirms, marketPressureSummary, coinPriorityEntry]);
 
+  const earlyRead = useMemo(() => {
+    // Fast, deliberately-unconfirmed directional lean from 1m+3m momentum plus
+    // funding bias. This commits sooner than the confirmed verdict below (it
+    // accepts noise for immediacy) so the panel always shows a direction.
+    const m1 = Number.isFinite(change1m) ? change1m : null;
+    const m3 = Number.isFinite(change3m) ? change3m : null;
+    if (m1 === null && m3 === null) {
+      return { label: 'NEUTRAL', tone: 'neutral', note: 'No fast momentum yet.' };
+    }
+    const mom = (m3 ?? 0) * 0.6 + (m1 ?? 0) * 0.4; // weight 3m over noisier 1m
+    const THRESH = 0.15; // percent — below this is baseline alt wiggle
+    const bias = coinPositioning?.available ? coinPositioning.funding_bias : null;
+    if (mom >= THRESH) {
+      if (bias === 'crowded_long') return { label: 'BULL', tone: 'caution', note: 'Up, but longs are crowded — squeeze risk.' };
+      if (bias === 'short' || bias === 'crowded_short') return { label: 'BULL', tone: 'positive', note: 'Up with shorts paying — clean push.' };
+      return { label: 'BULL', tone: 'positive', note: 'Fast tape is pushing up.' };
+    }
+    if (mom <= -THRESH) {
+      if (bias === 'crowded_short') return { label: 'BEAR', tone: 'caution', note: 'Down, but shorts are crowded — bounce risk.' };
+      if (bias === 'long' || bias === 'crowded_long') return { label: 'BEAR', tone: 'negative', note: 'Down with longs still paying — heavy.' };
+      return { label: 'BEAR', tone: 'negative', note: 'Fast tape is pushing down.' };
+    }
+    return { label: 'NEUTRAL', tone: 'neutral', note: 'No clear fast lean right now.' };
+  }, [change1m, change3m, coinPositioning]);
+
   const simpleCoinRead = useMemo(() => {
     if (!metricsReady) {
       return {
@@ -1913,6 +1958,24 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                 <div className="tab-empty tab-empty--compact">Choose a coin from the board to load its local state.</div>
               ) : (
                 <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '0.6rem 0.9rem',
+                      marginBottom: 12,
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 10,
+                      background: 'rgba(255,255,255,0.02)',
+                    }}
+                  >
+                    <span style={{ fontSize: 11, letterSpacing: '0.05em', color: '#8a8a8a', textTransform: 'uppercase' }}>Early read</span>
+                    <span style={{ fontSize: 16, fontWeight: 600, color: { positive: '#45ffb3', negative: '#ff6b6b', caution: '#f1b43a', neutral: '#a3a3a3' }[earlyRead.tone] || '#a3a3a3' }}>{earlyRead.label}</span>
+                    <span style={{ fontSize: 12.5, color: '#b8b8b8' }}>{earlyRead.note}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6f6f6f', fontStyle: 'italic' }}>fast · unconfirmed</span>
+                  </div>
+
                   <section className={`cp-simple-read cp-simple-read--${simpleCoinRead.tone}`}>
                     <div className="cp-simple-read__topline">
                       <span>{coinSymbol} · RIGHT NOW</span>
@@ -2127,6 +2190,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                               : 'Last external refresh.',
                     }))} />
                   </section>
+
+                  <div className="info-section">
+                    <div className="section-header">
+                      <h3>Positioning</h3>
+                      <p className="section-desc">Derivatives funding &amp; open interest (Hyperliquid). Context, not a signal.</p>
+                    </div>
+                    {coinPositioningLoading && !coinPositioning ? (
+                      <div className="tab-empty tab-empty--compact">Loading positioning...</div>
+                    ) : (
+                      <CoinPositioning positioning={coinPositioning} />
+                    )}
+                  </div>
 
                   {coinIntelLoading && !coinIntel ? <div className="coin-history-note coin-history-note--compact">Loading coin intel...</div> : null}
                   {coinIntelError ? (
