@@ -7,6 +7,7 @@ import { getMarketPressure } from '../utils/marketPressure';
 import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
+import ChartReadPanel from './ChartReadPanel.jsx';
 import '../styles/sentiment-popup-advanced.css';
 
 const REFRESH_MS = 15000;
@@ -833,6 +834,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [coinPositioning, setCoinPositioning] = useState(null);
   const [coinPositioningLoading, setCoinPositioningLoading] = useState(false);
 
+  const [chartRead, setChartRead] = useState(null);
+  const [chartReadLoading, setChartReadLoading] = useState(false);
+  const [chartReadError, setChartReadError] = useState(null);
+
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
     () => coinbaseSpotUrl({ symbol: coinSymbol }),
@@ -878,6 +883,24 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       .finally(() => { if (!cancelled) setCoinPositioningLoading(false); });
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol, coinLiveRanking]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setChartRead(null);
+      setChartReadError(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setChartReadLoading(true);
+    const endpoint = API_ENDPOINTS.chartRead
+      ? API_ENDPOINTS.chartRead(coinSymbol)
+      : `/api/chart-read/${encodeURIComponent(coinSymbol)}`;
+    fetchData(endpoint)
+      .then((d) => { if (!cancelled) { setChartRead(d); setChartReadError(null); } })
+      .catch(() => { if (!cancelled) setChartReadError('unavailable'); })
+      .finally(() => { if (!cancelled) setChartReadLoading(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, coinSymbol]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -2057,10 +2080,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                   </details>
 
                   <details className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block">
-                    <summary>Open chart</summary>
+                    <summary>Chart &amp; Read</summary>
                     <div className="cp-evidence-drawer__body">
                       <div className="section-header">
-                        <p className="section-desc">Use the chart only to verify the simple read above.</p>
+                        <p className="section-desc">Chart first, plain-English read below.</p>
                       <div className="mini-toggle" role="group" aria-label="Chart source">
                         {['auto', 'coinbase', 'binance'].map((opt) => (
                           <button
@@ -2087,6 +2110,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                           loading="lazy"
                         />
                       </div>
+                      <ChartReadPanel
+                        data={chartRead}
+                        loading={chartReadLoading}
+                        error={chartReadError}
+                      />
                     </div>
                   </details>
 

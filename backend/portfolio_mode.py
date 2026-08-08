@@ -394,7 +394,9 @@ def apply_manual_cost_basis(
         if market_value is not None and total_cost > 0:
             unrealized = _decimal(market_value) - total_cost
             holding["unrealized_pnl_usd"] = _float(unrealized)
-            holding["unrealized_pnl_pct"] = _float((unrealized / total_cost) * Decimal("100"))
+            holding["unrealized_pnl_pct"] = _float(
+                (unrealized / total_cost) * Decimal("100")
+            )
 
     _recompute_cost_basis_summary(snapshot)
     return snapshot
@@ -747,16 +749,197 @@ def get_portfolio_service(
         return _SERVICE
 
 
-def get_held_symbols(*, fetch: bool = False) -> set[str]:
-    """Best-effort held-symbol set; empty when Portfolio Mode is unconfigured.
+def owner_held_symbols(*, fetch: bool = False) -> set[str]:
+    """Held symbols of the **server owner** (env-key account), not of a user.
 
-    Never raises: notification prioritization must degrade to standard
-    behavior rather than break alert delivery.
+    This reads the process-global service built from COINBASE_API_KEY_*, so it
+    represents one specific account regardless of who is signed in. It is only
+    appropriate for server-side work that genuinely has no user context (e.g.
+    background notification prioritization).
+
+    Never call this to answer "what does this user hold" — use
+    ``held_symbols_for_user(user_id)``.
+
+    Never raises: prioritization must degrade rather than break delivery.
     """
     try:
         return get_portfolio_service().held_symbols(fetch=fetch)
     except Exception:
         return set()
+
+
+# Back-compat alias: the old name did not say whose holdings it returned,
+# which is precisely how the single-owner assumption spread.
+get_held_symbols = owner_held_symbols
+
+
+def _oauth_client_for_user(user_id) -> CoinbaseAdvancedTradeClient | None:
+    """Build a Coinbase client from *this user's* stored OAuth token.
+
+    Reuses the existing per-user token columns on ``users`` and refreshes when
+    the token is near expiry, mirroring the logic already used by
+    ``portfolio_snapshot``. Returns None when the user has no linked account or
+    OAuth is not configured on this server. Never raises.
+
+    (Known follow-up: ``portfolio_snapshot`` still has its own inline copy of
+    this flow. It is working and live-verified, so it is intentionally left
+    alone here; collapsing the two is a separate, isolated refactor.)
+    """
+    if not user_id:
+        return None
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        from coinbase_oauth import (
+            CoinbaseOAuthConfig,
+            OAuthTokenError,
+            compute_expiry_timestamp,
+            refresh_access_token,
+        )
+        from watchlist import _DB_LOCK, _db_connect, _utc_now_iso
+
+        conn = _db_connect()
+        try:
+            row = conn.execute(
+                """
+                SELECT coinbase_oauth_access_token,
+                       coinbase_oauth_refresh_token,
+                       coinbase_oauth_expires_at
+                FROM users WHERE id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+        if not row or not row[0]:
+            return None
+
+        config = CoinbaseOAuthConfig()
+        if not config.is_configured():
+            return None
+
+        access_token, refresh_token, expires_at = row[0], row[1], row[2]
+
+        needs_refresh = False
+        if expires_at:
+            try:
+                exp = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+                needs_refresh = datetime.now(timezone.utc) >= exp - timedelta(minutes=5)
+            except Exception:
+                needs_refresh = True
+
+        if needs_refresh and refresh_token:
+            try:
+                token_data = refresh_access_token(config, refresh_token)
+                access_token = token_data.get("access_token", access_token)
+                new_refresh = token_data.get("refresh_token", refresh_token)
+                new_expires = compute_expiry_timestamp(
+                    token_data.get("expires_in", 3600)
+                )
+                with _DB_LOCK:
+                    wconn = _db_connect()
+                    try:
+                        wconn.execute(
+                            """
+                            UPDATE users
+                            SET coinbase_oauth_access_token = ?,
+                                coinbase_oauth_refresh_token = ?,
+                                coinbase_oauth_expires_at = ?,
+                                updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                access_token,
+                                new_refresh,
+                                new_expires,
+                                _utc_now_iso(),
+                                user_id,
+                            ),
+                        )
+                        wconn.commit()
+                    finally:
+                        wconn.close()
+            except OAuthTokenError:
+                pass
+
+        if not access_token:
+            return None
+        return CoinbaseAdvancedTradeClient(oauth_access_token=access_token)
+    except Exception:
+        logging.debug("Per-user OAuth client unavailable", exc_info=True)
+        return None
+
+
+def _is_portfolio_owner(user_id) -> bool:
+    """True when this user is the configured env-key owner account."""
+    owner_email = (
+        str(os.environ.get("COINBASE_PORTFOLIO_OWNER_EMAIL") or "").strip().lower()
+    )
+    if not owner_email or not user_id:
+        return False
+    try:
+        from watchlist import _db_connect
+
+        conn = _db_connect()
+        try:
+            row = conn.execute(
+                "SELECT email FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        return False
+    return bool(row) and str(row[0] or "").strip().lower() == owner_email
+
+
+def _manual_cost_basis_symbols(user_id) -> set[str]:
+    """Symbols this user recorded a manual cost basis for (already per-user)."""
+    try:
+        from watchlist import _db_connect
+
+        conn = _db_connect()
+        try:
+            rows = conn.execute(
+                "SELECT symbol FROM manual_cost_basis WHERE user_id = ?", (user_id,)
+            ).fetchall()
+        finally:
+            conn.close()
+        return {str(r[0]).upper() for r in rows if r and r[0]}
+    except Exception:
+        return set()
+
+
+def held_symbols_for_user(user_id, *, fetch: bool = False) -> set[str]:
+    """Holdings belonging to **this user**, and nobody else.
+
+    Resolution order, each strictly scoped to ``user_id``:
+
+    1. The user's own linked Coinbase account (their OAuth token).
+    2. The env-key account — only when this user *is* the configured owner,
+       which preserves existing owner behaviour unchanged.
+    3. Manual cost-basis rows the user entered themselves.
+
+    A signed-in user who is neither linked nor the owner gets an empty set; the
+    process-global owner service is never consulted on their behalf. Never
+    raises, so callers can treat holdings as an optional relevance signal.
+    """
+    if not user_id:
+        return set()
+
+    symbols: set[str] = set()
+
+    client = _oauth_client_for_user(user_id)
+    if client is not None:
+        try:
+            symbols |= PortfolioService(client).held_symbols(fetch=True)
+        except Exception:
+            logging.debug("Per-user portfolio fetch failed", exc_info=True)
+    elif _is_portfolio_owner(user_id):
+        symbols |= owner_held_symbols(fetch=fetch)
+
+    symbols |= _manual_cost_basis_symbols(user_id)
+    return {s for s in symbols if s}
 
 
 def _error_payload(error: PortfolioModeError):

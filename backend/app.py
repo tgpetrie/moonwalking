@@ -934,6 +934,17 @@ except Exception:
         "Skipping Portfolio Mode blueprint registration during test or mocked environment"
     )
 
+# User-scoped alert rules / recommendations / history. Separate blueprint so
+# the read-only /api/alerts contract below stays untouched.
+try:
+    from alert_rules_api import alert_rules_bp
+
+    app.register_blueprint(alert_rules_bp)
+except Exception:
+    logging.exception(
+        "Skipping alert rules blueprint registration during test or mocked environment"
+    )
+
 # The old Redis/FinBERT blueprint depends on an unfinished engine and always
 # returned 503 in this build. Coin intelligence is served by /api/coin-intel.
 if os.environ.get("MW_ENABLE_LEGACY_INTELLIGENCE", "0") == "1":
@@ -12659,6 +12670,35 @@ def get_chart(symbol):
     )
 
 
+@app.route("/api/chart-read/<symbol>")
+def get_chart_read(symbol):
+    """Deterministic chart read for a coin — math-derived, basic-user language.
+
+    Uses 1h candles over the most recent ~50 hours (Coinbase Exchange).
+    No predictions, no trading advice.
+    """
+    try:
+        from chart_reader import analyze_candles
+    except ImportError as exc:
+        logging.error(f"[ChartRead] chart_reader import failed: {exc}")
+        return jsonify({"error": "Chart reader unavailable"}), 503
+
+    sym = str(symbol or "").strip().upper()
+    if not sym:
+        return jsonify({"error": "Symbol required"}), 400
+
+    product_id = f"{sym}-USD"
+    candles = _fetch_coinbase_candles(product_id, granularity=3600, count=50)
+    if not candles:
+        return jsonify({"error": f"No candle data for {sym}"}), 404
+
+    result = analyze_candles(candles, sym, "1h")
+    if result is None:
+        return jsonify({"error": f"Not enough data to read {sym}"}), 404
+
+    return jsonify(result)
+
+
 @app.route("/api/recommendations")
 def get_recommendations():
     """Get recommended coins to watch"""
@@ -13024,17 +13064,42 @@ _SIGNAL_CONTEXT_LOCK = threading.Lock()
 _SIGNAL_CONTEXT_BY_SYMBOL = {}
 
 
-def _notification_priority_symbols(*, fetch=False):
-    """Symbols the user personally cares about: portfolio holdings + watchlist.
+def _notification_priority_symbols(*, user_id=None, fetch=False):
+    """Symbols someone personally cares about: portfolio holdings + watchlist.
 
-    Used to elevate signal notifications for held/watched coins. Always
-    degrades to an empty set — prioritization must never break delivery.
+    With ``user_id`` this is strictly that user's own holdings and watchlist —
+    the process-global owner service and the process-global ``watchlist_db``
+    set are never consulted on their behalf.
+
+    Without ``user_id`` (the background notification loop, which has no
+    session) it falls back to the server owner's holdings plus the global
+    watchlist set, preserving existing behaviour. That fallback is the
+    remaining process-wide identity and is deliberately confined to this one
+    no-user-context path.
+
+    Always degrades to an empty set — prioritization must never break delivery.
     """
     symbols = set()
-    try:
-        from portfolio_mode import get_held_symbols
 
-        symbols |= get_held_symbols(fetch=fetch)
+    if user_id:
+        try:
+            from portfolio_mode import held_symbols_for_user
+
+            symbols |= held_symbols_for_user(user_id, fetch=fetch)
+        except Exception:
+            pass
+        try:
+            from alert_rules import user_watchlist_symbols
+
+            symbols |= user_watchlist_symbols(user_id)
+        except Exception:
+            pass
+        return symbols
+
+    try:
+        from portfolio_mode import owner_held_symbols
+
+        symbols |= owner_held_symbols(fetch=fetch)
     except Exception:
         pass
     try:
@@ -14009,6 +14074,95 @@ def background_crypto_updates():
 
 
 # =============================================================================
+# USER ALERT RULE SCANNER
+# =============================================================================
+#
+# Evaluates stored per-user alert rules and writes user-scoped events into
+# alert_events_user. Entirely separate from the legacy market-wide feed: it
+# never touches alerts_engine, alerts_log_main, alerts.db, or /api/alerts.
+#
+# Runs on its own thread rather than inside background_crypto_updates so rule
+# database work can never delay the 8s price/snapshot path.
+#
+# SINGLE-PROCESS ASSUMPTION: under multiple gunicorn workers every worker would
+# run this thread. Duplicate *events* are still impossible (the arm-cycle
+# fingerprint is UNIQUE), but the scans would be redundant. If we move to
+# multi-worker, set MW_ALERT_RULES_SCAN_ENABLED=0 on all but one worker, or add
+# a SQLite lease/advisory lock here.
+
+_MW_ALERT_RULES_THREAD = None
+_MW_ALERT_RULES_LOCK = threading.Lock()
+_MW_ALERT_RULES_CYCLE_LOCK = threading.Lock()
+
+
+def _alert_rules_price_source():
+    """Current prices for the scanner: ({product_id: price}, snapshot_ts)."""
+    data = last_current_prices.get("data")
+    if not data:
+        return None
+    return data, int(last_current_prices.get("timestamp") or 0)
+
+
+def _alert_rules_history_lookup(product_id, target_ts):
+    """Nearest stored snapshot at or before target_ts, or None."""
+    try:
+        return get_price_at_or_before(product_id, int(target_ts))
+    except Exception:
+        return None
+
+
+def _alert_rules_evaluator_loop():
+    interval = max(5, int(os.environ.get("MW_ALERT_RULES_SCAN_SECONDS", "30")))
+    logging.info(f"Alert rule scanner started (every {interval}s)")
+
+    try:
+        from alert_runner import run_evaluation_cycle
+    except Exception:
+        logging.exception("Alert rule scanner unavailable; thread exiting")
+        return
+
+    while True:
+        try:
+            # Non-blocking: if a slow cycle is still running, skip this tick
+            # rather than letting cycles pile up.
+            if _MW_ALERT_RULES_CYCLE_LOCK.acquire(blocking=False):
+                try:
+                    run_evaluation_cycle(
+                        price_source=_alert_rules_price_source,
+                        history_lookup=_alert_rules_history_lookup,
+                    )
+                finally:
+                    _MW_ALERT_RULES_CYCLE_LOCK.release()
+            else:
+                logging.warning("Alert rule scan still running; skipping this tick")
+        except Exception:
+            # run_evaluation_cycle never raises, but the loop must survive
+            # anything at all so the scanner cannot die silently.
+            logging.exception("Alert rule scan cycle failed")
+        time.sleep(interval)
+
+
+def _maybe_start_alert_rules_scanner():
+    global _MW_ALERT_RULES_THREAD
+    if os.environ.get("MW_ALERT_RULES_SCAN_ENABLED", "1") != "1":
+        logging.info("Alert rule scanner disabled via MW_ALERT_RULES_SCAN_ENABLED")
+        return
+    with _MW_ALERT_RULES_LOCK:
+        if _MW_ALERT_RULES_THREAD is not None and _MW_ALERT_RULES_THREAD.is_alive():
+            return
+        try:
+            from alert_rules import ensure_alert_schema
+
+            ensure_alert_schema()
+            t = threading.Thread(target=_alert_rules_evaluator_loop)
+            t.daemon = True
+            t.start()
+            _MW_ALERT_RULES_THREAD = t
+        except Exception as e:
+            logging.warning(f"Failed to start alert rule scanner: {e}")
+
+
+# =============================================================================
 # BACKGROUND STARTUP (for `flask run`)
 # =============================================================================
 
@@ -14048,6 +14202,7 @@ def _mw_ensure_background_started():
             pass
 
     _maybe_start_1h_backfill()
+    _maybe_start_alert_rules_scanner()
 
     with _MW_BG_LOCK:
         if _MW_BG_THREAD is not None and _MW_BG_THREAD.is_alive():
@@ -14357,6 +14512,7 @@ def main():
         logging.error(f"Failed to initialize price database: {e}")
 
     _maybe_start_1h_backfill()
+    _maybe_start_alert_rules_scanner()
 
     # DEV: seed volume history if requested (helps banner 1h display during dev)
     try:

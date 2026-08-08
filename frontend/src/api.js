@@ -38,7 +38,8 @@ const buildEndpoints = () => ({
   coinAlerts: (symbol) => `${API_BASE_URL}/api/coin-alerts?symbol=${encodeSymbol(symbol)}`,
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
-  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`
+  socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
+  chartRead: (symbol) => `${API_BASE_URL}/api/chart-read/${encodeSymbol(symbol)}`
 });
 
 export let API_ENDPOINTS = buildEndpoints();
