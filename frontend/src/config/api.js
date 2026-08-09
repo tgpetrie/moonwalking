@@ -41,8 +41,9 @@ export function getBackendBase() {
  * Get backend candidates.
  * Contract:
  * - Prefer explicit env base first when present.
- * - Always include same-origin (Vite proxy) and local direct fallbacks.
- * This prevents a single bad proxy/base from freezing the UI.
+ * - In dev, include direct localhost fallbacks so dev works if Vite proxy fails.
+ * - In production, localhost is unreachable from users' browsers — omit to avoid
+ *   noisy failed requests before the UI surfaces a real error.
  */
 export function getBackendCandidates() {
   const out = [];
@@ -51,8 +52,10 @@ export function getBackendCandidates() {
     pushCandidate(out, envBase);
   }
   pushCandidate(out, BACKEND_BASE_DEV);
-  pushCandidate(out, "http://127.0.0.1:5003");
-  pushCandidate(out, "http://localhost:5003");
+  if (import.meta.env.DEV) {
+    pushCandidate(out, "http://127.0.0.1:5003");
+    pushCandidate(out, "http://localhost:5003");
+  }
   return out.length ? out : [BACKEND_BASE_DEV];
 }
 
