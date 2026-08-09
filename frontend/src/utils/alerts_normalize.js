@@ -333,3 +333,55 @@ export const typeKeyToUpper = (typeKey) => {
   const k = String(typeKey || "").toLowerCase();
   return TYPE_TEXT[k] || TYPE_TEXT.unknown;
 };
+
+// Maps intermediate forms (backend .value, .name, display strings) → canonical IDs.
+// Canonical IDs are SCREAMING_SNAKE_CASE and used as TYPE_HELP keys in the UI.
+const _EVENT_TYPE_ALIASES = {
+  // Backend .value / .name forms that don't auto-convert to the canonical ID
+  COIN_BREADTH_THRUST: "BREADTH_THRUST",
+  COIN_BREADTH_FAILURE: "BREADTH_FAILURE",
+  COIN_REVERSAL_UP: "REVERSAL_UP",
+  COIN_REVERSAL_DOWN: "REVERSAL_DOWN",
+  COIN_FAKEOUT: "FAKEOUT",
+  COIN_PERSISTENT_GAINER: "PERSIST_GAINER",
+  COIN_PERSISTENT_LOSER: "PERSIST_LOSER",
+  COIN_VOLATILITY_EXPANSION: "VOL_EXPANSION",
+  COIN_LIQUIDITY_SHOCK: "LIQ_SHOCK",
+  COIN_TREND_BREAK_UP: "TREND_BREAK_UP",
+  COIN_TREND_BREAK_DOWN: "TREND_BREAK_DOWN",
+  COIN_SQUEEZE_BREAK: "SQUEEZE_BREAK",
+  COIN_EXHAUSTION_TOP: "EXHAUSTION_TOP",
+  COIN_EXHAUSTION_BOTTOM: "EXHAUSTION_BOTTOM",
+  WHALE_MOVE: "WHALE",
+  STEALTH_MOVE: "STEALTH",
+  // Backend uses _OR_ connector; canonical drops it
+  HACK_OR_EXPLOIT: "HACK_EXPLOIT",
+  GOVERNANCE_VOTE: "GOVERNANCE",
+  // Long-form confirmed types
+  NEWS_CONFIRMED_BREAKOUT: "NEWS_CONFIRMED",
+  SOCIAL_CONFIRMED_MOMENTUM: "SOCIAL_CONFIRMED",
+  EVENT_CONFIRMED_VOLUME: "EVENT_CONFIRMED",
+  // Time-suffixed social types
+  SOCIAL_SPIKE_1H: "SOCIAL_SPIKE",
+  ENGAGEMENT_SURGE_1H: "ENGAGEMENT_SURGE",
+  // Market mood / impulse aliases
+  FOMO_ALERT: "FOMO",
+  FEAR_ALERT: "FEAR",
+  MARKET_FOMO_SIREN: "FOMO",
+  MARKET_FEAR_SIREN: "FEAR",
+  IMPULSE_1M: "MOVE",
+  IMPULSE_3M: "MOVE",
+};
+
+// Converts any event type string (backend type value, enum name, or display label)
+// to a stable canonical SCREAMING_SNAKE_CASE identifier.
+// Display labels like "HACK / EXPLOIT" auto-convert correctly via the replace pass;
+// the alias map handles cases where the intermediate form differs from the canonical ID.
+export const normalizeEventType = (value) => {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return _EVENT_TYPE_ALIASES[raw] || raw;
+};

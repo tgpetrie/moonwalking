@@ -4,6 +4,7 @@ import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { getMarketPressure } from "../utils/marketPressure";
 import { stripLeadingSymbol } from "../utils/alertText";
+import { normalizeEventType } from "../utils/alerts_normalize.js";
 import { RowInfo, RowStar } from "./tables/RowActions.jsx";
 import "../styles/alerts-tab.css";
 
@@ -55,6 +56,8 @@ const TYPE_LABEL = {
   fear_alert: "FEAR",
 };
 
+// Keyed by canonical IDs (SCREAMING_SNAKE_CASE). Looked up via normalizeEventType().
+// Display labels for glossary rendering come from TYPE_DISPLAY below.
 const TYPE_HELP = {
   MOONSHOT: "Fast surge",
   CRATER: "Fast drop",
@@ -63,41 +66,71 @@ const TYPE_HELP = {
   WHALE: "Unusual volume spike",
   STEALTH: "Volume warming quietly",
   DIVERGENCE: "Price vs sentiment mismatch",
-  "COIN FOMO": "Coin acceleration with market heat context",
-  "BREADTH THRUST": "Coin strength confirmed by broad participation",
-  "BREADTH FAILURE": "Coin weakness in weak market breadth",
-  "REVERSAL UP": "Coin reversed from sell pressure to buy pressure",
-  "REVERSAL DOWN": "Coin reversed from buy pressure to sell pressure",
+  COIN_FOMO: "Coin acceleration with market heat context",
+  BREADTH_THRUST: "Coin strength confirmed by broad participation",
+  BREADTH_FAILURE: "Coin weakness in weak market breadth",
+  REVERSAL_UP: "Coin reversed from sell pressure to buy pressure",
+  REVERSAL_DOWN: "Coin reversed from buy pressure to sell pressure",
   FAKEOUT: "Breakout trap rejected quickly",
-  "PERSIST GAINER": "Coin stayed in sustained upside streak",
-  "PERSIST LOSER": "Coin stayed in sustained downside streak",
-  "VOL EXPANSION": "Coin volatility expanded vs recent baseline",
-  "LIQ SHOCK": "Volume surged while price stayed muted",
-  "TREND BREAK UP": "Fast/slow trend crossover with volume support",
-  "TREND BREAK DOWN": "Fast/slow trend rollover with volume support",
-  "SQUEEZE BREAK": "Compression regime broke into a sharp move",
-  "EXHAUSTION TOP": "Upside run lost energy and flipped",
-  "EXHAUSTION BOTTOM": "Downside run lost energy and snapped back",
-  "SOCIAL SPIKE": "Social attention accelerated quickly",
-  "ENGAGEMENT SURGE": "Participation expanded beyond baseline",
-  "SOCIAL DIVERGENCE": "Social direction disagrees with tape direction",
-  "SOCIAL PULSE": "Social timeline activity is live",
+  PERSIST_GAINER: "Coin stayed in sustained upside streak",
+  PERSIST_LOSER: "Coin stayed in sustained downside streak",
+  VOL_EXPANSION: "Coin volatility expanded vs recent baseline",
+  LIQ_SHOCK: "Volume surged while price stayed muted",
+  TREND_BREAK_UP: "Fast/slow trend crossover with volume support",
+  TREND_BREAK_DOWN: "Fast/slow trend rollover with volume support",
+  SQUEEZE_BREAK: "Compression regime broke into a sharp move",
+  EXHAUSTION_TOP: "Upside run lost energy and flipped",
+  EXHAUSTION_BOTTOM: "Downside run lost energy and snapped back",
+  SOCIAL_SPIKE: "Social attention accelerated quickly",
+  ENGAGEMENT_SURGE: "Participation expanded beyond baseline",
+  SOCIAL_DIVERGENCE: "Social direction disagrees with tape direction",
+  SOCIAL_PULSE: "Social timeline activity is live",
   LISTING: "Major listing catalyst detected",
   DELISTING: "Delisting risk or removal notice",
   UNLOCK: "Token unlock / vesting pressure",
   UPGRADE: "Protocol upgrade event",
-  "HACK / EXPLOIT": "Security incident / exploit risk",
+  HACK_EXPLOIT: "Security incident / exploit risk",
   GOVERNANCE: "Governance proposal or vote event",
   PARTNERSHIP: "Partnership or integration event",
-  "NEWS POSITIVE": "Bullish external news catalyst",
-  "NEWS NEGATIVE": "Bearish external news catalyst",
-  "EXTERNAL EVENT": "External event without directional bias",
-  "NEWS CONFIRMED": "News and tape action aligned",
-  "SOCIAL CONFIRMED": "Social momentum and tape aligned",
-  "EVENT CONFIRMED": "Event and volume expansion aligned",
+  NEWS_POSITIVE: "Bullish external news catalyst",
+  NEWS_NEGATIVE: "Bearish external news catalyst",
+  EXTERNAL_EVENT: "External event without directional bias",
+  NEWS_CONFIRMED: "News and tape action aligned",
+  SOCIAL_CONFIRMED: "Social momentum and tape aligned",
+  EVENT_CONFIRMED: "Event and volume expansion aligned",
   MOVE: "Short-term move",
   FOMO: "Chasing behavior",
   FEAR: "Risk-off behavior",
+};
+
+// Human-friendly display labels for canonical IDs that differ from their identifier.
+// Used only for the glossary; rendering of live alert rows uses toUpperType() unchanged.
+const TYPE_DISPLAY = {
+  COIN_FOMO: "COIN FOMO",
+  BREADTH_THRUST: "BREADTH THRUST",
+  BREADTH_FAILURE: "BREADTH FAILURE",
+  REVERSAL_UP: "REVERSAL UP",
+  REVERSAL_DOWN: "REVERSAL DOWN",
+  PERSIST_GAINER: "PERSIST GAINER",
+  PERSIST_LOSER: "PERSIST LOSER",
+  VOL_EXPANSION: "VOL EXPANSION",
+  LIQ_SHOCK: "LIQ SHOCK",
+  TREND_BREAK_UP: "TREND BREAK UP",
+  TREND_BREAK_DOWN: "TREND BREAK DOWN",
+  SQUEEZE_BREAK: "SQUEEZE BREAK",
+  EXHAUSTION_TOP: "EXHAUSTION TOP",
+  EXHAUSTION_BOTTOM: "EXHAUSTION BOTTOM",
+  SOCIAL_SPIKE: "SOCIAL SPIKE",
+  ENGAGEMENT_SURGE: "ENGAGEMENT SURGE",
+  SOCIAL_DIVERGENCE: "SOCIAL DIVERGENCE",
+  SOCIAL_PULSE: "SOCIAL PULSE",
+  HACK_EXPLOIT: "HACK / EXPLOIT",
+  NEWS_POSITIVE: "NEWS POSITIVE",
+  NEWS_NEGATIVE: "NEWS NEGATIVE",
+  EXTERNAL_EVENT: "EXTERNAL EVENT",
+  NEWS_CONFIRMED: "NEWS CONFIRMED",
+  SOCIAL_CONFIRMED: "SOCIAL CONFIRMED",
+  EVENT_CONFIRMED: "EVENT CONFIRMED",
 };
 
 const CONTEXT_BADGE_TRANSLATIONS = {
@@ -891,6 +924,7 @@ function SignalRow({
 }) {
   const eventState = String(a?.primary_state || "").trim();
   const type = eventState ? eventState.toUpperCase() : toUpperType(a);
+  const typeId = normalizeEventType(rawTypeKey(a));
   const sev = String(a?.severity || "info").toLowerCase();
   const promotion = String(a?.promotion || "").toUpperCase();
   const sourceLabel = String(a?.source || "")
@@ -932,12 +966,12 @@ function SignalRow({
   const whyText = whyParts.length ? whyParts.join(" + ") : null;
 
   // Build clean message without repeating coin name
-  let rawMsg = String(a?.message || a?.title || TYPE_HELP[type] || "")
+  let rawMsg = String(a?.message || a?.title || TYPE_HELP[typeId] || "")
     .replace(/\s+/g, " ")
     .trim();
   // Strip leading "SYMBOL:" or "SYMBOL " patterns
   rawMsg = stripLeadingSymbol(rawMsg, sym).replace(new RegExp(`^${sym}[:\\s]+`, "i"), "");
-  const detail = rawMsg || TYPE_HELP[type] || "Signal detected";
+  const detail = rawMsg || TYPE_HELP[typeId] || "Signal detected";
 
   const pct = pickPct(a);
   const volPct = pickVolPct(a);
@@ -1012,7 +1046,7 @@ function SignalRow({
           url && window.open(url, "_blank", "noopener,noreferrer");
         }
       }}
-      title={TYPE_HELP[type] ? `${type}: ${TYPE_HELP[type]}` : type}
+      title={TYPE_HELP[typeId] ? `${type}: ${TYPE_HELP[typeId]}` : type}
     >
       <div className="bh-signal-main">
         <div className="bh-signal-meta">
@@ -1709,7 +1743,7 @@ export default function AlertsTab({
               <div className="bh-alerts-glossary" role="list" aria-label="Signal glossary">
                 {Object.entries(TYPE_HELP).map(([k, v]) => (
                   <div key={k} className="bh-gloss-item" role="listitem">
-                    <span className="bh-gloss-key">{k}</span>
+                    <span className="bh-gloss-key">{TYPE_DISPLAY[k] || k}</span>
                     <span className="bh-gloss-val">{v}</span>
                   </div>
                 ))}

@@ -4,6 +4,7 @@ import {
   classifyByThreshold,
   normalizeAlert,
   typeKeyToUpper,
+  normalizeEventType,
 } from "../alerts_normalize.js";
 import { WINDOW_KEYS } from "../windows.js";
 
@@ -60,4 +61,50 @@ test("normalizeAlert drops legacy long-horizon window labels", () => {
   });
   expect(out.window).toBe("");
   expect(out.window_key).toBe(WINDOW_KEYS.UNKNOWN);
+});
+
+// --- normalizeEventType ---
+
+test("normalizeEventType: display strings with spaces → canonical IDs", () => {
+  expect(normalizeEventType("COIN FOMO")).toBe("COIN_FOMO");
+  expect(normalizeEventType("REVERSAL UP")).toBe("REVERSAL_UP");
+  expect(normalizeEventType("BREADTH THRUST")).toBe("BREADTH_THRUST");
+  expect(normalizeEventType("PERSIST GAINER")).toBe("PERSIST_GAINER");
+});
+
+test("normalizeEventType: display strings with slash → canonical ID", () => {
+  expect(normalizeEventType("HACK / EXPLOIT")).toBe("HACK_EXPLOIT");
+});
+
+test("normalizeEventType: already-canonical IDs pass through unchanged", () => {
+  expect(normalizeEventType("MOONSHOT")).toBe("MOONSHOT");
+  expect(normalizeEventType("CRATER")).toBe("CRATER");
+  expect(normalizeEventType("COIN_FOMO")).toBe("COIN_FOMO");
+  expect(normalizeEventType("REVERSAL_UP")).toBe("REVERSAL_UP");
+});
+
+test("normalizeEventType: backend type values (lowercase snake_case) → canonical IDs", () => {
+  expect(normalizeEventType("coin_fomo")).toBe("COIN_FOMO");
+  expect(normalizeEventType("coin_reversal_up")).toBe("REVERSAL_UP");
+  expect(normalizeEventType("whale_move")).toBe("WHALE");
+  expect(normalizeEventType("stealth_move")).toBe("STEALTH");
+  expect(normalizeEventType("hack_or_exploit")).toBe("HACK_EXPLOIT");
+  expect(normalizeEventType("governance_vote")).toBe("GOVERNANCE");
+  expect(normalizeEventType("social_spike_1h")).toBe("SOCIAL_SPIKE");
+  expect(normalizeEventType("engagement_surge_1h")).toBe("ENGAGEMENT_SURGE");
+  expect(normalizeEventType("fomo_alert")).toBe("FOMO");
+  expect(normalizeEventType("fear_alert")).toBe("FEAR");
+});
+
+test("normalizeEventType: backend enum .name values (SCREAMING_SNAKE_CASE) → canonical IDs", () => {
+  expect(normalizeEventType("COIN_REVERSAL_UP")).toBe("REVERSAL_UP");
+  expect(normalizeEventType("WHALE_MOVE")).toBe("WHALE");
+  expect(normalizeEventType("HACK_OR_EXPLOIT")).toBe("HACK_EXPLOIT");
+  expect(normalizeEventType("COIN_BREADTH_THRUST")).toBe("BREADTH_THRUST");
+});
+
+test("normalizeEventType: nullish / empty input returns empty string", () => {
+  expect(normalizeEventType("")).toBe("");
+  expect(normalizeEventType(null)).toBe("");
+  expect(normalizeEventType(undefined)).toBe("");
 });
