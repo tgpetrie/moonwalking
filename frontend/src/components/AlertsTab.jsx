@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useData } from "../context/DataContext";
 import { useWatchlist } from "../context/WatchlistContext.jsx";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
@@ -98,6 +98,15 @@ const TYPE_HELP = {
   MOVE: "Short-term move",
   FOMO: "Chasing behavior",
   FEAR: "Risk-off behavior",
+};
+
+const CONTEXT_BADGE_TRANSLATIONS = {
+  "BREAKING AWAY": "moving independently from the market",
+  "MARKET CARRIED": "move follows the wider market",
+  "SPOT BUYING": "buyers stepping in",
+  "SPOT SELLING": "selling flow",
+  "THIN AIR": "thin liquidity",
+  "WIDE SPREAD": "wide spread",
 };
 
 const ALERT_TABS = [
@@ -701,58 +710,72 @@ const sortAlertRows = (rows, { sort = "IMPORTANCE", feed = "ACTIVE" }) => {
   });
 };
 
-function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null }) {
+function PriorityStrip({ items = [], nowMs, onOpenCoinSentiment = null, marketPressure = null, open = true, onToggle }) {
   const summary = deriveTapeState(items, marketPressure);
 
   return (
     <section className="bh-priority-strip" aria-label="Hot right now">
       <div className="bh-priority-strip__head">
-        <div>
-          <div className="bh-priority-strip__title">Hot Right Now</div>
-          <div className="bh-priority-strip__sub">Live shortlist</div>
-        </div>
+        <button
+          type="button"
+          className="bh-section-toggle bh-priority-strip__toggle"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls="bh-priority-body"
+        >
+          <span className="bh-section-chevron" aria-hidden="true">{open ? "▾" : "▶"}</span>
+          <span className="bh-priority-strip__title">Hot Right Now</span>
+          <span className="bh-priority-strip__sub">Live shortlist</span>
+        </button>
         <div className="bh-priority-strip__meta">7m model</div>
       </div>
 
-      <div className="bh-priority-strip__stats">
-        <span>Tape {summary.tapeState}</span>
-        <span>Fresh {summary.freshConfirms}</span>
-        <span>Leaders {summary.activeLeaders}</span>
-        <span>Weakening {summary.weakening}</span>
-      </div>
+      {open ? (
+        <div id="bh-priority-body">
+          <div className="bh-priority-strip__stats">
+            <span>Tape: {summary.tapeState}</span>
+            <span className="bh-stat-sep" aria-hidden="true">·</span>
+            <span>Fresh {summary.freshConfirms}</span>
+            <span className="bh-stat-sep" aria-hidden="true">·</span>
+            <span>Leaders {summary.activeLeaders}</span>
+            <span className="bh-stat-sep" aria-hidden="true">·</span>
+            <span>Weakening {summary.weakening}</span>
+          </div>
 
-      {!items.length ? (
-        <div className="bh-priority-empty">
-          <div>No dominant live setup right now.</div>
+          {!items.length ? (
+            <div className="bh-priority-empty">
+              <div>No dominant live setup right now.</div>
+            </div>
+          ) : (
+            <div className="bh-priority-rows">
+              {items.map((item) => {
+                const reasons = priorityReasons({ ...item, nowMs });
+                return (
+                  <button
+                    key={`${item.bucket}:${item.symbol}`}
+                    type="button"
+                    className="bh-priority-row"
+                    data-tone={priorityStateTone(item.stateLabel, item.bucket)}
+                    onClick={() => onOpenCoinSentiment?.(item.symbol, { source: "priority_strip", symbol: item.symbol })}
+                  >
+                    <div className="bh-priority-row__top">
+                      <div className="bh-priority-row__title">
+                        <span className="bh-priority-row__symbol">{item.symbol}</span>
+                        <span className="bh-priority-row__sep">·</span>
+                        <span className="bh-priority-row__label">{item.stateLabel}</span>
+                      </div>
+                      <div className="bh-priority-row__score">{item.score}</div>
+                    </div>
+                    <div className="bh-priority-row__summary">
+                      {reasons.join(" · ")}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="bh-priority-rows">
-          {items.map((item) => {
-            const reasons = priorityReasons({ ...item, nowMs });
-            return (
-              <button
-                key={`${item.bucket}:${item.symbol}`}
-                type="button"
-                className="bh-priority-row"
-                data-tone={priorityStateTone(item.stateLabel, item.bucket)}
-                onClick={() => onOpenCoinSentiment?.(item.symbol, { source: "priority_strip", symbol: item.symbol })}
-              >
-                <div className="bh-priority-row__top">
-                  <div className="bh-priority-row__title">
-                    <span className="bh-priority-row__symbol">{item.symbol}</span>
-                    <span className="bh-priority-row__sep">·</span>
-                    <span className="bh-priority-row__label">{item.stateLabel}</span>
-                  </div>
-                  <div className="bh-priority-row__score">{item.score}</div>
-                </div>
-                <div className="bh-priority-row__summary">
-                  {reasons.join(" · ")}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -881,10 +904,32 @@ function SignalRow({
   const windowLabel = String(a?.window || a?.evidence?.window || "").trim();
   const eventModifier = String(a?.modifier || "").trim();
   const eventConfidence = Number(a?.confidence);
+  const rawConfidence = a?.confidence != null ? Number(a.confidence) : null;
+  const confidenceLabel = Number.isFinite(rawConfidence)
+    ? rawConfidence >= 70 ? 'High' : rawConfidence >= 45 ? 'Developing' : 'Limited'
+    : null;
   const evolution = Array.isArray(a?.evolution) ? a.evolution : [];
   const eventRead = a?.the_read && typeof a.the_read === "object" ? a.the_read : null;
   const readHistory = eventRead?.history && typeof eventRead.history === "object" ? eventRead.history : null;
   const contextBadges = Array.isArray(a?.context_badges) ? a.context_badges.slice(0, 2) : [];
+  const heating = isHeatingAlert(a);
+  const bullish = isBullishAlert(a);
+  // Suppress eventModifier in Signal details if it duplicates an already-derived badge
+  const showEventModifier = Boolean(
+    eventModifier &&
+    !(heating && eventModifier.toLowerCase() === 'heating') &&
+    !(!heating && bullish && eventModifier.toLowerCase() === 'bullish') &&
+    !(promotion && eventModifier.toLowerCase() === promotion.toLowerCase())
+  );
+
+  const whyParts = contextBadges
+    .map(b => {
+      const key = String(b?.label || "").toUpperCase().trim();
+      if (!key) return null;
+      return CONTEXT_BADGE_TRANSLATIONS[key] || key.toLowerCase();
+    })
+    .filter(Boolean);
+  const whyText = whyParts.length ? whyParts.join(" + ") : null;
 
   // Build clean message without repeating coin name
   let rawMsg = String(a?.message || a?.title || TYPE_HELP[type] || "")
@@ -902,8 +947,6 @@ function SignalRow({
 
   const url = a?.url || a?.trade_url || coinbaseSpotUrl({ product_id: toProductId(a), symbol: a?.symbol });
   const cls = tabKeyForAlert(a);
-  const heating = isHeatingAlert(a);
-  const bullish = isBullishAlert(a);
   const sentimentSymbol = sentimentSymbolForAlert(a) || sym;
 
   // Determine direction for color coding
@@ -974,23 +1017,12 @@ function SignalRow({
       <div className="bh-signal-main">
         <div className="bh-signal-meta">
           <span className="bh-signal-type">{type}</span>
-          {eventModifier ? <span className="bh-signal-promo" data-promo="EVENT">{eventModifier.toUpperCase()}</span> : null}
-          {contextBadges.map((badge, index) => (
-            <span
-              key={`${badge?.label || "context"}:${index}`}
-              className="bh-signal-context"
-              data-tone={badge?.tone || "context"}
-            >
-              {String(badge?.label || "").toUpperCase()}
+          {confidenceLabel ? (
+            <span className="bh-signal-confidence" title={`Score: ${Math.round(rawConfidence)}`}>
+              {confidenceLabel}
             </span>
-          ))}
-          {Number.isFinite(eventConfidence) ? <span className="bh-signal-confidence">{eventConfidence}</span> : null}
+          ) : null}
           {windowLabel ? <span className="bh-signal-window">{windowLabel}</span> : null}
-          <span className="bh-signal-sev" data-sev={sev}>{String(a?.severity || "INFO").toUpperCase()}</span>
-          {promotion ? <span className="bh-signal-promo" data-promo={promotion}>{promotion}</span> : null}
-          {heating ? <span className="bh-signal-bias" data-bias="heating">HEATING</span> : null}
-          {!heating && bullish ? <span className="bh-signal-bias" data-bias="bullish">BULLISH</span> : null}
-          {sourceLabel ? <span className="bh-signal-source">{sourceLabel}</span> : null}
         </div>
 
         <div className="bh-signal-headline">
@@ -1006,6 +1038,12 @@ function SignalRow({
               {eventRead.condition ? <span className="bh-event-read__condition">{eventRead.condition}</span> : null}
             </div>
             {eventRead.summary ? <div className="bh-event-read__summary">{eventRead.summary}</div> : null}
+            {whyText ? (
+              <div className="bh-event-read__why">
+                <span className="bh-event-read__why-label">WHY</span>
+                <span className="bh-event-read__why-text">{whyText}</span>
+              </div>
+            ) : null}
             {eventRead.risk_note ? <div className="bh-event-read__risk">{eventRead.risk_note}</div> : null}
             {readHistory?.label ? (
               <div className="bh-event-read__history" data-status={readHistory.status || "collecting"}>
@@ -1032,6 +1070,17 @@ function SignalRow({
             <span className="bh-event-evolution__count">{Number(a?.alert_count || 0)} detections</span>
           </div>
         ) : null}
+        <details className="bh-signal-details" onClick={(e) => e.stopPropagation()}>
+          <summary className="bh-signal-details__toggle">Signal details</summary>
+          <div className="bh-signal-details__chips">
+            <span className="bh-signal-sev" data-sev={sev}>{String(a?.severity || "INFO").toUpperCase()}</span>
+            {promotion ? <span className="bh-signal-promo" data-promo={promotion}>{promotion}</span> : null}
+            {heating ? <span className="bh-signal-bias" data-bias="heating">HEATING</span> : null}
+            {!heating && bullish ? <span className="bh-signal-bias" data-bias="bullish">BULLISH</span> : null}
+            {showEventModifier ? <span className="bh-signal-promo" data-promo="EVENT">{eventModifier.toUpperCase()}</span> : null}
+            {sourceLabel ? <span className="bh-signal-source">{sourceLabel}</span> : null}
+          </div>
+        </details>
       </div>
 
       <div className="bh-signal-row-right">
@@ -1082,6 +1131,15 @@ export default function AlertsTab({
   const [showHelp, setShowHelp] = useState(false);
   // Default to the full market stream; symbol-specific filtering is user-driven.
   const [coinFilter, setCoinFilter] = useState(() => forcedCoin || "ALL");
+
+  // Section disclosure state — all three live here so they share one architecture.
+  // HOT RIGHT NOW always starts expanded. Watchlist + Evolving are set once after
+  // alert data first arrives (alertsMeta gate) and frozen for the mount lifetime.
+  const [sectionOrder, setSectionOrder] = useState("watchlist-first");
+  const [priorityOpen, setPriorityOpen] = useState(true);
+  const [watchlistOpen, setWatchlistOpen] = useState(true);
+  const [evolvingOpen, setEvolvingOpen] = useState(true);
+  const layoutInitializedRef = useRef(false);
 
   useEffect(() => {
     if (!forcedCoin) return;
@@ -1223,6 +1281,19 @@ export default function AlertsTab({
     }).filter((alert) => watchHas(sentimentSymbolForAlert(alert)));
     return sortAlertRows(filtered, { sort, feed: "SIGNALS" }).slice(0, 12);
   }, [compact, forcedCoin, effectiveSignalEvents, effectiveCoinFilter, sev, sort, watchHas]);
+
+  // Initialize section order + open states exactly once, after alert data first lands.
+  // Gate: alertsMeta.fallback_from_data is set in the same batch as signalEvents,
+  // so it is the narrowest correct readiness signal for these sections.
+  useEffect(() => {
+    if (layoutInitializedRef.current) return;
+    if (alertsMeta?.fallback_from_data === undefined) return;
+    layoutInitializedRef.current = true;
+    const hasAttention = watchlistAttentionRows.length > 0;
+    setSectionOrder(hasAttention ? "watchlist-first" : "evolving-first");
+    setWatchlistOpen(hasAttention);
+    setEvolvingOpen(!hasAttention && effectiveSignalEvents.length > 0);
+  }, [alertsMeta, watchlistAttentionRows, effectiveSignalEvents]);
 
   const allAlertsTitle = forcedCoin ? `${forcedCoin} Evolution` : "Signal Evolution";
 
@@ -1428,6 +1499,98 @@ export default function AlertsTab({
     watchHas,
   ]);
 
+  const watchlistMetaLabel = watchlistItems.length === 0
+    ? "No coins watched"
+    : watchlistAttentionRows.length === 0
+    ? "Quiet right now"
+    : `${watchlistAttentionRows.length} live`;
+
+  const watchlistSectionEl = (
+    <section className="bh-alerts-feed-section bh-alerts-feed-section--watchlist" aria-label="Watchlist attention">
+      <div className="bh-alerts-feed-section__head">
+        <button
+          type="button"
+          className="bh-section-toggle"
+          onClick={() => setWatchlistOpen(v => !v)}
+          aria-expanded={watchlistOpen}
+          aria-controls="bh-watchlist-body"
+        >
+          <span className="bh-section-chevron" aria-hidden="true">{watchlistOpen ? "▾" : "▶"}</span>
+          <span className="bh-alerts-feed-section__marker" aria-hidden="true">☆</span>
+          <span>Watchlist Attention</span>
+        </button>
+        <div className="bh-alerts-feed-section__meta">{watchlistMetaLabel}</div>
+      </div>
+      {watchlistOpen ? (
+        <div id="bh-watchlist-body">
+          {watchlistAttentionRows.length === 0 ? (
+            <div className="bh-signal-empty bh-signal-empty--compact">
+              {watchlistItems.length === 0
+                ? "No coins watched"
+                : "No active watchlist alerts right now"}
+            </div>
+          ) : (
+            <div className="bh-signal-list bh-signal-list--watchlist" role="list">
+              {watchlistAttentionRows.map((a) => (
+                <SignalRow
+                  key={`watch:${a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}`}
+                  a={a}
+                  nowMs={nowMs}
+                  onOpenCoinSentiment={onOpenCoinSentiment}
+                  isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
+                  onToggleWatchlist={toggleAlertWatch}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+
+  const evolvingSectionEl = (
+    <>
+      {compactFallbackToRecent ? (
+        <div className="bh-alerts-inline-note">
+          No evolving signals right now. Showing Pulse matches.
+        </div>
+      ) : null}
+      <section className="bh-alerts-feed-section bh-alerts-feed-section--evolving" aria-label="Evolving events">
+        <div className="bh-alerts-feed-section__head bh-alerts-feed-section__head--all">
+          <button
+            type="button"
+            className="bh-section-toggle"
+            onClick={() => setEvolvingOpen(v => !v)}
+            aria-expanded={evolvingOpen}
+            aria-controls="bh-evolving-body"
+          >
+            <span className="bh-section-chevron" aria-hidden="true">{evolvingOpen ? "▾" : "▶"}</span>
+            <span>{feed === "SIGNALS" ? "Evolving Events" : "Raw Pulse"}</span>
+          </button>
+          <div className="bh-alerts-feed-section__meta">{displayedRows.length} shown</div>
+        </div>
+        {evolvingOpen ? (
+          <div id="bh-evolving-body" className="bh-signal-list bh-signal-list--primary" role="list">
+            {displayedRows.length === 0 ? (
+              <div className="bh-signal-empty">{resolvedEmptyCopy}</div>
+            ) : (
+              displayedRows.map((a) => (
+                <SignalRow
+                  key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
+                  a={a}
+                  nowMs={nowMs}
+                  onOpenCoinSentiment={onOpenCoinSentiment}
+                  isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
+                  onToggleWatchlist={toggleAlertWatch}
+                />
+              ))
+            )}
+          </div>
+        ) : null}
+      </section>
+    </>
+  );
+
   return (
     <div className={`bh-alerts-tab ${compact ? "bh-alerts-tab--compact" : ""}`}>
       <div className="bh-alerts-layout">
@@ -1562,68 +1725,35 @@ export default function AlertsTab({
               nowMs={nowMs}
               onOpenCoinSentiment={onOpenCoinSentiment}
               marketPressure={marketPressure}
+              open={priorityOpen}
+              onToggle={() => setPriorityOpen(v => !v)}
             />
           ) : null}
+
           {!compact && !forcedCoin ? (
-            <section className="bh-alerts-feed-section bh-alerts-feed-section--watchlist" aria-label="Watchlist attention">
-              <div className="bh-alerts-feed-section__head">
-                <div className="bh-alerts-feed-section__title">
-                  <span className="bh-alerts-feed-section__marker" aria-hidden="true">☆</span>
-                  <span>Watchlist Attention</span>
-                </div>
-                <div className="bh-alerts-feed-section__meta">
-                  {watchlistItems.length ? `${watchlistAttentionRows.length} live` : "watchlist"}
-                </div>
-              </div>
-              {watchlistAttentionRows.length === 0 ? (
-                <div className="bh-signal-empty bh-signal-empty--compact">
-                  No active watchlist alerts right now
-                </div>
-              ) : (
-                <div className="bh-signal-list bh-signal-list--watchlist" role="list">
-                  {watchlistAttentionRows.map((a) => (
-                    <SignalRow
-                      key={`watch:${a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}`}
-                      a={a}
-                      nowMs={nowMs}
-                      onOpenCoinSentiment={onOpenCoinSentiment}
-                      isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
-                      onToggleWatchlist={toggleAlertWatch}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          ) : null}
-          {compactFallbackToRecent ? (
-            <div className="bh-alerts-inline-note">
-              No evolving signals right now. Showing Pulse matches.
-            </div>
-          ) : null}
-          {!compact && !forcedCoin ? (
-            <div className="bh-alerts-feed-section__head bh-alerts-feed-section__head--all">
-              <div className="bh-alerts-feed-section__title">{feed === "SIGNALS" ? "Evolving Events" : "Raw Pulse"}</div>
-              <div className="bh-alerts-feed-section__meta">{displayedRows.length} shown</div>
-            </div>
-          ) : null}
-          <div className="bh-signal-list bh-signal-list--primary" role="list">
-            {displayedRows.length === 0 ? (
-              <div className="bh-signal-empty">
-                {resolvedEmptyCopy}
-              </div>
+            sectionOrder === "watchlist-first" ? (
+              <>{watchlistSectionEl}{evolvingSectionEl}</>
             ) : (
-              displayedRows.map((a) => (
-                <SignalRow
-                  key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
-                  a={a}
-                  nowMs={nowMs}
-                  onOpenCoinSentiment={onOpenCoinSentiment}
-                  isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
-                  onToggleWatchlist={toggleAlertWatch}
-                />
-              ))
-            )}
-          </div>
+              <>{evolvingSectionEl}{watchlistSectionEl}</>
+            )
+          ) : (
+            <div className="bh-signal-list bh-signal-list--primary" role="list">
+              {displayedRows.length === 0 ? (
+                <div className="bh-signal-empty">{resolvedEmptyCopy}</div>
+              ) : (
+                displayedRows.map((a) => (
+                  <SignalRow
+                    key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
+                    a={a}
+                    nowMs={nowMs}
+                    onOpenCoinSentiment={onOpenCoinSentiment}
+                    isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
+                    onToggleWatchlist={toggleAlertWatch}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
           {!hideFoot ? (
             <div className="bh-signal-foot">

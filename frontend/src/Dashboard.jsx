@@ -47,6 +47,7 @@ export default function Dashboard() {
   const payload = feedData?.data ?? feedData ?? {};
   const tsLabel = formatTimestamp(payload.updated_at ? new Date(payload.updated_at) : undefined);
   const [selectedSymbol, setSelectedSymbol] = useState(null);
+  const [selectedLaunchContext, setSelectedLaunchContext] = useState(null);
   const updatedLabel = useMemo(() => {
     const raw = payload.updated_at;
     if (!raw) return "";
@@ -69,10 +70,11 @@ export default function Dashboard() {
     return list;
   }, [payload.banner_1h_volume, payload.volume_1h, payload.volume_1h_top, payload.volume_1h_tokens]);
 
-  const handleInfo = (symbol) => {
+  const handleInfo = (symbol, launchContext = null) => {
     const sym = normalizeSentimentSymbol(symbol);
     if (!sym) return;
     setSelectedSymbol(sym);
+    setSelectedLaunchContext(launchContext || null);
   };
 
   const { items: watchlistItems } = useWatchlist();
@@ -340,7 +342,11 @@ export default function Dashboard() {
         <SentimentPopupAdvanced
           isOpen={true}
           symbol={selectedSymbol}
-          onClose={() => setSelectedSymbol(null)}
+          launchContext={selectedLaunchContext}
+          onClose={() => {
+            setSelectedSymbol(null);
+            setSelectedLaunchContext(null);
+          }}
         />
       )}
     </main>

@@ -200,18 +200,48 @@
 
 .bh-priority-strip {
   margin: 0 0 8px;
-  padding: 8px 9px;
+  padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--bh-fg, #fff) 14%, transparent);
   background:
     linear-gradient(135deg, rgba(13, 11, 18, 0.94), rgba(21, 12, 31, 0.82) 48%, rgba(12, 15, 24, 0.9));
 }
 
+/* Section toggle button — shared by all three collapsible sections */
+.bh-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  line-height: 1;
+  min-width: 0;
+}
+
+.bh-section-chevron {
+  font-size: 8px;
+  opacity: 0.55;
+  flex: 0 0 auto;
+  width: 8px;
+  text-align: center;
+}
+
 .bh-priority-strip__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+/* toggle button contains: chevron + title + sub — all on one line */
+.bh-priority-strip__toggle {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .bh-priority-strip__title {
@@ -222,20 +252,31 @@
   color: color-mix(in srgb, var(--bh-fg, #fff) 88%, transparent);
 }
 
-.bh-priority-strip__sub,
-.bh-priority-strip__meta {
-  margin-top: 3px;
+.bh-priority-strip__sub {
   font-size: 10px;
-  color: color-mix(in srgb, var(--bh-fg, #fff) 60%, transparent);
+  color: color-mix(in srgb, var(--bh-fg, #fff) 54%, transparent);
+}
+
+.bh-priority-strip__meta {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 54%, transparent);
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .bh-priority-strip__stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 4px 6px;
+  margin-bottom: 7px;
   font-size: 10px;
   color: color-mix(in srgb, var(--bh-fg, #fff) 66%, transparent);
+}
+
+.bh-stat-sep {
+  opacity: 0.38;
+  font-size: 9px;
 }
 
 .bh-priority-rows {
@@ -335,6 +376,16 @@
   gap: 10px;
 }
 
+/* Section toggle inside feed-section heads reuses .bh-section-toggle base;
+   this carries the title typography so the button text matches the old div */
+.bh-alerts-feed-section__head .bh-section-toggle {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 74%, transparent);
+}
+
 .bh-alerts-feed-section__head--all {
   margin: 0 0 6px;
 }
@@ -384,8 +435,9 @@
 
 @media (max-width: 900px) {
   .bh-priority-strip__stats {
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 5px;
   }
 }
 
@@ -929,6 +981,67 @@
 
 .bh-event-read__history[data-status="measured"] {
   color: rgba(255, 194, 132, 0.8);
+}
+
+.bh-event-read__why {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.bh-event-read__why-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 38%, transparent);
+  flex: 0 0 auto;
+}
+
+.bh-event-read__why-text {
+  font-size: 9px;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 58%, transparent);
+  line-height: 1.35;
+}
+
+.bh-signal-details {
+  margin-top: 2px;
+}
+
+.bh-signal-details__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 36%, transparent);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.bh-signal-details__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.bh-signal-details__toggle::after {
+  content: "▾";
+  font-size: 9px;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 28%, transparent);
+}
+
+.bh-signal-details[open] .bh-signal-details__toggle::after {
+  content: "▴";
+}
+
+.bh-signal-details__chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
 .bh-signal-metrics {

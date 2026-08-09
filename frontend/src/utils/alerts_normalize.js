@@ -9,6 +9,7 @@ export const TYPE_KEYS = {
   crater: "crater",
   breakout: "breakout",
   dump: "dump",
+  breakdown: "breakdown",
   move: "move",
   whale: "whale",
   stealth: "stealth",
@@ -17,6 +18,12 @@ export const TYPE_KEYS = {
   fear: "fear",
   sentiment: "sentiment",
   volume: "volume",
+  reversal: "reversal",
+  fakeout: "fakeout",
+  momentum: "momentum",
+  volatility: "volatility",
+  liquidity: "liquidity",
+  squeeze: "squeeze",
   unknown: "unknown",
 };
 
@@ -25,6 +32,7 @@ export const TYPE_TEXT = {
   crater: "CRATER",
   breakout: "BREAKOUT",
   dump: "DUMP",
+  breakdown: "BREAKDOWN",
   move: "MOVE",
   whale: "WHALE",
   stealth: "STEALTH",
@@ -33,6 +41,12 @@ export const TYPE_TEXT = {
   fear: "FEAR",
   sentiment: "SENTIMENT",
   volume: "VOLUME",
+  reversal: "REVERSAL",
+  fakeout: "FAKEOUT",
+  momentum: "MOMENTUM",
+  volatility: "VOLATILITY",
+  liquidity: "LIQUIDITY",
+  squeeze: "SQUEEZE",
   unknown: "ALERT",
 };
 
@@ -41,6 +55,7 @@ export const TYPE_EMOJI = {
   crater: "🕳️",
   breakout: "📈",
   dump: "📉",
+  breakdown: "📉",
   move: "⚡",
   whale: "🐋",
   stealth: "🕵️",
@@ -49,6 +64,12 @@ export const TYPE_EMOJI = {
   fear: "🧊",
   sentiment: "🌊",
   volume: "📊",
+  reversal: "🔄",
+  fakeout: "🪤",
+  momentum: "🏃",
+  volatility: "⚡",
+  liquidity: "💧",
+  squeeze: "🗜️",
   unknown: "🔔",
 };
 
@@ -115,6 +136,23 @@ export const extractPct = (raw) => {
 const mapTypeKey = (rawType) => {
   const t = String(rawType || "").toLowerCase();
   if (!t) return "";
+
+  // Exact coin_* type matches — must come before generic substring fallbacks
+  // because several share substrings ("breakout", "fomo", etc.) with other types.
+  if (t === "coin_reversal_up" || t === "coin_reversal_down") return TYPE_KEYS.reversal;
+  if (t === "coin_exhaustion_top" || t === "coin_exhaustion_bottom") return TYPE_KEYS.reversal;
+  if (t === "coin_fakeout") return TYPE_KEYS.fakeout;
+  if (t === "coin_persistent_gainer") return TYPE_KEYS.momentum;
+  if (t === "coin_persistent_loser") return TYPE_KEYS.breakdown;
+  if (t === "coin_volatility_expansion") return TYPE_KEYS.volatility;
+  if (t === "coin_liquidity_shock") return TYPE_KEYS.liquidity;
+  if (t === "coin_trend_break_up") return TYPE_KEYS.breakout;
+  if (t === "coin_trend_break_down") return TYPE_KEYS.breakdown;
+  if (t === "coin_squeeze_break") return TYPE_KEYS.squeeze;
+  if (t === "coin_breadth_thrust") return TYPE_KEYS.fomo;
+  if (t === "coin_breadth_failure") return TYPE_KEYS.fear;
+
+  // Generic substring fallbacks for well-known type families
   if (t.includes("moonshot")) return TYPE_KEYS.moonshot;
   if (t.includes("crater")) return TYPE_KEYS.crater;
   if (t.includes("breakout")) return TYPE_KEYS.breakout;
@@ -126,6 +164,7 @@ const mapTypeKey = (rawType) => {
   if (t.includes("fear")) return TYPE_KEYS.fear;
   if (t.includes("sentiment")) return TYPE_KEYS.sentiment;
   if (t.includes("volume")) return TYPE_KEYS.volume;
+  if (t.includes("reversal")) return TYPE_KEYS.reversal;
   if (t.includes("impulse")) return ""; // classify by thresholds
   return "";
 };

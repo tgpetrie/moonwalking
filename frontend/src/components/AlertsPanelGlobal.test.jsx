@@ -4,12 +4,28 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // The legacy market feed is a large context-driven component; stub it so this
 // suite proves *routing and preservation*, not AlertsTab's own internals.
 vi.mock("./AlertsTab", () => ({
-  default: ({ compact }) => (
+  default: ({ compact, onOpenCoinSentiment }) => (
     <div data-testid="legacy-alerts-tab" data-compact={String(compact)}>
       {["All", "Watchlist", "Moonshot", "Bullish", "Heating Up", "Whale", "Dump",
         "Breakout", "Liq Shock"].map((f) => (
         <button key={f} type="button">{f}</button>
       ))}
+      <button
+        type="button"
+        onClick={() =>
+          onOpenCoinSentiment?.("SOL", {
+            source: "alerts_center",
+            alert: {
+              id: "alert_1",
+              symbol: "SOL",
+              type_key: "BREAKOUT",
+              evidence: { window: "3m", price: 148.2 },
+            },
+          })
+        }
+      >
+        open-chart
+      </button>
     </div>
   ),
 }));
@@ -76,6 +92,25 @@ describe("AlertsPanelGlobal", () => {
                           "Whale", "Dump", "Breakout", "Liq Shock"]) {
       expect(screen.getByRole("button", { name: filter })).toBeInTheDocument();
     }
+  });
+
+  it("forwards alert launch context from the market feed", async () => {
+    const onOpenCoinSentiment = vi.fn();
+    open({ onOpenCoinSentiment });
+    fireEvent.click(screen.getByRole("tab", { name: "Market Feed" }));
+
+    await screen.findByTestId("legacy-alerts-tab");
+    fireEvent.click(screen.getByRole("button", { name: "open-chart" }));
+
+    expect(onOpenCoinSentiment).toHaveBeenCalledWith("SOL", {
+      source: "alerts_center",
+      alert: {
+        id: "alert_1",
+        symbol: "SOL",
+        type_key: "BREAKOUT",
+        evidence: { window: "3m", price: 148.2 },
+      },
+    });
   });
 
   it("defaults to Market Feed when there are no recommendations", async () => {

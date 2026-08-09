@@ -63,6 +63,23 @@ def _zone_n(total: int) -> int:
     return max(3, total // 5)
 
 
+def _f(
+    evidence: dict[str, Any], *keys: str, default: float | None = None
+) -> float | None:
+    """Return the first finite numeric value found across the given keys."""
+    for key in keys:
+        value = evidence.get(key)
+        if value is None:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if number == number and number not in (float("inf"), float("-inf")):
+            return number
+    return default
+
+
 # ─── calculation helpers ───────────────────────────────────────────────────────
 
 
@@ -284,9 +301,26 @@ def _watch_next(
     trend_label: str,
     lower_area: list[float],
     upper_area: list[float],
+    event_price: float | None = None,
 ) -> list[str]:
     lo = lower_area[0]
     hi = upper_area[1]
+    if event_price is not None:
+        ref = f"${_price_fmt(event_price)}"
+        if trend_label == "up":
+            return [
+                f"The read gets stronger if price holds above {ref} with higher trading activity.",
+                f"The read gets weaker if price falls back below {ref} with rising trading activity.",
+            ]
+        if trend_label == "down":
+            return [
+                f"The read gets stronger if price stays below {ref} with higher trading activity.",
+                f"The read gets weaker if price moves back above {ref} with rising trading activity.",
+            ]
+        return [
+            f"Watch whether price accepts above {ref} with higher trading activity to suggest upward pressure.",
+            f"Watch whether price rejects below {ref} with rising trading activity to suggest downward pressure.",
+        ]
     if trend_label == "up":
         return [
             f"The read gets stronger if price pushes above ${hi} with higher trading activity.",
@@ -317,6 +351,73 @@ def _hours_per_candle(timeframe: str) -> float:
     }.get(timeframe, 1.0)
 
 
+def _normalize_event_context(
+    event_context: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """Keep optional launch context narrow and deterministic."""
+    if not isinstance(event_context, dict):
+        return None
+
+    raw_type = str(
+        event_context.get("type_key") or event_context.get("type") or ""
+    ).strip()
+    evidence = event_context.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+
+    normalized: dict[str, Any] = {}
+    if raw_type:
+        normalized["type_key"] = raw_type.upper()
+
+    evidence_out: dict[str, Any] = {}
+    raw_window = str(
+        evidence.get("window") or event_context.get("window") or ""
+    ).strip()
+    if raw_window:
+        evidence_out["window"] = raw_window
+
+    price = _f(evidence, "price")
+    if price is None:
+        price = _f(event_context, "price")
+    if price is not None:
+        evidence_out["price"] = price
+
+    pct = _f(evidence, "pct")
+    if pct is None:
+        pct = _f(event_context, "pct")
+    if pct is not None:
+        evidence_out["pct"] = pct
+
+    if evidence_out:
+        normalized["evidence"] = evidence_out
+
+    return normalized or None
+
+
+def _event_context_note(event_context: dict[str, Any] | None) -> str | None:
+    """Turn trigger metadata into a spatial reminder, not a detector read."""
+    ctx = _normalize_event_context(event_context)
+    if not ctx:
+        return None
+
+    type_key = str(ctx.get("type_key") or "").strip()
+    evidence = ctx.get("evidence") if isinstance(ctx.get("evidence"), dict) else {}
+    window = str(evidence.get("window") or "").strip()
+    price = _f(evidence, "price")
+
+    if type_key and window and price is not None:
+        return f"The triggering {type_key} alert came from the {window} window near ${_price_fmt(price)}."
+    if type_key and price is not None:
+        return f"The triggering {type_key} alert came near ${_price_fmt(price)}."
+    if type_key and window:
+        return f"The triggering {type_key} alert came from the {window} window."
+    if price is not None:
+        return f"The alert fired near ${_price_fmt(price)}."
+    if window:
+        return f"The alert came from the {window} window."
+    return None
+
+
 # ─── public API ───────────────────────────────────────────────────────────────
 
 
@@ -324,6 +425,7 @@ def analyze_candles(
     raw_candles: list[list[Any]],
     symbol: str,
     timeframe: str = "1h",
+    event_context: dict[str, Any] | None = None,
 ) -> dict | None:
     """Analyze raw OHLCV candles and return a basic-user-friendly read.
 
@@ -341,18 +443,27 @@ def analyze_candles(
     volume = _compare_volume(rows)
     rpos = _range_position(rows)
     confidence = _score_confidence(trend["label"], volume["label"], len(rows))
+    ctx = _normalize_event_context(event_context)
+    ctx_note = _event_context_note(ctx)
+    ctx_price = None
+    if ctx and isinstance(ctx.get("evidence"), dict):
+        ctx_price = _f(ctx["evidence"], "price")
+
+    summary = _build_summary(
+        sym,
+        trend["label"],
+        volume["label"],
+        rpos["zone"],
+        lower_area,
+        upper_area,
+    )
+    if ctx_note:
+        summary = f"{summary} {ctx_note}"
 
     return {
         "symbol": sym,
         "timeframe": timeframe,
-        "summary": _build_summary(
-            sym,
-            trend["label"],
-            volume["label"],
-            rpos["zone"],
-            lower_area,
-            upper_area,
-        ),
+        "summary": summary,
         "direction": {
             "label": trend["label"],
             "basic_text": _DIRECTION_TEXT[trend["label"]],
@@ -372,7 +483,7 @@ def analyze_candles(
             "basic_text": _VOLUME_TEXT[volume["label"]],
         },
         "confidence": confidence,
-        "watch_next": _watch_next(trend["label"], lower_area, upper_area),
+        "watch_next": _watch_next(trend["label"], lower_area, upper_area, ctx_price),
         "not_financial_advice": True,
         "candle_count": len(rows),
         "window_hours": round(len(rows) * _hours_per_candle(timeframe), 1),

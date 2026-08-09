@@ -39,7 +39,29 @@ const buildEndpoints = () => ({
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
   socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,
-  chartRead: (symbol) => `${API_BASE_URL}/api/chart-read/${encodeSymbol(symbol)}`
+  chartRead: (symbol, eventContext = null) => {
+    const base = `${API_BASE_URL}/api/chart-read/${encodeSymbol(symbol)}`;
+    const params = new URLSearchParams();
+    const ctx = eventContext && typeof eventContext === "object" ? eventContext : null;
+    const evidence = ctx?.evidence && typeof ctx.evidence === "object" ? ctx.evidence : {};
+    const typeKey = String(ctx?.type_key || ctx?.type || "").trim().toUpperCase();
+    const window = String(evidence.window || ctx?.window || "").trim();
+    const asNumber = (value) => {
+      if (value === "" || value === null || value === undefined) return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    };
+    const price = asNumber(evidence.price ?? ctx?.price);
+    const pct = asNumber(evidence.pct ?? ctx?.pct);
+
+    if (typeKey) params.set("event_type", typeKey);
+    if (window) params.set("event_window", window);
+    if (price !== null) params.set("event_price", String(price));
+    if (pct !== null) params.set("event_pct", String(pct));
+
+    const query = params.toString();
+    return query ? `${base}?${query}` : base;
+  }
 });
 
 export let API_ENDPOINTS = buildEndpoints();

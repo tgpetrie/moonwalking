@@ -4,6 +4,7 @@ import { deriveAlertType, extractAlertPct, parseImpulseMessage, windowLabelFromT
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { normalizeAlert, typeKeyToUpper } from "../utils/alerts_normalize";
 import { stripLeadingSymbol, stripLeadingType } from "../utils/alertText";
+import { createEventKey, shouldSkip, markSeen, expireOldKeys } from "../utils/intelligenceDedup";
 
 const safeSymbol = (value) => {
   if (!value) return "";
@@ -70,7 +71,7 @@ const formatDivergence = (raw) => {
 
 const classifyLog = (log) => {
   if (log?.label) {
-    return { label: log.label, chipTone: "info" };
+    return { label: log.label, chipTone: log.chipTone || "info" };
   }
   const norm = normalizeAlert(log);
   const extracted = extractAlertPct(log);
@@ -217,9 +218,11 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     { id: "init-2", time: "INIT", msg: "M3_COPROCESSOR: ONLINE", label: "SYSTEM" },
   ]);
 
-  const seenRef = useRef(new Set());
+  // Map<semanticKey, timestampMs> — TTL-based dedup; expires after two cooldown cycles
+  const seenRef = useRef(new Map());
+  // Map<symbol, lastFiredMs> — per-symbol cooldown for the volume gap-filler
+  const volCooldownRef = useRef(new Map());
   const scrollRef = useRef(null);
-  const lastHeartbeatRef = useRef(0);
 
   // 1-second ticker drives relative timestamps and fresh-row detection
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -256,139 +259,71 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
     return `${Math.floor(diff / 60)}m ago`;
   }, [logs, nowMs]);
 
-  const gainers1m = useMemo(() => (Array.isArray(data?.gainers_1m) ? data.gainers_1m : []), [data]);
-  const losers3m = useMemo(() => (Array.isArray(data?.losers_3m) ? data.losers_3m : []), [data]);
   const vol1h = useMemo(() => (Array.isArray(volumeData) ? volumeData : []), [volumeData]);
   const alerts = useMemo(() => (Array.isArray(data?.alerts) ? data.alerts : []), [data]);
 
+  // Volume gap-filler: covers the 80%+ range the backend WHALE detector misses
+  // when its per-minute z-score baseline is not yet warm (first ~15 min of uptime).
+  // Runs independently of backend alert count \u2014 no guard.
   useEffect(() => {
-    if (alerts.length > 0) return;
-    const hasAnything = gainers1m.length || losers3m.length || vol1h.length;
-    if (!hasAnything) return;
+    if (!vol1h.length) return;
 
-    const now = new Date();
-    const timeStr = now
-      .toLocaleTimeString([], {
-        hour12: false,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
+    const nowMs = Date.now();
+    const timeStr = new Date(nowMs)
+      .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
       .replace(/\u200E/g, "");
 
     const newLogs = [];
-
-    for (const token of gainers1m) {
-      const symbol = safeSymbol(token?.symbol || token?.ticker);
-      const pct = pickNumber(token?.change_1m, token?.price_change_percentage_1min, token?.price_change_1m);
-      if (!symbol || !Number.isFinite(pct)) continue;
-      const key = `G-1m-${symbol}-${pct.toFixed(4)}`;
-      if (seenRef.current.has(key)) continue;
-      if (pct > 1.5) {
-        const url = spotUrl(token, symbol);
-        newLogs.push({
-          id: `g-${Date.now()}-${Math.random()}`,
-          ts: Date.now(),
-          time: timeStr,
-          source: "synthetic",
-          symbol,
-          url,
-          prefix: ">>>",
-          body: `SPIKE DETECTED`,
-          pct,
-          window: "1m",
-          type: "IMPULSE_1M",
-          price_now: token?.current_price ?? token?.price ?? null,
-          price_then: token?.previous_price_1m ?? token?.price_1m_ago ?? null,
-          sentiment_delta: token?.sentiment_delta ?? token?.sentimentDelta ?? null,
-          divergence: extractDivergenceRaw(token),
-        });
-        seenRef.current.add(key);
-      }
-    }
-
-    for (const token of losers3m) {
-      const symbol = safeSymbol(token?.symbol || token?.ticker);
-      const pct = pickNumber(token?.change_3m, token?.price_change_percentage_3min, token?.price_change_3m);
-      if (!symbol || !Number.isFinite(pct)) continue;
-      const key = `L-3m-${symbol}-${pct.toFixed(4)}`;
-      if (seenRef.current.has(key)) continue;
-      if (pct < -2.0) {
-        const url = spotUrl(token, symbol);
-        newLogs.push({
-          id: `l-${Date.now()}-${Math.random()}`,
-          ts: Date.now(),
-          time: timeStr,
-          source: "synthetic",
-          symbol,
-          url,
-          prefix: "<<<",
-          body: `RAPID DROP`,
-          pct,
-          window: "3m",
-          type: "IMPULSE_3M",
-          price_now: token?.current_price ?? token?.price ?? null,
-          price_then: token?.previous_price_3m ?? token?.price_3m_ago ?? null,
-          sentiment_delta: token?.sentiment_delta ?? token?.sentimentDelta ?? null,
-          divergence: extractDivergenceRaw(token),
-        });
-        seenRef.current.add(key);
-      }
-    }
-
     for (const token of vol1h) {
       const symbol = safeSymbol(token?.symbol || token?.ticker);
-      const pct = Math.floor(pickNumber(token?.volume_change_1h_pct, token?.volume_change_pct, token?.volumeChangePct));
-      if (!symbol || !Number.isFinite(pct)) continue;
-      const key = `V-1h-${symbol}-${pct}`;
-      if (seenRef.current.has(key)) continue;
-      if (pct > 80) {
-        const url = spotUrl(token, symbol);
-        newLogs.push({
-          id: `v-${Date.now()}-${Math.random()}`,
-          ts: Date.now(),
-          time: timeStr,
-          source: "synthetic",
-          symbol,
-          url,
-          prefix: "|||",
-          body: `VOLUME SHOCK`,
-          vol_change_pct: pct,
-          window: "1h",
-          type: "VOLUME_1H",
-          divergence: extractDivergenceRaw(token),
-        });
-        seenRef.current.add(key);
-      }
-    }
+      const pct = pickNumber(token?.volume_change_1h_pct, token?.volume_change_pct, token?.volumeChangePct);
+      if (!symbol || !Number.isFinite(pct) || pct < 80) continue;
 
-    // NOTE: heartbeat/ping entries intentionally suppressed for cleaner intelligence log
-    // (previous behavior inserted lightweight PING messages when no anomalies were present)
+      const lastFired = volCooldownRef.current.get(symbol) || 0;
+      if (nowMs - lastFired < 5 * 60 * 1000) continue;
+
+      const volRounded = Math.floor(pct);
+      const url = spotUrl(token, symbol);
+      newLogs.push({
+        id: `vol-${symbol}-${nowMs}`,
+        ts: nowMs,
+        time: timeStr,
+        source: "synthetic",
+        label: "VOLUME",
+        chipTone: "sent",
+        symbol,
+        url,
+        prefix: "",
+        body: `Vol +${volRounded}% above average`,
+        vol_change_pct: volRounded,
+        window: "1h",
+        type: "VOLUME_1H",
+        divergence: extractDivergenceRaw(token),
+      });
+      volCooldownRef.current.set(symbol, nowMs);
+    }
 
     if (newLogs.length) {
       setLogs((prev) => [...prev, ...newLogs].slice(-60));
     }
-  }, [alerts.length, gainers1m, losers3m, vol1h]);
+  }, [vol1h]);
 
   useEffect(() => {
     if (!Array.isArray(alerts) || alerts.length === 0) return;
 
-    const now = new Date();
-    const timeStr = now
-      .toLocaleTimeString([], {
-        hour12: false,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
+    const nowMs = Date.now();
+    expireOldKeys(seenRef.current, nowMs);
+
+    const timeStr = new Date(nowMs)
+      .toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
       .replace(/\u200E/g, "");
 
     const newLogs = [];
     for (const a of alerts) {
       if (!a) continue;
-      const id = a.id || `${a.ts || ""}-${a.symbol || ""}-${a.type || ""}`;
-      const key = `A-${id}`;
-      if (seenRef.current.has(key)) continue;
+      // Semantic dedup: same type+symbol+window+direction = same ongoing condition
+      const key = createEventKey(a);
+      if (shouldSkip(key, seenRef.current, nowMs)) continue;
 
       const norm = normalizeAlert(a);
       const symbol = safeSymbol(norm.symbol || norm.product_id || a.symbol || a.product_id || a.pair);
@@ -417,8 +352,8 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
       const msg = cleanAlertMessage(rawMsg, symbol, type);
 
       newLogs.push({
-        id: `a-${Date.now()}-${Math.random()}`,
-        ts: Date.now(),
+        id: `a-${nowMs}-${Math.random().toString(36).slice(2, 6)}`,
+        ts: nowMs,
         time: timeStr,
         source: "alert",
         symbol,
@@ -435,14 +370,11 @@ export default function AnomalyStream({ data = {}, volumeData = [] }) {
         sentiment_delta: sentimentDelta,
         divergence: divergenceRaw,
       });
-      seenRef.current.add(key);
+      markSeen(key, seenRef.current, nowMs);
     }
 
     if (newLogs.length) {
-      setLogs((prev) => {
-        const carry = prev.filter((log) => log?.source !== "synthetic");
-        return [...carry, ...newLogs].slice(-60);
-      });
+      setLogs((prev) => [...prev, ...newLogs].slice(-60));
     }
   }, [alerts]);
 

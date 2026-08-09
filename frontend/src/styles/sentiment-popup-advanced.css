@@ -3244,3 +3244,49 @@ a.news-item-title:hover {
    ============================================================ */
 
 /* Market Signal styles moved to index.css (compact inline strip) */
+
+/* ============================================================
+   ALERT ORIGIN BANNER
+   Shown when the popup is launched from an alert row.
+   ============================================================ */
+
+.mw-alert-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.75rem;
+    border-radius: 8px;
+    border-left: 3px solid var(--sentiment-neu, #f1b43a);
+    background: rgba(241, 180, 58, 0.06);
+}
+
+.mw-alert-banner[data-tone="favorable"] {
+    border-left-color: var(--sentiment-pos, #45ffb3);
+    background: rgba(69, 255, 179, 0.05);
+}
+
+.mw-alert-banner[data-tone="risk"] {
+    border-left-color: var(--sentiment-neg, #ff6b6b);
+    background: rgba(255, 107, 107, 0.05);
+}
+
+.mw-alert-banner[data-tone="neutral"],
+.mw-alert-banner[data-tone="watch"] {
+    border-left-color: var(--sentiment-subtext, #a3a3a3);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.mw-alert-banner__headline {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sentiment-subtext, #a3a3a3);
+}
+
+.mw-alert-banner__watch {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--sentiment-text, #e0e0e0);
+}

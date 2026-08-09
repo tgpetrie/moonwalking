@@ -269,6 +269,7 @@ export default function DashboardShell({ onInfo }) {
   const boardStats = boardOutcomes?.boards || {};
   const { items: watchlistItems, toggle: toggleWatchlist } = useWatchlist();
   const [sentimentSymbol, setSentimentSymbol] = useState(null);
+  const [sentimentLaunchContext, setSentimentLaunchContext] = useState(null);
   const [sentimentOpen, setSentimentOpen] = useState(false);
   const [sentimentDefaultTab, setSentimentDefaultTab] = useState("coin");
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -334,11 +335,12 @@ export default function DashboardShell({ onInfo }) {
     };
   }, []);
 
-  const handleInfo = (symbol) => {
+  const handleInfo = (symbol, launchContext = null) => {
     const sym = symbol?.toString()?.toUpperCase();
     if (sym) {
       console.log("INFO_CLICK", sym);
       setSentimentSymbol(sym);
+      setSentimentLaunchContext(launchContext || null);
       setSentimentDefaultTab("coin");
       setSentimentOpen(true);
     }
@@ -582,15 +584,17 @@ export default function DashboardShell({ onInfo }) {
         onClose={() => {
           setSentimentOpen(false);
           setSentimentSymbol(null);
+          setSentimentLaunchContext(null);
           setSentimentDefaultTab("coin");
         }}
+        launchContext={sentimentLaunchContext}
       />
 
       <AlertsPanelGlobal
         isOpen={alertsOpen}
         onClose={() => setAlertsOpen(false)}
-        onOpenCoinSentiment={(symbol) => {
-          handleInfo(symbol);
+        onOpenCoinSentiment={(symbol, ctx) => {
+          handleInfo(symbol, ctx);
           setAlertsOpen(false);
         }}
       />

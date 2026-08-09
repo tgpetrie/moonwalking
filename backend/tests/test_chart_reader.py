@@ -250,6 +250,38 @@ class TestAnalyzeCandles:
         result_4h = analyze_candles(_UPTREND, "BTC", "4h")
         assert result_4h["window_hours"] == result_1h["window_hours"] * 4
 
+    def test_event_context_none_preserves_existing_output(self):
+        baseline = analyze_candles(_UPTREND, "SOL", "1h")
+        repeated = analyze_candles(_UPTREND, "SOL", "1h", event_context=None)
+        assert repeated == baseline
+
+    def test_event_context_adds_spatial_note_without_breaking_shape(self):
+        result = analyze_candles(
+            _UPTREND,
+            "SOL",
+            "1h",
+            event_context={
+                "type_key": "BREAKOUT",
+                "evidence": {
+                    "window": "3m",
+                    "price": 148.2,
+                    "pct": 5.8,
+                },
+            },
+        )
+        assert "BREAKOUT" in result["summary"]
+        assert "3m" in result["summary"]
+        assert "$148.2" in result["summary"]
+        assert any("$148.2" in line for line in result["watch_next"])
+
+
+def test_chart_reader_does_not_import_alerts_engine():
+    import inspect
+    import chart_reader
+
+    source = inspect.getsource(chart_reader)
+    assert "alerts_engine" not in source
+
 
 # Small helper to avoid importing pytest in the assertion (works with plain assert too).
 def pytest_approx(value, rel=1e-6):

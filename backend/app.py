@@ -192,6 +192,7 @@ from alerts_engine import (
     compute_alerts,
     compute_market_pressure,
 )
+from interpretation_engine import add_interpretation
 from alert_events import (
     EVENT_RULE_VERSION,
     build_event_evolution,
@@ -5787,7 +5788,7 @@ def _emit_alert(
     if not allow:
         return False
 
-    accepted = _append_alerts_deduped(alerts_log_main, [alert])
+    accepted = _append_alerts_deduped(alerts_log_main, [add_interpretation(alert)])
     if accepted <= 0:
         return False
 
@@ -12687,12 +12688,32 @@ def get_chart_read(symbol):
     if not sym:
         return jsonify({"error": "Symbol required"}), 400
 
+    event_type = str(request.args.get("event_type") or "").strip().upper()
+    event_window = str(request.args.get("event_window") or "").strip()
+    event_price = request.args.get("event_price", type=float)
+    event_pct = request.args.get("event_pct", type=float)
+
+    event_context = None
+    evidence = {}
+    if event_window:
+        evidence["window"] = event_window
+    if event_price is not None and math.isfinite(event_price):
+        evidence["price"] = event_price
+    if event_pct is not None and math.isfinite(event_pct):
+        evidence["pct"] = event_pct
+    if event_type or evidence:
+        event_context = {}
+        if event_type:
+            event_context["type_key"] = event_type
+        if evidence:
+            event_context["evidence"] = evidence
+
     product_id = f"{sym}-USD"
     candles = _fetch_coinbase_candles(product_id, granularity=3600, count=50)
     if not candles:
         return jsonify({"error": f"No candle data for {sym}"}), 404
 
-    result = analyze_candles(candles, sym, "1h")
+    result = analyze_candles(candles, sym, "1h", event_context=event_context)
     if result is None:
         return jsonify({"error": f"Not enough data to read {sym}"}), 404
 
@@ -13743,6 +13764,9 @@ def _compute_snapshots_from_cache():
                 include_impulse=True,
                 include_market_mood=include_market_mood,
             )
+
+            # Enrich with interpretation before storage (pure, non-mutating)
+            engine_alerts = [add_interpretation(a) for a in engine_alerts]
 
             # Append engine alerts through the shared stream-level dedupe gate
             _append_alerts_deduped(alerts_log_main, engine_alerts)

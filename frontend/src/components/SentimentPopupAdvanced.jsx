@@ -800,7 +800,73 @@ const alertIdentity = (alert) => {
   return `${symbol}:${type}:${alertTsMs(alert)}`;
 };
 
-const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }) => {
+const parseEventNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const buildLaunchEventContext = (launchContext) => {
+  const raw = launchContext && typeof launchContext === 'object' ? launchContext : null;
+  if (!raw) return null;
+
+  const alert = raw.alert && typeof raw.alert === 'object' ? raw.alert : null;
+  const direct = raw.event_context && typeof raw.event_context === 'object' ? raw.event_context : null;
+  const source = direct || alert || raw;
+  if (!source || typeof source !== 'object') return null;
+
+  const evidence = source.evidence && typeof source.evidence === 'object'
+    ? source.evidence
+    : {};
+  const typeKey = String(source.type_key || source.type || '').trim().toUpperCase();
+  const window = String(evidence.window || source.window || '').trim();
+  const price = parseEventNumber(evidence.price ?? source.price ?? null);
+  const pct = parseEventNumber(evidence.pct ?? source.pct ?? null);
+
+  const normalized = {};
+  if (typeKey) normalized.type_key = typeKey;
+
+  const normalizedEvidence = {};
+  if (window) normalizedEvidence.window = window;
+  if (price !== null) normalizedEvidence.price = price;
+  if (pct !== null) normalizedEvidence.pct = pct;
+
+  if (Object.keys(normalizedEvidence).length > 0) {
+    normalized.evidence = normalizedEvidence;
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+};
+
+const buildAlertBanner = (launchContext) => {
+  if (!launchContext || launchContext.source !== 'alerts_center') return null;
+  const alert = launchContext.alert;
+  if (!alert || typeof alert !== 'object') return null;
+
+  const typeKey = String(alert.type_key || alert.type || '').trim().toUpperCase();
+  if (!typeKey) return null;
+
+  const evidence = alert.evidence && typeof alert.evidence === 'object' ? alert.evidence : {};
+  const price = parseEventNumber(evidence.price ?? alert.price ?? null);
+  const alertWindow = String(evidence.window || alert.window || '').trim();
+  const theRead = alert.the_read && typeof alert.the_read === 'object' ? alert.the_read : null;
+
+  const locationParts = [];
+  if (alertWindow && price !== null) locationParts.push(`${alertWindow} near $${price}`);
+  else if (alertWindow) locationParts.push(`${alertWindow} window`);
+  else if (price !== null) locationParts.push(`near $${price}`);
+
+  const headline = locationParts.length
+    ? `${typeKey} · ${locationParts[0]}`
+    : typeKey;
+
+  const watchLine = theRead?.summary
+    || (price !== null ? `Watch whether $${price} holds with continued activity.` : 'Watch for confirmation or rejection of this level.');
+
+  return { headline, watchLine, tone: theRead?.tone || 'neutral' };
+};
+
+const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', launchContext = null }) => {
   const {
     error,
     refresh,
@@ -837,6 +903,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
   const [chartRead, setChartRead] = useState(null);
   const [chartReadLoading, setChartReadLoading] = useState(false);
   const [chartReadError, setChartReadError] = useState(null);
+  const [chartDrawerOpen, setChartDrawerOpen] = useState(false);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
@@ -849,10 +916,26 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
       : null),
     [liveRankings, coinSymbol]
   );
+  const chartEventContext = useMemo(
+    () => buildLaunchEventContext(launchContext),
+    [launchContext]
+  );
+  const alertBanner = useMemo(
+    () => buildAlertBanner(launchContext),
+    [launchContext]
+  );
 
   useEffect(() => {
     if (isOpen) setActiveTab(normalizeTab(defaultTab));
   }, [isOpen, defaultTab]);
+
+  useEffect(() => {
+    if (chartEventContext) setChartDrawerOpen(true);
+  }, [chartEventContext]);
+
+  useEffect(() => {
+    if (!isOpen) setChartDrawerOpen(false);
+  }, [isOpen]);
 
   useEffect(() => {
     const onEsc = (evt) => {
@@ -893,14 +976,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
     let cancelled = false;
     setChartReadLoading(true);
     const endpoint = API_ENDPOINTS.chartRead
-      ? API_ENDPOINTS.chartRead(coinSymbol)
+      ? API_ENDPOINTS.chartRead(coinSymbol, chartEventContext)
       : `/api/chart-read/${encodeURIComponent(coinSymbol)}`;
     fetchData(endpoint)
       .then((d) => { if (!cancelled) { setChartRead(d); setChartReadError(null); } })
       .catch(() => { if (!cancelled) setChartReadError('unavailable'); })
       .finally(() => { if (!cancelled) setChartReadLoading(false); });
     return () => { cancelled = true; };
-  }, [isOpen, coinSymbol]);
+  }, [isOpen, coinSymbol, chartEventContext]);
 
   const loadCoinInsights = useCallback(async ({ silent = false } = {}) => {
     if (!coinSymbol || !isOpen) {
@@ -1999,6 +2082,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                     <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#6f6f6f', fontStyle: 'italic' }}>fast · unconfirmed</span>
                   </div>
 
+                  {alertBanner ? (
+                    <div className="mw-alert-banner" data-tone={alertBanner.tone}>
+                      <span className="mw-alert-banner__headline">{alertBanner.headline}</span>
+                      <span className="mw-alert-banner__watch">{alertBanner.watchLine}</span>
+                    </div>
+                  ) : null}
+
                   <section className={`cp-simple-read cp-simple-read--${simpleCoinRead.tone}`}>
                     <div className="cp-simple-read__topline">
                       <span>{coinSymbol} · RIGHT NOW</span>
@@ -2079,11 +2169,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                     </div>
                   </details>
 
-                  <details className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block">
+                  <details
+                    className="cp-evidence-drawer cp-chart-drawer mw-coin-chart-block"
+                    open={chartDrawerOpen}
+                    onToggle={(e) => setChartDrawerOpen(e.currentTarget.open)}
+                  >
                     <summary>Chart &amp; Read</summary>
                     <div className="cp-evidence-drawer__body">
+                      {chartEventContext ? (
+                        <ChartReadPanel
+                          data={chartRead}
+                          loading={chartReadLoading}
+                          error={chartReadError}
+                        />
+                      ) : null}
                       <div className="section-header">
-                        <p className="section-desc">Chart first, plain-English read below.</p>
+                        <p className="section-desc">{chartEventContext ? 'Chart below for reference.' : 'Chart first, plain-English read below.'}</p>
                       <div className="mini-toggle" role="group" aria-label="Chart source">
                         {['auto', 'coinbase', 'binance'].map((opt) => (
                           <button
@@ -2110,11 +2211,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin' }
                           loading="lazy"
                         />
                       </div>
-                      <ChartReadPanel
-                        data={chartRead}
-                        loading={chartReadLoading}
-                        error={chartReadError}
-                      />
+                      {!chartEventContext ? (
+                        <ChartReadPanel
+                          data={chartRead}
+                          loading={chartReadLoading}
+                          error={chartReadError}
+                        />
+                      ) : null}
                     </div>
                   </details>
 
