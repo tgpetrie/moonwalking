@@ -429,6 +429,34 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* ── Evidence tier ─────────────────────────── */
+/* Brightness-only: more samples → more visible text. No brand colors —     */
+/* teal/purple carry directional meaning elsewhere in this UI.               */
+
+.sc-evidence-tier {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.sc-evidence-tier[data-tier="strong"] {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.sc-evidence-tier[data-tier="solid"] {
+  color: rgba(255, 255, 255, 0.50);
+}
+
+.sc-evidence-tier[data-tier="building"] {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.sc-evidence-tier[data-tier="emerging"] {
+  color: rgba(255, 255, 255, 0.22);
+}
+
 /* ── Responsive ────────────────────────────── */
 
 @media (max-width: 640px) {

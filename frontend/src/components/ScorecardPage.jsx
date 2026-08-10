@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { getBackendBase } from "../config/api.js";
+import { describeEvidenceTier } from "../mvp/portfolioSignals.js";
 import "../styles/scorecard.css";
 
 const API_BASE = getBackendBase();
@@ -17,6 +18,27 @@ function fmtPct(n, decimals = 2) {
 function Tip({ text }) {
   return (
     <span className="sc-tip" title={text}>?</span>
+  );
+}
+
+const EVIDENCE_LABELS = {
+  strong:   "Strong evidence",
+  solid:    "Solid evidence",
+  building: "Building evidence",
+  emerging: "Emerging evidence",
+};
+
+export function evidenceTier(n) {
+  const { key } = describeEvidenceTier(n);
+  const label = EVIDENCE_LABELS[key] ?? null;
+  return { label, tier: key };
+}
+
+function EvidenceTier({ n }) {
+  const { label, tier } = evidenceTier(n);
+  if (!label) return null;
+  return (
+    <span className="sc-evidence-tier" data-tier={tier}>{label}</span>
   );
 }
 
@@ -127,6 +149,7 @@ function SignalCard({ card }) {
             <Tip text="How many times we've seen this exact signal type and graded the result" />
           </span>
           <span className="sc-stat__value">{card.sample_size.toLocaleString()}</span>
+          <EvidenceTier n={card.sample_size} />
         </div>
         <div className="sc-stat">
           <span className="sc-stat__label">
@@ -210,6 +233,7 @@ function BoardCard({ board }) {
             Times tested
           </span>
           <span className="sc-stat__value">{board.sample_size.toLocaleString()}</span>
+          <EvidenceTier n={board.sample_size} />
         </div>
         <div className="sc-stat">
           <span className="sc-stat__label">
