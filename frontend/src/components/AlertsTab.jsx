@@ -915,6 +915,32 @@ function ProofFooter({ meta, activeCount, recentCount }) {
   );
 }
 
+function EventReadContent({ eventRead, whyText, readHistory }) {
+  return (
+    <>
+      <div className="bh-event-read__eyebrow">THE READ</div>
+      <div className="bh-event-read__line">
+        <span className="bh-event-read__label">{eventRead.label}</span>
+        {eventRead.condition ? <span className="bh-event-read__condition">{eventRead.condition}</span> : null}
+      </div>
+      {eventRead.summary ? <div className="bh-event-read__summary">{eventRead.summary}</div> : null}
+      {whyText ? (
+        <div className="bh-event-read__why">
+          <span className="bh-event-read__why-label">WHY</span>
+          <span className="bh-event-read__why-text">{whyText}</span>
+        </div>
+      ) : null}
+      {eventRead.risk_note ? <div className="bh-event-read__risk">{eventRead.risk_note}</div> : null}
+      {readHistory?.label ? (
+        <div className="bh-event-read__history" data-status={readHistory.status || "collecting"}>
+          <span>HISTORY</span>
+          <span>{readHistory.label}</span>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function SignalRow({
   a,
   nowMs,
@@ -937,11 +963,17 @@ function SignalRow({
   const age = ts ? ageLabel(nowMs - ts) : "\u2014";
   const windowLabel = String(a?.window || a?.evidence?.window || "").trim();
   const eventModifier = String(a?.modifier || "").trim();
-  const eventConfidence = Number(a?.confidence);
   const rawConfidence = a?.confidence != null ? Number(a.confidence) : null;
-  const confidenceLabel = Number.isFinite(rawConfidence)
-    ? rawConfidence >= 70 ? 'High' : rawConfidence >= 45 ? 'Developing' : 'Limited'
+  const interp = a?.interpretation ?? null;
+  const hasInterpretation = interp?.interpretation_support_level !== 'none' && Boolean(interp?.summary);
+  const interpConf = (hasInterpretation && interp?.confidence != null) ? Number(interp.confidence) : null;
+  const confScore = Number.isFinite(interpConf) ? interpConf : (Number.isFinite(rawConfidence) ? rawConfidence : null);
+  const confidenceLabel = Number.isFinite(confScore)
+    ? confScore >= 70 ? 'High' : confScore >= 45 ? 'Developing' : 'Limited'
     : null;
+  const supportingFactors = hasInterpretation ? (interp.supportingFactors ?? []) : [];
+  const cautionFactors = hasInterpretation ? (interp.cautionFactors ?? []) : [];
+  const invalidationCondition = hasInterpretation ? String(interp.invalidationCondition ?? '').trim() : '';
   const evolution = Array.isArray(a?.evolution) ? a.evolution : [];
   const eventRead = a?.the_read && typeof a.the_read === "object" ? a.the_read : null;
   const readHistory = eventRead?.history && typeof eventRead.history === "object" ? eventRead.history : null;
@@ -965,13 +997,14 @@ function SignalRow({
     .filter(Boolean);
   const whyText = whyParts.length ? whyParts.join(" + ") : null;
 
+  const interpSummary = hasInterpretation ? String(interp.summary).trim() : null;
   // Build clean message without repeating coin name
   let rawMsg = String(a?.message || a?.title || TYPE_HELP[typeId] || "")
     .replace(/\s+/g, " ")
     .trim();
   // Strip leading "SYMBOL:" or "SYMBOL " patterns
   rawMsg = stripLeadingSymbol(rawMsg, sym).replace(new RegExp(`^${sym}[:\\s]+`, "i"), "");
-  const detail = rawMsg || TYPE_HELP[typeId] || "Signal detected";
+  const detail = interpSummary || rawMsg || TYPE_HELP[typeId] || "Signal detected";
 
   const pct = pickPct(a);
   const volPct = pickVolPct(a);
@@ -1052,7 +1085,7 @@ function SignalRow({
         <div className="bh-signal-meta">
           <span className="bh-signal-type">{type}</span>
           {confidenceLabel ? (
-            <span className="bh-signal-confidence" title={`Score: ${Math.round(rawConfidence)}`}>
+            <span className="bh-signal-confidence" title={`Score: ${Math.round(confScore)}`}>
               {confidenceLabel}
             </span>
           ) : null}
@@ -1064,28 +1097,30 @@ function SignalRow({
           <div className="bh-signal-msg">{detailContent}</div>
         </div>
 
-        {eventRead ? (
-          <div className="bh-event-read" data-tone={eventRead.tone || "neutral"} aria-label="The Read">
-            <div className="bh-event-read__eyebrow">THE READ</div>
-            <div className="bh-event-read__line">
-              <span className="bh-event-read__label">{eventRead.label}</span>
-              {eventRead.condition ? <span className="bh-event-read__condition">{eventRead.condition}</span> : null}
+        {hasInterpretation && (supportingFactors.length > 0 || cautionFactors.length > 0 || invalidationCondition) ? (
+          <details className="bh-signal-factors" onClick={(e) => e.stopPropagation()}>
+            <summary className="bh-signal-factors__toggle">Why this read?</summary>
+            <div className="bh-signal-factors__body">
+              {supportingFactors.map((f, i) => <div key={i} className="bh-factor bh-factor--supporting">{f}</div>)}
+              {cautionFactors.map((f, i) => <div key={i} className="bh-factor bh-factor--caution">{f}</div>)}
+              {invalidationCondition ? <div className="bh-factor bh-factor--invalidation">Invalidated if: {invalidationCondition}</div> : null}
             </div>
-            {eventRead.summary ? <div className="bh-event-read__summary">{eventRead.summary}</div> : null}
-            {whyText ? (
-              <div className="bh-event-read__why">
-                <span className="bh-event-read__why-label">WHY</span>
-                <span className="bh-event-read__why-text">{whyText}</span>
+          </details>
+        ) : null}
+
+        {eventRead ? (
+          hasInterpretation ? (
+            <details className="bh-event-read-wrap" onClick={(e) => e.stopPropagation()}>
+              <summary className="bh-event-read-wrap__toggle">Event analysis</summary>
+              <div className="bh-event-read" data-tone={eventRead.tone || "neutral"}>
+                <EventReadContent eventRead={eventRead} whyText={whyText} readHistory={readHistory} />
               </div>
-            ) : null}
-            {eventRead.risk_note ? <div className="bh-event-read__risk">{eventRead.risk_note}</div> : null}
-            {readHistory?.label ? (
-              <div className="bh-event-read__history" data-status={readHistory.status || "collecting"}>
-                <span>HISTORY</span>
-                <span>{readHistory.label}</span>
-              </div>
-            ) : null}
-          </div>
+            </details>
+          ) : (
+            <div className="bh-event-read" data-tone={eventRead.tone || "neutral"} aria-label="The Read">
+              <EventReadContent eventRead={eventRead} whyText={whyText} readHistory={readHistory} />
+            </div>
+          )
         ) : null}
 
         {volText ? (
@@ -1130,6 +1165,8 @@ function SignalRow({
     </div>
   );
 }
+
+export { SignalRow };
 
 export default function AlertsTab({
   filterSymbol = null,

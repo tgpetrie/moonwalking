@@ -1009,7 +1009,9 @@
   margin-top: 2px;
 }
 
-.bh-signal-details__toggle {
+.bh-signal-details__toggle,
+.bh-signal-factors__toggle,
+.bh-event-read-wrap__toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1022,17 +1024,23 @@
   user-select: none;
 }
 
-.bh-signal-details__toggle::-webkit-details-marker {
+.bh-signal-details__toggle::-webkit-details-marker,
+.bh-signal-factors__toggle::-webkit-details-marker,
+.bh-event-read-wrap__toggle::-webkit-details-marker {
   display: none;
 }
 
-.bh-signal-details__toggle::after {
+.bh-signal-details__toggle::after,
+.bh-signal-factors__toggle::after,
+.bh-event-read-wrap__toggle::after {
   content: "▾";
   font-size: 9px;
   color: color-mix(in srgb, var(--bh-fg, #fff) 28%, transparent);
 }
 
-.bh-signal-details[open] .bh-signal-details__toggle::after {
+.bh-signal-details[open] .bh-signal-details__toggle::after,
+.bh-signal-factors[open] .bh-signal-factors__toggle::after,
+.bh-event-read-wrap[open] .bh-event-read-wrap__toggle::after {
   content: "▴";
 }
 
@@ -1282,4 +1290,51 @@
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* ── Interpretation: supporting factors disclosure ──────────────────────── */
+
+.bh-signal-factors {
+  margin-top: 3px;
+}
+
+.bh-signal-factors__body {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.bh-factor {
+  font-size: 10px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 72%, transparent);
+}
+
+.bh-factor--supporting::before {
+  content: "✓ ";
+  color: color-mix(in srgb, var(--sentiment-pos, #4ade80) 80%, transparent);
+}
+
+.bh-factor--caution::before {
+  content: "△ ";
+  color: color-mix(in srgb, var(--sentiment-neu, #facc15) 80%, transparent);
+}
+
+.bh-factor--invalidation {
+  margin-top: 2px;
+  font-size: 9px;
+  color: color-mix(in srgb, var(--bh-fg, #fff) 44%, transparent);
+  font-style: italic;
+}
+
+/* ── Event analysis (the_read demoted when interpretation present) ───────── */
+
+.bh-event-read-wrap {
+  margin-top: 3px;
+}
+
+.bh-event-read-wrap .bh-event-read {
+  margin-top: 4px;
 }
