@@ -1239,6 +1239,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return Math.round(((0.45 * alignment) + (0.35 * volumeConfirm) + (0.2 * streak)) * 100);
   }, [hasCoinTape, alignmentScore, coinAlerts, volumeConfirms]);
 
+  const nowMs = Date.now();
+
   const signalFlags = useMemo(
     () => computeSignalFlags(coinAlerts, nowMs),
     [coinAlerts, nowMs],
@@ -1429,7 +1431,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const coinPanelNeedsWarmup = activeTab === 'coin' && coinSymbol && !metricsReady;
   const liveLabelRaw = coinPanelNeedsWarmup ? (coinInsightsLoading ? 'BOOTING' : 'WARMING') : String(pipelineStatus || 'STALE').toUpperCase();
   const liveClass = liveLabelRaw === 'LIVE' ? 'live' : liveLabelRaw === 'OFFLINE' ? 'offline' : 'stale';
-  const nowMs = Date.now();
   const marketPressureSummary = useMemo(
     () => getMarketPressure({ market_pressure }),
     [market_pressure]
