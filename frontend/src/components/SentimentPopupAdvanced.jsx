@@ -800,6 +800,81 @@ const alertIdentity = (alert) => {
   return `${symbol}:${type}:${alertTsMs(alert)}`;
 };
 
+// Matches ALERT_IMPULSE_TTL_MINUTES default on the backend.
+const RISK_ALERT_MAX_AGE_MS = 5 * 60 * 1000;
+
+// Returns true if the alert is still within its active window.
+// Prefers the backend-set `expires_at` field; falls back to age from event timestamp.
+export const isAlertStillActive = (alert, nowMs) => {
+  const expiresAt = alert?.expires_at;
+  if (expiresAt) {
+    const exp = Date.parse(String(expiresAt));
+    if (Number.isFinite(exp)) return exp > nowMs;
+  }
+  const tsMs = alertTsMs(alert);
+  return tsMs > 0 && (nowMs - tsMs) <= RISK_ALERT_MAX_AGE_MS;
+};
+
+// Pure, exported for testing. Risk types (reversal/fakeout/exhaustion) are only
+// flagged when the alert is still active. Momentum is unaged — positive context
+// does not expire the same way a risk veto does.
+export const computeSignalFlags = (coinAlerts, nowMs) => {
+  const recent = Array.isArray(coinAlerts) ? coinAlerts.slice(0, 12) : [];
+  const activeRisk = recent.filter((a) => isAlertStillActive(a, nowMs));
+  const riskTypes = activeRisk.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
+  const allTypes = recent.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
+  return {
+    hasReversal:   riskTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
+    hasFakeout:    riskTypes.some((t) => t.includes('fakeout')),
+    hasSqueeze:    allTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
+    hasExhaustion: riskTypes.some((t) => t.includes('exhaustion')),
+    hasMomentum:   allTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
+  };
+};
+
+// Returns the most specific blocker message for an active risk flag,
+// or null if no hard risk is present. `reversalRiskCurrent` is a boolean
+// pre-computed by `isReversalRiskCurrent` — do not pass the raw stateLabel.
+export const computeRiskBlocker = (signalFlags, reversalRiskCurrent) => {
+  if (signalFlags?.hasFakeout)    return 'A recent fakeout warning is still active.';
+  if (signalFlags?.hasReversal)   return 'Reversal risk is still active.';
+  if (signalFlags?.hasExhaustion) return 'An exhaustion warning is still active.';
+  if (reversalRiskCurrent)        return 'Reversal risk pattern is still active.';
+  return null;
+};
+
+// Returns true only when the Event Evolution Reversal Risk state is still being
+// actively confirmed. Uses `noConfirmMs` — the same field and threshold
+// (`PRIORITY_FADING_MS`) the system already uses to classify entries as 'Fading'.
+// A genuinely current Reversal Risk (noConfirmMs < 3.5 min) remains a hard veto;
+// a stale one that persists only due to score-decay does not.
+export const isReversalRiskCurrent = (coinPriorityEntry) => {
+  if (coinPriorityEntry?.stateLabel !== 'Reversal Risk') return false;
+  return (coinPriorityEntry?.noConfirmMs ?? Infinity) < PRIORITY_FADING_MS;
+};
+
+// Pure posture decision table. Returns the label and tone for the current coin
+// setup. Callers must handle the `metricsReady` guard separately.
+export const computePostureLabel = ({
+  score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
+  historyWeak, hardRisk, breakoutUp, change1m, change3m,
+}) => {
+  const alignedUp   = alignmentLabel === 'Aligned Up';
+  const alignedDown = alignmentLabel === 'Aligned Down';
+  // Both short-term timeframes must be positive for the early gate.
+  const shortTermUp = change1m != null && change1m > 0 && change3m != null && change3m > 0;
+
+  if (hardRisk || alignedDown || score < 42)
+    return 'STAY CLEAR';
+  if (score >= 70 && alignedUp && volumeConfirms && persistenceGood && breadthUp >= 0.45 && !historyWeak)
+    return 'STRONG SETUP';
+  if (score >= 60 && volumeConfirms && alignedUp)
+    return 'WATCH CLOSE';
+  if (score >= 55 && shortTermUp && volumeConfirms && breakoutUp)
+    return 'EARLY SETUP';
+  return 'WAIT';
+};
+
 const parseEventNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
@@ -1164,16 +1239,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return Math.round(((0.45 * alignment) + (0.35 * volumeConfirm) + (0.2 * streak)) * 100);
   }, [hasCoinTape, alignmentScore, coinAlerts, volumeConfirms]);
 
-  const signalFlags = useMemo(() => {
-    const recentTypes = coinAlerts.slice(0, 8).map((a) => String(a?.type_key || a?.type || '').toLowerCase());
-    return {
-      hasReversal: recentTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
-      hasFakeout: recentTypes.some((t) => t.includes('fakeout')),
-      hasSqueeze: recentTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
-      hasExhaustion: recentTypes.some((t) => t.includes('exhaustion')),
-      hasMomentum: recentTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
-    };
-  }, [coinAlerts]);
+  const signalFlags = useMemo(
+    () => computeSignalFlags(coinAlerts, nowMs),
+    [coinAlerts, nowMs],
+  );
 
   const persistenceStreak = useMemo(() => {
     for (const alert of coinAlerts) {
@@ -1726,14 +1795,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const THRESH = 0.15; // percent — below this is baseline alt wiggle
     const bias = coinPositioning?.available ? coinPositioning.funding_bias : null;
     if (mom >= THRESH) {
-      if (bias === 'crowded_long') return { label: 'BULL', tone: 'caution', note: 'Up, but longs are crowded — squeeze risk.' };
-      if (bias === 'short' || bias === 'crowded_short') return { label: 'BULL', tone: 'positive', note: 'Up with shorts paying — clean push.' };
-      return { label: 'BULL', tone: 'positive', note: 'Fast tape is pushing up.' };
+      if (bias === 'crowded_long') return { label: 'TAPE UP', tone: 'caution', note: 'Up, but longs are crowded — squeeze risk.' };
+      if (bias === 'short' || bias === 'crowded_short') return { label: 'TAPE UP', tone: 'positive', note: 'Up with shorts paying — clean push.' };
+      return { label: 'TAPE UP', tone: 'positive', note: 'Short-term tape is pushing up.' };
     }
     if (mom <= -THRESH) {
-      if (bias === 'crowded_short') return { label: 'BEAR', tone: 'caution', note: 'Down, but shorts are crowded — bounce risk.' };
-      if (bias === 'long' || bias === 'crowded_long') return { label: 'BEAR', tone: 'negative', note: 'Down with longs still paying — heavy.' };
-      return { label: 'BEAR', tone: 'negative', note: 'Fast tape is pushing down.' };
+      if (bias === 'crowded_short') return { label: 'TAPE DOWN', tone: 'caution', note: 'Down, but shorts are crowded — bounce risk.' };
+      if (bias === 'long' || bias === 'crowded_long') return { label: 'TAPE DOWN', tone: 'negative', note: 'Down with longs still paying — heavy.' };
+      return { label: 'TAPE DOWN', tone: 'negative', note: 'Short-term tape is pushing down.' };
     }
     return { label: 'NEUTRAL', tone: 'neutral', note: 'No clear fast lean right now.' };
   }, [change1m, change3m, coinPositioning]);
@@ -1762,7 +1831,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const persistenceGood = ['Dominant', 'Persistent'].includes(coinPriorityEntry?.stateLabel) || persistenceStreak >= 3;
     const persistenceWeak = ['Fading', 'Fragile'].includes(coinPriorityEntry?.stateLabel) || !persistenceGood;
     const breakoutUp = breakoutState === 'Breakout Up' || signalFlags.hasMomentum;
-    const hardRisk = signalFlags.hasFakeout || signalFlags.hasReversal || signalFlags.hasExhaustion || coinPriorityEntry?.stateLabel === 'Reversal Risk';
+    const reversalRiskCurrent = isReversalRiskCurrent(coinPriorityEntry);
+    const hardRisk = signalFlags.hasFakeout || signalFlags.hasReversal || reversalRiskCurrent;
     const historyLabel = coinAlerts.find((alert) => alert?.the_read?.history?.label)?.the_read?.history?.label || null;
     const historyPctMatch = String(historyLabel || '').match(/(\d+(?:\.\d+)?)%/);
     const historyPct = historyPctMatch ? Number(historyPctMatch[1]) : null;
@@ -1785,32 +1855,49 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (breadthUp < 0.45) blockers.push('Most of the market is not helping it.');
     if (historyWeak) blockers.push(`Comparable signals only worked ${historyPct}% of the time.`);
     if (evidence > 0 && evidence < 50) blockers.push(`Only ${observedInputs}/${expectedInputs} live inputs are available.`);
-    if (hardRisk) blockers.push('A failure or reversal warning is active.');
+    const riskBlocker = computeRiskBlocker(signalFlags, reversalRiskCurrent);
+    if (riskBlocker) blockers.push(riskBlocker);
 
-    let label = 'WAIT';
-    let tone = 'neutral';
-    let headline = breakoutUp
-      ? 'Breakout detected, but confirmation is incomplete.'
-      : 'No clean setup is active right now.';
-    if (hardRisk || alignedDown || score < 42) {
-      label = 'STAY CLEAR';
-      tone = 'negative';
-      headline = 'Risk is stronger than the opportunity right now.';
-    } else if (score >= 70 && alignedUp && volumeConfirms && persistenceGood && breadthUp >= 0.45 && !historyWeak) {
-      label = 'STRONG SETUP';
-      tone = 'positive';
+    const shortTermUp = (change1m != null && change1m > 0) && (change3m != null && change3m > 0);
+    const label = computePostureLabel({
+      score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
+      historyWeak, hardRisk, breakoutUp, change1m, change3m,
+    });
+    const tone = label === 'STAY CLEAR' ? 'negative'
+               : label === 'WAIT'       ? 'neutral'
+               : 'positive';
+
+    let headline;
+    if (label === 'STAY CLEAR') {
+      const tapeIsUp = (change3m ?? 0) * 0.6 + (change1m ?? 0) * 0.4 >= 0.15;
+      headline = hardRisk && tapeIsUp
+        ? 'Short-term tape is moving up, but an active risk warning is overriding the setup.'
+        : alignedDown
+        ? 'Price is moving down across multiple timeframes.'
+        : score < 42
+        ? 'Momentum is too weak for a clean setup right now.'
+        : 'Risk is stronger than the opportunity right now.';
+    } else if (label === 'STRONG SETUP') {
       headline = 'Price, volume, and follow-through are aligned.';
-    } else if (score >= 60 && volumeConfirms && alignedUp && !hardRisk) {
-      label = 'WATCH CLOSE';
-      tone = 'positive';
+    } else if (label === 'WATCH CLOSE') {
       headline = 'The setup is improving, but still needs a clean hold.';
+    } else if (label === 'EARLY SETUP') {
+      headline = alignedUp
+        ? 'Short-term momentum and breakout evidence are active but still need more confirmation.'
+        : 'Short-term momentum, volume, and breakout evidence are aligning before the 1h view has caught up.';
+    } else {
+      headline = breakoutUp
+        ? 'Breakout detected, but confirmation is incomplete.'
+        : 'No clean setup is active right now.';
     }
 
     let upgrade = 'Wait for the 1m and 3m directions to agree and for the coin to hold its rank on the next updates.';
-    if (!volumeConfirms) upgrade = 'Wait for volume to turn positive and confirm the price move.';
+    if (hardRisk) upgrade = 'Wait for the active risk warning to clear before treating this as a clean setup.';
+    else if (!volumeConfirms) upgrade = 'Wait for volume to turn positive and confirm the price move.';
     else if (alignmentLabel === 'Mixed') upgrade = 'Wait for 1m and 3m to point the same way, then hold for at least two updates.';
     else if (!persistenceGood) upgrade = 'Wait for the coin to hold or improve its live rank on the next two updates.';
     else if (breadthUp < 0.45) upgrade = 'Wait for broader market support or unusually strong independent spot buying.';
+    else if (label === 'EARLY SETUP') upgrade = 'Watch for the 1h view to turn positive and hold for at least two updates to confirm.';
     else if (label === 'STRONG SETUP') upgrade = 'Favor a controlled pullback or fresh hold; do not chase a sudden extension.';
 
     return {
@@ -1836,6 +1923,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     signalFlags,
     coinAlerts,
     volumeConfirms,
+    change1m,
+    change3m,
   ]);
 
   const coinSupportRail = useMemo(() => ([
@@ -2094,7 +2183,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       <span>{coinSymbol} · RIGHT NOW</span>
                       <span>
                         {coinLiveRanking
-                          ? `#${coinLiveRanking.live_rank} of ${coinLiveRanking.universe_size} · ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live`
+                          ? `Tape rank #${coinLiveRanking.live_rank}/${coinLiveRanking.universe_size} · Tape strength ${coinLiveRanking.live_score}/100 · ${coinLiveRanking.observed_inputs ?? Math.round((coinLiveRanking.data_quality || 0) * 6 / 100)}/${coinLiveRanking.expected_inputs || 6} inputs live`
                           : `updated ${humanTime(lastCoinUpdateTs)}`}
                       </span>
                     </div>
