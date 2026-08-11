@@ -8,6 +8,7 @@ import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
+import { describeEvidenceTier } from '../mvp/portfolioSignals.js';
 import '../styles/sentiment-popup-advanced.css';
 
 const REFRESH_MS = 15000;
@@ -941,6 +942,93 @@ const buildAlertBanner = (launchContext) => {
   return { headline, watchLine, tone: theRead?.tone || 'neutral' };
 };
 
+// ---------------------------------------------------------------------------
+// Track Record — per-coin outcome history
+// ---------------------------------------------------------------------------
+
+const MEASURED_THRESHOLD = 20;
+
+function CoinOutcomeHistoryCard({ card }) {
+  const { label: tierLabel, key: tierKey } = describeEvidenceTier(card.sample_size);
+  const isMeasured = card.sample_size >= MEASURED_THRESHOLD;
+  const dirLabel = card.direction === 'up' ? 'Bullish' : card.direction === 'down' ? 'Bearish' : 'Neutral';
+
+  return (
+    <div className="coh-card">
+      <div className="coh-card__header">
+        <span className="coh-card__label">{card.label}</span>
+        <span className={`coh-card__dir coh-card__dir--${card.direction}`}>{dirLabel}</span>
+      </div>
+      <div className="coh-card__stats">
+        <div className="coh-stat">
+          <span className="coh-stat__label">Comparable outcomes</span>
+          <span className="coh-stat__value">{card.sample_size.toLocaleString()}</span>
+          {tierKey !== 'none' && (
+            <span className="coh-evidence-tier" data-tier={tierKey}>{tierLabel}</span>
+          )}
+        </div>
+        <div className="coh-stat">
+          <span className="coh-stat__label">Follow-through</span>
+          {isMeasured ? (
+            <span className="coh-stat__value">{Math.round(card.win_rate * 100)}%</span>
+          ) : (
+            <span className="coh-stat__muted">Not enough history for a measured rate</span>
+          )}
+        </div>
+        {card.median_favorable_pct != null && (
+          <div className="coh-stat">
+            <span className="coh-stat__label">Typical best move</span>
+            <span className="coh-stat__value coh-stat--pos">+{card.median_favorable_pct.toFixed(2)}%</span>
+          </div>
+        )}
+        {card.median_adverse_pct != null && (
+          <div className="coh-stat">
+            <span className="coh-stat__label">Typical worst dip</span>
+            <span className="coh-stat__value coh-stat--neg">{card.median_adverse_pct.toFixed(2)}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CoinOutcomeHistory({ data, loading, error, symbol }) {
+  if (loading && !data) {
+    return <div className="coh-loading">Loading track record…</div>;
+  }
+  if (error) {
+    return <div className="coh-note coh-note--error">Track record temporarily unavailable.</div>;
+  }
+  if (!data) return null;
+
+  const { signal_types = [], total_outcomes = 0, target_pct, adverse_pct } = data;
+
+  return (
+    <section className="coh-section">
+      <div className="coh-header">
+        <span className="coh-header__title">Track Record</span>
+        <span className="coh-header__sub">
+          {total_outcomes.toLocaleString()} comparable outcomes · graded +{target_pct}% vs −{adverse_pct}%
+        </span>
+      </div>
+      {signal_types.length === 0 ? (
+        <div className="coh-empty">No measured history for {symbol} yet.</div>
+      ) : (
+        <div className="coh-cards">
+          {signal_types.map((card) => (
+            <CoinOutcomeHistoryCard
+              key={`${card.state}-${card.direction}-${card.label}`}
+              card={card}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', launchContext = null }) => {
   const {
     error,
@@ -979,6 +1067,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const [chartReadLoading, setChartReadLoading] = useState(false);
   const [chartReadError, setChartReadError] = useState(null);
   const [chartDrawerOpen, setChartDrawerOpen] = useState(false);
+
+  const [coinHistory, setCoinHistory] = useState(null);
+  const [coinHistoryLoading, setCoinHistoryLoading] = useState(false);
+  const [coinHistoryError, setCoinHistoryError] = useState(null);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
@@ -1153,6 +1245,34 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       clearInterval(id);
     };
   }, [isOpen, coinSymbol, loadCoinIntel, activeTab]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setCoinHistory(null);
+      setCoinHistoryError(null);
+      setCoinHistoryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setCoinHistoryLoading(true);
+    fetchData(`/api/coin-history/${encodeURIComponent(coinSymbol)}`)
+      .then((payload) => {
+        if (cancelled) return;
+        if (payload?.status === 'degraded') {
+          setCoinHistoryError('degraded');
+        } else {
+          setCoinHistory(payload ?? null);
+          setCoinHistoryError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setCoinHistoryError(String(err?.message || err || 'Failed'));
+      })
+      .finally(() => {
+        if (!cancelled) setCoinHistoryLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, coinSymbol]);
 
   const fallbackAllAlerts = useMemo(() => {
     const merged = [
@@ -2310,6 +2430,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       ) : null}
                     </div>
                   </details>
+
+                  <CoinOutcomeHistory
+                    data={coinHistory}
+                    loading={coinHistoryLoading}
+                    error={coinHistoryError}
+                    symbol={coinSymbol}
+                  />
 
                   <div className="cp-meta-footer">
                     <span>Feed {liveLabelRaw}</span>

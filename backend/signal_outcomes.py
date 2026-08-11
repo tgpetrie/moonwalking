@@ -95,6 +95,10 @@ class SignalOutcomeStore:
                     "CREATE INDEX IF NOT EXISTS ix_signal_outcomes_open "
                     "ON signal_outcomes(complete, started_ts)"
                 )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS ix_signal_outcomes_product "
+                    "ON signal_outcomes(product_id, complete)"
+                )
                 conn.commit()
             finally:
                 conn.close()
@@ -305,6 +309,55 @@ class SignalOutcomeStore:
             "horizon_minutes": int(self.horizon_seconds / 60),
         }
 
+    @staticmethod
+    def _med(entries: list[dict[str, Any]], col: str) -> float | None:
+        vals = [float(e[col]) for e in entries if e[col] is not None]
+        return round(median(vals), 3) if vals else None
+
+    @staticmethod
+    def _build_signal_card(
+        state: str, direction: str, label: str, entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        n = len(entries)
+        wins = sum(1 for e in entries if e["outcome"] == "followed_through")
+        recent = entries[:50]
+        recent_n = len(recent)
+        recent_wins = sum(1 for e in recent if e["outcome"] == "followed_through")
+        med = SignalOutcomeStore._med
+        return {
+            "state": state,
+            "direction": direction,
+            "label": label,
+            "sample_size": n,
+            "win_rate": round(wins / n, 4),
+            "recent_win_rate": round(recent_wins / recent_n, 4) if recent_n else None,
+            "recent_sample": recent_n,
+            "median_favorable_pct": med(entries, "max_favorable_pct"),
+            "median_adverse_pct": med(entries, "max_adverse_pct"),
+            "median_return": {
+                "5m": med(entries, "return_5m"),
+                "15m": med(entries, "return_15m"),
+                "30m": med(entries, "return_30m"),
+                "60m": med(entries, "return_60m"),
+            },
+            "oldest_ts": min((e["started_ts"] for e in entries), default=None),
+            "newest_ts": max((e["started_ts"] for e in entries), default=None),
+        }
+
+    @staticmethod
+    def _cards_from_rows(rows: list[Any], min_samples: int) -> list[dict[str, Any]]:
+        groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+        for row in rows:
+            key = (row["primary_state"], row["direction"], row["read_label"])
+            groups.setdefault(key, []).append(dict(row))
+        cards = [
+            SignalOutcomeStore._build_signal_card(state, direction, label, entries)
+            for (state, direction, label), entries in groups.items()
+            if len(entries) >= min_samples
+        ]
+        cards.sort(key=lambda c: c["sample_size"], reverse=True)
+        return cards
+
     def scorecard(self, *, min_samples: int = 5) -> dict[str, Any]:
         conn = self._connect()
         try:
@@ -321,53 +374,6 @@ class SignalOutcomeStore:
         finally:
             conn.close()
 
-        groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
-        for row in rows:
-            key = (row["primary_state"], row["direction"], row["read_label"])
-            groups.setdefault(key, []).append(dict(row))
-
-        cards: list[dict[str, Any]] = []
-        for (state, direction, label), entries in groups.items():
-            n = len(entries)
-            if n < min_samples:
-                continue
-            wins = sum(1 for e in entries if e["outcome"] == "followed_through")
-            win_rate = wins / n
-
-            def _med(col: str) -> float | None:
-                vals = [float(e[col]) for e in entries if e[col] is not None]
-                return round(median(vals), 3) if vals else None
-
-            recent = entries[:50]
-            recent_n = len(recent)
-            recent_wins = sum(1 for e in recent if e["outcome"] == "followed_through")
-
-            cards.append(
-                {
-                    "state": state,
-                    "direction": direction,
-                    "label": label,
-                    "sample_size": n,
-                    "win_rate": round(win_rate, 4),
-                    "recent_win_rate": (
-                        round(recent_wins / recent_n, 4) if recent_n else None
-                    ),
-                    "recent_sample": recent_n,
-                    "median_favorable_pct": _med("max_favorable_pct"),
-                    "median_adverse_pct": _med("max_adverse_pct"),
-                    "median_return": {
-                        "5m": _med("return_5m"),
-                        "15m": _med("return_15m"),
-                        "30m": _med("return_30m"),
-                        "60m": _med("return_60m"),
-                    },
-                    "oldest_ts": min((e["started_ts"] for e in entries), default=None),
-                    "newest_ts": max((e["started_ts"] for e in entries), default=None),
-                }
-            )
-
-        cards.sort(key=lambda c: c["sample_size"], reverse=True)
-
         total = len(rows)
         total_wins = sum(1 for r in rows if r["outcome"] == "followed_through")
 
@@ -377,7 +383,35 @@ class SignalOutcomeStore:
             "target_pct": self.target_pct,
             "adverse_pct": self.adverse_pct,
             "horizon_minutes": int(self.horizon_seconds / 60),
-            "signal_types": cards,
+            "signal_types": self._cards_from_rows(rows, min_samples),
+        }
+
+    def coin_scorecard(
+        self, product_id: str, *, min_samples: int = 5
+    ) -> dict[str, Any]:
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT primary_state, direction, read_label, outcome,
+                       return_5m, return_15m, return_30m, return_60m,
+                       max_favorable_pct, max_adverse_pct, started_ts
+                FROM signal_outcomes
+                WHERE complete = 1 AND product_id = ?
+                ORDER BY started_ts DESC
+                """,
+                (product_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        return {
+            "product_id": product_id,
+            "total_outcomes": len(rows),
+            "target_pct": self.target_pct,
+            "adverse_pct": self.adverse_pct,
+            "horizon_minutes": int(self.horizon_seconds / 60),
+            "signal_types": self._cards_from_rows(rows, min_samples),
         }
 
 

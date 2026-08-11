@@ -3290,3 +3290,149 @@ a.news-item-title:hover {
     line-height: 1.45;
     color: var(--sentiment-text, #e0e0e0);
 }
+
+/* ── Track Record (per-coin outcome history) ─────────────────────────────── */
+
+.coh-section {
+    margin-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 16px;
+}
+
+.coh-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.coh-header__title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.coh-header__sub {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.coh-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.coh-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    padding: 12px 14px;
+}
+
+.coh-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.coh-card__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: 0.02em;
+}
+
+.coh-card__dir {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+}
+
+.coh-card__dir--up {
+    color: var(--brand-teal, #10ae9b);
+    border-color: var(--brand-teal, #10ae9b);
+}
+
+.coh-card__dir--down {
+    color: var(--brand-purple, #c084fc);
+    border-color: var(--brand-purple, #c084fc);
+}
+
+.coh-card__dir--neutral {
+    color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.coh-card__stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.coh-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 80px;
+}
+
+.coh-stat__label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.coh-stat__value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.coh-stat--pos { color: var(--brand-teal, #10ae9b) !important; }
+.coh-stat--neg { color: var(--brand-purple, #c084fc) !important; }
+
+.coh-stat__muted {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
+/* Brightness-only evidence tier — mirrors sc-evidence-tier in scorecard.css.
+   No brand colors: teal/purple carry directional meaning in this UI.          */
+.coh-evidence-tier {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 1px;
+    color: rgba(255, 255, 255, 0.22);
+}
+
+.coh-evidence-tier[data-tier="strong"]   { color: rgba(255, 255, 255, 0.70); }
+.coh-evidence-tier[data-tier="solid"]    { color: rgba(255, 255, 255, 0.50); }
+.coh-evidence-tier[data-tier="building"] { color: rgba(255, 255, 255, 0.35); }
+.coh-evidence-tier[data-tier="emerging"] { color: rgba(255, 255, 255, 0.22); }
+
+.coh-empty,
+.coh-loading,
+.coh-note {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 8px 0;
+    font-style: italic;
+}
+
+.coh-note--error {
+    color: rgba(255, 255, 255, 0.2);
+}

@@ -11632,6 +11632,19 @@ def get_scorecard():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/coin-history/<product_id>")
+def get_coin_history(product_id: str):
+    """Per-coin signal outcome history. Accepts BTC or BTC-USD."""
+    raw = str(product_id or "").strip().upper()
+    normalized = raw if "-" in raw else f"{raw}-USD"
+    try:
+        result = signal_outcome_store.coin_scorecard(normalized)
+        return jsonify({"status": "live", **result})
+    except Exception as exc:
+        logging.exception("Coin history failed for %s", normalized)
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/notifications/status")
 def get_notification_delivery_status():
     """Expose channel readiness and budgets without exposing credentials."""

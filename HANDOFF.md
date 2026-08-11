@@ -245,6 +245,79 @@ All three are code-complete + unit-tested (backend 150 pass, frontend 48 pass); 
 
 New tests: `test_manual_cost_basis.py` (8), `test_position_levels.py` (9), +4 in `test_position_intel.py`, +cost-basis/levels/tier cases in the frontend suite.
 
+## Session 2026-08-11: Posture fix + per-coin history WIP
+
+### What shipped (committed + ready to push)
+
+Two commits on `main`, not yet pushed to remote:
+
+| Hash | Subject |
+|---|---|
+| `5acf4f89` | fix(alerts): make early posture risk-aware |
+| `9bd2acfb` | fix(posture): hoist nowMs declaration above signalFlags useMemo |
+
+**What the posture fix does** (`SentimentPopupAdvanced.jsx` + new `coinPosture.test.js`):
+- Replaced age-blind inline `signalFlags` object with `computeSignalFlags(coinAlerts, nowMs)` — freshness-gated: reversal/fakeout/exhaustion only count while the alert is still active (< 5 min or `expires_at` not yet passed)
+- Removed `signalFlags.hasExhaustion` from `hardRisk` veto — exhaustion is caution, not a hard stop; it still surfaces in WHAT BLOCKS IT via `computeRiskBlocker`
+- Made Event Evolution "Reversal Risk" currentness-aware: `isReversalRiskCurrent(coinPriorityEntry)` checks `noConfirmMs < PRIORITY_FADING_MS` (3.5 min) instead of checking `stateLabel === 'Reversal Risk'` blindly (which was circular — stale entries push the score up, triggering the label, then the label vetoed new setups)
+- Added `EARLY SETUP` posture state between WAIT and WATCH CLOSE: `score >= 55 && shortTermUp (1m > 0 && 3m > 0) && volumeConfirms && breakoutUp && !hardRisk` — 1h alignment NOT required
+- Relabeled `BULL` → `TAPE UP`, `BEAR` → `TAPE DOWN`; "Fast tape is pushing up." → "Short-term tape is pushing up."
+- Score/rank display: `#X of Y · S/100` → `Tape rank #X/Y · Tape strength S/100`
+- **TDZ fix** (second commit): `const nowMs = Date.now()` was declared 190 lines after the `signalFlags` useMemo that referenced it in its dependency array. Moving it above the useMemo was required — the app crashed on every popup open before this fix.
+- 51 tests in `frontend/src/components/coinPosture.test.js` cover all 5 exported pure functions
+
+**Verified live in browser**: WAIT posture (high score but alignment missing), STAY CLEAR (score < 42), TAPE UP label, TAPE RANK/STRENGTH format, zero React console errors.
+
+### What's paused (WIP draft commit — NOT ready to deploy)
+
+The per-coin outcome history feature is committed as a **draft/WIP** (`wip(coin-history): per-coin outcome history — paused, do not deploy`).
+
+**To resume on a new machine:**
+```bash
+git pull
+git reset HEAD~1   # un-commits the WIP, restores it as unstaged changes
+                   # do NOT git reset --hard (that would discard the WIP)
+```
+
+After `reset`, `git status` should show the same unstaged+untracked state as before:
+```
+ M backend/app.py
+ M backend/signal_outcomes.py
+ M backend/tests/test_scorecard.py
+ M frontend/src/components/SentimentPopupAdvanced.jsx
+ M frontend/src/styles/sentiment-popup-advanced.css
+?? backend/tests/test_coin_history_route.py
+?? frontend/src/components/SentimentPopupAdvanced.test.jsx
+```
+
+**What the WIP contains:**
+
+*Backend (all in `backend/`)*:
+- `signal_outcomes.py` — extracted `_med()`, `_build_signal_card()`, `_cards_from_rows()` as static methods; added `coin_scorecard(product_id)` using shared `_cards_from_rows()`; added `ix_signal_outcomes_product (product_id, complete)` index in `ensure_db()`
+- `app.py` — added `GET /api/coin-history/<product_id>` route; normalizes bare symbols (BTC → BTC-USD)
+- `tests/test_scorecard.py` — 5 new `coin_scorecard` tests
+- `tests/test_coin_history_route.py` (untracked) — 4 route tests: live status, bare symbol normalization, no history, degraded on exception
+
+*Frontend (all in `frontend/src/`)*:
+- `components/SentimentPopupAdvanced.jsx` — `CoinOutcomeHistoryCard`, `CoinOutcomeHistory` exported component, `coinHistory`/`coinHistoryLoading`/`coinHistoryError` useState, `useEffect` for `/api/coin-history/` fetch, `<CoinOutcomeHistory>` render, `import { describeEvidenceTier }`
+- `styles/sentiment-popup-advanced.css` — `.coh-*` CSS block for `CoinOutcomeHistory`
+- `components/SentimentPopupAdvanced.test.jsx` (untracked) — 19 tests for `CoinOutcomeHistory` exported component
+
+**IMPORTANT — UX spec changed** since the test file was written. The tests in `SentimentPopupAdvanced.test.jsx` still reference `describeEvidenceTier` tier label strings (Strong/Solid/Building/Emerging). The actual spec is:
+- **≥ 20 outcomes**: show count + follow-through rate (e.g., `"150 comparable outcomes"` + `"21% followed through"`)
+- **< 20 outcomes**: show count + `"Not enough history for a measured rate"`
+- **No history**: `"No comparable historical outcomes yet."`
+- **No tier labels shown in the popup** (tier labels are used internally in the card component but not as primary display)
+
+The test file needs to be updated to match this spec before staging and committing the WIP.
+
+### Constraints that must survive the handoff
+
+- Do NOT push to production without the Railway deploy being intentional (Railway auto-deploy is "unavailable")
+- `alignedDown` magnitude sensitivity — deferred, do NOT implement without explicit user instruction
+- Do NOT redesign the posture ladder further; do NOT introduce portfolio language like PROTECT GAIN
+- ESLint pre-commit hook is broken — always use `SKIP=eslint git commit` for all commits
+
 ## Recommended next actions (priority order)
 
 1. **Build the outcome scorecard UI** — 29K+ graded signals in SQLite, surface accuracy stats per signal type so Tom can see which alerts are actually predictive

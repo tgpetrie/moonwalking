@@ -13,7 +13,9 @@ def _make_store():
     return SignalOutcomeStore(db_path=tmp.name), tmp.name
 
 
-def _insert_outcomes(store, state, direction, label, wins, losses):
+def _insert_outcomes(
+    store, state, direction, label, wins, losses, product_id="BTC-USD"
+):
     conn = store._connect()
     try:
         for i in range(wins + losses):
@@ -28,9 +30,9 @@ def _insert_outcomes(store, state, direction, label, wins, losses):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
-                    f"{state}-{direction}-{label}-{i}",
+                    f"{product_id}-{state}-{direction}-{label}-{i}",
                     f"evt-{i}",
-                    "BTC-USD",
+                    product_id,
                     state,
                     label,
                     direction,
@@ -93,5 +95,90 @@ def test_scorecard_empty():
         assert result["total_graded"] == 0
         assert result["overall_win_rate"] is None
         assert result["signal_types"] == []
+    finally:
+        os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# coin_scorecard — per-product filtering and shared aggregation path
+# ---------------------------------------------------------------------------
+
+
+def test_coin_scorecard_filters_by_product():
+    store, path = _make_store()
+    try:
+        _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 15, 10, "BTC-USD")
+        _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 5, 5, "ETH-USD")
+
+        btc = store.coin_scorecard("BTC-USD")
+        eth = store.coin_scorecard("ETH-USD")
+
+        assert btc["product_id"] == "BTC-USD"
+        assert btc["total_outcomes"] == 25
+        assert len(btc["signal_types"]) == 1
+        assert btc["signal_types"][0]["sample_size"] == 25
+
+        assert eth["product_id"] == "ETH-USD"
+        assert eth["total_outcomes"] == 10
+        assert len(eth["signal_types"]) == 1
+        assert eth["signal_types"][0]["sample_size"] == 10
+    finally:
+        os.unlink(path)
+
+
+def test_coin_scorecard_uses_same_aggregation_as_global():
+    store, path = _make_store()
+    try:
+        _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 30, 20, "BTC-USD")
+
+        global_card = store.scorecard()["signal_types"][0]
+        coin_card = store.coin_scorecard("BTC-USD")["signal_types"][0]
+
+        # Same math, same card shape
+        assert global_card["win_rate"] == coin_card["win_rate"]
+        assert global_card["sample_size"] == coin_card["sample_size"]
+        assert global_card["median_favorable_pct"] == coin_card["median_favorable_pct"]
+        assert global_card["median_return"] == coin_card["median_return"]
+    finally:
+        os.unlink(path)
+
+
+def test_coin_scorecard_no_history():
+    store, path = _make_store()
+    try:
+        result = store.coin_scorecard("UNKNOWN-USD")
+        assert result["product_id"] == "UNKNOWN-USD"
+        assert result["total_outcomes"] == 0
+        assert result["signal_types"] == []
+    finally:
+        os.unlink(path)
+
+
+def test_coin_scorecard_small_sample_excluded_by_min_samples():
+    store, path = _make_store()
+    try:
+        # 4 outcomes < min_samples=5 default
+        _insert_outcomes(store, "Building", "up", "WATCH", 2, 2, "BTC-USD")
+
+        result = store.coin_scorecard("BTC-USD")
+        assert result["total_outcomes"] == 4
+        assert result["signal_types"] == []
+    finally:
+        os.unlink(path)
+
+
+def test_coin_scorecard_excludes_other_coin_from_global_unaffected():
+    store, path = _make_store()
+    try:
+        _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 30, 20, "BTC-USD")
+        _insert_outcomes(store, "Confirmed", "down", "STRONG_SELL", 10, 10, "ETH-USD")
+
+        global_result = store.scorecard()
+        assert global_result["total_graded"] == 70
+        assert len(global_result["signal_types"]) == 2
+
+        btc_result = store.coin_scorecard("BTC-USD")
+        assert btc_result["total_outcomes"] == 50
+        assert len(btc_result["signal_types"]) == 1
     finally:
         os.unlink(path)
