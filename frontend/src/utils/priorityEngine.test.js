@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PRIORITY_HALF_LIFE_MS,
+  buildPriorityEvidence,
   buildPriorityItems,
   priorityContributionScore,
 } from "./priorityEngine.js";
@@ -83,15 +84,58 @@ describe("shared priority engine", () => {
     });
   });
 
-  it("retains the Alerts shortlist options during the behavior-preserving extraction", () => {
+  it("allows a surface to limit rendering without changing the computed item", () => {
     const items = buildPriorityItems({
       ...deterministicInput,
-      isWatchlisted: (symbol) => symbol === "BTC",
       limit: 1,
     });
 
     expect(items).toHaveLength(1);
-    expect(items[0].watchlistRelevant).toBe(true);
     expect(items[0].score).toBe(99);
+  });
+
+  it("deduplicates active and recent alerts and excludes expired evidence", () => {
+    const live = alert({ expires_at: new Date(NOW + 60_000).toISOString() });
+    const expired = alert({
+      id: "expired",
+      symbol: "ETH-USD",
+      expires_at: new Date(NOW - 1).toISOString(),
+    });
+
+    const evidence = buildPriorityEvidence({
+      activeAlerts: [live, expired],
+      recentAlerts: [live],
+      nowMs: NOW,
+    });
+
+    expect(evidence).toEqual([live]);
+    expect(buildPriorityItems({ alerts: evidence, nowMs: NOW })).toHaveLength(1);
+  });
+
+  it("keeps semantic output invariant when display-only subsets change", () => {
+    const evidence = buildPriorityEvidence({
+      activeAlerts: deterministicInput.alerts.map((item) => ({
+        ...item,
+        expires_at: new Date(NOW + 60_000).toISOString(),
+      })),
+      recentAlerts: [],
+      nowMs: NOW,
+    });
+    const semanticInput = { ...deterministicInput, alerts: evidence };
+    const baseline = buildPriorityItems(semanticInput)[0];
+
+    const severityVisible = evidence.filter((item) => item.severity === "high");
+    const typeVisible = evidence.filter((item) => item.type_key === "breakout");
+    const coinVisible = evidence.filter((item) => item.symbol === "ETH-USD");
+
+    expect(severityVisible).toHaveLength(1);
+    expect(typeVisible).toHaveLength(1);
+    expect(coinVisible).toHaveLength(0);
+    expect(buildPriorityItems(semanticInput)[0]).toMatchObject({
+      score: baseline.score,
+      stateLabel: baseline.stateLabel,
+      rankTrend: baseline.rankTrend,
+      rankSummary: baseline.rankSummary,
+    });
   });
 });

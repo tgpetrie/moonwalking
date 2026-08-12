@@ -7,6 +7,7 @@ import { getMarketPressure } from '../utils/marketPressure';
 import {
   PRIORITY_FADING_MS,
   PRIORITY_FRESH_MS,
+  buildPriorityEvidence,
   buildPriorityItems,
   priorityBucketForAlert,
 } from '../utils/priorityEngine.js';
@@ -1376,17 +1377,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     socialSourceLabel,
   ]);
 
+  const priorityEvidence = useMemo(
+    () => buildPriorityEvidence({ activeAlerts, recentAlerts: alertsRecent, nowMs }),
+    [activeAlerts, alertsRecent, nowMs]
+  );
+
   const priorityEntries = useMemo(
     () =>
       buildPriorityItems({
-        alerts: fallbackAllAlerts,
+        alerts: priorityEvidence,
         gainers1m: gainers_1m,
         gainers3m: gainers_3m,
         losers3m: losers_3m,
         marketPressure: marketPressureSummary,
         nowMs,
       }),
-    [fallbackAllAlerts, gainers_1m, gainers_3m, losers_3m, marketPressureSummary, nowMs]
+    [priorityEvidence, gainers_1m, gainers_3m, losers_3m, marketPressureSummary, nowMs]
   );
 
   const coinPriorityEntry = useMemo(

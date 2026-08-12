@@ -7,6 +7,7 @@ import { stripLeadingSymbol } from "../utils/alertText";
 import { normalizeEventType } from "../utils/alerts_normalize.js";
 import {
   PRIORITY_FADING_MS,
+  buildPriorityEvidence,
   buildPriorityItems,
 } from "../utils/priorityEngine.js";
 import { RowInfo, RowStar } from "./tables/RowActions.jsx";
@@ -1250,42 +1251,36 @@ export default function AlertsTab({
     [market_pressure, effectiveMeta]
   );
 
+  const priorityEvidence = useMemo(
+    () =>
+      buildPriorityEvidence({
+        activeAlerts: effectiveActiveAlerts,
+        recentAlerts: effectiveRecentAlerts,
+        nowMs,
+      }),
+    [effectiveActiveAlerts, effectiveRecentAlerts, nowMs]
+  );
+
   const priorityItems = useMemo(() => {
     if (compact) return [];
 
-    let candidates = Array.isArray(effectiveRecentAlerts) ? effectiveRecentAlerts : [];
-    if (effectiveCoinFilter !== "ALL") {
-      candidates = candidates.filter((a) => alertSymbol(a) === effectiveCoinFilter);
-    }
-    if (typeTab !== "ALL") {
-      candidates = candidates.filter((a) => alertMatchesTab(a, typeTab));
-    }
-    if (sev !== "ALL") {
-      candidates = candidates.filter((a) => String(a?.severity || "info").toUpperCase() === sev);
-    }
-
     return buildPriorityItems({
-      alerts: candidates,
+      alerts: priorityEvidence,
       gainers1m: gainers_1m,
       gainers3m: gainers_3m,
       losers3m: losers_3m,
       marketPressure,
       nowMs,
-      isWatchlisted: watchHas,
       limit: 3,
     });
   }, [
     compact,
-    effectiveRecentAlerts,
-    effectiveCoinFilter,
-    typeTab,
-    sev,
+    priorityEvidence,
     nowMs,
     gainers_1m,
     gainers_3m,
     losers_3m,
     marketPressure,
-    watchHas,
   ]);
 
   const watchlistMetaLabel = watchlistItems.length === 0

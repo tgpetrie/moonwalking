@@ -1,3 +1,5 @@
+import { isCoinEventActive } from "./coinHistoryCache.js";
+
 export const PRIORITY_HALF_LIFE_MS = 165 * 1000;
 export const PRIORITY_FRESH_MS = 2 * 60 * 1000;
 export const PRIORITY_FADING_MS = 3.5 * 60 * 1000;
@@ -81,6 +83,36 @@ const alertSymbol = (alert) =>
   )
     .toUpperCase()
     .replace(/-USD$|-USDT$|-USDC$|-PERP$/i, "");
+
+const priorityEvidenceIdentity = (alert) => {
+  if (alert?.id != null) return `id:${String(alert.id)}`;
+  if (alert?.alert_id != null) return `alert:${String(alert.alert_id)}`;
+  return [
+    alertSymbol(alert),
+    rawTypeKey(alert),
+    String(alert?.window || alert?.evidence?.window || "").toLowerCase(),
+    String(alert?.direction || "").toLowerCase(),
+    pickTsMs(alert) ?? "",
+  ].join(":");
+};
+
+export const buildPriorityEvidence = ({
+  activeAlerts = [],
+  recentAlerts = [],
+  nowMs,
+}) => {
+  const seen = new Set();
+  const eligible = [];
+  for (const alert of [...activeAlerts, ...recentAlerts]) {
+    if (!alert || typeof alert !== "object") continue;
+    if (!isCoinEventActive(alert, nowMs)) continue;
+    const identity = priorityEvidenceIdentity(alert);
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    eligible.push(alert);
+  }
+  return eligible;
+};
 
 export const priorityBucketForAlert = (alert) => {
   const raw = rawTypeKey(alert);
@@ -262,7 +294,6 @@ export const buildPriorityItems = ({
   losers3m = [],
   marketPressure = null,
   nowMs,
-  isWatchlisted = null,
   limit = null,
 }) => {
   const boardRanks = {
@@ -294,7 +325,6 @@ export const buildPriorityItems = ({
       rank3m: null,
       breadthSupport: null,
       divergenceFlag: bucket === "divergence",
-      watchlistRelevant: Boolean(isWatchlisted?.(symbol)),
     };
 
     existing.scoreRaw += contribution.weighted;
@@ -367,7 +397,6 @@ export const buildPriorityItems = ({
     const breadthBonus = Number.isFinite(entry.breadthSupport)
       ? Math.round(entry.breadthSupport * 10)
       : 0;
-    const watchlistBonus = entry.watchlistRelevant ? 5 : 0;
     const score = clamp(
       Math.round(
         entry.scoreRaw +
@@ -375,8 +404,7 @@ export const buildPriorityItems = ({
           freshBonus +
           entry.rankPersistenceScore +
           volumeBonus +
-          breadthBonus +
-          watchlistBonus -
+          breadthBonus -
           stalePenalty
       ),
       1,
