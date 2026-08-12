@@ -11,7 +11,13 @@ import {
   resolveWaitHeadline,
   computeFeedStatus,
   buildPriorityRailItem,
+  PRIORITY_STATE_TO_HERO,
+  mapPriorityStateToHero,
+  describeHeroState,
+  resolveUnrankedHeroState,
+  resolveCoinHeroState,
 } from './SentimentPopupAdvanced';
+import { priorityStateForEntry } from '../utils/priorityEngine';
 
 // SentimentPopupAdvanced has heavy side-effect imports — mock them so the
 // module loads but we only exercise the four exported pure functions.
@@ -712,6 +718,151 @@ describe('buildPriorityRailItem – the rail names what it carries', () => {
     // SupportRail filters items on a truthy `value`.
     for (const entry of [null, {}, { stateLabel: 'Fading' }]) {
       expect(buildPriorityRailItem(entry, 0, FALLBACK).value).toBeTruthy();
+    }
+  });
+});
+
+describe('coinHero – canonical priority is the sole authority', () => {
+  // Every state priorityStateForEntry can return. Kept in sync with the engine
+  // by the exhaustiveness test below rather than by hand.
+  const CANONICAL_STATES = [
+    'Dominant',
+    'Persistent',
+    'Building',
+    'Reversal Risk',
+    'Fading',
+    'Fragile',
+  ];
+
+  it('maps every state the priority engine can produce', () => {
+    // Drive the real engine so a new state added there fails here rather than
+    // silently falling through to the unranked fallbacks.
+    const produced = new Set([
+      priorityStateForEntry({ reversalRiskScore: 20, bucket: 'divergence', noConfirmMs: 0, score: 90 }),
+      priorityStateForEntry({ reversalRiskScore: 0, bucket: 'bullish', noConfirmMs: 999999, score: 90 }),
+      priorityStateForEntry({ reversalRiskScore: 0, bucket: 'bullish', noConfirmMs: 0, score: 90, freshConfirms: 1, volumeAligned: true, divergenceFlag: false }),
+      priorityStateForEntry({ reversalRiskScore: 0, bucket: 'bullish', noConfirmMs: 0, score: 75, rankPersistenceScore: 12 }),
+      priorityStateForEntry({ reversalRiskScore: 0, bucket: 'bullish', noConfirmMs: 0, score: 60, rankPersistenceScore: 0 }),
+      priorityStateForEntry({ reversalRiskScore: 0, bucket: 'bullish', noConfirmMs: 0, score: 45, rankPersistenceScore: 0 }),
+    ]);
+    for (const state of produced) {
+      expect(mapPriorityStateToHero(state)).toBeTruthy();
+    }
+    expect(Object.keys(PRIORITY_STATE_TO_HERO).sort()).toEqual([...CANONICAL_STATES].sort());
+  });
+
+  it('REGRESSION: Reversal Risk with a positive 3m no longer reads as Building', () => {
+    // The old branch order tested Building (which accepted a bare change3m > 0)
+    // before Reversal Risk, so this exact case surfaced as 'Building' and let
+    // the Pulse tab reach BUY WATCH while the Coin tab said STAY CLEAR.
+    expect(mapPriorityStateToHero('Reversal Risk')).toBe('Fragile');
+    expect(describeHeroState('Fragile').tone).toBe('negative');
+  });
+
+  it('REGRESSION: Persistent and Fragile are no longer dropped', () => {
+    // Neither had a branch, so a Persistent coin with change3m <= 0 fell to
+    // 'Range-hold' — "rotating inside range" — contradicting its own state.
+    expect(mapPriorityStateToHero('Persistent')).toBe('Persistent');
+    expect(mapPriorityStateToHero('Fragile')).toBe('Fragile');
+    expect(describeHeroState('Persistent').tone).toBe('positive');
+    expect(describeHeroState('Persistent').sub).not.toMatch(/rotating inside range/);
+  });
+
+  it('never contradicts a negative canonical state with a positive tone', () => {
+    for (const state of ['Reversal Risk', 'Fading', 'Fragile']) {
+      expect(describeHeroState(mapPriorityStateToHero(state)).tone).toBe('negative');
+    }
+    for (const state of ['Dominant', 'Persistent', 'Building']) {
+      expect(describeHeroState(mapPriorityStateToHero(state)).tone).toBe('positive');
+    }
+  });
+
+  it('ignores local evidence entirely when a canonical state exists', () => {
+    // Same inputs that previously forced 'Dominant'/'Building' via fallback.
+    const loud = {
+      breakoutState: 'Breakout Up',
+      alignmentScore: 6,
+      volumeConfirms: true,
+      signalFlags: { hasMomentum: true },
+      change3m: 4.2,
+    };
+    for (const stateLabel of CANONICAL_STATES) {
+      expect(resolveCoinHeroState({
+        coinPriorityEntry: { stateLabel },
+        metricsReady: true,
+        ...loud,
+      })).toBe(mapPriorityStateToHero(stateLabel));
+    }
+    // The fallback would have said Dominant here; it is not consulted.
+    expect(resolveUnrankedHeroState(loud)).toBe('Dominant');
+    expect(mapPriorityStateToHero('Fading')).toBe('Fading');
+  });
+
+  it('does not let warming local metrics override a canonical state', () => {
+    expect(resolveCoinHeroState({
+      coinPriorityEntry: { stateLabel: 'Reversal Risk' },
+      metricsReady: false,
+      breakoutState: 'Breakout Up',
+      alignmentScore: 6,
+      volumeConfirms: true,
+      signalFlags: { hasMomentum: true },
+      change3m: 4.2,
+    })).toBe('Fragile');
+  });
+
+  it('still gives an unranked coin a read', () => {
+    expect(mapPriorityStateToHero(undefined)).toBeNull();
+    expect(
+      resolveUnrankedHeroState({
+        breakoutState: 'Breakout Up',
+        alignmentScore: 3,
+        volumeConfirms: true,
+        signalFlags: {},
+        change3m: 1,
+      }),
+    ).toBe('Dominant');
+    expect(
+      resolveUnrankedHeroState({
+        breakoutState: 'No breakout',
+        alignmentScore: 0,
+        volumeConfirms: false,
+        signalFlags: {},
+        change3m: 0.4,
+      }),
+    ).toBe('Building');
+    expect(
+      resolveUnrankedHeroState({
+        breakoutState: 'No breakout',
+        alignmentScore: 0,
+        volumeConfirms: false,
+        signalFlags: {},
+        change3m: null,
+      }),
+    ).toBe('Range-hold');
+    expect(resolveCoinHeroState({ coinPriorityEntry: null, metricsReady: false })).toBe('Warming');
+  });
+
+  it('does not let an unranked bullish read mask an active risk flag', () => {
+    // Risk flags are tested before the bullish cases now.
+    for (const flag of ['hasFakeout', 'hasReversal', 'hasExhaustion']) {
+      expect(
+        resolveUnrankedHeroState({
+          breakoutState: 'Breakout Up',
+          alignmentScore: 6,
+          volumeConfirms: true,
+          signalFlags: { [flag]: true, hasMomentum: true },
+          change3m: 3,
+        }),
+      ).toBe('Fragile');
+    }
+  });
+
+  it('produces a state, tone, and sub for every hero state', () => {
+    for (const state of [...new Set(Object.values(PRIORITY_STATE_TO_HERO)), 'Range-hold', 'Mixed']) {
+      const described = describeHeroState(state, { freshAgeMs: 1000, volumeConfirms: true });
+      expect(described.state).toBe(state);
+      expect(described.tone).toBeTruthy();
+      expect(described.sub).toBeTruthy();
     }
   });
 });

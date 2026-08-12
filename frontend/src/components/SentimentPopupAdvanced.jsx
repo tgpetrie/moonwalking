@@ -669,6 +669,119 @@ export const buildPriorityRailItem = (coinPriorityEntry, persistenceStreak, fall
   };
 };
 
+// Canonical priority state -> popup hero state. Exhaustive over every state
+// `priorityStateForEntry` can return, so the popup can never silently drop one:
+// 'Persistent' and 'Fragile' previously had no branch at all, which sent a
+// Persistent coin to the 'Range-hold' fallback ("rotating inside range").
+export const PRIORITY_STATE_TO_HERO = Object.freeze({
+  Dominant: 'Dominant',
+  Persistent: 'Persistent',
+  Building: 'Building',
+  'Reversal Risk': 'Fragile',
+  Fading: 'Fading',
+  Fragile: 'Fragile',
+});
+
+export const mapPriorityStateToHero = (stateLabel) =>
+  PRIORITY_STATE_TO_HERO[stateLabel] || null;
+
+// Presentation for a hero state. Split out so the state decision and its copy
+// stay separable, and so both can be asserted without rendering the popup.
+export const describeHeroState = (state, { freshAgeMs = null, volumeConfirms = false } = {}) => {
+  switch (state) {
+    case 'Dominant':
+      return {
+        state: 'Dominant',
+        tone: 'positive',
+        sub:
+          freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS
+            ? `Fresh 3m confirmation ${ageLabel(freshAgeMs)} ago. Alignment and participation are supporting the move.`
+            : 'Strength is still holding, but the next reconfirm matters.',
+      };
+    case 'Persistent':
+      return {
+        state: 'Persistent',
+        tone: 'positive',
+        sub: 'The move keeps holding its rank across refreshes, even without a fresh push.',
+      };
+    case 'Building':
+      return {
+        state: 'Building',
+        tone: 'positive',
+        sub: volumeConfirms
+          ? 'Early upside pressure is present and volume is confirming it, but the setup is not fully settled yet.'
+          : 'Early upside pressure is present, but confirmation and participation are still uneven.',
+      };
+    case 'Fragile':
+      return {
+        state: 'Fragile',
+        tone: 'negative',
+        sub: 'Structure is unstable. Recent strength looks vulnerable until the coin reclaims and reconfirms.',
+      };
+    case 'Fading':
+      return {
+        state: 'Fading',
+        tone: 'negative',
+        sub:
+          freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS
+            ? `No reconfirm in ${(freshAgeMs / 60000).toFixed(1)}m. Support is thinning and follow-through is fading.`
+            : 'Pressure is slipping and follow-through is weakening.',
+      };
+    case 'Range-hold':
+      return {
+        state: 'Range-hold',
+        tone: 'neutral',
+        sub: 'The coin is rotating inside range. Direction is mixed and there is no clean breakout edge yet.',
+      };
+    default:
+      return {
+        state: 'Mixed',
+        tone: 'neutral',
+        sub: 'Tape is active, but direction and conviction are still mixed. No clean edge yet.',
+      };
+  }
+};
+
+// Hero state for a coin the priority engine has not ranked. These fallbacks are
+// the only place local evidence decides the state, and they run only when there
+// is no canonical state to contradict. Risk flags are tested before the bullish
+// cases so an active fakeout/exhaustion cannot be reported as 'Building'.
+export const resolveUnrankedHeroState = ({
+  breakoutState, alignmentScore, volumeConfirms, signalFlags, change3m,
+}) => {
+  const flags = signalFlags || {};
+  if (flags.hasFakeout || flags.hasReversal || flags.hasExhaustion) return 'Fragile';
+  if (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms) return 'Dominant';
+  if (flags.hasMomentum || (change3m !== null && change3m > 0)) return 'Building';
+  if (breakoutState === 'Breakout Down' || (change3m !== null && change3m < 0 && alignmentScore <= -2)) {
+    return 'Fading';
+  }
+  if (!flags.hasMomentum) return 'Range-hold';
+  return 'Mixed';
+};
+
+export const resolveCoinHeroState = ({
+  coinPriorityEntry,
+  metricsReady,
+  breakoutState,
+  alignmentScore,
+  volumeConfirms,
+  signalFlags,
+  change3m,
+}) => {
+  if (coinPriorityEntry) {
+    return mapPriorityStateToHero(coinPriorityEntry.stateLabel) || 'Mixed';
+  }
+  if (!metricsReady) return 'Warming';
+  return resolveUnrankedHeroState({
+    breakoutState,
+    alignmentScore,
+    volumeConfirms,
+    signalFlags,
+    change3m,
+  });
+};
+
 const parseEventNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
@@ -1480,6 +1593,20 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return Number.isFinite(ts) ? Math.max(0, nowMs - ts) : null;
   }, [coinPriorityEntry, lastCoinUpdateTs, nowMs]);
 
+  // Canonical priority is the sole authority on this coin's state.
+  //
+  // This block used to reach 'Dominant'/'Building' from its own fallback
+  // evidence (breakoutState, signalFlags, a bare `change3m > 0`) *even when the
+  // priority engine said otherwise*, and because the Building test ran before
+  // the Reversal Risk test, a coin the engine classed 'Reversal Risk' with a
+  // positive 3m surfaced here as 'Building'. The Coin tab reads posture
+  // straight from the priority entry, so one popup could show STAY CLEAR on
+  // Coin and BUY WATCH on Pulse at the same instant — the same contradiction
+  // 2ea35e71 removed between the board and this popup, and a second semantic
+  // authority after 927a5d6c centralized priority.
+  //
+  // The local fallbacks still run, but only for a coin the engine has not
+  // ranked, where there is no canonical state for them to contradict.
   const coinHero = useMemo(() => {
     if (!coinSymbol) {
       return {
@@ -1489,100 +1616,31 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         tone: 'neutral',
       };
     }
-    if (!metricsReady) {
+    const eyebrow = `${coinSymbol} Right Now`;
+    const state = resolveCoinHeroState({
+      coinPriorityEntry,
+      metricsReady,
+      breakoutState,
+      alignmentScore,
+      volumeConfirms,
+      signalFlags,
+      change3m,
+    });
+    if (state === 'Warming') {
       return {
-        eyebrow: `${coinSymbol} Right Now`,
+        eyebrow,
         state: 'Warming',
         sub: 'Advanced insights warming up. Waiting for enough tape to trust the local read.',
         tone: 'neutral',
       };
     }
-    if (coinPriorityEntry?.stateLabel === 'Dominant' || (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Dominant',
-        sub: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS
-          ? `Fresh 3m confirmation ${ageLabel(freshAgeMs)} ago. Alignment and participation are supporting the move.`
-          : 'Strength is still holding, but the next reconfirm matters.',
-        tone: 'positive',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Building' || signalFlags.hasMomentum || (change3m !== null && change3m > 0)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Building',
-        sub: volumeConfirms
-          ? 'Early upside pressure is present and volume is confirming it, but the setup is not fully settled yet.'
-          : 'Early upside pressure is present, but confirmation and participation are still uneven.',
-        tone: 'positive',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Reversal Risk' || signalFlags.hasFakeout || signalFlags.hasReversal || signalFlags.hasExhaustion) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Fragile',
-        sub: 'Structure is unstable. Recent strength looks vulnerable until the coin reclaims and reconfirms.',
-        tone: 'negative',
-      };
-    }
-    if (coinPriorityEntry?.stateLabel === 'Fading' || breakoutState === 'Breakout Down' || (change3m !== null && change3m < 0 && alignmentScore <= -2)) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Fading',
-        sub: freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS
-          ? `No reconfirm in ${(freshAgeMs / 60000).toFixed(1)}m. Support is thinning and follow-through is fading.`
-          : 'Pressure is slipping and follow-through is weakening.',
-        tone: 'negative',
-      };
-    }
-    if (!signalFlags.hasFakeout && !signalFlags.hasMomentum && !signalFlags.hasReversal && metricsReady) {
-      return {
-        eyebrow: `${coinSymbol} Right Now`,
-        state: 'Range-hold',
-        sub: 'The coin is rotating inside range. Direction is mixed and there is no clean breakout edge yet.',
-        tone: 'neutral',
-      };
-    }
-    return {
-      eyebrow: `${coinSymbol} Right Now`,
-      state: 'Mixed',
-      sub: 'Tape is active, but direction and conviction are still mixed. No clean edge yet.',
-      tone: 'neutral',
-    };
+
+    return { eyebrow, ...describeHeroState(state, { freshAgeMs, volumeConfirms }) };
   }, [coinSymbol, metricsReady, coinPriorityEntry, breakoutState, alignmentScore, volumeConfirms, freshAgeMs, signalFlags, change3m]);
-
-  const coinHeroProminence = useMemo(() => {
-    const exceptionalVolume = Math.abs(volumeChange1h ?? 0) >= 140;
-    if (coinHero.state === 'Dominant') return 'elevated';
-    if (coinHero.state === 'Fragile' || signalFlags.hasFakeout || signalFlags.hasExhaustion) return 'elevated';
-    if (breakoutState === 'Breakout Up' && alignmentScore >= 3 && volumeConfirms) return 'elevated';
-    if (exceptionalVolume) return 'elevated';
-    return 'compact';
-  }, [coinHero.state, signalFlags, breakoutState, alignmentScore, volumeConfirms, volumeChange1h]);
-
-  const coinHeroLine = useMemo(() => {
-    const parts = [coinHero.state];
-    if (freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS && (coinPriorityEntry?.freshConfirms || signalFlags.hasMomentum)) {
-      parts.push(`fresh confirm ${ageLabel(freshAgeMs)} ago`);
-    } else if (volumeConfirms) {
-      parts.push('volume confirmed');
-    }
-    if (breadthRead.hero) parts.push(breadthRead.hero);
-    if (coinIntelError) {
-      parts.push('external soft');
-    } else if (coinIntel?.events?.items?.length) {
-      parts.push('external catalyst');
-    } else if (coinIntel?.social?.items?.length) {
-      parts.push('attention only');
-    } else {
-      parts.push('tape-only');
-    }
-    return parts.filter(Boolean).slice(0, 3).join(' · ');
-  }, [coinHero.state, freshAgeMs, coinPriorityEntry, signalFlags, volumeConfirms, breadthRead, coinIntelError, coinIntel]);
 
   const actionBias = useMemo(() => {
     if (!metricsReady) return { label: 'Wait', detail: 'Need more tape before trusting a local read.', tone: 'neutral' };
-    if (coinHero.state === 'Dominant') return { label: 'Press strength', detail: 'Momentum is confirmed. Favor pullbacks over chasing extension.', tone: 'positive' };
+    if (coinHero.state === 'Dominant' || coinHero.state === 'Persistent') return { label: 'Press strength', detail: 'Momentum is confirmed. Favor pullbacks over chasing extension.', tone: 'positive' };
     if (coinHero.state === 'Building') return { label: 'Only act on reconfirm', detail: 'Setup is constructive, but you want another fresh push inside the 7m window.', tone: 'neutral' };
     if (coinHero.state === 'Fragile') return { label: 'Stand aside', detail: 'This setup can break either way. Wait for reclaim or cleaner failure.', tone: 'negative' };
     if (coinHero.state === 'Fading') return { label: 'Watch for reclaim', detail: 'Do not press weakness blindly. Require a reclaim before re-engaging.', tone: 'negative' };
@@ -1636,7 +1694,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         tone = 'neutral';
         intent = 'Upside exists, but it is not clean enough for a blind quick buy.';
         confirmation = `${hasFreshConfirm ? 'fresh' : 'needs fresh push'} · ${confirmation}`;
-      } else if (coinHero.state === 'Dominant' || coinHero.state === 'Building') {
+      } else if (coinHero.state === 'Dominant' || coinHero.state === 'Persistent' || coinHero.state === 'Building') {
         label = 'BUY WATCH';
         tone = 'positive';
         intent = 'Fast tape, participation, and context are aligned enough to watch for an entry.';
