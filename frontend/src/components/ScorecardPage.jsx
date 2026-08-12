@@ -21,10 +21,13 @@ function Tip({ text }) {
   );
 }
 
+// Sample-depth wording, deliberately sharing no vocabulary with the event
+// states rendered on the same card — "Building evidence" sat directly beside
+// event-state "Building (early)" and read as a description of the move.
 const EVIDENCE_LABELS = {
-  strong:   "Strong evidence",
+  strong:   "Deep evidence",
   solid:    "Solid evidence",
-  building: "Building evidence",
+  building: "Thin evidence",
   emerging: "Emerging evidence",
 };
 

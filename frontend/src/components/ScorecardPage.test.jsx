@@ -12,7 +12,7 @@ const SIGNAL_STRONG = {
   state: "Reversal Risk",
   direction: "up",
   label: "REVERSAL RISK RISING",
-  sample_size: 200,           // 100+ → Strong evidence
+  sample_size: 200,           // 100+ → Deep evidence
   win_rate: 0.18,
   recent_win_rate: 0.14,
   recent_sample: 50,
@@ -31,7 +31,7 @@ const BOARD_STRONG = {
   board: "ignition_1m",
   status: "measured",
   read: "No clear edge",
-  sample_size: 150,           // 100+ → Strong evidence
+  sample_size: 150,           // 100+ → Deep evidence
   matched_sample_size: 130,
   continuation_rate: 0.18,
   reversal_rate: 0.20,
@@ -81,10 +81,10 @@ function mockFetch(payload, ok = true) {
 // ---------------------------------------------------------------------------
 
 describe("evidenceTier", () => {
-  it("returns 'Strong evidence' for 100 or more samples", () => {
-    expect(evidenceTier(100).label).toBe("Strong evidence");
+  it("returns 'Deep evidence' for 100 or more samples", () => {
+    expect(evidenceTier(100).label).toBe("Deep evidence");
     expect(evidenceTier(100).tier).toBe("strong");
-    expect(evidenceTier(8487).label).toBe("Strong evidence");
+    expect(evidenceTier(8487).label).toBe("Deep evidence");
   });
 
   it("returns 'Solid evidence' for 30–99 samples", () => {
@@ -93,10 +93,19 @@ describe("evidenceTier", () => {
     expect(evidenceTier(30).tier).toBe("solid");
   });
 
-  it("returns 'Building evidence' for 10–29 samples", () => {
-    expect(evidenceTier(10).label).toBe("Building evidence");
-    expect(evidenceTier(29).label).toBe("Building evidence");
+  it("returns 'Thin evidence' for 10–29 samples", () => {
+    expect(evidenceTier(10).label).toBe("Thin evidence");
+    expect(evidenceTier(29).label).toBe("Thin evidence");
     expect(evidenceTier(10).tier).toBe("building");
+  });
+
+  it("shares no vocabulary with the event states on the same card", () => {
+    // FRIENDLY_STATES renders event-state "Building (early)" in the card header
+    // while EvidenceTier renders in the card body. They must not collide.
+    for (const n of [1, 10, 30, 100]) {
+      expect(evidenceTier(n).label).not.toContain("Building");
+      expect(evidenceTier(n).label).not.toContain("Strong");
+    }
   });
 
   it("returns 'Emerging evidence' for 1–9 samples", () => {
@@ -262,11 +271,11 @@ describe("ScorecardPage – board card rendering", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardPage – evidence tier labels on signal cards", () => {
-  it("shows 'Strong evidence' for 100+ samples", async () => {
+  it("shows 'Deep evidence' for 100+ samples", async () => {
     mockFetch(makeResponse({ signals: { signal_types: [SIGNAL_STRONG] } }));
     render(<ScorecardPage />);
     await waitFor(() =>
-      expect(screen.getAllByText("Strong evidence").length).toBeGreaterThan(0)
+      expect(screen.getAllByText("Deep evidence").length).toBeGreaterThan(0)
     );
   });
 
@@ -278,11 +287,11 @@ describe("ScorecardPage – evidence tier labels on signal cards", () => {
     );
   });
 
-  it("shows 'Building evidence' for 10–29 samples", async () => {
+  it("shows 'Thin evidence' for 10–29 samples", async () => {
     mockFetch(makeResponse({ signals: { signal_types: [SIGNAL_BUILDING] } }));
     render(<ScorecardPage />);
     await waitFor(() =>
-      expect(screen.getAllByText("Building evidence").length).toBeGreaterThan(0)
+      expect(screen.getAllByText("Thin evidence").length).toBeGreaterThan(0)
     );
   });
 
@@ -310,11 +319,11 @@ describe("ScorecardPage – evidence tier labels on signal cards", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardPage – evidence tier labels on board cards", () => {
-  it("shows 'Strong evidence' when board has 100+ samples", async () => {
+  it("shows 'Deep evidence' when board has 100+ samples", async () => {
     mockFetch(makeResponse({ signals: { signal_types: [] } }));
     render(<ScorecardPage />);
     await waitFor(() =>
-      expect(screen.getAllByText("Strong evidence").length).toBeGreaterThan(0)
+      expect(screen.getAllByText("Deep evidence").length).toBeGreaterThan(0)
     );
   });
 

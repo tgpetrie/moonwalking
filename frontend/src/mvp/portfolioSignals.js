@@ -17,10 +17,17 @@ function includesRisk(row, phrase) {
 // say *how sure* it is instead of a flat yes/no. Thresholds are deliberately
 // conservative: a rate is only quoted once the sample is large enough to mean
 // something (>=10). Tune the band edges here — everything downstream reads them.
+//
+// These labels grade *sample depth*, never live strength, so they must not
+// borrow words the live/heuristic systems already use. "Deep"/"Thin" replace
+// "Strong"/"Building": the Scorecard renders a tier beside an event state on
+// one card, and the Portfolio renders one beside HOLD STRONG, so the old words
+// read as a claim about the move rather than about how much history backs it.
+// Keys, band edges, tones, and quoteRate gating are unchanged.
 const EVIDENCE_TIERS = [
-  { min: 100, key: "strong", label: "Strong", tone: "positive", quoteRate: true },
+  { min: 100, key: "strong", label: "Deep", tone: "positive", quoteRate: true },
   { min: 30, key: "solid", label: "Solid", tone: "info", quoteRate: true },
-  { min: 10, key: "building", label: "Building", tone: "info", quoteRate: true },
+  { min: 10, key: "building", label: "Thin", tone: "info", quoteRate: true },
   { min: 1, key: "emerging", label: "Emerging", tone: "muted", quoteRate: false },
   { min: 0, key: "none", label: "No history yet", tone: "muted", quoteRate: false },
 ];

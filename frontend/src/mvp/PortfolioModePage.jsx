@@ -671,7 +671,7 @@ export default function PortfolioModePage() {
               </div>
               <p>
                 {dbSize > 0
-                  ? `BHABIT has graded ${number(dbSize)} forward outcomes system-wide. Per-holding confidence varies — each card shows how much comparable evidence backs its own read, from Emerging to Strong.`
+                  ? `BHABIT has graded ${number(dbSize)} forward outcomes system-wide. Per-holding confidence varies — each card shows how much comparable evidence backs its own read, from Emerging to Deep.`
                   : "BHABIT is still collecting forward outcomes. Until comparable evidence accumulates, holding reads stay descriptive rather than claiming target probabilities or protection prices."}
               </p>
             </>

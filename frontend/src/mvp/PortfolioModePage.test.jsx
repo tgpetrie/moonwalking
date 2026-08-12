@@ -163,9 +163,11 @@ describe("PortfolioModePage", () => {
       expect(screen.getByText(/Momentum favorable · 72/)).toBeInTheDocument();
     });
     expect(screen.getByText("Confirmed upside momentum")).toBeInTheDocument();
-    // 18 comparable outcomes -> "Building" tier (shown on the intel badge and
-    // the Historical-plan cell), and the rate is quotable.
-    expect(screen.getAllByText("Building · 18").length).toBeGreaterThan(0);
+    // 18 comparable outcomes -> "Thin" tier (shown on the intel badge and the
+    // Historical-plan cell), and the rate is quotable. The tier grades sample
+    // depth, so it must not borrow the live read's vocabulary — this card also
+    // renders HOLD STRONG.
+    expect(screen.getAllByText("Thin · 18").length).toBeGreaterThan(0);
     expect(screen.getByText(/Follow-through/)).toBeInTheDocument();
     expect(screen.getByText(/Signal coverage/)).toBeInTheDocument();
   });
