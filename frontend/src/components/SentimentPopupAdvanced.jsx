@@ -644,6 +644,31 @@ export const computeFeedStatus = (coinIntel, coinIntelError) => {
   return { value: 'Cached', tone: 'neutral' };
 };
 
+// This rail was labeled "Persistence" while its value was the canonical
+// priority state, so it rendered "Persistence: Reversal Risk" — a category
+// error, since a risk state is not a measure of how persistent a move is.
+// Name the rail for what it actually carries. The genuine rank-hold read was
+// already in the sub-line (`rankSummary`) and stays there, joined with the
+// hold streak, so no new badge is needed to carry it.
+export const buildPriorityRailItem = (coinPriorityEntry, persistenceStreak, fallbackSub) => {
+  const stateLabel = coinPriorityEntry?.stateLabel || null;
+  const tone =
+    stateLabel === 'Dominant' || stateLabel === 'Persistent'
+      ? 'positive'
+      : stateLabel === 'Reversal Risk'
+        ? 'negative'
+        : 'neutral';
+  const holdNote = persistenceStreak ? `${persistenceStreak}x hold` : null;
+  return {
+    label: 'Priority',
+    // With no priority entry there is no priority state to report. A hold count
+    // ("3x hold") or a bare "Low" is not one, so say the coin is unranked.
+    value: stateLabel || 'Not ranked',
+    tone,
+    sub: coinPriorityEntry?.rankSummary || [holdNote, fallbackSub].filter(Boolean).join(' · '),
+  };
+};
+
 const parseEventNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
@@ -1826,12 +1851,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: setupQuality.tone,
       sub: setupQuality.detail,
     },
-    {
-      label: 'Persistence',
-      value: coinPriorityEntry?.stateLabel || (persistenceStreak ? `${persistenceStreak}x hold` : 'Low'),
-      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
-      sub: coinPriorityEntry?.rankSummary || 'Rank hold not established yet.',
-    },
+    buildPriorityRailItem(coinPriorityEntry, persistenceStreak, 'Rank hold not established yet.'),
     {
       label: 'Updated',
       value: humanTime(lastCoinUpdateTs),
@@ -1871,12 +1891,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: setupQuality.tone,
       sub: setupQuality.detail,
     },
-    {
-      label: 'Persistence',
-      value: coinPriorityEntry?.stateLabel || 'No streak yet',
-      tone: coinPriorityEntry?.stateLabel === 'Dominant' || coinPriorityEntry?.stateLabel === 'Persistent' ? 'positive' : coinPriorityEntry?.stateLabel === 'Reversal Risk' ? 'negative' : 'neutral',
-      sub: coinPriorityEntry?.rankSummary || 'This coin has not repeated enough to confirm persistence.',
-    },
+    buildPriorityRailItem(
+      coinPriorityEntry,
+      persistenceStreak,
+      'This coin has not repeated enough to confirm a rank hold.',
+    ),
     {
       label: 'Breadth',
       value: breadthRead.status,
@@ -1889,7 +1908,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
       sub: 'Fresh inside 2m. Fade threshold 3.5m.',
     },
-  ]), [setupQuality, coinPriorityEntry, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs]);
+  ]), [setupQuality, coinPriorityEntry, persistenceStreak, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs]);
 
   const intelHero = useMemo(() => {
     const hasEvents = Boolean(coinIntel?.events?.items?.length);

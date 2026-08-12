@@ -10,6 +10,7 @@ import {
   buildWarmingSupports,
   resolveWaitHeadline,
   computeFeedStatus,
+  buildPriorityRailItem,
 } from './SentimentPopupAdvanced';
 
 // SentimentPopupAdvanced has heavy side-effect imports — mock them so the
@@ -648,5 +649,69 @@ describe('computeFeedStatus – reports feed availability, not trust', () => {
     expect(values).not.toContain('High');
     expect(values).not.toContain('Medium');
     expect(values).not.toContain('Low');
+  });
+});
+
+describe('buildPriorityRailItem – the rail names what it carries', () => {
+  const FALLBACK = 'Rank hold not established yet.';
+
+  it('labels the rail Priority, never Persistence', () => {
+    const item = buildPriorityRailItem({ stateLabel: 'Dominant' }, 0, FALLBACK);
+    expect(item.label).toBe('Priority');
+  });
+
+  it('no longer presents a risk state as a persistence measure', () => {
+    const item = buildPriorityRailItem({ stateLabel: 'Reversal Risk' }, 0, FALLBACK);
+    expect(item.label).toBe('Priority');
+    expect(item.value).toBe('Reversal Risk');
+    expect(item.tone).toBe('negative');
+  });
+
+  it('carries every canonical priority state through unchanged', () => {
+    for (const stateLabel of [
+      'Dominant',
+      'Persistent',
+      'Building',
+      'Reversal Risk',
+      'Fading',
+      'Fragile',
+    ]) {
+      expect(buildPriorityRailItem({ stateLabel }, 0, FALLBACK).value).toBe(stateLabel);
+    }
+  });
+
+  it('tones only the states that carry a verdict', () => {
+    expect(buildPriorityRailItem({ stateLabel: 'Dominant' }, 0, FALLBACK).tone).toBe('positive');
+    expect(buildPriorityRailItem({ stateLabel: 'Persistent' }, 0, FALLBACK).tone).toBe('positive');
+    expect(buildPriorityRailItem({ stateLabel: 'Building' }, 0, FALLBACK).tone).toBe('neutral');
+    expect(buildPriorityRailItem({ stateLabel: 'Fading' }, 0, FALLBACK).tone).toBe('neutral');
+  });
+
+  it('says Not ranked when there is no priority entry', () => {
+    // A hold count is not a priority state; neither is a bare "Low".
+    expect(buildPriorityRailItem(null, 0, FALLBACK).value).toBe('Not ranked');
+    expect(buildPriorityRailItem(null, 3, FALLBACK).value).toBe('Not ranked');
+    expect(buildPriorityRailItem(undefined, 0, FALLBACK).value).toBe('Not ranked');
+  });
+
+  it('keeps the real rank-hold read in the sub-line', () => {
+    const item = buildPriorityRailItem(
+      { stateLabel: 'Persistent', rankSummary: 'rank held 2-4' },
+      3,
+      FALLBACK,
+    );
+    expect(item.sub).toBe('rank held 2-4');
+  });
+
+  it('falls back to the hold streak when no rank summary exists', () => {
+    expect(buildPriorityRailItem(null, 3, FALLBACK).sub).toBe(`3x hold · ${FALLBACK}`);
+    expect(buildPriorityRailItem(null, 0, FALLBACK).sub).toBe(FALLBACK);
+  });
+
+  it('always yields a truthy value so the pill is never blank', () => {
+    // SupportRail filters items on a truthy `value`.
+    for (const entry of [null, {}, { stateLabel: 'Fading' }]) {
+      expect(buildPriorityRailItem(entry, 0, FALLBACK).value).toBeTruthy();
+    }
   });
 });
