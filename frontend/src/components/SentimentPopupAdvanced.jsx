@@ -8,7 +8,6 @@ import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
-import { describeEvidenceTier } from '../mvp/portfolioSignals.js';
 import '../styles/sentiment-popup-advanced.css';
 
 const REFRESH_MS = 15000;
@@ -949,7 +948,6 @@ const buildAlertBanner = (launchContext) => {
 const MEASURED_THRESHOLD = 20;
 
 function CoinOutcomeHistoryCard({ card }) {
-  const { label: tierLabel, key: tierKey } = describeEvidenceTier(card.sample_size);
   const isMeasured = card.sample_size >= MEASURED_THRESHOLD;
   const dirLabel = card.direction === 'up' ? 'Bullish' : card.direction === 'down' ? 'Bearish' : 'Neutral';
 
@@ -963,16 +961,13 @@ function CoinOutcomeHistoryCard({ card }) {
         <div className="coh-stat">
           <span className="coh-stat__label">Comparable outcomes</span>
           <span className="coh-stat__value">{card.sample_size.toLocaleString()}</span>
-          {tierKey !== 'none' && (
-            <span className="coh-evidence-tier" data-tier={tierKey}>{tierLabel}</span>
-          )}
         </div>
         <div className="coh-stat">
           <span className="coh-stat__label">Follow-through</span>
           {isMeasured ? (
             <span className="coh-stat__value">{Math.round(card.win_rate * 100)}%</span>
           ) : (
-            <span className="coh-stat__muted">Not enough history for a measured rate</span>
+            <span className="coh-stat__muted">Not enough history for a measured follow-through rate</span>
           )}
         </div>
         {card.median_favorable_pct != null && (

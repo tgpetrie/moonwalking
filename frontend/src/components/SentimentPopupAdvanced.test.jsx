@@ -2,17 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { CoinOutcomeHistory } from "./SentimentPopupAdvanced";
 
-// portfolioSignals.js uses evidence tiers — mock to keep the test pure
-vi.mock("../mvp/portfolioSignals.js", () => ({
-  describeEvidenceTier: (n) => {
-    if (n >= 100) return { key: "strong",   label: "Strong"   };
-    if (n >= 30)  return { key: "solid",    label: "Solid"    };
-    if (n >= 10)  return { key: "building", label: "Building" };
-    if (n >= 1)   return { key: "emerging", label: "Emerging" };
-    return          { key: "none",     label: "No history yet" };
-  },
-}));
-
 // SentimentPopupAdvanced imports many context hooks — none are exercised here
 // because we only render the exported pure CoinOutcomeHistory component.
 vi.mock("../context/DataContext", () => ({ useData: () => ({}) }));
@@ -202,7 +191,7 @@ describe("CoinOutcomeHistory – suppressed rate (n < 20)", () => {
         symbol="BTC"
       />
     );
-    expect(screen.getByText(/Not enough history for a measured rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Not enough history for a measured follow-through rate/i)).toBeInTheDocument();
   });
 
   it("does not render the 75% win rate even though it exists in the data", () => {
@@ -231,11 +220,11 @@ describe("CoinOutcomeHistory – suppressed rate (n < 20)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Evidence tier label
+// No evidence tier labels rendered — spec: count + rate only, no Strong/Solid/etc.
 // ---------------------------------------------------------------------------
 
-describe("CoinOutcomeHistory – evidence tier", () => {
-  it("shows Strong tier for 100+ samples", () => {
+describe("CoinOutcomeHistory – no tier labels", () => {
+  it("does not render Strong tier label", () => {
     render(
       <CoinOutcomeHistory
         data={makeData({ signal_types: [CARD_STRONG] })}
@@ -244,10 +233,13 @@ describe("CoinOutcomeHistory – evidence tier", () => {
         symbol="BTC"
       />
     );
-    expect(screen.getByText("Strong")).toBeInTheDocument();
+    expect(screen.queryByText("Strong")).not.toBeInTheDocument();
+    expect(screen.queryByText("Solid")).not.toBeInTheDocument();
+    expect(screen.queryByText("Building")).not.toBeInTheDocument();
+    expect(screen.queryByText("Emerging")).not.toBeInTheDocument();
   });
 
-  it("shows Emerging tier for sparse samples", () => {
+  it("does not render tier label for sparse samples either", () => {
     render(
       <CoinOutcomeHistory
         data={makeData({ signal_types: [CARD_SPARSE] })}
@@ -256,21 +248,7 @@ describe("CoinOutcomeHistory – evidence tier", () => {
         symbol="BTC"
       />
     );
-    expect(screen.getByText("Emerging")).toBeInTheDocument();
-  });
-
-  it("applies correct data-tier attribute for CSS styling", () => {
-    render(
-      <CoinOutcomeHistory
-        data={makeData({ signal_types: [CARD_STRONG] })}
-        loading={false}
-        error={null}
-        symbol="BTC"
-      />
-    );
-    const tierEl = document.querySelector(".coh-evidence-tier");
-    expect(tierEl).toBeTruthy();
-    expect(tierEl.getAttribute("data-tier")).toBe("strong");
+    expect(screen.queryByText("Emerging")).not.toBeInTheDocument();
   });
 });
 
