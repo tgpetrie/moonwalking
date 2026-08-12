@@ -9,6 +9,7 @@ import {
   isReversalRiskCurrent,
   buildWarmingSupports,
   resolveWaitHeadline,
+  computeFeedStatus,
 } from './SentimentPopupAdvanced';
 
 // SentimentPopupAdvanced has heavy side-effect imports — mock them so the
@@ -608,5 +609,44 @@ describe('resolveWaitHeadline', () => {
     expect(resolveWaitHeadline({ breakoutUp: false, score: undefined })).toBe(
       'No clean setup is active right now.',
     );
+  });
+});
+
+describe('computeFeedStatus – reports feed availability, not trust', () => {
+  it('reports a live feed as Live', () => {
+    expect(computeFeedStatus({ status: 'live' }, null)).toEqual({
+      value: 'Live',
+      tone: 'positive',
+    });
+  });
+
+  it('reports a non-live feed as Cached', () => {
+    expect(computeFeedStatus({ status: 'cached' }, null)).toEqual({
+      value: 'Cached',
+      tone: 'neutral',
+    });
+    expect(computeFeedStatus(null, null)).toEqual({ value: 'Cached', tone: 'neutral' });
+  });
+
+  it('reports an errored feed as Degraded, and the error outranks a live status', () => {
+    expect(computeFeedStatus(null, new Error('boom'))).toEqual({
+      value: 'Degraded',
+      tone: 'negative',
+    });
+    expect(computeFeedStatus({ status: 'live' }, new Error('boom'))).toEqual({
+      value: 'Degraded',
+      tone: 'negative',
+    });
+  });
+
+  it('never grades confidence — no trust vocabulary survives', () => {
+    const values = [
+      computeFeedStatus({ status: 'live' }, null).value,
+      computeFeedStatus({ status: 'cached' }, null).value,
+      computeFeedStatus(null, new Error('boom')).value,
+    ];
+    expect(values).not.toContain('High');
+    expect(values).not.toContain('Medium');
+    expect(values).not.toContain('Low');
   });
 });

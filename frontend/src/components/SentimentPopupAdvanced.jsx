@@ -634,6 +634,16 @@ export const computeBreadthRead = (marketPressure) => {
   };
 };
 
+// Reports whether the external intel feed answered — nothing more. The previous
+// wording ("Trust level: High/Medium/Low") named a data-availability signal as
+// if it graded how much the read could be trusted, which is the same defect
+// `e684ab52` removed from Market Mood's freshness readout.
+export const computeFeedStatus = (coinIntel, coinIntelError) => {
+  if (coinIntelError) return { value: 'Degraded', tone: 'negative' };
+  if (coinIntel?.status === 'live') return { value: 'Live', tone: 'positive' };
+  return { value: 'Cached', tone: 'neutral' };
+};
+
 const parseEventNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
@@ -1910,7 +1920,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     },
     { label: 'Attention', value: socialHeatTrend ? (socialHeatTrend === 'rising' ? 'Rising' : socialHeatTrend === 'collapsing' ? 'Fading' : 'Flat') : 'Quiet', tone: socialHeatTrend === 'rising' ? 'positive' : socialHeatTrend === 'collapsing' ? 'negative' : 'neutral' },
     { label: 'Source mix', value: socialSourceLabel || (coinIntel?.events?.items?.length ? 'Events only' : 'Tape only'), tone: 'neutral' },
-    { label: 'Trust level', value: coinIntelError ? 'Low' : coinIntel?.status === 'live' ? 'High' : 'Medium', tone: coinIntelError ? 'negative' : coinIntel?.status === 'live' ? 'positive' : 'neutral' },
+    { label: 'Feed status', ...computeFeedStatus(coinIntel, coinIntelError) },
   ]), [coinLiveRanking, socialHeatTrend, socialSourceLabel, coinIntel, coinIntelError]);
 
   const handleOverlayClick = (event) => {
