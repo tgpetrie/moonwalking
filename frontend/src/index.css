@@ -1402,6 +1402,23 @@ a.bh-row {
   color: var(--bh-muted);
 }
 
+.bh-change-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.bh-change-label {
+  font-size: 0.70rem;
+  line-height: 1.1;
+  margin-top: 1px;
+  color: color-mix(in srgb, var(--bh-fg) 48%, transparent);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 /* INNER-ORIGIN SWEEP: starts strong at the inside seam, fades outward */
 :root { --bh-seam: 50%; } /* default, overridden per column */
 

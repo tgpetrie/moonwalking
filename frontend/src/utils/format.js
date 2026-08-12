@@ -3,8 +3,9 @@
 // Smart price formatting with flexible decimals
 export function formatPrice(n, opts = {}) {
   const { fallback = "—" } = opts;
+  if (n == null || n === "") return fallback;
   const x = typeof n === "string" ? Number(String(n).replace(/[$,]/g, "")) : Number(n);
-  if (!Number.isFinite(x)) return fallback;
+  if (!Number.isFinite(x) || x === 0) return fallback;
   const abs = Math.abs(x);
   const sign = x < 0 ? "-" : "";
 
@@ -43,6 +44,7 @@ export function formatPrice(n, opts = {}) {
 
 // Percent formatter, optional sign
 export function formatPct(n, { sign = true, fallback = "—" } = {}) {
+  if (n == null || n === "") return fallback;
   const x = typeof n === "string" ? parseFloat(String(n).replace(/[%+]/g, "")) : Number(n);
   if (!Number.isFinite(x)) return fallback;
 

@@ -38,7 +38,7 @@ export function TokenRowUnified({
   const symbol = token?.symbol;
   const rawChange = token?.[changeField];
   const changeNum = typeof rawChange === "string" ? Number(String(rawChange).replace(/[%+]/g, "")) : Number(rawChange);
-  const hasChange = Number.isFinite(changeNum);
+  const hasChange = rawChange !== null && rawChange !== undefined && Number.isFinite(changeNum);
   const pctState = !hasChange || changeNum === 0 ? "flat" : changeNum > 0 ? "positive" : "negative";
   const pctInfo = {
     state: pctState,
@@ -272,12 +272,19 @@ export function TokenRowUnified({
         <div className={`tr-price-current bh-price-current${priceFlash ? " is-updating" : ""}`}>
           {formatPrice(currentPrice)}
         </div>
-        <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
+        {!isWatchlisted && prevPrice !== null && (
+          <div className="bh-price-previous">{formatPrice(prevPrice)}</div>
+        )}
       </CellTag>
 
       {/* 4. Percent change – main focal point */}
       <CellTag className="bh-cell bh-cell-change mw-cell mw-cell--pct" style={{ "--mw-j": 3 }}>
-        <span className={`bh-change ${pctInfo.className}${pctFlash ? " is-updating" : ""}`}>{pctInfo.display}</span>
+        <div className="bh-change-stack">
+          <span className={`bh-change ${pctInfo.className}${pctFlash ? " is-updating" : ""}`}>{pctInfo.display}</span>
+          {isWatchlisted && changeField === "change_watch" && hasChange && (
+            <span className="bh-change-label">Since added</span>
+          )}
+        </div>
       </CellTag>
 
       {/* 5. Actions – stacked on far right */}

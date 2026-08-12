@@ -134,7 +134,7 @@ export default function WatchlistPanel({ onInfo }) {
         symbol: canonSymbol,
         ...live, // spread live data for badges, base name, etc.
         current_price: currentPrice,
-        previous_price: addedPrice,        // baseline for "previous price" line
+        // previous_price omitted — watchlist rows show "Since added %" not the raw added price
         change_watch: changeWatch,         // % change since added
         watch_added_at: entry.addedAt,
       };
