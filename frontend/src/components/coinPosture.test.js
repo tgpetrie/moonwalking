@@ -4,6 +4,7 @@ import {
   computeSignalFlags,
   computeRiskBlocker,
   computePostureLabel,
+  computeBreadthRead,
   isReversalRiskCurrent,
   buildWarmingSupports,
   resolveWaitHeadline,
@@ -281,6 +282,43 @@ describe('computePostureLabel – STRONG SETUP', () => {
   it('does NOT return STRONG SETUP when score is below 70', () => {
     const result = computePostureLabel({ ...BASE_GOOD, score: 69 });
     expect(result).not.toBe('STRONG SETUP');
+  });
+
+  it('does NOT return STRONG SETUP when breadth is unavailable', () => {
+    expect(computePostureLabel({ ...BASE_GOOD, breadthUp: null })).toBe('WATCH CLOSE');
+  });
+
+  it('keeps the existing 0.45 breadth threshold unchanged', () => {
+    expect(computePostureLabel({ ...BASE_GOOD, breadthUp: 0.45 })).toBe('STRONG SETUP');
+    expect(computePostureLabel({ ...BASE_GOOD, breadthUp: 0.449 })).toBe('WATCH CLOSE');
+  });
+});
+
+describe('computeBreadthRead', () => {
+  it('keeps absent breadth unavailable without hostile-breadth claims', () => {
+    const read = computeBreadthRead({ breadth_up: null });
+    expect(read.available).toBe(false);
+    expect(read.value).toBeNull();
+    expect(read.status).toBe('Unavailable');
+    expect(read.badge).toBeNull();
+    expect(read.blocker).not.toBe('Most of the market is not helping it.');
+    expect(JSON.stringify(read)).not.toContain('BREADTH WEAK');
+  });
+
+  it('keeps measured zero breadth genuinely weak', () => {
+    expect(computeBreadthRead({ breadth_up: 0 })).toMatchObject({
+      available: true,
+      value: 0,
+      status: 'Hostile',
+      badge: 'BREADTH WEAK',
+      blocker: 'Most of the market is not helping it.',
+    });
+  });
+
+  it('preserves supportive and mixed thresholds', () => {
+    expect(computeBreadthRead({ breadth_up: 0.56 }).status).toBe('Supportive');
+    expect(computeBreadthRead({ breadth_up: 0.45 }).status).toBe('Mixed');
+    expect(computeBreadthRead({ breadth_up: 0.44 }).status).toBe('Hostile');
   });
 });
 

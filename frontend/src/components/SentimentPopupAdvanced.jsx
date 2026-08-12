@@ -663,7 +663,7 @@ export const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = []
       topVolSign: 1,
       rank1m: null,
       rank3m: null,
-      breadthSupport: 0,
+      breadthSupport: null,
       divergenceFlag: bucket === 'divergence',
     };
 
@@ -690,13 +690,22 @@ export const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = []
     }
 
     const ev = alert?.evidence || {};
-    const breadthUp = Number(ev.breadth_up ?? marketPressure?.breadth_up ?? marketPressure?.components?.breadth ?? 0) || 0;
-    const breadthDown = Number(ev.breadth_down ?? marketPressure?.breadth_down ?? 0) || 0;
+    const breadthUpRaw = ev.breadth_up ?? marketPressure?.breadth_up ?? marketPressure?.components?.breadth;
+    const breadthDownRaw = ev.breadth_down ?? marketPressure?.breadth_down;
+    const breadthComponentRaw = marketPressure?.components?.breadth;
+    const breadthUp = breadthUpRaw === null || breadthUpRaw === undefined || breadthUpRaw === '' ? null : Number(breadthUpRaw);
+    const breadthDown = breadthDownRaw === null || breadthDownRaw === undefined || breadthDownRaw === '' ? null : Number(breadthDownRaw);
+    const breadthComponent = breadthComponentRaw === null || breadthComponentRaw === undefined || breadthComponentRaw === '' ? null : Number(breadthComponentRaw);
     const breadthSupport =
       bucket === 'bullish' ? breadthUp :
       bucket === 'bearish' ? breadthDown :
-      Math.max(Math.abs(breadthUp - breadthDown), marketPressure?.components?.breadth ?? 0);
-    existing.breadthSupport = Math.max(existing.breadthSupport, clampNumber(breadthSupport, 0, 1));
+      Number.isFinite(breadthUp) && Number.isFinite(breadthDown)
+        ? Math.max(Math.abs(breadthUp - breadthDown), Number.isFinite(breadthComponent) ? breadthComponent : 0)
+        : breadthComponent;
+    if (Number.isFinite(breadthSupport)) {
+      const currentBreadthSupport = Number.isFinite(existing.breadthSupport) ? existing.breadthSupport : 0;
+      existing.breadthSupport = Math.max(currentBreadthSupport, clampNumber(breadthSupport, 0, 1));
+    }
 
     grouped.set(key, existing);
   }
@@ -715,7 +724,7 @@ export const buildPriorityItems = ({ alerts = [], gainers1m = [], gainers3m = []
       (entry.noConfirmMs >= PRIORITY_FADING_MS ? 4 : 0);
     const stalePenalty = entry.noConfirmMs > PRIORITY_FADING_MS ? 12 : 0;
     const volumeBonus = entry.volumeAligned ? 10 : 0;
-    const breadthBonus = Math.round(entry.breadthSupport * 10);
+    const breadthBonus = Number.isFinite(entry.breadthSupport) ? Math.round(entry.breadthSupport * 10) : 0;
     const score = clampNumber(
       Math.round(entry.scoreRaw + confirmationBonus + freshBonus + entry.rankPersistenceScore + volumeBonus + breadthBonus - stalePenalty),
       1,
@@ -896,6 +905,61 @@ export const computePostureLabel = ({
   return 'WAIT';
 };
 
+export const computeBreadthRead = (marketPressure) => {
+  const raw = marketPressure?.breadth_up;
+  const value = raw === null || raw === undefined || raw === '' ? null : Number(raw);
+  if (!Number.isFinite(value)) {
+    return {
+      available: false,
+      value: null,
+      status: 'Unavailable',
+      tone: 'neutral',
+      inline: 'breadth unavailable',
+      hero: null,
+      badge: null,
+      blocker: 'Market breadth is unavailable.',
+      risk: 'broad tape support is unavailable',
+    };
+  }
+  if (value >= 0.56) {
+    return {
+      available: true,
+      value,
+      status: 'Supportive',
+      tone: 'positive',
+      inline: 'breadth supports upside',
+      hero: 'breadth supportive',
+      badge: null,
+      blocker: null,
+      risk: null,
+    };
+  }
+  if (value <= 0.44) {
+    return {
+      available: true,
+      value,
+      status: 'Hostile',
+      tone: 'negative',
+      inline: 'breadth is hostile',
+      hero: 'breadth weak',
+      badge: 'BREADTH WEAK',
+      blocker: 'Most of the market is not helping it.',
+      risk: 'broad tape support is weak',
+    };
+  }
+  return {
+    available: true,
+    value,
+    status: 'Mixed',
+    tone: 'neutral',
+    inline: 'breadth is mixed',
+    hero: null,
+    badge: null,
+    blocker: null,
+    risk: null,
+  };
+};
+
 const parseEventNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
@@ -1057,7 +1121,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     connectionStatus = 'STALE',
     staleSeconds = null,
     lastFetchTs = null,
-    market_pressure = null,
+    marketPressure: market_pressure = null,
     gainers_1m = [],
     gainers_3m = [],
     losers_3m = [],
@@ -1571,6 +1635,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     () => getMarketPressure({ market_pressure }),
     [market_pressure]
   );
+  const breadthRead = useMemo(
+    () => computeBreadthRead(marketPressureSummary),
+    [marketPressureSummary]
+  );
 
   const sourceHealth = useMemo(() => {
     const baseline = coinInsights?.baselineStatus || {};
@@ -1580,9 +1648,6 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       coinIntel?.news?.items?.length || 0,
       coinIntel?.events?.items?.length || 0
     );
-    const breadthUp = Number(marketPressureSummary?.breadth_up);
-    const breadthDown = Number(marketPressureSummary?.breadth_down);
-    const breadthLive = Number.isFinite(breadthUp) && Number.isFinite(breadthDown);
     const breadthUniverse = Number(market_pressure?.symbol_count);
     const macroLive = Number.isFinite(Number(coinInsights?.marketSentiment?.value));
     return [
@@ -1600,9 +1665,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       },
       {
         label: 'Market breadth',
-        value: breadthLive ? 'Live' : 'Unavailable',
-        tone: breadthLive ? 'positive' : 'negative',
-        sub: breadthLive
+        value: breadthRead.available ? 'Live' : 'Unavailable',
+        tone: breadthRead.available ? 'positive' : 'neutral',
+        sub: breadthRead.available
           ? (Number.isFinite(breadthUniverse) && breadthUniverse > 0 ? `${breadthUniverse} Coinbase markets tracked.` : 'Cross-market participation is current.')
           : 'Broad-market participation is missing.',
       },
@@ -1631,6 +1696,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     coinIntel,
     market_pressure,
     marketPressureSummary,
+    breadthRead,
     metricsReady,
     hasMeaningfulSocialMetrics,
     socialSourceLabel,
@@ -1786,11 +1852,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     } else if (volumeConfirms) {
       parts.push('volume confirmed');
     }
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) {
-      parts.push('breadth weak');
-    } else if ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) {
-      parts.push('breadth supportive');
-    }
+    if (breadthRead.hero) parts.push(breadthRead.hero);
     if (coinIntelError) {
       parts.push('external soft');
     } else if (coinIntel?.events?.items?.length) {
@@ -1801,7 +1863,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       parts.push('tape-only');
     }
     return parts.filter(Boolean).slice(0, 3).join(' · ');
-  }, [coinHero.state, freshAgeMs, coinPriorityEntry, signalFlags, volumeConfirms, marketPressureSummary, coinIntelError, coinIntel]);
+  }, [coinHero.state, freshAgeMs, coinPriorityEntry, signalFlags, volumeConfirms, breadthRead, coinIntelError, coinIntel]);
 
   const actionBias = useMemo(() => {
     if (!metricsReady) return { label: 'Wait', detail: 'Need more tape before trusting a local read.', tone: 'neutral' };
@@ -1828,15 +1890,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const topAlert = coinAlerts[0] || null;
     const semantic = alertTradeSemantics(topAlert);
     const hasFreshConfirm = freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS;
-    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const breadthUp = breadthRead.value;
     const breadthDown = Number(marketPressureSummary?.breadth_down ?? 0) || 0;
-    const breadthText = breadthUp >= 0.56
-      ? 'breadth supports upside'
-      : breadthUp <= 0.44
-        ? 'breadth is hostile'
-        : breadthDown >= 0.56
-          ? 'breadth supports downside'
-          : 'breadth is mixed';
+    const breadthText = breadthRead.available || breadthDown < 0.56
+      ? breadthRead.inline
+      : 'breadth supports downside';
     const attentionParts = [];
     if (socialTrendingRank !== null && socialTrendingRank > 0) {
       attentionParts.push(`trending #${socialTrendingRank}${socialTrendingSource ? ` via ${socialTrendingSource}` : ''}`);
@@ -1858,7 +1916,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     let confirmation = `${volumeConfirms ? 'volume confirms' : 'volume missing'} · ${breadthText}`;
 
     if (semantic.tone === 'positive') {
-      if (!volumeConfirms || !hasFreshConfirm || breadthUp < 0.45 || signalFlags.hasFakeout || signalFlags.hasExhaustion) {
+      if (!volumeConfirms || !hasFreshConfirm || breadthUp === null || breadthUp < 0.45 || signalFlags.hasFakeout || signalFlags.hasExhaustion) {
         label = 'RECONFIRM';
         tone = 'neutral';
         intent = 'Upside exists, but it is not clean enough for a blind quick buy.';
@@ -1889,6 +1947,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     coinAlerts,
     freshAgeMs,
     marketPressureSummary,
+    breadthRead,
     socialTrendingRank,
     socialTrendingSource,
     socialVolume24h,
@@ -1914,10 +1973,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (signalFlags.hasFakeout) badges.push({ label: 'FAILED BREAKOUT', tone: 'negative' });
     if (!signalFlags.hasFakeout && !signalFlags.hasMomentum && !signalFlags.hasReversal && metricsReady) badges.push({ label: 'RANGE-HOLD', tone: 'neutral' });
     if (volumeConfirms) badges.push({ label: 'VOLUME CONFIRMED', tone: 'positive' });
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) badges.push({ label: 'BREADTH WEAK', tone: 'negative' });
+    if (breadthRead.badge) badges.push({ label: breadthRead.badge, tone: breadthRead.tone });
     if (coinPriorityEntry?.stateLabel === 'Reversal Risk' || signalFlags.hasReversal || signalFlags.hasExhaustion) badges.push({ label: 'REVERSAL RISK', tone: 'negative' });
     return badges;
-  }, [breakoutState, signalFlags, metricsReady, volumeConfirms, marketPressureSummary, coinPriorityEntry]);
+  }, [breakoutState, signalFlags, metricsReady, volumeConfirms, breadthRead, coinPriorityEntry]);
 
   const earlyRead = useMemo(() => {
     // Fast, deliberately-unconfirmed directional lean from 1m+3m momentum plus
@@ -1962,7 +2021,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const evidence = Number(coinLiveRanking?.data_quality ?? 0);
     const observedInputs = Number(coinLiveRanking?.observed_inputs ?? Math.round(evidence * 6 / 100));
     const expectedInputs = Number(coinLiveRanking?.expected_inputs || 6);
-    const breadthUp = Number(marketPressureSummary?.breadth_up ?? 0) || 0;
+    const breadthUp = breadthRead.value;
     const alignedUp = alignmentLabel === 'Aligned Up';
     const alignedDown = alignmentLabel === 'Aligned Down';
     const persistenceGood = ['Dominant', 'Persistent'].includes(coinPriorityEntry?.stateLabel) || persistenceStreak >= 3;
@@ -1989,7 +2048,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (alignedDown) blockers.push('Short-term direction is still down.');
     if (persistenceWeak) blockers.push('The move has not held its rank yet.');
     if (!volumeConfirms) blockers.push('Volume has not confirmed the move.');
-    if (breadthUp < 0.45) blockers.push('Most of the market is not helping it.');
+    if (breadthRead.blocker) blockers.push(breadthRead.blocker);
     if (historyWeak) blockers.push(`Comparable signals only worked ${historyPct}% of the time.`);
     if (evidence > 0 && evidence < 50) blockers.push(`Only ${observedInputs}/${expectedInputs} live inputs are available.`);
     const riskBlocker = computeRiskBlocker(signalFlags, reversalRiskCurrent);
@@ -2031,6 +2090,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     else if (!volumeConfirms) upgrade = 'Wait for volume to turn positive and confirm the price move.';
     else if (alignmentLabel === 'Mixed') upgrade = 'Wait for 1m and 3m to point the same way, then hold for at least two updates.';
     else if (!persistenceGood) upgrade = 'Wait for the coin to hold or improve its live rank on the next two updates.';
+    else if (breadthUp === null) upgrade = 'Wait for market breadth to become available before treating broad participation as confirmation.';
     else if (breadthUp < 0.45) upgrade = 'Wait for broader market support or unusually strong independent spot buying.';
     else if (label === 'EARLY SETUP') upgrade = 'Watch for the 1h view to turn positive and hold for at least two updates to confirm.';
     else if (label === 'STRONG SETUP') upgrade = 'Favor a controlled pullback or fresh hold; do not chase a sudden extension.';
@@ -2051,6 +2111,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     metricsReady,
     coinLiveRanking,
     marketPressureSummary,
+    breadthRead,
     alignmentLabel,
     coinPriorityEntry,
     persistenceStreak,
@@ -2107,11 +2168,11 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (freshAgeMs !== null && freshAgeMs > PRIORITY_FADING_MS) risks.push(`fading after ${(freshAgeMs / 60000).toFixed(1)}m without reconfirm`);
     if (!volumeConfirms && metricsReady) risks.push('volume support is missing');
     if (alignmentLabel === 'Mixed') risks.push('timeframes are mixed');
-    if ((marketPressureSummary?.breadth_up ?? 0) < 0.45) risks.push('broad tape support is weak');
+    if (breadthRead.risk) risks.push(breadthRead.risk);
     if (signalFlags.hasFakeout) risks.push('recent fakeout risk is still active');
     if (!risks.length) risks.push('invalidates if the next push fails to hold top cohort rank');
     return risks.slice(0, 4);
-  }, [freshAgeMs, volumeConfirms, metricsReady, alignmentLabel, marketPressureSummary, signalFlags]);
+  }, [freshAgeMs, volumeConfirms, metricsReady, alignmentLabel, breadthRead, signalFlags]);
 
   const pulseSupportRail = useMemo(() => ([
     {
@@ -2128,9 +2189,9 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     },
     {
       label: 'Breadth',
-      value: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'Supportive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'Hostile' : 'Mixed',
-      tone: ((marketPressureSummary?.breadth_up ?? 0) >= 0.56) ? 'positive' : ((marketPressureSummary?.breadth_up ?? 0) <= 0.44) ? 'negative' : 'neutral',
-      sub: marketPressureSummary?.label || 'No broad tape label yet.',
+      value: breadthRead.status,
+      tone: breadthRead.tone,
+      sub: breadthRead.available ? (marketPressureSummary?.label || 'No broad tape label yet.') : 'Broad-market participation is missing.',
     },
     {
       label: 'Trigger',
@@ -2138,7 +2199,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       tone: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
       sub: 'Fresh inside 2m. Fade threshold 3.5m.',
     },
-  ]), [setupQuality, coinPriorityEntry, marketPressureSummary, pulseTrigger, freshAgeMs]);
+  ]), [setupQuality, coinPriorityEntry, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs]);
 
   const intelHero = useMemo(() => {
     const hasEvents = Boolean(coinIntel?.events?.items?.length);

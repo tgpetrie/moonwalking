@@ -1,6 +1,7 @@
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
 const toFinite = (value) => {
+  if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
@@ -73,44 +74,47 @@ const extractRawMarketPressure = (input) => {
 
 export function getMarketPressure(input) {
   const raw = extractRawMarketPressure(input);
+  const symbolCount = toFinite(raw?.symbol_count);
 
-  if (!raw) {
+  // The backend's warming fallback uses a canonical-looking Neutral 50 payload
+  // with zero tracked symbols. Treat that as unavailable rather than measured.
+  if (!raw || symbolCount === 0) {
     return {
-      index: 50,
-      label: "Neutral",
-      score01: 0.5,
+      available: false,
+      breadth_available: false,
+      index: null,
+      label: null,
+      score01: null,
       components: {
-        breadth: 0,
-        impulse_density: 0,
-        volume_anomaly: 0,
-        vol_regime: 0,
-        persistence: 0,
+        breadth: null,
+        impulse_density: null,
+        volume_anomaly: null,
+        vol_regime: null,
+        persistence: null,
       },
-      ts: Math.floor(Date.now() / 1000),
-      heat: 50,
-      bias: "neutral",
+      ts: null,
+      heat: null,
+      bias: null,
       breadth_up: null,
       breadth_down: null,
       impulse_count: null,
-      symbol_count: null,
+      symbol_count: symbolCount,
     };
   }
 
   const indexFromCanonical = toPercent100(raw.index);
   const indexFromHeat = toPercent100(raw.heat);
   const indexFromScore = toPercent100(raw.score01);
-  const index =
-    indexFromCanonical ??
-    indexFromHeat ??
-    indexFromScore ??
-    50;
+  const index = indexFromCanonical ?? indexFromHeat ?? indexFromScore;
 
   const score01Raw = toRatio01(raw.score01);
-  const score01 = score01Raw ?? clamp(index / 100, 0, 1);
+  const score01 = score01Raw ?? (index !== null ? clamp(index / 100, 0, 1) : null);
 
   const label = typeof raw.label === "string" && raw.label.trim()
     ? raw.label.trim()
-    : deriveLabelFromIndex(index);
+    : index !== null
+      ? deriveLabelFromIndex(index)
+      : null;
 
   const components = raw.components && typeof raw.components === "object" ? raw.components : {};
 
@@ -141,21 +145,25 @@ export function getMarketPressure(input) {
 
   const persistenceRaw = toRatio01(components.persistence);
 
-  const ts = toFinite(raw.ts) ?? Math.floor(Date.now() / 1000);
+  const ts = toFinite(raw.ts);
 
   const bias = typeof raw.bias === "string" && raw.bias.trim()
     ? raw.bias.trim().toLowerCase()
-    : deriveBiasFromIndex(index);
+    : index !== null
+      ? deriveBiasFromIndex(index)
+      : null;
 
-  const breadthUp = toRatio01(raw.breadth_up);
+  const breadthUp = toRatio01(raw.breadth_up) ?? breadthRaw;
   const breadthDown = toRatio01(raw.breadth_down);
 
   return {
+    available: index !== null,
+    breadth_available: breadthUp !== null,
     index,
     label,
     score01,
     components: {
-      breadth: breadthRaw ?? 0,
+      breadth: breadthRaw,
       impulse_density: impulseDensityRaw ?? 0,
       volume_anomaly: volumeAnomalyRaw ?? 0,
       vol_regime: volRegimeRaw ?? 0,
@@ -167,7 +175,7 @@ export function getMarketPressure(input) {
     breadth_up: breadthUp,
     breadth_down: breadthDown,
     impulse_count: toFinite(raw.impulse_count),
-    symbol_count: toFinite(raw.symbol_count),
+    symbol_count: symbolCount,
   };
 }
 
