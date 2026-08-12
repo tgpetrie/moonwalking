@@ -176,31 +176,39 @@ describe("SignalRow – confidence label source", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Confidence fallback — root score used when engine has no coverage
+// 4. Signals/event confidence is semantically distinct from interpretation
 // ---------------------------------------------------------------------------
 
-describe("SignalRow – confidence fallback to root", () => {
-  it("falls back to root confidence when support_level is none", () => {
+describe("SignalRow – event rows do not reuse interpretation confidence labels", () => {
+  it("does not show root event confidence when support_level is none", () => {
     const a = {
       ...base,
       confidence: 80,
       interpretation: { summary: "x", confidence: null, interpretation_support_level: "none" },
     };
     render(<SignalRow a={a} nowMs={NOW_MS} />);
-    expect(screen.getByText("High")).toBeInTheDocument();
-  });
-
-  it("falls back to root confidence when interpretation is absent", () => {
-    const a = { ...base, confidence: 50 };
-    render(<SignalRow a={a} nowMs={NOW_MS} />);
-    expect(screen.getByText("Developing")).toBeInTheDocument();
-  });
-
-  it("shows no confidence chip when both scores are absent", () => {
-    render(<SignalRow a={{ ...base }} nowMs={NOW_MS} />);
     expect(screen.queryByText("High")).not.toBeInTheDocument();
-    expect(screen.queryByText("Developing")).not.toBeInTheDocument();
-    expect(screen.queryByText("Limited")).not.toBeInTheDocument();
+  });
+
+  it("does not show High solely from a Moonwalking event-state score", () => {
+    const a = { ...base, primary_state: "Moonwalking", confidence: 82 };
+    render(<SignalRow a={a} nowMs={NOW_MS} />);
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText("MOONWALKING")).toBeInTheDocument();
+  });
+
+  it("suppresses the chip on Signals rows even if interpretation is present", () => {
+    const a = { ...base, interpretation: { ...productionInterp, confidence: 80 } };
+    render(<SignalRow a={a} nowMs={NOW_MS} confidenceSemantics="none" />);
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText(/Price broke out/)).toBeInTheDocument();
+    expect(screen.getByText("Why this read?")).toBeInTheDocument();
+  });
+
+  it("does not mutate the stored event confidence value", () => {
+    const a = { ...base, primary_state: "Reversal Risk", confidence: 72 };
+    render(<SignalRow a={a} nowMs={NOW_MS} confidenceSemantics="none" />);
+    expect(a.confidence).toBe(72);
   });
 });
 
@@ -280,10 +288,11 @@ describe("SignalRow – legacy alerts (pre-engine)", () => {
     expect(screen.getByText(/surged above resistance/)).toBeInTheDocument();
   });
 
-  it("shows root confidence chip for legacy alert", () => {
+  it("does not present root event confidence as interpretation confidence", () => {
     const legacy = { ...base, confidence: 72, message: "BTC breakout" };
     render(<SignalRow a={legacy} nowMs={NOW_MS} />);
-    expect(screen.getByText("High")).toBeInTheDocument();
+    expect(screen.queryByText("High")).not.toBeInTheDocument();
+    expect(screen.getByText("breakout")).toBeInTheDocument();
   });
 
   it("shows no Why this read? for legacy alert", () => {

@@ -944,6 +944,7 @@ function EventReadContent({ eventRead, whyText, readHistory }) {
 function SignalRow({
   a,
   nowMs,
+  confidenceSemantics = "interpretation",
   onOpenCoinSentiment = null,
   isWatchlisted = false,
   onToggleWatchlist = null,
@@ -963,11 +964,12 @@ function SignalRow({
   const age = ts ? ageLabel(nowMs - ts) : "\u2014";
   const windowLabel = String(a?.window || a?.evidence?.window || "").trim();
   const eventModifier = String(a?.modifier || "").trim();
-  const rawConfidence = a?.confidence != null ? Number(a.confidence) : null;
   const interp = a?.interpretation ?? null;
   const hasInterpretation = interp?.interpretation_support_level !== 'none' && Boolean(interp?.summary);
   const interpConf = (hasInterpretation && interp?.confidence != null) ? Number(interp.confidence) : null;
-  const confScore = Number.isFinite(interpConf) ? interpConf : (Number.isFinite(rawConfidence) ? rawConfidence : null);
+  const confScore = confidenceSemantics === "interpretation" && Number.isFinite(interpConf)
+    ? interpConf
+    : null;
   const confidenceLabel = Number.isFinite(confScore)
     ? confScore >= 70 ? 'High' : confScore >= 45 ? 'Developing' : 'Limited'
     : null;
@@ -1607,6 +1609,7 @@ export default function AlertsTab({
                   key={`watch:${a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}`}
                   a={a}
                   nowMs={nowMs}
+                  confidenceSemantics="none"
                   onOpenCoinSentiment={onOpenCoinSentiment}
                   isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
                   onToggleWatchlist={toggleAlertWatch}
@@ -1650,6 +1653,7 @@ export default function AlertsTab({
                   key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
                   a={a}
                   nowMs={nowMs}
+                  confidenceSemantics={feed === "PULSE" || compactFallbackToRecent ? "interpretation" : "none"}
                   onOpenCoinSentiment={onOpenCoinSentiment}
                   isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
                   onToggleWatchlist={toggleAlertWatch}
@@ -1817,6 +1821,7 @@ export default function AlertsTab({
                     key={a.id || `${a.symbol}-${a.type_key}-${pickTsMs(a)}`}
                     a={a}
                     nowMs={nowMs}
+                    confidenceSemantics={feed === "PULSE" || compactFallbackToRecent ? "interpretation" : "none"}
                     onOpenCoinSentiment={onOpenCoinSentiment}
                     isWatchlisted={watchHas(sentimentSymbolForAlert(a))}
                     onToggleWatchlist={toggleAlertWatch}
