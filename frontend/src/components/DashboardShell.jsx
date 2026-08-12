@@ -17,7 +17,6 @@ import LosersTable3Min from "./LosersTable3Min.jsx";
 import WatchlistPanel from "./WatchlistPanel.jsx";
 import { ROW_CUE_LEGEND } from "../utils/rowCue.js";
 import LiveLeaderboard from "./LiveLeaderboard.jsx";
-import MarketSignalCard from "./MarketSignalCard.jsx";
 
 const BOARD_MOVEMENT_LEGEND = [
   {
@@ -439,7 +438,6 @@ export default function DashboardShell({ onInfo }) {
                 {pressurePill.label} {pressurePill.value.toFixed(0)}
               </span>
             ) : null}
-            <MarketSignalCard />
             {status === "WARMING" ? (
               <span className="live-warming">Warming up data…</span>
             ) : null}
