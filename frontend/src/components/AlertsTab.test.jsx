@@ -1,12 +1,25 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { SignalRow } from "./AlertsTab";
+import { SignalRow, freshnessFromStale } from "./AlertsTab";
 
 // AlertsTab imports contexts that SignalRow doesn't use — mock so the module loads cleanly
 vi.mock("../context/DataContext", () => ({ useData: () => ({}) }));
 vi.mock("../context/WatchlistContext.jsx", () => ({ useWatchlist: () => ({ watchlist: [] }) }));
 
 const NOW_MS = 1_800_000_000_000;
+
+describe("market mood feed freshness", () => {
+  it("describes literal feed age instead of calling it confidence", () => {
+    expect(freshnessFromStale(1.2, 0.7)).toMatchObject({
+      label: "Feed freshness: 1.2s",
+      hint: "Oldest market input is 1.2s old.",
+    });
+  });
+
+  it("shows unavailable when no freshness measurement exists", () => {
+    expect(freshnessFromStale(null, null).label).toBe("Feed freshness unavailable");
+  });
+});
 
 const base = {
   id: "test-1",

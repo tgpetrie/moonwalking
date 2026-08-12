@@ -13,7 +13,8 @@ export const MOVE_STATUS_LABELS = {
   Thin: "Thin",
 };
 
-export function getMoveStatusLabel(status) {
+export function getMoveStatusLabel(status, side = "gainer") {
+  if (status === "Confirmed" && side === "loser") return "Tape confirmed down";
   return MOVE_STATUS_LABELS[status] || status;
 }
 

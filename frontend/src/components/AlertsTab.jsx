@@ -442,19 +442,18 @@ const pickWatchPrice = (a, latestBySymbol = {}) => {
 };
 
 const moodFromHeat = (heat) => {
+  if (!Number.isFinite(heat)) return { mood: "Unavailable", tone: "neutral", detail: "Market pressure has not been measured yet." };
   if (heat >= 67) return { mood: "Bullish", tone: "bull", detail: "Buy pressure is leading right now." };
   if (heat <= 33) return { mood: "Bearish", tone: "bear", detail: "Sell pressure is leading right now." };
   return { mood: "Neutral", tone: "neutral", detail: "Pressure is balanced. Signals may chop." };
 };
 
-const confidenceFromStale = (priceStale, volStale) => {
+export const freshnessFromStale = (priceStale, volStale) => {
   const p = Number.isFinite(priceStale) ? priceStale : null;
   const v = Number.isFinite(volStale) ? volStale : null;
   const worst = Math.max(p ?? 0, v ?? 0);
-  if (p == null && v == null) return { label: "Unknown", tone: "unknown", hint: "Data freshness unavailable." };
-  if (worst <= 6) return { label: "High", tone: "high", hint: `Data is ${worst.toFixed(1)}s old.` };
-  if (worst <= 15) return { label: "Medium", tone: "med", hint: `Data is ${worst.toFixed(1)}s old.` };
-  return { label: "Low", tone: "low", hint: `Data is ${worst.toFixed(1)}s old.` };
+  if (p == null && v == null) return { label: "Feed freshness unavailable", tone: "unknown", hint: "Data freshness unavailable." };
+  return { label: `Feed freshness: ${worst.toFixed(1)}s`, tone: "neutral", hint: `Oldest market input is ${worst.toFixed(1)}s old.` };
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -817,14 +816,15 @@ function MarketMoodCard({ meta, variant = "full" }) {
   const compact = variant === "compact";
   const micro = variant === "micro";
   const mp = getMarketPressure({ market_pressure: meta?.market_pressure });
-  const heat = Number(mp.index ?? 50);
+  const heat = mp?.index === null || mp?.index === undefined ? null : Number(mp.index);
+  const hasHeat = Number.isFinite(heat);
 
   const stale = meta?.stale_seconds || {};
   const priceStale = Number(stale?.price);
   const volStale = Number(stale?.volume);
 
   const { mood, tone, detail } = moodFromHeat(heat);
-  const confidence = confidenceFromStale(priceStale, volStale);
+  const freshness = freshnessFromStale(priceStale, volStale);
 
   if (micro) {
     return (
@@ -833,11 +833,11 @@ function MarketMoodCard({ meta, variant = "full" }) {
           <span className="bh-pressure-micro-mood">{mood}</span>
         </div>
         <div className="bh-pressure-track bh-pressure-track--micro" aria-label="Market mood gauge">
-          <div className="bh-pressure-fill" style={{ width: `${heat}%` }} />
+          <div className="bh-pressure-fill" style={{ width: `${hasHeat ? heat : 0}%` }} />
         </div>
         <div className="bh-pressure-micro-foot">
-          <span>{heat.toFixed(0)} / 100</span>
-          <span>{confidence.label}</span>
+          <span>{hasHeat ? `${heat.toFixed(0)} / 100` : "Pressure unavailable"}</span>
+          <span>{freshness.label}</span>
         </div>
       </div>
     );
@@ -859,13 +859,13 @@ function MarketMoodCard({ meta, variant = "full" }) {
       <div className={`bh-pressure-sub ${compact ? "bh-pressure-sub--compact" : ""}`}>{detail}</div>
 
       <div className="bh-pressure-track" aria-label="Market mood gauge">
-        <div className="bh-pressure-fill" style={{ width: `${heat}%` }} />
+        <div className="bh-pressure-fill" style={{ width: `${hasHeat ? heat : 0}%` }} />
       </div>
 
       <div className="bh-pressure-row">
-        <div className="bh-pressure-score">{heat.toFixed(0)} / 100</div>
-        <div className="bh-pressure-confidence" data-tone={confidence.tone}>
-          Confidence: {confidence.label}
+        <div className="bh-pressure-score">{hasHeat ? `${heat.toFixed(0)} / 100` : "Pressure unavailable"}</div>
+        <div className="bh-pressure-confidence" data-tone={freshness.tone}>
+          {freshness.label}
         </div>
       </div>
 
@@ -874,7 +874,7 @@ function MarketMoodCard({ meta, variant = "full" }) {
         <span>Volume: {Number.isFinite(volStale) ? `${volStale.toFixed(1)}s old` : "\u2014"}</span>
       </div>
 
-      {!compact ? <div className="bh-pressure-hint">{confidence.hint}</div> : null}
+      {!compact ? <div className="bh-pressure-hint">{freshness.hint}</div> : null}
     </div>
   );
 }

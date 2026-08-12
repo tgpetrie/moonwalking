@@ -25,13 +25,22 @@ const confirmedToken = {
 };
 
 function renderRow(token, side = "gainer") {
-  return render(<TokenRowUnified token={token} dataSide={side} rank={1} />);
+  return render(<TokenRowUnified token={token} side={side} rank={1} />);
 }
 
 describe("TokenRowUnified live-rank badge", () => {
   it("shows the narrowed 'Tape confirmed' label", () => {
     renderRow(confirmedToken);
     expect(screen.getByText("Tape confirmed")).toBeTruthy();
+  });
+
+  it("shows 'Tape confirmed down' for losers while retaining the confirmed class", () => {
+    const { container } = renderRow({ ...confirmedToken, live_score: 28 }, "loser");
+    expect(screen.getByText("Tape confirmed down")).toBeTruthy();
+    expect([...container.querySelector(".bh-live-rank").classList]).toEqual([
+      "bh-live-rank",
+      "bh-live-rank--confirmed",
+    ]);
   });
 
   it("never shows the bare 'Confirmed' label that collided with popup posture", () => {

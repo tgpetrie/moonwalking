@@ -195,7 +195,7 @@ export function TokenRowUnified({
   const moveStatus = getMoveStatus(token, dataSide);
   // Tone comes from the stable status key, never the display label.
   const moveTone = moveStatus.toLowerCase();
-  const moveStatusLabel = getMoveStatusLabel(moveStatus);
+  const moveStatusLabel = getMoveStatusLabel(moveStatus, dataSide);
   const liveInputRead = Number.isFinite(Number(token?.observed_inputs))
     ? `${token.observed_inputs}/${token.expected_inputs || 6} inputs live`
     : `${dataQuality}% input coverage`;

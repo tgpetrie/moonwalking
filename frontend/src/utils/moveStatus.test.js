@@ -22,6 +22,11 @@ describe("getMoveStatusLabel", () => {
     expect(getMoveStatusLabel("Confirmed")).toBe("Tape confirmed");
   });
 
+  it("makes confirmed losers explicitly directional", () => {
+    expect(getMoveStatusLabel("Confirmed", "loser")).toBe("Tape confirmed down");
+    expect(getMoveStatusLabel("Confirmed", "gainer")).toBe("Tape confirmed");
+  });
+
   it("leaves the other statuses alone", () => {
     expect(getMoveStatusLabel("Unconfirmed")).toBe("Unconfirmed");
     expect(getMoveStatusLabel("Extended")).toBe("Extended");
