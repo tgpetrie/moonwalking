@@ -11,6 +11,8 @@ import sqlite3
 import threading
 import time
 
+from live_ranking import build_feature_snapshot
+
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
 CHECKPOINTS = (
@@ -99,6 +101,19 @@ class SignalOutcomeStore:
                     "CREATE INDEX IF NOT EXISTS ix_signal_outcomes_product "
                     "ON signal_outcomes(product_id, complete)"
                 )
+                # Safe additive migration: no-op on a fresh DB; adds columns to
+                # existing DBs without disturbing current rows (they remain NULL).
+                existing = {
+                    row[1] for row in conn.execute("PRAGMA table_info(signal_outcomes)")
+                }
+                for col_def in (
+                    "feature_schema_version TEXT",
+                    "feature_snapshot_json TEXT",
+                ):
+                    if col_def.split()[0] not in existing:
+                        conn.execute(
+                            f"ALTER TABLE signal_outcomes ADD COLUMN {col_def}"
+                        )
                 conn.commit()
             finally:
                 conn.close()
@@ -135,9 +150,24 @@ class SignalOutcomeStore:
         current_prices: dict[str, Any],
         *,
         now_ts: int | None = None,
+        ranking_snapshot: dict[str, dict[str, Any]] | None = None,
+        ranking_captured_ts: int | None = None,
     ) -> None:
+        """Record new transitions and advance grading for open ones.
+
+        ``ranking_snapshot`` maps bare symbol -> a build_live_rankings() row
+        built with include_internal_features=True.  ``ranking_captured_ts`` is
+        the instant that ranking calculation started; both are required
+        together, because a snapshot dated by this method's own clock would
+        misdate the state it claims to describe.  Snapshots are attached only
+        to rows created by this call — the INSERT OR IGNORE below leaves an
+        existing row, and its original snapshot, untouched.
+        """
         now_ts = int(now_ts or time.time())
         prices = current_prices if isinstance(current_prices, dict) else {}
+        rankings = ranking_snapshot if isinstance(ranking_snapshot, dict) else {}
+        if ranking_captured_ts is None:
+            rankings = {}
         conn = self._connect()
         try:
             for event in events or []:
@@ -155,17 +185,27 @@ class SignalOutcomeStore:
                     if isinstance(event.get("the_read"), dict)
                     else {}
                 )
+                product_id = self._product(event)
+                symbol = product_id.split("-")[0]
+                ranking_row = rankings.get(symbol)
+                if ranking_row is not None:
+                    feat_ver, feat_json = build_feature_snapshot(
+                        ranking_row, int(ranking_captured_ts)
+                    )
+                else:
+                    feat_ver, feat_json = None, None
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO signal_outcomes (
                         signal_id, event_id, product_id, primary_state, read_label,
-                        direction, confidence, started_ts, start_price, last_ts, last_price
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        direction, confidence, started_ts, start_price, last_ts, last_price,
+                        feature_schema_version, feature_snapshot_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(event["id"]),
                         str(event.get("event_id") or event["id"]),
-                        self._product(event),
+                        product_id,
                         str(event.get("primary_state") or "Building"),
                         str(read.get("label") or "UNCLASSIFIED"),
                         str(event.get("direction") or "neutral"),
@@ -174,6 +214,8 @@ class SignalOutcomeStore:
                         price,
                         now_ts,
                         price,
+                        feat_ver,
+                        feat_json,
                     ),
                 )
 

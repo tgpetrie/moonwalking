@@ -11,6 +11,7 @@ from flask_cors import CORS
 import random
 import requests
 import time
+import copy
 import threading
 from collections import defaultdict, deque
 import json
@@ -203,7 +204,11 @@ from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
 from board_outcomes import store as board_outcome_store
-from live_ranking import LIVE_RANKING_MODEL_VERSION, build_live_rankings
+from live_ranking import (
+    LIVE_RANKING_MODEL_VERSION,
+    build_live_rankings,
+    public_ranking_rows,
+)
 
 try:
     from coin_intel_external import fetch_coin_intel
@@ -5753,6 +5758,34 @@ def _mw_get_alerts_normalized_with_sticky():
         ),
     }
     return alerts, meta
+
+
+def _mw_peek_alerts_normalized_with_sticky():
+    """Read-only twin of _mw_get_alerts_normalized_with_sticky().
+
+    Applies the identical sticky-fallback selection but writes nothing: it does
+    not refresh _MW_LAST_GOOD_ALERTS/_MW_LAST_GOOD_ALERTS_TS, so it cannot move
+    the sticky window that the published path depends on, and it deep-copies
+    the stream first because _normalize_alert() mutates nested ``evidence`` in
+    place for market-mood alerts.
+
+    For observability snapshots only. The published alerts and rankings must
+    keep using the getter above, at its original call site and timing.
+    """
+    raw = copy.deepcopy([item for item in alerts_log_main if isinstance(item, dict)])
+    alerts = _normalize_alerts(raw)
+    if alerts:
+        return alerts
+
+    sticky_window_s = int(CONFIG.get("ALERTS_STICKY_SECONDS", 60) or 60)
+    if _MW_LAST_GOOD_ALERTS and _MW_LAST_GOOD_ALERTS_TS is not None:
+        try:
+            age_s = float(time.time() - float(_MW_LAST_GOOD_ALERTS_TS))
+        except Exception:
+            return []
+        if age_s <= sticky_window_s:
+            return list(_MW_LAST_GOOD_ALERTS)
+    return []
 
 
 def _emit_alert(
@@ -13710,6 +13743,14 @@ def _compute_snapshots_from_cache():
         price_snapshot = {}
         volume_snapshot = {}
         signal_context = {}
+        # Observability-only feature snapshots. These never reach the frontend
+        # and never feed a scoring decision; they exist so a historical outcome
+        # can be explained later. Defaults keep them in scope after the blocks
+        # that populate them, so a failure there degrades to "no snapshot".
+        _signal_features: dict = {}
+        _signal_features_ts: int | None = None
+        _board_features: dict = {}
+        _board_features_ts: int | None = None
         try:
             global _ALERT_ENGINE_STATE
 
@@ -13794,10 +13835,36 @@ def _compute_snapshots_from_cache():
                 delivery_events,
                 include_history=False,
             )
+            # Observability only: the feature state as of the moment these
+            # signal records are written. Deliberately a second, private
+            # calculation rather than a reuse of the published ranking, which
+            # is sampled later in this cycle from a live alert list. It reads
+            # through the peek helper so it cannot disturb the sticky-alert
+            # globals the published path depends on. Isolated in its own guard
+            # so a failure here degrades to a null snapshot and never blocks
+            # signal recording or notification delivery.
+            try:
+                _signal_features_ts = int(time.time())
+                _signal_features = {
+                    str(row.get("symbol") or "").upper(): row
+                    for row in build_live_rankings(
+                        price_snapshot=price_snapshot,
+                        volume_snapshot=volume_snapshot,
+                        context_snapshot=signal_context,
+                        alerts=_mw_peek_alerts_normalized_with_sticky(),
+                        include_internal_features=True,
+                    )
+                }
+            except Exception as exc:
+                _signal_features, _signal_features_ts = {}, None
+                logging.warning("Signal feature snapshot skipped: %s", exc)
+
             signal_outcome_store.observe(
                 delivery_events,
                 last_current_prices.get("data") or {},
                 now_ts=int(time.time()),
+                ranking_snapshot=_signal_features,
+                ranking_captured_ts=_signal_features_ts,
             )
             delivery_events = _enrich_signal_events(delivery_events)
             alert_delivery_dispatcher.dispatch_async(
@@ -13864,19 +13931,30 @@ def _compute_snapshots_from_cache():
         # used by the detector engine. This is local computation only—no per-coin
         # network fan-out and no synthetic sentiment values.
         try:
+            # This is the canonical ranking: same call site, same timing, and
+            # the same alert list as before this retention work. Internal
+            # features are collected so board entries recorded below can be
+            # explained later, then stripped so the published payload keeps its
+            # original shape.
+            _board_features_ts = int(time.time())
             live_rankings = build_live_rankings(
                 price_snapshot=price_snapshot,
                 volume_snapshot=volume_snapshot,
                 context_snapshot=signal_context,
                 alerts=alerts_items,
+                include_internal_features=True,
             )
+            _board_features = {
+                str(row.get("symbol") or "").upper(): row for row in live_rankings
+            }
             updates["live_rankings"] = {
                 "component": "live_rankings",
-                "data": live_rankings,
+                "data": public_ranking_rows(live_rankings),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
                 "model_version": LIVE_RANKING_MODEL_VERSION,
             }
         except Exception as exc:
+            _board_features, _board_features_ts = {}, None
             logging.warning("Live ranking compute skipped: %s", exc)
 
         # Measure what happens after a coin enters the exact top-eight cohorts
@@ -13903,6 +13981,8 @@ def _compute_snapshots_from_cache():
                 },
                 price_snapshot,
                 now_ts=int(time.time()),
+                ranking_snapshot=_board_features,
+                ranking_captured_ts=_board_features_ts,
             )
             updates["board_outcomes"] = {
                 "component": "board_outcomes",

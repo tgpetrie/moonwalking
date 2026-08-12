@@ -18,6 +18,8 @@ import threading
 import time
 from typing import Any
 
+from live_ranking import build_feature_snapshot
+
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
 CHECKPOINTS = (
@@ -152,6 +154,17 @@ class BoardOutcomeStore:
                         WHERE exited_ts IS NULL;
                     """
                 )
+                # Safe additive migration: no-op on a fresh DB; adds columns to
+                # existing DBs without disturbing current rows (they remain NULL).
+                existing = {
+                    row[1] for row in conn.execute(f"PRAGMA table_info({TABLE_NAME})")
+                }
+                for col_def in (
+                    "feature_schema_version TEXT",
+                    "feature_snapshot_json TEXT",
+                ):
+                    if col_def.split()[0] not in existing:
+                        conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {col_def}")
                 conn.commit()
             finally:
                 conn.close()
@@ -312,10 +325,24 @@ class BoardOutcomeStore:
         prices: dict[str, Any],
         *,
         now_ts: int | None = None,
+        ranking_snapshot: dict[str, dict[str, Any]] | None = None,
+        ranking_captured_ts: int | None = None,
     ) -> None:
-        """Observe current top-eight board membership and advance open outcomes."""
+        """Observe current top-eight board membership and advance open outcomes.
+
+        ``ranking_snapshot`` maps bare symbol -> a build_live_rankings() row
+        built with include_internal_features=True.  ``ranking_captured_ts`` is
+        the instant that ranking calculation started; both are required
+        together, because a snapshot dated by this method's own clock would
+        misdate the state it claims to describe.  Snapshots are written only on
+        the INSERT for a new board entry, so an existing entry is never
+        backfilled from a later cycle's evidence.
+        """
         now_ts = int(now_ts or time.time())
         prices = prices if isinstance(prices, dict) else {}
+        rankings = ranking_snapshot if isinstance(ranking_snapshot, dict) else {}
+        if ranking_captured_ts is None:
+            rankings = {}
         normalized: dict[str, dict[str, dict[str, Any]]] = {}
 
         for board in BOARD_NAMES:
@@ -385,6 +412,15 @@ class BoardOutcomeStore:
                             prices=prices,
                             excluded_products=excluded_products,
                         )
+                        ranking_row = rankings.get(
+                            str(item.get("symbol") or "").upper()
+                        )
+                        if ranking_row is not None:
+                            feat_ver, feat_json = build_feature_snapshot(
+                                ranking_row, int(ranking_captured_ts)
+                            )
+                        else:
+                            feat_ver, feat_json = None, None
                         conn.execute(
                             f"""
                             INSERT INTO {TABLE_NAME} (
@@ -392,8 +428,9 @@ class BoardOutcomeStore:
                                 board, product_id, symbol, direction, entered_ts,
                                 last_seen_ts, start_price, entry_rank, start_change_pct,
                                 control_product_id, control_start_price, control_change_pct,
-                                estimated_cost_pct
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                estimated_cost_pct,
+                                feature_schema_version, feature_snapshot_json
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 MODEL_VERSION,
@@ -410,6 +447,8 @@ class BoardOutcomeStore:
                                 control.get("price") if control else None,
                                 control.get("change") if control else None,
                                 self.round_trip_cost_pct,
+                                feat_ver,
+                                feat_json,
                             ),
                         )
 
