@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  PRIORITY_HALF_LIFE_MS,
+  buildPriorityItems,
+  priorityContributionScore,
+} from "./priorityEngine.js";
+
+const NOW = 1_800_000_000_000;
+
+const alert = (overrides = {}) => ({
+  id: "alert-1",
+  symbol: "BTC-USD",
+  type_key: "moonshot",
+  severity: "high",
+  ts_ms: NOW - 30_000,
+  evidence: {
+    pct_1m: 2,
+    volume_change_1h_pct: 50,
+    streak: 3,
+  },
+  ...overrides,
+});
+
+const boards = {
+  gainers1m: [{ symbol: "BTC-USD", rank: 2 }],
+  gainers3m: [{ symbol: "BTC-USD", rank: 3 }],
+  losers3m: [],
+};
+
+const deterministicInput = {
+  alerts: [
+    alert(),
+    alert({
+      id: "alert-2",
+      type_key: "breakout",
+      severity: "medium",
+      ts_ms: NOW - 60_000,
+      evidence: {
+        pct_1m: 1,
+        volume_change_1h_pct: 20,
+        streak: 2,
+      },
+    }),
+  ],
+  ...boards,
+  marketPressure: { breadth_up: 0.7, components: { breadth: 0.7 } },
+  nowMs: NOW,
+};
+
+describe("shared priority engine", () => {
+  it("preserves the existing deterministic contribution formula", () => {
+    const contribution = priorityContributionScore(alert(), NOW);
+
+    expect(contribution.baseScore).toBe(58);
+    expect(contribution.decay).toBeCloseTo(Math.exp(-30_000 / PRIORITY_HALF_LIFE_MS));
+    expect(contribution.weighted).toBeCloseTo(
+      58 * Math.exp(-30_000 / PRIORITY_HALF_LIFE_MS)
+    );
+    expect(contribution.isFresh).toBe(true);
+  });
+
+  it("gives both consumers one state, score, rank trend, and semantic summary", () => {
+    const alertsSurface = buildPriorityItems(deterministicInput)[0];
+    const popupSurface = buildPriorityItems(deterministicInput)[0];
+
+    expect(alertsSurface).toMatchObject({
+      symbol: "BTC",
+      bucket: "bullish",
+      score: 99,
+      stateLabel: "Dominant",
+      rankTrend: "flat-strong",
+      rankSummary: "rank held 2-3",
+      confirms: 2,
+      freshConfirms: 2,
+    });
+    expect(popupSurface).toMatchObject({
+      score: alertsSurface.score,
+      stateLabel: alertsSurface.stateLabel,
+      rankTrend: alertsSurface.rankTrend,
+      rankSummary: alertsSurface.rankSummary,
+      scoreRaw: alertsSurface.scoreRaw,
+    });
+  });
+
+  it("retains the Alerts shortlist options during the behavior-preserving extraction", () => {
+    const items = buildPriorityItems({
+      ...deterministicInput,
+      isWatchlisted: (symbol) => symbol === "BTC",
+      limit: 1,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].watchlistRelevant).toBe(true);
+    expect(items[0].score).toBe(99);
+  });
+});
