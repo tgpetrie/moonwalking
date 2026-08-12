@@ -7,7 +7,10 @@ import { CoinOutcomeHistory } from "./SentimentPopupAdvanced";
 vi.mock("../context/DataContext", () => ({ useData: () => ({}) }));
 vi.mock("../hooks/useMarketHeat", () => ({ useMarketHeat: () => ({}) }));
 vi.mock("../api", () => ({ API_ENDPOINTS: {}, fetchData: vi.fn() }));
-vi.mock("../utils/coinHistoryCache", () => ({ getCoinEvents: vi.fn() }));
+vi.mock("../utils/coinHistoryCache", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCoinEvents: vi.fn(),
+}));
 vi.mock("../utils/marketPressure", () => ({ getMarketPressure: vi.fn() }));
 vi.mock("../utils/coinbaseUrl", () => ({ coinbaseSpotUrl: vi.fn() }));
 vi.mock("./CoinPositioning.jsx", () => ({ default: () => null }));

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useMarketHeat } from '../hooks/useMarketHeat';
 import { useData } from '../context/DataContext';
 import { API_ENDPOINTS, fetchData } from '../api';
-import { getCoinEvents } from '../utils/coinHistoryCache';
+import { getCoinEvents, isCoinEventActive } from '../utils/coinHistoryCache';
 import { getMarketPressure } from '../utils/marketPressure';
 import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
@@ -809,36 +809,36 @@ const alertIdentity = (alert) => {
   return `${symbol}:${type}:${alertTsMs(alert)}`;
 };
 
-// Matches ALERT_IMPULSE_TTL_MINUTES default on the backend.
-const RISK_ALERT_MAX_AGE_MS = 5 * 60 * 1000;
-
 // Returns true if the alert is still within its active window.
-// Prefers the backend-set `expires_at` field; falls back to age from event timestamp.
-export const isAlertStillActive = (alert, nowMs) => {
-  const expiresAt = alert?.expires_at;
-  if (expiresAt) {
-    const exp = Date.parse(String(expiresAt));
-    if (Number.isFinite(exp)) return exp > nowMs;
-  }
-  const tsMs = alertTsMs(alert);
-  return tsMs > 0 && (nowMs - tsMs) <= RISK_ALERT_MAX_AGE_MS;
-};
+// Prefers backend `expires_at`/`ttl_seconds`; legacy rows use the existing
+// backend-aligned five-minute fallback shared with the browser cache.
+export const isAlertStillActive = (alert, nowMs) => isCoinEventActive(alert, nowMs);
 
-// Pure, exported for testing. Risk types (reversal/fakeout/exhaustion) are only
-// flagged when the alert is still active. Momentum is unaged — positive context
-// does not expire the same way a risk veto does.
+// Pure, exported for testing. All present-tense signal flags require active
+// evidence, including momentum and squeeze families.
 export const computeSignalFlags = (coinAlerts, nowMs) => {
   const recent = Array.isArray(coinAlerts) ? coinAlerts.slice(0, 12) : [];
-  const activeRisk = recent.filter((a) => isAlertStillActive(a, nowMs));
-  const riskTypes = activeRisk.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
-  const allTypes = recent.map((a) => String(a?.type_key || a?.type || '').toLowerCase());
+  const activeTypes = recent
+    .filter((alert) => isAlertStillActive(alert, nowMs))
+    .map((alert) => String(alert?.type_key || alert?.type || '').toLowerCase());
   return {
-    hasReversal:   riskTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
-    hasFakeout:    riskTypes.some((t) => t.includes('fakeout')),
-    hasSqueeze:    allTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
-    hasExhaustion: riskTypes.some((t) => t.includes('exhaustion')),
-    hasMomentum:   allTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
+    hasReversal:   activeTypes.some((t) => t.includes('reversal') || t.includes('trend_break')),
+    hasFakeout:    activeTypes.some((t) => t.includes('fakeout')),
+    hasSqueeze:    activeTypes.some((t) => t.includes('squeeze') || t.includes('volatility_expansion')),
+    hasExhaustion: activeTypes.some((t) => t.includes('exhaustion')),
+    hasMomentum:   activeTypes.some((t) => t.includes('moonshot') || t.includes('breakout') || t.includes('coin_fomo')),
   };
+};
+
+export const computeBreakoutState = (coinAlerts, nowMs) => {
+  const top = Array.isArray(coinAlerts)
+    ? coinAlerts.find((alert) => isAlertStillActive(alert, nowMs))
+    : null;
+  if (!top) return 'No breakout';
+  const type = String(top.type_key || top.type || '').toLowerCase();
+  if (type.includes('moonshot') || type.includes('breakout')) return 'Breakout Up';
+  if (type.includes('crater') || type.includes('dump')) return 'Breakout Down';
+  return 'No breakout';
 };
 
 // Returns the most specific blocker message for an active risk flag,
@@ -1389,14 +1389,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     return cachedCoinHistory;
   }, [coinSymbol, fallbackCoinAlerts, cachedCoinHistory]);
 
-  const breakoutState = useMemo(() => {
-    const top = coinAlerts[0];
-    if (!top) return 'No breakout';
-    const type = String(top.type_key || top.type || '').toLowerCase();
-    if (type.includes('moonshot') || type.includes('breakout')) return 'Breakout Up';
-    if (type.includes('crater') || type.includes('dump')) return 'Breakout Down';
-    return 'No breakout';
-  }, [coinAlerts]);
+  const nowMs = Date.now();
+
+  const activeCoinAlerts = useMemo(
+    () => coinAlerts.filter((alert) => isAlertStillActive(alert, nowMs)),
+    [coinAlerts, nowMs]
+  );
+
+  const breakoutState = useMemo(
+    () => computeBreakoutState(coinAlerts, nowMs),
+    [coinAlerts, nowMs]
+  );
 
   const change1m = toNumber(coinInsights?.change1m);
   const change3m = toNumber(coinInsights?.change3m);
@@ -1428,7 +1431,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (!hasCoinTape) return null;
     const alignment = Math.min(1, Math.abs(alignmentScore) / 6);
     let streakRaw = 0;
-    for (const alert of coinAlerts) {
+    for (const alert of activeCoinAlerts) {
       const streak = toNumber(alert?.evidence?.streak ?? alert?.extra?.streak);
       if (streak !== null && streak > 0) {
         streakRaw = Math.max(streakRaw, streak);
@@ -1437,9 +1440,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const streak = Math.min(1, Math.max(0, streakRaw) / 4);
     const volumeConfirm = volumeConfirms ? 1 : 0;
     return Math.round(((0.45 * alignment) + (0.35 * volumeConfirm) + (0.2 * streak)) * 100);
-  }, [hasCoinTape, alignmentScore, coinAlerts, volumeConfirms]);
-
-  const nowMs = Date.now();
+  }, [hasCoinTape, alignmentScore, activeCoinAlerts, volumeConfirms]);
 
   const signalFlags = useMemo(
     () => computeSignalFlags(coinAlerts, nowMs),
@@ -1447,14 +1448,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   );
 
   const persistenceStreak = useMemo(() => {
-    for (const alert of coinAlerts) {
+    for (const alert of activeCoinAlerts) {
       const streak = toNumber(alert?.evidence?.streak ?? alert?.extra?.streak);
       if (streak !== null && streak > 0) return Math.round(streak);
       const type = String(alert?.type_key || alert?.type || '').toLowerCase();
       if (type.includes('persistent')) return 1;
     }
     return null;
-  }, [coinAlerts]);
+  }, [activeCoinAlerts]);
 
   const coinScore = useMemo(() => {
     if (!hasCoinTape) return null;
@@ -1482,7 +1483,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   ]);
 
   const primaryAction = useMemo(() => {
-    const topType = String(coinAlerts[0]?.type_key || coinAlerts[0]?.type || '').toLowerCase();
+    const topType = String(activeCoinAlerts[0]?.type_key || activeCoinAlerts[0]?.type || '').toLowerCase();
     if (topType.includes('fakeout')) return 'Fakeout risk: avoid chasing and wait for reclaim confirmation.';
     if (topType.includes('reversal') || topType.includes('trend_break')) return 'Reversal signal active: wait for retest confirmation before entry.';
     if (topType.includes('squeeze') || topType.includes('volatility_expansion')) return 'Compression just broke: watch continuation on the next close.';
@@ -1493,7 +1494,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     if (alignmentScore >= 3 && volumeConfirms) return 'Trend and volume align: favor pullback entries over chasing.';
     if (alignmentScore <= -3 && volumeConfirms) return 'Downtrend and volume align: protect longs and wait for base formation.';
     return 'No high-conviction setup yet: wait for alignment plus volume confirmation.';
-  }, [coinAlerts, breakoutState, alignmentScore, volumeConfirms]);
+  }, [activeCoinAlerts, breakoutState, alignmentScore, volumeConfirms]);
 
   const socialMetrics = coinIntel?.social?.metrics || null;
   const socialHeat = toNumber(socialMetrics?.socialHeat);
@@ -1887,7 +1888,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       };
     }
 
-    const topAlert = coinAlerts[0] || null;
+    const topAlert = activeCoinAlerts[0] || null;
     const semantic = alertTradeSemantics(topAlert);
     const hasFreshConfirm = freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS;
     const breadthUp = breadthRead.value;
@@ -1944,7 +1945,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     };
   }, [
     metricsReady,
-    coinAlerts,
+    activeCoinAlerts,
     freshAgeMs,
     marketPressureSummary,
     breadthRead,

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   isAlertStillActive,
   computeSignalFlags,
+  computeBreakoutState,
   computeRiskBlocker,
   computePostureLabel,
   computeBreadthRead,
@@ -15,7 +16,10 @@ import {
 vi.mock('../context/DataContext', () => ({ useData: () => ({}) }));
 vi.mock('../hooks/useMarketHeat', () => ({ useMarketHeat: () => ({}) }));
 vi.mock('../api', () => ({ API_ENDPOINTS: {}, fetchData: vi.fn() }));
-vi.mock('../utils/coinHistoryCache', () => ({ getCoinEvents: vi.fn() }));
+vi.mock('../utils/coinHistoryCache', async (importOriginal) => ({
+  ...(await importOriginal()),
+  getCoinEvents: vi.fn(),
+}));
 vi.mock('../utils/marketPressure', () => ({ getMarketPressure: vi.fn() }));
 vi.mock('../utils/coinbaseUrl', () => ({ coinbaseSpotUrl: vi.fn() }));
 vi.mock('./CoinPositioning.jsx', () => ({ default: () => null }));
@@ -115,17 +119,45 @@ describe('computeSignalFlags – risk types require freshness', () => {
   });
 });
 
-describe('computeSignalFlags – momentum is unaged', () => {
-  it('flags hasMomentum for an old breakout alert (30 min old)', () => {
-    const alerts = [makeAlert('breakout_up', 30)];
+describe('computeSignalFlags – momentum and squeeze require freshness', () => {
+  it('flags momentum while breakout evidence is active', () => {
+    const alerts = [makeAlert('breakout_up', 3)];
     const flags = computeSignalFlags(alerts, NOW);
     expect(flags.hasMomentum).toBe(true);
   });
 
-  it('flags hasMomentum via moonshot type key regardless of age', () => {
-    const alerts = [makeAlert('moonshot_detected', 15)];
+  it('clears momentum after breakout evidence expires', () => {
+    const alerts = [makeAlert('breakout_up', 6)];
     const flags = computeSignalFlags(alerts, NOW);
-    expect(flags.hasMomentum).toBe(true);
+    expect(flags.hasMomentum).toBe(false);
+  });
+
+  it('honors backend expires_at for momentum evidence', () => {
+    const active = makeAlert('moonshot_detected', 30, {
+      expires_at: new Date(NOW + MIN).toISOString(),
+    });
+    const expired = makeAlert('moonshot_detected', 1, {
+      expires_at: new Date(NOW - MIN).toISOString(),
+    });
+    expect(computeSignalFlags([active], NOW).hasMomentum).toBe(true);
+    expect(computeSignalFlags([expired], NOW).hasMomentum).toBe(false);
+  });
+
+  it('flags squeeze inside TTL and clears it after TTL', () => {
+    expect(computeSignalFlags([makeAlert('squeeze_break', 2)], NOW).hasSqueeze).toBe(true);
+    expect(computeSignalFlags([makeAlert('squeeze_break', 7)], NOW).hasSqueeze).toBe(false);
+  });
+});
+
+describe('computeBreakoutState', () => {
+  it('reports breakout only while the evidence is active', () => {
+    expect(computeBreakoutState([makeAlert('breakout_up', 2)], NOW)).toBe('Breakout Up');
+    expect(computeBreakoutState([makeAlert('breakout_up', 6)], NOW)).toBe('No breakout');
+  });
+
+  it('does not let an expired newest row hide a still-active breakout row', () => {
+    const rows = [makeAlert('breakout_up', 6), makeAlert('breakout_up', 2)];
+    expect(computeBreakoutState(rows, NOW)).toBe('Breakout Up');
   });
 });
 
