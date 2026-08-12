@@ -24,7 +24,7 @@ const BOARD_MOVEMENT_LEGEND = [
     symbol: "CONFIRMED",
     tone: "neutral",
     label: "Move quality",
-    detail: "Confirmed means multiple timeframes and evidence agree. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
+    detail: "Tape confirmed means current tape strength scores high — recent momentum, volume, and activity are all reading well. It does not guarantee every timeframe agrees; open the coin for the full multi-factor read. Unconfirmed lacks support. Extended may be late to chase. Thin flags weak liquidity or sparse evidence.",
   },
   {
     symbol: "+2 / -2",

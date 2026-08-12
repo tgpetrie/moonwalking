@@ -853,6 +853,27 @@ export const isReversalRiskCurrent = (coinPriorityEntry) => {
   return (coinPriorityEntry?.noConfirmMs ?? Infinity) < PRIORITY_FADING_MS;
 };
 
+// The board badge and this popup read the same live rankings, but the per-coin
+// insights that gate `metricsReady` load separately. Without consulting the
+// live ranking while warming, an empty supports list renders "Nothing
+// meaningful is confirming the setup yet." on a row the board is
+// simultaneously badging "Tape confirmed" from the very same data.
+export const buildWarmingSupports = (coinLiveRanking) => {
+  const score = Number(coinLiveRanking?.live_score);
+  if (!Number.isFinite(score) || score < 65) return [];
+  return [`Live tape strength is ${score}/100.`];
+};
+
+// Headline for the WAIT posture. At score >= 65 the board badges the same coin
+// "Tape confirmed", so "no clean setup is active" would read as a flat
+// contradiction; name the narrower thing that is actually true instead.
+export const resolveWaitHeadline = ({ breakoutUp, score }) => {
+  if (breakoutUp) return 'Breakout detected, but confirmation is incomplete.';
+  if (Number(score) >= 65)
+    return 'Tape strength is notable, but the multi-factor setup is not aligned yet.';
+  return 'No clean setup is active right now.';
+};
+
 // Pure posture decision table. Returns the label and tone for the current coin
 // setup. Callers must handle the `metricsReady` guard separately.
 export const computePostureLabel = ({
@@ -1929,7 +1950,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         label: 'WAIT',
         tone: 'neutral',
         headline: 'Not enough live tape yet.',
-        supports: [],
+        supports: buildWarmingSupports(coinLiveRanking),
         blockers: ['The short-term windows are still filling.'],
         upgrade: 'Check again after the next few live updates.',
         invalidation: 'No setup is valid until the data is ready.',
@@ -2002,9 +2023,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
         ? 'Short-term momentum and breakout evidence are active but still need more confirmation.'
         : 'Short-term momentum, volume, and breakout evidence are aligning before the 1h view has caught up.';
     } else {
-      headline = breakoutUp
-        ? 'Breakout detected, but confirmation is incomplete.'
-        : 'No clean setup is active right now.';
+      headline = resolveWaitHeadline({ breakoutUp, score });
     }
 
     let upgrade = 'Wait for the 1m and 3m directions to agree and for the coin to hold its rank on the next updates.';

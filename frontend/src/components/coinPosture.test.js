@@ -5,6 +5,8 @@ import {
   computeRiskBlocker,
   computePostureLabel,
   isReversalRiskCurrent,
+  buildWarmingSupports,
+  resolveWaitHeadline,
 } from './SentimentPopupAdvanced';
 
 // SentimentPopupAdvanced has heavy side-effect imports — mock them so the
@@ -467,5 +469,74 @@ describe('isReversalRiskCurrent – veto when current, pass when stale', () => {
   it('Dominant stateLabel is never a Reversal Risk regardless of noConfirmMs', () => {
     const dominantEntry = { stateLabel: 'Dominant', noConfirmMs: 0 };
     expect(isReversalRiskCurrent(dominantEntry)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Board/popup truthfulness: the board badges "Tape confirmed" at live_score
+// >= 65. These two helpers keep the popup from contradicting that badge while
+// still refusing to overstate the setup.
+// ---------------------------------------------------------------------------
+
+describe('buildWarmingSupports', () => {
+  it('surfaces live tape strength while per-coin metrics are still warming', () => {
+    expect(buildWarmingSupports({ live_score: 72 })).toEqual([
+      'Live tape strength is 72/100.',
+    ]);
+  });
+
+  it('stays silent below the board badge threshold', () => {
+    expect(buildWarmingSupports({ live_score: 64 })).toEqual([]);
+  });
+
+  it('includes the exact boundary the board badge uses', () => {
+    expect(buildWarmingSupports({ live_score: 65 })).toHaveLength(1);
+  });
+
+  it('stays silent when no live ranking is available', () => {
+    expect(buildWarmingSupports(undefined)).toEqual([]);
+    expect(buildWarmingSupports({})).toEqual([]);
+    expect(buildWarmingSupports({ live_score: null })).toEqual([]);
+    expect(buildWarmingSupports({ live_score: 'abc' })).toEqual([]);
+  });
+
+  it('never leaves supports empty on a coin the board is badging confirmed', () => {
+    // The original defect: board shows "Tape confirmed", popup shows
+    // "Nothing meaningful is confirming the setup yet."
+    expect(buildWarmingSupports({ live_score: 67 }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveWaitHeadline', () => {
+  it('does not claim "no clean setup" when the board says tape confirmed', () => {
+    const headline = resolveWaitHeadline({ breakoutUp: false, score: 67 });
+    expect(headline).not.toMatch(/No clean setup/i);
+    expect(headline).toMatch(/Tape strength is notable/);
+  });
+
+  it('keeps the plain wording below the badge threshold', () => {
+    expect(resolveWaitHeadline({ breakoutUp: false, score: 58 })).toBe(
+      'No clean setup is active right now.',
+    );
+  });
+
+  it('still prioritises the breakout wording', () => {
+    expect(resolveWaitHeadline({ breakoutUp: true, score: 72 })).toBe(
+      'Breakout detected, but confirmation is incomplete.',
+    );
+    expect(resolveWaitHeadline({ breakoutUp: true, score: 20 })).toBe(
+      'Breakout detected, but confirmation is incomplete.',
+    );
+  });
+
+  it('switches wording exactly at the board badge boundary', () => {
+    expect(resolveWaitHeadline({ breakoutUp: false, score: 65 })).toMatch(/Tape strength/);
+    expect(resolveWaitHeadline({ breakoutUp: false, score: 64 })).toMatch(/No clean setup/);
+  });
+
+  it('handles a missing score without claiming strength', () => {
+    expect(resolveWaitHeadline({ breakoutUp: false, score: undefined })).toBe(
+      'No clean setup is active right now.',
+    );
   });
 });

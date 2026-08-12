@@ -5,7 +5,7 @@ import { formatPct, formatPrice } from "../utils/format.js";
 import { baselineOrNull } from "../utils/num.js";
 import { coinbaseSpotUrl } from "../utils/coinbaseUrl";
 import { deriveRowCue } from "../utils/rowCue.js";
-import { getMoveStatus } from "../utils/moveStatus.js";
+import { getMoveStatus, getMoveStatusLabel } from "../utils/moveStatus.js";
 
 /**
  * Plain, non-animated BHABIT token row.
@@ -193,12 +193,14 @@ export function TokenRowUnified({
   const liveRisks = Array.isArray(token?.live_risks) ? token.live_risks.map((item) => String(item).toLowerCase()) : [];
   const dataQuality = Number(token?.data_quality) || 0;
   const moveStatus = getMoveStatus(token, dataSide);
+  // Tone comes from the stable status key, never the display label.
   const moveTone = moveStatus.toLowerCase();
+  const moveStatusLabel = getMoveStatusLabel(moveStatus);
   const liveInputRead = Number.isFinite(Number(token?.observed_inputs))
     ? `${token.observed_inputs}/${token.expected_inputs || 6} inputs live`
     : `${dataQuality}% input coverage`;
   const liveRankTitle = hasLiveRank
-    ? `${moveStatus} move · live strength #${liveRank}${Number.isFinite(liveUniverse) ? ` of ${liveUniverse}` : ""} · ${liveScore}/100 ${token?.live_label || ""} · ${liveInputRead}${liveEvidence ? ` · ${liveEvidence}` : ""}${liveRisks.length ? ` · risk: ${liveRisks.join(" · ")}` : ""}`
+    ? `${moveStatusLabel} move · live strength #${liveRank}${Number.isFinite(liveUniverse) ? ` of ${liveUniverse}` : ""} · ${liveScore}/100 ${token?.live_label || ""} · ${liveInputRead}${liveEvidence ? ` · ${liveEvidence}` : ""}${liveRisks.length ? ` · risk: ${liveRisks.join(" · ")}` : ""}`
     : "";
 
   const renderCells = () => (
@@ -222,7 +224,7 @@ export function TokenRowUnified({
                   title={liveRankTitle}
                   aria-label={liveRankTitle}
                 >
-                  {moveStatus}
+                  {moveStatusLabel}
                 </span>
               ) : null}
               {primaryCue?.emoji ? (
