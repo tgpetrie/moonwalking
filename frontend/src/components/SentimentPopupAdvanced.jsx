@@ -1686,6 +1686,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     let label = semantic.label;
     let tone = semantic.tone;
     let intent = semantic.intent;
+    let reason = semantic.reason;
     let confirmation = `${volumeConfirms ? 'volume confirms' : 'volume missing'} · ${breadthText}`;
 
     if (semantic.tone === 'positive') {
@@ -1701,17 +1702,24 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       }
     }
 
-    if (semantic.tone === 'negative' || coinHero.state === 'Fragile' || coinHero.state === 'Fading') {
+    if (semantic.tone === 'negative') {
       label = semantic.label === 'NO SIGNAL' ? 'WAIT' : semantic.label;
       tone = 'negative';
       intent = semantic.intent;
+    } else if (coinHero.state === 'Fragile' || coinHero.state === 'Fading') {
+      label = 'WAIT';
+      tone = 'negative';
+      intent = actionBias.detail;
+      reason = coinPriorityEntry?.stateLabel === 'Reversal Risk'
+        ? 'Wait for the active risk warning to clear before treating this as a clean setup.'
+        : 'Nothing here deserves urgency yet.';
     }
 
     return {
       label,
       tone,
       intent,
-      reason: semantic.reason,
+      reason,
       sentiment: attentionParts.filter(Boolean).slice(0, 2).join(' · '),
       confirmation,
     };
@@ -1730,6 +1738,8 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     volumeConfirms,
     signalFlags,
     coinHero,
+    actionBias,
+    coinPriorityEntry,
   ]);
 
   const pulseTrigger = useMemo(() => {

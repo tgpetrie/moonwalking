@@ -109,11 +109,20 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
           },
         },
         {
+          id: "btc-breadth-thrust",
+          symbol: "BTC-USD",
+          type_key: "breadth_thrust",
+          severity: "info",
+          ts_ms: nowMs - 20_000,
+          expires_at: new Date(nowMs + 5 * 60_000).toISOString(),
+          evidence: { pct_1m: 0.1 },
+        },
+        {
           id: "btc-breakout",
           symbol: "BTC-USD",
           type_key: "breakout",
           severity: "info",
-          ts_ms: nowMs - 20_000,
+          ts_ms: nowMs - 40_000,
           expires_at: new Date(nowMs + 5 * 60_000).toISOString(),
           evidence: { pct_1m: 0.1 },
         },
@@ -171,6 +180,9 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
     const quickBuyRead = screen.getByText("Quick Buy Read").closest(".cp-quick-read");
     expect(quickBuyRead).toHaveClass("cp-quick-read--negative");
     await waitFor(() => {
+      expect(within(quickBuyRead).getByText("WAIT")).toBeInTheDocument();
+      expect(within(quickBuyRead).getByText("This setup can break either way. Wait for reclaim or cleaner failure.")).toBeInTheDocument();
+      expect(within(quickBuyRead).getByText(/active risk warning to clear/i)).toBeInTheDocument();
       expect(within(quickBuyRead).queryByText("BUY WATCH")).not.toBeInTheDocument();
     });
   });
