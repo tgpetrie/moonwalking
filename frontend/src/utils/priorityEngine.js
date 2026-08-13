@@ -287,6 +287,37 @@ export const priorityStateForEntry = (entry) => {
   return "Fragile";
 };
 
+const PRIORITY_STATE_ORDER = [
+  "Dominant",
+  "Persistent",
+  "Building",
+  "Reversal Risk",
+  "Fragile",
+  "Fading",
+];
+
+const comparePriorityEntries = (a, b) => {
+  const stateDelta =
+    PRIORITY_STATE_ORDER.indexOf(a.stateLabel) -
+    PRIORITY_STATE_ORDER.indexOf(b.stateLabel);
+  return stateDelta || b.score - a.score || b.lastTsMs - a.lastTsMs;
+};
+
+const selectCanonicalEntry = (entries) => {
+  const currentRisk = entries
+    .filter(
+      (entry) =>
+        entry.stateLabel === "Reversal Risk" &&
+        entry.noConfirmMs < PRIORITY_FADING_MS
+    )
+    .sort(comparePriorityEntries)[0];
+  if (currentRisk) return currentRisk;
+
+  // Once risk is stale, current directional evidence is the better authority.
+  const nonRisk = entries.filter((entry) => entry.stateLabel !== "Reversal Risk");
+  return [...(nonRisk.length ? nonRisk : entries)].sort(comparePriorityEntries)[0];
+};
+
 export const buildPriorityItems = ({
   alerts = [],
   gainers1m = [],
@@ -413,19 +444,14 @@ export const buildPriorityItems = ({
     return { ...entry, score, stateLabel: priorityStateForEntry({ ...entry, score }) };
   });
 
-  const ordered = ["Dominant", "Persistent", "Building", "Reversal Risk", "Fading"]
-    .flatMap((label) =>
-      ranked
-        .filter((item) => item.stateLabel === label)
-        .sort((a, b) => b.score - a.score || b.lastTsMs - a.lastTsMs)
-    );
-  const deduped = [];
-  const seenSymbols = new Set();
-  for (const item of ordered) {
-    if (seenSymbols.has(item.symbol)) continue;
-    seenSymbols.add(item.symbol);
-    deduped.push(item);
-    if (Number.isFinite(limit) && deduped.length >= limit) break;
+  const entriesBySymbol = new Map();
+  for (const entry of ranked) {
+    const entries = entriesBySymbol.get(entry.symbol) || [];
+    entries.push(entry);
+    entriesBySymbol.set(entry.symbol, entries);
   }
-  return deduped;
+
+  const canonical = Array.from(entriesBySymbol.values()).map(selectCanonicalEntry);
+  const ordered = canonical.sort(comparePriorityEntries);
+  return Number.isFinite(limit) ? ordered.slice(0, limit) : ordered;
 };

@@ -94,6 +94,77 @@ describe("shared priority engine", () => {
     expect(items[0].score).toBe(99);
   });
 
+  it("keeps current Reversal Risk canonical when stronger bullish evidence competes", () => {
+    const items = buildPriorityItems({
+      ...deterministicInput,
+      alerts: [
+        ...deterministicInput.alerts,
+        alert({
+          id: "current-risk",
+          type_key: "social_divergence",
+          ts_ms: NOW - 20_000,
+          evidence: {
+            pct_3m: 2,
+            volume_change_1h_pct: -20,
+          },
+        }),
+      ],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      symbol: "BTC",
+      bucket: "divergence",
+      stateLabel: "Reversal Risk",
+    });
+  });
+
+  it("lets current bullish evidence supersede stale Reversal Risk", () => {
+    const items = buildPriorityItems({
+      ...deterministicInput,
+      alerts: [
+        ...deterministicInput.alerts,
+        alert({
+          id: "stale-risk",
+          type_key: "social_divergence",
+          ts_ms: NOW - 4 * 60_000,
+          evidence: {
+            pct_3m: 2,
+            volume_change_1h_pct: -20,
+          },
+        }),
+      ],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      symbol: "BTC",
+      bucket: "bullish",
+      stateLabel: "Dominant",
+    });
+  });
+
+  it("returns Fragile entries instead of dropping the coin", () => {
+    const items = buildPriorityItems({
+      alerts: [
+        alert({
+          id: "fragile",
+          type_key: "breakout",
+          evidence: { pct_1m: 4 },
+        }),
+      ],
+      nowMs: NOW,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      symbol: "BTC",
+      stateLabel: "Fragile",
+    });
+    expect(items[0].score).toBeGreaterThanOrEqual(40);
+    expect(items[0].score).toBeLessThan(55);
+  });
+
   it("deduplicates active and recent alerts and excludes expired evidence", () => {
     const live = alert({ expires_at: new Date(NOW + 60_000).toISOString() });
     const expired = alert({
