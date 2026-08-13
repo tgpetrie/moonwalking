@@ -237,14 +237,17 @@ class SignalOutcomeStore:
                     row["direction"], float(row["start_price"]), current
                 )
                 age = max(0, now_ts - int(row["started_ts"]))
-                max_favorable = max(float(row["max_favorable_pct"] or 0), directional)
-                max_adverse = min(float(row["max_adverse_pct"] or 0), directional)
+                max_favorable = float(row["max_favorable_pct"] or 0)
+                max_adverse = float(row["max_adverse_pct"] or 0)
                 target_hit = row["target_hit_ts"]
                 adverse_hit = row["adverse_hit_ts"]
-                if target_hit is None and directional >= self.target_pct:
-                    target_hit = now_ts
-                if adverse_hit is None and directional <= -self.adverse_pct:
-                    adverse_hit = now_ts
+                if age <= self.horizon_seconds:
+                    max_favorable = max(max_favorable, directional)
+                    max_adverse = min(max_adverse, directional)
+                    if target_hit is None and directional >= self.target_pct:
+                        target_hit = now_ts
+                    if adverse_hit is None and directional <= -self.adverse_pct:
+                        adverse_hit = now_ts
 
                 updates: dict[str, Any] = {
                     "last_ts": now_ts,

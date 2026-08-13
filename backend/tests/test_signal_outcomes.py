@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 try:
     from signal_outcomes import SignalOutcomeStore
 except Exception:  # pragma: no cover
@@ -18,6 +20,16 @@ def _event(signal_id="signal-1", direction="up"):
         "the_read": {"label": "CONTINUATION FAVORED"},
         "evidence": {"price": 100},
     }
+
+
+def _row(store, signal_id):
+    conn = store._connect()
+    try:
+        return conn.execute(
+            "SELECT * FROM signal_outcomes WHERE signal_id = ?", (signal_id,)
+        ).fetchone()
+    finally:
+        conn.close()
 
 
 def test_outcome_store_records_target_before_adverse(tmp_path):
@@ -65,3 +77,41 @@ def test_down_direction_scores_falling_price_as_favorable(tmp_path):
     history = store.history_for(event)
 
     assert history["follow_through_rate"] == 1.0
+
+
+def test_sample_after_horizon_cannot_create_target_or_favorable_extreme(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-late-target")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 105}, now_ts=4601)
+
+    row = _row(store, "signal-late-target")
+
+    assert row["target_hit_ts"] is None
+    assert row["max_favorable_pct"] == 0.0
+    assert row["complete"] == 1
+    assert row["outcome"] == "did_not_follow_through"
+
+
+def test_sample_after_horizon_cannot_create_adverse_hit_or_extreme(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-late-adverse")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 90}, now_ts=4601)
+
+    row = _row(store, "signal-late-adverse")
+
+    assert row["adverse_hit_ts"] is None
+    assert row["max_adverse_pct"] == 0.0
+    assert row["complete"] == 1
+
+
+def test_sample_at_horizon_boundary_still_counts(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-boundary")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 102.5}, now_ts=4600)
+
+    row = _row(store, "signal-boundary")
+
+    assert row["target_hit_ts"] == 4600
+    assert row["max_favorable_pct"] == pytest.approx(2.5)
+    assert row["complete"] == 1
+    assert row["outcome"] == "followed_through"
