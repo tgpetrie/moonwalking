@@ -1,15 +1,17 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { CoinOutcomeHistory } from "./SentimentPopupAdvanced";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { fetchData } from "../api";
+import { useData } from "../context/DataContext";
+import SentimentPopupAdvanced, { CoinOutcomeHistory } from "./SentimentPopupAdvanced";
 
-// SentimentPopupAdvanced imports many context hooks — none are exercised here
-// because we only render the exported pure CoinOutcomeHistory component.
-vi.mock("../context/DataContext", () => ({ useData: () => ({}) }));
+// Keep the popup's broad dependency surface deterministic for both the pure
+// CoinOutcomeHistory tests and the rendered popup regression below.
+vi.mock("../context/DataContext", () => ({ useData: vi.fn(() => ({})) }));
 vi.mock("../hooks/useMarketHeat", () => ({ useMarketHeat: () => ({}) }));
 vi.mock("../api", () => ({ API_ENDPOINTS: {}, fetchData: vi.fn() }));
 vi.mock("../utils/coinHistoryCache", async (importOriginal) => ({
   ...(await importOriginal()),
-  getCoinEvents: vi.fn(),
+  getCoinEvents: vi.fn(() => []),
 }));
 vi.mock("../utils/marketPressure", () => ({ getMarketPressure: vi.fn() }));
 vi.mock("../utils/coinbaseUrl", () => ({ coinbaseSpotUrl: vi.fn() }));
@@ -77,6 +79,100 @@ describe("CoinOutcomeHistory – loading state", () => {
   it("does not show loading message when data is already present", () => {
     render(<CoinOutcomeHistory data={makeData()} loading={true} error={null} symbol="BTC" />);
     expect(screen.queryByText(/Loading track record/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(useData).mockReset();
+    vi.mocked(useData).mockReturnValue({});
+    vi.mocked(fetchData).mockReset();
+  });
+
+  it("keeps Reversal Risk negative when positive 3m tape activates bullish fallbacks", async () => {
+    const nowMs = 1_800_000_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(nowMs);
+
+    vi.mocked(useData).mockReturnValue({
+      activeAlerts: [
+        {
+          id: "btc-social-divergence",
+          symbol: "BTC-USD",
+          type_key: "social_divergence",
+          severity: "high",
+          ts_ms: nowMs - 30_000,
+          expires_at: new Date(nowMs + 5 * 60_000).toISOString(),
+          evidence: {
+            pct_3m: 2.4,
+            volume_change_1h_pct: -20,
+          },
+        },
+        {
+          id: "btc-breakout",
+          symbol: "BTC-USD",
+          type_key: "breakout",
+          severity: "info",
+          ts_ms: nowMs - 20_000,
+          expires_at: new Date(nowMs + 5 * 60_000).toISOString(),
+          evidence: { pct_1m: 0.1 },
+        },
+      ],
+      alertsRecent: [],
+      connectionStatus: "LIVE",
+      gainers_1m: [{ symbol: "BTC-USD", rank: 1 }],
+      gainers_3m: [{ symbol: "BTC-USD", rank: 1 }],
+      losers_3m: [],
+      liveRankings: [{
+        symbol: "BTC-USD",
+        live_rank: 1,
+        universe_size: 100,
+        live_score: 88,
+        data_quality: 100,
+        observed_inputs: 6,
+        expected_inputs: 6,
+      }],
+    });
+    vi.mocked(fetchData).mockImplementation(async (endpoint) => {
+      if (String(endpoint).includes("/api/insights/")) {
+        return {
+          symbol: "BTC",
+          change_1m: 0.8,
+          change_3m: 2.4,
+          change_1h: 4.1,
+          volume_change_1h: -20,
+          updated_at: nowMs,
+        };
+      }
+      if (String(endpoint).includes("/api/positioning/")) return { available: false };
+      return null;
+    });
+
+    render(
+      <SentimentPopupAdvanced
+        isOpen
+        onClose={vi.fn()}
+        symbol="BTC"
+      />
+    );
+
+    expect(await screen.findByText("STAY CLEAR")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+
+    const actionBias = screen.getByText("Action Bias").closest(".cp-hero");
+    expect(actionBias).toHaveClass("cp-hero--negative");
+    expect(actionBias).not.toHaveClass("cp-hero--positive");
+    expect(within(actionBias).getByText("Stand aside")).toBeInTheDocument();
+
+    const fragileSetup = screen.getByText("Fragile").closest(".cp-support-pill");
+    expect(fragileSetup).toHaveClass("cp-support-pill--negative");
+
+    const quickBuyRead = screen.getByText("Quick Buy Read").closest(".cp-quick-read");
+    expect(quickBuyRead).toHaveClass("cp-quick-read--negative");
+    await waitFor(() => {
+      expect(within(quickBuyRead).queryByText("BUY WATCH")).not.toBeInTheDocument();
+    });
   });
 });
 
