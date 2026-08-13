@@ -1550,6 +1550,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     () => priorityEntries.find((entry) => entry.symbol === coinSymbol) || null,
     [priorityEntries, coinSymbol]
   );
+  const hasCanonicalNegativeState = ['Reversal Risk', 'Fragile', 'Fading'].includes(coinPriorityEntry?.stateLabel);
   const coinEvidenceEmptyCopy = useMemo(() => {
     if (!coinSymbol) return 'No live coin signal right now.';
     if (!fallbackCoinAlerts.length && cachedCoinHistory.length) {
@@ -1586,10 +1587,17 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
 
   const setupQuality = useMemo(() => {
     if (confidencePct === null) return { label: 'Forming', detail: 'Need more tape to score setup quality.', tone: 'neutral' };
+    if (hasCanonicalNegativeState) {
+      return {
+        label: 'Fragile',
+        detail: 'Positive confirmation cannot override the canonical risk state.',
+        tone: 'negative',
+      };
+    }
     if (confidencePct >= 75) return { label: 'Strong', detail: 'Driven by confirmation, persistence, and volume support.', tone: 'positive' };
     if (confidencePct >= 55) return { label: 'Mixed', detail: 'Some confirmation is present, but conviction is not clean yet.', tone: 'neutral' };
     return { label: 'Fragile', detail: 'Mixed alignment or weak confirmation reduces trust.', tone: 'negative' };
-  }, [confidencePct]);
+  }, [confidencePct, hasCanonicalNegativeState]);
 
   const freshAgeMs = useMemo(() => {
     const ts = coinPriorityEntry?.lastTsMs ?? normalizeTsMs(lastCoinUpdateTs);
@@ -1777,6 +1785,13 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const THRESH = 0.15; // percent — below this is baseline alt wiggle
     const bias = coinPositioning?.available ? coinPositioning.funding_bias : null;
     if (mom >= THRESH) {
+      if (hasCanonicalNegativeState) {
+        return {
+          label: 'TAPE UP',
+          tone: 'caution',
+          note: 'Short-term tape is pushing up, but the risk warning overrides entry quality.',
+        };
+      }
       if (bias === 'crowded_long') return { label: 'TAPE UP', tone: 'caution', note: 'Up, but longs are crowded — squeeze risk.' };
       if (bias === 'short' || bias === 'crowded_short') return { label: 'TAPE UP', tone: 'positive', note: 'Up with shorts paying — clean push.' };
       return { label: 'TAPE UP', tone: 'positive', note: 'Short-term tape is pushing up.' };
@@ -1787,7 +1802,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       return { label: 'TAPE DOWN', tone: 'negative', note: 'Short-term tape is pushing down.' };
     }
     return { label: 'NEUTRAL', tone: 'neutral', note: 'No clear fast lean right now.' };
-  }, [change1m, change3m, coinPositioning]);
+  }, [change1m, change3m, coinPositioning, hasCanonicalNegativeState]);
 
   const simpleCoinRead = useMemo(() => {
     if (!metricsReady) {
@@ -1977,10 +1992,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     {
       label: 'Trigger',
       value: pulseTrigger,
-      tone: freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
+      tone: !hasCanonicalNegativeState && freshAgeMs !== null && freshAgeMs <= PRIORITY_FRESH_MS ? 'positive' : 'neutral',
       sub: 'Fresh inside 2m. Fade threshold 3.5m.',
     },
-  ]), [setupQuality, coinPriorityEntry, persistenceStreak, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs]);
+  ]), [setupQuality, coinPriorityEntry, persistenceStreak, marketPressureSummary, breadthRead, pulseTrigger, freshAgeMs, hasCanonicalNegativeState]);
 
   const intelHero = useMemo(() => {
     const hasEvents = Boolean(coinIntel?.events?.items?.length);

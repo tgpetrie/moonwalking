@@ -106,6 +106,7 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
           evidence: {
             pct_3m: 2.4,
             volume_change_1h_pct: -20,
+            streak: 4,
           },
         },
         {
@@ -149,7 +150,7 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
           change_1m: 0.8,
           change_3m: 2.4,
           change_1h: 4.1,
-          volume_change_1h: -20,
+          volume_change_1h: 20,
           updated_at: nowMs,
         };
       }
@@ -167,6 +168,10 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
 
     expect(await screen.findByText("STAY CLEAR")).toBeInTheDocument();
 
+    const earlyRead = screen.getByText("Early read").closest("div");
+    expect(within(earlyRead).getByText("TAPE UP")).toHaveStyle({ color: "#f1b43a" });
+    expect(within(earlyRead).getByText(/risk warning overrides entry quality/i)).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
 
     const actionBias = screen.getByText("Action Bias").closest(".cp-hero");
@@ -176,6 +181,10 @@ describe("SentimentPopupAdvanced - rendered semantic consistency", () => {
 
     const fragileSetup = screen.getByText("Fragile").closest(".cp-support-pill");
     expect(fragileSetup).toHaveClass("cp-support-pill--negative");
+
+    const freshTrigger = screen.getByText("Fresh 30s").closest(".cp-support-pill");
+    expect(freshTrigger).toHaveClass("cp-support-pill--neutral");
+    expect(freshTrigger).not.toHaveClass("cp-support-pill--positive");
 
     const quickBuyRead = screen.getByText("Quick Buy Read").closest(".cp-quick-read");
     expect(quickBuyRead).toHaveClass("cp-quick-read--negative");
