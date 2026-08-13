@@ -404,7 +404,7 @@ export default function ScorecardPage() {
         </div>
         <div className="sc-overview__card">
           <span className="sc-overview__label">
-            Overall accuracy
+            Overall follow-through
             <Tip text="Across all signal types, how often the price hit the target before hitting the stop" />
           </span>
           <span className="sc-overview__value">{fmt(sig.overall_win_rate)}</span>
@@ -446,7 +446,7 @@ export default function ScorecardPage() {
               className={sortBy === "win_rate" ? "is-active" : ""}
               onClick={() => setSortBy("win_rate")}
             >
-              Best accuracy
+              Best follow-through
             </button>
             <button
               className={sortBy === "recent" ? "is-active" : ""}

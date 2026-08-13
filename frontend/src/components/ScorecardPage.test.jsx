@@ -162,11 +162,14 @@ describe("ScorecardPage – aggregate statistics", () => {
     );
   });
 
-  it("renders the overall accuracy as a percentage", async () => {
+  it("labels target-before-adverse results as follow-through, not accuracy", async () => {
     render(<ScorecardPage />);
-    await waitFor(() =>
-      expect(screen.getByText("21.0%")).toBeInTheDocument()
-    );
+    await waitFor(() => {
+      expect(screen.getByText("Overall follow-through")).toBeInTheDocument();
+      expect(screen.getByText("Best follow-through")).toBeInTheDocument();
+      expect(screen.getByText("21.0%")).toBeInTheDocument();
+      expect(screen.queryByText(/accuracy/i)).not.toBeInTheDocument();
+    });
   });
 
   it("renders the target move percentage", async () => {
