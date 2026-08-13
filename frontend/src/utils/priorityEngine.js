@@ -270,10 +270,11 @@ export const buildRankSummary = (entry) => {
 };
 
 export const priorityStateForEntry = (entry) => {
+  if (entry.noConfirmMs >= PRIORITY_FADING_MS) return "Fading";
   if (entry.reversalRiskScore >= 14 || entry.bucket === "divergence") {
     return "Reversal Risk";
   }
-  if (entry.noConfirmMs >= PRIORITY_FADING_MS || entry.score < 40) return "Fading";
+  if (entry.score < 40) return "Fading";
   if (
     entry.score >= 85 &&
     entry.freshConfirms >= 1 &&

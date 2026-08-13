@@ -561,15 +561,18 @@ export const resolveWaitHeadline = ({ breakoutUp, score }) => {
 // setup. Callers must handle the `metricsReady` guard separately.
 export const computePostureLabel = ({
   score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
-  historyWeak, hardRisk, breakoutUp, change1m, change3m,
+  historyWeak, hardRisk, breakoutUp, change1m, change3m, canonicalState,
 }) => {
   const alignedUp   = alignmentLabel === 'Aligned Up';
   const alignedDown = alignmentLabel === 'Aligned Down';
+  const canonicalWeak = canonicalState === 'Fading' || canonicalState === 'Fragile';
   // Both short-term timeframes must be positive for the early gate.
   const shortTermUp = change1m != null && change1m > 0 && change3m != null && change3m > 0;
 
   if (hardRisk || alignedDown || score < 42)
     return 'STAY CLEAR';
+  if (canonicalWeak)
+    return 'WAIT';
   if (score >= 70 && alignedUp && volumeConfirms && persistenceGood && breadthUp >= 0.45 && !historyWeak)
     return 'STRONG SETUP';
   if (score >= 60 && volumeConfirms && alignedUp)
@@ -1841,6 +1844,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     const label = computePostureLabel({
       score, alignmentLabel, volumeConfirms, persistenceGood, breadthUp,
       historyWeak, hardRisk, breakoutUp, change1m, change3m,
+      canonicalState: coinPriorityEntry?.stateLabel,
     });
     const tone = label === 'STAY CLEAR' ? 'negative'
                : label === 'WAIT'       ? 'neutral'

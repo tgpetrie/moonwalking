@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PRIORITY_FADING_MS,
   PRIORITY_HALF_LIFE_MS,
   buildPriorityEvidence,
   buildPriorityItems,
@@ -119,20 +120,36 @@ describe("shared priority engine", () => {
     });
   });
 
-  it("lets current bullish evidence supersede stale Reversal Risk", () => {
+  it("transitions stale risk to Fading and lets current bullish evidence win", () => {
+    const currentRisk = alert({
+      id: "current-risk-boundary",
+      type_key: "social_divergence",
+      ts_ms: NOW - PRIORITY_FADING_MS + 1,
+    });
+    expect(buildPriorityItems({ alerts: [currentRisk], nowMs: NOW })[0]).toMatchObject({
+      bucket: "divergence",
+      stateLabel: "Reversal Risk",
+    });
+
+    const staleRisk = alert({
+      id: "stale-risk",
+      type_key: "social_divergence",
+      ts_ms: NOW - PRIORITY_FADING_MS,
+      evidence: {
+        pct_3m: 2,
+        volume_change_1h_pct: -20,
+      },
+    });
+    expect(buildPriorityItems({ alerts: [staleRisk], nowMs: NOW })[0]).toMatchObject({
+      bucket: "divergence",
+      stateLabel: "Fading",
+    });
+
     const items = buildPriorityItems({
       ...deterministicInput,
       alerts: [
         ...deterministicInput.alerts,
-        alert({
-          id: "stale-risk",
-          type_key: "social_divergence",
-          ts_ms: NOW - 4 * 60_000,
-          evidence: {
-            pct_3m: 2,
-            volume_change_1h_pct: -20,
-          },
-        }),
+        staleRisk,
       ],
     });
 

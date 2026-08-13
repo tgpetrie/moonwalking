@@ -307,6 +307,11 @@ describe('computePostureLabel – hard vetoes', () => {
   it('returns STAY CLEAR when score is below 42', () => {
     expect(computePostureLabel({ ...BASE_GOOD, score: 41 })).toBe('STAY CLEAR');
   });
+
+  it('keeps canonical Fading and Fragile states non-bullish', () => {
+    expect(computePostureLabel({ ...BASE_GOOD, canonicalState: 'Fading' })).toBe('WAIT');
+    expect(computePostureLabel({ ...BASE_GOOD, canonicalState: 'Fragile' })).toBe('WAIT');
+  });
 });
 
 describe('computePostureLabel – STRONG SETUP', () => {
@@ -528,9 +533,8 @@ describe('isReversalRiskCurrent – veto when current, pass when stale', () => {
     })).toBe('STAY CLEAR');
   });
 
-  it('stale Reversal Risk (noConfirmMs >= PRIORITY_FADING_MS) does NOT produce hardRisk', () => {
-    // isReversalRiskCurrent returns false → hardRisk = false → EARLY SETUP possible
-    const staleEntry = { stateLabel: 'Reversal Risk', noConfirmMs: 5 * 60 * 1000 };
+  it('stale risk becomes canonical Fading and cannot produce a bullish posture', () => {
+    const staleEntry = { stateLabel: 'Fading', noConfirmMs: 5 * 60 * 1000 };
     expect(isReversalRiskCurrent(staleEntry)).toBe(false);
     expect(computePostureLabel({
       ...BASE_GOOD,
@@ -541,7 +545,8 @@ describe('isReversalRiskCurrent – veto when current, pass when stale', () => {
       change1m: 0.3,
       change3m: 0.3,
       hardRisk: isReversalRiskCurrent(staleEntry),
-    })).toBe('EARLY SETUP');
+      canonicalState: staleEntry.stateLabel,
+    })).toBe('WAIT');
   });
 
   it('Dominant stateLabel is never a Reversal Risk regardless of noConfirmMs', () => {
