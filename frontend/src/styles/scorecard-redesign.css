@@ -1653,3 +1653,71 @@
 .scr-barrow__pct[data-tone="none"] {
   color: rgba(255, 255, 255, 0.3);
 }
+
+/* == Collection progress ==============================================
+   Shown instead of an empty chart. An empty chart implies we measured and
+   found nothing; this says plainly that measurement is still running. */
+
+.scr-collecting {
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.scr-collecting__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.scr-collecting__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-collecting__count {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.scr-collecting__track {
+  height: 6px;
+  border-radius: var(--r-1);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.scr-collecting__fill {
+  height: 100%;
+  background: var(--brand-amber, #ffb347);
+  transition: width 500ms ease;
+}
+
+.scr-collecting__note {
+  margin: 10px 0 0;
+  max-width: 74ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.scr-piewrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.scr-piewrap__caption {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.32);
+}

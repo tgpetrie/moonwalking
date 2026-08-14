@@ -852,6 +852,42 @@ function SignalBars({ items, baseline, onSelect, selected }) {
   );
 }
 
+/**
+ * What to show when nothing has finished yet.
+ *
+ * An empty chart is theatre: it implies we measured something and found
+ * nothing. In fact collection is simply still running, and the honest,
+ * useful thing to show is how far along it is.
+ */
+function CollectingPanel({ progress, noun = "signals" }) {
+  if (!progress) return null;
+  const total = Number(progress.total) || 0;
+  const complete = Number(progress.complete) || 0;
+  const collecting = Number(progress.collecting) || Math.max(0, total - complete);
+  const horizon = Number(progress.horizon_minutes) || 60;
+  const pct = total > 0 ? complete / total : 0;
+
+  return (
+    <div className="scr-collecting">
+      <div className="scr-collecting__head">
+        <span className="scr-collecting__title">Still collecting</span>
+        <span className="scr-collecting__count">
+          {count(complete)} of {count(total)} graded
+        </span>
+      </div>
+      <div className="scr-collecting__track">
+        <div className="scr-collecting__fill" style={{ width: `${pct * 100}%` }} />
+      </div>
+      <p className="scr-collecting__note">
+        {count(collecting)} {noun} recorded and waiting. Each one is graded{" "}
+        {horizon} minutes after it fires, so the first results appear up to{" "}
+        {horizon} minutes after collection starts. Nothing is wrong — there is
+        simply nothing finished to score yet.
+      </p>
+    </div>
+  );
+}
+
 /** Annular sector path — the wedge of a donut between two angles. */
 function ringPath(cx, cy, rOuter, rInner, a0, a1) {
   const p = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -1010,13 +1046,20 @@ function SignalPie({ items, onSelect, selected, centerLabel, centerSub }) {
   );
 }
 
-/** The legend doubles as the place a selected section is blown up. */
+/**
+ * The legend doubles as the place a selected section is blown up.
+ *
+ * Its headline number is the slice size, so legend and chart always agree.
+ * Accuracy is a different question and is labelled as one.
+ */
 function PieLegend({ items, selected, onSelect, detailFor }) {
+  const total = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
   return (
     <ul className="scr-legend">
       {items.map((item, i) => {
         const color = SLICE_COLORS[i % SLICE_COLORS.length];
         const isSel = selected === item.key;
+        const share = total > 0 ? (Number(item.weight) || 0) / total : 0;
         return (
           <li key={item.key} className={"scr-legend__item" + (isSel ? " is-open" : "")}>
             <button
@@ -1028,11 +1071,14 @@ function PieLegend({ items, selected, onSelect, detailFor }) {
               <span className="scr-legend__swatch" style={{ background: color }} />
               <span className="scr-legend__text">
                 <span className="scr-legend__name">{item.name}</span>
-                <span className="scr-legend__sub">{item.sub}</span>
+                <span className="scr-legend__sub">
+                  {count(item.weight)} of {count(total)} ·{" "}
+                  {item.value == null ? "not graded yet" : `worked ${rate(item.value)} of the time`}
+                </span>
               </span>
-              <span className="scr-legend__pct" data-tone={toneOf(item.value)}>
-                {rate(item.value)}
-                <span className="scr-legend__pct-label">right</span>
+              <span className="scr-legend__pct">
+                {rate(share)}
+                <span className="scr-legend__pct-label">of calls</span>
               </span>
             </button>
             {isSel ? <div className="scr-legend__detail">{detailFor(item)}</div> : null}
@@ -1045,7 +1091,7 @@ function PieLegend({ items, selected, onSelect, detailFor }) {
 
 const CHART_STYLES = [
   { key: "bars", label: "Bars" },
-  { key: "split", label: "Pie" },
+  { key: "split", label: "Volume mix" },
   { key: "gauges", label: "Gauges" },
 ];
 
@@ -1080,13 +1126,16 @@ function ScoreGroup({ items, baseline, style, detailFor, centerLabel, centerSub 
   if (style === "split") {
     return (
       <div className="scr-chart scr-chart--split">
-        <SignalPie
-          items={items}
-          onSelect={setSelected}
-          selected={selected}
-          centerLabel={centerLabel}
-          centerSub={centerSub}
-        />
+        <div className="scr-piewrap">
+          <span className="scr-piewrap__caption">Share of calls made — not accuracy</span>
+            <SignalPie
+            items={items}
+            onSelect={setSelected}
+            selected={selected}
+            centerLabel={centerLabel}
+            centerSub={centerSub}
+          />
+        </div>
         <PieLegend
           items={items}
           selected={selected}
@@ -1118,8 +1167,9 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
   const [data, setData] = useState(() => (previewMode ? DEMO_SCORECARD : null));
   const [error, setError] = useState(null);
   const [showingLive, setShowingLive] = useState(!previewMode);
+  const [progress, setProgress] = useState(null);
   const [order, setOrder] = useState("trust");
-  const [chartStyle, setChartStyle] = useState("split");
+  const [chartStyle, setChartStyle] = useState("bars");
   const [coinInput, setCoinInput] = useState("BTC");
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinError, setCoinError] = useState(null);
@@ -1148,8 +1198,24 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
         if (!cancelled && !previewMode) setError(e.message);
       }
     }
+    async function loadProgress() {
+      try {
+        const res = await fetch(`${API_BASE}/api/signals/outcomes/status`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setProgress(json);
+      } catch {
+        /* progress is a nicety; never let it break the page */
+      }
+    }
     load();
-    const interval = setInterval(load, 60_000);
+    loadProgress();
+    const interval = setInterval(() => {
+      load();
+      loadProgress();
+    }, 60_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -1388,17 +1454,19 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
               <SetupDetail card={item.card} baseline={baseline} name={item.name} />
             )}
           />
+        ) : progress && Number(progress.total) > 0 ? (
+          <CollectingPanel progress={progress} noun="signals" />
         ) : (
           <div className="scr-empty">
-            No setup has been measured enough times to score yet. Each one needs at least a
-            handful of finished outcomes before it shows up here.
+            No signals have been recorded yet. They appear here once BHABIT fires one and its
+            outcome is graded.
           </div>
         )}
       </Zone>
 
       {/* ── Zone 3 — historical board performance ── */}
       <Zone step="3" tone="boards" title="Board history">
-        {boards.length > 0 ? (
+        {boards.length > 0 && boards.some((b) => Number(b.sample_size) > 0) ? (
           <ScoreGroup
             items={boardItems}
             baseline={null}
@@ -1406,6 +1474,16 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
             centerLabel={count(data.boards?.total_entries)}
             centerSub="appearances"
             detailFor={(item) => <BoardDetail board={item.board} name={item.name} />}
+          />
+        ) : Number(data.boards?.total_entries) > 0 ? (
+          <CollectingPanel
+            progress={{
+              total: Number(data.boards?.total_entries) || 0,
+              complete: 0,
+              collecting: Number(data.boards?.total_entries) || 0,
+              horizon_minutes: sig.horizon_minutes,
+            }}
+            noun="board appearances"
           />
         ) : (
           <div className="scr-empty">No board results have been measured yet.</div>

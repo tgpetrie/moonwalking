@@ -84,24 +84,29 @@ function makeResponse(overrides = {}) {
   };
 }
 
-function mockFetch(payload, ok = true) {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok,
-    json: vi.fn().mockResolvedValue(payload),
+function routeFetch({ scorecard, coin, progress, coinOk = true }) {
+  global.fetch = vi.fn(async (url) => {
+    const href = String(url);
+    if (href.includes("/api/signals/outcomes/status")) {
+      return {
+        ok: Boolean(progress),
+        status: progress ? 200 : 404,
+        json: vi.fn().mockResolvedValue(progress || {}),
+      };
+    }
+    if (href.includes("/api/coin-history/")) {
+      return {
+        ok: coinOk,
+        status: coinOk ? 200 : 500,
+        json: vi.fn().mockResolvedValue(coin || {}),
+      };
+    }
+    return { ok: true, status: 200, json: vi.fn().mockResolvedValue(scorecard) };
   });
 }
 
-function mockFetchSequence(responses) {
-  const queued = [...responses];
-  global.fetch = vi.fn(async () => {
-    const next = queued.shift();
-    if (!next) throw new Error("Unexpected fetch");
-    return {
-      ok: next.ok !== false,
-      status: next.status ?? 200,
-      json: vi.fn().mockResolvedValue(next.payload),
-    };
-  });
+function mockFetch(payload) {
+  routeFetch({ scorecard: payload });
 }
 
 async function renderLoaded(payload = makeResponse(), props = {}) {
@@ -344,21 +349,23 @@ describe("ScorecardRedesignPage – zone separation", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardRedesignPage – chart treatments", () => {
-  it("defaults to the sectioned pie", async () => {
+  // Bars are the default: the question is "was it right?", which is a rate,
+  // and rates across categories do not sum to 100%.
+  it("defaults to bars, not the volume pie", async () => {
     const { container } = await renderLoaded();
-    expect(container.querySelector(".scr-chartswitch__btn.is-active").textContent).toBe("Pie");
-    expect(signalsZone(container).querySelector(".scr-pie")).toBeTruthy();
+    expect(container.querySelector(".scr-chartswitch__btn.is-active").textContent).toBe("Bars");
+    expect(signalsZone(container).querySelector(".scr-barrow")).toBeTruthy();
+    expect(signalsZone(container).querySelector(".scr-pie")).toBeNull();
   });
 
   it("offers bars and gauges as alternatives", async () => {
     const { container } = await renderLoaded();
     expect(
       [...container.querySelectorAll(".scr-chartswitch__btn")].map((b) => b.textContent)
-    ).toEqual(["Bars", "Pie", "Gauges"]);
+    ).toEqual(["Bars", "Volume mix", "Gauges"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bars" }));
-    await waitFor(() => expect(signalsZone(container).querySelector(".scr-barrow")).toBeTruthy());
-    expect(signalsZone(container).querySelector(".scr-pie")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
+    await waitFor(() => expect(signalsZone(container).querySelector(".scr-pie")).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: "Gauges" }));
     await waitFor(() => expect(signalsZone(container).querySelector(".scr-donut")).toBeTruthy());
@@ -368,20 +375,32 @@ describe("ScorecardRedesignPage – chart treatments", () => {
     const { container } = await renderLoaded(
       makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION, SETUP_THIN] } })
     );
+    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
     const zone = signalsZone(container);
-    expect(zone.querySelectorAll(".scr-pie__slice").length).toBe(3);
+    await waitFor(() => expect(zone.querySelectorAll(".scr-pie__slice").length).toBe(3));
 
     // Each section gets its own fill, and the legend lists one row per section.
     const fills = [...zone.querySelectorAll(".scr-pie__slice")].map((s) => s.getAttribute("fill"));
     expect(new Set(fills).size).toBe(3);
     expect(zone.querySelectorAll(".scr-legend__item").length).toBe(3);
+
+    // Legend headline is the slice share, so chart and legend always agree.
+    const shares = [...zone.querySelectorAll(".scr-legend__pct")].map((el) =>
+      parseInt(el.textContent, 10)
+    );
+    expect(shares.reduce((a, b) => a + b, 0)).toBeGreaterThan(95);
+    for (const el of zone.querySelectorAll(".scr-legend__pct-label")) {
+      expect(el.textContent).toBe("of calls");
+    }
   });
 
   it("blows up the selected section and shows its detail alongside", async () => {
     const { container } = await renderLoaded(
       makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION] } })
     );
+    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
     const zone = signalsZone(container);
+    await waitFor(() => expect(zone.querySelector(".scr-legend__row")).toBeTruthy());
     expect(zone.querySelector(".scr-legend__detail")).toBeNull();
 
     fireEvent.click(zone.querySelectorAll(".scr-legend__row")[0]);
@@ -396,20 +415,35 @@ describe("ScorecardRedesignPage – chart treatments", () => {
     expect(zone.querySelector(".scr-pie__slice.is-selected")).toBeTruthy();
   });
 
-  it("says so plainly when nothing has been measured yet", async () => {
+  // An empty chart implies we measured and found nothing. Collection still
+  // running is a different fact and gets a different display.
+  it("shows collection progress rather than an empty chart", async () => {
+    routeFetch({
+      scorecard: makeResponse({ signals: { total_graded: 0, signal_types: [] } }),
+      progress: { total: 17, complete: 0, collecting: 17, horizon_minutes: 60 },
+    });
+    const { container } = render(<ScorecardRedesignPage />);
+    await waitFor(() => expect(container.querySelector(".scr-collecting")).toBeTruthy());
+
+    const panel = container.querySelector(".scr-collecting");
+    expect(within(panel).getByText("Still collecting")).toBeInTheDocument();
+    expect(within(panel).getByText("0 of 17 graded")).toBeInTheDocument();
+    expect(panel.textContent).toMatch(/graded 60 minutes after it fires/i);
+  });
+
+  it("falls back to a plain message when nothing has been recorded at all", async () => {
     const { container } = await renderLoaded(
       makeResponse({
-        boards: { total_entries: 0, boards: { ignition_1m: { ...BOARD_READY, sample_size: 0 } } },
+        signals: { total_graded: 0, signal_types: [] },
+        boards: { total_entries: 0, boards: {} },
       })
     );
-    const zone = container.querySelector('.scr-zone[data-tone="boards"]');
-    expect(zone.querySelector(".scr-pie__empty")).toBeTruthy();
-    expect(within(zone).getByText(/nothing measured yet/i)).toBeInTheDocument();
+    expect(within(signalsZone(container)).getByText(/No signals have been recorded yet/i))
+      .toBeInTheDocument();
   });
 
   it("marks the average on the bar chart so a score can be judged against it", async () => {
     const { container } = await renderLoaded();
-    fireEvent.click(screen.getByRole("button", { name: "Bars" }));
     await waitFor(() =>
       expect(signalsZone(container).querySelector(".scr-bars__avg")).toBeTruthy()
     );
@@ -423,7 +457,7 @@ describe("ScorecardRedesignPage – chart treatments", () => {
       makeResponse({ signals: { signal_types: [SETUP_THIN, SETUP_DEEP] } })
     );
     const names = () =>
-      [...signalsZone(container).querySelectorAll(".scr-legend__name")].map((el) => el.textContent);
+      [...signalsZone(container).querySelectorAll(".scr-barrow__name")].map((el) => el.textContent);
 
     expect(names()[0]).toBe("Strong Buy");
     fireEvent.change(screen.getByLabelText("Order by"), { target: { value: "tested" } });
@@ -450,10 +484,10 @@ describe("ScorecardRedesignPage – historical framing", () => {
   it("scores each category against the average inside its detail", async () => {
     const { container } = await renderLoaded();
     const zone = signalsZone(container);
-    fireEvent.click(zone.querySelector(".scr-legend__row"));
-    await waitFor(() => expect(zone.querySelector(".scr-legend__detail")).toBeTruthy());
+    fireEvent.click(zone.querySelector(".scr-barrow"));
+    await waitFor(() => expect(zone.querySelector(".scr-groupdetail")).toBeTruthy());
     expect(
-      within(zone.querySelector(".scr-legend__detail")).getByText(
+      within(zone.querySelector(".scr-groupdetail")).getByText(
         /Well ahead of the average signal/i
       )
     ).toBeInTheDocument();
@@ -481,8 +515,8 @@ describe("ScorecardRedesignPage – historical framing", () => {
   it("spells out the edge against similar coins in the board detail", async () => {
     const { container } = await renderLoaded();
     const zone = container.querySelector('.scr-zone[data-tone="boards"]');
-    fireEvent.click(zone.querySelector(".scr-legend__row"));
-    await waitFor(() => expect(zone.querySelector(".scr-legend__detail")).toBeTruthy());
+    fireEvent.click(zone.querySelector(".scr-barrow"));
+    await waitFor(() => expect(zone.querySelector(".scr-groupdetail")).toBeTruthy());
     expect(zone.textContent).toMatch(/changed the odds by -2%/i);
   });
 });
@@ -493,20 +527,18 @@ describe("ScorecardRedesignPage – historical framing", () => {
 
 describe("ScorecardRedesignPage – coin drilldown", () => {
   it("loads a coin from the hero picker and refocuses the page on it", async () => {
-    mockFetchSequence([
-      { payload: makeResponse() },
-      {
-        payload: {
-          status: "live",
-          product_id: "ETH-USD",
-          total_outcomes: 32,
-          target_pct: 2.0,
-          adverse_pct: 1.0,
-          horizon_minutes: 60,
-          signal_types: [{ ...SETUP_DEEP, label: "BUY_WATCH", sample_size: 32, win_rate: 0.5625 }],
-        },
+    routeFetch({
+      scorecard: makeResponse(),
+      coin: {
+        status: "live",
+        product_id: "ETH-USD",
+        total_outcomes: 32,
+        target_pct: 2.0,
+        adverse_pct: 1.0,
+        horizon_minutes: 60,
+        signal_types: [{ ...SETUP_DEEP, label: "BUY_WATCH", sample_size: 32, win_rate: 0.5625 }],
       },
-    ]);
+    });
 
     const { container } = render(<ScorecardRedesignPage />);
     await waitFor(() => expect(screen.getByLabelText("Change coin")).toBeInTheDocument());
@@ -522,20 +554,18 @@ describe("ScorecardRedesignPage – coin drilldown", () => {
   });
 
   it("explains a thin coin sample instead of quoting a rate", async () => {
-    mockFetchSequence([
-      { payload: makeResponse() },
-      {
-        payload: {
-          status: "live",
-          product_id: "SOL-USD",
-          total_outcomes: 12,
-          target_pct: 2.0,
-          adverse_pct: 1.0,
-          horizon_minutes: 60,
-          signal_types: [],
-        },
+    routeFetch({
+      scorecard: makeResponse(),
+      coin: {
+        status: "live",
+        product_id: "SOL-USD",
+        total_outcomes: 12,
+        target_pct: 2.0,
+        adverse_pct: 1.0,
+        horizon_minutes: 60,
+        signal_types: [],
       },
-    ]);
+    });
 
     render(<ScorecardRedesignPage />);
     await waitFor(() => expect(screen.getByLabelText("Change coin")).toBeInTheDocument());
@@ -550,14 +580,14 @@ describe("ScorecardRedesignPage – coin drilldown", () => {
   });
 
   it("surfaces a coin lookup failure without breaking the page", async () => {
-    mockFetchSequence([{ payload: makeResponse() }, { ok: false, status: 500, payload: {} }]);
+    routeFetch({ scorecard: makeResponse(), coinOk: false });
 
     const { container } = render(<ScorecardRedesignPage />);
     await waitFor(() => expect(screen.getByLabelText("Change coin")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Show" }));
 
     await waitFor(() => expect(screen.getByText(/Couldn't load BTC/i)).toBeInTheDocument());
-    expect(signalsZone(container).querySelector(".scr-pie")).toBeTruthy();
+    expect(signalsZone(container).querySelector(".scr-barrow")).toBeTruthy();
   });
 });
 

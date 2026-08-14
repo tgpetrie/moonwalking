@@ -2,6 +2,22 @@
 
 Branch: `codex/scorecard-redesign-compare`
 
+## Pick up here
+
+The redesign works and is honest about its data, but it is **not finished as a
+visual design**. Open questions, in the order they matter:
+
+1. **The visual language is still unsettled.** Cards → table → gauges → pie →
+   bars, each rejected for a specific reason recorded below. Bars are the
+   current default because they encode the right variable, not because the
+   design is resolved.
+2. **App-wide type hierarchy is broken at the root** — see Design-system
+   findings. `h1`/`h2` are forced to 800-weight uppercase everywhere, so nothing
+   can read as more important than anything else. This is the single highest
+   leverage fix left and it needs a real type scale.
+3. **The scorecard has nothing to show until the backend has run for an hour.**
+   That is expected, not a bug; see "Empty state is not a bug".
+
 The original scorecard is untouched. The redesign lives beside it so the two can
 be opened side by side and judged against each other.
 
@@ -51,17 +67,35 @@ them from `ScorecardCompare.jsx`, so neither page knows the other exists.
 
 ## Chart treatments
 
-Switchable at runtime via the `Chart` control; default is `split`.
+Switchable at runtime via the `Chart` control. **Default is `bars`.**
 
-- `split` — one sectioned donut per zone, sized by share of calls, colours
-  matched to the legend. Selecting a section lifts it out of the ring and opens
-  its detail alongside.
-- `bars` — one bar per category with the average marked. Best for comparing
-  rates directly.
+- `bars` — one bar per category, length = accuracy, with the overall average
+  marked. This is the default because the question on this page is "was it
+  right?", which is a rate.
+- `split` ("Volume mix") — one sectioned donut per zone. **It encodes share of
+  calls made, not accuracy**, and is captioned as such. Accuracy rates across
+  categories are independent and do not sum to 100%, so a pie cannot show them.
+  When one category dominates, the pie degenerates to a single 100% blob that
+  answers nothing — which is exactly what happened in testing.
+
+  The legend's headline number is the **slice share**, so legend and chart
+  always agree. An earlier version printed accuracy there while sizing slices by
+  volume; two unrelated numbers in one figure read as simply broken. Accuracy
+  now sits on the second line, spelled out as "worked N% of the time". Avoid
+  bare labels like "N% right" — it is never clear what is being counted.
 - `gauges` — a donut per category.
 
-Depth is gradient and shadow only. A real perspective tilt foreshortens the far
-segments and makes equal shares look unequal, which defeats showing shares.
+Depth on the donut is gradient and shadow only. A real perspective tilt
+foreshortens the far segments and makes equal shares look unequal.
+
+## Collection progress instead of empty charts
+
+When nothing has finished grading, the zone shows `CollectingPanel` — a
+progress bar with "N of M graded" and an explanation — rather than an empty
+chart. An empty chart implies we measured and found nothing; the truth is that
+measurement is still running. Progress comes from
+`GET /api/signals/outcomes/status` (`{total, complete, collecting,
+horizon_minutes}`).
 
 ### Why not cards
 
@@ -108,6 +142,19 @@ cd frontend && VITE_PORT=5199 npm run dev
 `vite.config.js` pins `hmr.port` to `VITE_PORT || 5173`. Passing `--port` moves
 the server but leaves the HMR socket on 5173, which fails to connect and makes
 the page reload in a loop. That is the "flashing" symptom.
+
+### Working on another machine, without the backend
+
+The public routes fall back to a fixed sample when no live data exists, so the
+UI is fully explorable with only the frontend running:
+
+```bash
+cd frontend && npm install && VITE_PORT=5199 npm run dev
+```
+
+Then open `/scorecard-compare`. The chip reads **Preview data** and stays that
+way until a backend actually returns graded outcomes — so you can never mistake
+the sample for real results. Design and layout work needs nothing else.
 
 ## Empty state is not a bug
 
