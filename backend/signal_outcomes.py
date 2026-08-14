@@ -257,8 +257,17 @@ class SignalOutcomeStore:
                     "target_hit_ts": target_hit,
                     "adverse_hit_ts": adverse_hit,
                 }
-                for seconds, column in CHECKPOINTS:
-                    if age >= seconds and row[column] is None:
+                checkpoint = next(
+                    (
+                        (seconds, column)
+                        for seconds, column in reversed(CHECKPOINTS)
+                        if age >= seconds
+                    ),
+                    None,
+                )
+                if checkpoint is not None:
+                    _, column = checkpoint
+                    if row[column] is None:
                         updates[column] = directional
                 if age >= self.horizon_seconds:
                     won = target_hit is not None and (

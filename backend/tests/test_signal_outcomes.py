@@ -115,3 +115,32 @@ def test_sample_at_horizon_boundary_still_counts(tmp_path):
     assert row["max_favorable_pct"] == pytest.approx(2.5)
     assert row["complete"] == 1
     assert row["outcome"] == "followed_through"
+
+
+def test_on_time_samples_record_each_checkpoint(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-checkpoints")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 101}, now_ts=1300)
+    store.observe([], {"KITE": 102}, now_ts=1900)
+    store.observe([], {"KITE": 103}, now_ts=2800)
+    store.observe([], {"KITE": 104}, now_ts=4600)
+
+    row = _row(store, "signal-checkpoints")
+
+    assert row["return_5m"] == pytest.approx(1.0)
+    assert row["return_15m"] == pytest.approx(2.0)
+    assert row["return_30m"] == pytest.approx(3.0)
+    assert row["return_60m"] == pytest.approx(4.0)
+
+
+def test_gap_records_only_latest_reached_checkpoint(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-checkpoint-gap")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 107}, now_ts=4700)
+
+    row = _row(store, "signal-checkpoint-gap")
+
+    assert row["return_5m"] is None
+    assert row["return_15m"] is None
+    assert row["return_30m"] is None
+    assert row["return_60m"] == pytest.approx(7.0)
