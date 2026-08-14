@@ -519,7 +519,7 @@
 
 .bh-alerts-type-tabs::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
+  border-radius: var(--r-2);
 }
 
 .bh-alerts-tab-controls {
@@ -1150,7 +1150,7 @@
 .bh-row-info-btn {
   width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: linear-gradient(150deg, rgba(5, 6, 8, 0.86), rgba(18, 10, 28, 0.84));
   color: rgba(255, 255, 255, 0.82);

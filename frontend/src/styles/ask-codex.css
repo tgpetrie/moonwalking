@@ -21,7 +21,7 @@
   padding: 7px 16px;
   background: rgba(168, 85, 247, 0.10);
   border: 1px solid rgba(168, 85, 247, 0.32);
-  border-radius: 999px;
+  border-radius: var(--r-2);
   color: rgba(216, 180, 254, 0.88);
   font-family: var(--bh-font-sans, system-ui, sans-serif);
   font-size: 0.68rem;
@@ -44,7 +44,7 @@
   background: rgba(5, 3, 8, 0.94);
   backdrop-filter: blur(14px) saturate(1.15) brightness(1.06);
   border: 1px solid rgba(168, 85, 247, 0.22);
-  border-radius: 12px;
+  border-radius: var(--r-3);
   box-shadow:
     0 0 28px rgba(168, 85, 247, 0.07),
     0 6px 28px rgba(0, 0, 0, 0.65);
@@ -80,7 +80,7 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: rgba(168, 85, 247, 0.18);
   border: 1px solid rgba(168, 85, 247, 0.32);
   color: rgba(196, 148, 248, 0.80);
@@ -94,7 +94,7 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  border-radius: 5px;
+  border-radius: var(--r-2);
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.28);
@@ -131,7 +131,7 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 11px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.09);
   color: rgba(255, 255, 255, 0.50);
@@ -165,7 +165,7 @@
   resize: vertical;
   background: rgba(0, 0, 0, 0.42);
   border: 1px solid rgba(168, 85, 247, 0.20);
-  border-radius: 6px;
+  border-radius: var(--r-2);
   padding: 9px 12px;
   font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
@@ -191,7 +191,7 @@
 /* Matches intel chip height/scale */
 .bh-ask-submit {
   padding: 6px 18px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: rgba(168, 85, 247, 0.72);
   border: 1px solid rgba(168, 85, 247, 0.55);
   color: rgba(255, 255, 255, 0.96);
@@ -214,7 +214,7 @@
 
 .bh-ask-clear {
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: rgba(255, 255, 255, 0.38);
@@ -246,7 +246,7 @@
 .bh-ask-error {
   margin: 0 14px 10px;
   padding: 7px 11px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.22);
   font-family: var(--bh-font-sans, system-ui, sans-serif);
@@ -267,13 +267,13 @@
 .bh-ask-body::-webkit-scrollbar-track { background: transparent; }
 .bh-ask-body::-webkit-scrollbar-thumb {
   background: rgba(168, 85, 247, 0.28);
-  border-radius: 2px;
+  border-radius: var(--r-1);
 }
 
 /* Answer text at body scale — matches bh-intel-log (12.5px) */
 .bh-ask-answer {
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   background: rgba(168, 85, 247, 0.05);
   border: 1px solid rgba(168, 85, 247, 0.13);
   font-family: var(--bh-font-sans, system-ui, sans-serif);
@@ -311,7 +311,7 @@
   gap: 9px;
   align-items: center;
   padding: 5px 9px;
-  border-radius: 4px;
+  border-radius: var(--r-2);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
   font-family: 'Fira Code', ui-monospace, monospace;
@@ -331,7 +331,7 @@
 
 .bh-ask-tag {
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: rgba(239, 68, 68, 0.09);
   border: 1px solid rgba(239, 68, 68, 0.20);
   color: rgba(252, 165, 165, 0.78);

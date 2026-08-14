@@ -1,0 +1,1655 @@
+/* Outcome Scorecard — redesigned variant.
+   Namespaced under .scr-* so it can render beside the original .sc-* page. */
+
+.scr-page {
+  padding: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  font-family: "Raleway", system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.scr-loading,
+.scr-error {
+  text-align: center;
+  padding: 48px 24px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+}
+
+.scr-error {
+  color: var(--brand-purple, #c084fc);
+}
+
+.scr-up {
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-down {
+  color: var(--brand-purple, #c084fc);
+}
+
+/* ── Hero ──────────────────────────────────── */
+
+.scr-hero {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 179, 71, 0.06), transparent 60%),
+    rgba(255, 255, 255, 0.02);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+/* Coin + provenance on the left, coin picker on the right, one row. */
+.scr-hero__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.scr-hero__id {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* The coin is the page title. Nothing else competes with it. */
+.scr-hero__coin {
+  margin: 0;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--brand-amber, #ffb347);
+  line-height: 1;
+}
+
+.scr-hero__source {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 4px 10px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.scr-hero__source[data-source="live"] {
+  border-color: rgba(16, 174, 155, 0.3);
+  background: rgba(16, 174, 155, 0.1);
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-hero__source[data-source="sample"],
+.scr-hero__source[data-source="demo"] {
+  border-color: rgba(255, 179, 71, 0.3);
+  background: rgba(255, 179, 71, 0.1);
+  color: var(--brand-amber, #ffb347);
+}
+
+/* ── Scoring rule, folded away ─────────────── */
+
+.scr-scoring {
+  margin-top: 12px;
+}
+
+.scr-scoring__toggle {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.scr-scoring__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scr-scoring__toggle::after {
+  content: " ▾";
+}
+
+.scr-scoring[open] .scr-scoring__toggle::after {
+  content: " ▴";
+}
+
+.scr-scoring__toggle:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scr-hero__rule {
+  margin: 8px 0 0;
+  font-size: 0.79rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scr-hero__rule strong {
+  color: rgba(255, 255, 255, 0.82);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ── Coin picker ───────────────────────────── */
+
+/* Screen-reader-only. */
+.scr-vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.scr-coinpicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.scr-coinpicker__input {
+  box-sizing: border-box;
+  width: 130px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-2);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.scr-coinpicker__input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.scr-coinpicker__input:focus {
+  outline: none;
+  border-color: rgba(255, 179, 71, 0.4);
+  box-shadow: 0 0 0 2px rgba(255, 179, 71, 0.12);
+}
+
+.scr-coinpicker__button {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: var(--r-2);
+  font-size: 0.7rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.scr-coinpicker__button:hover:not(:disabled) {
+  background: rgba(255, 179, 71, 0.2);
+}
+
+.scr-coinpicker__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Headline metrics ──────────────────────── */
+
+.scr-headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scr-headline__card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scr-headline__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.scr-headline__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.15;
+}
+
+.scr-headline__value--text {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 1.15rem;
+}
+
+.scr-headline__note {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* ── Shared <details> toggles ──────────────── */
+
+.scr-advanced__toggle,
+.scr-explain__toggle,
+.scr-raw__toggle {
+  list-style: none;
+  cursor: pointer;
+}
+
+.scr-advanced__toggle::-webkit-details-marker,
+.scr-explain__toggle::-webkit-details-marker,
+.scr-raw__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scr-explain__toggle::after,
+.scr-raw__toggle::after {
+  content: " ▾";
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.scr-explain[open] .scr-explain__toggle::after,
+.scr-raw[open] .scr-raw__toggle::after {
+  content: " ▴";
+}
+
+/* ── Zones ─────────────────────────────────── */
+/* Four kinds of information live on this page — coin context, signal history,
+   board history, and internal diagnostics. Each gets its own numbered band and
+   accent color so they never read as one continuous stream. */
+
+.scr-zone {
+  position: relative;
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.scr-zone[data-tone="diagnostics"] {
+  background: rgba(255, 255, 255, 0.008);
+}
+
+/* Zone colour lives on the step marker, not a full-height rail. */
+.scr-zone[data-tone="signals"] .scr-zone__step {
+  border-color: rgba(16, 174, 155, 0.5);
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-zone[data-tone="boards"] .scr-zone__step {
+  border-color: rgba(192, 132, 252, 0.5);
+  color: var(--brand-purple, #c084fc);
+}
+
+.scr-zone[data-tone="coin"] .scr-zone__step {
+  border-color: rgba(255, 179, 71, 0.5);
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-zone__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scr-zone__step {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scr-zone__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.scr-zone__controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+/* ── "Not simultaneous calls" note ─────────── */
+/* Signal categories sit side by side and can look contradictory. This states
+   outright that they are separate historical buckets, not live advice. */
+
+.scr-scope-note {
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border-left: 2px solid rgba(255, 179, 71, 0.4);
+  border-radius: var(--r-1);
+  background: rgba(255, 179, 71, 0.05);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 92ch;
+}
+
+.scr-scope-note strong {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.scr-scope-note em {
+  font-style: normal;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.94em;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.scr-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scr-order__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.scr-order__select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-2);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.scr-order__select:focus {
+  outline: none;
+  border-color: rgba(255, 179, 71, 0.4);
+}
+
+/* ── Cards ─────────────────────────────────── */
+
+.scr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  gap: 10px;
+}
+
+.scr-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.scr-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 200ms ease;
+}
+
+.scr-card--setup:hover {
+  border-color: rgba(255, 179, 71, 0.22);
+}
+
+.scr-card--board:hover {
+  border-color: rgba(192, 132, 252, 0.22);
+}
+
+.scr-card--compact {
+  padding: 10px;
+}
+
+.scr-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scr-card__kicker {
+  display: block;
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 3px;
+}
+
+.scr-card__name {
+  margin: 0 0 2px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.scr-card__sub {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.scr-card__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.scr-card__figure--inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.scr-card__big {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.scr-card__big[data-tone="good"] {
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-card__big[data-tone="mixed"] {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-card__big[data-tone="weak"] {
+  color: var(--brand-purple, #c084fc);
+}
+
+.scr-card__figure-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-card__verdict {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.scr-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  font-size: 0.64rem;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.scr-card__lift {
+  font-weight: 600;
+}
+
+/* ── Rate bar ──────────────────────────────── */
+
+.scr-bar {
+  height: 4px;
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.scr-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.4);
+  transition: width 400ms ease;
+}
+
+.scr-bar[data-tone="good"] .scr-bar__fill {
+  background: var(--brand-teal, #10ae9b);
+}
+
+.scr-bar[data-tone="mixed"] .scr-bar__fill {
+  background: var(--brand-amber, #ffb347);
+}
+
+.scr-bar[data-tone="weak"] .scr-bar__fill {
+  background: var(--brand-purple, #c084fc);
+}
+
+/* ── Evidence + status chips ───────────────── */
+/* Brightness-only: more samples → more visible. Brand colors are reserved
+   for directional meaning elsewhere in this UI. */
+
+.scr-evidence {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.24);
+}
+
+.scr-evidence[data-tier="strong"] {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.scr-evidence[data-tier="solid"] {
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.scr-evidence[data-tier="building"] {
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-evidence__count {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.scr-status {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scr-status[data-status="measured"] {
+  background: rgba(16, 174, 155, 0.13);
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-status[data-status="learning"] {
+  background: rgba(255, 179, 71, 0.13);
+  color: var(--brand-amber, #ffb347);
+}
+
+/* ── Click-to-explain ──────────────────────── */
+
+.scr-explain {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 7px;
+}
+
+.scr-explain__toggle {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.scr-explain__toggle:hover {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-explain__body {
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.scr-explain__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scr-explain__row dt {
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.scr-explain__row dd {
+  margin: 0;
+  font-size: 0.79rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+/* ── Raw numbers ───────────────────────────── */
+
+.scr-raw {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 7px;
+}
+
+.scr-raw__toggle {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-raw__toggle:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scr-raw__body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scr-raw__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.scr-raw__stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scr-raw__label {
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.scr-raw__value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── Checkpoints ───────────────────────────── */
+
+.scr-checkpoints__title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.scr-checkpoints__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.scr-checkpoints__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.scr-checkpoints__time {
+  font-size: 0.65rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.scr-checkpoints__val {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ── Coin section ──────────────────────────── */
+
+.scr-coin {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scr-coin__summary {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scr-coin__title {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.scr-coin__body {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scr-coin__meta {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-2);
+  font-size: 0.82rem;
+}
+
+.scr-note--error {
+  background: rgba(192, 132, 252, 0.08);
+  border: 1px solid rgba(192, 132, 252, 0.18);
+  color: rgba(233, 213, 255, 0.86);
+}
+
+.scr-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 30px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-2);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.scr-empty--compact {
+  padding: 18px 16px;
+}
+
+/* ── Advanced block ────────────────────────── */
+
+.scr-advanced {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 14px 16px;
+}
+
+.scr-zone--diagnostics .scr-zone__head {
+  margin-bottom: 12px;
+}
+
+.scr-advanced__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.scr-advanced__hint {
+  font-size: 0.64rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-advanced__body {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.scr-advanced__block h4 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.scr-advanced__note {
+  margin: 0 0 10px;
+  max-width: 72ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.scr-keyvals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.scr-keyvals li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-2);
+}
+
+.scr-keyvals span {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-keyvals strong {
+  font-size: 0.95rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.scr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.scr-table th,
+.scr-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scr-table th {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.36);
+  font-weight: 600;
+}
+
+.scr-table td {
+  color: rgba(255, 255, 255, 0.66);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.scr-table td:first-child {
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+/* ── Variant switcher + compare view ───────── */
+
+.scr-switch {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.scr-switch__label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-switch__links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scr-switch__link {
+  padding: 5px 13px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.scr-switch__link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.scr-switch__link.is-active {
+  background: rgba(255, 179, 71, 0.14);
+  border-color: rgba(255, 179, 71, 0.32);
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-compare {
+  padding: 16px 24px 32px;
+}
+
+.scr-compare__intro {
+  margin: 0 0 16px;
+  max-width: 78ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.scr-compare__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.scr-compare__pane {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+}
+
+.scr-compare__pane-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.scr-compare__pane-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.scr-compare__pane-note {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.scr-compare__pane .sc-page,
+.scr-compare__pane .scr-page {
+  padding: 16px;
+  max-width: none;
+}
+
+/* ── Score tiles ───────────────────── */
+/* The arc carries the percentage, so magnitude registers before any reading
+   happens. Colour maps to how the score compares, and the same colour tags the
+   name so the mapping is obvious without a legend. */
+
+.scr-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.scr-tile {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-2);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 200ms ease;
+}
+
+.scr-tile:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* An open tile spans the row so its detail has room to breathe. */
+.scr-tile.is-open {
+  grid-column: 1 / -1;
+}
+
+.scr-tile__main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.scr-tile__body {
+  min-width: 0;
+}
+
+.scr-tile__name {
+  margin: 0 0 3px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.scr-tile__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-2);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.scr-tile__dot[data-tone="good"] {
+  background: var(--brand-teal, #10ae9b);
+}
+
+.scr-tile__dot[data-tone="mixed"] {
+  background: var(--brand-amber, #ffb347);
+}
+
+.scr-tile__dot[data-tone="weak"] {
+  background: var(--brand-purple, #c084fc);
+}
+
+.scr-tile__sub {
+  margin: 0 0 5px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.scr-tile__metric {
+  margin: 0;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.scr-tile__status {
+  margin-top: 7px;
+}
+
+.scr-tile__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scr-tile__stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scr-tile__stats dt {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.scr-tile__stats dd {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.scr-tile__toggle {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+}
+
+.scr-tile__toggle:hover {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-tile__detail {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Donut gauge ────────────────── */
+
+.scr-donut {
+  flex-shrink: 0;
+}
+
+.scr-donut__track {
+  stroke: rgba(255, 255, 255, 0.07);
+}
+
+.scr-donut__arc {
+  stroke: rgba(255, 255, 255, 0.5);
+  transition: stroke-dasharray 500ms ease;
+}
+
+.scr-donut__arc[data-tone="good"] {
+  stroke: var(--brand-teal, #10ae9b);
+}
+
+.scr-donut__arc[data-tone="mixed"] {
+  stroke: var(--brand-amber, #ffb347);
+}
+
+.scr-donut__arc[data-tone="weak"] {
+  stroke: var(--brand-purple, #c084fc);
+}
+
+.scr-donut__value {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.scr-donut__value[data-tone="good"] {
+  fill: var(--brand-teal, #10ae9b);
+}
+
+.scr-donut__value[data-tone="mixed"] {
+  fill: var(--brand-amber, #ffb347);
+}
+
+.scr-donut__value[data-tone="weak"] {
+  fill: var(--brand-purple, #c084fc);
+}
+
+/* ── Tile detail ────────────────── */
+
+.scr-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.scr-detail__dt {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.scr-detail__grid p {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+/* == Chart treatments ================================================== */
+/* One shared surface per zone instead of a grid of boxes. The old per-item
+   panels read as separate objects competing for attention; a single chart with
+   coloured regions reads as one comparison. */
+
+.scr-chart {
+  padding: 4px 2px 2px;
+}
+
+.scr-chartswitch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.scr-chartswitch__label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.32);
+  margin-right: 4px;
+}
+
+.scr-chartswitch__btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-2);
+  padding: 3px 11px;
+  font: inherit;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.scr-chartswitch__btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.scr-chartswitch__btn.is-active {
+  background: rgba(255, 179, 71, 0.14);
+  border-color: rgba(255, 179, 71, 0.32);
+  color: var(--brand-amber, #ffb347);
+}
+
+/* -- Bars ------------------------------------------------------------- */
+
+.scr-bars {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scr-bars__avg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.scr-bars__avg-label {
+  position: absolute;
+  top: -2px;
+  left: 5px;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.34);
+  white-space: nowrap;
+}
+
+.scr-barrow {
+  display: grid;
+  grid-template-columns: minmax(150px, 240px) 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 9px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scr-barrow:hover,
+.scr-barrow.is-open {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.scr-barrow__label {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.scr-barrow__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-2);
+  flex-shrink: 0;
+}
+
+.scr-barrow__name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+.scr-barrow__sub {
+  font-size: 0.64rem;
+  color: rgba(255, 255, 255, 0.36);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scr-barrow__track {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-2);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.scr-barrow__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-2);
+  transition: width 500ms ease;
+}
+
+.scr-barrow__fill[data-tone="good"] {
+  background: var(--brand-teal, #10ae9b);
+}
+
+.scr-barrow__fill[data-tone="mixed"] {
+  background: var(--brand-amber, #ffb347);
+}
+
+.scr-barrow__fill[data-tone="weak"] {
+  background: var(--brand-purple, #c084fc);
+}
+
+.scr-barrow__pct {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-width: 48px;
+  text-align: right;
+}
+
+.scr-barrow__pct[data-tone="good"] {
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-barrow__pct[data-tone="mixed"] {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-barrow__pct[data-tone="weak"] {
+  color: var(--brand-purple, #c084fc);
+}
+
+/* -- Sectioned donut -------------------------------------------------- */
+
+.scr-chart--split {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.scr-pie {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.scr-pie__slice {
+  cursor: pointer;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;
+}
+
+.scr-pie__slice:hover {
+  opacity: 1 !important;
+}
+
+.scr-pie__label {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.86rem;
+  font-weight: 700;
+  fill: rgba(10, 7, 14, 0.9);
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.scr-pie__center {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  fill: rgba(255, 255, 255, 0.92);
+}
+
+.scr-pie__centersub {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: rgba(255, 255, 255, 0.34);
+}
+
+/* -- Legend, which is also where a section is blown up ---------------- */
+
+.scr-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scr-legend__item {
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.scr-legend__item.is-open {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.scr-legend__row {
+  display: grid;
+  grid-template-columns: 6px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--r-2);
+}
+
+.scr-legend__row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.scr-legend__swatch {
+  width: 6px;
+  height: 32px;
+  border-radius: var(--r-2);
+}
+
+.scr-legend__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scr-legend__name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.scr-legend__sub {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.38);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scr-legend__pct {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.scr-legend__pct[data-tone="good"] {
+  color: var(--brand-teal, #10ae9b);
+}
+
+.scr-legend__pct[data-tone="mixed"] {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-legend__pct[data-tone="weak"] {
+  color: var(--brand-purple, #c084fc);
+}
+
+.scr-legend__pct-label {
+  font-family: "Raleway", system-ui, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.scr-legend__detail {
+  padding: 2px 12px 12px;
+}
+
+/* -- Selected-item detail --------------------------------------------- */
+
+.scr-groupdetail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 900px) {
+  .scr-compare__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .scr-page {
+    padding: 16px;
+  }
+
+  .scr-hero {
+    padding: 18px;
+  }
+
+  .scr-hero__coin {
+    font-size: 1.35rem;
+  }
+
+  .scr-grid,
+  .scr-grid--compact,
+  .scr-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .scr-tile__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scr-barrow {
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+  }
+
+  .scr-barrow__track {
+    grid-column: 1 / -1;
+  }
+
+  .scr-chart--split {
+    gap: 16px;
+  }
+
+  .scr-legend__row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .scr-legend__share {
+    grid-column: 2 / -1;
+  }
+
+  .scr-zone {
+    padding: 16px 14px 16px 16px;
+  }
+
+  .scr-zone__head {
+    gap: 10px;
+  }
+
+  .scr-zone__controls {
+    justify-content: flex-start;
+  }
+
+  .scr-card__head {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .scr-card__figure {
+    align-items: flex-start;
+  }
+
+  .scr-switch,
+  .scr-compare {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+.scr-pie__empty {
+  stroke: rgba(255, 255, 255, 0.06);
+}
+
+.scr-legend__pct[data-tone="none"] {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.scr-barrow__pct[data-tone="none"] {
+  color: rgba(255, 255, 255, 0.3);
+}

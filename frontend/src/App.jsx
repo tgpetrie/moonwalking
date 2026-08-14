@@ -9,6 +9,8 @@ const mvpRouteSet = new Set([
   "/login",
   "/signup",
   "/scorecard",
+  "/scorecard-redesign",
+  "/scorecard-compare",
   "/app/dashboard",
   "/app/watchlists",
   "/app/portfolio",

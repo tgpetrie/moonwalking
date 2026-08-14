@@ -8,22 +8,95 @@ import {
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
 import ScorecardPage from "../components/ScorecardPage.jsx";
+import ScorecardRedesignPage from "../components/ScorecardRedesignPage.jsx";
+import {
+  ScorecardCompareView,
+  ScorecardVariantSwitch,
+} from "../components/ScorecardCompare.jsx";
 import "../styles/mvp-shell.css";
 
 const APP_DASHBOARD_PATH = "/app/dashboard";
 const APP_WATCHLISTS_PATH = "/app/watchlists";
 const APP_PORTFOLIO_PATH = "/app/portfolio";
 const APP_SCORECARD_PATH = "/app/scorecard";
+const APP_SCORECARD_REDESIGN_PATH = "/app/scorecard-redesign";
+const APP_SCORECARD_COMPARE_PATH = "/app/scorecard-compare";
 const APP_SETTINGS_PATH = "/app/settings";
 const PUBLIC_SCORECARD_PATH = "/scorecard";
+const PUBLIC_SCORECARD_REDESIGN_PATH = "/scorecard-redesign";
+const PUBLIC_SCORECARD_COMPARE_PATH = "/scorecard-compare";
 
 const protectedPaths = new Set([
   APP_DASHBOARD_PATH,
   APP_WATCHLISTS_PATH,
   APP_PORTFOLIO_PATH,
   APP_SCORECARD_PATH,
+  APP_SCORECARD_REDESIGN_PATH,
+  APP_SCORECARD_COMPARE_PATH,
   APP_SETTINGS_PATH,
 ]);
+
+const publicScorecardPaths = new Set([
+  PUBLIC_SCORECARD_PATH,
+  PUBLIC_SCORECARD_REDESIGN_PATH,
+  PUBLIC_SCORECARD_COMPARE_PATH,
+]);
+
+const MEMBER_ROUTE_TITLES = {
+  [APP_SCORECARD_REDESIGN_PATH]: "Scorecard",
+  [APP_SCORECARD_COMPARE_PATH]: "Scorecard",
+};
+
+/**
+ * Scorecard variants share one surface. `?variant=redesign` on the plain
+ * scorecard route is honoured too, so a link can force the new page without a
+ * dedicated path.
+ */
+function resolveScorecardVariant(pathname) {
+  if (
+    pathname === APP_SCORECARD_COMPARE_PATH ||
+    pathname === PUBLIC_SCORECARD_COMPARE_PATH
+  ) {
+    return "compare";
+  }
+  if (
+    pathname === APP_SCORECARD_REDESIGN_PATH ||
+    pathname === PUBLIC_SCORECARD_REDESIGN_PATH
+  ) {
+    return "redesign";
+  }
+  const search = typeof window !== "undefined" ? window.location.search : "";
+  const requested = new URLSearchParams(search).get("variant");
+  if (requested === "redesign" || requested === "compare") return requested;
+  return "original";
+}
+
+function ScorecardRoute({ variant, previewMode, navigate, isMember }) {
+  const links = isMember
+    ? [
+        { variant: "original", label: "Original", to: APP_SCORECARD_PATH },
+        { variant: "redesign", label: "Redesign", to: APP_SCORECARD_REDESIGN_PATH },
+        { variant: "compare", label: "Side by side", to: APP_SCORECARD_COMPARE_PATH },
+      ]
+    : [
+        { variant: "original", label: "Original", to: PUBLIC_SCORECARD_PATH },
+        { variant: "redesign", label: "Redesign", to: PUBLIC_SCORECARD_REDESIGN_PATH },
+        { variant: "compare", label: "Side by side", to: PUBLIC_SCORECARD_COMPARE_PATH },
+      ];
+
+  return (
+    <div className="mw-scorecard-route">
+      <ScorecardVariantSwitch variant={variant} links={links} navigate={navigate} />
+      {variant === "compare" ? (
+        <ScorecardCompareView previewMode={previewMode} />
+      ) : variant === "redesign" ? (
+        <ScorecardRedesignPage previewMode={previewMode} />
+      ) : (
+        <ScorecardPage previewMode={previewMode} />
+      )}
+    </div>
+  );
+}
 
 const legacyMemberRouteMap = {
   "/watchlists": APP_WATCHLISTS_PATH,
@@ -332,7 +405,7 @@ function matchRoute(pathname) {
   if (
     protectedPaths.has(pathname) ||
     pathname === "/" ||
-    pathname === PUBLIC_SCORECARD_PATH ||
+    publicScorecardPaths.has(pathname) ||
     pathname === "/login" ||
     pathname === "/signup" ||
     Object.prototype.hasOwnProperty.call(legacyMemberRouteMap, pathname)
@@ -436,19 +509,32 @@ function PublicHeader({ navigate, session, currentPath }) {
       <div className="mw-public-actions">
         {session.isAuthenticated ? (
           <>
-            <AppLink to={APP_WATCHLISTS_PATH} navigate={navigate} className="mw-button mw-button--ghost">
+            <AppLink
+              to={APP_WATCHLISTS_PATH}
+              navigate={navigate}
+              className="mw-button mw-button--sm mw-button--ghost"
+            >
               Watchlists
             </AppLink>
-            <button type="button" className="mw-button mw-button--primary">
+            <button type="button" className="mw-button mw-button--sm mw-button--primary">
               {session.plan}
             </button>
           </>
         ) : (
           <>
-            <AppLink to="/login" navigate={navigate} className="mw-button mw-button--ghost">
+            <AppLink
+              to="/login"
+              navigate={navigate}
+              className="mw-button mw-button--sm mw-button--ghost"
+            >
               Login
             </AppLink>
-            <AppLink to="/signup" navigate={navigate} className="mw-button mw-button--primary" accent>
+            <AppLink
+              to="/signup"
+              navigate={navigate}
+              className="mw-button mw-button--sm mw-button--primary"
+              accent
+            >
               Sign Up
             </AppLink>
           </>
@@ -777,6 +863,7 @@ function MemberShell({
     { label: "Watchlists", to: APP_WATCHLISTS_PATH },
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
     { label: "Scorecard", to: APP_SCORECARD_PATH },
+    { label: "Scorecard (new)", to: APP_SCORECARD_REDESIGN_PATH },
     { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
@@ -843,7 +930,11 @@ function MemberShell({
         <header className="mw-member-header">
           <div>
             <p className="mw-eyebrow">Member workspace</p>
-            <h1>{navItems.find((item) => item.to === currentPath)?.label || "Workspace"}</h1>
+            <h1>
+              {navItems.find((item) => item.to === currentPath)?.label ||
+                MEMBER_ROUTE_TITLES[currentPath] ||
+                "Workspace"}
+            </h1>
           </div>
           <div className="mw-member-header__meta">
             <span className="mw-status-chip">
@@ -1785,7 +1876,7 @@ export default function MvpApp() {
 
   const isPublicRoute =
     route.name === "/" ||
-    route.name === PUBLIC_SCORECARD_PATH ||
+    publicScorecardPaths.has(route.name) ||
     route.name === "/login" ||
     route.name === "/signup" ||
     route.name === "/u/:username" ||
@@ -1843,9 +1934,26 @@ export default function MvpApp() {
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;
       case PUBLIC_SCORECARD_PATH:
-        return <ScorecardPage previewMode />;
+      case PUBLIC_SCORECARD_REDESIGN_PATH:
+      case PUBLIC_SCORECARD_COMPARE_PATH:
+        return (
+          <ScorecardRoute
+            variant={resolveScorecardVariant(route.name)}
+            previewMode
+            navigate={navigate}
+            isMember={false}
+          />
+        );
       case APP_SCORECARD_PATH:
-        return <ScorecardPage />;
+      case APP_SCORECARD_REDESIGN_PATH:
+      case APP_SCORECARD_COMPARE_PATH:
+        return (
+          <ScorecardRoute
+            variant={resolveScorecardVariant(route.name)}
+            navigate={navigate}
+            isMember
+          />
+        );
       case APP_SETTINGS_PATH:
         return (
           <SettingsPage

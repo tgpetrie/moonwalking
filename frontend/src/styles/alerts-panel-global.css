@@ -9,7 +9,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--r-3);
   transition: box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease;
 }
 
@@ -39,7 +39,7 @@
   color: rgba(255, 255, 255, 0.62);
   border: 1px dashed rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 0.35rem 0.5rem;
 }
 
@@ -56,7 +56,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.02);
   padding: 0.22rem 0.55rem;
@@ -95,7 +95,7 @@
 
 .mw-alerts-global__empty {
   padding: 0.9rem 1rem;
-  border-radius: 12px;
+  border-radius: var(--r-3);
   border: 1px dashed rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.02);
   color: rgba(255, 255, 255, 0.55);
@@ -103,7 +103,7 @@
 }
 
 .mw-alert-row {
-  border-radius: 12px;
+  border-radius: var(--r-3);
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.02);
   padding: 0.75rem 0.85rem;
@@ -127,7 +127,7 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   padding: 0.18rem 0.45rem;
   border: 1px solid transparent;
   color: rgba(255, 255, 255, 0.85);
@@ -199,7 +199,7 @@
 
 .mw-evidence-chip {
   font-size: 0.68rem;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   padding: 0.18rem 0.42rem;
   border: 1px solid rgba(84, 184, 255, 0.22);
   background: rgba(22, 77, 119, 0.18);

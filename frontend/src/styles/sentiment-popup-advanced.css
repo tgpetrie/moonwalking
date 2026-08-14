@@ -401,7 +401,7 @@
 
 .tab-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--r-2);
 }
 
 .tab-panel {
@@ -527,7 +527,7 @@
 .streak-dot {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -759,7 +759,7 @@
     margin-top: 0.65rem;
     padding: 0.25rem;
     border: 1px solid rgba(174, 75, 245, 0.2);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     background: rgba(5, 7, 13, 0.62);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
@@ -767,7 +767,7 @@
 .mini-toggle-btn {
     appearance: none;
     border: 1px solid transparent;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.38rem 0.72rem;
     background: transparent;
     color: var(--sentiment-subtext);
@@ -955,7 +955,7 @@
     font-size: 0.66rem;
     letter-spacing: 0.45px;
     text-transform: uppercase;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.22rem 0.5rem;
     border: 1px solid transparent;
 }
@@ -1017,7 +1017,7 @@
     font-size: 0.7rem;
     color: #d4dffd;
     text-decoration: none;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(112, 95, 255, 0.35);
     background: rgba(112, 95, 255, 0.14);
     padding: 0.3rem 0.6rem;
@@ -1198,7 +1198,7 @@ a.news-item-title:hover {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 0.26rem 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid transparent;
     color: var(--sentiment-text);
 }
@@ -1246,7 +1246,7 @@ a.news-item-title:hover {
     color: var(--sentiment-subtext);
     border: 1px solid var(--sentiment-border);
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.28rem 0.6rem;
 }
 
@@ -1434,7 +1434,7 @@ a.news-item-title:hover {
 }
 
 .alert-filter-chip {
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid var(--sentiment-border);
     background: rgba(255, 255, 255, 0.02);
     color: var(--sentiment-subtext);
@@ -1483,7 +1483,7 @@ a.news-item-title:hover {
     color: #d7dcff;
     background: rgba(112, 95, 255, 0.18);
     border: 1px solid rgba(112, 95, 255, 0.3);
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.23rem 0.5rem;
 }
 
@@ -1491,7 +1491,7 @@ a.news-item-title:hover {
     font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.21rem 0.48rem;
     border: 1px solid transparent;
     font-weight: 700;
@@ -1575,7 +1575,7 @@ a.news-item-title:hover {
 
 .evidence-chip {
     font-size: 0.69rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     padding: 0.22rem 0.46rem;
     color: #cce8ff;
     border: 1px solid rgba(84, 184, 255, 0.27);
@@ -1813,7 +1813,7 @@ a.news-item-title:hover {
     width: 100%;
     height: 6px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    border-radius: var(--r-2);
     overflow: hidden;
     margin-bottom: 0.5rem;
 }
@@ -1821,7 +1821,7 @@ a.news-item-title:hover {
 .tier-bar-fill {
     height: 100%;
     transition: width var(--transition-slow);
-    border-radius: 3px;
+    border-radius: var(--r-2);
 }
 
 .tier-1-fill {
@@ -1868,7 +1868,7 @@ a.news-item-title:hover {
     flex: 1;
     display: flex;
     height: 10px;
-    border-radius: 5px;
+    border-radius: var(--r-2);
     overflow: hidden;
     background: rgba(255,255,255,0.05);
 }
@@ -2164,7 +2164,7 @@ a.news-item-title:hover {
 
 .bh-coin-warmup{
     width: 100%;
-    border-radius: 16px;
+    border-radius: var(--r-3);
     padding: 14px 16px;
     background: linear-gradient(135deg, rgba(40,20,70,0.18), rgba(0,0,0,0.22));
     border: 1px solid rgba(255,255,255,0.06);
@@ -2348,7 +2348,7 @@ a.news-item-title:hover {
 
 .mw-component-track {
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     background: rgba(255, 255, 255, 0.08);
     overflow: hidden;
 }
@@ -3081,7 +3081,7 @@ a.news-item-title:hover {
     align-items: center;
     min-height: 1.45rem;
     padding: 0.16rem 0.45rem;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.04);
     color: var(--sentiment-text);
@@ -3256,7 +3256,7 @@ a.news-item-title:hover {
     gap: 0.25rem;
     padding: 0.6rem 0.9rem;
     margin-bottom: 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     border-left: 3px solid var(--sentiment-neu, #f1b43a);
     background: rgba(241, 180, 58, 0.06);
 }
@@ -3329,7 +3329,7 @@ a.news-item-title:hover {
 .coh-card {
     background: rgba(255, 255, 255, 0.025);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 4px;
+    border-radius: var(--r-2);
     padding: 12px 14px;
 }
 
@@ -3354,7 +3354,7 @@ a.news-item-title:hover {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--r-2);
     border: 1px solid;
 }
 

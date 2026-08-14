@@ -3,7 +3,7 @@
 /* Modal shell already exists; this just ensures the feel */
 .sentiment-modal-shell {
   position: relative;
-  border-radius: 22px;
+  border-radius: var(--r-3);
   overflow: hidden;
   background: rgba(10, 10, 12, 0.92);
   border: 1px solid rgba(160, 90, 255, 0.18);
@@ -110,7 +110,7 @@
 .sentiment-card {
   margin: 18px;
   padding: 18px;
-  border-radius: 18px;
+  border-radius: var(--r-3);
   background: rgba(18,18,22,0.75);
   border: 1px solid rgba(255,255,255,0.05);
   box-shadow:
@@ -149,7 +149,7 @@
 
 .sentiment-stat {
   padding: 14px 12px;
-  border-radius: 14px;
+  border-radius: var(--r-3);
   background: rgba(20,20,24,0.8);
   border: 1px solid rgba(255,255,255,0.05);
   text-align: center;
@@ -180,7 +180,7 @@
 .sentiment-meter {
   margin-top: 14px;
   padding: 12px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-3);
   background: rgba(13,13,16,0.9);
   border: 1px solid rgba(255,255,255,0.04);
   display: flex;
@@ -199,14 +199,14 @@
   position: relative;
   flex: 1;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: rgba(255,255,255,0.07);
   overflow: hidden;
 }
 
 .sentiment-meter .bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   background: linear-gradient(
     90deg,
     rgba(186,120,255,0.9),
@@ -234,7 +234,7 @@
 
 .trending-pill {
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-2);
   font-family: "Raleway", sans-serif;
   font-size: 12px;
   border: 1px solid rgba(255,255,255,0.06);
@@ -266,7 +266,7 @@
 
 .divergence-item {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-3);
   background: rgba(14,14,18,0.9);
   border: 1px solid rgba(255,255,255,0.05);
   font-family: "Raleway", system-ui, sans-serif;
@@ -286,7 +286,7 @@
 .insights-empty-card {
   margin: 18px;
   padding: 18px;
-  border-radius: 16px;
+  border-radius: var(--r-3);
   background: rgba(16,16,19,0.75);
   border: 1px dashed rgba(255,255,255,0.08);
   font-family: "Raleway", system-ui, sans-serif;
