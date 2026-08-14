@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getBackendBase } from "../config/api.js";
 import { describeEvidenceTier } from "../mvp/portfolioSignals.js";
 import "../styles/scorecard.css";
@@ -16,17 +16,133 @@ function fmtPct(n, decimals = 2) {
 }
 
 function Tip({ text }) {
-  return (
-    <span className="sc-tip" title={text}>?</span>
-  );
+  return <span className="sc-tip" title={text}>?</span>;
+}
+
+function normalizeCoinSymbol(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/\/USD$/, "-USD")
+    .replace(/_USD$/, "-USD");
+}
+
+function formatCoinHistorySummary(data) {
+  const total = Number(data?.total_outcomes ?? 0);
+  if (!Number.isFinite(total) || total <= 0) {
+    return "No comparable historical outcomes yet.";
+  }
+  if (total < 20) {
+    return `${total.toLocaleString()} comparable outcomes - Not enough history for a measured rate`;
+  }
+  const rate = Number(data?.signal_types?.[0]?.win_rate);
+  if (!Number.isFinite(rate)) {
+    return `${total.toLocaleString()} comparable outcomes - History is measured`;
+  }
+  return `${total.toLocaleString()} comparable outcomes - ${Math.round(rate * 100)}% followed through`;
+}
+
+function buildStateRollups(cards) {
+  const groups = new Map();
+  for (const card of Array.isArray(cards) ? cards : []) {
+    const key = String(card?.state || "Unknown");
+    if (!groups.has(key)) {
+      groups.set(key, {
+        state: key,
+        card_count: 0,
+        sample_size: 0,
+        win_weight: 0,
+        recent_weight: 0,
+        recent_sample: 0,
+      });
+    }
+    const bucket = groups.get(key);
+    const sample = Number(card?.sample_size ?? 0);
+    const winRate = Number(card?.win_rate);
+    const recentRate = Number(card?.recent_win_rate);
+    bucket.card_count += 1;
+    bucket.sample_size += Number.isFinite(sample) ? sample : 0;
+    if (Number.isFinite(sample) && Number.isFinite(winRate)) {
+      bucket.win_weight += sample * winRate;
+    }
+    if (Number.isFinite(sample) && Number.isFinite(recentRate)) {
+      bucket.recent_weight += sample * recentRate;
+      bucket.recent_sample += sample;
+    }
+  }
+
+  return [...groups.values()]
+    .map((bucket) => ({
+      ...bucket,
+      weighted_win_rate: bucket.sample_size > 0 ? bucket.win_weight / bucket.sample_size : null,
+      weighted_recent_rate:
+        bucket.recent_sample > 0 ? bucket.recent_weight / bucket.recent_sample : null,
+    }))
+    .sort((a, b) => (b.sample_size ?? 0) - (a.sample_size ?? 0));
+}
+
+function buildBoardRollups(boards) {
+  const groups = new Map();
+  for (const board of Array.isArray(boards) ? boards : []) {
+    const key = String(board?.status || "unknown");
+    if (!groups.has(key)) {
+      groups.set(key, {
+        status: key,
+        card_count: 0,
+        sample_size: 0,
+        continuation_weight: 0,
+        reversal_weight: 0,
+        lift_weight: 0,
+        lift_sample: 0,
+      });
+    }
+
+    const bucket = groups.get(key);
+    const sample = Number(board?.sample_size ?? 0);
+    const continuationRate = Number(board?.continuation_rate);
+    const reversalRate = Number(board?.reversal_rate);
+    const lift = Number(board?.continuation_lift_vs_control);
+
+    bucket.card_count += 1;
+    bucket.sample_size += Number.isFinite(sample) ? sample : 0;
+    if (Number.isFinite(sample) && Number.isFinite(continuationRate)) {
+      bucket.continuation_weight += sample * continuationRate;
+    }
+    if (Number.isFinite(sample) && Number.isFinite(reversalRate)) {
+      bucket.reversal_weight += sample * reversalRate;
+    }
+    if (Number.isFinite(sample) && Number.isFinite(lift)) {
+      bucket.lift_weight += sample * lift;
+      bucket.lift_sample += sample;
+    }
+  }
+
+  return [...groups.values()]
+    .map((bucket) => ({
+      ...bucket,
+      weighted_continuation_rate:
+        bucket.sample_size > 0 ? bucket.continuation_weight / bucket.sample_size : null,
+      weighted_reversal_rate:
+        bucket.sample_size > 0 ? bucket.reversal_weight / bucket.sample_size : null,
+      weighted_lift: bucket.lift_sample > 0 ? bucket.lift_weight / bucket.lift_sample : null,
+    }))
+    .sort((a, b) => (b.sample_size ?? 0) - (a.sample_size ?? 0));
+}
+
+async function fetchCoinHistory(normalizedSymbol) {
+  const res = await fetch(`${API_BASE}/api/coin-history/${encodeURIComponent(normalizedSymbol)}`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 // Sample-depth wording, deliberately sharing no vocabulary with the event
-// states rendered on the same card — "Building evidence" sat directly beside
-// event-state "Building (early)" and read as a description of the move.
+// states rendered on the same card.
 const EVIDENCE_LABELS = {
-  strong:   "Deep evidence",
-  solid:    "Solid evidence",
+  strong: "Deep evidence",
+  solid: "Solid evidence",
   building: "Thin evidence",
   emerging: "Emerging evidence",
 };
@@ -40,9 +156,7 @@ export function evidenceTier(n) {
 function EvidenceTier({ n }) {
   const { label, tier } = evidenceTier(n);
   if (!label) return null;
-  return (
-    <span className="sc-evidence-tier" data-tier={tier}>{label}</span>
-  );
+  return <span className="sc-evidence-tier" data-tier={tier}>{label}</span>;
 }
 
 const FRIENDLY_LABELS = {
@@ -121,7 +235,8 @@ function SignalCard({ card }) {
 
   const friendlyLabel = FRIENDLY_LABELS[card.label] || card.label;
   const friendlyState = FRIENDLY_STATES[card.state] || card.state;
-  const dirLabel = card.direction === "up" ? "Bullish" : card.direction === "down" ? "Bearish" : "Neutral";
+  const dirLabel =
+    card.direction === "up" ? "Bullish" : card.direction === "down" ? "Bearish" : "Neutral";
 
   return (
     <div className="sc-card">
@@ -218,10 +333,7 @@ function BoardCard({ board }) {
           <span className="sc-card__label">{friendlyBoard}</span>
           <span className="sc-card__state">{friendlyRead}</span>
         </div>
-        <span
-          className="sc-card__status-chip"
-          data-status={board.status}
-        >
+        <span className="sc-card__status-chip" data-status={board.status}>
           {board.status === "measured" ? "Ready" : "Learning"}
         </span>
       </div>
@@ -232,9 +344,7 @@ function BoardCard({ board }) {
 
       <div className="sc-card__stats">
         <div className="sc-stat">
-          <span className="sc-stat__label">
-            Times tested
-          </span>
+          <span className="sc-stat__label">Times tested</span>
           <span className="sc-stat__value">{board.sample_size.toLocaleString()}</span>
           <EvidenceTier n={board.sample_size} />
         </div>
@@ -276,10 +386,10 @@ function BoardCard({ board }) {
         <div className="sc-card__ci">
           <span className="sc-ci__label">
             Confidence range
-            <Tip text="We're 95% confident the true continuation rate falls within this range — wider means less certain" />
+            <Tip text="We're 95% confident the true continuation rate falls within this range - wider means less certain" />
           </span>
           <span className="sc-ci__range">
-            {fmt(board.continuation_ci95[0])} – {fmt(board.continuation_ci95[1])}
+            {fmt(board.continuation_ci95[0])} - {fmt(board.continuation_ci95[1])}
           </span>
         </div>
       )}
@@ -319,6 +429,11 @@ export default function ScorecardPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("sample_size");
+  const [coinSymbol, setCoinSymbol] = useState("BTC");
+  const [coinHistory, setCoinHistory] = useState(null);
+  const [coinHistoryError, setCoinHistoryError] = useState(null);
+  const [coinHistoryLoading, setCoinHistoryLoading] = useState(false);
+  const [coinHistoryLoadedFor, setCoinHistoryLoadedFor] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -360,6 +475,41 @@ export default function ScorecardPage() {
     return Object.values(data.boards.boards);
   }, [data]);
 
+  const boardRollups = useMemo(
+    () => buildBoardRollups(boards),
+    [boards]
+  );
+
+  const coinHistoryCards = useMemo(() => {
+    const cards = Array.isArray(coinHistory?.signal_types) ? [...coinHistory.signal_types] : [];
+    cards.sort((a, b) => (b.sample_size ?? 0) - (a.sample_size ?? 0));
+    return cards;
+  }, [coinHistory]);
+
+  const stateRollups = useMemo(
+    () => buildStateRollups(sortedSignals),
+    [sortedSignals]
+  );
+
+  const loadCoinHistory = async (e) => {
+    e.preventDefault();
+    const normalized = normalizeCoinSymbol(coinSymbol);
+    if (!normalized) return;
+
+    setCoinHistoryLoading(true);
+    setCoinHistoryError(null);
+    setCoinHistoryLoadedFor(normalized);
+    try {
+      const json = await fetchCoinHistory(normalized);
+      setCoinHistory(json);
+    } catch (err) {
+      setCoinHistory(null);
+      setCoinHistoryError(err?.message || "Failed to load coin history");
+    } finally {
+      setCoinHistoryLoading(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="sc-page">
@@ -371,7 +521,7 @@ export default function ScorecardPage() {
   if (!data) {
     return (
       <div className="sc-page">
-        <div className="sc-loading">Loading outcome scorecard…</div>
+        <div className="sc-loading">Loading outcome scorecard...</div>
       </div>
     );
   }
@@ -388,8 +538,9 @@ export default function ScorecardPage() {
       </div>
 
       <div className="sc-explainer-box">
-        Every time BHABIT fires a signal or a coin hits a board, we track what the price does over the next hour.
-        Below you can see how often each signal type played out, and how the boards perform against random coins.
+        Every time BHABIT fires a signal or a coin hits a board, we track what the
+        price does over the next hour. Below you can see how often each signal type
+        played out, and how the boards perform against random coins.
       </div>
 
       <div className="sc-overview">
@@ -412,14 +563,14 @@ export default function ScorecardPage() {
         <div className="sc-overview__card">
           <span className="sc-overview__label">
             Target move
-            <Tip text="A signal 'wins' if the price moves this much in the right direction" />
+            <Tip text="A signal wins if the price moves this much in the right direction" />
           </span>
           <span className="sc-overview__value">+{sig.target_pct}%</span>
         </div>
         <div className="sc-overview__card">
           <span className="sc-overview__label">
             Stop level
-            <Tip text="A signal 'loses' if the price moves this much in the wrong direction" />
+            <Tip text="A signal loses if the price moves this much in the wrong direction" />
           </span>
           <span className="sc-overview__value">-{sig.adverse_pct}%</span>
         </div>
@@ -431,6 +582,51 @@ export default function ScorecardPage() {
           <span className="sc-overview__value">{sig.horizon_minutes} min</span>
         </div>
       </div>
+
+      <section className="sc-section">
+        <div className="sc-section__header">
+          <h3>State Rollup</h3>
+        </div>
+        <p className="sc-section__explainer">
+          This is the higher-level read across the live signal families. It shows how the grouped states are behaving before you open the individual cards below.
+        </p>
+        <div className="sc-rollup-grid">
+          {stateRollups.map((row) => {
+            const pct = row.weighted_win_rate != null ? Math.round(row.weighted_win_rate * 100) : 0;
+            const tone =
+              pct >= 55
+                ? "positive"
+                : pct >= 45
+                  ? "warning"
+                  : "danger";
+            return (
+              <div key={row.state} className="sc-rollup-card">
+                <div className="sc-rollup-card__header">
+                  <span className="sc-rollup-card__state">{row.state}</span>
+                  <span className={`sc-rollup-card__pill sc-rollup-card__pill--${tone}`}>
+                    {row.card_count} card{row.card_count === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="sc-rollup-card__value">{pct}% follow-through</div>
+                <div className="sc-rollup-card__meta">
+                  {row.sample_size.toLocaleString()} comparable outcomes
+                </div>
+                <div className="sc-rollup-card__bar">
+                  <div className="sc-rollup-card__fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="sc-rollup-card__sub">
+                  {row.weighted_recent_rate != null
+                    ? `Last 50: ${Math.round(row.weighted_recent_rate * 100)}%`
+                    : "Recent sample not yet large enough"}
+                </div>
+              </div>
+            );
+          })}
+          {stateRollups.length === 0 && (
+            <div className="sc-empty">No state rollup available yet.</div>
+          )}
+        </div>
+      </section>
 
       <section className="sc-section">
         <div className="sc-section__header">
@@ -465,7 +661,8 @@ export default function ScorecardPage() {
           ))}
           {sortedSignals.length === 0 && (
             <div className="sc-empty">
-              No signal types with enough data yet — they need at least 5 outcomes to appear here.
+              No signal types with enough data yet - they need at least 5 outcomes to
+              appear here.
             </div>
           )}
         </div>
@@ -476,9 +673,65 @@ export default function ScorecardPage() {
           <h3>Board Performance</h3>
         </div>
         <p className="sc-section__explainer">
-          When a coin appears on one of the live boards (Ignition, Gainers, Losers), does the move
-          tend to continue or reverse? We compare against similar coins that didn't make the board.
+          When a coin appears on one of the live boards (Ignition, Gainers, Losers),
+          does the move tend to continue or reverse? We compare against similar
+          coins that didn't make the board.
         </p>
+        <div className="sc-section__subhead">
+          <h4>Board Rollup</h4>
+          <p>
+            This is the board-level read before the individual board cards. It groups boards by current status so we can see whether the measured boards are behaving differently from the learning ones.
+          </p>
+        </div>
+        <div className="sc-rollup-grid sc-rollup-grid--boards">
+          {boardRollups.map((row) => {
+            const pct =
+              row.weighted_continuation_rate != null
+                ? Math.round(row.weighted_continuation_rate * 100)
+                : 0;
+            const tone =
+              pct >= 55
+                ? "positive"
+                : pct >= 45
+                  ? "warning"
+                  : "danger";
+            const statusLabel =
+              row.status === "measured"
+                ? "Measured boards"
+                : row.status === "learning"
+                  ? "Learning boards"
+                  : row.status;
+
+            return (
+              <div key={row.status} className="sc-rollup-card sc-rollup-card--boards">
+                <div className="sc-rollup-card__header">
+                  <span className="sc-rollup-card__state">{statusLabel}</span>
+                  <span className={`sc-rollup-card__pill sc-rollup-card__pill--${tone}`}>
+                    {row.card_count} board{row.card_count === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="sc-rollup-card__value">{pct}% continuation</div>
+                <div className="sc-rollup-card__meta">
+                  {row.sample_size.toLocaleString()} comparable outcomes
+                </div>
+                <div className="sc-rollup-card__bar">
+                  <div className="sc-rollup-card__fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="sc-rollup-card__sub">
+                  {row.weighted_reversal_rate != null
+                    ? `${Math.round(row.weighted_reversal_rate * 100)}% reversed`
+                    : "Reversal sample not yet large enough"}
+                  {row.weighted_lift != null
+                    ? ` - ${row.weighted_lift >= 0 ? "+" : ""}${fmt(row.weighted_lift)} vs control`
+                    : ""}
+                </div>
+              </div>
+            );
+          })}
+          {boardRollups.length === 0 && (
+            <div className="sc-empty">No board rollup available yet.</div>
+          )}
+        </div>
         <div className="sc-grid">
           {boards.map((board) => (
             <BoardCard key={board.board} board={board} />
@@ -487,6 +740,80 @@ export default function ScorecardPage() {
             <div className="sc-empty">No board outcome data yet.</div>
           )}
         </div>
+      </section>
+
+      <section className="sc-section">
+        <div className="sc-section__header sc-section__header--coin">
+          <h3>Coin Drilldown</h3>
+          <form className="sc-coin-form" onSubmit={loadCoinHistory}>
+            <label className="sc-coin-form__label" htmlFor="sc-coin-symbol">
+              Coin
+            </label>
+            <input
+              id="sc-coin-symbol"
+              className="sc-coin-form__input"
+              value={coinSymbol}
+              onChange={(e) => setCoinSymbol(e.target.value)}
+              placeholder="BTC or BTC-USD"
+              inputMode="text"
+              autoComplete="off"
+            />
+            <button
+              className="sc-coin-form__button"
+              type="submit"
+              disabled={coinHistoryLoading}
+            >
+              {coinHistoryLoading ? "Loading..." : "Load"}
+            </button>
+          </form>
+        </div>
+        <p className="sc-section__explainer">
+          Look up one coin's comparable forward-outcome history. Bare symbols
+          normalize to the matching Coinbase product.
+        </p>
+
+        {coinHistoryError ? (
+          <div className="sc-coin-note sc-coin-note--error">
+            Failed to load coin history: {coinHistoryError}
+          </div>
+        ) : null}
+
+        {coinHistory ? (
+          <div className="sc-coin-history">
+            <div className="sc-coin-summary">
+              <div className="sc-coin-summary__title">
+                {coinHistoryLoadedFor || coinHistory.product_id || "Coin"} history
+              </div>
+              <div className="sc-coin-summary__body">
+                {formatCoinHistorySummary(coinHistory)}
+              </div>
+              <div className="sc-coin-summary__meta">
+                <span>Target +{coinHistory.target_pct}%</span>
+                <span>Stop -{coinHistory.adverse_pct}%</span>
+                <span>{coinHistory.horizon_minutes} min window</span>
+              </div>
+            </div>
+
+            {coinHistoryCards.length > 0 ? (
+              <div className="sc-grid sc-grid--compact">
+                {coinHistoryCards.map((card) => (
+                  <SignalCard
+                    key={`${card.state}-${card.direction}-${card.label}`}
+                    card={card}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="sc-empty">
+                No comparable historical outcomes yet.
+              </div>
+            )}
+          </div>
+        ) : !coinHistoryLoading ? (
+          <div className="sc-empty sc-empty--compact">
+            Use the form above to inspect a single coin's historical follow-through.
+          </div>
+        ) : null}
       </section>
     </div>
   );
