@@ -211,3 +211,28 @@ def test_missing_final_price_preserves_observed_target(tmp_path):
     assert row["target_hit_ts"] == 1300
     assert row["last_ts"] == 1300
     assert row["last_price"] == pytest.approx(102.5)
+
+
+def test_baseline_uses_canonical_snapshot_instead_of_event_evidence(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    event = _event("signal-source-disagreement")
+    event["evidence"]["price"] = 100
+
+    store.observe([event], {"KITE": 103}, now_ts=1000)
+    row = _row(store, "signal-source-disagreement")
+
+    assert row["start_price"] == 103
+    assert row["last_price"] == 103
+    assert row["target_hit_ts"] is None
+    assert row["max_favorable_pct"] == 0.0
+
+
+def test_event_evidence_without_canonical_quote_creates_no_outcome(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    event = _event("signal-evidence-only")
+    event["evidence"]["price"] = 100
+
+    store.observe([event], {}, now_ts=1000)
+
+    assert _row(store, "signal-evidence-only") is None
+    assert store.status()["total"] == 0

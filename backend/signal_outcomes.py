@@ -125,13 +125,6 @@ class SignalOutcomeStore:
 
     @staticmethod
     def _event_price(event: dict[str, Any], prices: dict[str, Any]) -> float | None:
-        evidence = (
-            event.get("evidence") if isinstance(event.get("evidence"), dict) else {}
-        )
-        for key in ("price", "price_now", "current_price"):
-            parsed = _number(evidence.get(key))
-            if parsed is not None and parsed > 0:
-                return parsed
         product_id = SignalOutcomeStore._product(event)
         symbol = product_id.split("-")[0]
         parsed = _number(
