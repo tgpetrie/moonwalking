@@ -144,3 +144,28 @@ def test_gap_records_only_latest_reached_checkpoint(tmp_path):
     assert row["return_15m"] is None
     assert row["return_30m"] is None
     assert row["return_60m"] == pytest.approx(7.0)
+
+
+def test_grading_window_starts_when_baseline_price_is_observed(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    observed_ts = 100_000
+    event = _event("signal-delayed-observation")
+    event["latest_transition_ts_ms"] = (observed_ts - 1200) * 1000
+
+    store.observe([event], {"KITE": 100}, now_ts=observed_ts)
+    row = _row(store, "signal-delayed-observation")
+
+    assert row["started_ts"] == observed_ts
+    assert row["start_price"] == 100
+    assert row["return_5m"] is None
+    assert row["return_15m"] is None
+    assert row["complete"] == 0
+
+    store.observe([], {"KITE": 101}, now_ts=observed_ts + 2500)
+    assert _row(store, "signal-delayed-observation")["complete"] == 0
+
+    store.observe([], {"KITE": 102.5}, now_ts=observed_ts + 3600)
+    row = _row(store, "signal-delayed-observation")
+
+    assert row["complete"] == 1
+    assert row["outcome"] == "followed_through"

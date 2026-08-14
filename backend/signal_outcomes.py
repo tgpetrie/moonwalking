@@ -176,10 +176,7 @@ class SignalOutcomeStore:
                 price = self._event_price(event, prices)
                 if price is None:
                     continue
-                start_ms = _number(
-                    event.get("latest_transition_ts_ms") or event.get("event_ts_ms")
-                )
-                started_ts = int((start_ms or (now_ts * 1000)) / 1000.0)
+                started_ts = now_ts
                 read = (
                     event.get("the_read")
                     if isinstance(event.get("the_read"), dict)
