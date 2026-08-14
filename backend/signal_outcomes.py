@@ -228,12 +228,27 @@ class SignalOutcomeStore:
                     if product_id in prices
                     else prices.get(symbol)
                 )
+                age = max(0, now_ts - int(row["started_ts"]))
                 if current is None or current <= 0:
+                    if age >= self.horizon_seconds:
+                        target_hit = row["target_hit_ts"]
+                        adverse_hit = row["adverse_hit_ts"]
+                        won = target_hit is not None and (
+                            adverse_hit is None
+                            or int(target_hit) < int(adverse_hit)
+                        )
+                        outcome = (
+                            "followed_through" if won else "did_not_follow_through"
+                        )
+                        conn.execute(
+                            "UPDATE signal_outcomes SET outcome = ?, complete = 1 "
+                            "WHERE signal_id = ?",
+                            (outcome, row["signal_id"]),
+                        )
                     continue
                 directional = self._directional_return(
                     row["direction"], float(row["start_price"]), current
                 )
-                age = max(0, now_ts - int(row["started_ts"]))
                 max_favorable = float(row["max_favorable_pct"] or 0)
                 max_adverse = float(row["max_adverse_pct"] or 0)
                 target_hit = row["target_hit_ts"]

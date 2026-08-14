@@ -169,3 +169,45 @@ def test_grading_window_starts_when_baseline_price_is_observed(tmp_path):
 
     assert row["complete"] == 1
     assert row["outcome"] == "followed_through"
+
+
+def test_missing_price_before_horizon_leaves_outcome_open(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-missing-early")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {}, now_ts=4500)
+
+    row = _row(store, "signal-missing-early")
+
+    assert row["complete"] == 0
+    assert row["outcome"] is None
+    assert row["last_ts"] == 1000
+    assert row["last_price"] == 100
+
+
+def test_missing_price_at_horizon_closes_without_inventing_evidence(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-missing-horizon")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {}, now_ts=4600)
+
+    row = _row(store, "signal-missing-horizon")
+
+    assert row["complete"] == 1
+    assert row["outcome"] == "did_not_follow_through"
+    assert row["target_hit_ts"] is None
+    assert row["adverse_hit_ts"] is None
+    assert store.status()["collecting"] == 0
+
+
+def test_missing_final_price_preserves_observed_target(tmp_path):
+    store = SignalOutcomeStore(tmp_path / "outcomes.sqlite")
+    store.observe([_event("signal-missing-after-target")], {"KITE": 100}, now_ts=1000)
+    store.observe([], {"KITE": 102.5}, now_ts=1300)
+    store.observe([], {}, now_ts=4600)
+
+    row = _row(store, "signal-missing-after-target")
+
+    assert row["complete"] == 1
+    assert row["outcome"] == "followed_through"
+    assert row["target_hit_ts"] == 1300
+    assert row["last_ts"] == 1300
+    assert row["last_price"] == pytest.approx(102.5)
