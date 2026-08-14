@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ScorecardPage, { evidenceTier } from "./ScorecardPage";
 
@@ -26,6 +26,22 @@ const SIGNAL_STRONG = {
 const SIGNAL_SOLID    = { ...SIGNAL_STRONG, label: "SOLID SIGNAL",    sample_size: 45 };  // 30–99 → Solid
 const SIGNAL_BUILDING = { ...SIGNAL_STRONG, label: "BUILDING SIGNAL", sample_size: 15 };  // 10–29 → Building
 const SIGNAL_EMERGING = { ...SIGNAL_STRONG, label: "EMERGING SIGNAL", sample_size: 7  };  // 1–9  → Emerging
+const SIGNAL_ESCALATING = {
+  ...SIGNAL_STRONG,
+  state: "Escalating",
+  label: "STRONG BUY",
+  sample_size: 55,
+  win_rate: 0.62,
+  recent_win_rate: 0.58,
+};
+const SIGNAL_BUILDING_STATE = {
+  ...SIGNAL_STRONG,
+  state: "Building",
+  label: "WATCH",
+  sample_size: 15,
+  win_rate: 0.34,
+  recent_win_rate: 0.31,
+};
 
 const BOARD_STRONG = {
   board: "ignition_1m",
@@ -71,6 +87,21 @@ function mockFetch(payload, ok = true) {
   global.fetch = vi.fn().mockResolvedValue({
     ok,
     json: vi.fn().mockResolvedValue(payload),
+  });
+}
+
+function mockFetchSequence(responses) {
+  const queued = [...responses];
+  global.fetch = vi.fn(async () => {
+    const next = queued.shift();
+    if (!next) {
+      throw new Error("Unexpected fetch");
+    }
+    return {
+      ok: next.ok !== false,
+      status: next.status ?? 200,
+      json: vi.fn().mockResolvedValue(next.payload),
+    };
   });
 }
 
@@ -195,6 +226,32 @@ describe("ScorecardPage – aggregate statistics", () => {
 });
 
 // ---------------------------------------------------------------------------
+// State rollup
+// ---------------------------------------------------------------------------
+
+describe("ScorecardPage – state rollup", () => {
+  it("summarizes signal families by state before individual cards", async () => {
+    mockFetch(
+      makeResponse({
+        signals: {
+          signal_types: [SIGNAL_ESCALATING, SIGNAL_BUILDING_STATE, SIGNAL_STRONG],
+        },
+      })
+    );
+
+    render(<ScorecardPage />);
+    await waitFor(() =>
+      expect(screen.getByText("State Rollup")).toBeInTheDocument()
+    );
+    const cards = [...document.querySelectorAll(".sc-rollup-grid:not(.sc-rollup-grid--boards) .sc-rollup-card")];
+    expect(cards.length).toBe(3);
+    expect(cards.some((card) => card.textContent.includes("Escalating"))).toBe(true);
+    expect(cards.some((card) => card.textContent.includes("Building"))).toBe(true);
+    expect(cards.some((card) => card.textContent.includes("62% follow-through"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Signal cards
 // ---------------------------------------------------------------------------
 
@@ -264,6 +321,125 @@ describe("ScorecardPage – board card rendering", () => {
     render(<ScorecardPage />);
     await waitFor(() =>
       expect(screen.getByText(/No board outcome data yet/i)).toBeInTheDocument()
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Board rollup
+// ---------------------------------------------------------------------------
+
+describe("ScorecardPage – board rollup", () => {
+  it("summarizes board status before the individual board cards", async () => {
+    mockFetch(
+      makeResponse({
+        boards: {
+          boards: {
+            ignition_1m: {
+              ...BOARD_STRONG,
+              status: "measured",
+              sample_size: 150,
+              continuation_rate: 0.18,
+              reversal_rate: 0.2,
+              continuation_lift_vs_control: -0.02,
+            },
+            confirmation_3m_up: {
+              ...BOARD_SOLID,
+              status: "learning",
+              sample_size: 45,
+              continuation_rate: 0.44,
+              reversal_rate: 0.31,
+              continuation_lift_vs_control: 0.08,
+            },
+          },
+        },
+      })
+    );
+
+    render(<ScorecardPage />);
+    await waitFor(() =>
+      expect(screen.getByText("Board Rollup")).toBeInTheDocument()
+    );
+    const cards = [...document.querySelectorAll(".sc-rollup-card--boards")];
+    expect(cards.length).toBe(2);
+    expect(cards.some((card) => card.textContent.includes("Measured boards"))).toBe(true);
+    expect(cards.some((card) => card.textContent.includes("Learning boards"))).toBe(true);
+    expect(cards.some((card) => card.textContent.includes("18% continuation"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Coin drilldown
+// ---------------------------------------------------------------------------
+
+describe("ScorecardPage – coin drilldown", () => {
+  it("loads coin history and renders the summary", async () => {
+    mockFetchSequence([
+      { payload: makeResponse() },
+      {
+        payload: {
+          status: "live",
+          product_id: "BTC-USD",
+          total_outcomes: 32,
+          target_pct: 2.0,
+          adverse_pct: 1.0,
+          horizon_minutes: 60,
+          signal_types: [
+            {
+              state: "Confirmed",
+              direction: "up",
+              label: "BUY WATCH",
+              sample_size: 32,
+              win_rate: 0.5625,
+              recent_win_rate: 0.6,
+              recent_sample: 10,
+              median_favorable_pct: 1.9,
+              median_adverse_pct: -0.8,
+              median_return: { "5m": 0.4, "15m": 0.6, "30m": 0.8, "60m": 1.1 },
+            },
+          ],
+        },
+      },
+    ]);
+
+    render(<ScorecardPage />);
+    await waitFor(() => expect(screen.getByText("Coin Drilldown")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/Coin/i), { target: { value: "BTC" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("32 comparable outcomes - 56% followed through")).toBeInTheDocument()
+    );
+    expect(screen.getByText("BTC history")).toBeInTheDocument();
+  });
+
+  it("shows a measured-history message for small samples", async () => {
+    mockFetchSequence([
+      { payload: makeResponse() },
+      {
+        payload: {
+          status: "live",
+          product_id: "ETH-USD",
+          total_outcomes: 12,
+          target_pct: 2.0,
+          adverse_pct: 1.0,
+          horizon_minutes: 60,
+          signal_types: [],
+        },
+      },
+    ]);
+
+    render(<ScorecardPage />);
+    await waitFor(() => expect(screen.getByText("Coin Drilldown")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/Coin/i), { target: { value: "ETH" } });
+    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("12 comparable outcomes - Not enough history for a measured rate")
+      ).toBeInTheDocument()
     );
   });
 });

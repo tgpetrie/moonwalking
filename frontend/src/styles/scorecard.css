@@ -65,6 +65,30 @@
   line-height: 1.5;
 }
 
+.sc-section__subhead {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sc-section__subhead h4 {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.sc-section__subhead p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.38);
+}
+
 .sc-card__explainer {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.4);
@@ -141,6 +165,10 @@
   gap: 12px;
 }
 
+.sc-section__header--coin {
+  align-items: flex-end;
+}
+
 .sc-section__header h3 {
   font-size: 1.1rem;
   font-weight: 600;
@@ -151,6 +179,56 @@
 .sc-sort {
   display: flex;
   gap: 4px;
+}
+
+.sc-coin-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sc-coin-form__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.sc-coin-form__input {
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.88);
+  padding: 6px 12px;
+  font: inherit;
+}
+
+.sc-coin-form__input:focus {
+  outline: none;
+  border-color: rgba(255, 179, 71, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 179, 71, 0.1);
+}
+
+.sc-coin-form__button {
+  background: rgba(255, 179, 71, 0.12);
+  border: 1px solid rgba(255, 179, 71, 0.28);
+  color: var(--brand-amber, #ffb347);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: "Raleway", system-ui, sans-serif;
+}
+
+.sc-coin-form__button:hover:not(:disabled) {
+  background: rgba(255, 179, 71, 0.18);
+}
+
+.sc-coin-form__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .sc-sort button {
@@ -176,6 +254,92 @@
   color: var(--brand-amber, #ffb347);
 }
 
+.sc-rollup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.sc-rollup-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-rollup-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sc-rollup-card__state {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.sc-rollup-card__pill {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.sc-rollup-card__pill--positive {
+  background: rgba(16, 174, 155, 0.12);
+  color: var(--brand-teal, #10ae9b);
+  border-color: rgba(16, 174, 155, 0.2);
+}
+
+.sc-rollup-card__pill--warning {
+  background: rgba(255, 179, 71, 0.12);
+  color: var(--brand-amber, #ffb347);
+  border-color: rgba(255, 179, 71, 0.2);
+}
+
+.sc-rollup-card__pill--danger {
+  background: rgba(192, 132, 252, 0.12);
+  color: var(--brand-purple, #c084fc);
+  border-color: rgba(192, 132, 252, 0.2);
+}
+
+.sc-rollup-card__value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sc-rollup-card__meta,
+.sc-rollup-card__sub {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+.sc-rollup-card__bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sc-rollup-card__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 179, 71, 0.7), rgba(192, 132, 252, 0.72));
+  border-radius: inherit;
+}
+
+.sc-rollup-card--boards .sc-rollup-card__fill {
+  background: linear-gradient(90deg, rgba(16, 174, 155, 0.72), rgba(255, 179, 71, 0.72));
+}
+
 /* ── Grid ──────────────────────────────────── */
 
 .sc-grid {
@@ -184,12 +348,70 @@
   gap: 16px;
 }
 
+.sc-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
 .sc-empty {
   grid-column: 1 / -1;
   text-align: center;
   padding: 32px;
   color: rgba(255, 255, 255, 0.3);
   font-size: 0.875rem;
+}
+
+.sc-empty--compact {
+  padding: 20px;
+}
+
+.sc-coin-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 2px;
+  font-size: 0.82rem;
+}
+
+.sc-coin-note--error {
+  background: rgba(192, 132, 252, 0.08);
+  border: 1px solid rgba(192, 132, 252, 0.16);
+  color: rgba(233, 213, 255, 0.86);
+}
+
+.sc-coin-history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sc-coin-summary {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-coin-summary__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.sc-coin-summary__body {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.sc-coin-summary__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.36);
 }
 
 /* ── Card ──────────────────────────────────── */
