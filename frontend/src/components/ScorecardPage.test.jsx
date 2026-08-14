@@ -197,7 +197,7 @@ describe("ScorecardPage – aggregate statistics", () => {
     render(<ScorecardPage />);
     await waitFor(() => {
       expect(screen.getByText("Overall follow-through")).toBeInTheDocument();
-      expect(screen.getByText("Best follow-through")).toBeInTheDocument();
+      expect(screen.getByText("Best track record")).toBeInTheDocument();
       expect(screen.getByText("21.0%")).toBeInTheDocument();
       expect(screen.queryByText(/accuracy/i)).not.toBeInTheDocument();
     });
@@ -330,7 +330,7 @@ describe("ScorecardPage – board card rendering", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardPage – board rollup", () => {
-  it("summarizes board status before the individual board cards", async () => {
+  it("keeps the board overview hidden until opened", async () => {
     mockFetch(
       makeResponse({
         boards: {
@@ -358,11 +358,20 @@ describe("ScorecardPage – board rollup", () => {
 
     render(<ScorecardPage />);
     await waitFor(() =>
-      expect(screen.getByText("Board Rollup")).toBeInTheDocument()
+      expect(screen.getByText("Board Performance")).toBeInTheDocument()
     );
+    const overview = screen.getByText(/Board summary/i).closest("details");
+    expect(overview?.open).toBe(false);
+
+    fireEvent.click(overview?.querySelector("summary"));
+
+    await waitFor(() =>
+      expect(overview?.open).toBe(true)
+    );
+    expect(document.querySelectorAll(".sc-rollup-grid--boards .sc-rollup-card").length).toBe(2);
     const cards = [...document.querySelectorAll(".sc-rollup-card--boards")];
     expect(cards.length).toBe(2);
-    expect(cards.some((card) => card.textContent.includes("Measured boards"))).toBe(true);
+    expect(cards.some((card) => card.textContent.includes("Ready boards"))).toBe(true);
     expect(cards.some((card) => card.textContent.includes("Learning boards"))).toBe(true);
     expect(cards.some((card) => card.textContent.includes("18% continuation"))).toBe(true);
   });
@@ -403,7 +412,7 @@ describe("ScorecardPage – coin drilldown", () => {
     ]);
 
     render(<ScorecardPage />);
-    await waitFor(() => expect(screen.getByText("Coin Drilldown")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Coin Drilldown/i)).toBeInTheDocument());
 
     fireEvent.change(screen.getByLabelText(/Coin/i), { target: { value: "BTC" } });
     fireEvent.click(screen.getByRole("button", { name: "Load" }));
@@ -431,7 +440,7 @@ describe("ScorecardPage – coin drilldown", () => {
     ]);
 
     render(<ScorecardPage />);
-    await waitFor(() => expect(screen.getByText("Coin Drilldown")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Coin Drilldown/i)).toBeInTheDocument());
 
     fireEvent.change(screen.getByLabelText(/Coin/i), { target: { value: "ETH" } });
     fireEvent.click(screen.getByRole("button", { name: "Load" }));

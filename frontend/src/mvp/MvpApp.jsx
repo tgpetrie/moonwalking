@@ -15,6 +15,7 @@ const APP_WATCHLISTS_PATH = "/app/watchlists";
 const APP_PORTFOLIO_PATH = "/app/portfolio";
 const APP_SCORECARD_PATH = "/app/scorecard";
 const APP_SETTINGS_PATH = "/app/settings";
+const PUBLIC_SCORECARD_PATH = "/scorecard";
 
 const protectedPaths = new Set([
   APP_DASHBOARD_PATH,
@@ -331,6 +332,7 @@ function matchRoute(pathname) {
   if (
     protectedPaths.has(pathname) ||
     pathname === "/" ||
+    pathname === PUBLIC_SCORECARD_PATH ||
     pathname === "/login" ||
     pathname === "/signup" ||
     Object.prototype.hasOwnProperty.call(legacyMemberRouteMap, pathname)
@@ -401,6 +403,7 @@ function AppLink({ to, navigate, className, children, accent = false, external =
 function PublicHeader({ navigate, session, currentPath }) {
   const navItems = [
     { label: "Live Board", to: "/" },
+    { label: "Scorecard Preview", to: PUBLIC_SCORECARD_PATH },
   ];
 
   return (
@@ -485,6 +488,9 @@ function HomePage({ navigate }) {
           <div className="mw-hero-actions">
             <AppLink to="/signup" navigate={navigate} className="mw-button mw-button--primary" accent>
               Get Started
+            </AppLink>
+            <AppLink to={PUBLIC_SCORECARD_PATH} navigate={navigate} className="mw-button mw-button--ghost">
+              Open Scorecard Preview
             </AppLink>
             <a href="#public-tier" className="mw-button mw-button--ghost">
               Explore Public Tier
@@ -1779,6 +1785,7 @@ export default function MvpApp() {
 
   const isPublicRoute =
     route.name === "/" ||
+    route.name === PUBLIC_SCORECARD_PATH ||
     route.name === "/login" ||
     route.name === "/signup" ||
     route.name === "/u/:username" ||
@@ -1835,6 +1842,8 @@ export default function MvpApp() {
         );
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;
+      case PUBLIC_SCORECARD_PATH:
+        return <ScorecardPage previewMode />;
       case APP_SCORECARD_PATH:
         return <ScorecardPage />;
       case APP_SETTINGS_PATH:

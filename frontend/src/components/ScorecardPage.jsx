@@ -130,6 +130,84 @@ function buildBoardRollups(boards) {
     .sort((a, b) => (b.sample_size ?? 0) - (a.sample_size ?? 0));
 }
 
+const DEMO_SCORECARD = {
+  status: "demo",
+  signals: {
+    total_graded: 1500,
+    overall_win_rate: 0.21,
+    target_pct: 2.0,
+    adverse_pct: 1.0,
+    horizon_minutes: 60,
+    signal_types: [
+      {
+        state: "Escalating",
+        direction: "up",
+        label: "STRONG BUY",
+        sample_size: 55,
+        win_rate: 0.62,
+        recent_win_rate: 0.58,
+        recent_sample: 18,
+        median_favorable_pct: 2.6,
+        median_adverse_pct: -1.0,
+        median_return: { "5m": 0.6, "15m": 0.9, "30m": 1.3, "60m": 1.9 },
+      },
+      {
+        state: "Building",
+        direction: "up",
+        label: "WATCH",
+        sample_size: 15,
+        win_rate: 0.34,
+        recent_win_rate: 0.31,
+        recent_sample: 8,
+        median_favorable_pct: 1.1,
+        median_adverse_pct: -0.8,
+        median_return: { "5m": 0.1, "15m": 0.2, "30m": 0.0, "60m": -0.3 },
+      },
+      {
+        state: "Reversal Risk",
+        direction: "down",
+        label: "REVERSAL RISK RISING",
+        sample_size: 200,
+        win_rate: 0.18,
+        recent_win_rate: 0.14,
+        recent_sample: 50,
+        median_favorable_pct: 1.8,
+        median_adverse_pct: -0.8,
+        median_return: { "5m": 0.3, "15m": 0.5, "30m": -0.2, "60m": -0.8 },
+      },
+    ],
+  },
+  boards: {
+    total_entries: 300,
+    boards: {
+      ignition_1m: {
+        board: "ignition_1m",
+        status: "measured",
+        read: "No clear edge",
+        sample_size: 150,
+        matched_sample_size: 130,
+        continuation_rate: 0.18,
+        reversal_rate: 0.2,
+        continuation_ci95: [0.12, 0.24],
+        continuation_lift_vs_control: -0.02,
+        median_directional_return: { "5m": -0.1, "15m": -0.2, "30m": 0.1, "60m": 0.3 },
+      },
+      confirmation_3m_up: {
+        board: "confirmation_3m_up",
+        status: "learning",
+        read: "Tends to keep moving",
+        sample_size: 45,
+        matched_sample_size: 40,
+        continuation_rate: 0.44,
+        reversal_rate: 0.31,
+        continuation_ci95: [0.33, 0.55],
+        continuation_lift_vs_control: 0.08,
+        median_directional_return: { "5m": 0.2, "15m": 0.4, "30m": 0.6, "60m": 0.9 },
+      },
+    },
+  },
+};
+
 async function fetchCoinHistory(normalizedSymbol) {
   const res = await fetch(`${API_BASE}/api/coin-history/${encodeURIComponent(normalizedSymbol)}`, {
     credentials: "include",
@@ -189,6 +267,51 @@ const FRIENDLY_READS = {
   "No clear edge": "No clear pattern yet",
   "Learning": "Still collecting data",
 };
+
+function describeSignalState(state) {
+  switch (state) {
+    case "Escalating":
+      return "The signal is strengthening, so the setup is getting more convincing.";
+    case "Building":
+      return "There is a signal here, but the sample is still early and should be treated carefully.";
+    case "Cooling":
+      return "The setup is fading, so the edge is becoming less interesting.";
+    case "Confirmed":
+      return "This pattern has been seen enough to feel more established than a fresh setup.";
+    default:
+      return "This state tells you how mature the setup is.";
+  }
+}
+
+function describeSignalUse(card) {
+  const directionText =
+    card.direction === "up"
+      ? "It leans bullish, so the setup tends to point higher."
+      : card.direction === "down"
+        ? "It leans bearish, so the setup tends to point lower."
+        : "It is neutral, so it does not strongly point up or down.";
+
+  return `${describeSignalState(card.state)} ${directionText} Compare sample size, follow-through, and recent rate to judge whether it is worth trusting.`;
+}
+
+function describeBoardUse(board) {
+  const readiness =
+    board.status === "measured"
+      ? "Ready means we have enough history to trust the read more."
+      : "Learning means the board is still collecting evidence.";
+
+  return `${readiness} Kept moving shows how often the move continued. Reversed shows how often it flipped. Edge vs random tells you whether the board is meaningfully better than similar coins that did not make the board.`;
+}
+
+function describeRollupUse(row) {
+  if (row.status === "measured") {
+    return "Ready boards have enough history to give a more stable read. If continuation is low, the board is not adding much help yet.";
+  }
+  if (row.status === "learning") {
+    return "Learning boards are still collecting evidence, so use them as a watchlist rather than a strong conclusion.";
+  }
+  return "This is the combined read for a board status bucket.";
+}
 
 function WinRateBar({ rate, recent, label, tip }) {
   const pct = rate != null ? Math.round(rate * 100) : 0;
@@ -253,12 +376,21 @@ function SignalCard({ card }) {
         </span>
       </div>
 
+      <div className="sc-card__lede">{describeSignalState(card.state)}</div>
+
       <WinRateBar
         rate={card.win_rate}
         recent={card.recent_win_rate}
         label="Played out?"
         tip="How often the price moved in the predicted direction by the target amount within the time window"
       />
+
+      <details className="sc-card__details">
+        <summary className="sc-card__details-toggle">What should I take from this?</summary>
+        <div className="sc-card__details-body">
+          {describeSignalUse(card)}
+        </div>
+      </details>
 
       <div className="sc-card__stats">
         <div className="sc-stat">
@@ -341,6 +473,13 @@ function BoardCard({ board }) {
       <div className="sc-card__explainer">
         When a coin appears on this board, does the move keep going?
       </div>
+
+      <details className="sc-card__details">
+        <summary className="sc-card__details-toggle">How do I read this board?</summary>
+        <div className="sc-card__details-body">
+          {describeBoardUse(board)}
+        </div>
+      </details>
 
       <div className="sc-card__stats">
         <div className="sc-stat">
@@ -425,8 +564,8 @@ function BoardCard({ board }) {
   );
 }
 
-export default function ScorecardPage() {
-  const [data, setData] = useState(null);
+export default function ScorecardPage({ previewMode = false } = {}) {
+  const [data, setData] = useState(() => (previewMode ? DEMO_SCORECARD : null));
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState("sample_size");
   const [coinSymbol, setCoinSymbol] = useState("BTC");
@@ -446,7 +585,7 @@ export default function ScorecardPage() {
         const json = await res.json();
         if (!cancelled) setData(json);
       } catch (e) {
-        if (!cancelled) setError(e.message);
+        if (!cancelled && !previewMode) setError(e.message);
       }
     }
     load();
@@ -455,7 +594,7 @@ export default function ScorecardPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [previewMode]);
 
   const sortedSignals = useMemo(() => {
     if (!data?.signals?.signal_types) return [];
@@ -527,13 +666,22 @@ export default function ScorecardPage() {
   }
 
   const sig = data.signals;
+  const coinFocus = normalizeCoinSymbol(coinHistoryLoadedFor || coinSymbol) || "BTC";
+  const coinContextLabel = previewMode
+    ? `Previewing ${coinFocus}`
+    : coinHistoryLoadedFor
+      ? `${coinHistoryLoadedFor} history loaded`
+      : `Focus coin: ${coinFocus}`;
 
   return (
     <div className="sc-page">
       <div className="sc-hero">
+        <div className="sc-hero__eyebrow-row">
+          <span className="sc-hero__eyebrow-pill">{coinContextLabel}</span>
+        </div>
         <h2 className="sc-hero__title">Outcome Scorecard</h2>
         <p className="sc-hero__subtitle">
-          Are our alerts and board picks actually right? Here's the data.
+          Are our alerts and board picks actually right? Here's the data. This view is centered on {coinFocus}, and you can change the coin in the drilldown below.
         </p>
       </div>
 
@@ -590,6 +738,9 @@ export default function ScorecardPage() {
         <p className="sc-section__explainer">
           This is the higher-level read across the live signal families. It shows how the grouped states are behaving before you open the individual cards below.
         </p>
+        {previewMode ? (
+          <div className="sc-preview-note">Preview mode: showing demo data until the backend is available.</div>
+        ) : null}
         <div className="sc-rollup-grid">
           {stateRollups.map((row) => {
             const pct = row.weighted_win_rate != null ? Math.round(row.weighted_win_rate * 100) : 0;
@@ -636,22 +787,25 @@ export default function ScorecardPage() {
               className={sortBy === "sample_size" ? "is-active" : ""}
               onClick={() => setSortBy("sample_size")}
             >
-              Most tested
+              Most evidence
             </button>
             <button
               className={sortBy === "win_rate" ? "is-active" : ""}
               onClick={() => setSortBy("win_rate")}
             >
-              Best follow-through
+              Best track record
             </button>
             <button
               className={sortBy === "recent" ? "is-active" : ""}
               onClick={() => setSortBy("recent")}
             >
-              Hot right now
+              Most recent
             </button>
           </div>
         </div>
+        <p className="sc-section__explainer">
+          Use these filters to find the signals you can trust most, the ones that have historically worked best, or the ones that are moving the fastest right now.
+        </p>
         <div className="sc-grid">
           {sortedSignals.map((card) => (
             <SignalCard
@@ -677,61 +831,71 @@ export default function ScorecardPage() {
           does the move tend to continue or reverse? We compare against similar
           coins that didn't make the board.
         </p>
-        <div className="sc-section__subhead">
-          <h4>Board Rollup</h4>
-          <p>
-            This is the board-level read before the individual board cards. It groups boards by current status so we can see whether the measured boards are behaving differently from the learning ones.
+        <details className="sc-board-overview" open={previewMode}>
+          <summary className="sc-board-overview__summary">
+            Board summary
+            <span className="sc-board-overview__hint">Ready vs learning</span>
+          </summary>
+          <p className="sc-board-overview__copy">
+            A quick summary of how the boards are doing overall, grouped by whether
+            they are ready or still learning. Open this if you want the high-level
+            read before the individual board cards.
           </p>
-        </div>
-        <div className="sc-rollup-grid sc-rollup-grid--boards">
-          {boardRollups.map((row) => {
-            const pct =
-              row.weighted_continuation_rate != null
-                ? Math.round(row.weighted_continuation_rate * 100)
-                : 0;
-            const tone =
-              pct >= 55
-                ? "positive"
-                : pct >= 45
-                  ? "warning"
-                  : "danger";
-            const statusLabel =
-              row.status === "measured"
-                ? "Measured boards"
-                : row.status === "learning"
-                  ? "Learning boards"
-                  : row.status;
+          <div className="sc-rollup-grid sc-rollup-grid--boards">
+            {boardRollups.map((row) => {
+              const pct =
+                row.weighted_continuation_rate != null
+                  ? Math.round(row.weighted_continuation_rate * 100)
+                  : 0;
+              const tone =
+                pct >= 55
+                  ? "positive"
+                  : pct >= 45
+                    ? "warning"
+                    : "danger";
+              const statusLabel =
+                row.status === "measured"
+                  ? "Ready boards"
+                  : row.status === "learning"
+                    ? "Learning boards"
+                    : row.status;
 
-            return (
-              <div key={row.status} className="sc-rollup-card sc-rollup-card--boards">
-                <div className="sc-rollup-card__header">
-                  <span className="sc-rollup-card__state">{statusLabel}</span>
-                  <span className={`sc-rollup-card__pill sc-rollup-card__pill--${tone}`}>
-                    {row.card_count} board{row.card_count === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <div className="sc-rollup-card__value">{pct}% continuation</div>
-                <div className="sc-rollup-card__meta">
-                  {row.sample_size.toLocaleString()} comparable outcomes
-                </div>
-                <div className="sc-rollup-card__bar">
-                  <div className="sc-rollup-card__fill" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="sc-rollup-card__sub">
-                  {row.weighted_reversal_rate != null
-                    ? `${Math.round(row.weighted_reversal_rate * 100)}% reversed`
-                    : "Reversal sample not yet large enough"}
-                  {row.weighted_lift != null
-                    ? ` - ${row.weighted_lift >= 0 ? "+" : ""}${fmt(row.weighted_lift)} vs control`
-                    : ""}
-                </div>
-              </div>
-            );
-          })}
-          {boardRollups.length === 0 && (
-            <div className="sc-empty">No board rollup available yet.</div>
-          )}
-        </div>
+              return (
+                <details key={row.status} className="sc-rollup-card sc-rollup-card--boards">
+                  <summary className="sc-rollup-card__summary">
+                    <div className="sc-rollup-card__header">
+                      <span className="sc-rollup-card__state">{statusLabel}</span>
+                      <span className={`sc-rollup-card__pill sc-rollup-card__pill--${tone}`}>
+                        {row.card_count} board{row.card_count === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="sc-rollup-card__value">{pct}% continuation</div>
+                    <div className="sc-rollup-card__meta">
+                      {row.sample_size.toLocaleString()} comparable outcomes
+                    </div>
+                    <div className="sc-rollup-card__bar">
+                      <div className="sc-rollup-card__fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="sc-rollup-card__sub">
+                      {row.weighted_reversal_rate != null
+                        ? `${Math.round(row.weighted_reversal_rate * 100)}% reversed`
+                        : "Reversal sample not yet large enough"}
+                      {row.weighted_lift != null
+                        ? ` - ${row.weighted_lift >= 0 ? "+" : ""}${fmt(row.weighted_lift)} vs control`
+                        : ""}
+                    </div>
+                  </summary>
+                  <div className="sc-rollup-card__details">
+                    {describeRollupUse(row)}
+                  </div>
+                </details>
+              );
+            })}
+            {boardRollups.length === 0 && (
+              <div className="sc-empty">No board overview available yet.</div>
+            )}
+          </div>
+        </details>
         <div className="sc-grid">
           {boards.map((board) => (
             <BoardCard key={board.board} board={board} />
@@ -744,7 +908,7 @@ export default function ScorecardPage() {
 
       <section className="sc-section">
         <div className="sc-section__header sc-section__header--coin">
-          <h3>Coin Drilldown</h3>
+          <h3>Coin Drilldown - {coinFocus}</h3>
           <form className="sc-coin-form" onSubmit={loadCoinHistory}>
             <label className="sc-coin-form__label" htmlFor="sc-coin-symbol">
               Coin
@@ -769,7 +933,7 @@ export default function ScorecardPage() {
         </div>
         <p className="sc-section__explainer">
           Look up one coin's comparable forward-outcome history. Bare symbols
-          normalize to the matching Coinbase product.
+          normalize to the matching Coinbase product. Start here if you want to know whether BTC, ETH, or another coin has been behaving better or worse than its peers.
         </p>
 
         {coinHistoryError ? (

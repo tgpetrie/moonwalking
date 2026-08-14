@@ -8,6 +8,7 @@ import MvpApp from "./mvp/MvpApp.jsx";
 const mvpRouteSet = new Set([
   "/login",
   "/signup",
+  "/scorecard",
   "/app/dashboard",
   "/app/watchlists",
   "/app/portfolio",
