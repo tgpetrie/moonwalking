@@ -42,8 +42,10 @@ try:
         get_price_at_or_before,
         get_price_at_or_after,
         get_recent_price_snapshots,
+        realized_volatility_by_product,
     )
     from volume_1h_store import ensure_db as ensure_volume_db
+    from volume_1h_store import latest_quote_volume_by_product
     from volume_1h_candles import refresh_product_minutes, RateLimitError
     from volume_1h_compute import compute_volume_1h
 except ImportError as e:
@@ -51,6 +53,12 @@ except ImportError as e:
 
     def ensure_volume_db():
         pass
+
+    def realized_volatility_by_product(now_ts, **kwargs):
+        return {}
+
+    def latest_quote_volume_by_product(now_ts, **kwargs):
+        return {}
 
     refresh_product_minutes = None
 
@@ -203,6 +211,19 @@ from alert_events import (
 from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
+
+try:
+    from control_dry_run import dry_run_report, record_dry_run_observation
+except ImportError as e:  # pragma: no cover - optional during partial installs
+    logging.warning(f"Control dry-run imports failed: {e}")
+
+    def record_dry_run_observation(ranking_snapshot, captured_ts, signal_events):
+        return 0
+
+    def dry_run_report():
+        return {"config_version": None, "observations": 0, "rungs": {}}
+
+
 from board_outcomes import store as board_outcome_store
 from live_ranking import (
     LIVE_RANKING_MODEL_VERSION,
@@ -11665,6 +11686,21 @@ def get_scorecard():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/signals/control-dry-run")
+def get_control_dry_run():
+    """Feasibility of the matched-peer control: coverage and balance only.
+
+    Reports no outcome and selects no liquidity rung. It exists so the rung can
+    be chosen from what was knowable at signal time, never from which variant
+    produced a better-looking result.
+    """
+    try:
+        return jsonify({"status": "live", **dry_run_report()})
+    except Exception as exc:
+        logging.exception("Control dry-run report failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/coin-history/<product_id>")
 def get_coin_history(product_id: str):
     """Per-coin signal outcome history. Accepts BTC or BTC-USD."""
@@ -13845,6 +13881,25 @@ def _compute_snapshots_from_cache():
             # signal recording or notification delivery.
             try:
                 _signal_features_ts = int(time.time())
+                # Control-matching inputs, gathered universe-wide at the same
+                # instant as the ranking they describe. Failures here degrade
+                # the snapshot rather than the signal path: a missing
+                # volatility map means peers cannot be matched later, not that
+                # the scan stops.
+                try:
+                    _signal_volatility = realized_volatility_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_volatility = {}
+                    logging.warning("Volatility snapshot skipped: %s", exc)
+                try:
+                    _signal_liquidity = latest_quote_volume_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_liquidity = {}
+                    logging.warning("Liquidity snapshot skipped: %s", exc)
                 _signal_features = {
                     str(row.get("symbol") or "").upper(): row
                     for row in build_live_rankings(
@@ -13853,8 +13908,18 @@ def _compute_snapshots_from_cache():
                         context_snapshot=signal_context,
                         alerts=_mw_peek_alerts_normalized_with_sticky(),
                         include_internal_features=True,
+                        volatility_snapshot=_signal_volatility,
+                        liquidity_snapshot=_signal_liquidity,
                     )
                 }
+                try:
+                    # The actual transitions being recorded this scan — the
+                    # population whose peer availability we need to measure.
+                    record_dry_run_observation(
+                        _signal_features, _signal_features_ts, delivery_events
+                    )
+                except Exception as exc:
+                    logging.warning("Dry-run observation skipped: %s", exc)
             except Exception as exc:
                 _signal_features, _signal_features_ts = {}, None
                 logging.warning("Signal feature snapshot skipped: %s", exc)

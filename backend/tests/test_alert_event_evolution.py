@@ -134,6 +134,10 @@ def test_the_read_uses_explicit_invalidation_and_measured_history_when_supplied(
             "historical_result": {
                 "sample_size": 83,
                 "follow_through_rate": 0.64,
+                # Readiness must be stated. Omitting it now means "learning",
+                # so a rate can never be published by a payload that simply
+                # forgot to say whether it had been measured.
+                "measurement_status": "measured",
             },
         },
     )

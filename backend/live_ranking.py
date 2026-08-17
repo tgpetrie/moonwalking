@@ -180,6 +180,8 @@ def build_live_rankings(
     context_snapshot: dict[str, dict[str, Any]] | None = None,
     alerts: list[dict[str, Any]] | None = None,
     include_internal_features: bool = False,
+    volatility_snapshot: dict[str, dict[str, Any]] | None = None,
+    liquidity_snapshot: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Return strongest-to-weakest live setup rows for the tracked universe.
 
@@ -193,6 +195,8 @@ def build_live_rankings(
     volumes = volume_snapshot if isinstance(volume_snapshot, dict) else {}
     contexts = context_snapshot if isinstance(context_snapshot, dict) else {}
     alert_rows = alerts if isinstance(alerts, list) else []
+    volatilities = volatility_snapshot if isinstance(volatility_snapshot, dict) else {}
+    liquidities = liquidity_snapshot if isinstance(liquidity_snapshot, dict) else {}
 
     alert_counts: dict[str, dict[str, int]] = {}
     for alert in alert_rows:
@@ -375,6 +379,13 @@ def build_live_rankings(
             "price": _finite(raw_row.get("price")),
         }
         if include_internal_features:
+            # Matching inputs for the control benchmark. Every liquidity
+            # candidate is recorded rather than one being chosen here: which is
+            # usable depends on measured universe coverage and post-match
+            # balance, and that selection is made by the dry-run, never inline
+            # and never with outcomes in view.
+            vol_row = volatilities.get(sym) or volatilities.get(f"{sym}-USD") or {}
+            liq_row = liquidities.get(f"{sym}-USD") or liquidities.get(sym) or {}
             row["raw_inputs"] = {
                 "pct_1m": one_min,
                 "pct_3m": three_min,
@@ -385,7 +396,20 @@ def build_live_rankings(
                 "bearish_alerts": counts["bearish"],
                 "spot_pressure": spot_pressure,
                 "market_relation": market_relation,
+                # Categorical liquidity bucket: universe-wide but coarse.
                 "liquidity": liquidity,
+                # Quantitative liquidity: precise but far narrower coverage.
+                "quote_volume_usd": liq_row.get("quote_volume_usd"),
+                "quote_volume_age_seconds": liq_row.get("age_seconds"),
+                "quote_volume_minute_coverage": liq_row.get("minute_coverage"),
+                "realized_volatility_pct_hour": vol_row.get("volatility_pct_hour"),
+                "realized_volatility_observations": vol_row.get("observations"),
+                "realized_volatility_staleness_seconds": vol_row.get(
+                    "staleness_seconds"
+                ),
+                # None when volatility is available; a reason string otherwise,
+                # so unavailable is never confused with low.
+                "realized_volatility_unavailable_reason": vol_row.get("reason"),
             }
             row["scoring_detail"] = {
                 "weighted_before_penalty": round(weighted, 4),

@@ -7,10 +7,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from signal_outcomes import SignalOutcomeStore
 
 
-def _make_store():
+def _make_store(enable_controls):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
-    return SignalOutcomeStore(db_path=tmp.name), tmp.name
+    return (
+        enable_controls(
+            SignalOutcomeStore(
+                db_path=tmp.name,
+                collection_methodology="v_test_measured",
+                publishable_methodology="v_test_measured",
+            )
+        ),
+        tmp.name,
+    )
 
 
 def _insert_outcomes(
@@ -26,8 +35,9 @@ def _insert_outcomes(
                     signal_id, event_id, product_id, primary_state, read_label,
                     direction, confidence, started_ts, start_price, last_ts, last_price,
                     return_5m, return_15m, return_30m, return_60m,
-                    max_favorable_pct, max_adverse_pct, outcome, complete
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    max_favorable_pct, max_adverse_pct, outcome, complete,
+                    methodology_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 """,
                 (
                     f"{product_id}-{state}-{direction}-{label}-{i}",
@@ -48,6 +58,7 @@ def _insert_outcomes(
                     2.5 if outcome == "followed_through" else 0.3,
                     -0.5 if outcome == "followed_through" else -2.0,
                     outcome,
+                    store.collection_methodology,
                 ),
             )
         conn.commit()
@@ -55,8 +66,8 @@ def _insert_outcomes(
         conn.close()
 
 
-def test_scorecard_basic():
-    store, path = _make_store()
+def test_scorecard_basic(relaxed_evidence_gate, enable_controls):
+    store, path = _make_store(enable_controls)
     try:
         _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 30, 20)
         _insert_outcomes(store, "Confirmed", "down", "STRONG_SELL", 10, 10)
@@ -76,20 +87,35 @@ def test_scorecard_basic():
         os.unlink(path)
 
 
-def test_scorecard_min_samples_filter():
-    store, path = _make_store()
+def test_scorecard_under_sampled_category_returned_as_learning(
+    relaxed_evidence_gate, enable_controls
+):
+    """Under-sampled categories are returned, but carry no rate.
+
+    They are not filtered out: a client cannot render "still collecting" for a
+    category it was never told exists, and silence there is what previously let
+    the popup fall back to its own threshold.
+    """
+    store, path = _make_store(enable_controls)
     try:
         _insert_outcomes(store, "Building", "up", "WATCH", 2, 1)
 
         result = store.scorecard(min_samples=5)
         assert result["total_graded"] == 3
-        assert len(result["signal_types"]) == 0
+        assert len(result["signal_types"]) == 1
+
+        card = result["signal_types"][0]
+        assert card["label"] == "WATCH"
+        assert card["peer_status"] == "learning"
+        assert card["win_rate"] is None
+        assert card["median_favorable_pct"] is None
+        assert card["sample_size"] == 0
     finally:
         os.unlink(path)
 
 
-def test_scorecard_empty():
-    store, path = _make_store()
+def test_scorecard_empty(relaxed_evidence_gate, enable_controls):
+    store, path = _make_store(enable_controls)
     try:
         result = store.scorecard()
         assert result["total_graded"] == 0
@@ -104,8 +130,8 @@ def test_scorecard_empty():
 # ---------------------------------------------------------------------------
 
 
-def test_coin_scorecard_filters_by_product():
-    store, path = _make_store()
+def test_coin_scorecard_filters_by_product(relaxed_evidence_gate, enable_controls):
+    store, path = _make_store(enable_controls)
     try:
         _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 15, 10, "BTC-USD")
         _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 5, 5, "ETH-USD")
@@ -126,8 +152,10 @@ def test_coin_scorecard_filters_by_product():
         os.unlink(path)
 
 
-def test_coin_scorecard_uses_same_aggregation_as_global():
-    store, path = _make_store()
+def test_coin_scorecard_uses_same_aggregation_as_global(
+    relaxed_evidence_gate, enable_controls
+):
+    store, path = _make_store(enable_controls)
     try:
         _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 30, 20, "BTC-USD")
 
@@ -143,8 +171,8 @@ def test_coin_scorecard_uses_same_aggregation_as_global():
         os.unlink(path)
 
 
-def test_coin_scorecard_no_history():
-    store, path = _make_store()
+def test_coin_scorecard_no_history(relaxed_evidence_gate, enable_controls):
+    store, path = _make_store(enable_controls)
     try:
         result = store.coin_scorecard("UNKNOWN-USD")
         assert result["product_id"] == "UNKNOWN-USD"
@@ -154,21 +182,27 @@ def test_coin_scorecard_no_history():
         os.unlink(path)
 
 
-def test_coin_scorecard_small_sample_excluded_by_min_samples():
-    store, path = _make_store()
+def test_coin_scorecard_small_sample_returned_without_a_rate(
+    relaxed_evidence_gate, enable_controls
+):
+    store, path = _make_store(enable_controls)
     try:
         # 4 outcomes < min_samples=5 default
         _insert_outcomes(store, "Building", "up", "WATCH", 2, 2, "BTC-USD")
 
         result = store.coin_scorecard("BTC-USD")
         assert result["total_outcomes"] == 4
-        assert result["signal_types"] == []
+        assert len(result["signal_types"]) == 1
+        assert result["signal_types"][0]["win_rate"] is None
+        assert result["signal_types"][0]["peer_status"] == "learning"
     finally:
         os.unlink(path)
 
 
-def test_coin_scorecard_excludes_other_coin_from_global_unaffected():
-    store, path = _make_store()
+def test_coin_scorecard_excludes_other_coin_from_global_unaffected(
+    relaxed_evidence_gate, enable_controls
+):
+    store, path = _make_store(enable_controls)
     try:
         _insert_outcomes(store, "Confirmed", "up", "STRONG_BUY", 30, 20, "BTC-USD")
         _insert_outcomes(store, "Confirmed", "down", "STRONG_SELL", 10, 10, "ETH-USD")

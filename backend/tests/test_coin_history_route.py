@@ -7,9 +7,14 @@ import app as backend_app
 import signal_outcomes as so_module
 
 
-def _make_temp_store(tmp_path):
-    store = so_module.SignalOutcomeStore(tmp_path / "outcomes.sqlite")
-    return store
+def _make_temp_store(tmp_path, enable_controls):
+    return enable_controls(
+        so_module.SignalOutcomeStore(
+            tmp_path / "outcomes.sqlite",
+            collection_methodology="v_test_measured",
+            publishable_methodology="v_test_measured",
+        )
+    )
 
 
 def _insert_row(store, product_id, state, direction, label, n_wins, n_losses):
@@ -22,8 +27,9 @@ def _insert_row(store, product_id, state, direction, label, n_wins, n_losses):
                 INSERT INTO signal_outcomes (
                     signal_id, event_id, product_id, primary_state, read_label,
                     direction, confidence, started_ts, start_price, last_ts, last_price,
-                    max_favorable_pct, max_adverse_pct, outcome, complete
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    max_favorable_pct, max_adverse_pct, outcome, complete,
+                    methodology_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
                 """,
                 (
                     f"{product_id}-{state}-{i}",
@@ -40,6 +46,7 @@ def _insert_row(store, product_id, state, direction, label, n_wins, n_losses):
                     2.5 if outcome == "followed_through" else 0.3,
                     -0.5 if outcome == "followed_through" else -2.0,
                     outcome,
+                    store.collection_methodology,
                 ),
             )
         conn.commit()
@@ -47,8 +54,10 @@ def _insert_row(store, product_id, state, direction, label, n_wins, n_losses):
         conn.close()
 
 
-def test_coin_history_route_returns_live_status(tmp_path, monkeypatch):
-    store = _make_temp_store(tmp_path)
+def test_coin_history_route_returns_live_status(
+    tmp_path, monkeypatch, relaxed_evidence_gate, enable_controls
+):
+    store = _make_temp_store(tmp_path, enable_controls)
     _insert_row(store, "BTC-USD", "Confirmed", "up", "STRONG_BUY", 10, 5)
     monkeypatch.setattr(backend_app, "signal_outcome_store", store)
 
@@ -61,8 +70,10 @@ def test_coin_history_route_returns_live_status(tmp_path, monkeypatch):
     assert data["total_outcomes"] == 15
 
 
-def test_coin_history_route_normalizes_bare_symbol(tmp_path, monkeypatch):
-    store = _make_temp_store(tmp_path)
+def test_coin_history_route_normalizes_bare_symbol(
+    tmp_path, monkeypatch, relaxed_evidence_gate, enable_controls
+):
+    store = _make_temp_store(tmp_path, enable_controls)
     _insert_row(store, "ETH-USD", "Confirmed", "up", "STRONG_BUY", 10, 5)
     monkeypatch.setattr(backend_app, "signal_outcome_store", store)
 
@@ -74,8 +85,10 @@ def test_coin_history_route_normalizes_bare_symbol(tmp_path, monkeypatch):
     assert data["total_outcomes"] == 15
 
 
-def test_coin_history_route_no_history(tmp_path, monkeypatch):
-    store = _make_temp_store(tmp_path)
+def test_coin_history_route_no_history(
+    tmp_path, monkeypatch, relaxed_evidence_gate, enable_controls
+):
+    store = _make_temp_store(tmp_path, enable_controls)
     monkeypatch.setattr(backend_app, "signal_outcome_store", store)
 
     client = backend_app.app.test_client()
