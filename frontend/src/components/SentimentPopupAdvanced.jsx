@@ -855,10 +855,16 @@ const buildAlertBanner = (launchContext) => {
 // Track Record — per-coin outcome history
 // ---------------------------------------------------------------------------
 
-const MEASURED_THRESHOLD = 20;
+// Readiness is decided by the server, which is the only place that knows
+// whether a rate came from controlled measurement. A threshold here could
+// promote a category the server had deliberately withheld.
+const isTrackMeasured = (status) => status === 'measured';
 
 function CoinOutcomeHistoryCard({ card }) {
-  const isMeasured = card.sample_size >= MEASURED_THRESHOLD;
+  const peerMeasured = isTrackMeasured(card.peer_status);
+  const placeboMeasured = isTrackMeasured(card.placebo_status);
+  const showRate = peerMeasured && card.win_rate != null;
+  const required = card.required_market_periods;
   const dirLabel = card.direction === 'up' ? 'Bullish' : card.direction === 'down' ? 'Bearish' : 'Neutral';
 
   return (
@@ -869,24 +875,38 @@ function CoinOutcomeHistoryCard({ card }) {
       </div>
       <div className="coh-card__stats">
         <div className="coh-stat">
-          <span className="coh-stat__label">Comparable outcomes</span>
-          <span className="coh-stat__value">{card.sample_size.toLocaleString()}</span>
-        </div>
-        <div className="coh-stat">
           <span className="coh-stat__label">Follow-through</span>
-          {isMeasured ? (
+          {showRate ? (
             <span className="coh-stat__value">{Math.round(card.win_rate * 100)}%</span>
           ) : (
-            <span className="coh-stat__muted">Not enough history for a measured follow-through rate</span>
+            <span className="coh-stat__muted">No clear edge detected yet — still collecting</span>
           )}
         </div>
-        {card.median_favorable_pct != null && (
+        {/* The two controls fill at different rates, so a single progress
+            number would misstate both. */}
+        {required != null && (
+          <>
+            <div className="coh-stat">
+              <span className="coh-stat__label">Coin-selection</span>
+              <span className="coh-stat__value coh-stat--progress">
+                {peerMeasured ? 'Measured' : `${card.peer_market_periods ?? 0} of ${required} market periods`}
+              </span>
+            </div>
+            <div className="coh-stat">
+              <span className="coh-stat__label">Timing</span>
+              <span className="coh-stat__value coh-stat--progress">
+                {placeboMeasured ? 'Measured' : `${card.placebo_market_periods ?? 0} of ${required} market periods`}
+              </span>
+            </div>
+          </>
+        )}
+        {peerMeasured && card.median_favorable_pct != null && (
           <div className="coh-stat">
             <span className="coh-stat__label">Typical best move</span>
             <span className="coh-stat__value coh-stat--pos">+{card.median_favorable_pct.toFixed(2)}%</span>
           </div>
         )}
-        {card.median_adverse_pct != null && (
+        {peerMeasured && card.median_adverse_pct != null && (
           <div className="coh-stat">
             <span className="coh-stat__label">Typical worst dip</span>
             <span className="coh-stat__value coh-stat--neg">{card.median_adverse_pct.toFixed(2)}%</span>
@@ -906,18 +926,24 @@ export function CoinOutcomeHistory({ data, loading, error, symbol }) {
   }
   if (!data) return null;
 
-  const { signal_types = [], total_outcomes = 0, target_pct, adverse_pct } = data;
+  const { signal_types = [], total_outcomes = 0, target_pct, adverse_pct, measurement_status } = data;
+  // Note: `status` on this payload is transport health (live/degraded).
+  // Measurement readiness is a separate field precisely so the two can never
+  // be confused for one another.
+  const measured = measurement_status === 'measured';
 
   return (
     <section className="coh-section">
       <div className="coh-header">
         <span className="coh-header__title">Track Record</span>
         <span className="coh-header__sub">
-          {total_outcomes.toLocaleString()} comparable outcomes · graded +{target_pct}% vs −{adverse_pct}%
+          {measured
+            ? `${total_outcomes.toLocaleString()} comparable outcomes · graded +${target_pct}% vs −${adverse_pct}%`
+            : `Measuring against matched control coins · graded +${target_pct}% vs −${adverse_pct}%`}
         </span>
       </div>
       {signal_types.length === 0 ? (
-        <div className="coh-empty">No measured history for {symbol} yet.</div>
+        <div className="coh-empty">No signal history for {symbol} yet.</div>
       ) : (
         <div className="coh-cards">
           {signal_types.map((card) => (

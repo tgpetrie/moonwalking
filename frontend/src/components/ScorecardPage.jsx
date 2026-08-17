@@ -77,7 +77,25 @@ const FRIENDLY_READS = {
 };
 
 function WinRateBar({ rate, recent, label, tip }) {
-  const pct = rate != null ? Math.round(rate * 100) : 0;
+  // A null rate means "not measured", which is not the same claim as 0%.
+  // Coercing it to zero told the reader every learning category had played out
+  // and lost — a stronger and more damaging statement than the real one.
+  if (rate == null) {
+    return (
+      <div className="sc-win-bar sc-win-bar--collecting">
+        <div className="sc-win-bar__label">
+          {label}
+          {tip && <Tip text={tip} />}
+        </div>
+        <div className="sc-win-bar__track">
+          <div className="sc-win-bar__fill sc-win-bar__fill--empty" style={{ width: "0%" }} />
+        </div>
+        <div className="sc-win-bar__value sc-win-bar__value--muted">Still collecting</div>
+      </div>
+    );
+  }
+
+  const pct = Math.round(rate * 100);
   const recentPct = recent != null ? Math.round(recent * 100) : null;
   const color =
     pct >= 55

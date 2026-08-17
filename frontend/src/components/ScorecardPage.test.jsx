@@ -343,3 +343,70 @@ describe("ScorecardPage – evidence tier labels on board cards", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Null rates must never render as 0%
+// ---------------------------------------------------------------------------
+
+const SIGNAL_LEARNING = {
+  ...SIGNAL_STRONG,
+  label: "LEARNING SIGNAL",
+  sample_size: 0,
+  win_rate: null,
+  recent_win_rate: null,
+  median_favorable_pct: null,
+  median_adverse_pct: null,
+  peer_status: "learning",
+  placebo_status: "learning",
+  peer_market_periods: 12,
+  required_market_periods: 100,
+};
+
+describe("ScorecardPage – learning categories never render as 0%", () => {
+  it("shows a collecting state instead of 0% for a null win rate", async () => {
+    mockFetch(
+      makeResponse({
+        signals: {
+          measurement_status: "learning",
+          total_graded: 0,
+          overall_win_rate: null,
+          signal_types: [SIGNAL_LEARNING],
+        },
+      })
+    );
+    render(<ScorecardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("LEARNING SIGNAL")).toBeInTheDocument()
+    );
+    // "0%" would claim the category played out and lost every time — a
+    // stronger and more damaging statement than "we have not measured it".
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Still collecting/i).length).toBeGreaterThan(0);
+  });
+
+  it("renders a dash rather than a percentage for a null overall rate", async () => {
+    mockFetch(
+      makeResponse({
+        signals: {
+          measurement_status: "learning",
+          total_graded: 0,
+          overall_win_rate: null,
+          signal_types: [SIGNAL_LEARNING],
+        },
+      })
+    );
+    render(<ScorecardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Overall follow-through")).toBeInTheDocument()
+    );
+    expect(screen.queryByText("0.0%")).not.toBeInTheDocument();
+  });
+
+  it("still renders measured rates when the server marks them measured", async () => {
+    mockFetch(makeResponse());
+    render(<ScorecardPage />);
+    await waitFor(() => expect(screen.getByText("21.0%")).toBeInTheDocument());
+  });
+});
