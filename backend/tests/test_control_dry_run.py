@@ -8,6 +8,8 @@ coin per scan.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 try:
@@ -58,6 +60,31 @@ def _event(
 
 def _store(tmp_path, name="dry.sqlite"):
     return ControlDryRunStore(tmp_path / name)
+
+
+def test_configured_db_path_persists_observations_across_store_instances(
+    tmp_path, monkeypatch
+):
+    configured = tmp_path / "railway-volume" / "control_dry_run.sqlite"
+    monkeypatch.setenv("MW_CONTROL_DRY_RUN_DB", str(configured))
+
+    first = ControlDryRunStore()
+    assert first.db_path == configured
+    first.record(_universe(), 1_700_000_000, [_event("C0")])
+
+    reopened = ControlDryRunStore()
+    assert reopened.db_path == configured
+    assert reopened.report()["signals_observed"] == 1
+
+
+def test_production_entrypoint_defaults_dry_run_db_to_persistent_data_dir():
+    entrypoint = Path(__file__).resolve().parents[1] / "production_entrypoint.sh"
+    source = entrypoint.read_text(encoding="utf-8")
+
+    assert (
+        'export MW_CONTROL_DRY_RUN_DB="${MW_CONTROL_DRY_RUN_DB:-$DATA_DIR/'
+        'control_dry_run.sqlite}"'
+    ) in source
 
 
 def test_records_nothing_without_signal_events(tmp_path):
