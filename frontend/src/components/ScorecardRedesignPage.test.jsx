@@ -1,6 +1,10 @@
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import ScorecardRedesignPage, { evidenceOf, resolveSource } from "./ScorecardRedesignPage";
+import ScorecardRedesignPage, {
+  evidenceOf,
+  humanizeLabel,
+  resolveSource,
+} from "./ScorecardRedesignPage";
 
 vi.mock("../config/api.js", () => ({ getBackendBase: () => "" }));
 
@@ -149,6 +153,33 @@ describe("evidenceOf", () => {
   });
 });
 
+describe("humanizeLabel", () => {
+  it("uses the friendly name when there is one", () => {
+    expect(humanizeLabel("STRONG_BUY")).toBe("Strong Buy");
+    expect(humanizeLabel("CAUTION")).toBe("Caution");
+  });
+
+  // These are the labels the live backend actually returns.
+  it("stops unmapped internal constants from shouting", () => {
+    expect(humanizeLabel("BREAKDOWN CONFIRMED")).toBe("Breakdown confirmed");
+    expect(humanizeLabel("MIXED — NO CLEAR EDGE")).toBe("Mixed — no clear edge");
+    expect(humanizeLabel("EARLY — WATCH FOR CONFIRMATION")).toBe(
+      "Early — watch for confirmation"
+    );
+    expect(humanizeLabel("QUIET_FLOW_BUILDING")).toBe("Quiet flow building");
+  });
+
+  it("leaves text that was already written for a human alone", () => {
+    expect(humanizeLabel("Reversal risk rising")).toBe("Reversal risk rising");
+  });
+
+  it("never renders an empty name", () => {
+    expect(humanizeLabel("")).toBe("Unnamed setup");
+    expect(humanizeLabel(null)).toBe("Unnamed setup");
+    expect(humanizeLabel(undefined)).toBe("Unnamed setup");
+  });
+});
+
 describe("resolveSource", () => {
   it("keeps preview, demo, and live distinct", () => {
     expect(resolveSource(true, "live").chip).toBe("Preview data");
@@ -243,6 +274,21 @@ describe("ScorecardRedesignPage – data labeling", () => {
       expect(container.querySelector(".scr-hero__source").textContent).toBe("Live data")
     );
   });
+
+  // A chip alone is easy to miss. Numbers that were never measured get a
+  // banner too; measured numbers do not, so the banner stays meaningful.
+  it("banners anything that is not measured from real outcomes", async () => {
+    const { container } = await renderLoaded({ ...makeResponse(), status: "demo" });
+    const banner = container.querySelector(".scr-provenance");
+    expect(banner.dataset.source).toBe("demo");
+    expect(within(banner).getByText("You are viewing demo data.")).toBeInTheDocument();
+    expect(banner.textContent).toMatch(/Do not read anything into these results/i);
+  });
+
+  it("does not banner live data", async () => {
+    const { container } = await renderLoaded();
+    expect(container.querySelector(".scr-provenance")).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -328,6 +374,45 @@ describe("ScorecardRedesignPage – zone separation", () => {
     for (const zone of container.querySelectorAll(".scr-zone")) {
       expect(zone.querySelector(".scr-zone__step")).toBeTruthy();
     }
+  });
+
+  it("opens every zone with what it measures and what to do with it", async () => {
+    const { container } = await renderLoaded();
+    const ledes = [...container.querySelectorAll(".scr-zone__lede")];
+    expect(ledes.length).toBe(4);
+    for (const lede of ledes) {
+      expect(lede.textContent.length).toBeGreaterThan(60);
+      // The lede belongs to the body, not the heading row, so the heading
+      // stays a single short line.
+      expect(lede.closest(".scr-zone__head")).toBeNull();
+    }
+  });
+
+  // Two categories that sound like opposite advice appear in one list. The
+  // page has to say outright that they are not simultaneous recommendations.
+  it("says the signal categories are past buckets, not advice given at once", async () => {
+    const { container } = await renderLoaded();
+    const note = signalsZone(container).querySelector(".scr-scope-note");
+    expect(note).toBeTruthy();
+    expect(note.textContent).toMatch(/not advice being given right now/i);
+    expect(note.textContent).toMatch(/does not mean BHABIT is telling you to buy and sell at once/i);
+    expect(note.textContent).toMatch(/live board/i);
+  });
+
+  // Naming a pair that is not on screen would be its own small confusion.
+  it("names two categories actually on screen as the example", async () => {
+    const { container } = await renderLoaded(
+      makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION] } })
+    );
+    const note = signalsZone(container).querySelector(".scr-scope-note");
+    expect(within(note).getByText("Strong Buy")).toBeInTheDocument();
+    expect(within(note).getByText("Caution")).toBeInTheDocument();
+  });
+
+  it("falls back to generic wording when the data has only one direction", async () => {
+    const { container } = await renderLoaded();
+    const note = signalsZone(container).querySelector(".scr-scope-note");
+    expect(note.textContent).toMatch(/two rows that sound like opposite advice/i);
   });
 
   it("keeps internal diagnostics collapsed", async () => {
@@ -452,6 +537,48 @@ describe("ScorecardRedesignPage – chart treatments", () => {
     );
   });
 
+  // A live payload carries twenty-odd categories. Showing every one at once is
+  // the wall of data the redesign exists to replace.
+  it("folds away the long tail of categories, and can show it on request", async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({
+      ...SETUP_DEEP,
+      label: `SETUP ${i}`,
+      sample_size: 200 - i,
+    }));
+    const { container } = await renderLoaded(makeResponse({ signals: { signal_types: many } }));
+    const rows = () => signalsZone(container).querySelectorAll(".scr-barrow");
+
+    expect(rows().length).toBe(8);
+    const more = within(signalsZone(container)).getByRole("button", {
+      name: /Show all 14 categories/i,
+    });
+    expect(more.textContent).toMatch(/6 more/);
+
+    fireEvent.click(more);
+    await waitFor(() => expect(rows().length).toBe(14));
+
+    fireEvent.click(
+      within(signalsZone(container)).getByRole("button", { name: /Show the top 8 only/i })
+    );
+    await waitFor(() => expect(rows().length).toBe(8));
+  });
+
+  it("leaves a short list alone", async () => {
+    const { container } = await renderLoaded(
+      makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION] } })
+    );
+    expect(signalsZone(container).querySelector(".scr-bars__more")).toBeNull();
+  });
+
+  // A board chart has no meaningful average to compare against, and
+  // `Number(null)` is 0 — so a missing baseline used to draw "avg 0%".
+  it("omits the average marker when there is no baseline to draw", async () => {
+    const { container } = await renderLoaded();
+    const boardsZone = container.querySelector('.scr-zone[data-tone="boards"]');
+    expect(boardsZone.querySelector(".scr-barrow")).toBeTruthy();
+    expect(boardsZone.querySelector(".scr-bars__avg")).toBeNull();
+  });
+
   it("reorders categories from a single control", async () => {
     const { container } = await renderLoaded(
       makeResponse({ signals: { signal_types: [SETUP_THIN, SETUP_DEEP] } })
@@ -526,6 +653,48 @@ describe("ScorecardRedesignPage – historical framing", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardRedesignPage – coin drilldown", () => {
+  // The hero names a coin from the first paint. Asking the user to pick the
+  // coin already named on screen is the wrong opening move.
+  it("loads the default coin's history on arrival", async () => {
+    routeFetch({
+      scorecard: makeResponse(),
+      coin: {
+        status: "live",
+        product_id: "BTC-USD",
+        total_outcomes: 64,
+        target_pct: 2.0,
+        adverse_pct: 1.0,
+        horizon_minutes: 60,
+        signal_types: [SETUP_DEEP],
+      },
+    });
+
+    render(<ScorecardRedesignPage />);
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "64 measured signals — the most common setup worked 62% of the time."
+        )
+      ).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/Pick a coin at the top of the page/i)).not.toBeInTheDocument();
+
+    const calls = global.fetch.mock.calls.map((call) => String(call[0]));
+    expect(calls.some((href) => href.includes("/api/coin-history/BTC"))).toBe(true);
+  });
+
+  // The user did not ask for that lookup, so its failure must not shout.
+  it("stays quiet when the automatic lookup fails", async () => {
+    routeFetch({ scorecard: makeResponse(), coinOk: false });
+    const { container } = render(<ScorecardRedesignPage />);
+
+    await waitFor(() => expect(container.querySelector(".scr-hero")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/Pick a coin at the top of the page/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/Couldn't load BTC/i)).not.toBeInTheDocument();
+  });
+
   it("loads a coin from the hero picker and refocuses the page on it", async () => {
     routeFetch({
       scorecard: makeResponse(),

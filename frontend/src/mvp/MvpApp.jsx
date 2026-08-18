@@ -42,11 +42,6 @@ const publicScorecardPaths = new Set([
   PUBLIC_SCORECARD_COMPARE_PATH,
 ]);
 
-const MEMBER_ROUTE_TITLES = {
-  [APP_SCORECARD_REDESIGN_PATH]: "Scorecard",
-  [APP_SCORECARD_COMPARE_PATH]: "Scorecard",
-};
-
 /**
  * Scorecard variants share one surface. `?variant=redesign` on the plain
  * scorecard route is honoured too, so a link can force the new page without a
@@ -864,6 +859,7 @@ function MemberShell({
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
     { label: "Scorecard", to: APP_SCORECARD_PATH },
     { label: "Scorecard (new)", to: APP_SCORECARD_REDESIGN_PATH },
+    { label: "Scorecard (compare)", to: APP_SCORECARD_COMPARE_PATH },
     { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
@@ -931,9 +927,7 @@ function MemberShell({
           <div>
             <p className="mw-eyebrow">Member workspace</p>
             <h1>
-              {navItems.find((item) => item.to === currentPath)?.label ||
-                MEMBER_ROUTE_TITLES[currentPath] ||
-                "Workspace"}
+              {navItems.find((item) => item.to === currentPath)?.label || "Workspace"}
             </h1>
           </div>
           <div className="mw-member-header__meta">

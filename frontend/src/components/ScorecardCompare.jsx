@@ -58,6 +58,38 @@ export function ScorecardCompareView({ previewMode = false }) {
         Both versions read the same live data. The original is on the left, the redesign on the
         right. On a narrow screen they stack, original first.
       </p>
+
+      {/* Collapsed by default: the point of this route is to look at the two
+          pages, not to read about them. */}
+      <details className="scr-compare__changes">
+        <summary className="scr-compare__changes-toggle">What changed in the redesign</summary>
+        <ul className="scr-compare__changes-list">
+          <li>
+            The coin is the page heading. On the original it is a pill above the title and a
+            form near the bottom.
+          </li>
+          <li>
+            Demo, preview, and live data each get their own label, and anything that is not
+            measured from real outcomes says so in a banner.
+          </li>
+          <li>
+            Signal history, board history, coin history, and internal diagnostics are four
+            numbered zones, each opening with what it measures and what to do with it.
+          </li>
+          <li>
+            Categories that sound like opposite advice are stated as separate buckets of past
+            calls, so the page cannot be read as a live buy-and-sell contradiction.
+          </li>
+          <li>
+            Grouped rollups and scoring parameters are collapsed into the diagnostics zone
+            instead of sitting inline between the cards.
+          </li>
+          <li>
+            When nothing has finished grading, the page shows collection progress rather than an
+            empty chart.
+          </li>
+        </ul>
+      </details>
       <div className="scr-compare__grid">
         <section className="scr-compare__pane">
           <header className="scr-compare__pane-head">

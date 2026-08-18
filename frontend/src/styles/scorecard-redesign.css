@@ -29,6 +29,35 @@
   color: var(--brand-purple, #c084fc);
 }
 
+/* ── Provenance banner ─────────────────────── */
+/* Only rendered when the numbers are NOT measured outcomes. Live data is
+   labelled by the hero chip alone; a banner on every page would train people
+   to ignore the one case that matters. */
+
+.scr-provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 11px 14px;
+  border-radius: var(--r-2);
+  border: 1px solid rgba(255, 179, 71, 0.28);
+  background: rgba(255, 179, 71, 0.07);
+}
+
+.scr-provenance__headline {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-provenance__note {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  max-width: 84ch;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 /* ── Hero ──────────────────────────────────── */
 
 .scr-hero {
@@ -249,28 +278,13 @@
 
 /* ── Shared <details> toggles ──────────────── */
 
-.scr-advanced__toggle,
-.scr-explain__toggle,
-.scr-raw__toggle {
+.scr-advanced__toggle {
   list-style: none;
   cursor: pointer;
 }
 
-.scr-advanced__toggle::-webkit-details-marker,
-.scr-explain__toggle::-webkit-details-marker,
-.scr-raw__toggle::-webkit-details-marker {
+.scr-advanced__toggle::-webkit-details-marker {
   display: none;
-}
-
-.scr-explain__toggle::after,
-.scr-raw__toggle::after {
-  content: " ▾";
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.scr-explain[open] .scr-explain__toggle::after,
-.scr-raw[open] .scr-raw__toggle::after {
-  content: " ▴";
 }
 
 /* ── Zones ─────────────────────────────────── */
@@ -335,9 +349,24 @@
   color: rgba(255, 255, 255, 0.88);
 }
 
+/* One line per zone answering what it measures, why it matters, and what to
+   do with it — so a section is legible before any number is read. */
+.scr-zone__lede {
+  margin: 0 0 14px;
+  max-width: 92ch;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .scr-zone__controls {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  /* Chart switch + order select do not fit one narrow row; without wrapping,
+     the select is clipped past the right edge and cannot be reached. */
+  flex-wrap: wrap;
+  gap: 10px 16px;
   margin-bottom: 14px;
 }
 
@@ -397,185 +426,7 @@
   border-color: rgba(255, 179, 71, 0.4);
 }
 
-/* ── Cards ─────────────────────────────────── */
-
-.scr-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-  gap: 10px;
-}
-
-.scr-grid--compact {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-}
-
-.scr-card {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--r-2);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color 200ms ease;
-}
-
-.scr-card--setup:hover {
-  border-color: rgba(255, 179, 71, 0.22);
-}
-
-.scr-card--board:hover {
-  border-color: rgba(192, 132, 252, 0.22);
-}
-
-.scr-card--compact {
-  padding: 10px;
-}
-
-.scr-card__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.scr-card__kicker {
-  display: block;
-  font-size: 0.52rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: rgba(255, 255, 255, 0.3);
-  margin-bottom: 3px;
-}
-
-.scr-card__name {
-  margin: 0 0 2px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.scr-card__sub {
-  margin: 0;
-  font-size: 0.68rem;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.scr-card__figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.scr-card__figure--inline {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.scr-card__big {
-  font-size: 1.2rem;
-  font-weight: 700;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  line-height: 1.1;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.scr-card__big[data-tone="good"] {
-  color: var(--brand-teal, #10ae9b);
-}
-
-.scr-card__big[data-tone="mixed"] {
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-card__big[data-tone="weak"] {
-  color: var(--brand-purple, #c084fc);
-}
-
-.scr-card__figure-label {
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.36);
-}
-
-.scr-card__verdict {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.scr-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px 8px;
-  font-size: 0.64rem;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.scr-card__lift {
-  font-weight: 600;
-}
-
-/* ── Rate bar ──────────────────────────────── */
-
-.scr-bar {
-  height: 4px;
-  border-radius: var(--r-2);
-  background: rgba(255, 255, 255, 0.07);
-  overflow: hidden;
-}
-
-.scr-bar__fill {
-  height: 100%;
-  border-radius: inherit;
-  background: rgba(255, 255, 255, 0.4);
-  transition: width 400ms ease;
-}
-
-.scr-bar[data-tone="good"] .scr-bar__fill {
-  background: var(--brand-teal, #10ae9b);
-}
-
-.scr-bar[data-tone="mixed"] .scr-bar__fill {
-  background: var(--brand-amber, #ffb347);
-}
-
-.scr-bar[data-tone="weak"] .scr-bar__fill {
-  background: var(--brand-purple, #c084fc);
-}
-
-/* ── Evidence + status chips ───────────────── */
-/* Brightness-only: more samples → more visible. Brand colors are reserved
-   for directional meaning elsewhere in this UI. */
-
-.scr-evidence {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.24);
-}
-
-.scr-evidence[data-tier="strong"] {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.scr-evidence[data-tier="solid"] {
-  color: rgba(255, 255, 255, 0.52);
-}
-
-.scr-evidence[data-tier="building"] {
-  color: rgba(255, 255, 255, 0.36);
-}
-
-.scr-evidence__count {
-  text-transform: none;
-  letter-spacing: 0;
-}
+/* ── Status chip ───────────────────────────── */
 
 .scr-status {
   flex-shrink: 0;
@@ -597,101 +448,6 @@
 .scr-status[data-status="learning"] {
   background: rgba(255, 179, 71, 0.13);
   color: var(--brand-amber, #ffb347);
-}
-
-/* ── Click-to-explain ──────────────────────── */
-
-.scr-explain {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 7px;
-}
-
-.scr-explain__toggle {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.74);
-}
-
-.scr-explain__toggle:hover {
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-explain__body {
-  margin: 10px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.scr-explain__row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.scr-explain__row dt {
-  font-size: 0.63rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.34);
-}
-
-.scr-explain__row dd {
-  margin: 0;
-  font-size: 0.79rem;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.58);
-}
-
-/* ── Raw numbers ───────────────────────────── */
-
-.scr-raw {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 7px;
-}
-
-.scr-raw__toggle {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.36);
-}
-
-.scr-raw__toggle:hover {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.scr-raw__body {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.scr-raw__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 10px;
-}
-
-.scr-raw__stats > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.scr-raw__label {
-  font-size: 0.63rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.32);
-}
-
-.scr-raw__value {
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  color: rgba(255, 255, 255, 0.72);
 }
 
 /* ── Checkpoints ───────────────────────────── */
@@ -799,10 +555,6 @@
   border-radius: var(--r-2);
   background: rgba(255, 255, 255, 0.02);
   padding: 14px 16px;
-}
-
-.scr-zone--diagnostics .scr-zone__head {
-  margin-bottom: 12px;
 }
 
 .scr-advanced__toggle {
@@ -964,6 +716,48 @@
   font-size: 0.82rem;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.45);
+}
+
+.scr-compare__changes {
+  margin: 0 0 16px;
+  max-width: 92ch;
+}
+
+.scr-compare__changes-toggle {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.scr-compare__changes-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scr-compare__changes-toggle::after {
+  content: " ▾";
+}
+
+.scr-compare__changes[open] .scr-compare__changes-toggle::after {
+  content: " ▴";
+}
+
+.scr-compare__changes-toggle:hover {
+  color: var(--brand-amber, #ffb347);
+}
+
+.scr-compare__changes-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .scr-compare__grid {
@@ -1277,6 +1071,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Reserves a band for the average label so it cannot land on the first row. */
+  padding-top: 15px;
 }
 
 .scr-bars__avg {
@@ -1291,7 +1087,7 @@
 
 .scr-bars__avg-label {
   position: absolute;
-  top: -2px;
+  top: 0;
   left: 5px;
   font-size: 0.58rem;
   text-transform: uppercase;
@@ -1302,7 +1098,7 @@
 
 .scr-barrow {
   display: grid;
-  grid-template-columns: minmax(150px, 240px) 1fr auto;
+  grid-template-columns: minmax(190px, 280px) 1fr auto;
   align-items: center;
   gap: 14px;
   width: 100%;
@@ -1320,14 +1116,19 @@
   background: rgba(255, 255, 255, 0.035);
 }
 
+/* Name over sub rather than side by side: two categories can share a name and
+   differ only by direction, so the sub has to stay readable, not be clipped to
+   "Reversal risk · Pred…". */
 .scr-barrow__label {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
   min-width: 0;
 }
 
 .scr-barrow__dot {
+  grid-row: 1 / span 2;
   width: 8px;
   height: 8px;
   border-radius: var(--r-2);
@@ -1335,13 +1136,17 @@
 }
 
 .scr-barrow__name {
+  grid-column: 2;
   font-size: 0.86rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .scr-barrow__sub {
+  grid-column: 2;
   font-size: 0.64rem;
   color: rgba(255, 255, 255, 0.36);
   overflow: hidden;
@@ -1396,6 +1201,24 @@
   color: var(--brand-purple, #c084fc);
 }
 
+/* Folds away the long tail of categories a live payload can carry. */
+.scr-bars__more {
+  margin-top: 8px;
+  background: none;
+  border: 0;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+}
+
+.scr-bars__more:hover {
+  color: var(--brand-amber, #ffb347);
+}
+
 /* -- Sectioned donut -------------------------------------------------- */
 
 .scr-chart--split {
@@ -1409,6 +1232,10 @@
 .scr-pie {
   flex-shrink: 0;
   overflow: visible;
+  /* Fixed 300px would be clipped by a narrow column; the viewBox lets it
+     scale down instead. */
+  max-width: 100%;
+  height: auto;
 }
 
 .scr-pie__slice {
@@ -1583,8 +1410,6 @@
     font-size: 1.35rem;
   }
 
-  .scr-grid,
-  .scr-grid--compact,
   .scr-tiles {
     grid-template-columns: 1fr;
   }
@@ -1607,11 +1432,7 @@
   }
 
   .scr-legend__row {
-    grid-template-columns: auto 1fr auto;
-  }
-
-  .scr-legend__share {
-    grid-column: 2 / -1;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .scr-zone {
@@ -1624,15 +1445,6 @@
 
   .scr-zone__controls {
     justify-content: flex-start;
-  }
-
-  .scr-card__head {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .scr-card__figure {
-    align-items: flex-start;
   }
 
   .scr-switch,

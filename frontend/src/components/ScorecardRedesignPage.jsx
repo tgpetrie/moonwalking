@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBackendBase } from "../config/api.js";
 import { describeEvidenceTier } from "../mvp/portfolioSignals.js";
 import "../styles/scorecard-redesign.css";
 
 const API_BASE = getBackendBase();
+
+// The coin the page opens on. Its history is fetched on arrival so the coin
+// zone shows something real instead of an empty prompt.
+const DEFAULT_COIN = "BTC";
 
 // ---------------------------------------------------------------------------
 // Formatting
@@ -90,6 +94,23 @@ const SETUP_NAMES = {
   NEUTRAL: "Neutral",
   WATCH: "Watch",
 };
+
+/**
+ * Live payloads carry shouty internal constants the map above never sees —
+ * "BREAKDOWN CONFIRMED", "MIXED — NO CLEAR EDGE", "STRONG_BUY". Rendering
+ * those verbatim is the loudest kind of insider terminology, so anything
+ * unmapped is turned into a sentence rather than left as a shout.
+ */
+export function humanizeLabel(label) {
+  const known = SETUP_NAMES[label];
+  if (known) return known;
+  const raw = String(label ?? "").trim().replace(/_/g, " ");
+  if (!raw) return "Unnamed setup";
+  // Already mixed case means someone wrote it for a human. Leave it be.
+  if (raw !== raw.toUpperCase()) return raw;
+  const lower = raw.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
 
 const STATE_NAMES = {
   Confirmed: "Confirmed",
@@ -214,6 +235,19 @@ function stateMeaning(state) {
     default:
       return "the setup had reached this stage";
   }
+}
+
+/**
+ * Two categories currently on screen that point opposite ways — the pairing
+ * that reads as a contradiction. Naming a real pair beats naming an invented
+ * one; returns null when the data does not offer both directions.
+ */
+function opposingPair(cards) {
+  const list = Array.isArray(cards) ? cards : [];
+  const up = list.find((card) => card?.direction === "up");
+  const down = list.find((card) => card?.direction === "down");
+  if (!up || !down) return null;
+  return [humanizeLabel(up.label), humanizeLabel(down.label)];
 }
 
 function coinSummarySentence(data) {
@@ -388,7 +422,7 @@ async function fetchCoinHistory(normalizedSymbol) {
  * this page (coin context, signal history, board history, internal diagnostics)
  * never blur into each other.
  */
-function Zone({ step, title, tone, children }) {
+function Zone({ step, title, tone, lede, children }) {
   return (
     <section className="scr-zone" data-tone={tone}>
       <header className="scr-zone__head">
@@ -397,54 +431,11 @@ function Zone({ step, title, tone, children }) {
         </span>
         <h3 className="scr-zone__title">{title}</h3>
       </header>
-      <div className="scr-zone__body">{children}</div>
+      <div className="scr-zone__body">
+        {lede ? <p className="scr-zone__lede">{lede}</p> : null}
+        {children}
+      </div>
     </section>
-  );
-}
-
-function Explain({ what, why, trust, action, label = "What does this mean?" }) {
-  return (
-    <details className="scr-explain">
-      <summary className="scr-explain__toggle">{label}</summary>
-      <dl className="scr-explain__body">
-        <div className="scr-explain__row">
-          <dt>What this is</dt>
-          <dd>{what}</dd>
-        </div>
-        <div className="scr-explain__row">
-          <dt>Why it matters</dt>
-          <dd>{why}</dd>
-        </div>
-        <div className="scr-explain__row">
-          <dt>When to trust it</dt>
-          <dd>{trust}</dd>
-        </div>
-        <div className="scr-explain__row">
-          <dt>What to do with it</dt>
-          <dd>{action}</dd>
-        </div>
-      </dl>
-    </details>
-  );
-}
-
-function RateBar({ value, tone = "neutral" }) {
-  const pct = Number.isFinite(Number(value)) ? Math.round(Number(value) * 100) : 0;
-  return (
-    <div className="scr-bar" data-tone={tone}>
-      <div className="scr-bar__fill" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-    </div>
-  );
-}
-
-function Evidence({ sampleSize }) {
-  const { tier, label } = evidenceOf(sampleSize);
-  if (!label) return null;
-  return (
-    <span className="scr-evidence" data-tier={tier}>
-      {label}
-      <span className="scr-evidence__count"> · {count(sampleSize)} tested</span>
-    </span>
   );
 }
 
@@ -482,7 +473,14 @@ function CheckpointGrid({ values, title }) {
 // Cards
 // ---------------------------------------------------------------------------
 
-function SetupDetail({ card, baseline, name }) {
+/**
+ * The four questions every scored item has to answer: what it is, how it
+ * compares, what to do about it, and what the move actually looked like.
+ *
+ * `showCount` drops the sample-size sentence for callers whose own layout
+ * already prints it (the gauge tiles carry it as a stat).
+ */
+function SetupDetail({ card, baseline, name, showCount = true }) {
   const { trust } = evidenceOf(card.sample_size);
   return (
     <div className="scr-detail__grid">
@@ -507,7 +505,7 @@ function SetupDetail({ card, baseline, name }) {
       <div>
         <span className="scr-detail__dt">Typical move</span>
         <p>
-          Called {count(card.sample_size)} times. Best in its favor{" "}
+          {showCount ? `Called ${count(card.sample_size)} times. ` : null}Best in its favor{" "}
           <span className="scr-up">{movePct(card.median_favorable_pct)}</span>, worst against it{" "}
           <span className="scr-down">{movePct(card.median_adverse_pct)}</span>.
         </p>
@@ -517,7 +515,8 @@ function SetupDetail({ card, baseline, name }) {
   );
 }
 
-function BoardDetail({ board, name }) {
+/** `showReversal` is off for the gauge tiles, which print "Flipped" as a stat. */
+function BoardDetail({ board, name, showReversal = true }) {
   const lift = Number(board.continuation_lift_vs_control);
   const { trust } = evidenceOf(board.sample_size);
   return (
@@ -542,7 +541,8 @@ function BoardDetail({ board, name }) {
       <div>
         <span className="scr-detail__dt">When to trust it</span>
         <p>
-          {trust} Flipped instead {rate(board.reversal_rate)} of the time.
+          {trust}
+          {showReversal ? ` Flipped instead ${rate(board.reversal_rate)} of the time.` : null}
         </p>
       </div>
       <div>
@@ -649,9 +649,9 @@ function ScoreTile({ tone, value, name, sub, metric, stats, detail, status }) {
 }
 
 function SetupTile({ card, baseline }) {
-  const name = SETUP_NAMES[card.label] || card.label;
+  const name = humanizeLabel(card.label);
   const state = STATE_NAMES[card.state] || card.state;
-  const { trust, label: evidenceLabel } = evidenceOf(card.sample_size);
+  const { label: evidenceLabel } = evidenceOf(card.sample_size);
   const winPct = Number(card.win_rate);
   const tone = winPct >= 0.5 ? "good" : winPct >= 0.3 ? "mixed" : "weak";
 
@@ -667,37 +667,7 @@ function SetupTile({ card, baseline }) {
         { label: "Recent 50", value: rate(card.recent_win_rate) },
         { label: "Evidence", value: evidenceLabel || "\u2014" },
       ]}
-      detail={
-        <div className="scr-detail__grid">
-          <div>
-            <span className="scr-detail__dt">What this is</span>
-            <p>
-              Every past time BHABIT called a &ldquo;{name}&rdquo; while {stateMeaning(card.state)},
-              we followed the price and recorded whether it did what the signal{" "}
-              {directionPhrase(card.direction)}.
-            </p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">How it compares</span>
-            <p>
-              {compareToBaseline(card.win_rate, baseline)} {trust}
-            </p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">What to do with it</span>
-            <p>{signalAction(card, baseline)}</p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">Typical move</span>
-            <p>
-              Best in its favor{" "}
-              <span className="scr-up">{movePct(card.median_favorable_pct)}</span>, worst against it{" "}
-              <span className="scr-down">{movePct(card.median_adverse_pct)}</span>.
-            </p>
-            <CheckpointGrid values={card.median_return} title="Price after it fired" />
-          </div>
-        </div>
-      }
+      detail={<SetupDetail card={card} baseline={baseline} name={name} showCount={false} />}
     />
   );
 }
@@ -709,7 +679,7 @@ function BoardTile({ board }) {
   const lift = Number(board.continuation_lift_vs_control);
   const cont = Number(board.continuation_rate);
   const tone = cont >= 0.5 ? "good" : cont >= 0.35 ? "mixed" : "weak";
-  const { trust, label: evidenceLabel } = evidenceOf(board.sample_size);
+  const { label: evidenceLabel } = evidenceOf(board.sample_size);
 
   return (
     <ScoreTile
@@ -732,39 +702,7 @@ function BoardTile({ board }) {
         },
         { label: "Evidence", value: evidenceLabel || "\u2014" },
       ]}
-      detail={
-        <div className="scr-detail__grid">
-          <div>
-            <span className="scr-detail__dt">What this is</span>
-            <p>
-              {boardHeadline(board)} Every time a coin landed on {name}, we followed the price for
-              the next hour and recorded whether the move continued or flipped.
-            </p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">Beat random?</span>
-            <p>
-              {Number.isFinite(lift)
-                ? "Landing here changed the odds by " +
-                  signedRate(lift) +
-                  " against similar coins that never made the board. That gap, not the raw percentage, is what says the board is doing real work."
-                : "Not enough matched history to compare against similar coins yet."}
-            </p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">When to trust it</span>
-            <p>{trust}</p>
-          </div>
-          <div>
-            <span className="scr-detail__dt">What to do with it</span>
-            <p>{boardAction(board)}</p>
-            <CheckpointGrid
-              values={board.median_directional_return}
-              title="Price after landing on the board"
-            />
-          </div>
-        </div>
-      }
+      detail={<BoardDetail board={board} name={name} showReversal={false} />}
     />
   );
 }
@@ -796,10 +734,26 @@ function toneOf(value, good = 0.5, mixed = 0.3) {
   return n >= good ? "good" : n >= mixed ? "mixed" : "weak";
 }
 
+// A live payload can carry twenty-odd categories. Showing them all at once is
+// the density the redesign exists to fix, so the tail is folded away.
+const BARS_VISIBLE = 8;
+
 /** One shared panel, one bar per category, with the average marked. */
 function SignalBars({ items, baseline, onSelect, selected }) {
+  const [showAll, setShowAll] = useState(false);
   const avg = Number(baseline);
-  const hasAvg = Number.isFinite(avg);
+  // `Number(null)` is 0, which is finite — so a missing baseline would draw a
+  // meaningless "avg 0%" line at the left edge. Check for absence first.
+  const hasAvg = baseline != null && Number.isFinite(avg);
+
+  const shown = showAll ? items : items.slice(0, BARS_VISIBLE);
+  // Collapsing must not hide the row whose detail is open below the chart.
+  const visible =
+    selected && !shown.some((item) => item.key === selected)
+      ? [...shown, items.find((item) => item.key === selected)].filter(Boolean)
+      : shown;
+  const hiddenCount = items.length - visible.length;
+
   return (
     <div className="scr-chart">
       <div className="scr-bars">
@@ -812,7 +766,7 @@ function SignalBars({ items, baseline, onSelect, selected }) {
           </div>
         ) : null}
 
-        {items.map((item, i) => {
+        {visible.map((item, i) => {
           const tone = toneOf(item.value);
           const pct =
             item.value == null ? 0 : Math.max(0, Math.min(100, Number(item.value) * 100 || 0));
@@ -848,6 +802,19 @@ function SignalBars({ items, baseline, onSelect, selected }) {
           );
         })}
       </div>
+
+      {items.length > BARS_VISIBLE ? (
+        <button
+          type="button"
+          className="scr-bars__more"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll
+            ? `Show the top ${BARS_VISIBLE} only`
+            : `Show all ${items.length} categories (${hiddenCount} more)`}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1170,7 +1137,7 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
   const [progress, setProgress] = useState(null);
   const [order, setOrder] = useState("trust");
   const [chartStyle, setChartStyle] = useState("bars");
-  const [coinInput, setCoinInput] = useState("BTC");
+  const [coinInput, setCoinInput] = useState(DEFAULT_COIN);
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinError, setCoinError] = useState(null);
   const [coinLoading, setCoinLoading] = useState(false);
@@ -1253,6 +1220,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
     return [...signals].sort((a, b) => trustScore(b) - trustScore(a))[0];
   }, [signals]);
 
+  const opposing = useMemo(() => opposingPair(signals), [signals]);
+
   const coinCards = useMemo(() => {
     const cards = Array.isArray(coinHistory?.signal_types) ? [...coinHistory.signal_types] : [];
     cards.sort((a, b) => (Number(b.sample_size) || 0) - (Number(a.sample_size) || 0));
@@ -1263,7 +1232,7 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
     () =>
       signals.map((card) => ({
         key: `${card.state}-${card.direction}-${card.label}`,
-        name: SETUP_NAMES[card.label] || card.label,
+        name: humanizeLabel(card.label),
         sub: `${STATE_NAMES[card.state] || card.state} \u00b7 ${directionChip(card.direction)}`,
         value: card.win_rate == null ? null : Number(card.win_rate),
         weight: Number(card.sample_size) || 0,
@@ -1298,7 +1267,7 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
     () =>
       coinCards.map((card) => ({
         key: `${card.state}-${card.direction}-${card.label}`,
-        name: SETUP_NAMES[card.label] || card.label,
+        name: humanizeLabel(card.label),
         sub: `${STATE_NAMES[card.state] || card.state} \u00b7 ${directionChip(card.direction)}`,
         value: card.win_rate == null ? null : Number(card.win_rate),
         weight: Number(card.sample_size) || 0,
@@ -1314,9 +1283,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
     [coinCards, coinBaseline]
   );
 
-  const loadCoin = async (event) => {
-    event.preventDefault();
-    const normalized = normalizeCoinSymbol(coinInput);
+  const runCoinLookup = useCallback(async (symbol, { silent = false } = {}) => {
+    const normalized = normalizeCoinSymbol(symbol);
     if (!normalized) return;
     setCoinLoading(true);
     setCoinError(null);
@@ -1326,10 +1294,24 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
       setCoinHistory(json);
     } catch (err) {
       setCoinHistory(null);
-      setCoinError(err?.message || "Failed to load coin history");
+      // A silent lookup is one the page started on its own. Failing at
+      // something the user never asked for should not put an error in
+      // front of them — the zone's own empty state covers it.
+      if (!silent) setCoinError(err?.message || "Failed to load coin history");
     } finally {
       setCoinLoading(false);
     }
+  }, []);
+
+  // The hero names a coin from the first paint, so the coin zone should be
+  // showing that coin rather than asking the user to pick the one already named.
+  useEffect(() => {
+    runCoinLookup(DEFAULT_COIN, { silent: true });
+  }, [runCoinLookup]);
+
+  const loadCoin = (event) => {
+    event.preventDefault();
+    runCoinLookup(coinInput);
   };
 
   if (error) {
@@ -1350,11 +1332,21 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
 
   const sig = data.signals || {};
   const baseline = Number(sig.overall_win_rate);
-  const coinFocus = normalizeCoinSymbol(coinLoadedFor || coinInput) || "BTC";
+  const coinFocus = normalizeCoinSymbol(coinLoadedFor || coinInput) || DEFAULT_COIN;
   const source = resolveSource(previewMode && !showingLive, data.status);
 
   return (
     <div className="scr-page">
+      {/* Live data is labelled by the hero chip alone. Anything that is *not*
+          measured from real outcomes gets a banner as well, because mistaking
+          a sample for a track record is the one error worth shouting about. */}
+      {source.key !== "live" ? (
+        <div className="scr-provenance" data-source={source.key} role="status">
+          <strong className="scr-provenance__headline">{source.headline}</strong>
+          <span className="scr-provenance__note">{source.note}</span>
+        </div>
+      ) : null}
+
       {/* ── Zone 1 — the coin you selected, and where the data came from.
              The coin IS the page title; nothing here repeats it in prose. ── */}
       <header className="scr-hero">
@@ -1397,7 +1389,7 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
           <div className="scr-headline__card">
             <span className="scr-headline__label">Most dependable category</span>
             <span className="scr-headline__value scr-headline__value--text">
-              {bestSetup ? SETUP_NAMES[bestSetup.label] || bestSetup.label : "None yet"}
+              {bestSetup ? humanizeLabel(bestSetup.label) : "None yet"}
             </span>
             <span className="scr-headline__note">
               {bestSetup
@@ -1426,7 +1418,29 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
       </header>
 
       {/* ── Zone 2 — historical signal performance ── */}
-      <Zone step="2" tone="signals" title="Signal history">
+      <Zone
+        step="2"
+        tone="signals"
+        title="Signal history"
+        lede="How often each kind of BHABIT alert has actually paid off, counted across every coin. It tells you which kinds have earned trust and which have not — open any row for what to do when one fires."
+      >
+        {/* Two categories that sound like opposite advice sit in this list at
+            once. Saying outright that they are separate buckets of past calls
+            is cheaper than letting someone read them as a live contradiction. */}
+        <p className="scr-scope-note">
+          Each row is a <strong>separate bucket of past calls, not advice being given right now.</strong>{" "}
+          {opposing ? (
+            <>
+              Seeing <em>{opposing[0]}</em> and <em>{opposing[1]}</em> side by side
+            </>
+          ) : (
+            "Seeing two rows that sound like opposite advice"
+          )}{" "}
+          does not mean BHABIT is telling you to buy and sell at once — it means both kinds of alert
+          have fired before, and each has its own track record. For what BHABIT reads on {coinFocus}{" "}
+          at this moment, open that coin on the live board.
+        </p>
+
         <div className="scr-zone__controls">
           <ChartStyleSwitch value={chartStyle} onChange={setChartStyle} />
           <label className="scr-order">
@@ -1465,7 +1479,12 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
       </Zone>
 
       {/* ── Zone 3 — historical board performance ── */}
-      <Zone step="3" tone="boards" title="Board history">
+      <Zone
+        step="3"
+        tone="boards"
+        title="Board history"
+        lede="Whether landing on one of the live boards actually meant a coin kept moving. It tells you which boards are worth reacting to — the number to judge a board by is “vs. random”, not the raw percentage."
+      >
         {boards.length > 0 && boards.some((b) => Number(b.sample_size) > 0) ? (
           <ScoreGroup
             items={boardItems}
@@ -1491,7 +1510,12 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
       </Zone>
 
       {/* ── Zone 4 — the selected coin's own history ── */}
-      <Zone step="4" tone="coin" title={`${coinFocus} history`}>
+      <Zone
+        step="4"
+        tone="coin"
+        title={`${coinFocus} history`}
+        lede={`The same measurements narrowed to ${coinFocus} on its own. It tells you whether this coin has behaved like the rest of the market or gone its own way. This is its past record only — for the current read on ${coinFocus}, open it on the live board.`}
+      >
         {coinError ? (
           <div className="scr-note scr-note--error">
             Couldn&apos;t load {coinLoadedFor || coinFocus}: {coinError}
@@ -1538,7 +1562,12 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
       </Zone>
 
       {/* ── Zone 5 — internal diagnostics, collapsed ── */}
-      <Zone step="5" tone="diagnostics" title="Internal diagnostics">
+      <Zone
+        step="5"
+        tone="diagnostics"
+        title="Internal diagnostics"
+        lede="Raw totals, grouped rollups, and the exact scoring rules behind everything above. Useful for checking the maths or filing a bug; not needed to read any of the other sections."
+      >
         <details className="scr-advanced">
           <summary className="scr-advanced__toggle">
             Show internal diagnostics
