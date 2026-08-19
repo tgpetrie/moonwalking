@@ -478,7 +478,7 @@ function CheckpointGrid({ values, title }) {
  * compares, what to do about it, and what the move actually looked like.
  *
  * `showCount` drops the sample-size sentence for callers whose own layout
- * already prints it (the gauge tiles carry it as a stat).
+ * already prints it (a chart row carries the share beside its rate).
  */
 function SetupDetail({ card, baseline, name, showCount = true }) {
   const { trust } = evidenceOf(card.sample_size);
@@ -515,8 +515,7 @@ function SetupDetail({ card, baseline, name, showCount = true }) {
   );
 }
 
-/** `showReversal` is off for the gauge tiles, which print "Flipped" as a stat. */
-function BoardDetail({ board, name, showReversal = true }) {
+function BoardDetail({ board, name }) {
   const lift = Number(board.continuation_lift_vs_control);
   const { trust } = evidenceOf(board.sample_size);
   return (
@@ -541,8 +540,7 @@ function BoardDetail({ board, name, showReversal = true }) {
       <div>
         <span className="scr-detail__dt">When to trust it</span>
         <p>
-          {trust}
-          {showReversal ? ` Flipped instead ${rate(board.reversal_rate)} of the time.` : null}
+          {trust} Flipped instead {rate(board.reversal_rate)} of the time.
         </p>
       </div>
       <div>
@@ -557,166 +555,22 @@ function BoardDetail({ board, name, showReversal = true }) {
   );
 }
 
-/**
- * A donut gauge. The filled arc is the percentage, so the number is the shape —
- * you read the result before you read any words.
- */
-function Donut({ value, tone, size = 78, stroke = 9 }) {
-  const pct = Number.isFinite(Number(value)) ? Math.max(0, Math.min(1, Number(value))) : 0;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <svg
-      className="scr-donut"
-      width={size}
-      height={size}
-      viewBox={"0 0 " + size + " " + size}
-      role="img"
-      aria-label={Math.round(pct * 100) + " percent"}
-    >
-      <circle
-        className="scr-donut__track"
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        strokeWidth={stroke}
-      />
-      <circle
-        className="scr-donut__arc"
-        data-tone={tone}
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={c * pct + " " + c}
-        transform={"rotate(-90 " + size / 2 + " " + size / 2 + ")"}
-      />
-      <text className="scr-donut__value" x="50%" y="50%" data-tone={tone}>
-        {Math.round(pct * 100)}%
-      </text>
-    </svg>
-  );
-}
-
-/**
- * One scored item.
- *
- * These were cards, then a table. Cards read as three competing verdicts on the
- * selected coin; the table read as a spreadsheet. A gauge reads as a score —
- * which is what it is — and the arc carries the magnitude before any word does.
- */
-function ScoreTile({ tone, value, name, sub, metric, stats, detail, status }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <article className={"scr-tile" + (open ? " is-open" : "")}>
-      <div className="scr-tile__main">
-        <Donut value={value} tone={tone} />
-        <div className="scr-tile__body">
-          <h4 className="scr-tile__name">
-            <span className="scr-tile__dot" data-tone={tone} aria-hidden="true" />
-            {name}
-          </h4>
-          <p className="scr-tile__sub">{sub}</p>
-          <p className="scr-tile__metric">{metric}</p>
-          {status ? <div className="scr-tile__status">{status}</div> : null}
-        </div>
-      </div>
-
-      <dl className="scr-tile__stats">
-        {stats.map((stat) => (
-          <div key={stat.label}>
-            <dt>{stat.label}</dt>
-            <dd className={stat.tone ? "scr-" + stat.tone : undefined}>{stat.value}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <button
-        type="button"
-        className="scr-tile__toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? "Hide detail" : "Detail"}
-      </button>
-
-      {open ? <div className="scr-tile__detail">{detail}</div> : null}
-    </article>
-  );
-}
-
-function SetupTile({ card, baseline }) {
-  const name = humanizeLabel(card.label);
-  const state = STATE_NAMES[card.state] || card.state;
-  const { label: evidenceLabel } = evidenceOf(card.sample_size);
-  const winPct = Number(card.win_rate);
-  const tone = winPct >= 0.5 ? "good" : winPct >= 0.3 ? "mixed" : "weak";
-
-  return (
-    <ScoreTile
-      tone={tone}
-      value={card.win_rate}
-      name={name}
-      sub={state + " \u00b7 " + directionChip(card.direction)}
-      metric="of these calls worked out"
-      stats={[
-        { label: "Times called", value: count(card.sample_size) },
-        { label: "Recent 50", value: rate(card.recent_win_rate) },
-        { label: "Evidence", value: evidenceLabel || "\u2014" },
-      ]}
-      detail={<SetupDetail card={card} baseline={baseline} name={name} showCount={false} />}
-    />
-  );
-}
-
-function BoardTile({ board }) {
-  const name = BOARD_NAMES[board.board] || String(board.board || "").replace(/_/g, " ");
-  const blurb = BOARD_BLURBS[board.board] || "Coins that met this board's entry rule.";
-  const ready = board.status === "measured";
-  const lift = Number(board.continuation_lift_vs_control);
-  const cont = Number(board.continuation_rate);
-  const tone = cont >= 0.5 ? "good" : cont >= 0.35 ? "mixed" : "weak";
-  const { label: evidenceLabel } = evidenceOf(board.sample_size);
-
-  return (
-    <ScoreTile
-      tone={tone}
-      value={board.continuation_rate}
-      name={name}
-      sub={blurb}
-      metric="of moves kept going"
-      status={
-        <span className="scr-status" data-status={board.status}>
-          {ready ? "Enough history" : "Still learning"}
-        </span>
-      }
-      stats={[
-        { label: "Flipped", value: rate(board.reversal_rate) },
-        {
-          label: "vs. random",
-          value: Number.isFinite(lift) ? signedRate(lift) : "\u2014",
-          tone: Number.isFinite(lift) ? (lift >= 0 ? "up" : "down") : null,
-        },
-        { label: "Evidence", value: evidenceLabel || "\u2014" },
-      ]}
-      detail={<BoardDetail board={board} name={name} showReversal={false} />}
-    />
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Chart treatments
 //
-// Three ways to render the same scores, switchable at runtime so the shape can
-// be chosen by looking rather than by arguing:
-//   bars   - one panel, one bar per category, average marked. Best for
-//            comparing independent rates against each other.
-//   split  - one sectioned pie of how often each category was called, with the
-//            accuracy read out beside each slice.
-//   gauges - a donut per category.
+// Every scored group answers two questions that are not the same question:
+//
+//   how often was this called?   - a share of a fixed total, so the parts sum
+//                                  to the whole. That is a pie.
+//   how often did it work?       - independent rates that do not sum to
+//                                  anything. That is a bar per category.
+//
+// Both are drawn side by side rather than swapped behind a control. A switch
+// asked the reader to remember which question the shape on screen was
+// answering; showing both means a category that is called constantly but
+// rarely works is visible as a wide slice next to a short bar, which is the
+// comparison the page exists to make. Slice colour and row dot come from the
+// same index, so the two halves read as one chart.
 // ---------------------------------------------------------------------------
 
 const SLICE_COLORS = [
@@ -738,13 +592,22 @@ function toneOf(value, good = 0.5, mixed = 0.3) {
 // the density the redesign exists to fix, so the tail is folded away.
 const BARS_VISIBLE = 8;
 
-/** One shared panel, one bar per category, with the average marked. */
-function SignalBars({ items, baseline, onSelect, selected }) {
+/**
+ * One bar per category, with the average marked — and the list that names the
+ * pie's sections, since they are the same categories in the same order.
+ *
+ * This doubles as the legend so the page never prints the category list twice.
+ * The headline number is the hit rate; the share underneath it is what the
+ * matching slice is sized by, so chart and list always agree. A selected row
+ * expands in place and lifts its slice.
+ */
+function SignalRates({ items, baseline, onSelect, selected, detailFor, unit, caption }) {
   const [showAll, setShowAll] = useState(false);
   const avg = Number(baseline);
   // `Number(null)` is 0, which is finite — so a missing baseline would draw a
   // meaningless "avg 0%" line at the left edge. Check for absence first.
   const hasAvg = baseline != null && Number.isFinite(avg);
+  const total = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
 
   const shown = showAll ? items : items.slice(0, BARS_VISIBLE);
   // Collapsing must not hide the row whose detail is open below the chart.
@@ -755,7 +618,9 @@ function SignalBars({ items, baseline, onSelect, selected }) {
   const hiddenCount = items.length - visible.length;
 
   return (
-    <div className="scr-chart">
+    <div className="scr-rates">
+      <span className="scr-rates__caption">{caption}</span>
+
       <div className="scr-bars">
         {hasAvg ? (
           <div
@@ -766,41 +631,61 @@ function SignalBars({ items, baseline, onSelect, selected }) {
           </div>
         ) : null}
 
-        {visible.map((item, i) => {
-          const tone = toneOf(item.value);
-          const pct =
-            item.value == null ? 0 : Math.max(0, Math.min(100, Number(item.value) * 100 || 0));
-          const isOpen = selected === item.key;
-          return (
-            <button
-              type="button"
-              key={item.key}
-              className={"scr-barrow" + (isOpen ? " is-open" : "")}
-              aria-expanded={isOpen}
-              onClick={() => onSelect(isOpen ? null : item.key)}
-            >
-              <span className="scr-barrow__label">
-                <span
-                  className="scr-barrow__dot"
-                  style={{ background: SLICE_COLORS[i % SLICE_COLORS.length] }}
-                  aria-hidden="true"
-                />
-                <span className="scr-barrow__name">{item.name}</span>
-                <span className="scr-barrow__sub">{item.sub}</span>
-              </span>
-              <span className="scr-barrow__track">
-                <span
-                  className="scr-barrow__fill"
-                  data-tone={tone}
-                  style={{ width: `${pct}%` }}
-                />
-              </span>
-              <span className="scr-barrow__pct" data-tone={tone}>
-                {rate(item.value)}
-              </span>
-            </button>
-          );
-        })}
+        <ul className="scr-bars__list">
+          {visible.map((item) => {
+            const tone = toneOf(item.value);
+            const pct =
+              item.value == null ? 0 : Math.max(0, Math.min(100, Number(item.value) * 100 || 0));
+            const isOpen = selected === item.key;
+            // Colour is keyed to the item's place in the full list, not in the
+            // visible slice of it. Indexing `visible` would repaint every dot
+            // whenever the tail folded, and a row pinned open from beyond the
+            // fold would take a colour belonging to another slice.
+            const color = SLICE_COLORS[items.indexOf(item) % SLICE_COLORS.length];
+            const share = total > 0 ? (Number(item.weight) || 0) / total : 0;
+            return (
+              <li key={item.key} className={"scr-barrow-item" + (isOpen ? " is-open" : "")}>
+                <button
+                  type="button"
+                  className={"scr-barrow" + (isOpen ? " is-open" : "")}
+                  aria-expanded={isOpen}
+                  onClick={() => onSelect(isOpen ? null : item.key)}
+                >
+                  <span className="scr-barrow__label">
+                    <span
+                      className="scr-barrow__dot"
+                      style={{ background: color }}
+                      aria-hidden="true"
+                    />
+                    <span className="scr-barrow__name">{item.name}</span>
+                    <span className="scr-barrow__sub">
+                      <span className="scr-barrow__subtext">{item.sub}</span>
+                      {item.status ? (
+                        <span className="scr-status" data-status={item.status.key}>
+                          {item.status.label}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className="scr-barrow__track">
+                    <span
+                      className="scr-barrow__fill"
+                      data-tone={tone}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </span>
+                  <span className="scr-barrow__pct" data-tone={tone}>
+                    {rate(item.value)}
+                    <span className="scr-barrow__share">
+                      {rate(share)} of {unit}
+                    </span>
+                  </span>
+                </button>
+                {isOpen ? <div className="scr-barrow__detail">{detailFor(item)}</div> : null}
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       {items.length > BARS_VISIBLE ? (
@@ -1014,115 +899,43 @@ function SignalPie({ items, onSelect, selected, centerLabel, centerSub }) {
 }
 
 /**
- * The legend doubles as the place a selected section is blown up.
- *
- * Its headline number is the slice size, so legend and chart always agree.
- * Accuracy is a different question and is labelled as one.
+ * A scored group: how often each category was called, next to how often it
+ * worked. One selection drives both halves, so clicking a slice and clicking
+ * its row are the same act.
  */
-function PieLegend({ items, selected, onSelect, detailFor }) {
-  const total = items.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-  return (
-    <ul className="scr-legend">
-      {items.map((item, i) => {
-        const color = SLICE_COLORS[i % SLICE_COLORS.length];
-        const isSel = selected === item.key;
-        const share = total > 0 ? (Number(item.weight) || 0) / total : 0;
-        return (
-          <li key={item.key} className={"scr-legend__item" + (isSel ? " is-open" : "")}>
-            <button
-              type="button"
-              className="scr-legend__row"
-              aria-expanded={isSel}
-              onClick={() => onSelect(isSel ? null : item.key)}
-            >
-              <span className="scr-legend__swatch" style={{ background: color }} />
-              <span className="scr-legend__text">
-                <span className="scr-legend__name">{item.name}</span>
-                <span className="scr-legend__sub">
-                  {count(item.weight)} of {count(total)} ·{" "}
-                  {item.value == null ? "not graded yet" : `worked ${rate(item.value)} of the time`}
-                </span>
-              </span>
-              <span className="scr-legend__pct">
-                {rate(share)}
-                <span className="scr-legend__pct-label">of calls</span>
-              </span>
-            </button>
-            {isSel ? <div className="scr-legend__detail">{detailFor(item)}</div> : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-const CHART_STYLES = [
-  { key: "bars", label: "Bars" },
-  { key: "split", label: "Volume mix" },
-  { key: "gauges", label: "Gauges" },
-];
-
-function ChartStyleSwitch({ value, onChange }) {
-  return (
-    <div className="scr-chartswitch" role="group" aria-label="Chart style">
-      <span className="scr-chartswitch__label">Chart</span>
-      {CHART_STYLES.map((style) => (
-        <button
-          key={style.key}
-          type="button"
-          className={"scr-chartswitch__btn" + (value === style.key ? " is-active" : "")}
-          aria-pressed={value === style.key}
-          onClick={() => onChange(style.key)}
-        >
-          {style.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Renders a scored group in whichever treatment is selected. */
-function ScoreGroup({ items, baseline, style, detailFor, centerLabel, centerSub }) {
+function ScoreGroup({
+  items,
+  baseline,
+  detailFor,
+  centerLabel,
+  centerSub,
+  unit = "calls",
+  rateCaption = "How often each one worked out",
+}) {
   const [selected, setSelected] = useState(null);
-  const active = items.find((item) => item.key === selected);
 
-  if (style === "gauges") {
-    return <div className="scr-tiles">{items.map((item) => item.gauge)}</div>;
-  }
-
-  if (style === "split") {
-    return (
-      <div className="scr-chart scr-chart--split">
-        <div className="scr-piewrap">
-          <span className="scr-piewrap__caption">Share of calls made — not accuracy</span>
-            <SignalPie
-            items={items}
-            onSelect={setSelected}
-            selected={selected}
-            centerLabel={centerLabel}
-            centerSub={centerSub}
-          />
-        </div>
-        <PieLegend
+  return (
+    <div className="scr-chart scr-chart--dual">
+      <div className="scr-piewrap">
+        <span className="scr-piewrap__caption">Share of {unit}</span>
+        <SignalPie
           items={items}
-          selected={selected}
           onSelect={setSelected}
-          detailFor={detailFor}
+          selected={selected}
+          centerLabel={centerLabel}
+          centerSub={centerSub}
         />
       </div>
-    );
-  }
-
-  return (
-    <>
-      <SignalBars
+      <SignalRates
         items={items}
         baseline={baseline}
         onSelect={setSelected}
         selected={selected}
+        detailFor={detailFor}
+        unit={unit}
+        caption={rateCaption}
       />
-      {active ? <div className="scr-groupdetail">{detailFor(active)}</div> : null}
-    </>
+    </div>
   );
 }
 
@@ -1136,7 +949,6 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
   const [showingLive, setShowingLive] = useState(!previewMode);
   const [progress, setProgress] = useState(null);
   const [order, setOrder] = useState("trust");
-  const [chartStyle, setChartStyle] = useState("bars");
   const [coinInput, setCoinInput] = useState(DEFAULT_COIN);
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinError, setCoinError] = useState(null);
@@ -1237,15 +1049,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
         value: card.win_rate == null ? null : Number(card.win_rate),
         weight: Number(card.sample_size) || 0,
         card,
-        gauge: (
-          <SetupTile
-            key={`${card.state}-${card.direction}-${card.label}`}
-            card={card}
-            baseline={baselineRate}
-          />
-        ),
       })),
-    [signals, baselineRate]
+    [signals]
   );
 
   const boardItems = useMemo(
@@ -1257,8 +1062,14 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
         value:
           board.continuation_rate == null ? null : Number(board.continuation_rate),
         weight: Number(board.sample_size) || 0,
+        // Whether a board has enough history to be read at all is a fact about
+        // the row, not about its rate, so it rides alongside the name rather
+        // than being encoded into the bar.
+        status: {
+          key: board.status,
+          label: board.status === "measured" ? "Enough history" : "Still learning",
+        },
         board,
-        gauge: <BoardTile key={board.board} board={board} />,
       })),
     [boards]
   );
@@ -1272,15 +1083,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
         value: card.win_rate == null ? null : Number(card.win_rate),
         weight: Number(card.sample_size) || 0,
         card,
-        gauge: (
-          <SetupTile
-            key={`${card.state}-${card.direction}-${card.label}`}
-            card={card}
-            baseline={coinBaseline}
-          />
-        ),
       })),
-    [coinCards, coinBaseline]
+    [coinCards]
   );
 
   const runCoinLookup = useCallback(async (symbol, { silent = false } = {}) => {
@@ -1442,7 +1246,6 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
         </p>
 
         <div className="scr-zone__controls">
-          <ChartStyleSwitch value={chartStyle} onChange={setChartStyle} />
           <label className="scr-order">
             <span className="scr-order__label">Order by</span>
             <select
@@ -1461,11 +1264,17 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
           <ScoreGroup
             items={signalItems}
             baseline={baseline}
-            style={chartStyle}
+            unit="calls"
+            rateCaption="How often each one worked out"
             centerLabel={count(sig.total_graded)}
             centerSub="calls graded"
             detailFor={(item) => (
-              <SetupDetail card={item.card} baseline={baseline} name={item.name} />
+              <SetupDetail
+                card={item.card}
+                baseline={baseline}
+                name={item.name}
+                showCount={false}
+              />
             )}
           />
         ) : progress && Number(progress.total) > 0 ? (
@@ -1489,7 +1298,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
           <ScoreGroup
             items={boardItems}
             baseline={null}
-            style={chartStyle}
+            unit="appearances"
+            rateCaption="How often the move kept going"
             centerLabel={count(data.boards?.total_entries)}
             centerSub="appearances"
             detailFor={(item) => <BoardDetail board={item.board} name={item.name} />}
@@ -1539,11 +1349,17 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
               <ScoreGroup
                 items={coinItems}
                 baseline={coinBaseline}
-                style={chartStyle}
+                unit="calls"
+                rateCaption="How often each one worked out"
                 centerLabel={count(coinHistory.total_outcomes)}
                 centerSub="measured"
                 detailFor={(item) => (
-                  <SetupDetail card={item.card} baseline={coinBaseline} name={item.name} />
+                  <SetupDetail
+                    card={item.card}
+                    baseline={coinBaseline}
+                    name={item.name}
+                    showCount={false}
+                  />
                 )}
               />
             ) : (

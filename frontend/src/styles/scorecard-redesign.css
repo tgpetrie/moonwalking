@@ -803,199 +803,7 @@
   max-width: none;
 }
 
-/* ── Score tiles ───────────────────── */
-/* The arc carries the percentage, so magnitude registers before any reading
-   happens. Colour maps to how the score compares, and the same colour tags the
-   name so the mapping is obvious without a legend. */
-
-.scr-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-
-.scr-tile {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--r-2);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color 200ms ease;
-}
-
-.scr-tile:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-/* An open tile spans the row so its detail has room to breathe. */
-.scr-tile.is-open {
-  grid-column: 1 / -1;
-}
-
-.scr-tile__main {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.scr-tile__body {
-  min-width: 0;
-}
-
-.scr-tile__name {
-  margin: 0 0 3px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.scr-tile__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--r-2);
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.4);
-}
-
-.scr-tile__dot[data-tone="good"] {
-  background: var(--brand-teal, #10ae9b);
-}
-
-.scr-tile__dot[data-tone="mixed"] {
-  background: var(--brand-amber, #ffb347);
-}
-
-.scr-tile__dot[data-tone="weak"] {
-  background: var(--brand-purple, #c084fc);
-}
-
-.scr-tile__sub {
-  margin: 0 0 5px;
-  font-size: 0.7rem;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.scr-tile__metric {
-  margin: 0;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.34);
-}
-
-.scr-tile__status {
-  margin-top: 7px;
-}
-
-.scr-tile__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 0;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.scr-tile__stats > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.scr-tile__stats dt {
-  font-size: 0.58rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.32);
-}
-
-.scr-tile__stats dd {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.scr-tile__toggle {
-  align-self: flex-start;
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.38);
-  cursor: pointer;
-}
-
-.scr-tile__toggle:hover {
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-tile__detail {
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* ── Donut gauge ────────────────── */
-
-.scr-donut {
-  flex-shrink: 0;
-}
-
-.scr-donut__track {
-  stroke: rgba(255, 255, 255, 0.07);
-}
-
-.scr-donut__arc {
-  stroke: rgba(255, 255, 255, 0.5);
-  transition: stroke-dasharray 500ms ease;
-}
-
-.scr-donut__arc[data-tone="good"] {
-  stroke: var(--brand-teal, #10ae9b);
-}
-
-.scr-donut__arc[data-tone="mixed"] {
-  stroke: var(--brand-amber, #ffb347);
-}
-
-.scr-donut__arc[data-tone="weak"] {
-  stroke: var(--brand-purple, #c084fc);
-}
-
-.scr-donut__value {
-  text-anchor: middle;
-  dominant-baseline: central;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 1.05rem;
-  font-weight: 700;
-  fill: rgba(255, 255, 255, 0.9);
-}
-
-.scr-donut__value[data-tone="good"] {
-  fill: var(--brand-teal, #10ae9b);
-}
-
-.scr-donut__value[data-tone="mixed"] {
-  fill: var(--brand-amber, #ffb347);
-}
-
-.scr-donut__value[data-tone="weak"] {
-  fill: var(--brand-purple, #c084fc);
-}
-
-/* ── Tile detail ────────────────── */
+/* ── Expanded detail ────────────────── */
 
 .scr-detail__grid {
   display: grid;
@@ -1028,51 +836,68 @@
   padding: 4px 2px 2px;
 }
 
-.scr-chartswitch {
+/* Share on the left, rates on the right. The pie is fixed-width so the rate
+   list absorbs the slack; below 900px they stack, share first, because the
+   share is what names the colours the rate rows are keyed to. */
+.scr-chart--dual {
   display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.scr-piewrap {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  margin-right: auto;
+  gap: 6px;
 }
 
-.scr-chartswitch__label {
-  font-size: 0.62rem;
+/* -- Rates: the bars, which are also the pie's legend ----------------- */
+
+.scr-rates {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.scr-rates__caption,
+.scr-piewrap__caption {
+  display: block;
+  font-size: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.32);
-  margin-right: 4px;
 }
-
-.scr-chartswitch__btn {
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--r-2);
-  padding: 3px 11px;
-  font: inherit;
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-}
-
-.scr-chartswitch__btn:hover {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.scr-chartswitch__btn.is-active {
-  background: rgba(255, 179, 71, 0.14);
-  border-color: rgba(255, 179, 71, 0.32);
-  color: var(--brand-amber, #ffb347);
-}
-
-/* -- Bars ------------------------------------------------------------- */
 
 .scr-bars {
   position: relative;
+  /* Reserves a band for the average label so it cannot land on the first row. */
+  padding-top: 15px;
+}
+
+.scr-bars__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* Reserves a band for the average label so it cannot land on the first row. */
-  padding-top: 15px;
+}
+
+.scr-barrow-item {
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.scr-barrow-item.is-open {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.scr-barrow__detail {
+  padding: 2px 12px 12px;
 }
 
 .scr-bars__avg {
@@ -1145,13 +970,27 @@
   white-space: nowrap;
 }
 
+/* The sub line can carry a status chip beside the text. The text truncates;
+   the chip never does, or a board would read as "Still learn…". */
 .scr-barrow__sub {
   grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-size: 0.64rem;
   color: rgba(255, 255, 255, 0.36);
+}
+
+.scr-barrow__subtext {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scr-barrow__sub .scr-status {
+  font-size: 0.56rem;
+  padding: 1px 7px;
 }
 
 .scr-barrow__track {
@@ -1181,12 +1020,27 @@
   background: var(--brand-purple, #c084fc);
 }
 
+/* Hit rate over share: two numbers about the same category that answer
+   different questions, so the one the bar draws stays dominant and the one the
+   slice draws sits under it as the tie back to the pie. */
 .scr-barrow__pct {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.95rem;
   font-weight: 700;
-  min-width: 48px;
+  min-width: 76px;
   text-align: right;
+}
+
+.scr-barrow__share {
+  font-family: inherit;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.32);
+  white-space: nowrap;
 }
 
 .scr-barrow__pct[data-tone="good"] {
@@ -1220,14 +1074,6 @@
 }
 
 /* -- Sectioned donut -------------------------------------------------- */
-
-.scr-chart--split {
-  display: flex;
-  align-items: flex-start;
-  gap: 28px;
-  flex-wrap: wrap;
-  padding: 6px 0;
-}
 
 .scr-pie {
   flex-shrink: 0;
@@ -1276,124 +1122,22 @@
   fill: rgba(255, 255, 255, 0.34);
 }
 
-/* -- Legend, which is also where a section is blown up ---------------- */
-
-.scr-legend {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex: 1 1 320px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.scr-legend__item {
-  border: 1px solid transparent;
-  border-radius: var(--r-2);
-  transition: background 180ms ease, border-color 180ms ease;
-}
-
-.scr-legend__item.is-open {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.09);
-}
-
-.scr-legend__row {
-  display: grid;
-  grid-template-columns: 6px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  background: none;
-  border: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  border-radius: var(--r-2);
-}
-
-.scr-legend__row:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.scr-legend__swatch {
-  width: 6px;
-  height: 32px;
-  border-radius: var(--r-2);
-}
-
-.scr-legend__text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.scr-legend__name {
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.scr-legend__sub {
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.38);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scr-legend__pct {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.scr-legend__pct[data-tone="good"] {
-  color: var(--brand-teal, #10ae9b);
-}
-
-.scr-legend__pct[data-tone="mixed"] {
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-legend__pct[data-tone="weak"] {
-  color: var(--brand-purple, #c084fc);
-}
-
-.scr-legend__pct-label {
-  font-family: "Raleway", system-ui, sans-serif;
-  font-size: 0.55rem;
-  font-weight: 400;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.32);
-}
-
-.scr-legend__detail {
-  padding: 2px 12px 12px;
-}
-
-/* -- Selected-item detail --------------------------------------------- */
-
-.scr-groupdetail {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
 /* ── Responsive ────────────────────────────── */
 
 @media (max-width: 900px) {
   .scr-compare__grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Side by side, the pie would squeeze the rate rows to nothing. Stacked, the
+     pie stays full size above the list it colour-codes. */
+  .scr-chart--dual {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .scr-rates {
+    width: 100%;
   }
 }
 
@@ -1410,29 +1154,24 @@
     font-size: 1.35rem;
   }
 
-  .scr-tiles {
-    grid-template-columns: 1fr;
-  }
-
-  .scr-tile__stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
+  /* Name and rate keep sharing a line; only the bar drops below them. Placing
+     all three explicitly, because `grid-column: 1 / -1` on the track otherwise
+     pushes the rate onto a third row of its own. */
   .scr-barrow {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 6px 10px;
   }
 
+  .scr-barrow__label {
+    grid-area: 1 / 1;
+  }
+
+  .scr-barrow__pct {
+    grid-area: 1 / 2;
+  }
+
   .scr-barrow__track {
-    grid-column: 1 / -1;
-  }
-
-  .scr-chart--split {
-    gap: 16px;
-  }
-
-  .scr-legend__row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-area: 2 / 1 / 3 / -1;
   }
 
   .scr-zone {
@@ -1456,10 +1195,6 @@
 
 .scr-pie__empty {
   stroke: rgba(255, 255, 255, 0.06);
-}
-
-.scr-legend__pct[data-tone="none"] {
-  color: rgba(255, 255, 255, 0.3);
 }
 
 .scr-barrow__pct[data-tone="none"] {
@@ -1518,18 +1253,4 @@
   font-size: 0.78rem;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.45);
-}
-
-.scr-piewrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.scr-piewrap__caption {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.32);
 }

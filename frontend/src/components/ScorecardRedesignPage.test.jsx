@@ -434,70 +434,102 @@ describe("ScorecardRedesignPage – zone separation", () => {
 // ---------------------------------------------------------------------------
 
 describe("ScorecardRedesignPage – chart treatments", () => {
-  // Bars are the default: the question is "was it right?", which is a rate,
-  // and rates across categories do not sum to 100%.
-  it("defaults to bars, not the volume pie", async () => {
+  // "How often was this called?" and "how often did it work?" are different
+  // questions with different shapes. Both are drawn, so neither has to be
+  // remembered from behind a control.
+  it("draws share and hit rate side by side, with no style control", async () => {
     const { container } = await renderLoaded();
-    expect(container.querySelector(".scr-chartswitch__btn.is-active").textContent).toBe("Bars");
-    expect(signalsZone(container).querySelector(".scr-barrow")).toBeTruthy();
-    expect(signalsZone(container).querySelector(".scr-pie")).toBeNull();
-  });
-
-  it("offers bars and gauges as alternatives", async () => {
-    const { container } = await renderLoaded();
-    expect(
-      [...container.querySelectorAll(".scr-chartswitch__btn")].map((b) => b.textContent)
-    ).toEqual(["Bars", "Volume mix", "Gauges"]);
-
-    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
-    await waitFor(() => expect(signalsZone(container).querySelector(".scr-pie")).toBeTruthy());
-
-    fireEvent.click(screen.getByRole("button", { name: "Gauges" }));
-    await waitFor(() => expect(signalsZone(container).querySelector(".scr-donut")).toBeTruthy());
+    const zone = signalsZone(container);
+    expect(zone.querySelector(".scr-pie")).toBeTruthy();
+    expect(zone.querySelector(".scr-barrow")).toBeTruthy();
+    expect(container.querySelector(".scr-chartswitch")).toBeNull();
   });
 
   it("draws one coloured section per category, sized by share of calls", async () => {
     const { container } = await renderLoaded(
       makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION, SETUP_THIN] } })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
     const zone = signalsZone(container);
     await waitFor(() => expect(zone.querySelectorAll(".scr-pie__slice").length).toBe(3));
 
-    // Each section gets its own fill, and the legend lists one row per section.
+    // Each section gets its own fill, and the rate list names one row per one.
     const fills = [...zone.querySelectorAll(".scr-pie__slice")].map((s) => s.getAttribute("fill"));
     expect(new Set(fills).size).toBe(3);
-    expect(zone.querySelectorAll(".scr-legend__item").length).toBe(3);
+    expect(zone.querySelectorAll(".scr-barrow-item").length).toBe(3);
 
-    // Legend headline is the slice share, so chart and legend always agree.
-    const shares = [...zone.querySelectorAll(".scr-legend__pct")].map((el) =>
+    // Each row carries its slice's share, so chart and list always agree.
+    const shares = [...zone.querySelectorAll(".scr-barrow__share")].map((el) =>
       parseInt(el.textContent, 10)
     );
     expect(shares.reduce((a, b) => a + b, 0)).toBeGreaterThan(95);
-    for (const el of zone.querySelectorAll(".scr-legend__pct-label")) {
-      expect(el.textContent).toBe("of calls");
+    for (const el of zone.querySelectorAll(".scr-barrow__share")) {
+      expect(el.textContent).toMatch(/of calls$/);
     }
+  });
+
+  // A row's dot has to be the colour of the slice it stands for, which is its
+  // place in the full list — not its place in the visible slice of that list.
+  // Selecting a slice from beyond the fold pins its row onto the end of the
+  // visible eight, which is exactly where the two indexes disagree.
+  it("keeps a row's colour tied to its slice when the tail is folded away", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      ...SETUP_DEEP,
+      label: `SETUP ${i}`,
+      sample_size: 200 - i,
+    }));
+    const { container } = await renderLoaded(makeResponse({ signals: { signal_types: many } }));
+    const zone = signalsZone(container);
+    await waitFor(() => expect(zone.querySelectorAll(".scr-pie__slice").length).toBe(12));
+    expect(zone.querySelectorAll(".scr-barrow").length).toBe(8);
+
+    // The colour of row 10 while every row is on screen is the answer the
+    // pinned row has to match.
+    fireEvent.click(within(zone).getByRole("button", { name: /Show all 12 categories/i }));
+    await waitFor(() => expect(zone.querySelectorAll(".scr-barrow").length).toBe(12));
+    const expected = zone.querySelectorAll(".scr-barrow__dot")[10].style.background;
+    const wrong = zone.querySelectorAll(".scr-barrow__dot")[8].style.background;
+    expect(expected).not.toBe(wrong);
+
+    // Refold, then select the 11th slice so its row is appended at position 8.
+    fireEvent.click(within(zone).getByRole("button", { name: /Show the top 8 only/i }));
+    await waitFor(() => expect(zone.querySelectorAll(".scr-barrow").length).toBe(8));
+    fireEvent.click(zone.querySelectorAll(".scr-pie__slice")[10]);
+    await waitFor(() => expect(zone.querySelectorAll(".scr-barrow").length).toBe(9));
+
+    const dots = zone.querySelectorAll(".scr-barrow__dot");
+    expect(dots[8].style.background).toBe(expected);
   });
 
   it("blows up the selected section and shows its detail alongside", async () => {
     const { container } = await renderLoaded(
       makeResponse({ signals: { signal_types: [SETUP_DEEP, SETUP_CAUTION] } })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Volume mix" }));
     const zone = signalsZone(container);
-    await waitFor(() => expect(zone.querySelector(".scr-legend__row")).toBeTruthy());
-    expect(zone.querySelector(".scr-legend__detail")).toBeNull();
+    await waitFor(() => expect(zone.querySelector(".scr-barrow")).toBeTruthy());
+    expect(zone.querySelector(".scr-barrow__detail")).toBeNull();
 
-    fireEvent.click(zone.querySelectorAll(".scr-legend__row")[0]);
+    fireEvent.click(zone.querySelectorAll(".scr-barrow")[0]);
 
-    await waitFor(() => expect(zone.querySelector(".scr-legend__detail")).toBeTruthy());
-    const detail = zone.querySelector(".scr-legend__detail");
+    await waitFor(() => expect(zone.querySelector(".scr-barrow__detail")).toBeTruthy());
+    const detail = zone.querySelector(".scr-barrow__detail");
     expect(within(detail).getByText("What this is")).toBeInTheDocument();
     expect(within(detail).getByText("How it compares")).toBeInTheDocument();
     expect(within(detail).getByText("What to do with it")).toBeInTheDocument();
 
     // The chosen section lifts out of the ring.
     expect(zone.querySelector(".scr-pie__slice.is-selected")).toBeTruthy();
+  });
+
+  // The row already prints "34% of calls" beside the rate, so the detail
+  // repeating "Called 34 times" would be the same fact twice, inches apart.
+  it("leaves the sample count to the row rather than repeating it in the detail", async () => {
+    const { container } = await renderLoaded(
+      makeResponse({ signals: { signal_types: [SETUP_DEEP] } })
+    );
+    const zone = signalsZone(container);
+    fireEvent.click(zone.querySelector(".scr-barrow"));
+    await waitFor(() => expect(zone.querySelector(".scr-barrow__detail")).toBeTruthy());
+    expect(zone.querySelector(".scr-barrow__detail").textContent).not.toMatch(/Called \d+ times/);
   });
 
   // An empty chart implies we measured and found nothing. Collection still
@@ -600,40 +632,37 @@ describe("ScorecardRedesignPage – chart treatments", () => {
 describe("ScorecardRedesignPage – historical framing", () => {
   it("states direction in the past tense", async () => {
     const { container } = await renderLoaded();
-    fireEvent.click(screen.getByRole("button", { name: "Gauges" }));
-    await waitFor(() => expect(container.querySelector(".scr-tile")).toBeTruthy());
-
-    const tile = container.querySelector(".scr-tile");
-    expect(tile.textContent).toMatch(/Predicted a rise/);
-    expect(tile.textContent).not.toMatch(/Expects a/);
+    const sub = signalsZone(container).querySelector(".scr-barrow__sub");
+    expect(sub.textContent).toMatch(/Predicted a rise/);
+    expect(sub.textContent).not.toMatch(/Expects a/);
   });
 
   it("scores each category against the average inside its detail", async () => {
     const { container } = await renderLoaded();
     const zone = signalsZone(container);
     fireEvent.click(zone.querySelector(".scr-barrow"));
-    await waitFor(() => expect(zone.querySelector(".scr-groupdetail")).toBeTruthy());
+    await waitFor(() => expect(zone.querySelector(".scr-barrow__detail")).toBeTruthy());
     expect(
-      within(zone.querySelector(".scr-groupdetail")).getByText(
+      within(zone.querySelector(".scr-barrow__detail")).getByText(
         /Well ahead of the average signal/i
       )
     ).toBeInTheDocument();
   });
 
+  // Whether a board has enough history to be read at all is a fact about the
+  // row, so it rides beside the name rather than being lost in the bar.
   it("labels the board readiness in plain words", async () => {
     const { container } = await renderLoaded(
       makeResponse({
         boards: { boards: { ignition_1m: BOARD_READY, confirmation_3m_up: BOARD_LEARNING } },
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Gauges" }));
+    const boardsZone = container.querySelector('.scr-zone[data-tone="boards"]');
     await waitFor(() =>
-      expect(container.querySelectorAll('.scr-zone[data-tone="boards"] .scr-tile').length).toBe(2)
+      expect(boardsZone.querySelectorAll(".scr-barrow-item").length).toBe(2)
     );
 
-    const chips = [
-      ...container.querySelectorAll('.scr-zone[data-tone="boards"] .scr-status'),
-    ].map((el) => el.textContent);
+    const chips = [...boardsZone.querySelectorAll(".scr-status")].map((el) => el.textContent);
     expect(chips).toContain("Enough history");
     expect(chips).toContain("Still learning");
     expect(chips).not.toContain("measured");
@@ -643,7 +672,7 @@ describe("ScorecardRedesignPage – historical framing", () => {
     const { container } = await renderLoaded();
     const zone = container.querySelector('.scr-zone[data-tone="boards"]');
     fireEvent.click(zone.querySelector(".scr-barrow"));
-    await waitFor(() => expect(zone.querySelector(".scr-groupdetail")).toBeTruthy());
+    await waitFor(() => expect(zone.querySelector(".scr-barrow__detail")).toBeTruthy());
     expect(zone.textContent).toMatch(/changed the odds by -2%/i);
   });
 });
