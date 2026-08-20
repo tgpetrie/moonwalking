@@ -542,10 +542,12 @@ class PortfolioService:
                 snapshot = deepcopy(self._cache) if self._cache else None
         if not snapshot:
             return set()
+        # Snapshot rows carry "symbol"; "currency" is only kept as a fallback
+        # for cached rows written by older builds.
         return {
-            str(row.get("currency") or "").upper()
+            str(row.get("symbol") or row.get("currency") or "").upper()
             for row in snapshot.get("holdings") or []
-            if row.get("currency") and not row.get("is_cash")
+            if (row.get("symbol") or row.get("currency")) and not row.get("is_cash")
         }
 
     def _load(self) -> dict[str, Any]:

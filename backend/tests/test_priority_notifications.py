@@ -80,3 +80,34 @@ def test_service_held_symbols_reads_cache_without_network():
         ]
     }
     assert service.held_symbols() == {"BTC", "SOL"}
+
+
+def test_service_held_symbols_reads_the_symbol_field_real_snapshots_use():
+    """Regression: snapshots build holdings with "symbol", not "currency".
+
+    Reading only "currency" made this return an empty set against every real
+    snapshot, silently dropping holdings-based alert priority.
+    """
+    service = PortfolioService(object())
+    service._cache = {
+        "holdings": [
+            {"symbol": "ETH", "is_cash": False},
+            {"symbol": "XRP", "is_cash": False},
+            {"symbol": "USD", "is_cash": True},
+        ]
+    }
+    assert service.held_symbols() == {"ETH", "XRP"}
+
+
+def test_service_held_symbols_accepts_legacy_currency_rows_alongside_symbol():
+    service = PortfolioService(object())
+    service._cache = {
+        "holdings": [
+            {"symbol": "ETH", "is_cash": False},
+            {"currency": "BTC", "is_cash": False},
+            {"symbol": "USDC", "is_cash": True},
+            {"currency": "USD", "is_cash": True},
+            {"is_cash": False},
+        ]
+    }
+    assert service.held_symbols() == {"ETH", "BTC"}
