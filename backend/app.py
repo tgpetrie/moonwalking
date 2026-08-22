@@ -1,3 +1,13 @@
+# Load backend/.env before anything reads os.environ, so local secrets
+# (Coinbase keys, OAuth client, session key) work without exporting them by hand.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    from pathlib import Path as _Path
+
+    _load_dotenv(_Path(__file__).resolve().parent / ".env")
+except Exception:  # python-dotenv is optional; env vars can still come from the shell
+    pass
+
 from flask import Flask, jsonify
 import os
 import argparse
@@ -1063,7 +1073,7 @@ def oauth_coinbase_callback():
                 conn.close()
 
         # Redirect back to portfolio page
-        return flask_redirect("/mvp/portfolio")
+        return flask_redirect("/app/portfolio")
     except OAuthTokenError as e:
         logging.error(f"OAuth token exchange failed: {e}")
         return jsonify({"error": str(e)}), 503

@@ -69,6 +69,7 @@ backend/watchlist_insights.log
 
 # Environment variables
 .env*
+!**/.env.example
 .vercel
 .env.local
 .env.development.local
