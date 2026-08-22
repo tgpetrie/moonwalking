@@ -368,3 +368,51 @@ describe("PortfolioModePage", () => {
     expect(saveManualCostBasis).not.toHaveBeenCalled();
   });
 });
+
+describe("PortfolioModePage sub-cent prices", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchPortfolioMarketContext.mockResolvedValue({ live_rankings: [] });
+    fetchCoinbaseOAuthStatus.mockResolvedValue({ connected: false });
+  });
+
+  // Regression: unit prices were formatted at a fixed 2 decimals, so every
+  // sub-cent coin rendered "$0.00" — cost basis, support/resistance and the
+  // ATR band all collapsed to the same meaningless value.
+  it("shows real digits for a sub-cent holding instead of $0.00", async () => {
+    fetchPortfolioIntel.mockResolvedValue({
+      status: "live",
+      updated_at: "2026-07-18T01:00:00Z",
+      summary: {
+        total_value_usd: 715.52,
+        cash_value_usd: 0,
+        known_unrealized_pnl_usd: 0,
+        cost_basis_coverage_pct: 0,
+        open_order_count: 0,
+      },
+      holdings: [
+        {
+          account_id: "amp-account",
+          symbol: "AMP",
+          name: "AMP Wallet",
+          quantity: 1671385.44,
+          price_usd: 0.0004281,
+          market_value_usd: 715.52,
+          allocation_pct: 100,
+          price_change_24h_pct: 6.83,
+          is_cash: false,
+          cost_basis: { status: "partial", average_price: 0.0004281 },
+        },
+      ],
+      open_orders: [],
+    });
+
+    render(<PortfolioModePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/0\.0004281/)).toBeInTheDocument();
+    });
+    // The aggregate keeps grouped, cents-accurate formatting.
+    expect(screen.getAllByText("$715.52").length).toBeGreaterThan(0);
+  });
+});

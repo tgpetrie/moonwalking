@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { formatPrice } from "../utils/format.js";
 import CoinPositioning from "../components/CoinPositioning.jsx";
 import {
   fetchPortfolioIntel,
@@ -27,6 +28,22 @@ function money(value) {
   if (value === null || value === undefined || value === "") return "Unavailable";
   const parsed = Number(value);
   return Number.isFinite(parsed) ? moneyFormatter.format(parsed) : "Unavailable";
+}
+
+// Unit prices span orders of magnitude (AMP ~$0.0004, ETH ~$4,000). money() is
+// fixed at 2dp, which collapses every sub-cent price to "$0.00" and makes the
+// levels card unreadable, so per-unit prices use the shared significant-digit
+// formatter. Aggregates (totals, position value, P&L) keep money() for grouped,
+// cents-accurate reads.
+function unitPrice(value) {
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "Unavailable";
+  // At a dollar and above, money() already reads well and keeps thousands
+  // separators ($4,281.55). Below that it rounds everything to "$0.00", so
+  // hand off to the shared significant-digit formatter.
+  if (Math.abs(parsed) >= 1) return money(parsed);
+  return formatPrice(parsed, { fallback: "Unavailable" });
 }
 
 function number(value, maximumFractionDigits = 8) {
@@ -266,7 +283,7 @@ function CostBasisEntry({ holding, onSaved }) {
         {isManual ? (
           <>
             <span className="mw-cost-basis-entry__current">
-              Manual average {money(basis.manual_average_price)}
+              Manual average {unitPrice(basis.manual_average_price)}
             </span>
             <button type="button" className="mw-cost-basis-entry__link" onClick={() => setOpen(true)}>
               Edit
@@ -357,20 +374,20 @@ function HoldingLevels({ levels }) {
 
       {support !== null && resistance !== null ? (
         <div className="mw-holding-levels__range">
-          <span className="mw-holding-levels__end">S {money(support)}</span>
+          <span className="mw-holding-levels__end">S {unitPrice(support)}</span>
           <div className="mw-holding-levels__track" aria-hidden="true">
             {rangePos !== null ? (
               <span className="mw-holding-levels__marker" style={{ left: `${rangePos}%` }} />
             ) : null}
           </div>
-          <span className="mw-holding-levels__end">R {money(resistance)}</span>
+          <span className="mw-holding-levels__end">R {unitPrice(resistance)}</span>
         </div>
       ) : null}
 
       <div className="mw-holding-levels__grid">
         {zone ? <div><span>Position</span><strong>{zone}</strong></div> : null}
         {bandLow !== null && bandHigh !== null ? (
-          <div><span>ATR band</span><strong>{money(bandLow)} – {money(bandHigh)}</strong></div>
+          <div><span>ATR band</span><strong>{unitPrice(bandLow)} – {unitPrice(bandHigh)}</strong></div>
         ) : null}
         {volatility !== null ? (
           <div><span>Volatility</span><strong>{percent(volatility)} ATR</strong></div>
@@ -432,7 +449,7 @@ function HoldingCard({ holding, liveRow, onCostBasisChange }) {
           <span>Cost basis</span>
           <strong>
             <CostBasisStatus holding={holding} />
-            {basis.average_price ? ` · ${money(basis.average_price)} average` : ""}
+            {basis.average_price ? ` · ${unitPrice(basis.average_price)} average` : ""}
           </strong>
         </div>
         <div>
@@ -481,7 +498,7 @@ function OpenOrders({ orders }) {
                       <td><strong>{order.symbol}</strong><span>{dateTime(order.created_at)}</span></td>
                       <td>{order.side || "Unavailable"}</td>
                       <td>{number(order.base_size ?? order.quote_size)}</td>
-                      <td>{money(order.limit_price)}</td>
+                      <td>{unitPrice(order.limit_price)}</td>
                       <td>{order.status}</td>
                     </tr>
                     {hint || intel.context ? (
