@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
+import logging
 import os
 import re
 import sqlite3
@@ -7,6 +8,10 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+import auth_rate_limit
+import mailer
+import password_reset
 
 try:
     from watchlist_insights import Memory, smart_watchlist_insights
@@ -29,6 +34,7 @@ _insights_memory = (
 )
 
 _SESSION_USER_KEY = "mw_user_id"
+_SESSION_VERSION_KEY = "mw_session_version"
 # On hosts with ephemeral filesystems (e.g. Render without a disk), the
 # default path is wiped on every deploy — point WATCHLIST_DB_PATH at a
 # persistent mount in production.
@@ -172,6 +178,16 @@ def _ensure_watchlist_schema():
                 )
             if "coinbase_portfolio_id" not in user_columns:
                 conn.execute("ALTER TABLE users ADD COLUMN coinbase_portfolio_id TEXT")
+
+            # Session versioning. Existing rows adopt version 1, which matches
+            # the value written into sessions from now on, so anyone already
+            # signed in when this ships stays signed in.
+            if "session_version" not in user_columns:
+                conn.execute(
+                    "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1"
+                )
+
+            password_reset.ensure_schema(conn)
 
             conn.commit()
         finally:
@@ -345,12 +361,53 @@ def _sync_legacy_symbol_set(conn, symbol):
         watchlist_db.discard(symbol)
 
 
+def _current_session_version(conn, user_id):
+    row = conn.execute(
+        "SELECT session_version FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        return int(row["session_version"])
+    except (TypeError, ValueError, IndexError):
+        return 1
+
+
+def _start_session(conn, user_id):
+    """Attach a user to the signed cookie, stamping the current version."""
+    session.permanent = True
+    session[_SESSION_USER_KEY] = user_id
+    session[_SESSION_VERSION_KEY] = _current_session_version(conn, user_id) or 1
+
+
 def _session_user_id():
     raw = session.get(_SESSION_USER_KEY)
     try:
-        return int(raw)
+        user_id = int(raw)
     except (TypeError, ValueError):
         return None
+
+    # Cookies issued before session versioning shipped carry no version; they
+    # are treated as version 1, which is what existing rows migrate to.
+    try:
+        claimed_version = int(session.get(_SESSION_VERSION_KEY, 1))
+    except (TypeError, ValueError):
+        claimed_version = 1
+
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            actual_version = _current_session_version(conn, user_id)
+        finally:
+            conn.close()
+
+    if actual_version is None or claimed_version != actual_version:
+        # Password was reset (or the account vanished) after this cookie was
+        # issued, so the cookie no longer authenticates.
+        session.pop(_SESSION_USER_KEY, None)
+        session.pop(_SESSION_VERSION_KEY, None)
+        return None
+    return user_id
 
 
 def _auth_payload(conn, user_id):
@@ -369,6 +426,15 @@ def _require_auth_user():
     if not user_id:
         return None, (jsonify({"error": "Authentication required"}), 401)
     return user_id, None
+
+
+def current_session_user_id():
+    """Public accessor for the signed-in user id, session-version checked.
+
+    Blueprints outside this module should use this instead of reading the
+    session key directly, so a reset-invalidated cookie is rejected everywhere.
+    """
+    return _session_user_id()
 
 
 def get_authenticated_user():
@@ -447,11 +513,10 @@ def auth_signup():
             _seed_default_watchlist(conn, user_id)
             conn.commit()
             payload = _auth_payload(conn, user_id)
+            _start_session(conn, user_id)
         finally:
             conn.close()
 
-    session.permanent = True
-    session[_SESSION_USER_KEY] = user_id
     return jsonify(payload), 201
 
 
@@ -475,18 +540,151 @@ def auth_login():
             _seed_default_watchlist(conn, user_id)
             conn.commit()
             payload = _auth_payload(conn, user_id)
+            _start_session(conn, user_id)
         finally:
             conn.close()
 
-    session.permanent = True
-    session[_SESSION_USER_KEY] = user_id
     return jsonify(payload), 200
 
 
 @watchlist_bp.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
     session.pop(_SESSION_USER_KEY, None)
+    session.pop(_SESSION_VERSION_KEY, None)
     return jsonify({"ok": True})
+
+
+# Identical for every outcome, so the response cannot be used to test whether
+# an address is registered.
+_NEUTRAL_RESET_MESSAGE = "If an account exists for that email, we sent reset instructions."
+
+
+def _reset_link(raw_token: str) -> str:
+    base = str(os.environ.get("MW_APP_BASE_URL") or "http://localhost:5199").rstrip("/")
+    return f"{base}/reset-password?token={raw_token}"
+
+
+def _send_reset_email(email: str, display_name: str, raw_token: str) -> None:
+    link = _reset_link(raw_token)
+    body = (
+        f"Hi {display_name or 'there'},\n\n"
+        "Someone asked to reset the password for your Moonwalking account.\n"
+        "Open the link below to choose a new one. It expires in "
+        f"{password_reset.TOKEN_TTL_SECONDS // 60} minutes and can only be used once.\n\n"
+        f"{link}\n\n"
+        "If you did not request this, you can ignore this email — your password "
+        "stays as it is.\n"
+    )
+    mailer.send_email(
+        to=email, subject="Reset your Moonwalking password", body=body
+    )
+
+
+@watchlist_bp.route("/api/auth/forgot-password", methods=["POST"])
+def auth_forgot_password():
+    data = request.get_json() or {}
+    email = _normalize_email(data.get("email"))
+
+    if "@" not in email:
+        return jsonify({"error": "Valid email is required"}), 400
+
+    ip_ok, email_ok = auth_rate_limit.allow_reset_request(email)
+    if not ip_ok:
+        # Safe to signal: says nothing about whether the address exists.
+        return jsonify({"error": "Too many requests. Try again later."}), 429
+    if not email_ok:
+        return jsonify({"ok": True, "message": _NEUTRAL_RESET_MESSAGE}), 200
+
+    raw_token = None
+    recipient = None
+    display_name = ""
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            password_reset.purge_expired(conn)
+            user = _user_by_email(conn, email)
+            if user:
+                raw_token = password_reset.create_token(conn, user["id"])
+                recipient = user["email"]
+                display_name = user["display_name"]
+            conn.commit()
+        finally:
+            conn.close()
+
+    if raw_token and recipient:
+        try:
+            _send_reset_email(recipient, display_name, raw_token)
+        except mailer.MailNotConfigured:
+            logging.error(
+                "password_reset_email_skipped: SMTP is not configured "
+                "(set MW_SMTP_HOST and a sender address)"
+            )
+        except mailer.MailSendError:
+            # mailer already logged the failure class, without the token.
+            logging.error("password_reset_email_failed")
+
+    return jsonify({"ok": True, "message": _NEUTRAL_RESET_MESSAGE}), 200
+
+
+@watchlist_bp.route("/api/auth/reset-password/validate", methods=["GET"])
+def auth_validate_reset_token():
+    """Lets the reset screen show an expired-link notice before asking for a
+    new password. Only reveals whether this exact high-entropy token is live."""
+    raw_token = str(request.args.get("token") or "")
+    if not raw_token:
+        return jsonify({"valid": False}), 200
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            valid = password_reset.token_is_valid(conn, raw_token)
+        finally:
+            conn.close()
+    return jsonify({"valid": bool(valid)}), 200
+
+
+@watchlist_bp.route("/api/auth/reset-password", methods=["POST"])
+def auth_reset_password():
+    data = request.get_json() or {}
+    raw_token = str(data.get("token") or "")
+    password = str(data.get("password") or "")
+
+    if not auth_rate_limit.allow_reset_confirm():
+        return jsonify({"error": "Too many attempts. Try again later."}), 429
+    if not raw_token:
+        return jsonify({"error": "Reset token is required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    with _DB_LOCK:
+        conn = _db_connect()
+        try:
+            user_id = password_reset.consume_token(conn, raw_token)
+            if not user_id:
+                conn.rollback()
+                return (
+                    jsonify({"error": "This reset link is invalid or has expired."}),
+                    400,
+                )
+            # Bumping session_version is what logs out every other device.
+            conn.execute(
+                """
+                UPDATE users
+                SET password_hash = ?,
+                    session_version = session_version + 1,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (generate_password_hash(password), _utc_now_iso(), user_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    # The person resetting is not signed in on this device either; sending them
+    # to the login screen keeps one path for establishing a session.
+    session.pop(_SESSION_USER_KEY, None)
+    session.pop(_SESSION_VERSION_KEY, None)
+    return jsonify({"ok": True, "message": "Password updated. You can log in now."}), 200
 
 
 @watchlist_bp.route("/api/watchlists", methods=["GET"])

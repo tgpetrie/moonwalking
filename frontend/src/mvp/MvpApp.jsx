@@ -403,6 +403,8 @@ function matchRoute(pathname) {
     publicScorecardPaths.has(pathname) ||
     pathname === "/login" ||
     pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     Object.prototype.hasOwnProperty.call(legacyMemberRouteMap, pathname)
   ) {
     return { name: pathname, params: {} };
@@ -816,7 +818,9 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
             </p>
           ) : (
             <>
-              <a href="#forgot">Forgot password?</a>
+              <AppLink to="/forgot-password" navigate={navigate}>
+                Forgot password?
+              </AppLink>
               <p>
                 Need an account?{" "}
                 <AppLink to="/signup" navigate={navigate}>
@@ -838,6 +842,236 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
           <span className="mw-surface__eyebrow">Product loop</span>
           <h3>Live signals become saved context</h3>
           <p>Move from the real-time board to persistent tracking without losing your baseline.</p>
+        </article>
+      </aside>
+    </section>
+  );
+}
+
+function ForgotPasswordPage({ navigate }) {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage("");
+    try {
+      const payload = await apiRequest("/api/auth/forgot-password", {
+        method: "POST",
+        body: { email },
+      });
+      // The backend answers identically whether or not the address exists.
+      setNotice(payload?.message || "If an account exists for that email, we sent reset instructions.");
+    } catch (error) {
+      setErrorMessage(error.message || "Could not send reset instructions.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mw-auth-layout">
+      <div className="mw-auth-card">
+        <p className="mw-eyebrow">Account recovery</p>
+        <h1>Reset your Moonwalking password.</h1>
+        <p>
+          Enter the email on your account and we will send a link for choosing a new
+          password. The link expires in 30 minutes.
+        </p>
+        {notice ? (
+          <p className="mw-auth-feedback">{notice}</p>
+        ) : (
+          <form className="mw-auth-form" onSubmit={handleSubmit}>
+            <label className="mw-field">
+              <span>Email</span>
+              <input
+                type="email"
+                placeholder="jane@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </label>
+            <button
+              type="submit"
+              className="mw-button mw-button--primary mw-button--block"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Sending..." : "Send Reset Link"}
+            </button>
+            {errorMessage ? (
+              <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p>
+            ) : null}
+          </form>
+        )}
+        <div className="mw-auth-links">
+          <p>
+            Remembered it?{" "}
+            <AppLink to="/login" navigate={navigate}>
+              Log in
+            </AppLink>
+          </p>
+        </div>
+      </div>
+      <aside className="mw-auth-side">
+        <article className="mw-surface">
+          <span className="mw-surface__eyebrow">Why the wording</span>
+          <h3>We never confirm whether an email is registered</h3>
+          <p>The same response comes back either way, so nobody can probe for accounts.</p>
+        </article>
+        <article className="mw-surface">
+          <span className="mw-surface__eyebrow">Single use</span>
+          <h3>Each link works once</h3>
+          <p>Requesting a new link retires the previous one immediately.</p>
+        </article>
+      </aside>
+    </section>
+  );
+}
+
+function ResetPasswordPage({ navigate }) {
+  const token = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") || "";
+  }, []);
+
+  const [tokenState, setTokenState] = useState(token ? "checking" : "invalid");
+  const [formState, setFormState] = useState({ password: "", confirmPassword: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!token) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await apiRequest(
+          `/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`
+        );
+        if (!cancelled) setTokenState(payload?.valid ? "valid" : "invalid");
+      } catch {
+        if (!cancelled) setTokenState("invalid");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const handleChange = (key) => (event) => {
+    setFormState((current) => ({ ...current, [key]: event.target.value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setErrorMessage("");
+    if (formState.password !== formState.confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const payload = await apiRequest("/api/auth/reset-password", {
+        method: "POST",
+        body: { token, password: formState.password },
+      });
+      setNotice(payload?.message || "Password updated. You can log in now.");
+      setTokenState("done");
+    } catch (error) {
+      setErrorMessage(error.message || "Could not reset your password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mw-auth-layout">
+      <div className="mw-auth-card">
+        <p className="mw-eyebrow">Account recovery</p>
+        <h1>Choose a new password.</h1>
+
+        {tokenState === "checking" ? <p>Checking your reset link...</p> : null}
+
+        {tokenState === "invalid" ? (
+          <>
+            <p>This reset link is invalid or has expired. Reset links last 30 minutes and work once.</p>
+            <div className="mw-auth-links">
+              <p>
+                <AppLink to="/forgot-password" navigate={navigate}>
+                  Request a new link
+                </AppLink>
+              </p>
+            </div>
+          </>
+        ) : null}
+
+        {tokenState === "done" ? (
+          <>
+            <p className="mw-auth-feedback">{notice}</p>
+            <button
+              type="button"
+              className="mw-button mw-button--primary mw-button--block"
+              onClick={() => navigate("/login")}
+            >
+              Go to Log In
+            </button>
+          </>
+        ) : null}
+
+        {tokenState === "valid" ? (
+          <>
+            <p>Pick something at least 8 characters long. Signing in again on your other devices will be required.</p>
+            <form className="mw-auth-form" onSubmit={handleSubmit}>
+              <label className="mw-field">
+                <span>New Password</span>
+                <input
+                  type="password"
+                  placeholder="Enter a new password"
+                  value={formState.password}
+                  onChange={handleChange("password")}
+                  minLength={8}
+                  required
+                />
+              </label>
+              <label className="mw-field">
+                <span>Confirm New Password</span>
+                <input
+                  type="password"
+                  placeholder="Re-enter the new password"
+                  value={formState.confirmPassword}
+                  onChange={handleChange("confirmPassword")}
+                  minLength={8}
+                  required
+                />
+              </label>
+              <button
+                type="submit"
+                className="mw-button mw-button--primary mw-button--block"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Update Password"}
+              </button>
+              {errorMessage ? (
+                <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p>
+              ) : null}
+            </form>
+          </>
+        ) : null}
+      </div>
+      <aside className="mw-auth-side">
+        <article className="mw-surface">
+          <span className="mw-surface__eyebrow">Session safety</span>
+          <h3>Other sessions are signed out</h3>
+          <p>Changing your password retires every cookie issued before the reset.</p>
+        </article>
+        <article className="mw-surface">
+          <span className="mw-surface__eyebrow">Stored safely</span>
+          <h3>Your password is hashed, never stored plainly</h3>
+          <p>Reset links are held only as digests, so the database never carries a usable link.</p>
         </article>
       </aside>
     </section>
@@ -1873,6 +2107,8 @@ export default function MvpApp() {
     publicScorecardPaths.has(route.name) ||
     route.name === "/login" ||
     route.name === "/signup" ||
+    route.name === "/forgot-password" ||
+    route.name === "/reset-password" ||
     route.name === "/u/:username" ||
     route.name === "404";
 
@@ -1900,6 +2136,10 @@ export default function MvpApp() {
             errorMessage={authError}
           />
         );
+      case "/forgot-password":
+        return <ForgotPasswordPage navigate={navigate} />;
+      case "/reset-password":
+        return <ResetPasswordPage navigate={navigate} />;
       case APP_DASHBOARD_PATH:
         return (
           <DashboardPage

@@ -985,7 +985,9 @@ def oauth_coinbase_authorize():
     """Start the Coinbase OAuth flow by redirecting to Coinbase login."""
     from flask import redirect, session as flask_session
 
-    user_id = flask_session.get("mw_user_id")
+    from watchlist import current_session_user_id
+
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -1020,7 +1022,9 @@ def oauth_coinbase_callback():
     if not code or not state:
         return jsonify({"error": "Missing authorization code or state"}), 400
 
-    user_id = flask_session.get("mw_user_id")
+    from watchlist import current_session_user_id
+
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Session expired"}), 401
 
@@ -1085,10 +1089,14 @@ def oauth_coinbase_callback():
 @app.route("/api/oauth/coinbase/disconnect", methods=["POST"])
 def oauth_coinbase_disconnect():
     """Disconnect Coinbase OAuth and clear stored tokens."""
-    from flask import session as flask_session
-    from watchlist import _db_connect, _DB_LOCK, _utc_now_iso
+    from watchlist import (
+        _db_connect,
+        _DB_LOCK,
+        _utc_now_iso,
+        current_session_user_id,
+    )
 
-    user_id = flask_session.get("mw_user_id")
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -1118,10 +1126,9 @@ def oauth_coinbase_disconnect():
 @app.route("/api/oauth/coinbase/status", methods=["GET"])
 def oauth_coinbase_status():
     """Check if user has active Coinbase OAuth connection."""
-    from flask import session as flask_session
-    from watchlist import _db_connect
+    from watchlist import _db_connect, current_session_user_id
 
-    user_id = flask_session.get("mw_user_id")
+    user_id = current_session_user_id()
     if not user_id:
         return jsonify({"connected": False}), 200
 
