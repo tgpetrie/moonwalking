@@ -26,6 +26,7 @@ const normalizeTab = (value) => {
   const raw = String(value || '').trim().toLowerCase();
   if (raw === 'alerts' || raw === 'feed' || raw === 'global') return 'coin';
   if (raw === 'pulse' || raw === 'market') return 'pulse';
+  if (raw === 'levels' || raw === 'risk' || raw === 'sell') return 'levels';
   if (raw === 'intel' || raw === 'sources') return 'intel';
   return 'coin';
 };
@@ -958,6 +959,165 @@ export function CoinOutcomeHistory({ data, loading, error, symbol }) {
   );
 }
 
+const formatPlanPrice = (value) => {
+  const n = toNumber(value);
+  if (n === null) return '—';
+  const digits = n >= 1000 ? 2 : n >= 1 ? 4 : n >= 0.01 ? 6 : 8;
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: digits })}`;
+};
+
+const planOutcomeLabel = (value) => ({
+  target_first: 'Target first',
+  stop_first: 'Stop first',
+  expired: 'No boundary in 24h',
+}[value] || 'Still open');
+
+export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen }) {
+  if (loading && !data) {
+    return <div className="risk-levels-loading">Building risk levels from completed candles…</div>;
+  }
+  if (error) {
+    return <div className="risk-levels-empty">Risk levels are temporarily unavailable.</div>;
+  }
+  const plan = data?.plan;
+  const history = data?.history;
+  if (!plan?.available) {
+    return (
+      <div className="risk-levels-empty">
+        {plan?.reason || 'The candle structure is still warming. No stop level will be invented.'}
+      </div>
+    );
+  }
+
+  const stop = plan.stop || {};
+  const profit = plan.profit || {};
+  const structure = plan.market_structure || {};
+  const supportZone = plan.support_zone || {};
+  const topSignal = plan.top_signal || {};
+  const outcomes = history?.outcomes || {};
+
+  if (compact) {
+    return (
+      <section className={`risk-levels-compact risk-levels-compact--${topSignal.tone || 'neutral'}`}>
+        <div className="risk-levels-compact__head">
+          <div>
+            <span>Sell-side intelligence</span>
+            <strong>{topSignal.label || 'Risk map ready'}</strong>
+          </div>
+          <button type="button" onClick={onOpen}>Open risk levels</button>
+        </div>
+        <div className="risk-levels-compact__grid">
+          <div><span>Stop trigger</span><strong>{formatPlanPrice(stop.trigger_price)}</strong></div>
+          <div><span>Sell limit</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
+          <div><span>Support fails</span><strong>{formatPlanPrice(stop.invalidation_price)}</strong></div>
+          <div><span>First trim</span><strong>{formatPlanPrice(profit.first_trim_price)}</strong></div>
+        </div>
+        <p>{topSignal.action}</p>
+      </section>
+    );
+  }
+
+  return (
+    <div className="risk-levels">
+      <section className={`risk-levels-hero risk-levels-hero--${topSignal.tone || 'neutral'}`}>
+        <div>
+          <span className="risk-levels-eyebrow">Top / exit signal</span>
+          <h2>{topSignal.label || 'No top signal'}</h2>
+          <p>{topSignal.action}</p>
+        </div>
+        <div className="risk-levels-score">
+          <span>Risk flags</span>
+          <strong>{topSignal.score ?? 0}/10</strong>
+        </div>
+      </section>
+
+      <section className="risk-levels-grid" aria-label="Suggested risk levels">
+        <article className="risk-level-card risk-level-card--stop">
+          <span>Stop trigger</span>
+          <strong>{formatPlanPrice(stop.trigger_price)}</strong>
+          <small>{formatPercent(stop.distance_pct)} from now · {stop.risk_band || 'structural'} risk</small>
+        </article>
+        <article className="risk-level-card risk-level-card--limit">
+          <span>Sell limit</span>
+          <strong>{formatPlanPrice(stop.limit_price)}</strong>
+          <small>Order limit after the trigger fires</small>
+        </article>
+        <article className="risk-level-card">
+          <span>Structure invalidates</span>
+          <strong>{formatPlanPrice(stop.invalidation_price)}</strong>
+          <small>Recent support; an hourly close below weakens the setup</small>
+        </article>
+        <article className="risk-level-card risk-level-card--target">
+          <span>First trim area</span>
+          <strong>{formatPlanPrice(profit.first_trim_price)}</strong>
+          <small>
+            {profit.reward_risk_ratio != null
+              ? `${profit.reward_risk_ratio.toFixed(2)}R · ${formatPercent(profit.reward_pct)}`
+              : 'No overhead resistance inside the measured range'}
+          </small>
+        </article>
+      </section>
+
+      <section className="risk-levels-explain">
+        <article>
+          <h3>Why the stop goes there</h3>
+          <ul>{(stop.why || []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
+          <div className="risk-levels-warning">{stop.execution_warning}</div>
+        </article>
+        <article>
+          <h3>Support / re-entry watch</h3>
+          <div className="risk-levels-zone">
+            {formatPlanPrice(supportZone.low)} – {formatPlanPrice(supportZone.high)}
+          </div>
+          <p>{supportZone.why}</p>
+          <dl>
+            <div><dt>Resistance</dt><dd>{formatPlanPrice(structure.resistance)}</dd></div>
+            <div><dt>ATR</dt><dd>{formatPlanPrice(structure.atr)}</dd></div>
+            <div><dt>Range position</dt><dd>{structure.range_position_pct ?? '—'}%</dd></div>
+            <div><dt>Window</dt><dd>{structure.window_hours ?? '—'}h</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section className="risk-levels-reasons">
+        <h3>Why the top signal says “{topSignal.label}”</h3>
+        <ul>{(topSignal.reasons || []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
+      </section>
+
+      <section className="risk-history">
+        <div className="risk-history__head">
+          <div>
+            <span>Level history</span>
+            <strong>{history?.total_plans || 0} recorded plans</strong>
+          </div>
+          <p>{history?.disclosure}</p>
+        </div>
+        <div className="risk-history__counts">
+          <div><span>Target first</span><strong>{outcomes.target_first || 0}</strong></div>
+          <div><span>Stop first</span><strong>{outcomes.stop_first || 0}</strong></div>
+          <div><span>No boundary</span><strong>{outcomes.expired || 0}</strong></div>
+          <div><span>Still open</span><strong>{history?.open_plans || 0}</strong></div>
+        </div>
+        {(history?.history || []).length ? (
+          <div className="risk-history__rows">
+            {history.history.slice(0, 8).map((row) => (
+              <div className="risk-history__row" key={row.plan_id}>
+                <span>{new Date(row.created_ts * 1000).toLocaleString()}</span>
+                <strong data-outcome={row.outcome || 'open'}>{planOutcomeLabel(row.outcome)}</strong>
+                <span>{formatPlanPrice(row.start_price)} → {formatPlanPrice(row.last_price)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="risk-levels-empty">This is the first recorded plan for this coin. Live prices will grade it forward.</div>
+        )}
+      </section>
+
+      <p className="risk-levels-disclosure">{plan.methodology?.disclosure}</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 
 const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', launchContext = null }) => {
@@ -1002,6 +1162,10 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
   const [coinHistory, setCoinHistory] = useState(null);
   const [coinHistoryLoading, setCoinHistoryLoading] = useState(false);
   const [coinHistoryError, setCoinHistoryError] = useState(null);
+
+  const [riskLevels, setRiskLevels] = useState(null);
+  const [riskLevelsLoading, setRiskLevelsLoading] = useState(false);
+  const [riskLevelsError, setRiskLevelsError] = useState(null);
 
   const coinSymbol = useMemo(() => normalizeSymbol(symbol), [symbol]);
   const coinbaseTradeUrl = useMemo(
@@ -1131,6 +1295,30 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
     }
   }, [coinSymbol, isOpen]);
 
+  const loadRiskLevels = useCallback(async ({ silent = false } = {}) => {
+    if (!coinSymbol || !isOpen) {
+      setRiskLevels(null);
+      setRiskLevelsError(null);
+      return null;
+    }
+    if (!silent) setRiskLevelsLoading(true);
+    try {
+      const endpoint = API_ENDPOINTS.riskLevels
+        ? API_ENDPOINTS.riskLevels(coinSymbol)
+        : `/api/risk-levels/${encodeURIComponent(coinSymbol)}`;
+      const payload = await fetchData(endpoint);
+      if (payload?.status === 'degraded') throw new Error(payload.error || 'Risk levels degraded');
+      setRiskLevels(payload || null);
+      setRiskLevelsError(null);
+      return payload;
+    } catch (err) {
+      setRiskLevelsError(String(err?.message || err || 'Failed to load risk levels'));
+      return null;
+    } finally {
+      if (!silent) setRiskLevelsLoading(false);
+    }
+  }, [coinSymbol, isOpen]);
+
   useEffect(() => {
     if (!isOpen || !coinSymbol) {
       setCoinInsights(null);
@@ -1204,6 +1392,16 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       });
     return () => { cancelled = true; };
   }, [isOpen, coinSymbol]);
+
+  useEffect(() => {
+    if (!isOpen || !coinSymbol) {
+      setRiskLevels(null);
+      setRiskLevelsError(null);
+      setRiskLevelsLoading(false);
+      return;
+    }
+    loadRiskLevels({ silent: false });
+  }, [isOpen, coinSymbol, loadRiskLevels]);
 
   const fallbackAllAlerts = useMemo(() => {
     const merged = [
@@ -2065,6 +2263,7 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       refresh({ freshLatest: true }),
       loadCoinInsights({ silent: false }),
       loadCoinIntel({ silent: false }),
+      loadRiskLevels({ silent: false }),
     ]);
     setTimeout(() => setIsRefreshing(false), 700);
   };
@@ -2145,6 +2344,18 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
               <path d="M4 12h16M12 3v18"/>
             </svg>
             Pulse
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'levels' ? 'active' : ''}`}
+            onClick={() => setActiveTab('levels')}
+            role="tab"
+            aria-selected={activeTab === 'levels'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M4 7h16M4 12h10M4 17h7" />
+              <path d="M18 11v8M15 16l3 3 3-3" />
+            </svg>
+            Risk Levels
           </button>
           <button
             className={`tab-btn ${activeTab === 'intel' ? 'active' : ''}`}
@@ -2239,6 +2450,14 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                       <div className="cp-simple-read__history">History: {simpleCoinRead.history}</div>
                     ) : null}
                   </section>
+
+                  <RiskLevelsPanel
+                    data={riskLevels}
+                    loading={riskLevelsLoading}
+                    error={riskLevelsError}
+                    compact
+                    onOpen={() => setActiveTab('levels')}
+                  />
 
                   <details className="cp-evidence-drawer">
                     <summary>See the evidence</summary>
@@ -2404,6 +2623,20 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
                     <AlertsTab filterSymbol={coinSymbol} compact hideHeader hideFoot />
                   </section>
                 </>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'levels' && (
+            <section className="tab-panel active cp-risk-levels-panel" role="tabpanel">
+              {!coinSymbol ? (
+                <div className="tab-empty tab-empty--compact">Select a coin to build its risk levels.</div>
+              ) : (
+                <RiskLevelsPanel
+                  data={riskLevels}
+                  loading={riskLevelsLoading}
+                  error={riskLevelsError}
+                />
               )}
             </section>
           )}

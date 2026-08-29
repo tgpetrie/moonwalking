@@ -3436,3 +3436,339 @@ a.news-item-title:hover {
 .coh-note--error {
     color: rgba(255, 255, 255, 0.2);
 }
+
+/* ── Sell-side intelligence / Risk Levels ──────────────────────────────── */
+
+.risk-levels-loading,
+.risk-levels-empty {
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.risk-levels-compact {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-left: 3px solid rgba(255, 255, 255, 0.22);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.14));
+}
+
+.risk-levels-compact--negative { border-left-color: var(--sentiment-neg); }
+.risk-levels-compact--caution { border-left-color: #f1b43a; }
+.risk-levels-compact--positive { border-left-color: var(--sentiment-pos); }
+
+.risk-levels-compact__head,
+.risk-levels-hero,
+.risk-history__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.risk-levels-compact__head > div,
+.risk-history__head > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.risk-levels-compact__head span,
+.risk-levels-eyebrow,
+.risk-history__head span {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.risk-levels-compact__head strong,
+.risk-history__head strong {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.95rem;
+}
+
+.risk-levels-compact__head button {
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.26);
+    color: rgba(255, 255, 255, 0.75);
+    font: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.risk-levels-compact__head button:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+}
+
+.risk-levels-compact__grid,
+.risk-history__counts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.risk-levels-compact__grid > div,
+.risk-history__counts > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.risk-levels-compact__grid span,
+.risk-history__counts span {
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.risk-levels-compact__grid strong,
+.risk-history__counts strong {
+    color: rgba(255, 255, 255, 0.84);
+    font: 600 0.82rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-compact > p {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.54);
+    font-size: 0.76rem;
+}
+
+.risk-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.risk-levels-hero {
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 3px solid rgba(255, 255, 255, 0.24);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18));
+}
+
+.risk-levels-hero--negative { border-left-color: var(--sentiment-neg); }
+.risk-levels-hero--caution { border-left-color: #f1b43a; }
+.risk-levels-hero--positive { border-left-color: var(--sentiment-pos); }
+
+.risk-levels-hero h2 {
+    margin: 4px 0 5px;
+    color: #fff;
+    font-size: 1.45rem;
+}
+
+.risk-levels-hero p,
+.risk-history__head p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.risk-levels-score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.risk-levels-score span {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+}
+
+.risk-levels-score strong {
+    color: rgba(255, 255, 255, 0.9);
+    font: 700 1.15rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.risk-level-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 110px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.risk-level-card > span {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.risk-level-card > strong {
+    margin: 10px 0 7px;
+    color: rgba(255, 255, 255, 0.9);
+    font: 700 1rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-level-card--stop > strong,
+.risk-level-card--limit > strong { color: #ff8f8f; }
+.risk-level-card--target > strong { color: var(--sentiment-pos); }
+
+.risk-level-card small {
+    margin-top: auto;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
+.risk-levels-explain {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 12px;
+}
+
+.risk-levels-explain article,
+.risk-levels-reasons,
+.risk-history {
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.16);
+}
+
+.risk-levels-explain h3,
+.risk-levels-reasons h3 {
+    margin: 0 0 10px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.86rem;
+}
+
+.risk-levels-explain ul,
+.risk-levels-reasons ul {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255, 255, 255, 0.56);
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.risk-levels-warning {
+    margin-top: 12px;
+    padding: 10px;
+    border-left: 2px solid #f1b43a;
+    background: rgba(241, 180, 58, 0.06);
+    color: rgba(255, 226, 168, 0.72);
+    font-size: 0.74rem;
+    line-height: 1.45;
+}
+
+.risk-levels-zone {
+    color: var(--sentiment-pos);
+    font: 700 1rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-levels-explain article > p {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.76rem;
+    line-height: 1.5;
+}
+
+.risk-levels-explain dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.risk-levels-explain dl > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.risk-levels-explain dt {
+    color: rgba(255, 255, 255, 0.36);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+}
+
+.risk-levels-explain dd {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+    font: 600 0.75rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+}
+
+.risk-history__head p {
+    max-width: 470px;
+    text-align: right;
+    font-size: 0.7rem;
+}
+
+.risk-history__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 10px;
+}
+
+.risk-history__row {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 1fr;
+    gap: 10px;
+    padding: 9px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 0.72rem;
+}
+
+.risk-history__row strong { color: rgba(255, 255, 255, 0.68); }
+.risk-history__row strong[data-outcome="target_first"] { color: var(--sentiment-pos); }
+.risk-history__row strong[data-outcome="stop_first"] { color: #ff8f8f; }
+
+.risk-levels-disclosure {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.7rem;
+    font-style: italic;
+    line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+    .risk-levels-grid,
+    .risk-levels-compact__grid,
+    .risk-history__counts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .risk-levels-explain {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-history__head {
+        flex-direction: column;
+    }
+
+    .risk-history__head p {
+        text-align: left;
+    }
+
+    .risk-history__row {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+}

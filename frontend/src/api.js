@@ -36,6 +36,7 @@ const buildEndpoints = () => ({
   coinHistoryCb: (symbol) => `${API_BASE_URL}/api/insights/${encodeSymbol(symbol)}`,
   coinIntel: (symbol) => `${API_BASE_URL}/api/coin-intel?symbol=${encodeSymbol(symbol)}`,
   coinAlerts: (symbol) => `${API_BASE_URL}/api/coin-alerts?symbol=${encodeSymbol(symbol)}`,
+  riskLevels: (symbol) => `${API_BASE_URL}/api/risk-levels/${encodeSymbol(symbol)}`,
   technicalAnalysis: (symbol) => `${API_BASE_URL}/api/technical-analysis/${symbol}`,
   cryptoNews: (symbol) => `${API_BASE_URL}/api/news/${symbol}`,
   socialSentiment: (symbol) => `${API_BASE_URL}/api/social-sentiment/${symbol}`,

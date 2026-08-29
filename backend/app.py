@@ -211,6 +211,8 @@ from alert_events import (
 from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
+from sell_side_intelligence import build_sell_plan
+from sell_plan_outcomes import store as sell_plan_outcome_store
 
 try:
     from control_dry_run import dry_run_report, record_dry_run_observation
@@ -11714,6 +11716,94 @@ def get_coin_history(product_id: str):
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+def _risk_level_signal_context(symbol: str) -> dict:
+    """Latest canonical signal/risk context for a risk-level explanation."""
+    normalized = str(symbol or "").upper().split("-")[0]
+    source = [
+        dict(item)
+        for item in list(alerts_log_main)
+        if isinstance(item, dict)
+        and str(item.get("symbol") or item.get("product_id") or "")
+        .upper()
+        .split("-")[0]
+        == normalized
+    ]
+    latest = None
+    try:
+        latest = next(iter(build_event_evolution(source)), None)
+    except Exception:
+        latest = None
+
+    read = (
+        latest.get("the_read")
+        if isinstance(latest, dict) and isinstance(latest.get("the_read"), dict)
+        else {}
+    )
+    with _SIGNAL_CONTEXT_LOCK:
+        tape_context = dict(_SIGNAL_CONTEXT_BY_SYMBOL.get(normalized) or {})
+    return {
+        "primary_state": latest.get("primary_state") if latest else None,
+        "direction": latest.get("direction") if latest else None,
+        "confidence": latest.get("confidence") if latest else None,
+        "read_label": read.get("label"),
+        # detector_types is produced by Event Evolution after its retention
+        # cutoff. Do not let an old raw reversal alert keep top risk elevated.
+        "alert_types": list(latest.get("detector_types") or []) if latest else [],
+        "spot_pressure": tape_context.get("spot_pressure"),
+    }
+
+
+@app.get("/api/risk-levels/status")
+def get_risk_levels_status():
+    try:
+        return jsonify({"status": "live", **sell_plan_outcome_store.status()})
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/risk-levels/<product_id>")
+def get_risk_levels(product_id: str):
+    """Explainable stop-limit, exit, support, and measured-history map."""
+    raw = str(product_id or "").strip().upper()
+    symbol = raw.split("-")[0]
+    normalized = raw if "-" in raw else f"{raw}-USD"
+    if not symbol or not re.fullmatch(r"[A-Z0-9]{1,20}", symbol):
+        return jsonify({"status": "degraded", "error": "Invalid product"}), 400
+
+    prices = (
+        last_current_prices.get("data")
+        if isinstance(last_current_prices, dict)
+        and isinstance(last_current_prices.get("data"), dict)
+        else {}
+    )
+    current_price = prices.get(normalized)
+    if current_price is None:
+        current_price = prices.get(symbol)
+
+    try:
+        levels = (
+            _gather_levels_for_symbols({symbol}, {symbol: current_price}).get(symbol)
+            if current_price is not None
+            else None
+        )
+        plan = build_sell_plan(
+            product_id=normalized,
+            current_price=current_price,
+            levels=levels,
+            signal_context=_risk_level_signal_context(symbol),
+        )
+        plan["generated_at"] = int(time.time())
+        plan["price_as_of"] = int(last_current_prices.get("timestamp") or 0)
+        plan_id = sell_plan_outcome_store.record_plan(plan)
+        if plan_id:
+            plan["plan_id"] = plan_id
+        history = sell_plan_outcome_store.history(normalized)
+        return jsonify({"status": "live", "plan": plan, "history": history})
+    except Exception as exc:
+        logging.exception("Risk levels failed for %s", normalized)
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/notifications/status")
 def get_notification_delivery_status():
     """Expose channel readiness and budgets without exposing credentials."""
@@ -14090,6 +14180,13 @@ def _fetch_prices_and_update_history():
                 prune_old(now_ts - retention)
             except Exception as e:
                 logging.error(f"SQLite price snapshot persistence failed: {e}")
+
+            # Advance only plans that were actually shown/recorded. Isolate
+            # this ledger so it can never interrupt the canonical price tape.
+            try:
+                sell_plan_outcome_store.observe(current_prices, now_ts=now_ts)
+            except Exception as e:
+                logging.warning(f"Risk-level outcome measurement skipped: {e}")
 
             # Update 3m data cache with fresh prices (force refresh to append history)
             data_3min = get_crypto_data(

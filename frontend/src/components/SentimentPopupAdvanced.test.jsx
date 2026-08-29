@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { fetchData } from "../api";
 import { useData } from "../context/DataContext";
-import SentimentPopupAdvanced, { CoinOutcomeHistory } from "./SentimentPopupAdvanced";
+import SentimentPopupAdvanced, { CoinOutcomeHistory, RiskLevelsPanel } from "./SentimentPopupAdvanced";
 
 // Keep the popup's broad dependency surface deterministic for both the pure
 // CoinOutcomeHistory tests and the rendered popup regression below.
@@ -86,6 +86,54 @@ function makeData(overrides = {}) {
   };
 }
 
+const RISK_LEVELS = {
+  status: "live",
+  plan: {
+    available: true,
+    current_price: 100,
+    top_signal: {
+      label: "Top watch",
+      tone: "caution",
+      score: 4,
+      action: "Watch for rejection before adding risk.",
+      reasons: ["Price is in the top 15% of its recent candle range."],
+    },
+    stop: {
+      trigger_price: 94.6,
+      limit_price: 94.2,
+      invalidation_price: 95,
+      distance_pct: -5.4,
+      risk_band: "standard",
+      why: ["Recent structural support is $95."],
+      execution_warning: "A fast gap can pass the limit without a fill.",
+    },
+    profit: {
+      first_trim_price: 112,
+      reward_pct: 12,
+      reward_risk_ratio: 2.22,
+    },
+    support_zone: {
+      low: 94.8,
+      high: 95.5,
+      why: "Require a hold or reclaim.",
+    },
+    market_structure: {
+      resistance: 112,
+      atr: 2,
+      range_position_pct: 90,
+      window_hours: 50,
+    },
+    methodology: { disclosure: "Descriptive decision support, not an order." },
+  },
+  history: {
+    total_plans: 3,
+    open_plans: 1,
+    outcomes: { target_first: 1, stop_first: 1, expired: 0 },
+    disclosure: "Raw boundary counts only.",
+    history: [],
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Loading state
 // ---------------------------------------------------------------------------
@@ -99,6 +147,28 @@ describe("CoinOutcomeHistory – loading state", () => {
   it("does not show loading message when data is already present", () => {
     render(<CoinOutcomeHistory data={makeData()} loading={true} error={null} symbol="BTC" />);
     expect(screen.queryByText(/Loading track record/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("RiskLevelsPanel", () => {
+  it("clearly separates the stop trigger, limit, invalidation, and trim area", () => {
+    render(<RiskLevelsPanel data={RISK_LEVELS} />);
+
+    expect(screen.getByText("Top watch")).toBeInTheDocument();
+    expect(screen.getByText("Stop trigger")).toBeInTheDocument();
+    expect(screen.getByText("Sell limit")).toBeInTheDocument();
+    expect(screen.getByText("Structure invalidates")).toBeInTheDocument();
+    expect(screen.getByText("First trim area")).toBeInTheDocument();
+    expect(screen.getByText(/fast gap can pass the limit/i)).toBeInTheDocument();
+  });
+
+  it("shows raw plan history counts without inventing a success rate", () => {
+    render(<RiskLevelsPanel data={RISK_LEVELS} />);
+
+    expect(screen.getByText("3 recorded plans")).toBeInTheDocument();
+    expect(screen.getByText("Target first")).toBeInTheDocument();
+    expect(screen.getByText("Stop first")).toBeInTheDocument();
+    expect(screen.queryByText(/win rate/i)).not.toBeInTheDocument();
   });
 });
 

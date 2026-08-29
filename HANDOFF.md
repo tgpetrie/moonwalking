@@ -326,3 +326,44 @@ The test file needs to be updated to match this spec before staging and committi
 4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
 5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset
 6. **Build feedback loop** — use accumulated outcome data to auto-tune notification thresholds
+
+## Session 2026-08-29: sell-side intelligence + risk-level history
+
+Current branch: `feat/feature-retention-snapshots`, three commits ahead of its
+remote. The work immediately before this session was the signal-history
+truthfulness pass (`7a03f914`, `a3546905`, `65146cea`): uncontrolled signal
+rates are withheld, the UI says it is collecting, and the control dry-run data
+now persists on Railway.
+
+This session adds an uncommitted, tested vertical slice for sell-side decision
+support:
+
+- `backend/sell_side_intelligence.py` builds `sell_levels_v1` from the existing
+  50-hour Coinbase candle structure. It separates a stop trigger from the
+  lower sell-limit price, explains the ATR/support buffer, identifies the first
+  resistance/trim area, shows a support/re-entry-watch zone, and combines range
+  position, momentum, volume, and canonical reversal/fading context into a
+  clearly labeled top-risk state. It never places an order.
+- `backend/sell_plan_outcomes.py` records at most one displayed plan per
+  product/hour and observes whether the target, stop, or neither is reached
+  first within 24 hours. The API/UI shows raw counts; `target_first_rate` stays
+  null because no controlled predictive methodology exists yet.
+- `GET /api/risk-levels/<symbol>` returns the current plan and that coin's plan
+  history. `GET /api/risk-levels/status` exposes ledger health. The live price
+  loop grades open plans without being allowed to interrupt the canonical
+  price-tape persistence path.
+- `SentimentPopupAdvanced` has a prominent compact sell-side block on the Coin
+  tab and a dedicated `Risk Levels` tab with stop trigger, sell limit,
+  invalidation, trim area, support zone, reasons, execution-risk disclosure,
+  and recorded outcomes.
+- Railway's entrypoint persists the new ledger through
+  `MW_SELL_PLAN_OUTCOMES_DB` on the mounted data volume.
+
+Verification: 69 focused backend tests passed, including route integration and
+existing scorecard/portfolio regressions. Frontend production build passed and
+all 413 frontend tests passed. The feature has not yet been visually checked in
+a running browser or deployed to production.
+
+For resuming this exact work on the owner's Windows AI PC—including the
+read-only boundary, formulas, coverage limits, PowerShell/WSL setup, and transfer
+state—read `WINDOWS_AI_PC_HANDOFF.md` next.
