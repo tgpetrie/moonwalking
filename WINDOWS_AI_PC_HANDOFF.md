@@ -9,32 +9,30 @@ current sell-side/risk-level work and to resuming it on a Windows machine.
 
 - Repository: `https://github.com/tgpetrie/moonwalking.git`
 - Current branch: `feat/feature-retention-snapshots`
-- Current `HEAD`: `65146cea`
-- The branch is three commits ahead of
-  `origin/feat/feature-retention-snapshots`.
-- The sell-side feature described below is **uncommitted** on the current Mac.
-  A pull on the Windows PC will not contain it until these changes are reviewed,
-  committed, and pushed (or transferred as a patch). Do not recreate the work
-  independently and then try to merge two versions.
+- Sell-side implementation commit: `bd06cb51`
+  (`feat(risk): add explainable sell-side levels`).
+- The implementation and this handoff have been committed and pushed to
+  `origin/feat/feature-retention-snapshots`. A Windows checkout of that branch
+  can receive the work with `git pull --ff-only`.
 - Nothing from this sell-side session has been deployed to production.
 
-Current sell-side working-tree files:
+Files included in the sell-side implementation commit:
 
 ```text
-M  HANDOFF.md
-M  backend/app.py
-M  backend/production_entrypoint.sh
-M  deploy/railway/env.example
-M  frontend/src/api.js
-M  frontend/src/components/SentimentPopupAdvanced.jsx
-M  frontend/src/components/SentimentPopupAdvanced.test.jsx
-M  frontend/src/styles/sentiment-popup-advanced.css
-?? WINDOWS_AI_PC_HANDOFF.md
-?? backend/sell_plan_outcomes.py
-?? backend/sell_side_intelligence.py
-?? backend/tests/test_risk_levels_route.py
-?? backend/tests/test_sell_plan_outcomes.py
-?? backend/tests/test_sell_side_intelligence.py
+HANDOFF.md
+WINDOWS_AI_PC_HANDOFF.md
+backend/app.py
+backend/production_entrypoint.sh
+backend/sell_plan_outcomes.py
+backend/sell_side_intelligence.py
+backend/tests/test_risk_levels_route.py
+backend/tests/test_sell_plan_outcomes.py
+backend/tests/test_sell_side_intelligence.py
+deploy/railway/env.example
+frontend/src/api.js
+frontend/src/components/SentimentPopupAdvanced.jsx
+frontend/src/components/SentimentPopupAdvanced.test.jsx
+frontend/src/styles/sentiment-popup-advanced.css
 ```
 
 ## Read-only boundary
