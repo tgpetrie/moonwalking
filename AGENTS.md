@@ -8,6 +8,7 @@ These rules apply to every agent working in this repository.
 - Confirm the checkout with `git remote -v`, `git status --short --branch`, and `git worktree list` before making changes.
 - Do not use `DEVv\recovered\Moonwalking` for development, merging, or history repair.
 - Treat committed Git history as the source of truth. Imported chat history provides context but does not override the repository state.
+- For another-computer and master-PC access procedures, read `docs/ai/WORK_FROM_ANYWHERE.md`.
 
 ## Before changing files
 
