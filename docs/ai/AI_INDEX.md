@@ -2,6 +2,12 @@
 
 Project: BHABIT Moonwalking
 
+Local no-credit helper: `scripts/local_ai.py`
+
+- Usage and safety: `docs/ai/LOCAL_ASSISTANT.md`
+- Good for grounded project questions, diff review, and log triage.
+- Do not use the local 9B model as an unsupervised repository agent.
+
 Read in this order before implementation:
 
 1. `MW_SPEC.md`

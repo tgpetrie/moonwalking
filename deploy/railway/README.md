@@ -72,5 +72,13 @@ Attach exactly one Railway volume at `/var/lib/moonwalking`. The entrypoint auto
 - `price_snapshots.sqlite`
 - `volume_1h.sqlite`
 - `signal_outcomes.sqlite`
+- `control_dry_run.sqlite`
+
+`backend/production_entrypoint.sh` derives each database path from
+`RAILWAY_VOLUME_MOUNT_PATH` (falling back to `MW_DATA_DIR`). In particular,
+`MW_CONTROL_DRY_RUN_DB` defaults to
+`$RAILWAY_VOLUME_MOUNT_PATH/control_dry_run.sqlite`. An explicitly configured
+database path takes precedence, so any override must remain inside the mounted
+volume to survive a deploy or restart.
 
 One replica is intentional because SQLite and the in-memory detector state are single-writer resources.

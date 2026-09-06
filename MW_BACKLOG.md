@@ -4,6 +4,26 @@ Rules live in `MW_SPEC.md`. This file records durable work status.
 
 Status keys: Open, In progress, Done, Blocked.
 
+## Done and verified on 2026-09-02
+
+### P3.1 Local AI credit-saving helper
+
+Status: Done
+
+- Added a local-only helper for grounded project questions, tracked-diff review,
+  and log triage through Ollama.
+- Added a double-click Windows launcher for a responsive Moonwalking-styled browser
+  interface with Project Chat, Change Review, and Log Triage workspaces.
+- The helper supplies real project sources directly, blocks common credential
+  files, and instructs the model to report missing evidence instead of inventing it.
+- Documented which repetitive tasks belong on the local model and which risky or
+  complex work should remain with hosted Codex or Claude models.
+
+Verification: Python compilation, grounded project-question check, synthetic log
+triage check, GUI-to-Ollama request, desktop and mobile browser checks with no
+horizontal overflow or console errors, and confirmation that `qwen3.5:9b` ran
+through Ollama on the GPU.
+
 ## Done and verified on 2026-07-13
 
 ### P0.1 One-board layout and control stability
