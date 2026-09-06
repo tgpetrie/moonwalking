@@ -6,6 +6,7 @@ These rules apply to every agent working in this repository.
 
 - Use the active Moonwalking Git checkout connected to the project's authoritative remote. Its local path may differ between computers and does not need to be inside OneDrive.
 - Confirm the checkout with `git remote -v`, `git status --short --branch`, and `git worktree list` before making changes.
+- For local-only work, keep both the checkout and its Git common directory outside OneDrive or other synced folders. Verify with `git rev-parse --show-toplevel --absolute-git-dir --git-common-dir`. A worktree outside OneDrive is insufficient if its Git storage still points into OneDrive.
 - Do not use `DEVv\recovered\Moonwalking` for development, merging, or history repair.
 - Treat committed Git history as the source of truth. Imported chat history provides context but does not override the repository state.
 - For another-computer and master-PC access procedures, read `docs/ai/WORK_FROM_ANYWHERE.md`.

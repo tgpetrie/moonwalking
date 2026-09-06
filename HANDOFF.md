@@ -1,5 +1,25 @@
 # Moonwalking / BHABIT Handoff
 
+## Local-only repository - 2026-09-06
+
+Use `C:\Users\tgpet\Projects\Moonwalking` on this PC. It is an independent
+repository with its own `.git` directory, not a linked worktree. Its remote is
+`https://github.com/tgpetrie/moonwalking.git`; no Git object storage points into
+OneDrive. Current sources are local; older historical file contents can be
+fetched from GitHub on demand by the partial clone.
+
+The integration commit `51c35fb1` and backlog source commit `ee0e4bf6` were
+preserved through a verified Git bundle without pushing. Both source branches
+are available here. The original OneDrive checkout and linked worktrees remain
+intact for preservation; do not use them for further development or dependency
+installation. Existing runtime databases, secrets, and dependencies were not
+copied from OneDrive. This relocation did not migrate live application data.
+
+Codex's saved Moonwalking project still points at the OneDrive folder and must
+be reopened at this local path. Until then, explicitly use the local checkout
+as the working directory for every tool command. The local-only storage rule
+also appears in `AGENTS.md` to prevent creating another OneDrive-linked worktree.
+
 ## Integration checkpoint - 2026-09-06
 
 This section supersedes older branch and production snapshots below.
