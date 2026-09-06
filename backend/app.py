@@ -1288,7 +1288,9 @@ def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dic
         return {}
 
 
-def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_chart=False) -> dict:
+def _gather_levels_for_symbols(
+    symbols: set, price_by_symbol: dict, *, include_chart=False
+) -> dict:
     """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
 
     Fetches missing/stale candles on demand with bounded concurrency, capped per
@@ -1306,7 +1308,7 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_c
     to_fetch: list[str] = []
 
     with _LEVELS_CANDLE_LOCK:
-        for sym in symbols:
+        for sym in sorted(symbols):
             product_id = f"{sym}-USD"
             cached = _LEVELS_CANDLE_CACHE.get(product_id)
             if cached and (now - cached.get("ts", 0)) < _LEVELS_CANDLE_TTL_S:
@@ -1321,12 +1323,16 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_c
         from concurrent.futures import ThreadPoolExecutor
 
         def _fetch(sym):
-            candles = _fetch_coinbase_candles(
-                f"{sym}-USD",
-                granularity=_LEVELS_GRANULARITY_S,
-                count=_LEVELS_CANDLE_COUNT,
-            )
-            return sym, candles
+            try:
+                candles = _fetch_coinbase_candles(
+                    f"{sym}-USD",
+                    granularity=_LEVELS_GRANULARITY_S,
+                    count=_LEVELS_CANDLE_COUNT,
+                )
+                return sym, candles
+            except Exception:
+                logging.warning("Candle history unavailable for %s", sym)
+                return sym, None
 
         with ThreadPoolExecutor(max_workers=_LEVELS_FETCH_WORKERS) as pool:
             for sym, candles in pool.map(_fetch, to_fetch):
@@ -1343,8 +1349,11 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_c
         try:
             if include_chart:
                 # The picture and the plan must use the very same completed bars.
-                candles = [c for c in candles if c and len(c) >= 6
-                           and float(c[0]) + _LEVELS_GRANULARITY_S <= now]
+                candles = [
+                    c
+                    for c in candles
+                    if c and len(c) >= 6 and float(c[0]) + _LEVELS_GRANULARITY_S <= now
+                ]
             computed = compute_levels(
                 candles,
                 price_by_symbol.get(sym),
@@ -11783,6 +11792,108 @@ def get_risk_levels_status():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/risk-levels/portfolio")
+def get_portfolio_risk_levels():
+    """Batch public risk calculations against only the current user's holdings."""
+    from flask import make_response
+    from portfolio_mode import portfolio_snapshot
+    from portfolio_risk import build_risk_board, normalize_holdings, timestamp
+    from watchlist import get_authenticated_user, _db_connect, _serialize_watchlists
+
+    user = get_authenticated_user()
+    source = "watchlist"
+    fallback_reason = (
+        "Showing your watchlist. Connect a portfolio to include position sizes."
+    )
+    holdings = []
+    quote_as_of = timestamp(last_current_prices.get("timestamp"))
+    if user:
+        # Reuse the same OAuth/owner gates, view-only checks and per-account
+        # snapshot cache as /api/portfolio. Never consult the owner service for
+        # a guest or a different account.
+        portfolio_response = make_response(portfolio_snapshot())
+        snapshot = portfolio_response.get_json(silent=True) or {}
+        if portfolio_response.status_code == 200 and snapshot.get("status") == "live":
+            source = "portfolio"
+            fallback_reason = None
+            holdings = snapshot.get("holdings") or []
+            quote_as_of = timestamp(snapshot.get("updated_at"))
+        else:
+            fallback_reason = "Your portfolio is unavailable. Showing your saved watchlist without position sizes."
+
+    if source == "watchlist":
+        if user:
+            conn = _db_connect()
+            try:
+                watchlists = _serialize_watchlists(conn, user["id"])
+            finally:
+                conn.close()
+            symbols = {
+                str(item.get("itemKey") or "").upper().split("-")[0]
+                for watchlist in watchlists
+                for item in watchlist.get("items", [])
+            }
+        else:
+            raw = request.args.get("symbols", "")
+            if len(raw) > 6000:
+                return jsonify({"error": "Watchlist is too large."}), 400
+            symbols = {
+                value.strip().upper().removesuffix("-USD")
+                for value in raw.split(",")
+                if value.strip()
+            }
+            if len(symbols) > 250 or any(
+                not re.fullmatch(r"[A-Z0-9]{1,20}", value) for value in symbols
+            ):
+                return jsonify({"error": "Invalid watchlist symbols."}), 400
+        prices = last_current_prices.get("data") or {}
+        holdings = [
+            {
+                "symbol": symbol,
+                "price_usd": prices.get(f"{symbol}-USD", prices.get(symbol)),
+            }
+            for symbol in symbols
+        ]
+
+    holdings = normalize_holdings(holdings, positions=source == "portfolio")
+    price_map = {
+        row["symbol"]: row["price_usd"]
+        for row in holdings
+        if row["price_usd"] is not None
+    }
+    now = time.time()
+    try:
+        levels = (
+            _gather_levels_for_symbols(set(price_map), price_map, include_chart=True)
+            if 0 < quote_as_of <= now + 30 and now - quote_as_of <= 120
+            else {}
+        )
+    except Exception:
+        logging.exception("Portfolio risk candle batch unavailable")
+        levels = {}
+    contexts = {
+        row["symbol"]: _risk_level_signal_context(row["symbol"]) for row in holdings
+    }
+    payload = build_risk_board(
+        holdings, levels, contexts, source=source, quote_as_of=quote_as_of, now=now
+    )
+    payload["fallback_reason"] = fallback_reason
+    for row in payload["rows"]:
+        if row["plan"].get("available"):
+            try:
+                row["plan"]["plan_id"] = sell_plan_outcome_store.record_plan(
+                    row["plan"]
+                )
+            except Exception:
+                logging.warning(
+                    "Risk plan history could not be recorded for %s", row["symbol"]
+                )
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Cookie"
+    return response
+
+
 @app.get("/api/risk-levels/<product_id>")
 def get_risk_levels(product_id: str):
     """Explainable stop-limit, exit, support, and measured-history map."""
@@ -11804,7 +11915,9 @@ def get_risk_levels(product_id: str):
 
     try:
         levels = (
-            _gather_levels_for_symbols({symbol}, {symbol: current_price}, include_chart=True).get(symbol)
+            _gather_levels_for_symbols(
+                {symbol}, {symbol: current_price}, include_chart=True
+            ).get(symbol)
             if current_price is not None
             else None
         )

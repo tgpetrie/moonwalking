@@ -13,6 +13,7 @@ const mvpRouteSet = new Set([
   "/scorecard",
   "/scorecard-redesign",
   "/scorecard-compare",
+  "/risk-board",
   "/app/dashboard",
   "/app/watchlists",
   "/app/portfolio",

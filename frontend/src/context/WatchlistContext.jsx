@@ -61,7 +61,7 @@ const dedupeItems = (items = []) => {
   return out;
 };
 
-function readGuestItems() {
+export function readGuestItems() {
   try {
     const canonicalRaw = localStorage.getItem(STORAGE_KEY);
     const legacyRaw = canonicalRaw ? null : localStorage.getItem(LEGACY_STORAGE_KEY);

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
+import PortfolioRiskBoard from "../components/PortfolioRiskBoard.jsx";
 import ScorecardPage from "../components/ScorecardPage.jsx";
 import ScorecardRedesignPage from "../components/ScorecardRedesignPage.jsx";
 import {
@@ -18,6 +19,8 @@ import "../styles/mvp-shell.css";
 const APP_DASHBOARD_PATH = "/app/dashboard";
 const APP_WATCHLISTS_PATH = "/app/watchlists";
 const APP_PORTFOLIO_PATH = "/app/portfolio";
+const APP_RISK_PATH = "/app/risk-board";
+const PUBLIC_RISK_PATH = "/risk-board";
 const APP_SCORECARD_PATH = "/app/scorecard";
 const APP_SCORECARD_REDESIGN_PATH = "/app/scorecard-redesign";
 const APP_SCORECARD_COMPARE_PATH = "/app/scorecard-compare";
@@ -30,6 +33,7 @@ const protectedPaths = new Set([
   APP_DASHBOARD_PATH,
   APP_WATCHLISTS_PATH,
   APP_PORTFOLIO_PATH,
+  APP_RISK_PATH,
   APP_SCORECARD_PATH,
   APP_SCORECARD_REDESIGN_PATH,
   APP_SCORECARD_COMPARE_PATH,
@@ -401,6 +405,7 @@ function matchRoute(pathname) {
     protectedPaths.has(pathname) ||
     pathname === "/" ||
     publicScorecardPaths.has(pathname) ||
+    pathname === PUBLIC_RISK_PATH ||
     pathname === "/login" ||
     pathname === "/signup" ||
     pathname === "/forgot-password" ||
@@ -474,6 +479,7 @@ function PublicHeader({ navigate, session, currentPath }) {
   const navItems = [
     { label: "Live Board", to: "/" },
     { label: "Scorecard Preview", to: PUBLIC_SCORECARD_PATH },
+    { label: "Risk Board", to: PUBLIC_RISK_PATH },
   ];
 
   return (
@@ -1091,6 +1097,7 @@ function MemberShell({
     { label: "Dashboard", to: APP_DASHBOARD_PATH },
     { label: "Watchlists", to: APP_WATCHLISTS_PATH },
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
+    { label: "Risk Board", to: APP_RISK_PATH },
     { label: "Scorecard", to: APP_SCORECARD_PATH },
     { label: "Scorecard (new)", to: APP_SCORECARD_REDESIGN_PATH },
     { label: "Scorecard (compare)", to: APP_SCORECARD_COMPARE_PATH },
@@ -2105,6 +2112,7 @@ export default function MvpApp() {
   const isPublicRoute =
     route.name === "/" ||
     publicScorecardPaths.has(route.name) ||
+    route.name === PUBLIC_RISK_PATH ||
     route.name === "/login" ||
     route.name === "/signup" ||
     route.name === "/forgot-password" ||
@@ -2167,6 +2175,9 @@ export default function MvpApp() {
         );
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;
+      case APP_RISK_PATH:
+      case PUBLIC_RISK_PATH:
+        return <PortfolioRiskBoard key={session?.email || session?.id || "guest"} />;
       case PUBLIC_SCORECARD_PATH:
       case PUBLIC_SCORECARD_REDESIGN_PATH:
       case PUBLIC_SCORECARD_COMPARE_PATH:
