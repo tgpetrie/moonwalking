@@ -954,6 +954,16 @@ body {
   grid-template-columns: 1fr;
 }
 
+/* A two-column mover row needs more room than the board has on tablets and
+   narrow desktop windows. Collapse before the fixed price/change/action
+   tracks begin competing with the symbol and status text. */
+@media (max-width: 900px) {
+  .bh-1m-grid--two-col {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 .bh-1m-col {
   display: flex;
   flex-direction: column;

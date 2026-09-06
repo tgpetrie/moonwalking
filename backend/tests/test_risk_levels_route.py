@@ -42,7 +42,7 @@ def test_risk_levels_route_returns_plan_and_forward_history(tmp_path, monkeypatc
     monkeypatch.setattr(
         backend_app,
         "_gather_levels_for_symbols",
-        lambda symbols, prices: {"BTC": LEVELS},
+        lambda symbols, prices, **kwargs: {"BTC": LEVELS},
     )
     monkeypatch.setattr(
         backend_app,
@@ -75,7 +75,7 @@ def test_risk_levels_route_refuses_to_invent_levels_while_warming(
     monkeypatch.setattr(
         backend_app,
         "_gather_levels_for_symbols",
-        lambda symbols, prices: {},
+        lambda symbols, prices, **kwargs: {},
     )
     monkeypatch.setattr(backend_app, "_risk_level_signal_context", lambda symbol: {})
 

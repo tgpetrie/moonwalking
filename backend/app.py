@@ -1271,7 +1271,7 @@ def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dic
         return {}
 
 
-def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
+def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_chart=False) -> dict:
     """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
 
     Fetches missing/stale candles on demand with bounded concurrency, capped per
@@ -1324,10 +1324,15 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
     levels: dict = {}
     for sym, candles in fresh_candles.items():
         try:
+            if include_chart:
+                # The picture and the plan must use the very same completed bars.
+                candles = [c for c in candles if c and len(c) >= 6
+                           and float(c[0]) + _LEVELS_GRANULARITY_S <= now]
             computed = compute_levels(
                 candles,
                 price_by_symbol.get(sym),
                 granularity_seconds=_LEVELS_GRANULARITY_S,
+                include_candles=include_chart,
             )
         except Exception:
             computed = None
@@ -11782,7 +11787,7 @@ def get_risk_levels(product_id: str):
 
     try:
         levels = (
-            _gather_levels_for_symbols({symbol}, {symbol: current_price}).get(symbol)
+            _gather_levels_for_symbols({symbol}, {symbol: current_price}, include_chart=True).get(symbol)
             if current_price is not None
             else None
         )
@@ -11794,6 +11799,8 @@ def get_risk_levels(product_id: str):
         )
         plan["generated_at"] = int(time.time())
         plan["price_as_of"] = int(last_current_prices.get("timestamp") or 0)
+        if plan.get("available") and levels and levels.get("chart"):
+            plan["chart"] = {**levels["chart"], "product_id": normalized}
         plan_id = sell_plan_outcome_store.record_plan(plan)
         if plan_id:
             plan["plan_id"] = plan_id

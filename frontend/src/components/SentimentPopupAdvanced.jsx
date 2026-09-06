@@ -15,6 +15,7 @@ import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
+import RiskLevelsChart from './RiskLevelsChart.jsx';
 import '../styles/sentiment-popup-advanced.css';
 
 const REFRESH_MS = 15000;
@@ -1030,6 +1031,8 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen 
           <strong>{topSignal.score ?? 0}/10</strong>
         </div>
       </section>
+
+      <RiskLevelsChart key={plan.product_id} plan={plan} />
 
       <section className="risk-levels-grid" aria-label="Suggested risk levels">
         <article className="risk-level-card risk-level-card--stop">
