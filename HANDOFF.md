@@ -1,5 +1,53 @@
 # Moonwalking / BHABIT Handoff
 
+## Integration checkpoint - 2026-09-06
+
+This section supersedes older branch and production snapshots below.
+
+- Local integration branch: `codex/integrate-production`.
+- Combined `codex/scorecard-redesign-compare` at `ef83231e` and
+  `codex/fix-responsive-ignition` at `76811a26` in a separate worktree.
+- Preserved the scorecard redesign, password reset, local helper, sell-side risk
+  levels and completed-candle chart, measurement gates, and all durable databases.
+- Resolved five merge conflicts. Adapted the redesign to withheld statistics:
+  missing rates remain unavailable, unmeasured categories cannot be ranked as
+  dependable, and collection progress excludes older research outcomes.
+- Fixed a Windows UTF-8 source-reading issue in the scanner-order tests.
+- Frontend build and 482 tests pass; backend verification covers 546 runnable
+  tests with 65 legacy/provider-dependent tests skipped. Guardrails, shell syntax,
+  workflow YAML, and nine live production smoke probes pass.
+- Replaced the obsolete Render/Vercel smoke workflow with Railway and Cloudflare
+  checks. Run `python scripts/production_smoke.py` locally or dispatch the workflow
+  after deployment. It checks current availability, not the deployed commit.
+- This is a local checkpoint before pushing, as requested. No push, `main` merge,
+  production deployment, or cloud setting change was made in this session.
+
+### Verified production wiring
+
+- GitHub: `https://github.com/tgpetrie/moonwalking`, remote `main` at `e629c22c`.
+- Railway project: `bhabit-mooners` (`0613ba85-3821-4efc-b377-1a0354bbe406`).
+- Production service: `85a66fda-a402-4f41-bac0-3b387bf76c9c`.
+- GitHub source is already connected to `main`; automatic deployment is enabled.
+  Wait for CI is currently off. The older "autodeploy unavailable" note is stale.
+- Active deployment: `3957426c-901a-4613-bc2e-d30c91c3a68d`, labelled
+  `deploy sell-side risk levels 6235e2d2`, deployed via CLI. Production is therefore
+  ahead of `main`; redeploying the old `main` would remove newer features.
+- Railway origin: `https://bhabit-mooners-production.up.railway.app` on port 8080.
+- Both `bhabit.net` and `www.bhabit.net` are attached to this service and Railway
+  detects Cloudflare proxying. Frontend, health, and board APIs return HTTP 200
+  through the origin and both custom domains.
+- One replica, attached volume, serverless disabled, Dockerfile builder, and
+  `/api/health` deployment check are configured.
+- Cloudflare dashboard requires sign-in; account-level DNS/TLS/cache settings
+  have not been audited. Public DNS delegates to Cloudflare and HTTPS works.
+- The Railway UI says existing `railway.json` configuration continues working
+  until 2026-12-01. Plan its replacement before then; this merge does not change
+  the running infrastructure.
+
+Next: review the local combined branch, push it for review, integrate into `main`,
+then verify Railway deploys that exact commit and rerun production smoke checks.
+Do not redeploy the old `main` while this checkpoint remains local.
+
 ## Snapshot
 
 - Date: 2026-07-20
@@ -326,3 +374,44 @@ The test file needs to be updated to match this spec before staging and committi
 4. **Set up Telegram bot** for notification delivery (simplest channel to activate)
 5. **Add per-coin outcome history** to `history_for()` so accuracy can be assessed per-asset
 6. **Build feedback loop** — use accumulated outcome data to auto-tune notification thresholds
+
+## Session 2026-08-29: sell-side intelligence + risk-level history
+
+Current branch: `feat/feature-retention-snapshots`, three commits ahead of its
+remote. The work immediately before this session was the signal-history
+truthfulness pass (`7a03f914`, `a3546905`, `65146cea`): uncontrolled signal
+rates are withheld, the UI says it is collecting, and the control dry-run data
+now persists on Railway.
+
+This session adds an uncommitted, tested vertical slice for sell-side decision
+support:
+
+- `backend/sell_side_intelligence.py` builds `sell_levels_v1` from the existing
+  50-hour Coinbase candle structure. It separates a stop trigger from the
+  lower sell-limit price, explains the ATR/support buffer, identifies the first
+  resistance/trim area, shows a support/re-entry-watch zone, and combines range
+  position, momentum, volume, and canonical reversal/fading context into a
+  clearly labeled top-risk state. It never places an order.
+- `backend/sell_plan_outcomes.py` records at most one displayed plan per
+  product/hour and observes whether the target, stop, or neither is reached
+  first within 24 hours. The API/UI shows raw counts; `target_first_rate` stays
+  null because no controlled predictive methodology exists yet.
+- `GET /api/risk-levels/<symbol>` returns the current plan and that coin's plan
+  history. `GET /api/risk-levels/status` exposes ledger health. The live price
+  loop grades open plans without being allowed to interrupt the canonical
+  price-tape persistence path.
+- `SentimentPopupAdvanced` has a prominent compact sell-side block on the Coin
+  tab and a dedicated `Risk Levels` tab with stop trigger, sell limit,
+  invalidation, trim area, support zone, reasons, execution-risk disclosure,
+  and recorded outcomes.
+- Railway's entrypoint persists the new ledger through
+  `MW_SELL_PLAN_OUTCOMES_DB` on the mounted data volume.
+
+Verification: 69 focused backend tests passed, including route integration and
+existing scorecard/portfolio regressions. Frontend production build passed and
+all 413 frontend tests passed. The feature has not yet been visually checked in
+a running browser or deployed to production.
+
+For resuming this exact work on the owner's Windows AI PC—including the
+read-only boundary, formulas, coverage limits, PowerShell/WSL setup, and transfer
+state—read `WINDOWS_AI_PC_HANDOFF.md` next.

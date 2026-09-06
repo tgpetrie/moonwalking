@@ -125,6 +125,43 @@ function signalsZone(container) {
   return container.querySelector('.scr-zone[data-tone="signals"]');
 }
 
+describe("combined measurement contract", () => {
+  it("keeps withheld outcomes unavailable instead of calling them a zero-percent track record", async () => {
+    const { container } = await renderLoaded(makeResponse({
+      signals: {
+        measurement_status: "learning",
+        publishable_methodology: null,
+        total_graded: 0,
+        overall_win_rate: null,
+        research_only_rows_excluded: 500000,
+        market_periods: 0,
+        required_market_periods: 100,
+        required_span_days: 14,
+        signal_types: [{ ...SETUP_DEEP, sample_size: 0, win_rate: null }],
+      },
+      boards: { total_entries: 0, boards: {} },
+    }));
+    const headline = screen.getByText("Signals that worked").closest(".scr-headline__card");
+    expect(within(headline).getByText("—")).toBeInTheDocument();
+    expect(within(headline).queryByText("0.0%")).not.toBeInTheDocument();
+    const best = screen.getByText("Most dependable category").closest(".scr-headline__card");
+    expect(within(best).getByText("None yet")).toBeInTheDocument();
+    expect(within(signalsZone(container)).getByText("Still collecting comparable results")).toBeInTheDocument();
+    expect(within(signalsZone(container)).getByText("0 of 100 market periods")).toBeInTheDocument();
+    expect(signalsZone(container).textContent).toContain("500,000 older research outcomes are excluded");
+    expect(signalsZone(container).querySelector(".scr-bars__avg")).toBeNull();
+  });
+
+  it("does not draw a zero average or claim an edge when the overall rate is withheld", async () => {
+    const { container } = await renderLoaded(makeResponse({ signals: { overall_win_rate: null } }));
+    const zone = signalsZone(container);
+    expect(zone.querySelector(".scr-bars__avg")).toBeNull();
+    fireEvent.click(zone.querySelector(".scr-barrow"));
+    await waitFor(() => expect(zone.querySelector(".scr-barrow__detail")).toBeTruthy());
+    expect(within(zone).getByText(/Not enough data to compare this against the average yet/)).toBeInTheDocument();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Pure adapters
 // ---------------------------------------------------------------------------

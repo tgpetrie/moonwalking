@@ -220,6 +220,52 @@ def fetch_hours(product_id: str, start_ts: int, end_ts: int) -> List[Dict[str, A
         conn.close()
 
 
+def latest_quote_volume_by_product(
+    now_ts: int,
+    *,
+    min_coverage: int = 50,
+    max_age_seconds: int = 7200,
+) -> Dict[str, Dict[str, Any]]:
+    """Most recent qualifying hourly quote volume for every product, in one pass.
+
+    This is the quantitative liquidity candidate. It is deliberately separate
+    from the categorical ``thin/normal/wide`` bucket: the two have very
+    different universe coverage, and which one can actually be used is a
+    measured question, not an assumption.
+
+    Only rows meeting ``min_coverage`` count — a partially-sampled hour
+    understates volume, and an understated denominator would silently bias any
+    liquidity matching built on it.
+    """
+    cutoff = int(now_ts) - int(max_age_seconds)
+    conn = _get_conn()
+    try:
+        rows = conn.execute(
+            """
+            SELECT product_id, hour_ts, quote_volume_usd, base_volume, minute_coverage
+            FROM volume_hour
+            WHERE hour_ts >= ? AND hour_ts <= ?
+              AND minute_coverage >= ?
+              AND quote_volume_usd IS NOT NULL
+            ORDER BY product_id, hour_ts ASC
+            """,
+            (cutoff, int(now_ts), int(min_coverage)),
+        ).fetchall()
+        # Ascending hour_ts means the last row per product wins.
+        out: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            out[str(row["product_id"])] = {
+                "quote_volume_usd": float(row["quote_volume_usd"]),
+                "base_volume": float(row["base_volume"] or 0),
+                "minute_coverage": int(row["minute_coverage"]),
+                "hour_ts": int(row["hour_ts"]),
+                "age_seconds": int(now_ts) - int(row["hour_ts"]),
+            }
+        return out
+    finally:
+        conn.close()
+
+
 def prune_hourly_older_than(cutoff_ts: int):
     conn = _get_conn()
     try:

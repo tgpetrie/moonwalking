@@ -399,7 +399,7 @@ class TestPeekPurity:
 
 def _scanner_calls() -> list[tuple[int, str]]:
     """(lineno, callee) for every call inside _compute_snapshots_from_cache."""
-    tree = ast.parse(APP_PATH.read_text())
+    tree = ast.parse(APP_PATH.read_text(encoding="utf-8"))
     fn = next(
         node
         for node in ast.walk(tree)

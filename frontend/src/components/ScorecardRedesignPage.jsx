@@ -168,7 +168,7 @@ function directionChip(direction) {
 }
 
 function compareToBaseline(value, baseline) {
-  if (value == null || !Number.isFinite(Number(value))) {
+  if (value == null || baseline == null || !Number.isFinite(Number(value)) || !Number.isFinite(Number(baseline))) {
     return "Not enough data to compare this against the average yet.";
   }
   const diff = Number(value) - (Number(baseline) || 0);
@@ -180,6 +180,9 @@ function compareToBaseline(value, baseline) {
 }
 
 function signalAction(card, baseline) {
+  if (card?.win_rate == null || baseline == null) {
+    return "Still gathering comparable results. There is no measured edge to act on yet.";
+  }
   const { tier } = evidenceOf(card?.sample_size);
   const better = Number(card?.win_rate) - (Number(baseline) || 0) >= 0.03;
   if (tier === "emerging" || tier === "none") {
@@ -211,7 +214,7 @@ function boardAction(board) {
 function boardHeadline(board) {
   const cont = Number(board?.continuation_rate);
   const rev = Number(board?.reversal_rate);
-  if (!Number.isFinite(cont)) return "Not enough history to describe this board yet.";
+  if (board?.continuation_rate == null || !Number.isFinite(cont)) return "Not enough history to describe this board yet.";
   if (Number.isFinite(rev) && rev > cont + 0.05) {
     return "Moves here have flipped more often than they continued.";
   }
@@ -258,8 +261,8 @@ function coinSummarySentence(data) {
   if (total < 20) {
     return `Only ${count(total)} measured signals so far — too few to put a number on.`;
   }
-  const first = Number(data?.signal_types?.[0]?.win_rate);
-  if (!Number.isFinite(first)) {
+  const first = data?.signal_types?.[0]?.win_rate;
+  if (first == null || !Number.isFinite(Number(first))) {
     return `${count(total)} measured signals so far.`;
   }
   return `${count(total)} measured signals — the most common setup worked ${rate(first)} of the time.`;
@@ -272,7 +275,7 @@ function coinSummarySentence(data) {
 function trustScore(card) {
   const win = Number(card?.win_rate);
   const sample = Number(card?.sample_size);
-  if (!Number.isFinite(win)) return -1;
+  if (card?.win_rate == null || !Number.isFinite(win)) return -1;
   const weight = Number.isFinite(sample) ? Math.min(1, sample / 100) : 0;
   return win * (0.35 + 0.65 * weight);
 }
@@ -713,6 +716,29 @@ function SignalRates({ items, baseline, onSelect, selected, detailFor, unit, cap
  */
 function CollectingPanel({ progress, noun = "signals" }) {
   if (!progress) return null;
+  if ("publishable_methodology" in progress) {
+    const periods = Number(progress.market_periods) || 0;
+    const required = Number(progress.required_market_periods) || 100;
+    const span = Number(progress.span_days) || 0;
+    const requiredSpan = Number(progress.required_span_days) || 14;
+    const ready = Math.min(1, periods / required, span / requiredSpan);
+    return (
+      <div className="scr-collecting">
+        <div className="scr-collecting__head">
+          <span className="scr-collecting__title">Still collecting comparable results</span>
+          <span className="scr-collecting__count">{count(periods)} of {count(required)} market periods</span>
+        </div>
+        <div className="scr-collecting__track">
+          <div className="scr-collecting__fill" style={{ width: `${ready * 100}%` }} />
+        </div>
+        <p className="scr-collecting__note">
+          {count(span)} of {count(requiredSpan)} days covered. Rates stay unavailable until comparable
+          results meet both requirements. {count(progress.research_only_rows_excluded || 0)} older
+          research outcomes are excluded from the track record.
+        </p>
+      </div>
+    );
+  }
   const total = Number(progress.total) || 0;
   const complete = Number(progress.complete) || 0;
   const collecting = Number(progress.collecting) || Math.max(0, total - complete);
@@ -1015,8 +1041,8 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
     return types;
   }, [data, order]);
 
-  const baselineRate = Number(data?.signals?.overall_win_rate);
-  const coinBaseline = Number(coinHistory?.overall_win_rate ?? baselineRate);
+  const baselineRate = data?.signals?.overall_win_rate ?? null;
+  const coinBaseline = coinHistory ? (coinHistory.overall_win_rate ?? null) : baselineRate;
 
   const boards = useMemo(
     () => (data?.boards?.boards ? Object.values(data.boards.boards) : []),
@@ -1028,8 +1054,9 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
   const boardGroups = useMemo(() => groupBoardsByStatus(boards), [boards]);
 
   const bestSetup = useMemo(() => {
-    if (!signals.length) return null;
-    return [...signals].sort((a, b) => trustScore(b) - trustScore(a))[0];
+    const measured = signals.filter((card) => card.win_rate != null && Number(card.sample_size) > 0);
+    if (!measured.length) return null;
+    return measured.sort((a, b) => trustScore(b) - trustScore(a))[0];
   }, [signals]);
 
   const opposing = useMemo(() => opposingPair(signals), [signals]);
@@ -1135,7 +1162,7 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
   }
 
   const sig = data.signals || {};
-  const baseline = Number(sig.overall_win_rate);
+  const baseline = sig.overall_win_rate ?? null;
   const coinFocus = normalizeCoinSymbol(coinLoadedFor || coinInput) || DEFAULT_COIN;
   const source = resolveSource(previewMode && !showingLive, data.status);
 
@@ -1260,7 +1287,9 @@ export default function ScorecardRedesignPage({ previewMode = false } = {}) {
           </label>
         </div>
 
-        {signals.length > 0 ? (
+        {sig.measurement_status === "learning" ? (
+          <CollectingPanel progress={{ ...progress, ...sig, publishable_methodology: sig.publishable_methodology ?? null }} />
+        ) : signals.length > 0 ? (
           <ScoreGroup
             items={signalItems}
             baseline={baseline}

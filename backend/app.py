@@ -52,8 +52,10 @@ try:
         get_price_at_or_before,
         get_price_at_or_after,
         get_recent_price_snapshots,
+        realized_volatility_by_product,
     )
     from volume_1h_store import ensure_db as ensure_volume_db
+    from volume_1h_store import latest_quote_volume_by_product
     from volume_1h_candles import refresh_product_minutes, RateLimitError
     from volume_1h_compute import compute_volume_1h
 except ImportError as e:
@@ -61,6 +63,12 @@ except ImportError as e:
 
     def ensure_volume_db():
         pass
+
+    def realized_volatility_by_product(now_ts, **kwargs):
+        return {}
+
+    def latest_quote_volume_by_product(now_ts, **kwargs):
+        return {}
 
     refresh_product_minutes = None
 
@@ -213,6 +221,21 @@ from alert_events import (
 from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
+from sell_side_intelligence import build_sell_plan
+from sell_plan_outcomes import store as sell_plan_outcome_store
+
+try:
+    from control_dry_run import dry_run_report, record_dry_run_observation
+except ImportError as e:  # pragma: no cover - optional during partial installs
+    logging.warning(f"Control dry-run imports failed: {e}")
+
+    def record_dry_run_observation(ranking_snapshot, captured_ts, signal_events):
+        return 0
+
+    def dry_run_report():
+        return {"config_version": None, "observations": 0, "rungs": {}}
+
+
 from board_outcomes import store as board_outcome_store
 from live_ranking import (
     LIVE_RANKING_MODEL_VERSION,
@@ -1265,7 +1288,7 @@ def _gather_positioning_for_symbols(symbols: set, change_by_symbol: dict) -> dic
         return {}
 
 
-def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
+def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict, *, include_chart=False) -> dict:
     """Return {SYMBOL: levels_dict} for held symbols, computed from cached candles.
 
     Fetches missing/stale candles on demand with bounded concurrency, capped per
@@ -1318,10 +1341,15 @@ def _gather_levels_for_symbols(symbols: set, price_by_symbol: dict) -> dict:
     levels: dict = {}
     for sym, candles in fresh_candles.items():
         try:
+            if include_chart:
+                # The picture and the plan must use the very same completed bars.
+                candles = [c for c in candles if c and len(c) >= 6
+                           and float(c[0]) + _LEVELS_GRANULARITY_S <= now]
             computed = compute_levels(
                 candles,
                 price_by_symbol.get(sym),
                 granularity_seconds=_LEVELS_GRANULARITY_S,
+                include_candles=include_chart,
             )
         except Exception:
             computed = None
@@ -11682,6 +11710,21 @@ def get_scorecard():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/signals/control-dry-run")
+def get_control_dry_run():
+    """Feasibility of the matched-peer control: coverage and balance only.
+
+    Reports no outcome and selects no liquidity rung. It exists so the rung can
+    be chosen from what was knowable at signal time, never from which variant
+    produced a better-looking result.
+    """
+    try:
+        return jsonify({"status": "live", **dry_run_report()})
+    except Exception as exc:
+        logging.exception("Control dry-run report failed")
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 @app.get("/api/coin-history/<product_id>")
 def get_coin_history(product_id: str):
     """Per-coin signal outcome history. Accepts BTC or BTC-USD."""
@@ -11692,6 +11735,96 @@ def get_coin_history(product_id: str):
         return jsonify({"status": "live", **result})
     except Exception as exc:
         logging.exception("Coin history failed for %s", normalized)
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+def _risk_level_signal_context(symbol: str) -> dict:
+    """Latest canonical signal/risk context for a risk-level explanation."""
+    normalized = str(symbol or "").upper().split("-")[0]
+    source = [
+        dict(item)
+        for item in list(alerts_log_main)
+        if isinstance(item, dict)
+        and str(item.get("symbol") or item.get("product_id") or "")
+        .upper()
+        .split("-")[0]
+        == normalized
+    ]
+    latest = None
+    try:
+        latest = next(iter(build_event_evolution(source)), None)
+    except Exception:
+        latest = None
+
+    read = (
+        latest.get("the_read")
+        if isinstance(latest, dict) and isinstance(latest.get("the_read"), dict)
+        else {}
+    )
+    with _SIGNAL_CONTEXT_LOCK:
+        tape_context = dict(_SIGNAL_CONTEXT_BY_SYMBOL.get(normalized) or {})
+    return {
+        "primary_state": latest.get("primary_state") if latest else None,
+        "direction": latest.get("direction") if latest else None,
+        "confidence": latest.get("confidence") if latest else None,
+        "read_label": read.get("label"),
+        # detector_types is produced by Event Evolution after its retention
+        # cutoff. Do not let an old raw reversal alert keep top risk elevated.
+        "alert_types": list(latest.get("detector_types") or []) if latest else [],
+        "spot_pressure": tape_context.get("spot_pressure"),
+    }
+
+
+@app.get("/api/risk-levels/status")
+def get_risk_levels_status():
+    try:
+        return jsonify({"status": "live", **sell_plan_outcome_store.status()})
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/risk-levels/<product_id>")
+def get_risk_levels(product_id: str):
+    """Explainable stop-limit, exit, support, and measured-history map."""
+    raw = str(product_id or "").strip().upper()
+    symbol = raw.split("-")[0]
+    normalized = raw if "-" in raw else f"{raw}-USD"
+    if not symbol or not re.fullmatch(r"[A-Z0-9]{1,20}", symbol):
+        return jsonify({"status": "degraded", "error": "Invalid product"}), 400
+
+    prices = (
+        last_current_prices.get("data")
+        if isinstance(last_current_prices, dict)
+        and isinstance(last_current_prices.get("data"), dict)
+        else {}
+    )
+    current_price = prices.get(normalized)
+    if current_price is None:
+        current_price = prices.get(symbol)
+
+    try:
+        levels = (
+            _gather_levels_for_symbols({symbol}, {symbol: current_price}, include_chart=True).get(symbol)
+            if current_price is not None
+            else None
+        )
+        plan = build_sell_plan(
+            product_id=normalized,
+            current_price=current_price,
+            levels=levels,
+            signal_context=_risk_level_signal_context(symbol),
+        )
+        plan["generated_at"] = int(time.time())
+        plan["price_as_of"] = int(last_current_prices.get("timestamp") or 0)
+        if plan.get("available") and levels and levels.get("chart"):
+            plan["chart"] = {**levels["chart"], "product_id": normalized}
+        plan_id = sell_plan_outcome_store.record_plan(plan)
+        if plan_id:
+            plan["plan_id"] = plan_id
+        history = sell_plan_outcome_store.history(normalized)
+        return jsonify({"status": "live", "plan": plan, "history": history})
+    except Exception as exc:
+        logging.exception("Risk levels failed for %s", normalized)
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
@@ -13862,6 +13995,25 @@ def _compute_snapshots_from_cache():
             # signal recording or notification delivery.
             try:
                 _signal_features_ts = int(time.time())
+                # Control-matching inputs, gathered universe-wide at the same
+                # instant as the ranking they describe. Failures here degrade
+                # the snapshot rather than the signal path: a missing
+                # volatility map means peers cannot be matched later, not that
+                # the scan stops.
+                try:
+                    _signal_volatility = realized_volatility_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_volatility = {}
+                    logging.warning("Volatility snapshot skipped: %s", exc)
+                try:
+                    _signal_liquidity = latest_quote_volume_by_product(
+                        _signal_features_ts
+                    )
+                except Exception as exc:
+                    _signal_liquidity = {}
+                    logging.warning("Liquidity snapshot skipped: %s", exc)
                 _signal_features = {
                     str(row.get("symbol") or "").upper(): row
                     for row in build_live_rankings(
@@ -13870,8 +14022,18 @@ def _compute_snapshots_from_cache():
                         context_snapshot=signal_context,
                         alerts=_mw_peek_alerts_normalized_with_sticky(),
                         include_internal_features=True,
+                        volatility_snapshot=_signal_volatility,
+                        liquidity_snapshot=_signal_liquidity,
                     )
                 }
+                try:
+                    # The actual transitions being recorded this scan — the
+                    # population whose peer availability we need to measure.
+                    record_dry_run_observation(
+                        _signal_features, _signal_features_ts, delivery_events
+                    )
+                except Exception as exc:
+                    logging.warning("Dry-run observation skipped: %s", exc)
             except Exception as exc:
                 _signal_features, _signal_features_ts = {}, None
                 logging.warning("Signal feature snapshot skipped: %s", exc)
@@ -14042,6 +14204,13 @@ def _fetch_prices_and_update_history():
                 prune_old(now_ts - retention)
             except Exception as e:
                 logging.error(f"SQLite price snapshot persistence failed: {e}")
+
+            # Advance only plans that were actually shown/recorded. Isolate
+            # this ledger so it can never interrupt the canonical price tape.
+            try:
+                sell_plan_outcome_store.observe(current_prices, now_ts=now_ts)
+            except Exception as e:
+                logging.warning(f"Risk-level outcome measurement skipped: {e}")
 
             # Update 3m data cache with fresh prices (force refresh to append history)
             data_3min = get_crypto_data(

@@ -25,6 +25,20 @@ Railway Hobby currently has a $5/month minimum that includes $5 of usage. A smal
 - `railway.json`: Dockerfile, healthcheck, and always-restart policy.
 - `deploy/railway/env.example`: production variables without secrets.
 
+## Existing service and release checks
+
+Use the existing `bhabit-mooners` project and service. The setup commands below
+are for a new installation, not for updating the existing production service.
+GitHub `main` already triggers automatic Railway deployment. See the current
+checkpoint at the top of `HANDOFF.md` before releasing: a manual deployment can
+be newer than `main`, and deploying an older branch would roll features back.
+
+After Railway reports a successful deployment, confirm its commit matches the
+intended release and run `python scripts/production_smoke.py`. This checks the
+built frontend, health response, and board data at the Railway origin and both
+Cloudflare domains. The GitHub Production Smoke Tests workflow can also be run
+manually. Its success verifies current availability, not release identity.
+
 ## Railway setup
 
 From the repository root:
@@ -73,6 +87,7 @@ Attach exactly one Railway volume at `/var/lib/moonwalking`. The entrypoint auto
 - `volume_1h.sqlite`
 - `signal_outcomes.sqlite`
 - `control_dry_run.sqlite`
+- `sell_plan_outcomes.sqlite`
 
 `backend/production_entrypoint.sh` derives each database path from
 `RAILWAY_VOLUME_MOUNT_PATH` (falling back to `MW_DATA_DIR`). In particular,
