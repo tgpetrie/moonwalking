@@ -4,7 +4,8 @@ These rules apply to every agent working in this repository.
 
 ## Canonical repository
 
-- Use `C:\Users\tgpet\OneDrive\Documents\Moonwalking` as the canonical checkout.
+- Use the active Moonwalking Git checkout connected to the project's authoritative remote. Its local path may differ between computers and does not need to be inside OneDrive.
+- Confirm the checkout with `git remote -v`, `git status --short --branch`, and `git worktree list` before making changes.
 - Do not use `DEVv\recovered\Moonwalking` for development, merging, or history repair.
 - Treat committed Git history as the source of truth. Imported chat history provides context but does not override the repository state.
 
@@ -30,4 +31,3 @@ Before handing work to another agent or declaring it complete:
 2. Commit coherent changes with a descriptive message.
 3. Push the branch unless the user explicitly requests a local-only checkpoint.
 4. Report the branch, commit, checks run, and any remaining modified or untracked files.
-
