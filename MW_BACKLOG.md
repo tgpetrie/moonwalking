@@ -162,6 +162,91 @@ Status: Open
 
 Scope: implement `docs/SIGNAL_SYSTEM_V1_PROPOSAL.md`: preserve v0 as a versioned baseline, build full-universe relative returns and quote-volume history, run a shadow v1 engine, measure forward outcomes, then release evidence-based thresholds instead of silently tuning them by feel.
 
+### P2.6 Portfolio Risk Board (sell-side levels, applied across real holdings)
+
+Status: Open
+
+Problem: `sell_side_intelligence.py` / `position_levels.py` and the
+`/api/risk-levels/<product_id>` route already compute real, explainable
+support/resistance, an ATR-based stop-limit, a resistance-based profit
+target, and a scored top-risk signal per coin, and `RiskLevelsChart.jsx`
+already renders it as an interactive candlestick chart with a click-to-explain
+level list. Single-coin levels are already wired into the Coin Pressure popup,
+including its dedicated Risk Levels tab. The combined branch includes the
+completed-candle chart. There is no portfolio-wide view that walks a user's
+actual holdings and shows this for each of them.
+
+Scope:
+
+- New backend route `GET /api/risk-levels/portfolio` that reuses
+  `build_sell_plan` per symbol but batches the work: pull the coin list from
+  the authenticated `/api/portfolio` holdings (P2.3) — falling back to the
+  watchlist for guests/no-portfolio sessions — share one candle fetch per
+  symbol across the batch instead of one request per card, and return an
+  array of plans plus per-symbol `available: false` with a reason for any
+  coin that does not have enough candle history (never invent a level).
+- New `PortfolioRiskBoard.jsx` view: a card grid, one card per held coin,
+  sorted with `top_signal.status === "high"` ("Protect now") first, then
+  "watch", then "clear". Each card is compact, not a full chart:
+  - Symbol, current price, and position size/value pulled from the same
+    portfolio holdings data already surfacing in the Coinbase cockpit (P2.3),
+    so risk is shown next to what's actually at stake, not just price.
+  - A single-row horizontal "range position" gauge using the `range_zone`
+    field `position_levels.py` already computes (`near_support` ...
+    `near_resistance`) — a tick on a support-to-resistance bar, so the visual
+    read is instant without needing the full candlestick chart per card.
+  - The top-signal label/tone as a colored chip (reuse the existing
+    tone vocabulary: negative/caution/neutral) and its single clearest
+    reason string.
+  - Distance to stop and distance to resistance as plain-language deltas
+    ("2.1% above stop", "4.8% below resistance"), not just raw prices.
+  - Click/tap expands the card in place into the existing full
+    `RiskLevelsChart` for that symbol (reuse the component as-is; do not
+    fork it) rather than navigating away, so scanning the board stays fast.
+- A portfolio-summary strip above the grid: counts by status ("2 protect now
+  · 3 watch · 6 clear") and, since real position sizing is already available
+  from P2.3, an aggregate "capital at risk to stop" figure (sum of
+  `quantity * max(current_price - stop_trigger_price, 0)` across held coins
+  with an available plan, equivalently current position value times the
+  stop-distance fraction). Label it as the price distance to the trigger,
+  not a guaranteed loss limit: stop-limit execution is not guaranteed.
+  Watchlist-only coins without actual position sizes do not contribute to
+  this dollar total. Already-breached triggers are flagged separately.
+  Coins with no available plan are counted and named separately, never
+  silently dropped from the total.
+- Explicit empty/degraded states: no portfolio connected -> fall back to
+  watchlist coins with a visible label saying so; a coin with insufficient
+  candle history -> a named "not enough history yet" card, never omitted
+  and never filled with a guessed level.
+- Refresh cadence matches the existing board polling convention already used
+  elsewhere (check `LiveStatusBar`/board refresh interval) rather than
+  inventing a new one; a manual refresh control follows the existing
+  `ManualRefreshButton` pattern.
+
+Explicitly out of scope: no order placement, no push notification changes,
+no new risk math — this wires up what P2.x already built rather than
+computing anything new. If the batched endpoint reveals the per-symbol
+candle-fetch cost is too high for a full portfolio on every poll, caching
+that fetch is in scope; changing the underlying stop/target math is not.
+
+Suggested build order (own branch/worktree per AGENTS.md/CLAUDE.md):
+1. Backend: `/api/risk-levels/portfolio` batching + shared candle cache,
+   with `test_risk_levels_route.py`-style coverage for the batch shape,
+   the no-portfolio fallback, and the insufficient-history case.
+2. Frontend: `PortfolioRiskBoard.jsx` + a compact `RiskLevelCard.jsx`,
+   wired to the new batch route, with the existing `RiskLevelsChart`
+   reused for the expanded state. Component tests follow the existing
+   `ScorecardPage.test.jsx` / `WatchlistPanel.test.jsx` style.
+3. Add the board to navigation/routing where the Coinbase cockpit (P2.3)
+   or Watchlist is currently reached, so it's actually discoverable.
+
+Verification (match the bar set by prior P-items): backend route + batch
+tests passing, frontend component tests passing, full test suite green,
+manual pass confirming the board reflects real portfolio holdings (or the
+labeled watchlist fallback), a coin with thin history shows its named
+unavailable state instead of a fabricated level, and the aggregate
+capital-at-risk figure is spot-checked by hand against the per-card numbers.
+
 ### P1.6 Alert and volume signal audit
 
 Status: Done

@@ -4,6 +4,13 @@
 
 This section supersedes older branch and production snapshots below.
 
+Backlog follow-up: preserved the owner's P2.6 Portfolio Risk Board addition
+as source-branch commit `ee0e4bf6` and merged it here. Corrected its description
+of the existing popup integration and specified the dollar-risk calculation.
+P2.6 remains Open; its batched route and portfolio grid are not implemented.
+The unrelated `finish_claude_codex_merge.py` procedure has not been run or
+authorized for application by this integration checkpoint.
+
 - Local integration branch: `codex/integrate-production`.
 - Combined `codex/scorecard-redesign-compare` at `ef83231e` and
   `codex/fix-responsive-ignition` at `76811a26` in a separate worktree.
