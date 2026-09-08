@@ -200,7 +200,7 @@ def build_entry_read(
     at_or_above_resistance = price >= resistance
     near_resistance = range_position >= NEAR_RESISTANCE_PCT
     near_support = range_position <= NEAR_SUPPORT_PCT
-    structure_broken = price <= structure_support
+    structure_broken = price <= support
 
     # Provisional risk leg: the structural support, which is where this read
     # stops being true. Used for reward/risk before the label is chosen.

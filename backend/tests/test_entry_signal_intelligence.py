@@ -140,6 +140,24 @@ def test_reversal_warning_and_broken_structure_both_invalidate():
     )
 
 
+def test_broken_structure_uses_measured_support_not_derived_plan_reference():
+    levels = {"support": 100, "band_low": 98, "range_position_pct": 0}
+    sell_plan = build_sell_plan(
+        product_id="BTC-USD", current_price=99, levels={**LEVELS, **levels}
+    )
+
+    assert sell_plan["stop"]["invalidation_price"] == 98
+    assert 99 > sell_plan["stop"]["invalidation_price"]
+
+    broken = read(
+        levels,
+        price=99,
+        sell_plan=sell_plan,
+    )
+
+    assert broken["entry_signal"]["status"] == "invalidated"
+
+
 def test_thin_reward_against_structural_risk_reads_as_no_chase():
     thin = read({"resistance": 101, "support": 90, "range_position_pct": 70})
 
