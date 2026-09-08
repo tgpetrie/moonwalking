@@ -57,6 +57,23 @@ def test_never_places_an_order_or_claims_a_validated_outcome():
     assert "not a buy instruction" in plan["methodology"]["disclosure"]
 
 
+def test_range_bands_are_declared_recent_location_not_empirical_tails():
+    methodology = read()["methodology"]
+    bands = methodology["range_bands"]
+    disclosure = methodology["disclosure"].lower()
+
+    assert bands == {
+        "range_band_status": "declared_convention",
+        "range_band_meaning": "recent_range_location",
+        "range_band_lower_pct": 15.0,
+        "range_band_upper_pct": 85.0,
+        "empirical_tail_quantiles": "unavailable",
+    }
+    assert "location bands for the recent measured range" in disclosure
+    for word in ("unusual", "rare", "selective", "calibrated", "empirical tail"):
+        assert word not in disclosure
+
+
 def test_breakout_watch_requires_volume_and_momentum_together():
     breaking = read(
         {

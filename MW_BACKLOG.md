@@ -162,6 +162,12 @@ Status: Open
 
 Scope: implement `docs/SIGNAL_SYSTEM_V1_PROPOSAL.md`: preserve v0 as a versioned baseline, build full-universe relative returns and quote-volume history, run a shadow v1 engine, measure forward outcomes, then release evidence-based thresholds instead of silently tuning them by feel.
 
+### P2.7 Design empirical range tails
+
+Status: Open
+
+Scope: If the product later needs `near_support` / `near_resistance` to mean empirical per-coin tail conditions, first declare the historical window, minimum observation/sample policy, completed-history-only computation, persistence and cold-start behavior, and explicit insufficient-history fallback. Do not substitute global percentiles or hidden in-memory state.
+
 ### P2.6 Portfolio Risk Board (sell-side levels, applied across real holdings)
 
 Status: Open

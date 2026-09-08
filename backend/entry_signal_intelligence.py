@@ -14,7 +14,8 @@ Thresholds are deliberately borrowed from code that already ships, so this
 module does not introduce a second, hand-tuned vocabulary:
 
 * ``range_position_pct <= 15`` (near support) and ``>= 85`` (near resistance)
-  are the band edges in :func:`position_levels._range_zone`.
+    are declared geometric location bands in :func:`position_levels._range_zone`,
+    not empirical rarity or tail-probability thresholds.
 * ``volume_ratio >= 1.5`` ("above baseline") is the cut
   :func:`sell_side_intelligence._top_signal` already uses.
 * live-signal ``confidence >= 78`` ("confirmed") is the cut
@@ -536,8 +537,16 @@ def build_entry_read(
                 "a target, or a guarantee. Every price shown is a measured "
                 "candle level or an ATR buffer around one. No forward "
                 "probability is claimed because comparable entry outcomes have "
-                "not been measured yet."
+                "not been measured yet. The 15/85 bands are location bands for "
+                "the recent measured range only; tail quantiles are unavailable."
             ),
+            "range_bands": {
+                "range_band_status": "declared_convention",
+                "range_band_meaning": "recent_range_location",
+                "range_band_lower_pct": NEAR_SUPPORT_PCT,
+                "range_band_upper_pct": NEAR_RESISTANCE_PCT,
+                "empirical_tail_quantiles": "unavailable",
+            },
             "thresholds": {
                 "near_support_range_pct": NEAR_SUPPORT_PCT,
                 "near_resistance_range_pct": NEAR_RESISTANCE_PCT,

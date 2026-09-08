@@ -150,6 +150,11 @@ Tasks live in MW_BACKLOG.md.
 
 ## 5) Table layout contracts
 
+5.0 Range-position band meaning
+- The fixed 15/85 range-position bands are a declared descriptive convention for recent-range location.
+- `near_support` and `near_resistance` are geometric location labels, not empirical rarity, tail-probability, or calibration claims.
+- Per-coin empirical tail bands require a separately declared history window, minimum observation policy, completed-history-only computation, persistence and cold-start behavior, and an explicit insufficient-history fallback.
+
 5.1 1-minute gainers table contract (strict)
 If there are 4 or fewer tokens available:
 - Single column, full width.
