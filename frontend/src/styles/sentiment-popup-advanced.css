@@ -132,6 +132,12 @@
     color: var(--sentiment-neg);
 }
 
+.header-icon--token {
+    object-fit: cover;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(174, 75, 245, 0.15), rgba(69, 255, 179, 0.1));
+}
+
 .header-text h1 {
     font-size: 1.25rem;
     font-weight: 600;

@@ -100,6 +100,25 @@ def test_breakout_watch_requires_volume_and_momentum_together():
     assert breaking["entry_signal"]["label"] == "Breakout watch"
     assert breaking["entry_zone"]["label"] == "Breakout retest band"
     assert any("1.8x" in reason for reason in breaking["entry_signal"]["reasons"])
+    # Price (100) is still below resistance (101) here — approaching, not cleared.
+    assert "Approaching resistance" in breaking["entry_signal"]["action"]
+    assert "holds the level it cleared" not in breaking["entry_signal"]["action"]
+
+
+def test_breakout_that_has_actually_cleared_resistance_says_so():
+    cleared = read(
+        {
+            "range_position_pct": 100,
+            "range_zone": "near_resistance",
+            "resistance": 99,
+            "volume_ratio": 1.8,
+            "momentum_1h_pct": 1.5,
+        }
+    )
+
+    assert cleared["entry_signal"]["status"] == "breakout"
+    assert "holds the level it cleared" in cleared["entry_signal"]["action"]
+    assert "Approaching resistance" not in cleared["entry_signal"]["action"]
 
 
 def test_same_push_without_volume_is_too_extended_not_a_breakout():

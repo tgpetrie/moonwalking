@@ -295,8 +295,15 @@ def build_entry_read(
                 "The sampled Coinbase tape is showing spot buying pressure."
             )
         action = (
-            "Watch whether the breakout holds the level it cleared. A breakout "
-            "without follow-through returns into the range."
+            (
+                "Watch whether the breakout holds the level it cleared. A breakout "
+                "without follow-through returns into the range."
+            )
+            if at_or_above_resistance
+            else (
+                f"Approaching resistance at {rounded_resistance}. Watch for a move "
+                "above it and a completed-candle hold."
+            )
         )
     elif near_support and momentum_up:
         label, status, tone = "Support reclaim", "entry_watch", "positive"

@@ -19,6 +19,8 @@
 .prb-card--watch { border-top-color: #dfba77; }
 .prb-card--clear { border-top-color: #84b7a9; }
 .prb-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.prb-card__title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.prb-card__icon { width: 20px; height: 20px; border-radius: 50%; align-self: center; }
 .prb-price { font-variant-numeric: tabular-nums; font-size: 1.3rem; color: #e9e2d5; }
 .prb-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .prb-chip { font-size: .69rem; white-space: nowrap; padding: 5px 8px; border-radius: var(--r-1, 4px); background: #ffffff0a; color: #c5bfce; }
@@ -35,6 +37,7 @@
 .prb-entry-note { margin: 8px 0 0; font-size: .74rem; line-height: 1.6; color: #9c94ab; }
 .prb-summary--entry { margin-top: -8px; }
 .prb-reason, .prb-unavailable { font-size: .83rem; line-height: 1.65; min-height: 44px; }
+.prb-muted { display: block; color: #8f889c; font-size: .76rem; margin-top: 2px; }
 .prb-range { margin: 20px 0; }
 .prb-range__labels { display: flex; justify-content: space-between; font-size: .68rem; color: #b6afc4; }
 .prb-range__track { height: 5px; position: relative; margin: 12px 3px 8px; background: linear-gradient(90deg, #537e72, #695483); border-radius: var(--r-1, 4px); }

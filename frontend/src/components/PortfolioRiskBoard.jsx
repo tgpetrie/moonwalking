@@ -3,6 +3,7 @@ import { getBackendBase } from "../config/api.js";
 import { deriveDashboardCadence } from "../config/cadence.js";
 import { readGuestItems } from "../context/WatchlistContext.jsx";
 import { formatPrice } from "../utils/format.js";
+import { tokenIconUrl, tokenIconFallback } from "../utils/tokenIcon.js";
 import RiskLevelsChart from "./RiskLevelsChart.jsx";
 import ManualRefreshButton from "./ManualRefreshButton.jsx";
 import "../styles/sentiment-popup-advanced.css";
@@ -33,7 +34,17 @@ export function RiskLevelCard({ row, source }) {
   return (
     <article className={`mw-panel prb-card prb-card--${row.status}`} aria-label={`${row.symbol} risk levels`}>
       <div className="prb-card__heading">
-        <div><h3>{row.symbol}</h3><span className="prb-price">{price(row.price_usd)}</span></div>
+        <div className="prb-card__title">
+          <img
+            className="prb-card__icon"
+            src={tokenIconUrl(row.symbol)}
+            alt=""
+            aria-hidden="true"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+          <h3>{row.symbol}</h3>
+          <span className="prb-price">{price(row.price_usd)}</span>
+        </div>
         <div className="prb-chips">
           <span className={`prb-chip prb-chip--${row.status}`} aria-label={`Protection read: ${plan.available ? signal.label : "Unavailable"}`}>{plan.available ? signal.label : "Unavailable"}</span>
           <span className={`prb-chip prb-chip--tone-${entryTone}`} aria-label={`Entry read: ${entryLabel}`}>{entryLabel}</span>
@@ -56,7 +67,7 @@ export function RiskLevelCard({ row, source }) {
             <div><dt>Resistance</dt><dd>{resistanceDistance == null ? "Unavailable" : `${Math.abs(resistanceDistance).toFixed(1)}% ${resistanceDistance >= 0 ? "above" : "below"} current price`}</dd></div>
             {source === "portfolio" && <div><dt>Value down to trigger</dt><dd>{money(row.capital_to_stop_usd)}</dd></div>}
           </dl>
-          {plan.stop?.structural_actionable === false && <p className="prb-unavailable">The support-derived structural stop is too wide to treat as actionable at this position size.</p>}
+          {plan.stop?.structural_actionable === false && <p className="prb-unavailable">Wide stop distance — outside this board's actionable-distance convention. <span className="prb-muted">The 6% boundary is an inherited product convention, not a sizing recommendation.</span></p>}
         </section>
         <section className="prb-read prb-read--entry" aria-label={`${row.symbol} entry read`}>
           <h4 className="prb-read__title">Entry</h4>
@@ -64,8 +75,8 @@ export function RiskLevelCard({ row, source }) {
             <p className="prb-reason">{entrySignal.reasons?.[0] || entrySignal.action || "No entry pattern in the measured levels."}</p>
             <dl className="prb-distances">
               <div><dt>{hasZone ? zone.label : "Watch zone"}</dt><dd>{hasZone ? `${price(zone.low)} to ${price(zone.high)}` : "No honest entry band here"}</dd></div>
-              <div><dt>Invalidation</dt><dd>{invalidation.price == null ? "Unavailable" : invalidation.distance_pct == null ? price(invalidation.price) : `${price(invalidation.price)} · ${Math.abs(invalidation.distance_pct).toFixed(1)}% under price`}</dd></div>
-              <div><dt>Reward to risk</dt><dd>{target.reward_risk_ratio == null ? "No overhead reference to measure" : `${target.reward_risk_ratio}x to ${price(target.first_resistance)}`}</dd></div>
+              <div><dt>Invalidation</dt><dd>{invalidation.price == null ? "Unavailable" : invalidation.distance_pct == null ? price(invalidation.price) : `${price(invalidation.price)} · ${Math.abs(invalidation.distance_pct).toFixed(1)}% ${invalidation.distance_pct >= 0 ? "above" : "under"} price`}</dd></div>
+              <div><dt>Reward to risk</dt><dd>{entrySignal.status === "invalidated" ? "Withheld — entry invalidated" : target.reward_risk_ratio == null ? "No overhead reference to measure" : `${target.reward_risk_ratio}x to ${price(target.first_resistance)}`}</dd></div>
               <div><dt>Entry evidence</dt><dd>{`${entrySignal.score ?? 0} of 10 declared cues`}</dd></div>
             </dl>
             <p className="prb-entry-note">{entrySignal.action}</p>
@@ -74,7 +85,7 @@ export function RiskLevelCard({ row, source }) {
         <button type="button" className="mw-button mw-button--ghost mw-button--sm" aria-expanded={expanded} aria-controls={`risk-chart-${row.product_id}`} onClick={() => setExpanded(!expanded)}>
           {expanded ? "Hide chart" : "Explore levels"}
         </button>
-        {expanded && <div id={`risk-chart-${row.product_id}`} className="prb-expanded"><RiskLevelsChart plan={plan} /></div>}
+        {expanded && <div id={`risk-chart-${row.product_id}`} className="prb-expanded"><RiskLevelsChart plan={plan} entry={entry} /></div>}
       </> : <p className="prb-unavailable">{plan.reason || "Not enough history yet."}</p>}
     </article>
   );

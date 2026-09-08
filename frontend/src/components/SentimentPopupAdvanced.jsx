@@ -13,6 +13,7 @@ import {
 } from '../utils/priorityEngine.js';
 import CoinPositioning from './CoinPositioning.jsx';
 import { coinbaseSpotUrl } from '../utils/coinbaseUrl';
+import { tokenIconUrl } from '../utils/tokenIcon.js';
 import AlertsTab from './AlertsTab';
 import ChartReadPanel from './ChartReadPanel.jsx';
 import RiskLevelsChart from './RiskLevelsChart.jsx';
@@ -2284,16 +2285,22 @@ const SentimentPopupAdvanced = ({ isOpen, onClose, symbol, defaultTab = 'coin', 
       <div className="sentiment-popup" data-sentiment-symbol={coinSymbol || ''}>
         <header className="popup-header">
           <div className="header-left">
-            <div className="header-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-            </div>
+            <img
+              className="header-icon header-icon--token"
+              src={tokenIconUrl(coinSymbol)}
+              alt=""
+              aria-hidden="true"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
             <div className="header-text">
               <h1 id="sentimentTitle">Coin Pressure {coinSymbol ? `· ${coinSymbol}` : ''}</h1>
-              <p className="subtitle">Coin-scoped state, tape, and context.</p>
+              <p className="subtitle">
+                Coin-scoped state, tape, and context.
+                {(() => {
+                  const currentPrice = riskLevels?.plan?.current_price ?? riskLevels?.entry?.current_price ?? null;
+                  return currentPrice != null ? ` Current price ${formatPlanPrice(currentPrice)}.` : '';
+                })()}
+              </p>
             </div>
           </div>
 

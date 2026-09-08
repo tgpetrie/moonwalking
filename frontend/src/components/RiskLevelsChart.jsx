@@ -6,7 +6,7 @@ const priceText = (value) => positive(value)
 const timeText = (value) => positive(value)
   ? new Date(value * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unavailable';
 
-export default function RiskLevelsChart({ plan }) {
+export default function RiskLevelsChart({ plan, entry }) {
   const [selected, setSelected] = useState('stop');
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -32,12 +32,16 @@ export default function RiskLevelsChart({ plan }) {
       color: '#b9a0ff', why: profit.why || 'The highest traded price in the measured candle window. A possible area to consider trimming if price reaches it; it is not a confirmed ceiling.' },
     { id: 'current', label: 'Current quote', price: plan.current_price, color: '#e6edf5',
       why: `Latest sampled quote as of ${timeText(plan.price_as_of)}. The final completed candle can close at a different price.` },
-    { id: 'support', label: 'Support reference', price: stop.invalidation_price, color: '#5fdbad',
-      why: (stop.why || [])[0] || 'The structural reference used by this plan. A break below it weakens the setup.' },
+    { id: 'support', label: 'Protection reference', price: stop.invalidation_price, color: '#5fdbad',
+      why: (stop.why || [])[0] || 'The structural reference used by this protection plan. A break below it weakens the setup.' },
     { id: 'stop', label: stop.trigger_source === 'volatility_reference' ? 'Suggested stop trigger (volatility-derived)' : 'Suggested stop trigger', price: stop.trigger_price, color: '#ffbc66',
       why: (stop.why || []).join(' ') || 'The suggested activation price for a protective sell stop-limit, with room below the support reference for normal price movement.' },
     { id: 'limit', label: 'Suggested sell limit (uncalibrated)', price: stop.limit_price, color: '#ff829a',
       why: 'This is an uncalibrated legacy placeholder derived from ATR, not a liquidity- or slippage-calibrated execution allowance. It sits below the trigger as a compatibility reference; a fast drop through it can leave the order unfilled.' },
+    ...(entry?.available && positive(entry.invalidation?.price) && entry.invalidation.price !== stop.invalidation_price
+      ? [{ id: 'entry-invalidation', label: 'Entry invalidates', price: entry.invalidation.price, color: '#f4a7ae',
+          why: entry.invalidation.why || 'A completed candle beyond the measured structural support removes the level structure this entry read is built on.' }]
+      : []),
   ].filter((level) => positive(level.price));
   const active = levels.find((level) => level.id === selected) || levels[0];
   const zone = plan.support_zone || {};
