@@ -14,7 +14,7 @@ const row = {
     price_as_of: Math.floor(Date.now() / 1000),
     top_signal: { status: "high", label: "Protect now", reasons: ["Hourly momentum is fading."] },
     market_structure: { range_position_pct: 60, support: 95, resistance: 112 },
-    stop: { trigger_price: 94.6, limit_price: 94.3, invalidation_price: 95, why: ["A buffer below support."] },
+    stop: { trigger_price: 94.6, limit_price: 94.3, invalidation_price: 95, trigger_source: "volatility_reference", structural_actionable: false, why: ["A buffer below support."] },
     profit: { first_trim_price: 112 },
     chart: { candles: [[1000, 95, 105, 99, 100, 10], [4600, 94, 106, 100, 102, 11], [8200, 96, 108, 102, 103, 12]], granularity_seconds: 3600, last_close_at: 11800 },
   },
@@ -37,6 +37,8 @@ describe("Portfolio Risk Board", () => {
     expect(within(summary).getByText(/Excluded from the dollar total: ETH/)).toBeInTheDocument();
     expect(screen.getByText("2 held · $200.00")).toBeInTheDocument();
     expect(screen.getByText("5.4% below current price")).toBeInTheDocument();
+    expect(screen.getByText("Stop trigger (volatility-derived)")).toBeInTheDocument();
+    expect(screen.getByText(/structural stop is too wide to treat as actionable/)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "ETH risk levels" })).toHaveTextContent(/Not enough completed candle history/);
     expect(fetcher.mock.calls[0][0]).toContain("symbols=BTC%2CETH");
     expect(fetcher.mock.calls[0][1].credentials).toBe("include");

@@ -27,6 +27,9 @@ export function RiskLevelCard({ row, source }) {
   const entryLabel = entry.available ? entrySignal.label : "Entry read unavailable";
   const entryTone = entry.available ? entrySignal.tone || "neutral" : "neutral";
   const hasZone = zone.low != null && zone.high != null;
+  const stopLabel = plan.stop?.trigger_source === "volatility_reference"
+    ? "Stop trigger (volatility-derived)"
+    : "Stop trigger";
   return (
     <article className={`mw-panel prb-card prb-card--${row.status}`} aria-label={`${row.symbol} risk levels`}>
       <div className="prb-card__heading">
@@ -49,10 +52,11 @@ export function RiskLevelCard({ row, source }) {
             <p>{position < 0 ? "Below the measured range" : position > 100 ? "Above the measured range" : `${position.toFixed(0)}% through the measured range`}</p>
           </div> : <p>Range position unavailable</p>}
           <dl className="prb-distances">
-            <div><dt>Stop trigger</dt><dd>{stopDistance == null ? "Unavailable" : row.trigger_breached ? "Trigger already reached" : `${Math.abs(stopDistance).toFixed(1)}% below current price`}</dd></div>
+            <div><dt>{stopLabel}</dt><dd>{stopDistance == null ? "Unavailable" : row.trigger_breached ? "Trigger already reached" : `${Math.abs(stopDistance).toFixed(1)}% below current price`}</dd></div>
             <div><dt>Resistance</dt><dd>{resistanceDistance == null ? "Unavailable" : `${Math.abs(resistanceDistance).toFixed(1)}% ${resistanceDistance >= 0 ? "above" : "below"} current price`}</dd></div>
             {source === "portfolio" && <div><dt>Value down to trigger</dt><dd>{money(row.capital_to_stop_usd)}</dd></div>}
           </dl>
+          {plan.stop?.structural_actionable === false && <p className="prb-unavailable">The support-derived structural stop is too wide to treat as actionable at this position size.</p>}
         </section>
         <section className="prb-read prb-read--entry" aria-label={`${row.symbol} entry read`}>
           <h4 className="prb-read__title">Entry</h4>

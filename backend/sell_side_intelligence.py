@@ -180,8 +180,12 @@ def build_sell_plan(
     # A valid structural stop belongs below support and at least one ATR below
     # the current quote, so ordinary candle noise is less likely to trip it.
     support_buffer = max(atr * 0.20, price * 0.0015)
-    stop_trigger = min(structure_support - support_buffer, price - atr)
-    stop_trigger = max(stop_trigger, price * 0.01)
+    structural_trigger = max(structure_support - support_buffer, price * 0.01)
+    volatility_reference = max(price - atr, price * 0.01)
+    floor_binds = volatility_reference < structural_trigger
+    stop_trigger = min(structural_trigger, volatility_reference)
+    structural_risk_pct = ((price - structural_trigger) / price) * 100.0
+    structural_actionable = structural_risk_pct <= 6
 
     # A sell stop-limit becomes a limit order after the trigger.  The lower
     # limit provides a bounded execution band.  Keep it within 75 bps so it is
@@ -224,6 +228,17 @@ def build_sell_plan(
         if risk_pct > 6
         else "A stop-limit controls the worst acceptable limit price, but a fast gap can pass it without a fill."
     )
+    trigger_source = "volatility_reference" if floor_binds else "structural_support"
+    stop_why = [
+        (
+            f"The effective stop trigger is volatility-derived at {_round_price(stop_trigger)}; "
+            f"the support-derived structural stop is {_round_price(structural_trigger)}."
+            if floor_binds
+            else f"The effective stop trigger is support-derived at {_round_price(stop_trigger)}."
+        ),
+        "The trigger sits below support with a volatility buffer and at least one ATR of room from the current quote.",
+        "The sell limit sits below the trigger to define a small execution band after activation.",
+    ]
 
     return {
         "available": True,
@@ -236,12 +251,13 @@ def build_sell_plan(
             "limit_price": rounded_limit,
             "distance_pct": round(-risk_pct, 2),
             "risk_band": _risk_band(risk_pct),
+            "trigger_source": trigger_source,
+            "structural_trigger_price": _round_price(structural_trigger),
+            "volatility_reference_price": _round_price(volatility_reference),
+            "structural_risk_pct": round(structural_risk_pct, 2),
+            "structural_actionable": structural_actionable,
             "invalidation_price": rounded_support,
-            "why": [
-                f"Recent structural support is {rounded_support}.",
-                "The trigger sits below support with a volatility buffer and at least one ATR of room from the current quote.",
-                "The sell limit sits below the trigger to define a small execution band after activation.",
-            ],
+            "why": [f"Recent structural support is {rounded_support}.", *stop_why],
             "execution_warning": stop_warning,
         },
         "profit": {

@@ -34,7 +34,7 @@ export default function RiskLevelsChart({ plan }) {
       why: `Latest sampled quote as of ${timeText(plan.price_as_of)}. The final completed candle can close at a different price.` },
     { id: 'support', label: 'Support reference', price: stop.invalidation_price, color: '#5fdbad',
       why: (stop.why || [])[0] || 'The structural reference used by this plan. A break below it weakens the setup.' },
-    { id: 'stop', label: 'Suggested stop trigger', price: stop.trigger_price, color: '#ffbc66',
+    { id: 'stop', label: stop.trigger_source === 'volatility_reference' ? 'Suggested stop trigger (volatility-derived)' : 'Suggested stop trigger', price: stop.trigger_price, color: '#ffbc66',
       why: (stop.why || []).join(' ') || 'The suggested activation price for a protective sell stop-limit, with room below the support reference for normal price movement.' },
     { id: 'limit', label: 'Suggested sell limit', price: stop.limit_price, color: '#ff829a',
       why: 'After the stop triggers, this is the lowest acceptable sell price before fees. It sits below the trigger to allow some price movement while the order fills. A fast drop through it can leave the order unfilled.' },
