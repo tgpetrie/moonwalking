@@ -17,7 +17,9 @@ module does not introduce a second, hand-tuned vocabulary:
     are declared geometric location bands in :func:`position_levels._range_zone`,
     not empirical rarity or tail-probability thresholds.
 * ``volume_ratio >= 1.5`` ("above baseline") is the cut
-  :func:`sell_side_intelligence._top_signal` already uses.
+  :func:`sell_side_intelligence._top_signal` already uses. It is a declared
+  multiplier of the measured window median, not an empirical rarity or
+  rank-percentile threshold.
 * live-signal ``confidence >= 78`` ("confirmed") is the cut
   :func:`alert_events.derive_event_read` uses to call a breakout confirmed.
 * ``risk_pct > 6`` ("wide") is :func:`sell_side_intelligence._risk_band`.
@@ -362,8 +364,9 @@ def build_entry_read(
                 reasons.append("Price is in the top 15% of its recent candle range.")
             if not above_baseline_volume:
                 reasons.append(
-                    "The latest measured candle did not carry above-baseline "
-                    "volume, so the push is unconfirmed."
+                    f"The latest measured candle did not reach "
+                    f"{VOLUME_BASELINE_RATIO}x the median volume of the measured "
+                    "window, so the push is unconfirmed."
                 )
             if reward_reason:
                 reasons.append(reward_reason)
@@ -401,7 +404,8 @@ def build_entry_read(
             )
         if not above_baseline_volume:
             reasons.append(
-                "The latest measured candle did not carry above-baseline volume."
+                f"The latest measured candle did not reach "
+                f"{VOLUME_BASELINE_RATIO}x the median volume of the measured window."
                 if volume_ratio is not None
                 else "A volume baseline is unavailable for this window."
             )
@@ -538,7 +542,9 @@ def build_entry_read(
                 "candle level or an ATR buffer around one. No forward "
                 "probability is claimed because comparable entry outcomes have "
                 "not been measured yet. The 15/85 bands are location bands for "
-                "the recent measured range only; tail quantiles are unavailable."
+                "the recent measured range only; tail quantiles are unavailable. "
+                "The 1.5x volume cut is a declared multiple of the measured "
+                "window median; volume rank percentiles are unavailable."
             ),
             "range_bands": {
                 "range_band_status": "declared_convention",
@@ -546,6 +552,12 @@ def build_entry_read(
                 "range_band_lower_pct": NEAR_SUPPORT_PCT,
                 "range_band_upper_pct": NEAR_RESISTANCE_PCT,
                 "empirical_tail_quantiles": "unavailable",
+            },
+            "volume_baseline": {
+                "volume_ratio_status": "declared_convention",
+                "volume_ratio_meaning": "multiple_of_measured_window_median",
+                "volume_ratio_threshold": VOLUME_BASELINE_RATIO,
+                "volume_rank_percentile": "unavailable",
             },
             "thresholds": {
                 "near_support_range_pct": NEAR_SUPPORT_PCT,

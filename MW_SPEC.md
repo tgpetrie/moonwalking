@@ -155,6 +155,12 @@ Tasks live in MW_BACKLOG.md.
 - `near_support` and `near_resistance` are geometric location labels, not empirical rarity, tail-probability, or calibration claims.
 - Per-coin empirical tail bands require a separately declared history window, minimum observation policy, completed-history-only computation, persistence and cold-start behavior, and an explicit insufficient-history fallback.
 
+5.0.1 Relative volume gate meaning
+- `volume_ratio >= 1.5` is a declared descriptive multiplier convention. It means the latest measured candle carried at least 1.5 times the median volume of the measured window.
+- It is not a rarity, rank, top-decile, or empirically calibrated volume claim.
+- The numerator is the newest bucket in the measured window and may still be in progress; product copy must not call it a completed candle.
+- Historical relative-volume ranking requires a separately declared ratio definition, denominator window, minimum comparable observations, completed-candle policy, fetch or persistence policy, cold-start behavior, and insufficient-history fallback.
+
 5.1 1-minute gainers table contract (strict)
 If there are 4 or fewer tokens available:
 - Single column, full width.

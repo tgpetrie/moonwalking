@@ -13,6 +13,7 @@ from typing import Any
 SUPPORT_BUFFER_ATR_MULTIPLE = 1.0
 SUPPORT_BUFFER_CONVENTION = "declared_convention"
 SUPPORT_BUFFER_REFERENCE = "2026-09-08 level calibration study"
+VOLUME_BASELINE_RATIO = 1.5
 
 
 def _number(value: Any) -> float | None:
@@ -90,10 +91,13 @@ def _top_signal(
         momentum is not None
         and momentum < 0
         and volume_ratio is not None
-        and volume_ratio >= 1.5
+        and volume_ratio >= VOLUME_BASELINE_RATIO
     ):
         score += 1
-        reasons.append("The momentum loss arrived on above-baseline volume.")
+        reasons.append(
+            f"The momentum loss arrived on at least {VOLUME_BASELINE_RATIO}x the "
+            "median volume of the measured window."
+        )
 
     risk_words = " ".join([primary_state, read_label, *alert_types]).lower()
     if any(
@@ -304,6 +308,10 @@ def build_sell_plan(
                 "support_buffer_atr_multiple": SUPPORT_BUFFER_ATR_MULTIPLE,
                 "support_buffer_status": SUPPORT_BUFFER_CONVENTION,
                 "support_buffer_reference": SUPPORT_BUFFER_REFERENCE,
+                "volume_ratio_status": "declared_convention",
+                "volume_ratio_meaning": "multiple_of_measured_window_median",
+                "volume_ratio_threshold": VOLUME_BASELINE_RATIO,
+                "volume_rank_percentile": "unavailable",
             },
         },
     }

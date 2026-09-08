@@ -168,6 +168,12 @@ Status: Open
 
 Scope: If the product later needs `near_support` / `near_resistance` to mean empirical per-coin tail conditions, first declare the historical window, minimum observation/sample policy, completed-history-only computation, persistence and cold-start behavior, and explicit insufficient-history fallback. Do not substitute global percentiles or hidden in-memory state.
 
+### P2.8 Design historical relative-volume ranking
+
+Status: Open
+
+Scope: If `volume_ratio` should ever express a rank rather than a fixed multiplier, first declare the exact historical ratio definition, the denominator/lookback window, the minimum number of comparable observations, the completed-candle policy, the extended-fetch or persistence policy, cold-start behavior, and the insufficient-history fallback. Historical observations must use strictly prior candles so no denominator contains future volume. Do not rank the current fetch window in place, and do not substitute a global percentile.
+
 ### P2.6 Portfolio Risk Board (sell-side levels, applied across real holdings)
 
 Status: Open

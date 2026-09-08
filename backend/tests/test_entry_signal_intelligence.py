@@ -105,7 +105,7 @@ def test_same_push_without_volume_is_too_extended_not_a_breakout():
     assert unconfirmed["entry_signal"]["status"] == "extended"
     assert unconfirmed["entry_zone"]["low"] is None
     assert any(
-        "above-baseline volume" in reason
+        "did not reach 1.5x the median volume" in reason
         for reason in unconfirmed["entry_signal"]["reasons"]
     )
 
@@ -144,6 +144,22 @@ def test_volume_wording_matches_the_measured_bucket_without_changing_the_gate():
     assert all("completed candle" not in reason for reason in volume_reasons)
     assert any("latest measured candle" in reason for reason in volume_reasons)
     assert any("1.5x the median volume" in reason for reason in volume_reasons)
+
+
+def test_volume_gate_is_declared_multiplier_not_an_empirical_rank():
+    methodology = read()["methodology"]
+    baseline = methodology["volume_baseline"]
+    disclosure = methodology["disclosure"].lower()
+
+    assert baseline == {
+        "volume_ratio_status": "declared_convention",
+        "volume_ratio_meaning": "multiple_of_measured_window_median",
+        "volume_ratio_threshold": 1.5,
+        "volume_rank_percentile": "unavailable",
+    }
+    assert "declared multiple of the measured window median" in disclosure
+    for word in ("unusual", "rare", "exceptional", "top-decile", "calibrated"):
+        assert word not in disclosure
 
 
 def test_support_reclaim_names_the_close_invalidation():
