@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+import sell_side_intelligence
 from sell_side_intelligence import build_sell_plan
 
 
@@ -46,6 +47,17 @@ def test_one_atr_buffer_keeps_structural_trigger_below_volatility_reference():
     assert plan["stop"]["structural_risk_pct"] == 15
     assert plan["stop"]["structural_actionable"] is False
     assert "support-derived" in plan["stop"]["why"][1]
+
+
+def test_trigger_source_stays_truthful_when_volatility_reference_wins(monkeypatch):
+    # Exercise the compatibility branch without changing the production convention.
+    monkeypatch.setattr(sell_side_intelligence, "SUPPORT_BUFFER_ATR_MULTIPLE", 0.20)
+    levels = {**LEVELS, "support": 99}
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=levels)
+
+    assert plan["stop"]["trigger_source"] == "volatility_reference"
+    assert plan["stop"]["trigger_price"] == plan["stop"]["volatility_reference_price"]
+    assert plan["stop"]["structural_trigger_price"] == 98.6
 
 
 def test_support_buffer_is_declared_convention_not_optimized_parameter():
