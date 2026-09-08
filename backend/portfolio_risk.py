@@ -4,6 +4,7 @@ import math
 import re
 from datetime import datetime
 
+from entry_signal_intelligence import build_entry_read
 from sell_side_intelligence import build_sell_plan
 
 
@@ -64,6 +65,15 @@ def normalize_holdings(holdings, *, positions):
 def build_risk_board(holdings, levels, contexts, *, source, quote_as_of, now):
     rows = []
     counts = {"high": 0, "watch": 0, "clear": 0, "unavailable": 0}
+    entry_counts = {
+        "breakout": 0,
+        "entry_watch": 0,
+        "pullback": 0,
+        "extended": 0,
+        "invalidated": 0,
+        "clear": 0,
+        "unavailable": 0,
+    }
     amounts = []
     excluded = []
     breached = []
@@ -89,6 +99,23 @@ def build_risk_board(holdings, levels, contexts, *, source, quote_as_of, now):
         plan.update(generated_at=int(now), price_as_of=int(quote_as_of))
         if plan["available"] and structure and structure.get("chart"):
             plan["chart"] = {**structure["chart"], "product_id": holding["product_id"]}
+        # The entry read uses the same quote, the same measured levels and the
+        # same structural support the protection plan just published, so the two
+        # reads on one card can never name different levels.
+        entry = build_entry_read(
+            product_id=holding["product_id"],
+            current_price=price if fresh else None,
+            levels=structure,
+            signal_context=contexts.get(symbol),
+            sell_plan=plan,
+        )
+        if not entry["available"] and not fresh:
+            entry["reason"] = plan["reason"]
+            entry["entry_signal"]["reasons"] = [plan["reason"]]
+        entry.update(generated_at=int(now), price_as_of=int(quote_as_of))
+        entry_status = entry["entry_signal"]["status"]
+        entry_status = entry_status if entry_status in entry_counts else "unavailable"
+        entry_counts[entry_status] += 1
         qty = holding["quantity"]
         amount = None
         distance = None
@@ -120,7 +147,9 @@ def build_risk_board(holdings, levels, contexts, *, source, quote_as_of, now):
             {
                 **holding,
                 "plan": plan,
+                "entry": entry,
                 "status": status,
+                "entry_status": entry_status,
                 "market_value_usd": (
                     qty * price if qty is not None and price is not None else None
                 ),
@@ -140,6 +169,7 @@ def build_risk_board(holdings, levels, contexts, *, source, quote_as_of, now):
         "rows": rows,
         "summary": {
             "counts": counts,
+            "entry_counts": entry_counts,
             "total": len(rows),
             "capital_to_stop_usd": sum(amounts) if amounts else None,
             "sized_plan_count": len(amounts),

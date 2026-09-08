@@ -267,3 +267,100 @@ Status: Done
 - Added truthful provider-readiness rows for CoinGlass derivatives, Arkham labeled on-chain flows, and CoinMarketCal catalysts; they remain `not_configured` until licensed credentials and adapters are supplied.
 
 Verification: 65 backend tests passed (65 provider-dependent tests skipped), 28 frontend tests passed, production frontend build passed, live Signals/Pulse switching passed, and the browser console remained clean.
+
+### P2.7 Entry-side (buy-side) read on the Risk Board
+
+Status: Done
+
+Problem: the risk levels work answers only sell-side questions - where the
+stop belongs, where support and resistance sit, whether top risk is elevated.
+A holder or a buyer also needs the entry-side read: is this building strength,
+is it breaking out on real volume, is it reclaiming support after weakness, is
+it too extended to chase, where is invalidation if entering, and is the
+reward acceptable from here. None of that existed.
+
+Added:
+
+- `backend/entry_signal_intelligence.py`, a pure module beside
+  `sell_side_intelligence.py`. `build_entry_read` classifies one coin as
+  `Breakout watch`, `Support reclaim`, `Pullback watch`, `Too extended`,
+  `Invalidated - wait`, or `No entry signal`, and returns an entry zone, an
+  invalidation price and distance, a reward-to-risk reference against the
+  measured resistance, and reason strings that each name a real field.
+- Every threshold is reused from a module that already ships rather than
+  hand-tuned here: the `range_position_pct` 15/85 band edges from
+  `position_levels`, `volume_ratio >= 1.5` from `sell_side_intelligence`,
+  live-signal `confidence >= 78` from `alert_events.derive_event_read`, and
+  the `risk_pct > 6` wide-risk band from `sell_side_intelligence`. The
+  declared thresholds are echoed in `methodology.thresholds` so the UI can
+  disclose them.
+- No entry price is invented. The support/reclaim zone and the invalidation
+  price are taken from the matching `build_sell_plan` output, so the
+  protection read and the entry read on one card can never name two different
+  levels. When price is above the measured range the read says there is no
+  overhead reference instead of extrapolating a target.
+- A reversal or fading warning, a down signal direction, or price at or below
+  the structural support routes to `Invalidated - wait` with an evidence score
+  of zero, ahead of every constructive branch.
+- `outcome_validated`, `history_available` and `order_placement` are all
+  false, and no probability is quoted, because comparable entry outcomes have
+  not been measured yet.
+- `portfolio_risk.build_risk_board` attaches the entry read to every row off
+  the same quote and the same levels, adds `entry_status` per row and
+  `summary.entry_counts`, and leaves protection-first row ordering unchanged.
+- `GET /api/risk-levels/<product_id>` returns the entry read alongside the
+  plan.
+- `PortfolioRiskBoard.jsx` renders two labeled reads per card - Protection and
+  Entry - with a second tone chip, the entry zone, the invalidation distance,
+  the reward-to-risk reference, and the declared-cue evidence score, plus an
+  entry summary strip. A row without an entry read says so instead of
+  implying a clear entry.
+
+Two corrections came out of the live pass and are included above: a
+mid-range coin whose reward no longer covers its risk now reads `Poor reward
+from here` rather than `Too extended`, which was inaccurate for a coin at 52%
+of its range, and the reason that decided the label is now always stated
+first, because the collapsed card shows only that one.
+
+Verification run: the backend suite passes at 569 tests, including the 13
+existing Portfolio Risk Board route tests and 17 new entry tests. The four new
+frontend entry tests and the five existing Portfolio Risk Board tests pass.
+The Flask app was started against live Coinbase data and both
+`/api/risk-levels/BTC` and `/api/risk-levels/portfolio` were exercised over a
+17-coin watchlist. Real data produced `Support reclaim` (AAVE, bottom 15% of
+range), `Invalidated - wait` (ICP, live reversal warning, ahead of its
+top-of-range position), `Too extended`, `Poor reward from here`, `No entry
+signal`, and named unavailable states, and the entry invalidation price
+matched the protection plan's invalidation price on every row.
+
+Caveat on that run: it was executed in a Linux container against the same
+commit, not on the Windows checkout, because the desktop shell was unavailable
+this session. Three sentiment-service test files were excluded there for
+missing optional subpackages unrelated to this work.
+
+Windows verification: the full backend suite passed with local coverage addopts
+disabled because this checkout's Windows environment is missing `pytest-cov`
+(`573 passed, 65 skipped`). The production frontend build and full frontend
+test suite passed (`39 files, 491 tests`). `npm run guardrails` passed. Flask
+and Vite were started locally on ports 5003 and 5173, `/api/risk-levels/BTC`
+and `/api/risk-levels/portfolio?symbols=BTC,ETH,SOL` returned live Coinbase
+plans with entry reads, and a headless browser render of `/risk-board` against
+that live payload showed three cards, entry text, stop/invalidation fields, and
+an expanded chart with no console errors.
+
+### P2.8 Watchlist market workspace
+
+Status: In progress
+
+The authenticated watchlist now requests quotes for every symbol in the
+selected list, so coverage is not limited to the board worker's rotating
+market sample. Cards show real Coinbase prices, measured 1m/3m/1h/24h changes,
+and explicit unavailable or stale states. Per-list preferences include card,
+compact, and list views, performance sorting, optional score and notes, and
+copying selected symbols into a smaller list. Crypto logos use a public asset
+image with a symbol fallback; stock logos are supported but stock quote data
+remains unavailable until a stock feed is connected.
+
+Verification: 10 targeted backend tests and 4 watchlist frontend tests pass;
+the full frontend suite passes (`40 files, 495 tests`). A live authenticated
+browser pass returned `81/81 matched` quotes for the current list.

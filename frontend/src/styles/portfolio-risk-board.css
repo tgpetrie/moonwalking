@@ -20,10 +20,20 @@
 .prb-card--clear { border-top-color: #84b7a9; }
 .prb-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
 .prb-price { font-variant-numeric: tabular-nums; font-size: 1.3rem; color: #e9e2d5; }
+.prb-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .prb-chip { font-size: .69rem; white-space: nowrap; padding: 5px 8px; border-radius: var(--r-1, 4px); background: #ffffff0a; color: #c5bfce; }
 .prb-chip--high { color: #f4a7ae; background: #e7959c12; }
 .prb-chip--watch { color: #e9c991; background: #dfba7712; }
 .prb-chip--clear { color: #a5d0c4; background: #84b7a912; }
+.prb-chip--tone-positive { color: #a5d0c4; background: #84b7a912; }
+.prb-chip--tone-caution { color: #e9c991; background: #dfba7712; }
+.prb-chip--tone-negative { color: #f4a7ae; background: #e7959c12; }
+.prb-chip--tone-neutral { color: #c5bfce; background: #ffffff0a; }
+.prb-read { margin-top: 6px; }
+.prb-read--entry { margin-top: 16px; padding-top: 14px; border-top: 1px solid #ffffff12; }
+.prb-read__title { margin: 0 0 8px; font-size: .68rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #b9a0ff; }
+.prb-entry-note { margin: 8px 0 0; font-size: .74rem; line-height: 1.6; color: #9c94ab; }
+.prb-summary--entry { margin-top: -8px; }
 .prb-reason, .prb-unavailable { font-size: .83rem; line-height: 1.65; min-height: 44px; }
 .prb-range { margin: 20px 0; }
 .prb-range__labels { display: flex; justify-content: space-between; font-size: .68rem; color: #b6afc4; }

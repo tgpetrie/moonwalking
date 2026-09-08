@@ -5,6 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { DataProvider, useData } from "../context/DataContext.jsx";
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
 import PortfolioRiskBoard from "../components/PortfolioRiskBoard.jsx";
@@ -365,9 +366,102 @@ function formatItemTitle(symbol) {
 
 function guessItemType(symbol) {
   if (!symbol) return "Asset";
-  if (["BTC", "ETH", "SOL"].includes(symbol)) return "Crypto";
-  if (symbol.length <= 5) return "Stock";
-  return "Private";
+  if (["TSLA", "NVDA", "MSFT", "AAPL", "GOOGL", "AMZN", "META"].includes(symbol)) {
+    return "Stock";
+  }
+  return "Crypto";
+}
+
+const asFiniteNumber = (value) => {
+  if (value == null || value === "" || typeof value === "boolean") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+function formatMoney(value) {
+  const number = asFiniteNumber(value);
+  if (number === null) return "No live tick";
+  if (number >= 1000) {
+    return number.toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  if (number >= 1) {
+    return number.toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  return `$${number.toLocaleString(undefined, { maximumSignificantDigits: 5 })}`;
+}
+
+function formatPercent(value) {
+  const number = asFiniteNumber(value);
+  if (number === null) return "—";
+  const sign = number > 0 ? "+" : "";
+  return `${sign}${number.toFixed(Math.abs(number) >= 10 ? 1 : 2)}%`;
+}
+
+function normalizeMarketSymbol(value) {
+  return String(value || "").trim().toUpperCase().replace(/-USD$/, "");
+}
+
+export function buildMarketBySymbol(payload) {
+  const root = payload?.data ?? payload ?? {};
+  const map = new Map();
+  const rows = { ...(root.latest_by_symbol || {}), ...(root.quotes || {}) };
+  Object.entries(rows).forEach(([key, row]) => {
+    const symbol = normalizeMarketSymbol(row?.symbol || key);
+    if (!symbol) return;
+    const previous = map.get(symbol) || {};
+    map.set(symbol, {
+      symbol,
+      price: asFiniteNumber(row.price ?? row.current_price) ?? previous.price ?? null,
+      previous: {
+        "1m": asFiniteNumber(row.previous_price_1m) ?? previous.previous?.["1m"] ?? null,
+        "3m": asFiniteNumber(row.previous_price_3m) ?? previous.previous?.["3m"] ?? null,
+        "1h": asFiniteNumber(row.previous_price_1h) ?? previous.previous?.["1h"] ?? null,
+        "24h": asFiniteNumber(row.previous_price_24h) ?? previous.previous?.["24h"] ?? null,
+      },
+      changes: {
+        "1m": asFiniteNumber(row.pct_1m) ?? previous.changes?.["1m"] ?? null,
+        "3m": asFiniteNumber(row.pct_3m) ?? previous.changes?.["3m"] ?? null,
+        "1h": asFiniteNumber(row.pct_1h) ?? previous.changes?.["1h"] ?? null,
+        "24h": asFiniteNumber(row.pct_24h) ?? previous.changes?.["24h"] ?? null,
+      },
+      sampleTs: asFiniteNumber(row.sample_ts) ?? previous.sampleTs,
+      label: row.live_label ?? previous.label,
+      score: asFiniteNumber(row.live_score) ?? previous.score,
+    });
+  });
+  return map;
+}
+
+const CHANGE_WINDOWS = [{ key: "1m", label: "1 min" }, { key: "3m", label: "3 min" }, { key: "1h", label: "60 min" }, { key: "24h", label: "24 hr" }];
+
+function AssetLogo({ symbol, stock }) {
+  const [attempt, setAttempt] = useState(0);
+  const sources = stock
+    ? [`https://financialmodelingprep.com/image-stock/${encodeURIComponent(symbol)}.png`]
+    : [`https://cdn.jsdelivr.net/gh/vadimmalykhin/binance-icons@master/crypto/${encodeURIComponent(symbol.toLowerCase())}.svg`, `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${encodeURIComponent(symbol.toLowerCase())}.png`];
+  return <div className="mw-coin-avatar" style={coinAccent(symbol)}>
+    {attempt < sources.length ? <img src={sources[attempt]} alt={`${symbol} logo`} loading="lazy" onError={() => setAttempt((value) => value + 1)} /> : <span title="Logo unavailable">{symbol.slice(0, 2)}</span>}
+  </div>;
+}
+
+function coinAccent(symbol) {
+  let hash = 0;
+  for (const char of String(symbol || "")) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 360;
+  }
+  return {
+    background: `linear-gradient(135deg, hsl(${hash} 82% 62%), hsl(${(hash + 42) % 360} 78% 48%))`,
+  };
 }
 
 function formatRelativeTime(value) {
@@ -858,12 +952,14 @@ function ForgotPasswordPage({ navigate }) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
+  const [devResetLink, setDevResetLink] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setErrorMessage("");
+    setDevResetLink("");
     try {
       const payload = await apiRequest("/api/auth/forgot-password", {
         method: "POST",
@@ -871,6 +967,7 @@ function ForgotPasswordPage({ navigate }) {
       });
       // The backend answers identically whether or not the address exists.
       setNotice(payload?.message || "If an account exists for that email, we sent reset instructions.");
+      setDevResetLink(payload?.dev_reset_link || "");
     } catch (error) {
       setErrorMessage(error.message || "Could not send reset instructions.");
     } finally {
@@ -887,32 +984,38 @@ function ForgotPasswordPage({ navigate }) {
           Enter the email on your account and we will send a link for choosing a new
           password. The link expires in 30 minutes.
         </p>
-        {notice ? (
-          <p className="mw-auth-feedback">{notice}</p>
-        ) : (
-          <form className="mw-auth-form" onSubmit={handleSubmit}>
-            <label className="mw-field">
-              <span>Email</span>
-              <input
-                type="email"
-                placeholder="jane@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </label>
-            <button
-              type="submit"
-              className="mw-button mw-button--primary mw-button--block"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Sending..." : "Send Reset Link"}
-            </button>
-            {errorMessage ? (
-              <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p>
-            ) : null}
-          </form>
-        )}
+        {notice ? <p className="mw-auth-feedback">{notice}</p> : null}
+        {devResetLink ? (
+          <div className="mw-auth-feedback">
+            <p>Local development email is not configured. Use this one-time reset link on this machine:</p>
+            <p>
+              <a className="mw-inline-link" href={devResetLink}>Open reset link</a>
+            </p>
+            <code>{devResetLink}</code>
+          </div>
+        ) : null}
+        <form className="mw-auth-form" onSubmit={handleSubmit}>
+          <label className="mw-field">
+            <span>Email</span>
+            <input
+              type="email"
+              placeholder="jane@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className="mw-button mw-button--primary mw-button--block"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Sending..." : "Send Reset Link"}
+          </button>
+          {errorMessage ? (
+            <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p>
+          ) : null}
+        </form>
         <div className="mw-auth-links">
           <p>
             Remembered it?{" "}
@@ -1284,7 +1387,7 @@ function DashboardPage({ session, watchlists, portfolio, navigate }) {
   );
 }
 
-function WatchlistsPage({
+export function WatchlistsPage({
   watchlists,
   selectedWatchlistId,
   setSelectedWatchlistId,
@@ -1302,12 +1405,72 @@ function WatchlistsPage({
   const [nameDraft, setNameDraft] = useState(selectedWatchlist?.name || "");
   const [itemDraft, setItemDraft] = useState("");
   const [filterQuery, setFilterQuery] = useState("");
-  const [sortBy, setSortBy] = useState("position");
+  const [listPreferences, setListPreferences] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mw_watchlist_views_v1") || "{}"); } catch { return {}; }
+  });
+  const preferences = listPreferences[selectedWatchlist?.id] || {};
+  const sortBy = preferences.sort || "gainers";
+  const changeWindow = preferences.window || "24h";
+  const view = preferences.view || "cards";
+  const showScore = preferences.score !== false;
+  const showNotes = preferences.notes === true;
+  const [selectedAssets, setSelectedAssets] = useState([]);
+  const [copying, setCopying] = useState(false);
+  const updatePreferences = (patch) => setListPreferences((current) => ({ ...current, [selectedWatchlist.id]: { ...current[selectedWatchlist.id], ...patch } }));
+  useEffect(() => { try { localStorage.setItem("mw_watchlist_views_v1", JSON.stringify(listPreferences)); } catch {} }, [listPreferences]);
+  useEffect(() => { setSelectedAssets([]); }, [selectedWatchlist?.id]);
+  const feed = useData();
+  const [requestedQuotes, setRequestedQuotes] = useState(null);
+  const marketBySymbol = useMemo(() => buildMarketBySymbol({
+    data: { ...(feed?.data || {}), quotes: requestedQuotes?.quotes || {} },
+  }), [feed?.data, requestedQuotes]);
+  const [dayMarket, setDayMarket] = useState(null);
+  const marketStatus = requestedQuotes
+    ? requestedQuotes.stale ? "error" : "ready"
+    : feed?.loading ? "loading" : feed?.connectionStatus === "LIVE" ? "ready" : "error";
   const deferredFilter = useDeferredValue(filterQuery);
 
   useEffect(() => {
     setNameDraft(selectedWatchlist?.name || "");
   }, [selectedWatchlist?.id, selectedWatchlist?.name]);
+
+  useEffect(() => {
+    const symbols = (selectedWatchlist?.items || []).map((item) => normalizeMarketSymbol(item.itemKey)).filter(Boolean);
+    if (!symbols.length) { setRequestedQuotes({ quotes: {}, matched: 0, requested: 0 }); return undefined; }
+    const controller = new AbortController();
+    let timer;
+    const load = async () => {
+      try {
+        const response = await fetch(`${getBackendBase()}/api/watchlist-market/quotes?symbols=${encodeURIComponent(symbols.join(","))}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("unavailable");
+        const payload = await response.json();
+        if (!controller.signal.aborted) setRequestedQuotes(payload);
+      } catch (_error) {
+        if (!controller.signal.aborted) setRequestedQuotes((last) => last ? { ...last, stale: true } : null);
+      } finally {
+        if (!controller.signal.aborted) timer = window.setTimeout(load, 60000);
+      }
+    };
+    load();
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [selectedWatchlist?.id, selectedWatchlist?.items]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load24h = async () => {
+      try {
+        const response = await fetch(`${getBackendBase()}/api/watchlist-market/24h`);
+        if (!response.ok) throw new Error("unavailable");
+        const payload = await response.json();
+        if (!cancelled) setDayMarket(payload);
+      } catch (_error) {
+        if (!cancelled) setDayMarket((last) => last ? { ...last, stale: true } : null);
+      }
+    };
+    load24h();
+    const timer = window.setInterval(load24h, 60000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
 
   const visibleItems = useMemo(() => {
     const nextItems = [...(selectedWatchlist?.items || [])];
@@ -1323,13 +1486,28 @@ function WatchlistsPage({
 
     filtered.sort((left, right) => {
       if (sortBy === "title") return left.title.localeCompare(right.title);
-      if (sortBy === "type") return left.itemType.localeCompare(right.itemType);
       if (sortBy === "updated") return right.position - left.position;
+      if (["gainers", "losers", "movers", "price", "score"].includes(sortBy)) {
+        const metric = (item) => {
+          const symbol = normalizeMarketSymbol(item.itemKey);
+          if (guessItemType(symbol) === "Stock") return null;
+          const market = marketBySymbol.get(symbol);
+          const day = dayMarket?.products?.[`${symbol}-USD`];
+          if (sortBy === "price") return market?.price ?? day?.price ?? null;
+          if (sortBy === "score") return market?.score ?? null;
+          const value = changeWindow === "24h" || changeWindow === "all" ? day?.pct_24h : market?.changes?.[changeWindow];
+          return value == null ? null : sortBy === "movers" ? Math.abs(value) : value;
+        };
+        const a = metric(left), b = metric(right);
+        if (a == null && b != null) return 1;
+        if (b == null && a != null) return -1;
+        if (a != null && b != null && a !== b) return sortBy === "losers" ? a - b : b - a;
+      }
       return left.position - right.position;
     });
 
     return filtered;
-  }, [deferredFilter, selectedWatchlist?.items, sortBy]);
+  }, [deferredFilter, selectedWatchlist?.items, sortBy, marketBySymbol, dayMarket, changeWindow]);
 
   if (!selectedWatchlist) {
     return (
@@ -1349,7 +1527,7 @@ function WatchlistsPage({
         <div className="mw-panel__header">
           <div>
             <h3>Watchlists</h3>
-            <span>Cloud-saved collections</span>
+            <span>Separate lists for different strategies</span>
           </div>
           <button type="button" className="mw-button mw-button--primary" onClick={onCreateWatchlist}>
             + New Watchlist
@@ -1444,9 +1622,13 @@ function WatchlistsPage({
             </label>
             <div className="mw-pill-row">
               {[
-                { value: "position", label: "Manual" },
-                { value: "title", label: "Title" },
-                { value: "type", label: "Type" },
+                { value: "gainers", label: "Top gainers" },
+                { value: "losers", label: "Top losers" },
+                { value: "movers", label: "Biggest moves" },
+                { value: "price", label: "Highest price" },
+                { value: "score", label: "Highest score" },
+                { value: "position", label: "Saved order" },
+                { value: "title", label: "A–Z" },
                 { value: "updated", label: "Newest" },
               ].map((option) => (
                 <button
@@ -1456,7 +1638,8 @@ function WatchlistsPage({
                     "mw-pill",
                     sortBy === option.value && "is-active"
                   )}
-                  onClick={() => setSortBy(option.value)}
+                  aria-pressed={sortBy === option.value}
+                  onClick={() => updatePreferences({ sort: option.value })}
                 >
                   {option.label}
                 </button>
@@ -1464,46 +1647,97 @@ function WatchlistsPage({
             </div>
           </div>
 
-          <div className="mw-table-shell">
-            <table className="mw-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Type</th>
-                  <th>Notes</th>
-                  <th aria-label="Remove item" />
-                </tr>
-              </thead>
-              <tbody>
-                {visibleItems.map((item) => (
-                  <tr key={`${item.id}:${item.notes}`}>
-                    <td>
-                      <strong>{item.title}</strong>
-                      <span>{item.itemKey}</span>
-                    </td>
-                    <td>{item.itemType}</td>
-                    <td>
-                      <input
-                        type="text"
-                        defaultValue={item.notes}
-                        onBlur={(event) =>
-                          onUpdateItemNotes(selectedWatchlist.id, item.id, event.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="mw-table__remove"
-                        onClick={() => onRemoveItem(selectedWatchlist.id, item.id)}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mw-watchlist-marketbar">
+            <span>{marketStatus === "ready" ? "Live Coinbase ticks" : marketStatus === "loading" ? "Loading live ticks" : "Live ticks unavailable"}</span>
+            <strong>{visibleItems.filter((item) => marketBySymbol.has(normalizeMarketSymbol(item.itemKey))).length}/{visibleItems.length} matched</strong>
+          </div>
+
+          <div className="mw-watchlist-windows" role="group" aria-label="Price change period">
+            <span>Price change</span>
+            {[...CHANGE_WINDOWS, { key: "all", label: "All" }].map((window) => (
+              <button type="button" key={window.key} aria-pressed={changeWindow === window.key} onClick={() => updatePreferences({ window: window.key })}>{window.label}</button>
+            ))}
+          </div>
+          <div className="mw-watchlist-display">
+            <div className="mw-watchlist-windows" role="group" aria-label="Watchlist view">
+              {[{ key: "cards", label: "Cards" }, { key: "compact", label: "Compact" }, { key: "list", label: "List" }].map((option) => <button key={option.key} type="button" aria-pressed={view === option.key} onClick={() => updatePreferences({ view: option.key })}>{option.label}</button>)}
+            </div>
+            <label><input type="checkbox" checked={showScore} onChange={(event) => updatePreferences({ score: event.target.checked })} /> Score &amp; market read</label>
+            <label><input type="checkbox" checked={showNotes} onChange={(event) => updatePreferences({ notes: event.target.checked })} /> My notes</label>
+            <a className="mw-pill" href="/app/risk-board">Entry &amp; protection levels</a>
+          </div>
+          <p className="mw-watchlist-help">{changeWindow === "all" ? "Performance sorting uses 24 hours. " : ""}Missing values sort last. Select assets to copy into a smaller watchlist.</p>
+          {selectedAssets.length > 0 ? <div className="mw-watchlist-selection">
+            <strong>{selectedAssets.length} selected</strong>
+            <button type="button" className="mw-pill" disabled={copying} onClick={async () => { setCopying(true); try { await onCreateWatchlist(selectedAssets); setSelectedAssets([]); } finally { setCopying(false); } }}>Create list from selection</button>
+            <select aria-label="Copy selected assets to watchlist" disabled={copying} value="" onChange={async (event) => {
+              const target = event.target.value;
+              if (!target) return;
+              setCopying(true);
+              try { for (const symbol of selectedAssets) await onAddItem(target, symbol); setSelectedAssets([]); } finally { setCopying(false); }
+            }}><option value="">Copy to existing list…</option>{watchlists.filter((list) => list.id !== selectedWatchlist.id).map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}</select>
+          </div> : null}
+          <div className={classNames("mw-watchlist-grid", `mw-watchlist-grid--${view}`)}>
+            {visibleItems.map((item) => {
+              const symbol = normalizeMarketSymbol(item.itemKey);
+              const market = marketBySymbol.get(symbol);
+              const stock = guessItemType(symbol) === "Stock";
+              const dayQuote = stock ? null : dayMarket?.products?.[`${symbol}-USD`];
+              const dayStale = dayMarket?.stale || !dayMarket?.updated_at || Date.now() / 1000 - dayMarket.updated_at > 120;
+              const quoteUpdatedAt = market?.sampleTs || requestedQuotes?.updated_at || (Number(feed?.data?.updated_at) > 1e12 ? Number(feed.data.updated_at) / 1000 : Number(feed?.data?.updated_at));
+              const quoteStale = marketStatus !== "ready" || !quoteUpdatedAt || Date.now() / 1000 - quoteUpdatedAt > 90;
+              const changes = { ...market?.changes, "24h": asFiniteNumber(market?.changes?.["24h"] ?? dayQuote?.pct_24h) };
+              const previousPrices = { ...market?.previous, "24h": asFiniteNumber(market?.previous?.["24h"] ?? dayQuote?.previous_price) };
+              const windows = changeWindow === "all" ? CHANGE_WINDOWS : CHANGE_WINDOWS.filter((window) => window.key === changeWindow);
+              const price = stock ? null : market?.price ?? dayQuote?.price;
+              return (
+                <article className="mw-watchlist-asset" key={item.id}>
+                  <div className="mw-watchlist-asset__identity">
+                    <input type="checkbox" className="mw-watchlist-select" aria-label={`Select ${symbol}`} checked={selectedAssets.includes(symbol)} onChange={(event) => setSelectedAssets((current) => event.target.checked ? [...current, symbol] : current.filter((value) => value !== symbol))} />
+                    <AssetLogo key={symbol} symbol={symbol} stock={stock} />
+                    <div>
+                      <h3>{symbol}</h3>
+                      <p>{formatItemTitle(symbol)}</p>
+                    </div>
+                  </div>
+                  <div className="mw-watchlist-asset__price">
+                    <strong>{formatMoney(price)}</strong>
+                    <small>{stock ? "Stock feed not connected" : price == null ? "Quote unavailable" : market?.price != null ? quoteStale ? "Stale quote" : "Live · USD" : dayStale ? "Stale quote" : "Coinbase · 60s refresh"}</small>
+                    <div className="mw-watchlist-changes">
+                      {windows.map((window) => {
+                        const pct = stock ? null : changes[window.key];
+                        const stale = window.key === "24h" ? dayStale : quoteStale;
+                        const previous = previousPrices[window.key];
+                        return <span key={window.key} className={classNames("mw-market-move", pct > 0 ? "is-up" : pct < 0 ? "is-down" : "")}>
+                          <small>{window.label}</small> <strong>{previous == null || price == null ? "Previous unavailable" : `${formatMoney(previous)} → ${formatMoney(price)}`}</strong> <em>{pct == null ? "Unavailable" : formatPercent(pct)}{pct != null && stale ? " · Stale" : ""}</em>
+                        </span>;
+                      })}
+                    </div>
+                  </div>
+                  {showScore ? <div className="mw-watchlist-asset__meta">
+                    {market?.score !== null && market?.score !== undefined ? <span>Live score {Math.round(market.score)}</span> : null}
+                    {market?.label ? <span>{market.label}</span> : null}
+                  </div> : null}
+                  {showNotes ? <input
+                    type="text"
+                    aria-label={`${symbol} notes`}
+                    key={`${item.id}:${item.notes}`}
+                    placeholder="Add your own note"
+                    defaultValue={/^(Auto-added from portfolio|New entry\.)$/i.test((item.notes || "").trim()) ? "" : item.notes}
+                    onBlur={(event) =>
+                      onUpdateItemNotes(selectedWatchlist.id, item.id, event.target.value)
+                    }
+                  /> : null}
+                  <button
+                    type="button"
+                    className="mw-table__remove"
+                    onClick={() => onRemoveItem(selectedWatchlist.id, item.id)}
+                  >
+                    Remove
+                  </button>
+                </article>
+              );
+            })}
           </div>
         </article>
 
@@ -1902,7 +2136,8 @@ export default function MvpApp() {
     navigate("/");
   };
 
-  const handleCreateWatchlist = async () => {
+  const handleCreateWatchlist = async (initialSelection) => {
+    const symbols = Array.isArray(initialSelection) ? initialSelection : [];
     if (session.isAuthenticated) {
       try {
         const payload = await apiRequest("/api/watchlists", {
@@ -1915,6 +2150,7 @@ export default function MvpApp() {
         });
         if (payload?.watchlist) {
           setWatchlists((current) => [...current, payload.watchlist]);
+          for (const symbol of symbols) await handleAddItem(payload.watchlist.id, symbol);
           setSelectedWatchlistId(payload.watchlist.id);
           setWatchlistSyncError("");
         }
@@ -1934,6 +2170,7 @@ export default function MvpApp() {
       items: [],
     };
     setWatchlists((current) => [nextWatchlist, ...current]);
+    for (const symbol of symbols) await handleAddItem(nextId, symbol);
     setSelectedWatchlistId(nextId);
   };
 
@@ -2007,7 +2244,7 @@ export default function MvpApp() {
               itemKey: symbol,
               itemType: guessItemType(symbol),
               title: formatItemTitle(symbol),
-              notes: "New entry.",
+              notes: "",
             },
           }
         );
@@ -2031,7 +2268,7 @@ export default function MvpApp() {
             itemKey: symbol,
             itemType: guessItemType(symbol),
             title: formatItemTitle(symbol),
-            notes: "New entry.",
+            notes: "",
             position: watchlist.items.length + 1,
           },
         ],
@@ -2159,7 +2396,7 @@ export default function MvpApp() {
         );
       case APP_WATCHLISTS_PATH:
         return (
-          <WatchlistsPage
+          <DataProvider><WatchlistsPage
             watchlists={watchlists}
             selectedWatchlistId={selectedWatchlistId}
             setSelectedWatchlistId={setSelectedWatchlistId}
@@ -2171,7 +2408,7 @@ export default function MvpApp() {
             onUpdateWatchlistNotes={handleUpdateWatchlistNotes}
             onUpdateItemNotes={handleUpdateItemNotes}
             syncMessage={watchlistSyncError}
-          />
+          /></DataProvider>
         );
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;

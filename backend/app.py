@@ -222,6 +222,7 @@ from alert_delivery import dispatcher as alert_delivery_dispatcher
 from signal_context import build_signal_context
 from signal_outcomes import store as signal_outcome_store
 from sell_side_intelligence import build_sell_plan
+from entry_signal_intelligence import build_entry_read
 from sell_plan_outcomes import store as sell_plan_outcome_store
 
 try:
@@ -8807,6 +8808,11 @@ def data_aggregate():
                         continue
                     latest_by_symbol[sym] = {"symbol": sym, "price": price_f}
 
+            # Full-universe quotes come from the existing worker, not selected movers.
+            full_quotes = _mw_get_component_snapshot("watchlist_quotes")
+            if isinstance(full_quotes, dict):
+                latest_by_symbol.update(full_quotes)
+
             # Dedupe movers by product_id and inject must-include staples
             dedupe_dropped = {}
             try:
@@ -11931,11 +11937,24 @@ def get_risk_levels(product_id: str):
         plan["price_as_of"] = int(last_current_prices.get("timestamp") or 0)
         if plan.get("available") and levels and levels.get("chart"):
             plan["chart"] = {**levels["chart"], "product_id": normalized}
+        # Entry read from the same quote, the same measured levels and the same
+        # structural support, so protection and entry never disagree on a level.
+        entry = build_entry_read(
+            product_id=normalized,
+            current_price=current_price,
+            levels=levels,
+            signal_context=_risk_level_signal_context(symbol),
+            sell_plan=plan,
+        )
+        entry["generated_at"] = plan["generated_at"]
+        entry["price_as_of"] = plan["price_as_of"]
         plan_id = sell_plan_outcome_store.record_plan(plan)
         if plan_id:
             plan["plan_id"] = plan_id
         history = sell_plan_outcome_store.history(normalized)
-        return jsonify({"status": "live", "plan": plan, "history": history})
+        return jsonify(
+            {"status": "live", "plan": plan, "entry": entry, "history": history}
+        )
     except Exception as exc:
         logging.exception("Risk levels failed for %s", normalized)
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
@@ -14284,6 +14303,19 @@ def _compute_snapshots_from_cache():
         except Exception as exc:
             logging.warning("Board outcome measurement skipped: %s", exc)
 
+        watchlist_quotes = {}
+        for key, quote in price_snapshot.items():
+            symbol = str(key).removesuffix("-USD")
+            product_id = f"{symbol}-USD"
+            row = {**quote, "symbol": symbol, "product_id": product_id}
+            if row.get("pct_1h") is None and row.get("price"):
+                baseline = _db_baseline_for_window(product_id, int(quote.get("sample_ts") or now_s), "1h")
+                if baseline and baseline[1] > 0:
+                    row["pct_1h"] = pct_change(row["price"], baseline[1])
+            watchlist_quotes[symbol] = row
+        if watchlist_quotes:
+            updates["watchlist_quotes"] = watchlist_quotes
+
         _mw_set_component_snapshots(**updates)
         if do_heavy:
             _MW_LAST_HEAVY_SNAPSHOT_AT = now_s
@@ -15243,6 +15275,47 @@ def _dev_component(name: str):
 
 # Start only after every route above has been registered. Keeping this call at
 # EOF prevents script mode from blocking before compatibility routes exist.
+@app.get("/api/watchlist-market/24h")
+def watchlist_market_24h():
+    from watchlist_market import get_market_24h
+    return jsonify(get_market_24h())
+
+
+@app.get("/api/watchlist-market/quotes")
+def watchlist_market_quotes():
+    from watchlist_market import get_equity_quotes, get_market_24h, get_spot_quotes, normalize_symbols
+
+    symbols = normalize_symbols(request.args.get("symbols", "").split(","))
+    spot = get_spot_quotes(symbols)
+    equity = get_equity_quotes([symbol for symbol in symbols if symbol not in spot.get("quotes", {})])
+    day = get_market_24h()
+    quotes = {}
+    now = int(time.time())
+    for symbol, price in spot.get("quotes", {}).items():
+        product_id = f"{symbol}-USD"
+        # Requested watchlist symbols are also admitted to the normal rolling
+        # history, so their 1m/3m values become real after enough observations.
+        try:
+            price_history_1min[symbol].append((now, float(price)))
+            price_history[symbol].append((now, float(price)))
+            price_history_1hour[symbol].append((now, float(price)))
+        except (KeyError, TypeError, ValueError):
+            pass
+        row = {"symbol": symbol, "product_id": product_id, "price": price, "sample_ts": now}
+        for key in ("1m", "3m", "1h"):
+            baseline = _db_baseline_for_window(product_id, now, key)
+            row[f"pct_{key}"] = pct_change(price, baseline[1]) if baseline and baseline[1] > 0 else None
+            row[f"previous_price_{key}"] = baseline[1] if baseline and baseline[1] > 0 else None
+        day_row = day.get("products", {}).get(product_id) or {}
+        row["previous_price_24h"] = day_row.get("previous_price")
+        row["pct_24h"] = day_row.get("pct_24h")
+        quotes[symbol] = row
+    for symbol, quote in equity.items():
+        quotes[symbol] = {"symbol": symbol, "product_id": symbol, "price": quote["price"], "sample_ts": now,
+                          "pct_1m": None, "pct_3m": None, "pct_1h": None, "previous_price_24h": quote.get("previous_price"), "pct_24h": quote.get("pct_24h")}
+    return jsonify({"quotes": quotes, "requested": len(symbols), "matched": len(quotes), "updated_at": spot.get("updated_at"), "stale": bool(spot.get("stale"))})
+
+
 if __name__ == "__main__":
     main()
 

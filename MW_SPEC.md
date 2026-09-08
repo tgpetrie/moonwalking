@@ -59,6 +59,7 @@ Tasks live in MW_BACKLOG.md.
 - mw_last_good_at
 - mw_last_good_sentiment, mw_last_good_sentiment_at
 - mw_watchlist
+- mw_watchlist_views_v1 (per-list display density, change window, sorting, and visible metrics; no quotes)
 - mw_coin_history_v1 (bounded recent alert context per coin)
 - mw_alerts_last_seen_id (local unread marker)
 - mw_spot_universe_v1, mw_spot_universe_ts_v1 (bounded Coinbase product cache)

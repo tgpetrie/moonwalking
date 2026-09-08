@@ -560,7 +560,7 @@ _NEUTRAL_RESET_MESSAGE = "If an account exists for that email, we sent reset ins
 
 
 def _reset_link(raw_token: str) -> str:
-    base = str(os.environ.get("MW_APP_BASE_URL") or "http://localhost:5199").rstrip("/")
+    base = str(os.environ.get("MW_APP_BASE_URL") or "http://127.0.0.1:5173").rstrip("/")
     return f"{base}/reset-password?token={raw_token}"
 
 
@@ -578,6 +578,16 @@ def _send_reset_email(email: str, display_name: str, raw_token: str) -> None:
     mailer.send_email(
         to=email, subject="Reset your Moonwalking password", body=body
     )
+
+
+def _show_local_reset_link() -> bool:
+    """Expose the one-time reset link only for local development without SMTP."""
+    explicit = str(os.environ.get("MW_DEV_RESET_LINKS") or "").strip().lower()
+    if explicit in {"1", "true", "yes"}:
+        return True
+    if explicit in {"0", "false", "no"}:
+        return False
+    return str(os.environ.get("FLASK_ENV") or "development").lower() != "production"
 
 
 @watchlist_bp.route("/api/auth/forgot-password", methods=["POST"])
@@ -611,6 +621,7 @@ def auth_forgot_password():
         finally:
             conn.close()
 
+    dev_reset_link = None
     if raw_token and recipient:
         try:
             _send_reset_email(recipient, display_name, raw_token)
@@ -619,11 +630,16 @@ def auth_forgot_password():
                 "password_reset_email_skipped: SMTP is not configured "
                 "(set MW_SMTP_HOST and a sender address)"
             )
+            if _show_local_reset_link():
+                dev_reset_link = _reset_link(raw_token)
         except mailer.MailSendError:
             # mailer already logged the failure class, without the token.
             logging.error("password_reset_email_failed")
 
-    return jsonify({"ok": True, "message": _NEUTRAL_RESET_MESSAGE}), 200
+    payload = {"ok": True, "message": _NEUTRAL_RESET_MESSAGE}
+    if dev_reset_link:
+        payload["dev_reset_link"] = dev_reset_link
+    return jsonify(payload), 200
 
 
 @watchlist_bp.route("/api/auth/reset-password/validate", methods=["GET"])

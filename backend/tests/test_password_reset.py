@@ -83,6 +83,29 @@ def test_unknown_email_sends_no_mail(client, sent):
     assert sent == []
 
 
+def test_local_dev_returns_reset_link_when_smtp_is_not_configured(client, monkeypatch):
+    _signup(client)
+    client.post("/api/auth/logout")
+    monkeypatch.setattr(mailer, "send_email", lambda **_kwargs: (_ for _ in ()).throw(mailer.MailNotConfigured("smtp_not_configured")))
+    monkeypatch.setenv("FLASK_ENV", "development")
+    monkeypatch.delenv("MW_DEV_RESET_LINKS", raising=False)
+
+    payload = _request_reset(client).get_json()
+    assert payload["message"] == "If an account exists for that email, we sent reset instructions."
+    assert payload["dev_reset_link"].startswith("http://127.0.0.1:5173/reset-password?token=")
+    assert "/reset-password?token=" in payload["dev_reset_link"]
+
+
+def test_production_does_not_return_local_reset_link(client, monkeypatch):
+    _signup(client)
+    client.post("/api/auth/logout")
+    monkeypatch.setattr(mailer, "send_email", lambda **_kwargs: (_ for _ in ()).throw(mailer.MailNotConfigured("smtp_not_configured")))
+    monkeypatch.setenv("FLASK_ENV", "production")
+    monkeypatch.delenv("MW_DEV_RESET_LINKS", raising=False)
+
+    assert "dev_reset_link" not in _request_reset(client).get_json()
+
+
 # --- happy path ------------------------------------------------------------
 
 
