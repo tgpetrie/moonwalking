@@ -110,6 +110,42 @@ def test_same_push_without_volume_is_too_extended_not_a_breakout():
     )
 
 
+def test_volume_wording_matches_the_measured_bucket_without_changing_the_gate():
+    # The newest hourly bucket can still be in progress, so no reason may claim it closed.
+    at_gate = read(
+        {
+            "range_position_pct": 96,
+            "range_zone": "near_resistance",
+            "resistance": 101,
+            "volume_ratio": 1.5,
+            "momentum_1h_pct": 1.5,
+        }
+    )
+    below_gate = read(
+        {
+            "range_position_pct": 96,
+            "range_zone": "near_resistance",
+            "resistance": 101,
+            "volume_ratio": 1.49,
+            "momentum_1h_pct": 1.5,
+        }
+    )
+
+    assert at_gate["entry_signal"]["status"] == "breakout"
+    assert below_gate["entry_signal"]["status"] == "extended"
+
+    volume_reasons = [
+        reason
+        for plan in (at_gate, below_gate)
+        for reason in plan["entry_signal"]["reasons"]
+        if "volume" in reason
+    ]
+    assert volume_reasons
+    assert all("completed candle" not in reason for reason in volume_reasons)
+    assert any("latest measured candle" in reason for reason in volume_reasons)
+    assert any("1.5x the median volume" in reason for reason in volume_reasons)
+
+
 def test_support_reclaim_names_the_close_invalidation():
     reclaim = read(
         {

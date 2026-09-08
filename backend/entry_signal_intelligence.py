@@ -271,7 +271,7 @@ def build_entry_read(
                 f"at the measured resistance at {rounded_resistance}."
             )
         reasons.append(
-            f"The latest completed candle carried {volume_ratio}x the median "
+            f"The latest measured candle carried {volume_ratio}x the median "
             "volume of the measured window."
         )
         reasons.append(
@@ -362,7 +362,7 @@ def build_entry_read(
                 reasons.append("Price is in the top 15% of its recent candle range.")
             if not above_baseline_volume:
                 reasons.append(
-                    "The latest completed candle did not carry above-baseline "
+                    "The latest measured candle did not carry above-baseline "
                     "volume, so the push is unconfirmed."
                 )
             if reward_reason:
@@ -401,7 +401,7 @@ def build_entry_read(
             )
         if not above_baseline_volume:
             reasons.append(
-                "The latest completed candle did not carry above-baseline volume."
+                "The latest measured candle did not carry above-baseline volume."
                 if volume_ratio is not None
                 else "A volume baseline is unavailable for this window."
             )
