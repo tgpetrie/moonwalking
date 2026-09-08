@@ -201,6 +201,7 @@ def build_entry_read(
     near_resistance = range_position >= NEAR_RESISTANCE_PCT
     near_support = range_position <= NEAR_SUPPORT_PCT
     structure_broken = price <= support
+    entry_invalidation_reference = support if structure_broken else structure_support
 
     # Provisional risk leg: the structural support, which is where this read
     # stops being true. Used for reward/risk before the label is chosen.
@@ -241,7 +242,7 @@ def build_entry_read(
         score = 0
         if structure_broken:
             reasons.append(
-                f"Price is at or below the structural support at {rounded_support}."
+                f"Price is at or below the measured support at {_round_price(support)}."
             )
         if flags["warned"]:
             reasons.append(
@@ -417,10 +418,15 @@ def build_entry_read(
             "breakout did not hold."
         )
     else:
-        invalidation_price = structure_support
+        invalidation_price = entry_invalidation_reference
         invalidation_why = (
-            "A completed candle below the measured structural support removes "
-            "the level structure this read is built on."
+            (
+                "Price is at or below the measured support; that broken level "
+                "is the entry invalidation reference."
+                if structure_broken
+                else "A completed candle below the measured structural support "
+                "removes the level structure this read is built on."
+            )
         )
 
     # Entry zone. Only the two structural reads get a band, and both bands are
@@ -494,11 +500,16 @@ def build_entry_read(
                 _round_price(first_resistance) if first_resistance is not None else None
             ),
             "reward_pct": reward_pct,
-            "reward_risk_ratio": reward_risk,
+            "reward_risk_ratio": None if status == "invalidated" else reward_risk,
             "why": (
-                "Recent resistance is the first area where prior sellers "
-                "appeared. Reward and reward-to-risk are measured to that level "
-                "and to the invalidation level; neither is a forecast."
+                (
+                    "The setup is invalidated, so reward-to-risk is withheld "
+                    "rather than presented as an actionable entry metric."
+                    if status == "invalidated"
+                    else "Recent resistance is the first area where prior sellers "
+                    "appeared. Reward and reward-to-risk are measured to that "
+                    "level and to the invalidation level; neither is a forecast."
+                )
                 if first_resistance is not None
                 else "Price is already above the measured range, so this window "
                 "holds no overhead reference and reward cannot be measured."

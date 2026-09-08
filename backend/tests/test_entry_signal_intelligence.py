@@ -136,7 +136,7 @@ def test_reversal_warning_and_broken_structure_both_invalidate():
     assert warned["entry_signal"]["score"] == 0
     assert broken["entry_signal"]["status"] == "invalidated"
     assert any(
-        "structural support" in reason for reason in broken["entry_signal"]["reasons"]
+        "measured support" in reason for reason in broken["entry_signal"]["reasons"]
     )
 
 
@@ -156,6 +156,11 @@ def test_broken_structure_uses_measured_support_not_derived_plan_reference():
     )
 
     assert broken["entry_signal"]["status"] == "invalidated"
+    assert broken["invalidation"]["price"] == 100
+    assert "measured support" in broken["invalidation"]["why"]
+    assert "measured support" in broken["entry_signal"]["reasons"][0]
+    assert broken["target_reference"]["reward_risk_ratio"] is None
+    assert "withheld" in broken["target_reference"]["why"]
 
 
 def test_thin_reward_against_structural_risk_reads_as_no_chase():
