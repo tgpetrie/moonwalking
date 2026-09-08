@@ -33,6 +33,11 @@ def test_builds_stop_trigger_below_support_and_limit_below_trigger():
     assert plan["stop"]["invalidation_price"] == LEVELS["support"]
     assert plan["stop"]["trigger_source"] == "structural_support"
     assert plan["stop"]["structural_trigger_price"] == plan["stop"]["trigger_price"]
+    assert plan["stop"]["limit_price_status"] == "uncalibrated_placeholder"
+    assert plan["stop"]["limit_price_basis"] == "atr_legacy"
+    assert plan["stop"]["limit_price_available"] is True
+    assert "uncalibrated legacy placeholder" in plan["stop"]["why"][3]
+    assert "order-book depth" in plan["stop"]["execution_warning"]
     assert plan["methodology"]["order_placement"] is False
 
 

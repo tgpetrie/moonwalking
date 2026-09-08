@@ -241,7 +241,7 @@ def build_sell_plan(
             else f"The effective stop trigger is support-derived at {_round_price(stop_trigger)}."
         ),
         "The trigger sits below support with a volatility buffer and at least one ATR of room from the current quote.",
-        "The sell limit sits below the trigger to define a small execution band after activation.",
+        "The sell limit is an uncalibrated legacy placeholder derived from ATR; it is not a liquidity- or slippage-calibrated execution allowance.",
     ]
 
     return {
@@ -260,9 +260,12 @@ def build_sell_plan(
             "volatility_reference_price": _round_price(volatility_reference),
             "structural_risk_pct": round(structural_risk_pct, 2),
             "structural_actionable": structural_actionable,
+            "limit_price_status": "uncalibrated_placeholder",
+            "limit_price_basis": "atr_legacy",
+            "limit_price_available": True,
             "invalidation_price": rounded_support,
             "why": [f"Recent structural support is {rounded_support}.", *stop_why],
-            "execution_warning": stop_warning,
+            "execution_warning": f"{stop_warning} The limit placeholder is not based on live order-book depth or spread data.",
         },
         "profit": {
             "first_trim_price": _round_price(first_trim) if first_trim else None,

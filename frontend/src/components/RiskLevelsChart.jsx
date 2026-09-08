@@ -36,8 +36,8 @@ export default function RiskLevelsChart({ plan }) {
       why: (stop.why || [])[0] || 'The structural reference used by this plan. A break below it weakens the setup.' },
     { id: 'stop', label: stop.trigger_source === 'volatility_reference' ? 'Suggested stop trigger (volatility-derived)' : 'Suggested stop trigger', price: stop.trigger_price, color: '#ffbc66',
       why: (stop.why || []).join(' ') || 'The suggested activation price for a protective sell stop-limit, with room below the support reference for normal price movement.' },
-    { id: 'limit', label: 'Suggested sell limit', price: stop.limit_price, color: '#ff829a',
-      why: 'After the stop triggers, this is the lowest acceptable sell price before fees. It sits below the trigger to allow some price movement while the order fills. A fast drop through it can leave the order unfilled.' },
+    { id: 'limit', label: 'Suggested sell limit (uncalibrated)', price: stop.limit_price, color: '#ff829a',
+      why: 'This is an uncalibrated legacy placeholder derived from ATR, not a liquidity- or slippage-calibrated execution allowance. It sits below the trigger as a compatibility reference; a fast drop through it can leave the order unfilled.' },
   ].filter((level) => positive(level.price));
   const active = levels.find((level) => level.id === selected) || levels[0];
   const zone = plan.support_zone || {};
@@ -73,7 +73,7 @@ export default function RiskLevelsChart({ plan }) {
           <title>Completed price candles with support, resistance, stop trigger and sell limit</title>
           {[0, 1, 2, 3, 4].map((i) => <line key={i} x1="16" x2="580" y1={24 + i * 72.5} y2={24 + i * 72.5} stroke="#ffffff0c" />)}
           {zoneValid && <rect x="16" y={y(zone.high)} width="564" height={Math.max(1, y(zone.low) - y(zone.high))} fill="#5fdbad" opacity="0.09"><title>Support watch zone</title></rect>}
-          {positive(stop.trigger_price) && positive(stop.limit_price) && stop.trigger_price > stop.limit_price && <rect x="16" y={y(stop.trigger_price)} width="564" height={Math.max(1, y(stop.limit_price) - y(stop.trigger_price))} fill="#ff829a" opacity="0.12"><title>Stop-limit execution band</title></rect>}
+          {positive(stop.trigger_price) && positive(stop.limit_price) && stop.trigger_price > stop.limit_price && <rect x="16" y={y(stop.trigger_price)} width="564" height={Math.max(1, y(stop.limit_price) - y(stop.trigger_price))} fill="#ff829a" opacity="0.12"><title>Uncalibrated legacy limit placeholder gap</title></rect>}
           {bars.map((c, i) => {
             const color = c[4] >= c[3] ? '#5fdbad' : '#ff829a';
             return <g key={`${c[0]}-${i}`}>
@@ -107,7 +107,7 @@ export default function RiskLevelsChart({ plan }) {
         <h4>{active.label} · {priceText(active.price)}</h4><p>{active.why}</p>
       </div>
       <p className="risk-chart__hint">Quote as of {timeText(plan.price_as_of)} · Last candle closed {timeText(chart.last_close_at)} · Times shown in your local timezone. This is a snapshot; refresh Risk Levels for an updated plan.</p>
-      <p className="risk-chart__hint">Suggested prices are reference levels, not exchange-validated order prices. Check the market pair and allowed price increment before entering them. A stop-limit can remain unfilled if price gaps below the limit. <a href="https://help.coinbase.com/en/coinbase/trading-and-funding/advanced-trade/order-types" target="_blank" rel="noreferrer">How stop-limit orders work</a></p>
+      <p className="risk-chart__hint">Suggested prices are reference levels, not exchange-validated order prices. The sell-limit gap is an uncalibrated ATR-based compatibility placeholder, not a live liquidity or spread estimate. Check the market pair and allowed price increment before entering them. A stop-limit can remain unfilled if price gaps below the limit. <a href="https://help.coinbase.com/en/coinbase/trading-and-funding/advanced-trade/order-types" target="_blank" rel="noreferrer">How stop-limit orders work</a></p>
     </section>
   );
 }

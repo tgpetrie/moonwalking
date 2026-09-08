@@ -52,7 +52,8 @@ describe("Portfolio Risk Board", () => {
     expect(screen.getByRole("button", { name: "Hide chart" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: /^Suggested stop trigger/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Suggested sell limit/ }));
-    expect(screen.getByRole("heading", { name: /Suggested sell limit/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Suggested sell limit \(uncalibrated\)/ })).toBeInTheDocument();
+    expect(screen.getByText(/uncalibrated legacy placeholder/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hide chart" }));
     expect(screen.queryByRole("button", { name: /^Suggested sell limit/ })).not.toBeInTheDocument();
   });
