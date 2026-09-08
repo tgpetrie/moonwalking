@@ -162,6 +162,33 @@ def test_volume_gate_is_declared_multiplier_not_an_empirical_rank():
         assert word not in disclosure
 
 
+def test_momentum_wording_matches_the_measured_bucket_without_changing_branching():
+    # momentum_1h_pct also comes from the newest bucket, which may still be open.
+    up = read(
+        {"range_position_pct": 8, "range_zone": "near_support", "momentum_1h_pct": 0.9}
+    )
+    down = read(
+        {"range_position_pct": 35, "range_zone": "lower_range", "momentum_1h_pct": -0.8},
+        signal_context={"primary_state": "Building", "direction": "up"},
+    )
+    flat = read({"momentum_1h_pct": 0})
+
+    assert up["entry_signal"]["status"] == "entry_watch"
+    assert down["entry_signal"]["status"] == "pullback"
+    assert flat["entry_signal"]["status"] == "clear"
+
+    momentum_reasons = [
+        reason
+        for plan in (up, down, flat)
+        for reason in plan["entry_signal"]["reasons"]
+        if "hourly candle" in reason
+    ]
+    assert momentum_reasons
+    assert all("completed hourly candle" not in reason for reason in momentum_reasons)
+    assert any("turned up by 0.9%" in reason for reason in momentum_reasons)
+    assert any("gave back 0.8%" in reason for reason in momentum_reasons)
+
+
 def test_support_reclaim_names_the_close_invalidation():
     reclaim = read(
         {

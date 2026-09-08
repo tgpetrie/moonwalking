@@ -277,7 +277,7 @@ def build_entry_read(
             "volume of the measured window."
         )
         reasons.append(
-            f"The latest completed hourly candle gained {momentum}%."
+            f"The latest measured hourly candle gained {momentum}%."
         )
         if flags["confirmed_up"]:
             reasons.append(
@@ -299,7 +299,7 @@ def build_entry_read(
             f"the structural support at {rounded_support}."
         )
         reasons.append(
-            f"The latest completed hourly candle turned up by {momentum}%."
+            f"The latest measured hourly candle turned up by {momentum}%."
         )
         if above_baseline_volume:
             reasons.append(
@@ -321,7 +321,7 @@ def build_entry_read(
             "candle range."
         )
         reasons.append(
-            f"The latest completed hourly candle gave back {abs(momentum)}%."
+            f"The latest measured hourly candle gave back {abs(momentum)}%."
         )
         reasons.append(
             f"The live signal layer still reads {flags['primary_state']} rather "
@@ -398,7 +398,7 @@ def build_entry_read(
         )
         if not momentum_up:
             reasons.append(
-                "The latest completed hourly candle did not turn up."
+                "The latest measured hourly candle did not turn up."
                 if momentum is not None
                 else "Short-term momentum is unavailable for this window."
             )

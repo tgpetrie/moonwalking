@@ -86,7 +86,7 @@ def _top_signal(
             reasons.append("Recent resistance is less than 1.5% overhead.")
     if momentum is not None and momentum < 0:
         score += 2
-        reasons.append("The latest completed hourly candle lost momentum.")
+        reasons.append("The latest measured hourly candle lost momentum.")
     if (
         momentum is not None
         and momentum < 0
