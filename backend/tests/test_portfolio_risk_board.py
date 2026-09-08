@@ -95,7 +95,7 @@ def test_portfolio_uses_real_holdings_prices_even_outside_board_sample(
     assert [row["symbol"] for row in payload["rows"]] == ["AMP", "ETH"]
     assert payload["rows"][0]["quantity"] == 3
     assert payload["rows"][0]["market_value_usd"] == 300
-    assert payload["summary"]["capital_to_stop_usd"] == pytest.approx(16.2)
+    assert payload["summary"]["capital_to_stop_usd"] == pytest.approx(21.0)
     assert payload["summary"]["excluded_symbols"] == ["ETH"]
     assert payload["rows"][0]["plan"]["chart"]["product_id"] == "AMP-USD"
     gather.assert_called_once()

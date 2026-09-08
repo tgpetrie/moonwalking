@@ -10,6 +10,10 @@ from __future__ import annotations
 import math
 from typing import Any
 
+SUPPORT_BUFFER_ATR_MULTIPLE = 1.0
+SUPPORT_BUFFER_CONVENTION = "declared_convention"
+SUPPORT_BUFFER_REFERENCE = "2026-09-08 level calibration study"
+
 
 def _number(value: Any) -> float | None:
     try:
@@ -179,7 +183,7 @@ def build_sell_plan(
 
     # A valid structural stop belongs below support and at least one ATR below
     # the current quote, so ordinary candle noise is less likely to trip it.
-    support_buffer = max(atr * 0.20, price * 0.0015)
+    support_buffer = max(atr * SUPPORT_BUFFER_ATR_MULTIPLE, price * 0.0015)
     structural_trigger = max(structure_support - support_buffer, price * 0.01)
     volatility_reference = max(price - atr, price * 0.01)
     floor_binds = volatility_reference < structural_trigger
@@ -292,7 +296,12 @@ def build_sell_plan(
             "version": "sell_levels_v1",
             "outcome_validated": False,
             "order_placement": False,
-            "disclosure": "Descriptive decision support, not an order or a guarantee. Levels are recorded and measured forward.",
+            "disclosure": "Descriptive decision support, not an order or a guarantee. The 1.0 ATR support buffer is a declared convention from the 2026-09-08 level calibration study, not an optimized, validated, or predictive parameter. Levels are recorded and measured forward.",
+            "conventions": {
+                "support_buffer_atr_multiple": SUPPORT_BUFFER_ATR_MULTIPLE,
+                "support_buffer_status": SUPPORT_BUFFER_CONVENTION,
+                "support_buffer_reference": SUPPORT_BUFFER_REFERENCE,
+            },
         },
     }
 

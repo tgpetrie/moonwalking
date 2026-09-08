@@ -35,17 +35,30 @@ def test_builds_stop_trigger_below_support_and_limit_below_trigger():
     assert plan["methodology"]["order_placement"] is False
 
 
-def test_floor_is_reported_as_volatility_reference_not_structural_stop():
+def test_one_atr_buffer_keeps_structural_trigger_below_volatility_reference():
     levels = {**LEVELS, "atr": 10}
     plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=levels)
 
-    assert plan["stop"]["trigger_source"] == "volatility_reference"
-    assert plan["stop"]["trigger_price"] == plan["stop"]["volatility_reference_price"]
-    assert plan["stop"]["structural_trigger_price"] == 93
-    assert plan["stop"]["structural_risk_pct"] == 7
+    assert plan["stop"]["trigger_source"] == "structural_support"
+    assert plan["stop"]["trigger_price"] == plan["stop"]["structural_trigger_price"]
+    assert plan["stop"]["volatility_reference_price"] == 90
+    assert plan["stop"]["structural_trigger_price"] == 85
+    assert plan["stop"]["structural_risk_pct"] == 15
     assert plan["stop"]["structural_actionable"] is False
-    assert "volatility-derived" in plan["stop"]["why"][1]
-    assert "structural stop" in plan["stop"]["why"][1]
+    assert "support-derived" in plan["stop"]["why"][1]
+
+
+def test_support_buffer_is_declared_convention_not_optimized_parameter():
+    plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=LEVELS)
+
+    assert plan["stop"]["structural_trigger_price"] == 93
+    conventions = plan["methodology"]["conventions"]
+    assert conventions["support_buffer_atr_multiple"] == 1.0
+    assert conventions["support_buffer_status"] == "declared_convention"
+    assert conventions["support_buffer_reference"] == "2026-09-08 level calibration study"
+    disclosure = plan["methodology"]["disclosure"]
+    assert "declared convention" in disclosure
+    assert "not an optimized, validated, or predictive parameter" in disclosure
 
 
 def test_uses_resistance_as_first_trim_and_reports_reward_risk():
