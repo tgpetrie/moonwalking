@@ -41,6 +41,22 @@ def test_builds_stop_trigger_below_support_and_limit_below_trigger():
     assert plan["methodology"]["order_placement"] is False
 
 
+def test_wide_risk_boundary_is_inclusive_at_six_percent():
+    at_boundary = build_sell_plan(
+        product_id="BTC-USD", current_price=100, levels={**LEVELS, "support": 96}
+    )
+    above_boundary = build_sell_plan(
+        product_id="BTC-USD", current_price=100, levels={**LEVELS, "support": 95.99}
+    )
+
+    assert at_boundary["stop"]["structural_risk_pct"] == 6.0
+    assert at_boundary["stop"]["structural_actionable"] is True
+    assert at_boundary["stop"]["risk_band"] == "standard"
+    assert above_boundary["stop"]["structural_risk_pct"] > 6.0
+    assert above_boundary["stop"]["structural_actionable"] is False
+    assert above_boundary["stop"]["risk_band"] == "wide"
+
+
 def test_one_atr_buffer_keeps_structural_trigger_below_volatility_reference():
     levels = {**LEVELS, "atr": 10}
     plan = build_sell_plan(product_id="BTC-USD", current_price=100, levels=levels)

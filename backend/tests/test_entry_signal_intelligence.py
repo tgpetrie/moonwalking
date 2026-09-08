@@ -57,6 +57,17 @@ def test_never_places_an_order_or_claims_a_validated_outcome():
     assert "not a buy instruction" in plan["methodology"]["disclosure"]
 
 
+def test_wide_risk_boundary_is_declared_in_entry_methodology():
+    wide_risk = read({"support": 93.99})["methodology"]["wide_risk"]
+
+    assert wide_risk == {
+        "wide_risk_pct_status": "declared_convention",
+        "wide_risk_pct_meaning": "structural_stop_distance_boundary",
+        "wide_risk_pct_threshold": 6.0,
+        "wide_risk_pct_reference": "inherited_product_convention",
+    }
+
+
 def test_range_bands_are_declared_recent_location_not_empirical_tails():
     methodology = read()["methodology"]
     bands = methodology["range_bands"]

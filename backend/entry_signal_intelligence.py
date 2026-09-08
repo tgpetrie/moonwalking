@@ -33,6 +33,13 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from sell_side_intelligence import (
+    WIDE_RISK_MEANING,
+    WIDE_RISK_PCT,
+    WIDE_RISK_REFERENCE,
+    WIDE_RISK_STATUS,
+)
+
 # Declared thresholds. Each one is reused from an existing shipped module; see
 # the module docstring for where each comes from.
 NEAR_SUPPORT_PCT = 15.0
@@ -40,7 +47,6 @@ NEAR_RESISTANCE_PCT = 85.0
 LOWER_HALF_PCT = 60.0
 VOLUME_BASELINE_RATIO = 1.5
 CONFIRMED_CONFIDENCE = 78.0
-WIDE_RISK_PCT = 6.0
 STRONG_REWARD_RISK = 2.0
 
 # The same warning vocabulary the sell side scans for, plus the two downside
@@ -558,6 +564,12 @@ def build_entry_read(
                 "volume_ratio_meaning": "multiple_of_measured_window_median",
                 "volume_ratio_threshold": VOLUME_BASELINE_RATIO,
                 "volume_rank_percentile": "unavailable",
+            },
+            "wide_risk": {
+                "wide_risk_pct_status": WIDE_RISK_STATUS,
+                "wide_risk_pct_meaning": WIDE_RISK_MEANING,
+                "wide_risk_pct_threshold": WIDE_RISK_PCT,
+                "wide_risk_pct_reference": WIDE_RISK_REFERENCE,
             },
             "thresholds": {
                 "near_support_range_pct": NEAR_SUPPORT_PCT,

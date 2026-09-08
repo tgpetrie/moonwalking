@@ -156,7 +156,8 @@ describe("RiskLevelsPanel", () => {
 
     expect(screen.getByText("Top watch")).toBeInTheDocument();
     expect(screen.getByText("Stop trigger")).toBeInTheDocument();
-    expect(screen.getByText("Sell limit")).toBeInTheDocument();
+    expect(screen.getByText("Sell limit (uncalibrated)")).toBeInTheDocument();
+    expect(screen.queryByText("Sell limit", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText("Structure invalidates")).toBeInTheDocument();
     expect(screen.getByText("First trim area")).toBeInTheDocument();
     expect(screen.getByText(/fast gap can pass the limit/i)).toBeInTheDocument();

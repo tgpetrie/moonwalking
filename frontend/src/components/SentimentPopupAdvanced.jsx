@@ -1009,7 +1009,7 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen 
         </div>
         <div className="risk-levels-compact__grid">
           <div><span>Stop trigger</span><strong>{formatPlanPrice(stop.trigger_price)}</strong></div>
-          <div><span>Sell limit</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
+          <div><span>Sell limit (uncalibrated)</span><strong>{formatPlanPrice(stop.limit_price)}</strong></div>
           <div><span>Support fails</span><strong>{formatPlanPrice(stop.invalidation_price)}</strong></div>
           <div><span>First trim</span><strong>{formatPlanPrice(profit.first_trim_price)}</strong></div>
         </div>
@@ -1041,9 +1041,9 @@ export function RiskLevelsPanel({ data, loading, error, compact = false, onOpen 
           <small>{formatPercent(stop.distance_pct)} from now · {stop.risk_band || 'structural'} risk</small>
         </article>
         <article className="risk-level-card risk-level-card--limit">
-          <span>Sell limit</span>
+          <span>Sell limit (uncalibrated)</span>
           <strong>{formatPlanPrice(stop.limit_price)}</strong>
-          <small>Order limit after the trigger fires</small>
+          <small>Legacy ATR placeholder after the trigger; not a liquidity or slippage estimate</small>
         </article>
         <article className="risk-level-card">
           <span>Structure invalidates</span>

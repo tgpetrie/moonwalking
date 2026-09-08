@@ -14,6 +14,10 @@ SUPPORT_BUFFER_ATR_MULTIPLE = 1.0
 SUPPORT_BUFFER_CONVENTION = "declared_convention"
 SUPPORT_BUFFER_REFERENCE = "2026-09-08 level calibration study"
 VOLUME_BASELINE_RATIO = 1.5
+WIDE_RISK_PCT = 6.0
+WIDE_RISK_STATUS = "declared_convention"
+WIDE_RISK_MEANING = "structural_stop_distance_boundary"
+WIDE_RISK_REFERENCE = "inherited_product_convention"
 
 
 def _number(value: Any) -> float | None:
@@ -46,7 +50,7 @@ def _pct(current: float, level: float) -> float:
 def _risk_band(risk_pct: float) -> str:
     if risk_pct <= 2:
         return "tight"
-    if risk_pct <= 6:
+    if risk_pct <= WIDE_RISK_PCT:
         return "standard"
     return "wide"
 
@@ -193,7 +197,7 @@ def build_sell_plan(
     floor_binds = volatility_reference < structural_trigger
     stop_trigger = min(structural_trigger, volatility_reference)
     structural_risk_pct = ((price - structural_trigger) / price) * 100.0
-    structural_actionable = structural_risk_pct <= 6
+    structural_actionable = structural_risk_pct <= WIDE_RISK_PCT
 
     # A sell stop-limit becomes a limit order after the trigger.  The lower
     # limit provides a bounded execution band.  Keep it within 75 bps so it is
@@ -233,7 +237,7 @@ def build_sell_plan(
     stop_warning = (
         "Wide structural risk: the stop is more than 6% below the current price. "
         "Reduce position size or wait for a closer support structure if that loss is unacceptable."
-        if risk_pct > 6
+        if risk_pct > WIDE_RISK_PCT
         else "A stop-limit controls the worst acceptable limit price, but a fast gap can pass it without a fill."
     )
     trigger_source = "volatility_reference" if floor_binds else "structural_support"
@@ -312,6 +316,10 @@ def build_sell_plan(
                 "volume_ratio_meaning": "multiple_of_measured_window_median",
                 "volume_ratio_threshold": VOLUME_BASELINE_RATIO,
                 "volume_rank_percentile": "unavailable",
+                "wide_risk_pct_status": WIDE_RISK_STATUS,
+                "wide_risk_pct_meaning": WIDE_RISK_MEANING,
+                "wide_risk_pct_threshold": WIDE_RISK_PCT,
+                "wide_risk_pct_reference": WIDE_RISK_REFERENCE,
             },
         },
     }
