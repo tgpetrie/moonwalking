@@ -63,19 +63,16 @@
   --accent-primary: var(--color-violet);
   --accent-primary-strong: var(--color-violet-strong);
   --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role — yes, gains render amber, not green; that's the real, already-live convention */
-  --signal-negative: var(--color-rose);  /* matches --mw-danger's existing color, named by role */
+  --signal-negative: var(--color-violet); /* price/P&L down — same as the board's --bh-loss */
+  --danger: var(--color-rose);            /* destructive actions, errors, risk warnings — NOT price direction */
 
-  /* UNRESOLVED — read before using --color-violet for a gain/loss context.
-     BHABIT colors a LOSING price with --bh-loss, which is this same violet
-     (see index.css: .is-down, .token-pct-loss, .bh-banner-change--neg all
-     resolve to --bh-loss). Moonwalking reuses that identical violet hex as
-     --accent-primary / --mw-accent — its general brand/button color, unrelated
-     to gain or loss — and separately invented --signal-negative (rose) for
-     its own "down" state. So the same hex means "price fell" in one system's
-     CSS and "this is a branded button" in the other, and the two systems
-     render a losing price in two different colors. That is a real visual
-     decision (repaint one system's "down" color to match the other), not a
-     missing token, so it's not made here. See docs/DESIGN_SYSTEM.md. */
+  /* RESOLVED (decision: violet = price down everywhere, matching the board).
+     Violet does double duty: brand/accent (buttons, links) AND price/P&L
+     down. That's intentional — they appear in different shapes (filled
+     controls vs numbers), so they don't read as each other. Rose is now
+     only --danger: destructive actions, form errors, risk warnings. Rule
+     of thumb: a number going down is --signal-negative; something that
+     can hurt you or failed is --danger. */
 
   /* ==========================================================================
      RADIUS

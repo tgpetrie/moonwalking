@@ -60,9 +60,9 @@ alike).
 | `--color-bg-void` | `#050308` | The app's base background |
 | `--color-mint` | `#10ae9b` | BHABIT's canonical price color (`--bh-mint`/`--bh-price`) |
 | `--color-amber` | `#ffb347` | **Positive** signal (gains) — yes, amber, not green; that's the real, already-live convention (`--bh-gain`) |
-| `--color-violet` | `#c084fc` | Brand/accent primitive. See the unresolved note below before using this for gain/loss |
+| `--color-violet` | `#c084fc` | Brand/accent **and** negative signal (price/P&L down) — see the decision below |
 | `--color-violet-strong` | `#a855f7` | Darker accent, e.g. button hover states |
-| `--color-rose` | `#ff9fb4` | **Negative** signal (danger/risk/down), Moonwalking's convention (`--mw-danger`) |
+| `--color-rose` | `#ff9fb4` | **Danger** only — destructive actions, form errors, risk warnings. Not price direction |
 | `--color-ink` | `rgba(236,231,223,.92)` | BHABIT's primary text color (`--bh-ink`) |
 | `--white-92` / `--white-58` / `--white-35` | opacity ladder on white | Both systems build "muted text" as white-at-lower-opacity rather than a gray hex. Use one of these three rather than inventing a new opacity |
 
@@ -77,23 +77,23 @@ so the *meaning* is what's shared:
 --accent-primary       → --color-violet
 --accent-primary-strong→ --color-violet-strong
 --signal-positive      → --color-amber
---signal-negative      → --color-rose
+--signal-negative      → --color-violet   (price/P&L down)
+--danger               → --color-rose     (destructive, errors, risk warnings)
 ```
 
-**Unresolved, on purpose:** BHABIT colors a *losing price* with
-`--bh-loss`, which is this same violet (`.is-down`, `.token-pct-loss`,
-`.bh-banner-change--neg` in `index.css` all resolve to it). Moonwalking
-reuses that identical violet as `--mw-accent` — its general brand/button
-color, unrelated to gain or loss — and separately invented `--mw-danger`
-(rose) for its own "down" state. So the same hex means "price fell" in one
-system and "this is a branded button" in the other, and the two systems
-render a losing price in two different colors today. Unifying that
-repaints something a user already sees, which is a real visual-behavior
-call, not a missing token — so it hasn't been made here. If you're asked
-to make this consistent: decide whether BHABIT's `--bh-loss` usage should
-move to `--signal-negative` (rose), and update `index.css`'s `.is-down`
-family deliberately, in a change that says so, not as a side effect of
-touching tokens.
+**Decided (2026-09-23): violet means "down" everywhere, matching the
+board.** Violet does double duty — brand/accent (buttons, links, eyebrows)
+and price/P&L down — which is fine because they show up in different
+shapes: filled or outlined controls vs. numbers. Rose is now only
+`--danger`.
+
+Rule of thumb: **a number going down is `--signal-negative`; something
+that can hurt you or failed is `--danger`.** A Delete button, a form
+error, and a "Protect now" risk chip are danger. A −3.2% change and a
+negative unrealized P&L are signal-negative. If a violet number ever sits
+right next to a violet button and they genuinely read as the same thing,
+fix it with shape or weight on the control, not by changing the signal
+color.
 
 ### Radius
 
@@ -274,8 +274,6 @@ watchlists should look and behave the same, that's a product decision
   call; making it silently is not, since it either deletes working
   config files or newly activates hundreds of previously-inert class
   names across the app. Flagged for a deliberate decision.
-- **The gain/loss color clash** described in §2 — same violet hex means
-  two different things depending on which system's CSS you're reading.
 - **`--r-4` and `--mw-success`** were both referenced before being
   defined anywhere — fixed by `design-tokens.css`, but if you find another
   `var(--x)` with nothing defining `--x`, treat it the same way: a silent
