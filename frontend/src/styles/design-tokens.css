@@ -69,6 +69,7 @@
   --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role — yes, gains render amber, not green; that's the real, already-live convention */
   --signal-negative: var(--color-violet); /* price/P&L down — same as the board's --bh-loss */
   --price-current: var(--color-mint);     /* a current price, as on the board (.bh-price-current) */
+  --status-ok: var(--color-mint);         /* a good/complete STATUS chip ("Hold strong", cost basis "Complete"): the board's strong-read color. Not price direction. Replaces an off-palette green (#9de8be). */
   --danger: var(--color-rose);            /* destructive actions, errors, risk warnings — NOT price direction */
 
   /* RESOLVED (decision: violet = price down everywhere, matching the board).

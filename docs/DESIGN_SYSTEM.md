@@ -80,6 +80,7 @@ so the *meaning* is what's shared:
 --signal-negative      → --color-violet   (price/P&L down)
 --danger               → --color-rose     (destructive, errors, risk warnings)
 --price-current        → --color-mint     (a current price, as on the board)
+--status-ok            → --color-mint     (a good/complete STATUS chip, not a price move)
 ```
 
 **Decided (2026-09-23): violet means "down" everywhere, matching the
@@ -194,6 +195,36 @@ sidebar padding 28/22px, sections and panels 24px).
 | List row | `.mw-list__row` (also `.mw-mini-list__row`, `.mw-session-row`) | left `div` stacks name (`strong`) over detail (`span`, `--text-xs`); trailing `span` = `--font-numeric` tabular `--text-xs` |
 | Eyebrow | `.mw-eyebrow` | `--text-2xs`, 800 weight, `--label-tracking-comfortable`, accent color |
 | Quote + change (the board's row) | `.mw-quote` (`__current`, `__previous`, `__status`) + `.mw-watchlist-changes .mw-market-move` | current price: `--font-numeric` `--text-md` 600 in `--price-current` (mint); previous price below it: `--text-sm` 400 in `--text-muted`; change in its own column: `--text-md` 650, tracking 0.02em, `--signal-positive` (amber) or `--signal-negative` (violet), period label `--text-2xs` in `--text-faint`. Measured against the board's `.bh-price-current` / `.bh-price-previous` / `.bh-change` — reuse this for any price anywhere in `/app` |
+
+**Signed results (P&L, % moves) vs. status chips.** Two different
+jobs, never mixed:
+
+- A signed number (unrealized P&L, a 24h move) is **price direction**:
+  `strong.is-positive` → `--signal-positive` (amber), `strong.is-negative`
+  → `--signal-negative` (violet), `strong.is-neutral` → `--text-muted` for
+  zero *and* for unknown. Pick the class with the `signClass(value)`
+  helper in `PortfolioModePage.jsx`, which returns neutral for
+  null/empty/non-finite/zero. An unknown value must never render as a
+  gain; before this, "Unknown until cost basis is complete" rendered green.
+- A status chip ("Hold strong", "Complete cost basis", "Momentum
+  favorable") is **state**: good = `--status-ok` (mint), caution = amber
+  (the board's own "Extended"/"Tape confirmed" tags are amber too),
+  danger = `--danger` (rose), otherwise muted.
+- A *descriptive* 24h read chip ("Up today", "Down big today") is a price
+  direction, not a status, so it uses amber/violet. Its tone in
+  `portfolioSignals.js` is left alone (tested logic); the chip carries
+  `data-posture` and the CSS colors `descriptive_up*` / `descriptive_down*`
+  by direction.
+
+The off-palette green `#9de8be` that used to cover both jobs is gone.
+
+**Data table** (`.mw-table` in `.mw-table-shell`): `--text-2xs` tracked
+uppercase headers, `--text-sm` tabular cells, `--space-3` cell padding
+(`--space-2` under 640px so five columns fit a phone). The shell still
+scrolls horizontally if the data is genuinely wider.
+
+**Setup / loading / error cards** sit left-aligned under the page title
+(capped at 880px), not centered — like every other workspace panel.
 
 **Cards vs. List (watchlist and any future asset grid):** Cards view is the
 *comfortable* layout — it stacks identity over price and change at every

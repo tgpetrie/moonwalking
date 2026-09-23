@@ -60,6 +60,15 @@ function percent(value, { signed = false } = {}) {
   return `${signed && parsed > 0 ? "+" : ""}${parsed.toFixed(2)}%`;
 }
 
+// Color class for a signed money/percent result: up amber, down violet,
+// zero or unknown muted. Presentation only; never changes the value shown.
+function signClass(value) {
+  if (value === null || value === undefined || value === "") return "is-neutral";
+  const n = Number(value);
+  if (!Number.isFinite(n) || n === 0) return "is-neutral";
+  return n > 0 ? "is-positive" : "is-negative";
+}
+
 function finiteOrNull(value) {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
@@ -177,7 +186,7 @@ function HoldingIntel({ intel }) {
   return (
     <div className="mw-holding-intel">
       <div className="mw-holding-intel__header">
-        <span className={`mw-posture-chip is-${posture.tone}`}>
+        <span className={`mw-posture-chip is-${posture.tone}`} data-posture={posture.posture}>
           {posture.label}
           {posture.confidence !== null ? ` · ${posture.confidence}` : ""}
         </span>
@@ -432,14 +441,14 @@ function HoldingCard({ holding, liveRow, onCostBasisChange }) {
         <div><span>Value</span><strong>{money(holding.market_value_usd)}</strong></div>
         <div><span>Quantity</span><strong>{number(holding.quantity)}</strong></div>
         <div><span>Allocation</span><strong>{percent(holding.allocation_pct)}</strong></div>
-        <div><span>24h move</span><strong>{percent(holding.price_change_24h_pct, { signed: true })}</strong></div>
+        <div><span>24h move</span><strong className={signClass(holding.price_change_24h_pct)}>{percent(holding.price_change_24h_pct, { signed: true })}</strong></div>
       </div>
 
       <div className="mw-holding-card__detail-grid">
         <div><span>Position impact</span><strong>{concentrationLabel(holding.allocation_pct)}</strong></div>
         <div>
           <span>Unrealized result</span>
-          <strong className={pnlKnown && Number(holding.unrealized_pnl_usd) < 0 ? "is-negative" : "is-positive"}>
+          <strong className={pnlKnown ? signClass(holding.unrealized_pnl_usd) : "is-neutral"}>
             {pnlKnown
               ? `${money(holding.unrealized_pnl_usd)} · ${percent(holding.unrealized_pnl_pct, { signed: true })}`
               : "Unknown until cost basis is complete"}
@@ -641,7 +650,7 @@ export default function PortfolioModePage() {
       <section className="mw-portfolio-summary" aria-label="Portfolio summary">
         <article className="mw-panel mw-portfolio-stat is-primary"><span>Total portfolio</span><strong>{money(summary.total_value_usd)}</strong><small>{cryptoHoldings.length} crypto holdings</small></article>
         <article className="mw-panel mw-portfolio-stat"><span>Cash available</span><strong>{money(summary.cash_value_usd)}</strong><small>{cashHoldings.map((holding) => holding.symbol).join(" · ") || "No cash balance"}</small></article>
-        <article className="mw-panel mw-portfolio-stat"><span>Known unrealized P&amp;L</span><strong className={Number(summary.known_unrealized_pnl_usd) < 0 ? "is-negative" : "is-positive"}>{money(summary.known_unrealized_pnl_usd)}</strong><small>Only complete cost basis included</small></article>
+        <article className="mw-panel mw-portfolio-stat"><span>Known unrealized P&amp;L</span><strong className={signClass(summary.known_unrealized_pnl_usd)}>{money(summary.known_unrealized_pnl_usd)}</strong><small>Only complete cost basis included</small></article>
         <article className="mw-panel mw-portfolio-stat"><span>Cost-basis coverage</span><strong>{percent(summary.cost_basis_coverage_pct)}</strong><small>{summary.open_order_count || 0} open orders</small></article>
       </section>
 

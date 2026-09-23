@@ -775,18 +775,23 @@
 
 .mw-table th,
 .mw-table td {
-  padding: 14px 12px;
+  padding: var(--space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   text-align: left;
   vertical-align: top;
 }
 
+.mw-table td {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .mw-table thead th {
   border-top: none;
   color: var(--mw-muted);
-  font-size: 0.84rem;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--label-tracking-comfortable);
 }
 
 .mw-table td span {
@@ -1165,13 +1170,13 @@
 .mw-portfolio-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--layout-grid-gap);
 }
 
+/* Same KPI hierarchy as the Dashboard's .mw-stat-card. */
 .mw-portfolio-stat {
   display: grid;
-  gap: 8px;
-  min-height: 140px;
+  gap: var(--space-2);
   align-content: space-between;
 }
 
@@ -1184,14 +1189,22 @@
 .mw-holding-card__metrics span,
 .mw-holding-card__detail-grid span {
   color: var(--mw-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--label-tracking-comfortable);
   text-transform: uppercase;
 }
 
 .mw-portfolio-stat > strong {
-  font-size: clamp(1.45rem, 2.2vw, 2.15rem);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mw-portfolio-stat > small {
+  font-size: var(--text-xs);
 }
 
 .mw-portfolio-stat > small {
@@ -1210,12 +1223,12 @@
 .mw-portfolio-holding-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--layout-grid-gap);
 }
 
 .mw-holding-card {
   display: grid;
-  gap: 18px;
+  gap: var(--space-4);
   position: relative;
   overflow: hidden;
 }
@@ -1236,9 +1249,9 @@
 
 .mw-holding-card__symbol {
   color: var(--mw-text);
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: var(--text-xl);
+  font-weight: 650; /* the board's .bh-symbol treatment */
+  letter-spacing: 0.02em;
 }
 
 .mw-holding-card__name {
@@ -1260,17 +1273,20 @@
   text-transform: uppercase;
 }
 
-.mw-holding-read.is-positive,
-.mw-portfolio-basis.is-complete,
-.mw-portfolio-mode .is-positive {
-  color: #9de8be;
-}
-
+/* Status chips: "good / complete" is --status-ok (mint), the board's
+   strong-read color. */
 .mw-holding-read.is-positive,
 .mw-portfolio-basis.is-complete {
-  border-color: rgba(104, 211, 145, 0.3);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
 }
+
+/* Money and percent results are price direction, not status: amber up,
+   violet down, muted when zero or unknown. Scoped to <strong> values so
+   status chips (spans) never pick these up. */
+.mw-portfolio-mode strong.is-positive { color: var(--signal-positive); }
+.mw-portfolio-mode strong.is-neutral { color: var(--text-muted); }
 
 .mw-holding-read.is-warning,
 .mw-portfolio-basis.is-partial {
@@ -1283,7 +1299,7 @@
   color: var(--danger);
 }
 
-.mw-portfolio-mode .is-negative {
+.mw-portfolio-mode strong.is-negative {
   color: var(--signal-negative); /* price/P&L direction, not a warning */
 }
 
@@ -1296,10 +1312,10 @@
    complete, with a dashed edge to signal they came from an estimate. */
 .mw-portfolio-basis.is-blended,
 .mw-portfolio-basis.is-manual {
-  color: #9de8be;
+  color: var(--status-ok);
   border-style: dashed;
-  border-color: rgba(104, 211, 145, 0.4);
-  background: rgba(104, 211, 145, 0.06);
+  border-color: rgba(16, 174, 155, 0.4);
+  background: rgba(16, 174, 155, 0.06);
 }
 
 /* Manual cost-basis entry */
@@ -1440,12 +1456,9 @@
   flex: 1;
   height: 4px;
   border-radius: var(--r-2);
-  background: linear-gradient(
-    90deg,
-    rgba(255, 159, 180, 0.5),
-    rgba(255, 179, 71, 0.4),
-    rgba(104, 211, 145, 0.5)
-  );
+  /* Support to resistance: the same mint-to-violet track the Risk Board
+     uses for the same concept. Descriptive position, not good/bad. */
+  background: linear-gradient(90deg, rgba(16, 174, 155, 0.45), rgba(192, 132, 252, 0.45));
 }
 
 .mw-holding-levels__marker {
@@ -1472,14 +1485,16 @@
 }
 
 .mw-holding-levels__grid span {
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   color: var(--mw-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .mw-holding-levels__grid strong {
-  font-size: 0.82rem;
+  font-family: var(--font-numeric);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--mw-text);
   font-variant-numeric: tabular-nums;
 }
@@ -1525,9 +1540,24 @@
 }
 
 .mw-posture-chip.is-positive {
-  color: #9de8be;
-  border-color: rgba(104, 211, 145, 0.3);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
+}
+
+/* Descriptive 24h reads ("Up today", "Down big today") describe what the
+   price did, not a signal status, so they use price-direction colors: amber
+   up, violet down. Their tone in portfolioSignals.js stays as-is (tested
+   logic); this only overrides the presentation. */
+.mw-holding-intel .mw-posture-chip[data-posture^="descriptive_up"] {
+  color: var(--signal-positive);
+  border-color: rgba(255, 179, 71, 0.3);
+  background: rgba(255, 179, 71, 0.07);
+}
+.mw-holding-intel .mw-posture-chip[data-posture^="descriptive_down"] {
+  color: var(--signal-negative);
+  border-color: rgba(192, 132, 252, 0.32);
+  background: rgba(192, 132, 252, 0.08);
 }
 
 .mw-posture-chip.is-warning {
@@ -1606,9 +1636,9 @@
 }
 
 .mw-evidence-tier.is-positive {
-  color: #9de8be;
-  border-color: rgba(104, 211, 145, 0.32);
-  background: rgba(104, 211, 145, 0.08);
+  color: var(--status-ok);
+  border-color: rgba(16, 174, 155, 0.34);
+  background: rgba(16, 174, 155, 0.08);
 }
 
 .mw-evidence-tier.is-info {
@@ -1629,7 +1659,7 @@
 }
 
 .is-tier-strong {
-  color: #9de8be;
+  color: var(--status-ok);
 }
 
 .mw-holding-intel__history {
@@ -1707,7 +1737,10 @@
 }
 
 .mw-holding-card__metrics strong {
-  font-size: 0.95rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .mw-holding-card__detail-grid {
@@ -1717,7 +1750,10 @@
 }
 
 .mw-holding-card__detail-grid strong {
-  font-size: 0.85rem;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 600;
   line-height: 1.45;
 }
 
@@ -1755,8 +1791,11 @@
 
 .mw-portfolio-setup,
 .mw-portfolio-loading {
+  /* Left-aligned under the page title like every other workspace panel;
+     centered it read as detached from the page. Width stays capped so the
+     copy doesn't run edge to edge. */
   max-width: 880px;
-  margin: 30px auto 0;
+  margin: 0;
 }
 
 .mw-portfolio-setup {
@@ -1828,6 +1867,13 @@
 
   .mw-portfolio-setup {
     grid-template-columns: 1fr;
+  }
+
+  /* Open orders: five columns fit a phone at compact cell padding instead of
+     side-scrolling by a few pixels. The shell still scrolls if data is wider. */
+  .mw-table th,
+  .mw-table td {
+    padding: var(--space-2);
   }
 }
 
