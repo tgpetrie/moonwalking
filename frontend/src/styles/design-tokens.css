@@ -1,0 +1,99 @@
+/*
+ * Shared design tokens — single source of truth for values the BHABIT
+ * board (index.css) and the Moonwalking app shell (mvp-shell.css, and
+ * everything under /app) both draw from.
+ *
+ * This file does not change how any existing page renders today. It
+ * centralizes primitives that were previously duplicated as raw hex in
+ * two places (or fell back to a hardcoded value via var(--bh-x, #hex)),
+ * and fixes two real gaps found while auditing the existing CSS for this
+ * merge — both silent, both currently live:
+ *
+ *   --r-4         referenced by .mw-watchlist-asset's border-radius but
+ *                 never defined anywhere. A var() that resolves to nothing
+ *                 makes the whole declaration invalid, so the card falls
+ *                 back to the property's initial value: those cards have
+ *                 had square corners this whole time, not the intended
+ *                 rounded ones.
+ *   --mw-success  referenced by .mw-market-move.is-up (the watchlist's
+ *                 "price went up" color) but never defined. Positive price
+ *                 moves in the watchlist have had no color signal at all —
+ *                 only negative moves (--mw-danger, which IS defined) show
+ *                 a color.
+ *
+ * One naming clash this file deliberately does NOT resolve: BHABIT colors
+ * a losing price with --bh-loss (violet, #c084fc) — see .is-down/.token-
+ * pct-loss usage throughout index.css. Moonwalking reuses that same violet
+ * as its general brand/button accent (--mw-accent), and separately
+ * invented a rose (--mw-danger, #ff9fb4) for "down/danger" instead. So the
+ * same violet hex means two different things depending on which system's
+ * CSS you're reading, and "down" is a different color in each system.
+ * Unifying that is a real visual-behavior decision (it changes what color
+ * users see for a losing price on one system or the other), not a missing
+ * definition, so it's flagged here rather than silently picked. Until
+ * decided, --color-violet stays the shared brand/accent primitive and
+ * --color-rose stays the shared negative/danger primitive; --bh-loss's
+ * price-down usage in index.css is untouched.
+ */
+
+:root {
+  /* ---- Primitive color ---- */
+  --color-bg-void: #050308;
+  --color-mint: #10ae9b;
+  --color-amber: #ffb347;
+  --color-violet: #c084fc;
+  --color-violet-strong: #a855f7;
+  --color-rose: #ff9fb4;
+  --color-ink: rgba(236, 231, 223, 0.92);
+
+  /* ---- Primitive radius ----
+     One knob drives every corner in the app (see index.css's original
+     comment on --radius-base). --r-4 extends the existing --r-1..--r-3
+     scale to close the gap noted above. */
+  --radius-base: 2px;
+  --r-1: var(--radius-base);
+  --r-2: calc(var(--radius-base) * 2);
+  --r-3: calc(var(--radius-base) * 3);
+  --r-4: calc(var(--radius-base) * 4);
+
+  /* ---- Primitive type ----
+     Both systems already reach for a monospace stack on tabular numbers
+     (prices, scores, timestamps) — currently repeated as the same literal
+     font stack across a dozen component files (alerts, scorecard,
+     sentiment popup, ask-codex). This gives new or migrated CSS one name
+     to reach for instead of retyping the stack; it does not change any of
+     those existing declarations. */
+  --font-sans: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono-numeric: "JetBrains Mono", "Fragment Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- Density ----
+     The actual visual difference between the BHABIT board and the
+     Moonwalking app shell is not color or font — both already use
+     Raleway — it's row padding and label treatment: BHABIT's tables run
+     tight (see --bh-row-px/--bh-row-py in index.css); Moonwalking's panels
+     run roomier (16px is the prevailing card padding in mvp-shell.css).
+     Named as two presets rather than one replacing the other, since a
+     dense leaderboard row and a readable settings panel don't want the
+     same rhythm. */
+  --space-compact-x: 14px;
+  --space-compact-y: 12px;
+  --space-comfortable: 16px;
+  --label-tracking-compact: 0.08em;
+  --label-tracking-comfortable: 0.14em;
+
+  /* ---- Semantic aliases ----
+     Call sites should reach for these, not the raw primitives above, so
+     the MEANING is what's shared, not just the value. */
+  --surface-void: var(--color-bg-void);
+  --text-primary: var(--color-ink);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --accent-primary: var(--color-violet);
+  --accent-primary-strong: var(--color-violet-strong);
+  --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role */
+  --signal-negative: var(--color-rose);  /* matches --mw-danger's existing color, named by role */
+
+  /* Literal fix for the --mw-success gap: .mw-market-move.is-up expects
+     exactly this name. Defined globally (not re-scoped to .mw-app) so the
+     lookup resolves regardless of which ancestor actually sets it. */
+  --mw-success: var(--signal-positive);
+}

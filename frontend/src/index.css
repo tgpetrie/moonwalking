@@ -1,4 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700&display=swap');
+/* Shared primitives (color, radius, type, density) for both this file and
+   the Moonwalking app shell (mvp-shell.css) — see that file's own header
+   comment. The radius scale that used to live directly in this file
+   (--radius-base/--r-1/--r-2/--r-3) now comes from there, unchanged in
+   value, plus the --r-4 it was missing. */
+@import './styles/design-tokens.css';
 @import './sentiment-v2.css';
 @import './styles/animations.css';
 
