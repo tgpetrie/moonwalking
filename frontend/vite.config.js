@@ -44,9 +44,13 @@ export default defineConfig({
     host: '127.0.0.1',
     port: vitePort,
     strictPort: true,
+    // No hmr.port: the HMR socket then rides on whatever port the server
+    // actually listens on. Pinning it to vitePort broke any second dev server
+    // started with `--port` (e.g. two worktrees on 5173 and 5174): its page
+    // attached to the OTHER server's HMR socket and full-reloaded every few
+    // seconds, so data never finished loading.
     hmr: {
       host: '127.0.0.1',
-      port: vitePort,
       protocol: 'ws'
     },
     proxy: {
