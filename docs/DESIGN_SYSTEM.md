@@ -79,6 +79,7 @@ so the *meaning* is what's shared:
 --signal-positive      → --color-amber
 --signal-negative      → --color-violet   (price/P&L down)
 --danger               → --color-rose     (destructive, errors, risk warnings)
+--price-current        → --color-mint     (a current price, as on the board)
 ```
 
 **Decided (2026-09-23): violet means "down" everywhere, matching the
@@ -109,16 +110,19 @@ style preference.
 ### Type
 
 - `--font-sans` — Raleway, the UI/body font for both systems.
-- `--font-mono-numeric` — JetBrains Mono, for tabular numbers (prices,
-  scores, timestamps, KPI values). Both systems already named this face in
-  a dozen stylesheets, but **it was never actually loaded** — it rendered
-  only for viewers who had it installed locally, and everyone else got a
-  fallback, so the same number looked different per machine.
-  `frontend/index.html` now loads it from Google Fonts at weights
-  400/500/600/700; use those weights only (anything else gets faux-bolded).
-  Monospace digits are wider than Raleway's — if a number-heavy element
-  suddenly crowds its neighbor after switching to this token, the layout
-  was relying on narrow digits and needs room, not a narrower font.
+- `--font-numeric` — **prices, percent changes, KPI values.** This is
+  Raleway (`var(--font-sans)`), always paired with
+  `font-variant-numeric: tabular-nums`. That is the board's real
+  convention: `.bh-price-current` and `.bh-change` render in Raleway with
+  tabular digits, measured in the browser, not monospace. An earlier pass
+  of this system wrongly put prices in JetBrains Mono; the result looked
+  visibly unlike the board (Tom's call-out, 2026-09-23) and was reverted.
+- `--font-mono-numeric` — JetBrains Mono, **only** for dense data tables
+  that already use a monospace face (scorecard, live leaderboard, alerts).
+  Not for prices or changes. It was named in a dozen stylesheets but never
+  loaded, so it only rendered for viewers who had it installed;
+  `frontend/index.html` now loads it at weights 400/500/600/700 (use only
+  those — anything else gets faux-bolded).
 - `--text-2xs` through `--text-3xl` — a rationalized 9-step size scale.
   **This did not exist before this file.** Auditing `mvp-shell.css` alone
   turned up 25+ distinct `font-size` values with no consistent ladder
@@ -185,15 +189,16 @@ sidebar padding 28/22px, sections and panels 24px).
 
 | Pattern | Class | Hierarchy |
 |---|---|---|
-| KPI tile | `.mw-stat-card` | `span` = tracked uppercase `--text-2xs` label; `strong` = `--text-2xl` tabular mono number |
+| KPI tile | `.mw-stat-card` | `span` = tracked uppercase `--text-2xs` label; `strong` = `--text-2xl` `--font-numeric` tabular number |
 | Panel title | `.mw-panel__header` | `h3` = tracked uppercase `--text-xs` label (like the board's column headers); `span` = muted `--text-xs` note |
-| List row | `.mw-list__row` (also `.mw-mini-list__row`, `.mw-session-row`) | left `div` stacks name (`strong`) over detail (`span`, `--text-xs`); trailing `span` = tabular mono `--text-xs` |
+| List row | `.mw-list__row` (also `.mw-mini-list__row`, `.mw-session-row`) | left `div` stacks name (`strong`) over detail (`span`, `--text-xs`); trailing `span` = `--font-numeric` tabular `--text-xs` |
 | Eyebrow | `.mw-eyebrow` | `--text-2xs`, 800 weight, `--label-tracking-comfortable`, accent color |
+| Quote + change (the board's row) | `.mw-quote` (`__current`, `__previous`, `__status`) + `.mw-watchlist-changes .mw-market-move` | current price: `--font-numeric` `--text-md` 600 in `--price-current` (mint); previous price below it: `--text-sm` 400 in `--text-muted`; change in its own column: `--text-md` 650, tracking 0.02em, `--signal-positive` (amber) or `--signal-negative` (violet), period label `--text-2xs` in `--text-faint`. Measured against the board's `.bh-price-current` / `.bh-price-previous` / `.bh-change` — reuse this for any price anywhere in `/app` |
 
 **Cards vs. List (watchlist and any future asset grid):** Cards view is the
 *comfortable* layout — it stacks identity over price and change at every
-width, because a ~370px card can't hold a name, a price and a monospace
-change row side by side without the numbers squeezing the name. List view
+width, because a ~370px card can't hold a name and a full quote row side
+by side without squeezing the name. List view
 is the *dense*, board-style layout — full-width rows with identity left and
 numbers pinned right. Don't try to make a card behave like a row; offer
 both views.
@@ -251,10 +256,11 @@ its own decision.
    `--space-compact-x/y` + `--label-tracking-compact` + uppercase labels
    (BHABIT's convention). Roomy/readable → `--space-comfortable` +
    `--label-tracking-comfortable`.
-3. **Numbers that should line up in a column** (prices, percentages,
-   scores, timestamps) get `--font-mono-numeric` and
-   `font-variant-numeric: tabular-nums`. This is already the convention in
-   both systems' price displays; it's just not centralized before this.
+3. **Prices, changes and KPI numbers** get `--font-numeric` with
+   `font-variant-numeric: tabular-nums` — Raleway with tabular digits, as
+   on the board. A price is `--price-current` (mint); a change is
+   `--signal-positive` / `--signal-negative`. Don't use monospace for these;
+   `--font-mono-numeric` is only for dense tables that already use it.
 4. **Use the type scale**, not a new `rem` value, unless you've checked
    the existing 25+ ad hoc sizes really don't cover the case.
 5. **New floating/overlay UI** picks a z-index tier from §2's z-index

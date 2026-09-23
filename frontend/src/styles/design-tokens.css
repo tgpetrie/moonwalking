@@ -24,9 +24,13 @@
  * Known gaps fixed here (see docs/DESIGN_SYSTEM.md for the full list):
  *   --r-4          .mw-watchlist-asset's border-radius referenced this and
  *                  got square corners for it, silently, until this file.
- *   --mw-success   .mw-market-move.is-up referenced this and got no color
- *                  at all for "price went up" in the watchlist, silently,
- *                  until this file.
+ *   --mw-success   .mw-market-move.is-up referenced this but it was never
+ *                  defined, so "price went up" had no color. It was fixed
+ *                  here, then silently dropped again when this file was
+ *                  expanded, and up-moves went white. .is-up now uses
+ *                  --signal-positive directly; --mw-success no longer exists.
+ *                  Lesson: after editing this file, grep the app for every
+ *                  var(--x) and confirm each --x is still defined.
  * ============================================================================
  */
 
@@ -64,6 +68,7 @@
   --accent-primary-strong: var(--color-violet-strong);
   --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role — yes, gains render amber, not green; that's the real, already-live convention */
   --signal-negative: var(--color-violet); /* price/P&L down — same as the board's --bh-loss */
+  --price-current: var(--color-mint);     /* a current price, as on the board (.bh-price-current) */
   --danger: var(--color-rose);            /* destructive actions, errors, risk warnings — NOT price direction */
 
   /* RESOLVED (decision: violet = price down everywhere, matching the board).
@@ -102,6 +107,14 @@
      and everyone else got a fallback — the same number looked different
      per machine. Fragment Mono (regular only) stays as the next fallback. */
   --font-mono-numeric: "JetBrains Mono", "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Prices, percent changes, KPI values: Raleway with tabular digits, the
+     board's real convention (.bh-price-current / .bh-change are Raleway +
+     font-variant-numeric: tabular-nums, NOT monospace). Always pair with
+     font-variant-numeric: tabular-nums. --font-mono-numeric above is for
+     dense data tables that already use mono (scorecard, leaderboard,
+     alerts) — not for prices or changes. */
+  --font-numeric: var(--font-sans);
 
   /* ==========================================================================
      TYPE — size scale

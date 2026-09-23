@@ -1765,15 +1765,26 @@ export function WatchlistsPage({
                     </div>
                   </div>
                   <div className="mw-watchlist-asset__price">
-                    <strong>{formatMoney(price)}</strong>
-                    <small>{stock ? "Stock feed not connected" : price == null ? "Quote unavailable" : market?.price != null ? quoteStale ? "Stale quote" : "Live · USD" : dayStale ? "Stale quote" : "Coinbase · 60s refresh"}</small>
+                    {/* Board row pattern: current price over the selected period's
+                        previous price, then the change in its own column. */}
+                    <div className="mw-quote">
+                      <strong className="mw-quote__current">{formatMoney(price)}</strong>
+                      {windows.length === 1 && previousPrices[windows[0].key] != null && price != null
+                        ? <span className="mw-quote__previous">{formatMoney(previousPrices[windows[0].key])}</span>
+                        : null}
+                      <small className="mw-quote__status">{stock ? "Stock feed not connected" : price == null ? "Quote unavailable" : market?.price != null ? quoteStale ? "Stale quote" : "Live · USD" : dayStale ? "Stale quote" : "Coinbase · 60s refresh"}</small>
+                    </div>
                     <div className="mw-watchlist-changes">
                       {windows.map((window) => {
                         const pct = stock ? null : changes[window.key];
                         const stale = window.key === "24h" ? dayStale : quoteStale;
                         const previous = previousPrices[window.key];
-                        return <span key={window.key} className={classNames("mw-market-move", pct > 0 ? "is-up" : pct < 0 ? "is-down" : "")}>
-                          <small>{window.label}</small> <strong>{previous == null || price == null ? "Previous unavailable" : `${formatMoney(previous)} → ${formatMoney(price)}`}</strong> <em>{pct == null ? "Unavailable" : formatPercent(pct)}{pct != null && stale ? " · Stale" : ""}</em>
+                        return <span
+                          key={window.key}
+                          className={classNames("mw-market-move", pct > 0 ? "is-up" : pct < 0 ? "is-down" : "")}
+                          title={previous == null || price == null ? `${window.label}: previous price unavailable` : `${window.label}: ${formatMoney(previous)} → ${formatMoney(price)}`}
+                        >
+                          <small>{window.label}</small> <em>{pct == null ? "Unavailable" : formatPercent(pct)}{pct != null && stale ? " · Stale" : ""}</em>
                         </span>;
                       })}
                     </div>

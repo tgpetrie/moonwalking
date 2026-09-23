@@ -564,7 +564,7 @@
 }
 
 .mw-sidebar__meta strong {
-  font-family: var(--font-mono-numeric);
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-lg);
   font-weight: 600;
@@ -635,7 +635,7 @@
 }
 
 .mw-stat-card strong {
-  font-family: var(--font-mono-numeric);
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-2xl);
   font-weight: 600;
@@ -720,7 +720,7 @@
 /* Trailing meta (timestamps, counts) is tabular so a column of them aligns. */
 .mw-list__row > span,
 .mw-mini-list__row > span {
-  font-family: var(--font-mono-numeric);
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -881,30 +881,13 @@
   font-size: 0.88rem;
 }
 
-.mw-watchlist-asset__price {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-}
-
-.mw-watchlist-asset__price strong {
-  font-size: 1.08rem;
-  /* Matches the leaderboard's .bh-price-current: 600 weight (not the
-     browser-default 700 <strong> bold) and tabular numerals so a column
-     of prices lines up like a ledger instead of each digit having its own
-     width. */
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono-numeric);
-}
-
 .mw-market-move {
   color: var(--mw-muted);
   font-weight: 800;
 }
 
 .mw-market-move.is-up {
-  color: var(--mw-success);
+  color: var(--signal-positive);
 }
 
 .mw-market-move.is-down {
@@ -1856,32 +1839,57 @@
 .mw-watchlist-windows button { cursor: pointer; border: 1px solid #ffffff24; border-radius: 8px; background: transparent; color: var(--mw-text); padding: 7px 12px; font: inherit; }
 .mw-watchlist-windows button[aria-pressed="true"] { background: #bb86fc30; border-color: #c084fc; }
 .mw-watchlist-windows button:focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
-.mw-watchlist-display label, .mw-watchlist-help, .mw-watchlist-asset__price > small { color: var(--mw-muted); font-size: .8rem; }
+.mw-watchlist-display label, .mw-watchlist-help { color: var(--mw-muted); font-size: .8rem; }
 .mw-watchlist-display label { display: flex; align-items: center; gap: 5px; }
-.mw-watchlist-changes { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px 12px; }
-.mw-watchlist-changes .mw-market-move { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 5px; font-size: .86rem; }
-.mw-watchlist-changes small { color: var(--mw-muted); font-weight: 400; }
 .mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: 10px; box-shadow: 0 18px 38px #0000002b; }
-.mw-watchlist-asset__price { min-width: 0; }
-.mw-watchlist-asset__price > strong { color: #e9e2d5; font-variant-numeric: tabular-nums; font-weight: 600; }
-.mw-watchlist-changes .mw-market-move strong { color: #e9e2d5; font-weight: 500; font-variant-numeric: tabular-nums; font-family: var(--font-mono-numeric); }
-/* Matches the leaderboard's .bh-change: "hero but not loud" — same weight
-   and tracking as the current price, not a shout, but not an afterthought
-   either. */
-.mw-watchlist-changes .mw-market-move em { font-style: normal; font-weight: 650; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono-numeric); }
 .mw-watchlist-windows button { border-color: #ffffff12; border-radius: 4px; background: #ffffff0a; color: #c5bfce; }
 .mw-watchlist-windows button[aria-pressed="true"] { background: #b9a0ff18; border-color: #b9a0ff; color: #f0eaf6; }
 .mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }
 .mw-watchlist-asset input.mw-watchlist-select { width: 15px; height: 15px; margin: 0; flex: 0 0 15px; }
-/* Cards view stacks at every width: identity on top, price and change
-   below. A ~370px card can't hold a name, a price and a monospace change
-   row side by side without the numbers squeezing the name out (the
-   overlap bug). Dense side-by-side rows are what List view is for — that's
-   the board-style layout; Cards is the comfortable one. */
+/* ---- Quote + change: the board's row pattern ----
+   Same values as the board's .bh-price-current / .bh-price-previous /
+   .bh-change in index.css, so a price reads identically on the Live Board
+   and in /app: Raleway with tabular digits (not monospace), current price
+   in mint over the previous price in muted white, change in its own column
+   in amber (up) or violet (down). */
+.mw-watchlist-asset__price {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.mw-quote { display: grid; gap: 1px; min-width: 0; line-height: 1.05; }
+.mw-quote__current {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--price-current);
+}
+.mw-quote__previous {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.mw-quote__status { margin-top: var(--space-1); font-size: var(--text-2xs); color: var(--text-faint); }
+.mw-watchlist-changes { display: grid; justify-items: end; gap: var(--space-1); }
+.mw-watchlist-changes .mw-market-move { display: flex; align-items: baseline; gap: var(--space-2); white-space: nowrap; }
+.mw-watchlist-changes .mw-market-move small { font-size: var(--text-2xs); font-weight: 400; color: var(--text-faint); }
+.mw-watchlist-changes .mw-market-move em {
+  font-style: normal;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+/* Cards view stacks identity over the quote row at every width. Dense
+   side-by-side rows are what List view is for — that's the board-style
+   layout; Cards is the comfortable one. */
 .mw-watchlist-grid--cards .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
-.mw-watchlist-grid--cards .mw-watchlist-asset__price { justify-items: start; }
-.mw-watchlist-grid--cards .mw-watchlist-changes,
-.mw-watchlist-grid--cards .mw-watchlist-changes .mw-market-move { justify-content: flex-start; }
 .mw-watchlist-grid--compact { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
 .mw-watchlist-grid--compact .mw-watchlist-asset { padding: 10px 32px 10px 10px; gap: 8px; }
 .mw-watchlist-grid--compact .mw-watchlist-remove { top: 6px; right: 6px; width: 18px; height: 18px; font-size: .9rem; }
@@ -1891,11 +1899,12 @@
 .mw-watchlist-grid--list { grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr); padding: 10px 40px 10px 14px; gap: 8px 16px; }
 .mw-watchlist-grid--list .mw-watchlist-asset__meta { grid-column: 1 / -1; }
-.mw-watchlist-grid--list .mw-watchlist-asset__price { grid-template-columns: auto 1fr; align-items: center; }
-.mw-watchlist-grid--list .mw-watchlist-changes { grid-column: 1 / -1; }
+.mw-watchlist-grid--list .mw-watchlist-asset__price { justify-content: flex-end; align-items: center; gap: var(--space-6); }
+.mw-watchlist-grid--list .mw-quote { justify-items: end; text-align: right; }
 .mw-watchlist-grid--list .mw-coin-avatar { width: 32px; height: 32px; border-radius: 50%; }
 @media (max-width: 650px) {
  .mw-watchlist-grid { grid-template-columns: minmax(0, 1fr); }
  .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
- .mw-watchlist-grid--list .mw-watchlist-asset__price { display: flex; flex-direction: column; align-items: flex-end; }
+ .mw-watchlist-grid--list .mw-watchlist-asset__price { justify-content: space-between; }
+ .mw-watchlist-grid--list .mw-quote { justify-items: start; text-align: left; }
 }
