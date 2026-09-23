@@ -786,6 +786,11 @@
 .mw-watchlist-asset h3 {
   margin: 0;
   font-size: 1.05rem;
+  /* Matches the leaderboard's .bh-symbol treatment: weight + tracking
+     carry the emphasis instead of a bigger size, so symbol and price read
+     at a consistent scale across the two systems. */
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .mw-watchlist-asset p {
@@ -802,6 +807,13 @@
 
 .mw-watchlist-asset__price strong {
   font-size: 1.08rem;
+  /* Matches the leaderboard's .bh-price-current: 600 weight (not the
+     browser-default 700 <strong> bold) and tabular numerals so a column
+     of prices lines up like a ledger instead of each digit having its own
+     width. */
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono-numeric);
 }
 
 .mw-market-move {
@@ -1767,8 +1779,11 @@
 .mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: 10px; box-shadow: 0 18px 38px #0000002b; }
 .mw-watchlist-asset__price { min-width: 0; }
 .mw-watchlist-asset__price > strong { color: #e9e2d5; font-variant-numeric: tabular-nums; font-weight: 600; }
-.mw-watchlist-changes .mw-market-move strong { color: #e9e2d5; font-weight: 500; font-variant-numeric: tabular-nums; }
-.mw-watchlist-changes .mw-market-move em { font-style: normal; font-weight: 600; }
+.mw-watchlist-changes .mw-market-move strong { color: #e9e2d5; font-weight: 500; font-variant-numeric: tabular-nums; font-family: var(--font-mono-numeric); }
+/* Matches the leaderboard's .bh-change: "hero but not loud" — same weight
+   and tracking as the current price, not a shout, but not an afterthought
+   either. */
+.mw-watchlist-changes .mw-market-move em { font-style: normal; font-weight: 650; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono-numeric); }
 .mw-watchlist-windows button { border-color: #ffffff12; border-radius: 4px; background: #ffffff0a; color: #c5bfce; }
 .mw-watchlist-windows button[aria-pressed="true"] { background: #b9a0ff18; border-color: #b9a0ff; color: #f0eaf6; }
 .mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }

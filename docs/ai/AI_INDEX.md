@@ -15,6 +15,14 @@ Read in this order before implementation:
 3. `ARCHITECTURE.md`
 4. `HANDOFF.md`
 5. The relevant files under `docs/`
+6. Touching CSS, colors, spacing, typography, or anything visual on any
+   page: `docs/DESIGN_SYSTEM.md` first. It's the cross-system token
+   reference (values live in `frontend/src/styles/design-tokens.css`) and
+   says where the home board and the Moonwalking `/app/*` shell already
+   agree, where they genuinely still disagree on purpose, and known gaps
+   flagged but not silently fixed. `docs/FRONTEND_UI_RULES.md` and
+   `docs/UI_CONTRACT.md` remain authoritative for the home board's own
+   grid/row/motion rules specifically.
 
 ## Canonical runtime
 
