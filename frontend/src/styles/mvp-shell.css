@@ -239,12 +239,13 @@
 
 .mw-hero-card,
 .mw-auth-layout,
+.mw-board,
 .mw-dashboard-grid,
 .mw-watchlists-layout,
 .mw-portfolio-hero,
 .mw-settings-grid {
   display: grid;
-  gap: 24px;
+  gap: var(--layout-section-gap);
 }
 
 .mw-hero-card {
@@ -284,10 +285,10 @@
 
 .mw-eyebrow,
 .mw-surface__eyebrow {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--label-tracking-comfortable);
   color: var(--mw-accent);
   text-transform: uppercase;
 }
@@ -332,7 +333,7 @@
 .mw-panel,
 .mw-auth-card,
 .mw-profile-hero {
-  padding: 24px;
+  padding: var(--layout-panel-pad);
 }
 
 .mw-hero-grid,
@@ -504,19 +505,19 @@
 
 .mw-member-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: var(--layout-sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .mw-sidebar {
-  padding: 28px 22px;
+  padding: var(--space-6) var(--space-4);
   border-right: 1px solid var(--mw-line);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
     rgba(7, 5, 11, 0.84);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--space-5);
 }
 
 .mw-sidebar__brand span,
@@ -527,12 +528,13 @@
 
 .mw-sidebar__nav {
   display: grid;
-  gap: 8px;
+  gap: var(--space-1);
 }
 
 .mw-sidebar__link {
-  padding: 14px 16px;
-  border-radius: var(--r-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-2);
+  font-size: var(--text-sm);
   border: 1px solid transparent;
   color: var(--mw-muted);
 }
@@ -546,8 +548,8 @@
 
 .mw-sidebar__meta {
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
@@ -556,6 +558,16 @@
 .mw-sidebar__meta span {
   color: var(--mw-muted);
   display: block;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-sidebar__meta strong {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .mw-sidebar__footer {
@@ -565,10 +577,11 @@
 }
 
 .mw-workspace {
-  padding: 28px;
+  padding: var(--layout-gutter);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--layout-section-gap);
+  min-width: 0;
 }
 
 .mw-member-header {
@@ -580,7 +593,7 @@
 
 .mw-member-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: var(--text-3xl);
 }
 
 .mw-board,
@@ -592,13 +605,42 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-5);
+}
+
+.mw-panel--hero h2 {
+  font-size: var(--text-xl);
 }
 
 .mw-stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: var(--layout-grid-gap);
+}
+
+/* KPI tile: small tracked label over a large tabular number, the same
+   label/number hierarchy the board uses. Before this rule existed the
+   label and number rendered inline ("Watchlists3"). */
+.mw-stat-card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.mw-stat-card span {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-stat-card strong {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mw-text);
 }
 
 .mw-stat-card span,
@@ -613,9 +655,24 @@
 .mw-panel__header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Panel titles read as section labels, like the board's column headers:
+   small, tracked, uppercase. The panel itself carries the weight. */
+.mw-panel__header h3 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+  color: var(--mw-text);
+}
+
+.mw-panel__header span {
+  font-size: var(--text-xs);
 }
 
 .mw-list {
@@ -623,7 +680,7 @@
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
 .mw-list__row,
@@ -632,8 +689,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -644,12 +701,37 @@
   padding-top: 0;
 }
 
+/* Row identity stacks name over detail. Before this, the name and its
+   detail rendered inline with no gap ("My Watchlist8 items"). */
+.mw-list__row > div,
+.mw-mini-list__row > div,
+.mw-session-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-list__row > div span,
+.mw-mini-list__row > div span,
+.mw-session-row > div span {
+  font-size: var(--text-xs);
+}
+
+/* Trailing meta (timestamps, counts) is tabular so a column of them aligns. */
+.mw-list__row > span,
+.mw-mini-list__row > span {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .mw-action-card,
 .mw-watchlist-chip,
 .mw-featured-card {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
@@ -1791,6 +1873,15 @@
 .mw-watchlist-windows button[aria-pressed="true"] { background: #b9a0ff18; border-color: #b9a0ff; color: #f0eaf6; }
 .mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }
 .mw-watchlist-asset input.mw-watchlist-select { width: 15px; height: 15px; margin: 0; flex: 0 0 15px; }
+/* Cards view stacks at every width: identity on top, price and change
+   below. A ~370px card can't hold a name, a price and a monospace change
+   row side by side without the numbers squeezing the name out (the
+   overlap bug). Dense side-by-side rows are what List view is for — that's
+   the board-style layout; Cards is the comfortable one. */
+.mw-watchlist-grid--cards .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.mw-watchlist-grid--cards .mw-watchlist-asset__price { justify-items: start; }
+.mw-watchlist-grid--cards .mw-watchlist-changes,
+.mw-watchlist-grid--cards .mw-watchlist-changes .mw-market-move { justify-content: flex-start; }
 .mw-watchlist-grid--compact { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
 .mw-watchlist-grid--compact .mw-watchlist-asset { padding: 10px 32px 10px 10px; gap: 8px; }
 .mw-watchlist-grid--compact .mw-watchlist-remove { top: 6px; right: 6px; width: 18px; height: 18px; font-size: .9rem; }
@@ -1805,13 +1896,6 @@
 .mw-watchlist-grid--list .mw-coin-avatar { width: 32px; height: 32px; border-radius: 50%; }
 @media (max-width: 650px) {
  .mw-watchlist-grid { grid-template-columns: minmax(0, 1fr); }
- /* Cards view: identity and price no longer fit side by side at this width
-    without squeezing below their content size (see the overlap note above),
-    so price drops to its own full-width row instead. */
- .mw-watchlist-grid--cards .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
- .mw-watchlist-grid--cards .mw-watchlist-asset__price { justify-items: start; }
- .mw-watchlist-grid--cards .mw-watchlist-changes,
- .mw-watchlist-grid--cards .mw-watchlist-changes .mw-market-move { justify-content: flex-start; }
  .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
  .mw-watchlist-grid--list .mw-watchlist-asset__price { display: flex; flex-direction: column; align-items: flex-end; }
 }

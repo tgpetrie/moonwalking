@@ -109,11 +109,16 @@ style preference.
 ### Type
 
 - `--font-sans` — Raleway, the UI/body font for both systems.
-- `--font-mono-numeric` — the monospace stack both systems already reach
-  for on tabular numbers (prices, scores, timestamps), previously repeated
-  as the same literal font stack in a dozen files (alerts, scorecard,
-  sentiment popup, ask-codex). Use this token for any new numeric/tabular
-  display instead of retyping the stack.
+- `--font-mono-numeric` — JetBrains Mono, for tabular numbers (prices,
+  scores, timestamps, KPI values). Both systems already named this face in
+  a dozen stylesheets, but **it was never actually loaded** — it rendered
+  only for viewers who had it installed locally, and everyone else got a
+  fallback, so the same number looked different per machine.
+  `frontend/index.html` now loads it from Google Fonts at weights
+  400/500/600/700; use those weights only (anything else gets faux-bolded).
+  Monospace digits are wider than Raleway's — if a number-heavy element
+  suddenly crowds its neighbor after switching to this token, the layout
+  was relying on narrow digits and needs room, not a narrower font.
 - `--text-2xs` through `--text-3xl` — a rationalized 9-step size scale.
   **This did not exist before this file.** Auditing `mvp-shell.css` alone
   turned up 25+ distinct `font-size` values with no consistent ladder
@@ -160,6 +165,38 @@ tables run tight (`--bh-row-px`/`--bh-row-py` in `index.css`,
 named presets, not one replacing the other — pick per component. A dense
 leaderboard row and a readable settings panel should not use the same
 rhythm just because they share a token file.
+
+### Layout — the `/app` workspace grid
+
+```
+--layout-sidebar-w: 248px            /* member sidebar column */
+--layout-gutter: var(--space-6)      /* workspace outer padding (24px) */
+--layout-section-gap: var(--space-5) /* between stacked sections/panels (20px) */
+--layout-panel-pad: var(--space-5)   /* inside a .mw-panel (20px) */
+--layout-grid-gap: var(--space-4)    /* between cards in a grid (16px) */
+```
+
+Every `/app` page sits in the same shell (`.mw-member-shell` →
+`.mw-sidebar` + `.mw-workspace`), so these apply everywhere at once.
+Before them, each was its own literal (sidebar 290px, workspace 28px,
+sidebar padding 28/22px, sections and panels 24px).
+
+**Shared component patterns** (all in `mvp-shell.css`, all tokenized):
+
+| Pattern | Class | Hierarchy |
+|---|---|---|
+| KPI tile | `.mw-stat-card` | `span` = tracked uppercase `--text-2xs` label; `strong` = `--text-2xl` tabular mono number |
+| Panel title | `.mw-panel__header` | `h3` = tracked uppercase `--text-xs` label (like the board's column headers); `span` = muted `--text-xs` note |
+| List row | `.mw-list__row` (also `.mw-mini-list__row`, `.mw-session-row`) | left `div` stacks name (`strong`) over detail (`span`, `--text-xs`); trailing `span` = tabular mono `--text-xs` |
+| Eyebrow | `.mw-eyebrow` | `--text-2xs`, 800 weight, `--label-tracking-comfortable`, accent color |
+
+**Cards vs. List (watchlist and any future asset grid):** Cards view is the
+*comfortable* layout — it stacks identity over price and change at every
+width, because a ~370px card can't hold a name, a price and a monospace
+change row side by side without the numbers squeezing the name. List view
+is the *dense*, board-style layout — full-width rows with identity left and
+numbers pinned right. Don't try to make a card behave like a row; offer
+both views.
 
 ### Z-index
 
