@@ -747,10 +747,15 @@
 
 .mw-watchlist-asset {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* Both tracks must allow shrinking below their content size (grid's
+     implicit minimum is content width, not 0) or the price column's
+     min-content width wins and overlaps the identity column instead of
+     the row growing taller — the cause of the mobile card overlap. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
   gap: 14px;
   align-items: center;
-  padding: 16px;
+  padding: 16px 40px 16px 16px; /* right clearance for the corner remove button */
+  position: relative;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--r-4);
   background:
@@ -840,8 +845,30 @@
   color: var(--mw-text);
 }
 
-.mw-watchlist-asset .mw-table__remove {
-  justify-self: end;
+/* Tucked into the card's own corner instead of taking a row/column of its
+   own, so it reads as a minor control, not competing with price/identity. */
+.mw-watchlist-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mw-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.mw-watchlist-remove:hover,
+.mw-watchlist-remove:focus-visible {
+  opacity: 1;
+  color: var(--mw-danger);
+  background: rgba(255, 159, 180, 0.12);
 }
 
 .mw-notes-area {
@@ -1735,7 +1762,7 @@
 .mw-watchlist-display label, .mw-watchlist-help, .mw-watchlist-asset__price > small { color: var(--mw-muted); font-size: .8rem; }
 .mw-watchlist-display label { display: flex; align-items: center; gap: 5px; }
 .mw-watchlist-changes { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px 12px; }
-.mw-watchlist-changes .mw-market-move { display: flex; gap: 5px; font-size: .86rem; }
+.mw-watchlist-changes .mw-market-move { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 5px; font-size: .86rem; }
 .mw-watchlist-changes small { color: var(--mw-muted); font-weight: 400; }
 .mw-watchlist-asset { background: linear-gradient(180deg, #ffffff0b, #ffffff03), #0c0a12; border: 1px solid #ffffff14; border-top: 2px solid #70677e; border-radius: 10px; box-shadow: 0 18px 38px #0000002b; }
 .mw-watchlist-asset__price { min-width: 0; }
@@ -1747,20 +1774,26 @@
 .mw-watchlist-windows button:focus-visible { outline: 1px solid #b9a0ff; outline-offset: 2px; box-shadow: none; }
 .mw-watchlist-asset input.mw-watchlist-select { width: 15px; height: 15px; margin: 0; flex: 0 0 15px; }
 .mw-watchlist-grid--compact { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
-.mw-watchlist-grid--compact .mw-watchlist-asset { padding: 10px; gap: 8px; }
+.mw-watchlist-grid--compact .mw-watchlist-asset { padding: 10px 32px 10px 10px; gap: 8px; }
+.mw-watchlist-grid--compact .mw-watchlist-remove { top: 6px; right: 6px; width: 18px; height: 18px; font-size: .9rem; }
 .mw-watchlist-grid--compact .mw-coin-avatar { width: 30px; height: 30px; border-radius: 50%; }
 .mw-watchlist-grid--compact .mw-watchlist-asset__identity { gap: 6px; }
 .mw-watchlist-grid--compact .mw-watchlist-asset__identity p { display: none; }
 .mw-watchlist-grid--list { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-.mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr) auto; padding: 10px 14px; gap: 8px 16px; }
-.mw-watchlist-grid--list .mw-watchlist-asset__meta { grid-column: 1 / 3; }
-.mw-watchlist-grid--list .mw-table__remove { grid-column: 3; grid-row: 1; }
+.mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr); padding: 10px 40px 10px 14px; gap: 8px 16px; }
+.mw-watchlist-grid--list .mw-watchlist-asset__meta { grid-column: 1 / -1; }
 .mw-watchlist-grid--list .mw-watchlist-asset__price { grid-template-columns: auto 1fr; align-items: center; }
 .mw-watchlist-grid--list .mw-watchlist-changes { grid-column: 1 / -1; }
 .mw-watchlist-grid--list .mw-coin-avatar { width: 32px; height: 32px; border-radius: 50%; }
 @media (max-width: 650px) {
  .mw-watchlist-grid { grid-template-columns: minmax(0, 1fr); }
- .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
- .mw-watchlist-grid--list .mw-table__remove { grid-column: 2; grid-row: auto; }
+ /* Cards view: identity and price no longer fit side by side at this width
+    without squeezing below their content size (see the overlap note above),
+    so price drops to its own full-width row instead. */
+ .mw-watchlist-grid--cards .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
+ .mw-watchlist-grid--cards .mw-watchlist-asset__price { justify-items: start; }
+ .mw-watchlist-grid--cards .mw-watchlist-changes,
+ .mw-watchlist-grid--cards .mw-watchlist-changes .mw-market-move { justify-content: flex-start; }
+ .mw-watchlist-grid--list .mw-watchlist-asset { grid-template-columns: minmax(0, 1fr); }
  .mw-watchlist-grid--list .mw-watchlist-asset__price { display: flex; flex-direction: column; align-items: flex-end; }
 }

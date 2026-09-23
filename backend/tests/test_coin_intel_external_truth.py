@@ -67,3 +67,48 @@ def test_licensed_provider_rows_show_credentials_without_claiming_live_data(
         assert by_name[name]["configured"] is True
         assert by_name[name]["status"] == "configured"
         assert by_name[name]["status"] != "live"
+
+
+def test_fetch_coin_icon_url_resolves_and_caches(monkeypatch):
+    intel._ENDPOINT_CACHE.clear()
+    monkeypatch.setattr(intel, "coingecko_coin_id", lambda symbol: "bitcoin")
+    calls = []
+
+    def fake_http_get_json(url):
+        calls.append(url)
+        return 200, {"image": {"large": "https://example.test/btc.png"}}, None
+
+    monkeypatch.setattr(intel, "_http_get_json", fake_http_get_json)
+
+    first = intel.fetch_coin_icon_url("BTC")
+    assert first == "https://example.test/btc.png"
+    assert len(calls) == 1
+
+    # Second call is served from cache; no further network call.
+    second = intel.fetch_coin_icon_url("btc-usd")
+    assert second == "https://example.test/btc.png"
+    assert len(calls) == 1
+
+
+def test_fetch_coin_icon_url_negative_caches_unresolvable_symbols(monkeypatch):
+    intel._ENDPOINT_CACHE.clear()
+    monkeypatch.setattr(intel, "coingecko_coin_id", lambda symbol: None)
+    calls = []
+    monkeypatch.setattr(
+        intel, "_http_get_json", lambda url: calls.append(url) or (200, {}, None)
+    )
+
+    result = intel.fetch_coin_icon_url("ZZZNOTREAL")
+    assert result is None
+    assert calls == []  # coingecko_coin_id returned None, no detail call made
+
+    cached, url = intel.peek_coin_icon_url("ZZZNOTREAL")
+    assert cached is True
+    assert url is None
+
+
+def test_peek_coin_icon_url_reports_uncached_symbols_honestly():
+    intel._ENDPOINT_CACHE.clear()
+    cached, url = intel.peek_coin_icon_url("NEVERLOOKEDUP")
+    assert cached is False
+    assert url is None

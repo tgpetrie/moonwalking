@@ -39,7 +39,10 @@ describe("Portfolio Risk Board", () => {
     expect(screen.getByText("5.4% below current price")).toBeInTheDocument();
     expect(screen.getByText("Stop trigger (volatility-derived)")).toBeInTheDocument();
     expect(screen.getByText(/Wide stop distance — outside this board's actionable-distance convention/)).toBeInTheDocument();
-    expect(screen.getByRole("article", { name: "ETH risk levels" })).toHaveTextContent(/Not enough completed candle history/);
+    const thin = screen.getByRole("article", { name: "ETH risk levels" });
+    expect(thin).toHaveTextContent(/Not enough completed candle history/);
+    expect(within(thin).getByText("Price unavailable")).toBeInTheDocument();
+    expect(within(thin).queryByRole("button", { name: "Explore levels" })).not.toBeInTheDocument();
     expect(fetcher.mock.calls[0][0]).toContain("symbols=BTC%2CETH");
     expect(fetcher.mock.calls[0][1].credentials).toBe("include");
   });

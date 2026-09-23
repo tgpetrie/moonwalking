@@ -15,6 +15,11 @@ const cadence = deriveDashboardCadence(import.meta.env).PUBLISH_BANNER_MS;
 
 export function RiskLevelCard({ row, source }) {
   const [expanded, setExpanded] = useState(false);
+  const cardRef = useRef(null);
+  // Expanding moves the card onto its own full-width row, so bring it back into view.
+  useEffect(() => {
+    if (expanded) cardRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [expanded]);
   const plan = row.plan || {};
   const entry = row.entry || {};
   const signal = plan.top_signal || {};
@@ -32,7 +37,8 @@ export function RiskLevelCard({ row, source }) {
     ? "Stop trigger (volatility-derived)"
     : "Stop trigger";
   return (
-    <article className={`mw-panel prb-card prb-card--${row.status}`} aria-label={`${row.symbol} risk levels`}>
+    <article ref={cardRef} className={`mw-panel prb-card prb-card--${row.status}${expanded ? " prb-card--expanded" : ""}`} aria-label={`${row.symbol} risk levels`}>
+      <div className="prb-card__body">
       <div className="prb-card__heading">
         <div className="prb-card__title">
           <img
@@ -43,7 +49,9 @@ export function RiskLevelCard({ row, source }) {
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
           <h3>{row.symbol}</h3>
-          <span className="prb-price">{price(row.price_usd)}</span>
+          {row.price_usd == null
+            ? <span className="prb-price prb-price--missing">Price unavailable</span>
+            : <span className="prb-price">{price(row.price_usd)}</span>}
         </div>
         <div className="prb-chips">
           <span className={`prb-chip prb-chip--${row.status}`} aria-label={`Protection read: ${plan.available ? signal.label : "Unavailable"}`}>{plan.available ? signal.label : "Unavailable"}</span>
@@ -82,11 +90,12 @@ export function RiskLevelCard({ row, source }) {
             <p className="prb-entry-note">{entrySignal.action}</p>
           </> : <p className="prb-unavailable">{entry.reason || "Not enough history for an entry read yet."}</p>}
         </section>
-        <button type="button" className="mw-button mw-button--ghost mw-button--sm" aria-expanded={expanded} aria-controls={`risk-chart-${row.product_id}`} onClick={() => setExpanded(!expanded)}>
+        <button type="button" className="mw-button mw-button--ghost mw-button--sm prb-toggle" aria-expanded={expanded} aria-controls={`risk-chart-${row.product_id}`} onClick={() => setExpanded(!expanded)}>
           {expanded ? "Hide chart" : "Explore levels"}
         </button>
-        {expanded && <div id={`risk-chart-${row.product_id}`} className="prb-expanded"><RiskLevelsChart plan={plan} entry={entry} /></div>}
       </> : <p className="prb-unavailable">{plan.reason || "Not enough history yet."}</p>}
+      </div>
+      {plan.available && expanded && <div id={`risk-chart-${row.product_id}`} className="prb-expanded"><RiskLevelsChart plan={plan} entry={entry} /></div>}
     </article>
   );
 }

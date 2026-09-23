@@ -1,4 +1,4 @@
-.prb-page { width: 100%; min-width: 0; max-width: 1480px; margin: 0 auto; padding: 24px; color: var(--mw-text, #e8e4ef); font-family: Raleway, sans-serif; }
+.prb-page { box-sizing: border-box; width: 100%; min-width: 0; max-width: 1480px; margin: 0 auto; padding: 24px; color: var(--mw-text, #e8e4ef); font-family: Raleway, sans-serif; }
 .prb-header, .prb-card__heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .mw-app .prb-page h1 { font-size: clamp(1.5rem, 3vw, 2.1rem); text-transform: none; font-weight: 600; margin: 8px 0; }
 .prb-eyebrow { color: #b9a0ff; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; }
@@ -13,7 +13,8 @@
 .prb-counts strong { color: #f0eaf6; font-size: 1.5rem; padding-right: 5px; font-weight: 500; }
 .prb-total { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
 .prb-total strong { color: #f2e4ca; font-size: 1.45rem; font-weight: 500; }
-.prb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 18px; align-items: start; }
+/* dense: an expanded card takes a full row; later cards backfill the gap it leaves instead of stranding empty columns. */
+.prb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); grid-auto-flow: row dense; gap: 18px; align-items: start; }
 .prb-card { padding: 20px; min-width: 0; border-top: 2px solid #70677e; }
 .prb-card--high { border-top-color: #e7959c; }
 .prb-card--watch { border-top-color: #dfba77; }
@@ -22,6 +23,7 @@
 .prb-card__title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .prb-card__icon { width: 20px; height: 20px; border-radius: 50%; align-self: center; }
 .prb-price { font-variant-numeric: tabular-nums; font-size: 1.3rem; color: #e9e2d5; }
+.prb-price--missing { font-size: .8rem; color: #9c94ab; }
 .prb-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .prb-chip { font-size: .69rem; white-space: nowrap; padding: 5px 8px; border-radius: var(--r-1, 4px); background: #ffffff0a; color: #c5bfce; }
 .prb-chip--high { color: #f4a7ae; background: #e7959c12; }
@@ -47,7 +49,22 @@
 .prb-distances > div { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0; }
 .prb-distances dt { color: #aaa2b6; }
 .prb-distances dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.prb-card:has(.prb-expanded) { grid-column: 1 / -1; }
+.prb-card__body { min-width: 0; }
+.prb-toggle { margin-top: 14px; }
+/* Expanded: the chart gets the full row, but the summary keeps its card width so labels stay next to their values. */
+.prb-card--expanded { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 28px; align-items: start; }
+.prb-card--expanded .prb-card__body { max-width: 440px; }
 .prb-expanded { margin-top: 20px; min-width: 0; }
+@media (min-width: 1100px) {
+  .prb-card--expanded { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
+  .prb-card--expanded .prb-expanded { margin-top: 0; }
+}
 .prb-empty { padding: 24px; }
-@media (max-width: 600px) { .prb-page { padding: 16px 10px; } .prb-summary, .prb-card { padding: 16px; } .prb-distances > div { flex-wrap: wrap; } }
+@media (max-width: 600px) {
+  .prb-page { padding: 16px 10px; }
+  .prb-summary, .prb-card { padding: 16px; }
+  .prb-distances > div { flex-wrap: wrap; }
+  /* Chips drop below the symbol so the price never wraps onto its own line. */
+  .prb-card__heading { flex-direction: column; gap: 10px; }
+  .prb-chips { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+}

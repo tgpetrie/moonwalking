@@ -245,6 +245,17 @@ from live_ranking import (
 )
 
 try:
+    from coin_intel_external import fetch_coin_icon_url, peek_coin_icon_url
+except Exception:
+
+    def peek_coin_icon_url(symbol):
+        return True, None
+
+    def fetch_coin_icon_url(symbol):
+        return None
+
+
+try:
     from coin_intel_external import fetch_coin_intel
 except Exception:
 
@@ -11796,6 +11807,61 @@ def get_risk_levels_status():
         return jsonify({"status": "live", **sell_plan_outcome_store.status()})
     except Exception as exc:
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+_ICON_BATCH_SYMBOL_LIMIT = 250
+_ICON_BATCH_RESOLVE_CAP = 8  # bounded synchronous CoinGecko lookups per request
+
+
+@app.get("/api/coin-icons")
+def get_coin_icons():
+    """Resolve real coin logo URLs for a batch of symbols.
+
+    Cache-first and bounded: already-resolved (or already-confirmed-missing)
+    symbols return immediately from cache; only a small number of new symbols
+    per request are looked up against CoinGecko synchronously, so a large
+    watchlist fills in its icons over a few polls instead of blocking one
+    request on dozens of external calls. Unresolved symbols come back as
+    null and the client keeps its own fallback (a different icon CDN, then
+    initials) rather than treating null as an error.
+    """
+    raw = request.args.get("symbols", "")
+    if len(raw) > 6000:
+        return jsonify({"error": "Too many symbols."}), 400
+    symbols = []
+    seen = set()
+    for value in raw.split(","):
+        symbol = value.strip().upper().removesuffix("-USD")
+        if not symbol or symbol in seen:
+            continue
+        if not re.fullmatch(r"[A-Z0-9]{1,20}", symbol):
+            return jsonify({"error": "Invalid symbol."}), 400
+        seen.add(symbol)
+        symbols.append(symbol)
+    if len(symbols) > _ICON_BATCH_SYMBOL_LIMIT:
+        return jsonify({"error": "Too many symbols."}), 400
+
+    icons = {}
+    pending = []
+    to_resolve = []
+    for symbol in symbols:
+        cached, url = peek_coin_icon_url(symbol)
+        if cached:
+            icons[symbol] = url
+        else:
+            to_resolve.append(symbol)
+
+    for symbol in to_resolve[:_ICON_BATCH_RESOLVE_CAP]:
+        try:
+            icons[symbol] = fetch_coin_icon_url(symbol)
+        except Exception:
+            logging.warning("Coin icon lookup failed for %s", symbol)
+            icons[symbol] = None
+    pending = to_resolve[_ICON_BATCH_RESOLVE_CAP:]
+
+    response = jsonify({"icons": icons, "pending": pending})
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
 
 
 @app.get("/api/risk-levels/portfolio")

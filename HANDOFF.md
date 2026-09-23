@@ -1,5 +1,50 @@
 # Moonwalking / BHABIT Handoff
 
+## P2.6 Portfolio Risk Board QA in progress - 2026-09-23
+
+This section supersedes older P2.6 status below (including the "not
+implemented" note under the 2026-09-06 integration checkpoint, which is
+stale). P2.6 is implemented and in final QA, in this worktree, on branch
+`codex/portfolio-risk-board` at `ff6d72d`.
+
+There are uncommitted polish fixes (chart-expansion layout, page-width
+overflow, missing-price label, mobile chip wrapping) sitting on top of
+`ff6d72d` in:
+
+- `frontend/src/components/PortfolioRiskBoard.jsx`
+- `frontend/src/components/PortfolioRiskBoard.test.jsx`
+- `frontend/src/styles/portfolio-risk-board.css`
+
+Tom: these came from a Claude session and are still awaiting your
+authenticated-portfolio login check below. **Don't point Codex (or a
+fresh Claude session) at this worktree to commit, push, force-reset, or
+re-edit those three files until you've done that check** — it would
+either redo finished work or collide with it. Once you've confirmed and
+either session has committed, remove this note.
+
+Local dev servers were started via the gitignored `.claude/launch.json`:
+backend on `http://localhost:5003`, frontend on `http://127.0.0.1:5173`.
+`codex/portfolio-risk-board` is 14 commits ahead of
+`codex/integrate-production` and 0 behind (clean fast-forward, no
+conflicts expected) once this QA closes.
+
+Verified already: guest/no-auth watchlist fallback, thin-history
+unavailable cards, portfolio-unavailable-to-watchlist fallback (via a
+mocked response), desktop/mobile layout at 1440/900/375px, the frontend
+test suite (495 tests), the targeted backend risk tests (43 tests), and
+the production build. Not yet verified: an authenticated session with a
+real connected Coinbase portfolio at `/app/risk-board` — only Tom can do
+that login. Once he confirms it and the three files above are committed,
+next step is merging `codex/portfolio-risk-board` into
+`codex/integrate-production`, then updating `MW_BACKLOG.md` (P2.6 to
+Done) and this file.
+
+The stale earlier note also pointed at
+`C:\Users\tgpet\.codex\worktrees\moonwalking-integration` as a working
+checkout for this task. That worktree is on `codex/integrate-production`
+at `51c35fb1` and has no `PortfolioRiskBoard.jsx` at all — it predates
+this implementation. Do not use it for P2.6 work.
+
 ## Local-only repository - 2026-09-06
 
 Use `C:\Users\tgpet\Projects\Moonwalking` on this PC. It is an independent

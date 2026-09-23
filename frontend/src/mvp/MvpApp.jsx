@@ -444,14 +444,69 @@ export function buildMarketBySymbol(payload) {
 
 const CHANGE_WINDOWS = [{ key: "1m", label: "1 min" }, { key: "3m", label: "3 min" }, { key: "1h", label: "60 min" }, { key: "24h", label: "24 hr" }];
 
-function AssetLogo({ symbol, stock }) {
+function AssetLogo({ symbol, stock, iconUrl }) {
   const [attempt, setAttempt] = useState(0);
+  // The backend-resolved icon (real coverage, via CoinGecko) arrives after the
+  // static CDN guesses have often already been tried and exhausted. When it
+  // shows up, retry from the top so it gets first crack instead of being lost
+  // behind an `attempt` index that no longer matches this new source list.
+  useEffect(() => {
+    if (iconUrl) setAttempt(0);
+  }, [iconUrl]);
   const sources = stock
     ? [`https://financialmodelingprep.com/image-stock/${encodeURIComponent(symbol)}.png`]
-    : [`https://cdn.jsdelivr.net/gh/vadimmalykhin/binance-icons@master/crypto/${encodeURIComponent(symbol.toLowerCase())}.svg`, `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${encodeURIComponent(symbol.toLowerCase())}.png`];
+    : [
+        ...(iconUrl ? [iconUrl] : []),
+        `https://cdn.jsdelivr.net/gh/vadimmalykhin/binance-icons@master/crypto/${encodeURIComponent(symbol.toLowerCase())}.svg`,
+        `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${encodeURIComponent(symbol.toLowerCase())}.png`,
+      ];
   return <div className="mw-coin-avatar" style={coinAccent(symbol)}>
     {attempt < sources.length ? <img src={sources[attempt]} alt={`${symbol} logo`} loading="lazy" onError={() => setAttempt((value) => value + 1)} /> : <span title="Logo unavailable">{symbol.slice(0, 2)}</span>}
   </div>;
+}
+
+// Module-level so every AssetLogo/useCoinIconMap consumer on the page shares
+// one resolved-icon cache instead of each card re-requesting the same symbol.
+const coinIconCache = new Map();
+const COIN_ICON_MAX_ROUNDS = 12;
+const COIN_ICON_RETRY_MS = 1500;
+
+// Batches the visible symbol list into /api/coin-icons instead of one request
+// per card, and keeps re-requesting only the still-unresolved remainder
+// (the backend caps how many it resolves per call) until the batch is
+// covered or a small round limit is hit.
+function useCoinIconMap(symbols) {
+  const [, forceRender] = useState(0);
+  const key = symbols.join(",");
+  useEffect(() => {
+    let cancelled = false;
+    let rounds = 0;
+    async function resolve(targets) {
+      const wanted = targets.filter((symbol) => !coinIconCache.has(symbol));
+      if (!wanted.length || cancelled) return;
+      try {
+        const query = new URLSearchParams({ symbols: wanted.join(",") });
+        const response = await fetch(`${getBackendBase()}/api/coin-icons?${query}`, { headers: { Accept: "application/json" } });
+        if (!response.ok || cancelled) return;
+        const payload = await response.json();
+        if (cancelled) return;
+        for (const [symbol, url] of Object.entries(payload?.icons || {})) coinIconCache.set(symbol, url || null);
+        forceRender((value) => value + 1);
+        const pending = Array.isArray(payload?.pending) ? payload.pending : [];
+        if (pending.length && rounds < COIN_ICON_MAX_ROUNDS) {
+          rounds += 1;
+          setTimeout(() => resolve(pending), COIN_ICON_RETRY_MS);
+        }
+      } catch {
+        // Best-effort: cards fall back to the static CDN guesses, then initials.
+      }
+    }
+    if (key) resolve(key.split(","));
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+  return coinIconCache;
 }
 
 function coinAccent(symbol) {
@@ -1509,6 +1564,15 @@ export function WatchlistsPage({
     return filtered;
   }, [deferredFilter, selectedWatchlist?.items, sortBy, marketBySymbol, dayMarket, changeWindow]);
 
+  const iconableSymbols = useMemo(
+    () =>
+      visibleItems
+        .map((item) => normalizeMarketSymbol(item.itemKey))
+        .filter((symbol) => guessItemType(symbol) !== "Stock"),
+    [visibleItems]
+  );
+  const coinIcons = useCoinIconMap(iconableSymbols);
+
   if (!selectedWatchlist) {
     return (
       <section className="mw-panel">
@@ -1694,7 +1758,7 @@ export function WatchlistsPage({
                 <article className="mw-watchlist-asset" key={item.id}>
                   <div className="mw-watchlist-asset__identity">
                     <input type="checkbox" className="mw-watchlist-select" aria-label={`Select ${symbol}`} checked={selectedAssets.includes(symbol)} onChange={(event) => setSelectedAssets((current) => event.target.checked ? [...current, symbol] : current.filter((value) => value !== symbol))} />
-                    <AssetLogo key={symbol} symbol={symbol} stock={stock} />
+                    <AssetLogo key={symbol} symbol={symbol} stock={stock} iconUrl={stock ? null : coinIcons.get(symbol)} />
                     <div>
                       <h3>{symbol}</h3>
                       <p>{formatItemTitle(symbol)}</p>
@@ -1730,10 +1794,12 @@ export function WatchlistsPage({
                   /> : null}
                   <button
                     type="button"
-                    className="mw-table__remove"
+                    className="mw-watchlist-remove"
+                    title={`Remove ${symbol}`}
+                    aria-label={`Remove ${symbol}`}
                     onClick={() => onRemoveItem(selectedWatchlist.id, item.id)}
                   >
-                    Remove
+                    &times;
                   </button>
                 </article>
               );

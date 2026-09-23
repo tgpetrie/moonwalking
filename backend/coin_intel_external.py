@@ -486,6 +486,66 @@ def coingecko_coin_id(symbol: str | None) -> str | None:
     return None
 
 
+# Icons rarely change, so cache resolved (and unresolved) results for a long
+# time; this keeps a full watchlist from re-hitting CoinGecko's unauthenticated
+# rate limit on every page load or poll.
+_ICON_TTL_S = 7 * 24 * 60 * 60
+_ICON_NEGATIVE_TTL_S = 6 * 60 * 60
+
+
+def peek_coin_icon_url(symbol: str | None) -> tuple[bool, str | None]:
+    """Read the icon cache without making a network call.
+
+    Returns (cached, url) — cached is False when nothing usable is cached yet
+    and the caller should decide whether to resolve it now.
+    """
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return True, None
+    cached = _cache_get(f"coingecko:icon:{sym}")
+    if not cached or not isinstance(cached.get("payload"), dict):
+        return False, None
+    age = _now_s() - float(cached.get("ts") or 0.0)
+    payload = cached["payload"]
+    ttl = _ICON_TTL_S if payload.get("icon_url") else _ICON_NEGATIVE_TTL_S
+    if age >= ttl:
+        return False, None
+    return True, payload.get("icon_url") or None
+
+
+def fetch_coin_icon_url(symbol: str | None) -> str | None:
+    """Resolve a real coin logo URL via CoinGecko, caching the result.
+
+    Reuses the same coin-id search already used for social metrics, then reads
+    the `image` block CoinGecko's coin-detail endpoint always includes. This
+    makes an external call only on a cache miss.
+    """
+    sym = _normalize_symbol(symbol)
+    if not sym:
+        return None
+
+    cached, url = peek_coin_icon_url(sym)
+    if cached:
+        return url
+
+    coin_id = coingecko_coin_id(sym)
+    icon_url = None
+    if coin_id:
+        request_url = _COINGECKO_COIN_URL.format(coin_id=quote(coin_id, safe=""))
+        status, data, _err = _http_get_json(request_url)
+        if status == 200 and isinstance(data, dict):
+            image = data.get("image")
+            if isinstance(image, dict):
+                icon_url = (
+                    str(
+                        image.get("large") or image.get("small") or image.get("thumb") or ""
+                    ).strip()
+                    or None
+                )
+    _cache_set(f"coingecko:icon:{sym}", {"icon_url": icon_url})
+    return icon_url
+
+
 def _cache_get(key: str) -> dict[str, Any] | None:
     with _CACHE_LOCK:
         entry = _ENDPOINT_CACHE.get(key)
