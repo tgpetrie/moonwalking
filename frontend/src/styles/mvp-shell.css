@@ -826,7 +826,7 @@
 }
 
 .mw-market-move.is-down {
-  color: var(--mw-danger);
+  color: var(--signal-negative); /* price direction: violet, same as the board's --bh-loss */
 }
 
 .mw-watchlist-asset__meta {
@@ -1214,9 +1214,12 @@
   background: rgba(255, 179, 71, 0.07);
 }
 
-.mw-holding-read.is-danger,
+.mw-holding-read.is-danger {
+  color: var(--danger);
+}
+
 .mw-portfolio-mode .is-negative {
-  color: var(--mw-danger);
+  color: var(--signal-negative); /* price/P&L direction, not a warning */
 }
 
 .mw-holding-read.is-danger {
