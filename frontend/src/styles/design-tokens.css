@@ -96,7 +96,12 @@
      gives new or migrated CSS one name for that instead of retyping it.
      ========================================================================== */
   --font-sans: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono-numeric: "JetBrains Mono", "Fragment Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* JetBrains Mono is loaded from Google Fonts in index.html (weights
+     400-700). Before that it was named in a dozen stylesheets but never
+     loaded, so it only rendered for viewers who had it installed locally
+     and everyone else got a fallback — the same number looked different
+     per machine. Fragment Mono (regular only) stays as the next fallback. */
+  --font-mono-numeric: "JetBrains Mono", "Fragment Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* ==========================================================================
      TYPE — size scale
@@ -149,6 +154,19 @@
   --space-comfortable: var(--space-4); /* 16px — Moonwalking-style panels/cards */
   --label-tracking-compact: 0.08em;
   --label-tracking-comfortable: 0.14em;
+
+  /* ==========================================================================
+     LAYOUT — the /app workspace grid
+     One set of numbers for the member shell every /app page sits inside:
+     sidebar column, outer gutter, the gap between stacked sections, and
+     panel padding. Before these, each was a different literal (sidebar
+     290px, workspace 28px, sections 24px, panels 24px, sidebar 28/22px).
+     ========================================================================== */
+  --layout-sidebar-w: 248px;
+  --layout-gutter: var(--space-6);        /* workspace outer padding */
+  --layout-section-gap: var(--space-5);   /* gap between stacked sections/panels */
+  --layout-panel-pad: var(--space-5);     /* inside a .mw-panel */
+  --layout-grid-gap: var(--space-4);      /* gap between cards in a grid */
 
   /* ==========================================================================
      Z-INDEX scale

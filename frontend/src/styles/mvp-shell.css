@@ -224,12 +224,13 @@
 
 .mw-hero-card,
 .mw-auth-layout,
+.mw-board,
 .mw-dashboard-grid,
 .mw-watchlists-layout,
 .mw-portfolio-hero,
 .mw-settings-grid {
   display: grid;
-  gap: 24px;
+  gap: var(--layout-section-gap);
 }
 
 .mw-hero-card {
@@ -269,10 +270,10 @@
 
 .mw-eyebrow,
 .mw-surface__eyebrow {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: var(--label-tracking-comfortable);
   color: var(--mw-accent);
   text-transform: uppercase;
 }
@@ -317,7 +318,7 @@
 .mw-panel,
 .mw-auth-card,
 .mw-profile-hero {
-  padding: 24px;
+  padding: var(--layout-panel-pad);
 }
 
 .mw-hero-grid,
@@ -489,19 +490,19 @@
 
 .mw-member-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: var(--layout-sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .mw-sidebar {
-  padding: 28px 22px;
+  padding: var(--space-6) var(--space-4);
   border-right: 1px solid var(--mw-line);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
     rgba(7, 5, 11, 0.84);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: var(--space-5);
 }
 
 .mw-sidebar__brand span,
@@ -512,12 +513,13 @@
 
 .mw-sidebar__nav {
   display: grid;
-  gap: 8px;
+  gap: var(--space-1);
 }
 
 .mw-sidebar__link {
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-2);
+  font-size: var(--text-sm);
   border: 1px solid transparent;
   color: var(--mw-muted);
 }
@@ -531,9 +533,9 @@
 
 .mw-sidebar__meta {
   display: grid;
-  gap: 12px;
-  padding: 18px;
-  border-radius: 24px;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
 }
@@ -541,6 +543,16 @@
 .mw-sidebar__meta span {
   color: var(--mw-muted);
   display: block;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-sidebar__meta strong {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .mw-sidebar__footer {
@@ -550,10 +562,11 @@
 }
 
 .mw-workspace {
-  padding: 28px;
+  padding: var(--layout-gutter);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--layout-section-gap);
+  min-width: 0;
 }
 
 .mw-member-header {
@@ -565,7 +578,7 @@
 
 .mw-member-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: var(--text-3xl);
 }
 
 .mw-board,
@@ -577,13 +590,42 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-5);
+}
+
+.mw-panel--hero h2 {
+  font-size: var(--text-xl);
 }
 
 .mw-stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: var(--layout-grid-gap);
+}
+
+/* KPI tile: small tracked label over a large tabular number, the same
+   label/number hierarchy the board uses. Before this rule existed the
+   label and number rendered inline ("Watchlists3"). */
+.mw-stat-card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.mw-stat-card span {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+}
+
+.mw-stat-card strong {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--mw-text);
 }
 
 .mw-stat-card span,
@@ -598,9 +640,24 @@
 .mw-panel__header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Panel titles read as section labels, like the board's column headers:
+   small, tracked, uppercase. The panel itself carries the weight. */
+.mw-panel__header h3 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--label-tracking-comfortable);
+  text-transform: uppercase;
+  color: var(--mw-text);
+}
+
+.mw-panel__header span {
+  font-size: var(--text-xs);
 }
 
 .mw-list {
@@ -608,7 +665,7 @@
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
 .mw-list__row,
@@ -617,8 +674,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -629,13 +686,38 @@
   padding-top: 0;
 }
 
+/* Row identity stacks name over detail. Before this, the name and its
+   detail rendered inline with no gap ("My Watchlist8 items"). */
+.mw-list__row > div,
+.mw-mini-list__row > div,
+.mw-session-row > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-list__row > div span,
+.mw-mini-list__row > div span,
+.mw-session-row > div span {
+  font-size: var(--text-xs);
+}
+
+/* Trailing meta (timestamps, counts) is tabular so a column of them aligns. */
+.mw-list__row > span,
+.mw-mini-list__row > span {
+  font-family: var(--font-mono-numeric);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .mw-action-card,
 .mw-watchlist-chip,
 .mw-featured-card {
   display: grid;
-  gap: 8px;
-  padding: 18px;
-  border-radius: 22px;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--r-3);
   border: 1px solid var(--mw-line);
   background: rgba(255, 255, 255, 0.025);
 }
