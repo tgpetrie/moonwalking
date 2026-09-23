@@ -9,12 +9,7 @@ import { DataProvider, useData } from "../context/DataContext.jsx";
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
 import PortfolioRiskBoard from "../components/PortfolioRiskBoard.jsx";
-import ScorecardPage from "../components/ScorecardPage.jsx";
 import ScorecardRedesignPage from "../components/ScorecardRedesignPage.jsx";
-import {
-  ScorecardCompareView,
-  ScorecardVariantSwitch,
-} from "../components/ScorecardCompare.jsx";
 import "../styles/mvp-shell.css";
 
 const APP_DASHBOARD_PATH = "/app/dashboard";
@@ -47,61 +42,17 @@ const publicScorecardPaths = new Set([
   PUBLIC_SCORECARD_COMPARE_PATH,
 ]);
 
-/**
- * Scorecard variants share one surface. `?variant=redesign` on the plain
- * scorecard route is honoured too, so a link can force the new page without a
- * dedicated path.
- */
-function resolveScorecardVariant(pathname) {
-  if (
-    pathname === APP_SCORECARD_COMPARE_PATH ||
-    pathname === PUBLIC_SCORECARD_COMPARE_PATH
-  ) {
-    return "compare";
-  }
-  if (
-    pathname === APP_SCORECARD_REDESIGN_PATH ||
-    pathname === PUBLIC_SCORECARD_REDESIGN_PATH
-  ) {
-    return "redesign";
-  }
-  const search = typeof window !== "undefined" ? window.location.search : "";
-  const requested = new URLSearchParams(search).get("variant");
-  if (requested === "redesign" || requested === "compare") return requested;
-  return "original";
-}
-
-function ScorecardRoute({ variant, previewMode, navigate, isMember }) {
-  const links = isMember
-    ? [
-        { variant: "original", label: "Original", to: APP_SCORECARD_PATH },
-        { variant: "redesign", label: "Redesign", to: APP_SCORECARD_REDESIGN_PATH },
-        { variant: "compare", label: "Side by side", to: APP_SCORECARD_COMPARE_PATH },
-      ]
-    : [
-        { variant: "original", label: "Original", to: PUBLIC_SCORECARD_PATH },
-        { variant: "redesign", label: "Redesign", to: PUBLIC_SCORECARD_REDESIGN_PATH },
-        { variant: "compare", label: "Side by side", to: PUBLIC_SCORECARD_COMPARE_PATH },
-      ];
-
-  return (
-    <div className="mw-scorecard-route">
-      <ScorecardVariantSwitch variant={variant} links={links} navigate={navigate} />
-      {variant === "compare" ? (
-        <ScorecardCompareView previewMode={previewMode} />
-      ) : variant === "redesign" ? (
-        <ScorecardRedesignPage previewMode={previewMode} />
-      ) : (
-        <ScorecardPage previewMode={previewMode} />
-      )}
-    </div>
-  );
-}
 
 const legacyMemberRouteMap = {
   "/watchlists": APP_WATCHLISTS_PATH,
   "/portfolio": APP_PORTFOLIO_PATH,
   "/settings": APP_SETTINGS_PATH,
+  // The redesign is now the only scorecard (original and side-by-side
+  // compare retired 2026-09-23). Old variant links land on it.
+  [APP_SCORECARD_REDESIGN_PATH]: APP_SCORECARD_PATH,
+  [APP_SCORECARD_COMPARE_PATH]: APP_SCORECARD_PATH,
+  [PUBLIC_SCORECARD_REDESIGN_PATH]: PUBLIC_SCORECARD_PATH,
+  [PUBLIC_SCORECARD_COMPARE_PATH]: PUBLIC_SCORECARD_PATH,
 };
 
 const publicShowcase = [
@@ -1257,8 +1208,6 @@ function MemberShell({
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
     { label: "Risk Board", to: APP_RISK_PATH },
     { label: "Scorecard", to: APP_SCORECARD_PATH },
-    { label: "Scorecard (new)", to: APP_SCORECARD_REDESIGN_PATH },
-    { label: "Scorecard (compare)", to: APP_SCORECARD_COMPARE_PATH },
     { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
@@ -2492,27 +2441,16 @@ export default function MvpApp() {
       case APP_RISK_PATH:
       case PUBLIC_RISK_PATH:
         return <PortfolioRiskBoard key={session?.email || session?.id || "guest"} />;
+      // Old variant paths render the same page for the instant before the
+      // legacy redirect replaces the URL, so there's no not-found flash.
       case PUBLIC_SCORECARD_PATH:
       case PUBLIC_SCORECARD_REDESIGN_PATH:
       case PUBLIC_SCORECARD_COMPARE_PATH:
-        return (
-          <ScorecardRoute
-            variant={resolveScorecardVariant(route.name)}
-            previewMode
-            navigate={navigate}
-            isMember={false}
-          />
-        );
+        return <ScorecardRedesignPage previewMode />;
       case APP_SCORECARD_PATH:
       case APP_SCORECARD_REDESIGN_PATH:
       case APP_SCORECARD_COMPARE_PATH:
-        return (
-          <ScorecardRoute
-            variant={resolveScorecardVariant(route.name)}
-            navigate={navigate}
-            isMember
-          />
-        );
+        return <ScorecardRedesignPage />;
       case APP_SETTINGS_PATH:
         return (
           <SettingsPage

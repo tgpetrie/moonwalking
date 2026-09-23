@@ -1,32 +1,37 @@
 /* Outcome Scorecard — redesigned variant.
    Namespaced under .scr-* so it can render beside the original .sc-* page. */
 
+/* Left-aligned in the workspace like every other /app page (the workspace
+   already supplies the gutter), capped so long ledes stay readable. */
 .scr-page {
-  padding: 24px;
+  padding: 0;
   max-width: 1120px;
-  margin: 0 auto;
-  font-family: "Raleway", system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--white-92);
 }
 
 .scr-loading,
 .scr-error {
-  text-align: center;
-  padding: 48px 24px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.95rem;
+  /* Left-aligned under the page title, like every other /app state panel. */
+  text-align: left;
+  padding: var(--space-6) 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
 }
 
 .scr-error {
-  color: var(--brand-purple, #c084fc);
+  color: var(--danger);
 }
 
+/* Returns are price direction: amber up, violet down, as on the board.
+   (This used to be teal up / purple down, the opposite of the board.) */
 .scr-up {
-  color: var(--brand-teal, #10ae9b);
+  color: var(--signal-positive);
 }
 
 .scr-down {
-  color: var(--brand-purple, #c084fc);
+  color: var(--signal-negative);
 }
 
 /* ── Provenance banner ─────────────────────── */
@@ -48,14 +53,14 @@
 .scr-provenance__headline {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--brand-amber, #ffb347);
+  color: var(--caution);
 }
 
 .scr-provenance__note {
   font-size: 0.78rem;
   line-height: 1.55;
   max-width: 84ch;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
 }
 
 /* ── Hero ──────────────────────────────────── */
@@ -89,11 +94,11 @@
 /* The coin is the page title. Nothing else competes with it. */
 .scr-hero__coin {
   margin: 0;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  font-weight: 650; /* the board's .bh-symbol treatment */
   letter-spacing: 0.02em;
-  color: var(--brand-amber, #ffb347);
+  color: var(--white-92);
   line-height: 1;
 }
 
@@ -104,21 +109,21 @@
   padding: 4px 10px;
   border-radius: var(--r-2);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
   background: rgba(255, 255, 255, 0.03);
 }
 
 .scr-hero__source[data-source="live"] {
   border-color: rgba(16, 174, 155, 0.3);
   background: rgba(16, 174, 155, 0.1);
-  color: var(--brand-teal, #10ae9b);
+  color: var(--status-ok);
 }
 
 .scr-hero__source[data-source="sample"],
 .scr-hero__source[data-source="demo"] {
   border-color: rgba(255, 179, 71, 0.3);
   background: rgba(255, 179, 71, 0.1);
-  color: var(--brand-amber, #ffb347);
+  color: var(--caution);
 }
 
 /* ── Scoring rule, folded away ─────────────── */
@@ -133,7 +138,7 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--text-faint);
 }
 
 .scr-scoring__toggle::-webkit-details-marker {
@@ -149,19 +154,20 @@
 }
 
 .scr-scoring__toggle:hover {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
 
 .scr-hero__rule {
   margin: 8px 0 0;
   font-size: 0.79rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .scr-hero__rule strong {
-  color: rgba(255, 255, 255, 0.82);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--white-92);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Coin picker ───────────────────────────── */
@@ -193,14 +199,14 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--r-2);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--white-92);
   padding: 0 12px;
   font: inherit;
   font-size: 0.76rem;
 }
 
 .scr-coinpicker__input::placeholder {
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--text-faint);
 }
 
 .scr-coinpicker__input:focus {
@@ -215,7 +221,7 @@
   padding: 0 12px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-muted);
   border-radius: var(--r-2);
   font-size: 0.7rem;
   font-family: inherit;
@@ -255,14 +261,15 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--text-faint);
 }
 
 .scr-headline__value {
   font-size: 1.5rem;
   font-weight: 700;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--white-92);
   line-height: 1.15;
 }
 
@@ -273,7 +280,7 @@
 
 .scr-headline__note {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-faint);
 }
 
 /* ── Shared <details> toggles ──────────────── */
@@ -305,20 +312,14 @@
   background: rgba(255, 255, 255, 0.008);
 }
 
-/* Zone colour lives on the step marker, not a full-height rail. */
-.scr-zone[data-tone="signals"] .scr-zone__step {
-  border-color: rgba(16, 174, 155, 0.5);
-  color: var(--brand-teal, #10ae9b);
-}
-
-.scr-zone[data-tone="boards"] .scr-zone__step {
-  border-color: rgba(192, 132, 252, 0.5);
-  color: var(--brand-purple, #c084fc);
-}
-
+/* Step markers share one brand color. They used to cycle mint / violet /
+   amber per zone, which borrowed status and price-direction colors for
+   decoration. */
+.scr-zone[data-tone="signals"] .scr-zone__step,
+.scr-zone[data-tone="boards"] .scr-zone__step,
 .scr-zone[data-tone="coin"] .scr-zone__step {
-  border-color: rgba(255, 179, 71, 0.5);
-  color: var(--brand-amber, #ffb347);
+  border-color: rgba(192, 132, 252, 0.5);
+  color: var(--accent-primary);
 }
 
 .scr-zone__head {
@@ -337,16 +338,17 @@
   justify-content: center;
   border-radius: var(--r-2);
   border: 1px solid rgba(255, 255, 255, 0.16);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
 
 .scr-zone__title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--white-92);
 }
 
 /* One line per zone answering what it measures, why it matters, and what to
@@ -356,7 +358,7 @@
   max-width: 92ch;
   font-size: 0.82rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .scr-zone__controls {
@@ -382,19 +384,20 @@
   background: rgba(255, 179, 71, 0.05);
   font-size: 0.76rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   max-width: 92ch;
 }
 
 .scr-scope-note strong {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--white-92);
 }
 
 .scr-scope-note em {
   font-style: normal;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 0.94em;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--text-muted);
 }
 
 .scr-order {
@@ -407,14 +410,14 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-faint);
 }
 
 .scr-order__select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--r-2);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--white-92);
   padding: 6px 12px;
   font: inherit;
   font-size: 0.78rem;
@@ -437,17 +440,17 @@
   padding: 3px 10px;
   border-radius: var(--r-2);
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .scr-status[data-status="measured"] {
   background: rgba(16, 174, 155, 0.13);
-  color: var(--brand-teal, #10ae9b);
+  color: var(--status-ok);
 }
 
 .scr-status[data-status="learning"] {
   background: rgba(255, 179, 71, 0.13);
-  color: var(--brand-amber, #ffb347);
+  color: var(--caution);
 }
 
 /* ── Checkpoints ───────────────────────────── */
@@ -458,7 +461,7 @@
   font-size: 0.63rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--text-faint);
 }
 
 .scr-checkpoints__grid {
@@ -476,14 +479,16 @@
 
 .scr-checkpoints__time {
   font-size: 0.65rem;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  color: rgba(255, 255, 255, 0.3);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
 }
 
 .scr-checkpoints__val {
   font-size: 0.8rem;
   font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Coin section ──────────────────────────── */
@@ -506,18 +511,18 @@
 
 .scr-coin__title {
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--white-92);
 }
 
 .scr-coin__body {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
 }
 
 .scr-coin__meta {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--text-faint);
 }
 
 .scr-note {
@@ -541,7 +546,7 @@
   border-radius: var(--r-2);
   font-size: 0.84rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-faint);
 }
 
 .scr-empty--compact {
@@ -566,7 +571,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-muted);
 }
 
 .scr-advanced__hint {
@@ -574,7 +579,7 @@
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--text-faint);
 }
 
 .scr-advanced__body {
@@ -584,11 +589,18 @@
   gap: 24px;
 }
 
+/* Diagnostic tables can be wider than a phone; scroll inside the block
+   instead of spilling past the page edge. */
+.scr-advanced__block {
+  min-width: 0;
+  overflow-x: auto;
+}
+
 .scr-advanced__block h4 {
   margin: 0 0 6px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--white-92);
 }
 
 .scr-advanced__note {
@@ -596,7 +608,7 @@
   max-width: 72ch;
   font-size: 0.78rem;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-faint);
 }
 
 .scr-keyvals {
@@ -621,13 +633,14 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--text-faint);
 }
 
 .scr-keyvals strong {
   font-size: 0.95rem;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  color: rgba(255, 255, 255, 0.82);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--white-92);
 }
 
 .scr-table {
@@ -647,160 +660,18 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--text-faint);
   font-weight: 600;
 }
 
 .scr-table td {
-  color: rgba(255, 255, 255, 0.66);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  color: var(--text-muted);
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 .scr-table td:first-child {
   font-family: "Raleway", system-ui, sans-serif;
-}
-
-/* ── Variant switcher + compare view ───────── */
-
-.scr-switch {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 16px 24px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.scr-switch__label {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.36);
-}
-
-.scr-switch__links {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.scr-switch__link {
-  padding: 5px 13px;
-  border-radius: var(--r-2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.75rem;
-  text-decoration: none;
-}
-
-.scr-switch__link:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.scr-switch__link.is-active {
-  background: rgba(255, 179, 71, 0.14);
-  border-color: rgba(255, 179, 71, 0.32);
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-compare {
-  padding: 16px 24px 32px;
-}
-
-.scr-compare__intro {
-  margin: 0 0 16px;
-  max-width: 78ch;
-  font-size: 0.82rem;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.scr-compare__changes {
-  margin: 0 0 16px;
-  max-width: 92ch;
-}
-
-.scr-compare__changes-toggle {
-  list-style: none;
-  cursor: pointer;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.scr-compare__changes-toggle::-webkit-details-marker {
-  display: none;
-}
-
-.scr-compare__changes-toggle::after {
-  content: " ▾";
-}
-
-.scr-compare__changes[open] .scr-compare__changes-toggle::after {
-  content: " ▴";
-}
-
-.scr-compare__changes-toggle:hover {
-  color: var(--brand-amber, #ffb347);
-}
-
-.scr-compare__changes-list {
-  margin: 10px 0 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.8rem;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.scr-compare__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
-}
-
-.scr-compare__pane {
-  min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-2);
-  background: rgba(255, 255, 255, 0.015);
-  overflow: hidden;
-}
-
-.scr-compare__pane-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.scr-compare__pane-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.scr-compare__pane-note {
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.scr-compare__pane .sc-page,
-.scr-compare__pane .scr-page {
-  padding: 16px;
-  max-width: none;
 }
 
 /* ── Expanded detail ────────────────── */
@@ -817,14 +688,14 @@
   font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--text-faint);
 }
 
 .scr-detail__grid p {
   margin: 0 0 8px;
   font-size: 0.78rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--text-muted);
 }
 
 /* == Chart treatments ================================================== */
@@ -867,7 +738,7 @@
   font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--text-faint);
 }
 
 .scr-bars {
@@ -917,7 +788,7 @@
   font-size: 0.58rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
@@ -964,7 +835,7 @@
   grid-column: 2;
   font-size: 0.86rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--white-92);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -979,7 +850,7 @@
   gap: 8px;
   min-width: 0;
   font-size: 0.64rem;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--text-faint);
 }
 
 .scr-barrow__subtext {
@@ -1008,16 +879,19 @@
   transition: width 500ms ease;
 }
 
+/* Hit-rate quality is a STATUS, not a price direction: good = --status-ok,
+   mixed = --caution, weak = faint. Weak used to be violet, which on the
+   board means "price fell". */
 .scr-barrow__fill[data-tone="good"] {
-  background: var(--brand-teal, #10ae9b);
+  background: var(--status-ok);
 }
 
 .scr-barrow__fill[data-tone="mixed"] {
-  background: var(--brand-amber, #ffb347);
+  background: var(--caution);
 }
 
 .scr-barrow__fill[data-tone="weak"] {
-  background: var(--brand-purple, #c084fc);
+  background: var(--text-faint);
 }
 
 /* Hit rate over share: two numbers about the same category that answer
@@ -1027,7 +901,8 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   font-weight: 700;
   min-width: 76px;
@@ -1039,20 +914,20 @@
   font-size: 0.58rem;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
 .scr-barrow__pct[data-tone="good"] {
-  color: var(--brand-teal, #10ae9b);
+  color: var(--status-ok);
 }
 
 .scr-barrow__pct[data-tone="mixed"] {
-  color: var(--brand-amber, #ffb347);
+  color: var(--caution);
 }
 
 .scr-barrow__pct[data-tone="weak"] {
-  color: var(--brand-purple, #c084fc);
+  color: var(--text-muted);
 }
 
 /* Folds away the long tail of categories a live payload can carry. */
@@ -1065,12 +940,12 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-faint);
   cursor: pointer;
 }
 
 .scr-bars__more:hover {
-  color: var(--brand-amber, #ffb347);
+  color: var(--accent-primary);
 }
 
 /* -- Sectioned donut -------------------------------------------------- */
@@ -1096,7 +971,8 @@
 .scr-pie__label {
   text-anchor: middle;
   dominant-baseline: central;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 0.86rem;
   font-weight: 700;
   fill: rgba(10, 7, 14, 0.9);
@@ -1107,7 +983,8 @@
 .scr-pie__center {
   text-anchor: middle;
   dominant-baseline: central;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 1.35rem;
   font-weight: 700;
   fill: rgba(255, 255, 255, 0.92);
@@ -1125,10 +1002,6 @@
 /* ── Responsive ────────────────────────────── */
 
 @media (max-width: 900px) {
-  .scr-compare__grid {
-    grid-template-columns: 1fr;
-  }
-
   /* Side by side, the pie would squeeze the rate rows to nothing. Stacked, the
      pie stays full size above the list it colour-codes. */
   .scr-chart--dual {
@@ -1185,12 +1058,6 @@
   .scr-zone__controls {
     justify-content: flex-start;
   }
-
-  .scr-switch,
-  .scr-compare {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
 }
 
 .scr-pie__empty {
@@ -1198,7 +1065,7 @@
 }
 
 .scr-barrow__pct[data-tone="none"] {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-faint);
 }
 
 /* == Collection progress ==============================================
@@ -1224,14 +1091,15 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: var(--brand-amber, #ffb347);
+  color: var(--caution);
 }
 
 .scr-collecting__count {
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
   font-size: 0.9rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--white-92);
 }
 
 .scr-collecting__track {
@@ -1243,7 +1111,7 @@
 
 .scr-collecting__fill {
   height: 100%;
-  background: var(--brand-amber, #ffb347);
+  background: var(--caution);
   transition: width 500ms ease;
 }
 
@@ -1252,5 +1120,5 @@
   max-width: 74ch;
   font-size: 0.78rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text-faint);
 }

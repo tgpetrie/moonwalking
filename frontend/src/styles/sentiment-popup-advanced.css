@@ -3415,7 +3415,7 @@ a.news-item-title:hover {
     font-style: italic;
 }
 
-/* Brightness-only evidence tier — mirrors sc-evidence-tier in scorecard.css.
+/* Brightness-only evidence tier (originally mirrored sc-evidence-tier from the retired scorecard.css).
    No brand colors: teal/purple carry directional meaning in this UI.          */
 .coh-evidence-tier {
     font-size: 0.6rem;

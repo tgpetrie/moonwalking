@@ -1,5 +1,14 @@
 # Scorecard Redesign — Handoff
 
+> **2026-09-23 — the redesign is now the only scorecard.** Tom's call: the
+> original page and the side-by-side compare view were retired and deleted
+> (`ScorecardPage.jsx`, `ScorecardCompare.jsx`, their tests, and
+> `scorecard.css`; recoverable from git history). `/app/scorecard` and
+> `/scorecard` render `ScorecardRedesignPage` directly; the old
+> `-redesign` and `-compare` URLs redirect there. Its colors, numerals and
+> text tiers now follow `docs/DESIGN_SYSTEM.md`. Notes below about keeping
+> the original "untouched" for comparison are historical.
+
 Branch: `codex/scorecard-redesign-compare`
 
 ## Pick up here

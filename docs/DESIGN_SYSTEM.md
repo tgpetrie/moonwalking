@@ -81,6 +81,7 @@ so the *meaning* is what's shared:
 --danger               → --color-rose     (destructive, errors, risk warnings)
 --price-current        → --color-mint     (a current price, as on the board)
 --status-ok            → --color-mint     (a good/complete STATUS chip, not a price move)
+--caution              → --color-amber    (a caution STATUS: partial data, still learning, sample data)
 ```
 
 **Decided (2026-09-23): violet means "down" everywhere, matching the
@@ -217,6 +218,20 @@ jobs, never mixed:
   by direction.
 
 The off-palette green `#9de8be` that used to cover both jobs is gone.
+
+**Text opacity: three tiers, not twenty-five.** Body text uses exactly
+`--white-92` (primary), `--text-muted` (0.58, secondary) and
+`--text-faint` (0.35, tertiary/meta). The Scorecard had 25 distinct white
+opacities (0.30, 0.32, 0.34, 0.36, 0.38, 0.40, 0.42, 0.45 …) before this
+pass, which is why nothing read as more important than anything else; they
+were collapsed to the three tiers (≥0.78 → primary, 0.5–0.77 → muted,
+<0.5 → faint). Don't introduce a fourth.
+
+**Track-record quality is a status.** A hit rate that's good / mixed /
+weak colors as `--status-ok` / `--caution` / muted, never violet (violet
+means "price fell"). Returns inside the scorecard (`.scr-up` / `.scr-down`)
+are price direction: amber / violet, matching the board; they used to be
+teal up / purple down.
 
 **Data table** (`.mw-table` in `.mw-table-shell`): `--text-2xs` tracked
 uppercase headers, `--text-sm` tabular cells, `--space-3` cell padding
