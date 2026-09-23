@@ -1,43 +1,39 @@
 /*
- * Shared design tokens — single source of truth for values the BHABIT
- * board (index.css) and the Moonwalking app shell (mvp-shell.css, and
- * everything under /app) both draw from.
+ * ============================================================================
+ * MOONWALKING / BHABIT SHARED DESIGN TOKENS
+ * ============================================================================
+ * Single source of truth for the primitive and semantic values both visual
+ * systems in this app draw from:
+ *   - the BHABIT board (index.css, the dense/tabular Live Board at "/")
+ *   - the Moonwalking app shell (mvp-shell.css and everything under /app)
  *
- * This file does not change how any existing page renders today. It
- * centralizes primitives that were previously duplicated as raw hex in
- * two places (or fell back to a hardcoded value via var(--bh-x, #hex)),
- * and fixes two real gaps found while auditing the existing CSS for this
- * merge — both silent, both currently live:
+ * Full narrative reference: docs/DESIGN_SYSTEM.md — read that first if
+ * you're deciding how to style something new. This file is the values;
+ * that doc is the reasoning, the do/don't examples, and the migration
+ * status. Keep them in sync: if you add or rename a token here, update the
+ * reference table there in the same change.
  *
- *   --r-4         referenced by .mw-watchlist-asset's border-radius but
- *                 never defined anywhere. A var() that resolves to nothing
- *                 makes the whole declaration invalid, so the card falls
- *                 back to the property's initial value: those cards have
- *                 had square corners this whole time, not the intended
- *                 rounded ones.
- *   --mw-success  referenced by .mw-market-move.is-up (the watchlist's
- *                 "price went up" color) but never defined. Positive price
- *                 moves in the watchlist have had no color signal at all —
- *                 only negative moves (--mw-danger, which IS defined) show
- *                 a color.
+ * Every value below is real: taken from what's already rendering across
+ * both systems' existing CSS, not invented. Where the two systems already
+ * disagree, both real values are named and the disagreement is called out
+ * — nothing is silently picked. Where a token is referenced in component
+ * CSS but was never actually defined (a silent bug: the browser drops the
+ * whole declaration and falls back to the property's initial value), the
+ * gap is fixed here and called out below.
  *
- * One naming clash this file deliberately does NOT resolve: BHABIT colors
- * a losing price with --bh-loss (violet, #c084fc) — see .is-down/.token-
- * pct-loss usage throughout index.css. Moonwalking reuses that same violet
- * as its general brand/button accent (--mw-accent), and separately
- * invented a rose (--mw-danger, #ff9fb4) for "down/danger" instead. So the
- * same violet hex means two different things depending on which system's
- * CSS you're reading, and "down" is a different color in each system.
- * Unifying that is a real visual-behavior decision (it changes what color
- * users see for a losing price on one system or the other), not a missing
- * definition, so it's flagged here rather than silently picked. Until
- * decided, --color-violet stays the shared brand/accent primitive and
- * --color-rose stays the shared negative/danger primitive; --bh-loss's
- * price-down usage in index.css is untouched.
+ * Known gaps fixed here (see docs/DESIGN_SYSTEM.md for the full list):
+ *   --r-4          .mw-watchlist-asset's border-radius referenced this and
+ *                  got square corners for it, silently, until this file.
+ *   --mw-success   .mw-market-move.is-up referenced this and got no color
+ *                  at all for "price went up" in the watchlist, silently,
+ *                  until this file.
+ * ============================================================================
  */
 
 :root {
-  /* ---- Primitive color ---- */
+  /* ==========================================================================
+     COLOR — primitive
+     ========================================================================== */
   --color-bg-void: #050308;
   --color-mint: #10ae9b;
   --color-amber: #ffb347;
@@ -46,54 +42,153 @@
   --color-rose: #ff9fb4;
   --color-ink: rgba(236, 231, 223, 0.92);
 
-  /* ---- Primitive radius ----
-     One knob drives every corner in the app (see index.css's original
-     comment on --radius-base). --r-4 extends the existing --r-1..--r-3
-     scale to close the gap noted above. */
-  --radius-base: 2px;
-  --r-1: var(--radius-base);
-  --r-2: calc(var(--radius-base) * 2);
-  --r-3: calc(var(--radius-base) * 3);
-  --r-4: calc(var(--radius-base) * 4);
+  /* Text opacity ladder — both systems build "muted" text as white at a
+     lower opacity rather than a separate gray hex; the exact opacity drifts
+     per file (0.35, 0.5, 0.58, 0.68...). These three cover the range in
+     use; prefer them over a new literal opacity. */
+  --white-92: rgba(255, 255, 255, 0.92);
+  --white-58: rgba(255, 255, 255, 0.58);
+  --white-35: rgba(255, 255, 255, 0.35);
 
-  /* ---- Primitive type ----
-     Both systems already reach for a monospace stack on tabular numbers
-     (prices, scores, timestamps) — currently repeated as the same literal
-     font stack across a dozen component files (alerts, scorecard,
-     sentiment popup, ask-codex). This gives new or migrated CSS one name
-     to reach for instead of retyping the stack; it does not change any of
-     those existing declarations. */
+  /* ==========================================================================
+     COLOR — semantic
+     Reach for these, not the primitives above, so the MEANING is what's
+     shared. Changing what "negative" points to is a one-line edit here
+     instead of a find-and-replace across every file.
+     ========================================================================== */
+  --surface-void: var(--color-bg-void);
+  --text-primary: var(--color-ink);
+  --text-muted: var(--white-58);
+  --text-faint: var(--white-35);
+  --accent-primary: var(--color-violet);
+  --accent-primary-strong: var(--color-violet-strong);
+  --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role — yes, gains render amber, not green; that's the real, already-live convention */
+  --signal-negative: var(--color-rose);  /* matches --mw-danger's existing color, named by role */
+
+  /* UNRESOLVED — read before using --color-violet for a gain/loss context.
+     BHABIT colors a LOSING price with --bh-loss, which is this same violet
+     (see index.css: .is-down, .token-pct-loss, .bh-banner-change--neg all
+     resolve to --bh-loss). Moonwalking reuses that identical violet hex as
+     --accent-primary / --mw-accent — its general brand/button color, unrelated
+     to gain or loss — and separately invented --signal-negative (rose) for
+     its own "down" state. So the same hex means "price fell" in one system's
+     CSS and "this is a branded button" in the other, and the two systems
+     render a losing price in two different colors. That is a real visual
+     decision (repaint one system's "down" color to match the other), not a
+     missing token, so it's not made here. See docs/DESIGN_SYSTEM.md. */
+
+  /* ==========================================================================
+     RADIUS
+     One knob drives every corner in the app (index.css's original comment).
+     --r-4 extends the existing --r-1..--r-3 scale — it was referenced by
+     .mw-watchlist-asset before this file existed but never defined.
+     ========================================================================== */
+  --radius-base: 2px;
+  --r-1: var(--radius-base);            /* chips, swatches, bars */
+  --r-2: calc(var(--radius-base) * 2);  /* buttons, inputs, table rows */
+  --r-3: calc(var(--radius-base) * 3);  /* panels, large surfaces */
+  --r-4: calc(var(--radius-base) * 4);  /* cards that sit above a panel (e.g. watchlist cards) */
+
+  /* ==========================================================================
+     TYPE — family
+     Both systems already use Raleway as the body/UI face — the visual
+     density difference between them is NOT the font. Both also already
+     reach for a monospace stack on tabular numbers (prices, scores,
+     timestamps), repeated as the same literal stack across a dozen files
+     (alerts, scorecard, sentiment popup, ask-codex). --font-mono-numeric
+     gives new or migrated CSS one name for that instead of retyping it.
+     ========================================================================== */
   --font-sans: "Raleway", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono-numeric: "JetBrains Mono", "Fragment Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* ==========================================================================
+     TYPE — size scale
+     Auditing font-size across mvp-shell.css and index.css turned up 25+
+     distinct values with no real ladder (0.68rem, 0.7rem, 0.72rem, 0.74rem,
+     0.75rem, 0.78rem, 0.8rem, 0.82rem, ...). This is a rationalized 9-step
+     scale, each rung placed at the closest real cluster of existing values
+     so it's a consolidation, not a break. EXISTING declarations still use
+     their own literal rem values and are unaffected by this file — this
+     scale is for new and migrated CSS. See docs/DESIGN_SYSTEM.md for the
+     migration approach and status.
+     ========================================================================== */
+  --text-2xs: 0.68rem;   /* eyebrow labels, chip text */
+  --text-xs: 0.75rem;    /* secondary meta, timestamps */
+  --text-sm: 0.82rem;    /* body-small, table cells */
+  --text-base: 0.9rem;   /* default body text */
+  --text-md: 0.98rem;    /* emphasized body — BHABIT's .bh-price-current / .bh-change size */
+  --text-lg: 1.08rem;    /* card/list price, subheads */
+  --text-xl: 1.3rem;     /* section headings */
+  --text-2xl: 1.55rem;   /* page subheads */
+  --text-3xl: clamp(1.5rem, 3vw, 2.1rem); /* page h1 — matches the clamp already used on the Risk Board's h1 */
+
+  /* ==========================================================================
+     SPACING scale
+     Auditing gap/padding/margin in mvp-shell.css alone turned up 18px,
+     14px, 12px, 10px, 24px, 28px, 22px, 30px... — no consistent multiple.
+     This 8-step scale (mostly base-4, matching the radius scale's base-2
+     pattern) is placed at the closest real cluster, same consolidation
+     approach as the type scale above. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+
   /* ---- Density ----
-     The actual visual difference between the BHABIT board and the
-     Moonwalking app shell is not color or font — both already use
-     Raleway — it's row padding and label treatment: BHABIT's tables run
-     tight (see --bh-row-px/--bh-row-py in index.css); Moonwalking's panels
-     run roomier (16px is the prevailing card padding in mvp-shell.css).
-     Named as two presets rather than one replacing the other, since a
-     dense leaderboard row and a readable settings panel don't want the
-     same rhythm. */
-  --space-compact-x: 14px;
-  --space-compact-y: 12px;
-  --space-comfortable: 16px;
+     The real visual difference between the BHABIT board and the
+     Moonwalking app shell is row padding and label treatment, not color or
+     font. BHABIT's tables run tight (see --bh-row-px/--bh-row-py in
+     index.css, and .bh-row--tight at padding: 4px 0); Moonwalking's panels
+     run roomier (--space-4 / 16px is the prevailing card padding in
+     mvp-shell.css). Named as two presets rather than one replacing the
+     other — a dense leaderboard row and a readable settings panel don't
+     want the same rhythm. Pick per-component, not globally. */
+  --space-compact-x: var(--space-3);   /* 12px — BHABIT-style tight rows */
+  --space-compact-y: 8px;
+  --space-comfortable: var(--space-4); /* 16px — Moonwalking-style panels/cards */
   --label-tracking-compact: 0.08em;
   --label-tracking-comfortable: 0.14em;
 
-  /* ---- Semantic aliases ----
-     Call sites should reach for these, not the raw primitives above, so
-     the MEANING is what's shared, not just the value. */
-  --surface-void: var(--color-bg-void);
-  --text-primary: var(--color-ink);
-  --text-muted: rgba(255, 255, 255, 0.5);
-  --accent-primary: var(--color-violet);
-  --accent-primary-strong: var(--color-violet-strong);
-  --signal-positive: var(--color-amber); /* matches --bh-gain's existing color, named by role */
-  --signal-negative: var(--color-rose);  /* matches --mw-danger's existing color, named by role */
+  /* ==========================================================================
+     Z-INDEX scale
+     Auditing every z-index in the app turned up values from 0 to 99999
+     with no real tiers — mostly small local-stacking numbers (0-10), then
+     a jump straight to four-and-five-digit numbers for anything that has
+     to win (modals, the ask-codex widget, toasts). This scale names the
+     tiers that are actually in use; it does not change any existing
+     declaration's z-index (raw CSS custom properties work fine as z-index
+     values, so migrated code CAN use var(--z-modal) etc. directly).
+     ========================================================================== */
+  --z-base: 0;
+  --z-raised: 10;        /* a card or row lifted above its siblings, e.g. an expanded chart card */
+  --z-sticky: 50;        /* sticky headers / nav */
+  --z-overlay: 900;      /* a persistent floating panel, e.g. the sentiment popup, ask-codex widget */
+  --z-modal: 9999;       /* anything that must sit above everything else — dialogs, toasts */
+  /* index.css has one z-index: 99999 !important at line 2373. That's a
+     last-resort override, not a real tier — a smell to clean up, not a
+     rung to standardize on. Don't reach for a bigger number than --z-modal;
+     fix the underlying stacking-context problem instead. */
 
-  /* Literal fix for the --mw-success gap: .mw-market-move.is-up expects
-     exactly this name. Defined globally (not re-scoped to .mw-app) so the
-     lookup resolves regardless of which ancestor actually sets it. */
-  --mw-success: var(--signal-positive);
+  /* ==========================================================================
+     BREAKPOINTS — documented, not enforceable
+     Raw CSS cannot use custom properties inside @media (max-width: ...) —
+     that needs a PostCSS plugin (postcss-custom-media) this project does
+     not currently have installed. So these are NOT live tokens; they are
+     the agreed values to type literally in a media query. Auditing every
+     @media max-width in the app turned up 30+ distinct breakpoints within
+     a few px of each other (600, 620, 639, 640, 650, 700, 720, 760, 768,
+     780, 820, 900, 920, 980, 1023, 1050, 1080, 1100, 1120, 1180...). New
+     CSS should snap to the nearest of these four instead of picking a new
+     number; existing declarations are unaffected.
+       --bp-sm: 480px   -- one narrow phone column
+       --bp-md: 650px   -- card grids collapse to one column (matches the
+                            watchlist's existing single-column breakpoint)
+       --bp-lg: 900px   -- two-column layouts collapse to one
+       --bp-xl: 1100px  -- desktop-wide layouts (matches the risk board's
+                            side-by-side expanded-card breakpoint)
+     ========================================================================== */
 }
