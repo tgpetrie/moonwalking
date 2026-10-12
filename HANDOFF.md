@@ -5,14 +5,33 @@
 Collection had silently stopped on 2026-10-05 11:22 because the backend only
 ever ran inside a chat/agent session. It now runs as the `Moonwalking
 Collector` scheduled task from the `Moonwalking-Runtime` worktree on port
-5003, with every store in `%USERPROFILE%\.moonwalking\data` (the 30-day
-stores from the RiskBoard worktree plus today's rows, consolidated with the
-SQLite backup API; originals untouched). Port 5003 is no longer a dev port:
-don't kill it, run dev backends elsewhere. Details, checks and update steps:
-`docs/developer/ALWAYS_ON_COLLECTOR.md`.
+5003, with every store in `%USERPROFILE%\.moonwalking\data` (consolidated
+from the RiskBoard, Agents and Design worktrees with the SQLite backup API;
+read-only copies of every original are in
+`%USERPROFILE%\.moonwalking\archive\2026-10-12-worktree-stores`). Port 5003 is
+no longer a dev port: don't kill it, run dev backends elsewhere. Details,
+checks and update steps: `docs/developer/ALWAYS_ON_COLLECTOR.md`.
 
-Open: the 2026-10-05 to 2026-10-12 gap (a backfill from exchange candles must
-be labelled as replayed), and secrets for Coinbase sign-in on port 5003.
+What the local data actually covers: about 1.6 of the 36 days from
+2026-09-06 to 2026-10-12, in six short sessions. Production (bhabit.net, up
+continuously since early September) has the rest: 965,580 signal outcomes
+against ~24,000 locally. Its Scorecard's "2.89 days" is the span of the 5,000
+most recent rows per board, not retention; board outcomes are kept 180
+days, signal outcomes and dry runs indefinitely, on the Railway volume.
+**Backing production up needs Tom's Railway login.**
+
+Data integrity (branch `claude/data-integrity`, deployed to the collector):
+outcome trackers used to grade checkpoints with prices from after a gap
+(backend stopped or PC asleep). Fixed in `backend/outcome_gaps.py`: such rows
+finish as `interrupted` and stay out of every rate. Rows already damaged in
+the local store (984 signals finalized 1.8-11 days late; up to 1,224 board
+rows open at a stop) are **not yet repaired**: deciding between marking them
+interrupted and recomputing from the candle archive is Tom's call. The
+sell-plan tracker hasn't had the same fix yet.
+
+Raw Coinbase candles for missed periods are being archived to a separate
+store (`docs/developer/CANDLE_ARCHIVE.md`). Open: production backup, local
+repair, scheduled agent runs, Coinbase secrets on port 5003.
 
 ## P2.6 Portfolio Risk Board QA in progress - 2026-09-23
 
