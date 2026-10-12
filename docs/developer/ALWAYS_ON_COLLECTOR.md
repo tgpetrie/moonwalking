@@ -103,7 +103,10 @@ Start-ScheduledTask -TaskName 'Moonwalking Collector'
 
 - **Sleep pauses collection.** Task Scheduler can't collect while the PC is
   asleep; Python resumes on wake. Whether the PC sleeps is a power-settings
-  decision for Tom.
+  decision for Tom. Signal and board rows that were mid-hour when the pause
+  began finish as `interrupted` and stay out of every rate
+  (`backend/outcome_gaps.py`); before that fix they were graded with
+  post-pause prices.
 - **It runs while Tom is logged on.** The task uses the interactive logon, so
   it starts at logon and stops at sign-out. Running with nobody logged on
   would need a stored password, which an AI session must not handle.
@@ -112,4 +115,10 @@ Start-ScheduledTask -TaskName 'Moonwalking Collector'
   session key on port 5003 do. Setting that up is Tom's call.
 - **Gaps stay gaps.** Anything rebuilt for a period the collector wasn't
   running (e.g. from exchange candles) must be labelled as replayed with its
-  own methodology version, never mixed silently with live rows.
+  own methodology version, never mixed silently with live rows. Raw candles
+  for missed periods go to the separate candle archive
+  (`docs/developer/CANDLE_ARCHIVE.md`).
+- **Rolling stores aren't archives.** `price_snapshots.db` keeps 24 hours
+  and `volume_minute` 48 hours; anything older is pruned on the collector's
+  next cycle, including rows merged in by hand. Copies of every worktree's
+  stores as of 2026-10-12 are in `%USERPROFILE%\.moonwalking\archive\`.
