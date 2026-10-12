@@ -9,6 +9,14 @@ except Exception:  # pragma: no cover
     from backend.signal_outcomes import SignalOutcomeStore
 
 
+@pytest.fixture(autouse=True)
+def sparse_sampling(monkeypatch):
+    """These tests sample only at the checkpoint marks to check the grading
+    maths. The live tracker runs every ~10s, so silences this long would be
+    collection gaps; gap handling is tested in test_outcome_gaps.py."""
+    monkeypatch.setenv("MW_OUTCOME_GAP_SECONDS", str(7 * 86400))
+
+
 def _event(signal_id="signal-1", direction="up"):
     return {
         "id": signal_id,

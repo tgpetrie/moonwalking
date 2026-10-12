@@ -19,6 +19,7 @@ import time
 from typing import Any
 
 from live_ranking import build_feature_snapshot
+from outcome_gaps import HEARTBEAT_TABLE_SQL, INTERRUPTED, GapDetector, open_across_gap
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
@@ -89,6 +90,7 @@ class BoardOutcomeStore:
             30, int(os.getenv("MW_BOARD_MIN_INDEPENDENT_SAMPLES", "100"))
         )
         self.minimum_span_days = max(1, int(os.getenv("MW_BOARD_MIN_SPAN_DAYS", "14")))
+        self._gaps = GapDetector("board_outcomes")
         self._init_lock = threading.Lock()
         self._summary_lock = threading.Lock()
         self._summary_cache: tuple[float, dict[str, Any]] | None = None
@@ -165,6 +167,7 @@ class BoardOutcomeStore:
                 ):
                     if col_def.split()[0] not in existing:
                         conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {col_def}")
+                conn.execute(HEARTBEAT_TABLE_SQL)
                 conn.commit()
             finally:
                 conn.close()
@@ -382,6 +385,10 @@ class BoardOutcomeStore:
 
         conn = self._connect()
         try:
+            # Measured before this cycle writes anything (see outcome_gaps).
+            gap_start = self._gaps.gap_start(
+                conn, now_ts, f"SELECT MAX(last_seen_ts) FROM {TABLE_NAME}"
+            )
             with conn:
                 for board, current in normalized.items():
                     active = {
@@ -456,6 +463,17 @@ class BoardOutcomeStore:
                     f"SELECT * FROM {TABLE_NAME} WHERE complete = 0"
                 ).fetchall()
                 for row in collecting:
+                    if open_across_gap(
+                        int(row["entered_ts"]), self.horizon_seconds, gap_start
+                    ):
+                        # Checkpoints already measured on time stand; the rest
+                        # of its hour wasn't watched, so it gets no 15m grade.
+                        conn.execute(
+                            f"UPDATE {TABLE_NAME} SET complete = 1, "
+                            "outcome_15m = COALESCE(outcome_15m, ?) WHERE id = ?",
+                            (INTERRUPTED, row["id"]),
+                        )
+                        continue
                     current = self._current_price(
                         prices, row["product_id"], row["symbol"]
                     )
@@ -499,6 +517,8 @@ class BoardOutcomeStore:
                     for seconds, column in CHECKPOINTS:
                         if age < seconds:
                             continue
+                        if age - seconds > self._gaps.seconds:
+                            continue  # missed; never filled in late
                         gross_column = f"gross_{column}"
                         control_column = f"control_{column}"
                         if row[gross_column] is None:
@@ -531,6 +551,7 @@ class BoardOutcomeStore:
                     f"DELETE FROM {TABLE_NAME} WHERE complete = 1 AND entered_ts < ?",
                     (now_ts - retention_days * 86400,),
                 )
+                self._gaps.beat(conn, now_ts)
         finally:
             conn.close()
         # Outcome summaries are deliberately allowed to lag the scanner by at
@@ -545,7 +566,7 @@ class BoardOutcomeStore:
                    return_5m, return_15m, return_30m, return_60m,
                    control_return_5m, control_return_15m, control_return_30m, control_return_60m
             FROM {TABLE_NAME}
-            WHERE board = ? AND outcome_15m IS NOT NULL
+            WHERE board = ? AND outcome_15m IS NOT NULL AND outcome_15m != 'interrupted'
             ORDER BY entered_ts DESC
             LIMIT 5000
             """,
@@ -708,6 +729,12 @@ class BoardOutcomeStore:
             total = int(
                 conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
             )
+            interrupted = int(
+                conn.execute(
+                    f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE outcome_15m = ?",
+                    (INTERRUPTED,),
+                ).fetchone()[0]
+            )
             boards = {board: self._summary_for(conn, board) for board in BOARD_NAMES}
             legacy_table = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'board_outcomes'"
@@ -724,6 +751,8 @@ class BoardOutcomeStore:
             "tracked_rows_per_board": self.visible_limit,
             "total_entries": total,
             "collecting": collecting,
+            # Ungraded because tracking stopped before their 15-minute mark.
+            "interrupted": interrupted,
             "legacy_entries_preserved": legacy_entries,
             "observation_policy": {
                 "reentry_cooldown_minutes": int(self.cooldown_seconds / 60),

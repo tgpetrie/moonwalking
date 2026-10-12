@@ -1,7 +1,17 @@
+import pytest
+
 try:
     from board_outcomes import BoardOutcomeStore
 except Exception:  # pragma: no cover
     from backend.board_outcomes import BoardOutcomeStore
+
+
+@pytest.fixture(autouse=True)
+def sparse_sampling(monkeypatch):
+    """These tests sample only at the checkpoint marks to check the grading
+    maths. The live tracker runs every ~10s, so silences this long would be
+    collection gaps; gap handling is tested in test_outcome_gaps.py."""
+    monkeypatch.setenv("MW_OUTCOME_GAP_SECONDS", str(7 * 86400))
 
 
 def row(symbol="SOL", price=100.0, change=1.2):

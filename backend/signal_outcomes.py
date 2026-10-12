@@ -12,6 +12,7 @@ import threading
 import time
 
 from live_ranking import build_feature_snapshot
+from outcome_gaps import HEARTBEAT_TABLE_SQL, INTERRUPTED, GapDetector, open_across_gap
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
@@ -126,6 +127,7 @@ class SignalOutcomeStore:
         self.horizon_seconds = max(
             300, int(os.getenv("MW_OUTCOME_HORIZON_SECONDS", "3600"))
         )
+        self._gaps = GapDetector("signal_outcomes")
         self._init_lock = threading.Lock()
         self._history_lock = threading.Lock()
         self._history_cache: dict[
@@ -209,6 +211,7 @@ class SignalOutcomeStore:
                     "CREATE INDEX IF NOT EXISTS ix_signal_outcomes_methodology "
                     "ON signal_outcomes(methodology_version, complete)"
                 )
+                conn.execute(HEARTBEAT_TABLE_SQL)
                 conn.commit()
             finally:
                 conn.close()
@@ -258,6 +261,10 @@ class SignalOutcomeStore:
             rankings = {}
         conn = self._connect()
         try:
+            # Measured before this cycle writes anything (see outcome_gaps).
+            gap_start = self._gaps.gap_start(
+                conn, now_ts, "SELECT MAX(last_ts) FROM signal_outcomes"
+            )
             for event in events or []:
                 if not isinstance(event, dict) or not event.get("id"):
                     continue
@@ -310,6 +317,16 @@ class SignalOutcomeStore:
                 (now_ts,),
             ).fetchall()
             for row in open_rows:
+                if open_across_gap(
+                    int(row["started_ts"]), self.horizon_seconds, gap_start
+                ):
+                    # Its hour wasn't watched, so it can't be graded.
+                    conn.execute(
+                        "UPDATE signal_outcomes SET outcome = ?, complete = 1 "
+                        "WHERE signal_id = ?",
+                        (INTERRUPTED, row["signal_id"]),
+                    )
+                    continue
                 product_id = str(row["product_id"])
                 symbol = product_id.split("-")[0]
                 current = _number(
@@ -366,8 +383,10 @@ class SignalOutcomeStore:
                     None,
                 )
                 if checkpoint is not None:
-                    _, column = checkpoint
-                    if row[column] is None:
+                    seconds, column = checkpoint
+                    # Only on time: a price read long after the mark isn't
+                    # that checkpoint's return.
+                    if row[column] is None and age - seconds <= self._gaps.seconds:
                         updates[column] = directional
                 if age >= self.horizon_seconds:
                     won = target_hit is not None and (
@@ -383,6 +402,7 @@ class SignalOutcomeStore:
                     f"UPDATE signal_outcomes SET {assignments} WHERE signal_id = ?",
                     [*updates.values(), row["signal_id"]],
                 )
+            self._gaps.beat(conn, now_ts)
             conn.commit()
         finally:
             conn.close()
@@ -416,7 +436,8 @@ class SignalOutcomeStore:
                 """
                 SELECT outcome, max_favorable_pct, max_adverse_pct, started_ts
                 FROM signal_outcomes
-                WHERE complete = 1 AND methodology_version = ?
+                WHERE complete = 1 AND outcome != 'interrupted'
+                  AND methodology_version = ?
                   AND primary_state = ? AND direction = ? AND read_label = ?
                 ORDER BY started_ts DESC LIMIT 500
                 """,
@@ -427,7 +448,8 @@ class SignalOutcomeStore:
                     """
                     SELECT outcome, max_favorable_pct, max_adverse_pct, started_ts
                     FROM signal_outcomes
-                    WHERE complete = 1 AND methodology_version = ?
+                    WHERE complete = 1 AND outcome != 'interrupted'
+                      AND methodology_version = ?
                       AND primary_state = ? AND direction = ?
                     ORDER BY started_ts DESC LIMIT 500
                     """,
@@ -537,7 +559,7 @@ class SignalOutcomeStore:
         """Return (rows, market_periods, span_days) over publishable rows only."""
         if self.publishable_methodology is None:
             return 0, 0, 0
-        where = "complete = 1 AND methodology_version = ?"
+        where = "complete = 1 AND outcome != 'interrupted' AND methodology_version = ?"
         params: list[Any] = [self.publishable_methodology]
         if product_id:
             where += " AND product_id = ?"
@@ -572,6 +594,12 @@ class SignalOutcomeStore:
                     (self.publishable_methodology or "",),
                 ).fetchone()[0]
             )
+            interrupted = int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM signal_outcomes WHERE outcome = ?",
+                    (INTERRUPTED,),
+                ).fetchone()[0]
+            )
             _, periods, span_days = self._publishable_counts(conn)
         finally:
             conn.close()
@@ -579,6 +607,8 @@ class SignalOutcomeStore:
             "total": total,
             "complete": complete,
             "collecting": total - complete,
+            # Finished without a grade because tracking stopped mid-hour.
+            "interrupted": interrupted,
             "target_pct": self.target_pct,
             "adverse_pct": self.adverse_pct,
             "horizon_minutes": int(self.horizon_seconds / 60),
@@ -733,7 +763,7 @@ class SignalOutcomeStore:
                        max_favorable_pct, max_adverse_pct, started_ts,
                        methodology_version
                 FROM signal_outcomes
-                WHERE complete = 1
+                WHERE complete = 1 AND outcome != 'interrupted'
                 ORDER BY started_ts DESC
                 """
             ).fetchall()
@@ -786,7 +816,7 @@ class SignalOutcomeStore:
                        max_favorable_pct, max_adverse_pct, started_ts,
                        methodology_version
                 FROM signal_outcomes
-                WHERE complete = 1 AND product_id = ?
+                WHERE complete = 1 AND outcome != 'interrupted' AND product_id = ?
                 ORDER BY started_ts DESC
                 """,
                 (product_id,),
