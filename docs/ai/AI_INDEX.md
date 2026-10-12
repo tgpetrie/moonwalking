@@ -35,6 +35,12 @@ Read in this order before implementation:
 
 There is no active bridge service. Ports 5001, 5002, 5100, and 8002 are legacy.
 
+On Tom's Windows PC, port 5003 is the **always-on collector**, not a dev
+server: a scheduled task runs it from the `Moonwalking-Runtime` worktree and
+writes every store to `%USERPROFILE%\.moonwalking\data`. Don't kill it or use
+`--kill-port` on 5003; run dev backends on another port. See
+`docs/developer/ALWAYS_ON_COLLECTOR.md`.
+
 ## Active frontend
 
 - Mount: `frontend/src/main.jsx`

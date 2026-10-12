@@ -1,5 +1,19 @@
 # Moonwalking / BHABIT Handoff
 
+## Always-on collector - 2026-10-12
+
+Collection had silently stopped on 2026-10-05 11:22 because the backend only
+ever ran inside a chat/agent session. It now runs as the `Moonwalking
+Collector` scheduled task from the `Moonwalking-Runtime` worktree on port
+5003, with every store in `%USERPROFILE%\.moonwalking\data` (the 30-day
+stores from the RiskBoard worktree plus today's rows, consolidated with the
+SQLite backup API; originals untouched). Port 5003 is no longer a dev port:
+don't kill it, run dev backends elsewhere. Details, checks and update steps:
+`docs/developer/ALWAYS_ON_COLLECTOR.md`.
+
+Open: the 2026-10-05 to 2026-10-12 gap (a backfill from exchange candles must
+be labelled as replayed), and secrets for Coinbase sign-in on port 5003.
+
 ## P2.6 Portfolio Risk Board QA in progress - 2026-09-23
 
 This section supersedes older P2.6 status below (including the "not
