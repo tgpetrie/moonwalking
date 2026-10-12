@@ -209,6 +209,102 @@ class AgentStore:
             "agents": [dict(row) for row in agents],
         }
 
+    # A run still marked "running" this long after it started almost certainly
+    # died without calling finish_run (crash, closed terminal). One agent pass
+    # takes seconds; fifteen minutes is generous.
+    STALE_RUN_SECONDS = 15 * 60
+
+    def agent_summaries(
+        self,
+        known_agents: Iterable[str] = (),
+        *,
+        now: int | None = None,
+    ) -> list[dict]:
+        """One row per agent: latest run, derived state, and that run's findings.
+
+        Includes agents in ``known_agents`` that have never run, so the page can
+        say so instead of silently leaving them out. State comes only from
+        recorded runs:
+
+        - ``never_run``   no run recorded on this machine
+        - ``running``     latest run started and has not finished yet
+        - ``interrupted`` latest run never finished and is older than
+                          STALE_RUN_SECONDS (the process most likely died)
+        - ``failed``      latest run finished with status "error"
+        - ``idle``        latest run finished OK; agents run on demand, so this
+                          is the normal resting state
+        """
+        now = int(now if now is not None else time.time())
+        with self._connect() as conn:
+            seen = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT DISTINCT agent FROM agent_runs ORDER BY agent"
+                ).fetchall()
+            ]
+            names = list(dict.fromkeys([*known_agents, *seen]))
+            summaries = []
+            for name in names:
+                latest = conn.execute(
+                    """
+                    SELECT * FROM agent_runs WHERE agent = ?
+                    ORDER BY started_ts DESC, id DESC LIMIT 1
+                    """,
+                    (name,),
+                ).fetchone()
+                run_count = conn.execute(
+                    "SELECT COUNT(*) FROM agent_runs WHERE agent = ?", (name,)
+                ).fetchone()[0]
+                by_severity: dict[str, int] = {}
+                if latest is not None:
+                    for severity, count in conn.execute(
+                        """
+                        SELECT severity, COUNT(*) FROM agent_observations
+                        WHERE run_id = ? GROUP BY severity
+                        """,
+                        (latest["id"],),
+                    ).fetchall():
+                        by_severity[severity] = int(count)
+                summaries.append(
+                    self._summarize(name, latest, int(run_count), by_severity, now)
+                )
+        return summaries
+
+    def _summarize(
+        self,
+        name: str,
+        latest: sqlite3.Row | None,
+        run_count: int,
+        by_severity: dict[str, int],
+        now: int,
+    ) -> dict:
+        if latest is None:
+            return {
+                "agent": name,
+                "state": "never_run",
+                "run_count": 0,
+                "last_activity_ts": None,
+                "latest_run": None,
+                "latest_findings_by_severity": {},
+            }
+        run = dict(latest)
+        status = run.get("status")
+        if status == "running":
+            stale = now - int(run["started_ts"]) >= self.STALE_RUN_SECONDS
+            state = "interrupted" if stale else "running"
+        elif status == "error":
+            state = "failed"
+        else:
+            state = "idle"
+        return {
+            "agent": name,
+            "state": state,
+            "run_count": run_count,
+            "last_activity_ts": run.get("finished_ts") or run.get("started_ts"),
+            "latest_run": run,
+            "latest_findings_by_severity": by_severity,
+        }
+
     @staticmethod
     def _row_to_observation(row: sqlite3.Row) -> dict:
         item = dict(row)

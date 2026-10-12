@@ -11813,14 +11813,25 @@ def get_risk_levels_status():
 def get_agents_status():
     """Read-only status for the local agent observation ledger."""
     try:
+        from agents.catalog import describe
+        from agents.runner import DEFAULT_AGENT_FACTORIES
         from agents.store import AgentStore
         from local_ai.client import LocalLLMConfig
 
         store = AgentStore()
         llm_config = LocalLLMConfig.from_env()
+        known = [factory.name for factory in DEFAULT_AGENT_FACTORIES]
+        now = int(time.time())
         payload = {
             "status": "live",
+            "generated_ts": now,
             **store.status(),
+            # Per-agent view for the Agents page; includes agents that have
+            # never run here so they are listed rather than silently missing.
+            "agent_summaries": [
+                {**summary, **describe(summary["agent"])}
+                for summary in store.agent_summaries(known, now=now)
+            ],
             "local_llm": {
                 "enabled": llm_config.enabled,
                 "provider": llm_config.provider,

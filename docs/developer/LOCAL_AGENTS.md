@@ -74,6 +74,49 @@ Read-only API surface:
 These routes read the local ledger. They do not run agents, place trades, or
 change the board source of truth.
 
+`/api/agents/status` also returns `agent_summaries`: one row per agent the
+runner knows about (including agents that have never run here), with its label
+and purpose from `backend/agents/catalog.py`, its latest run, a derived `state`,
+and that run's findings counted by severity. States come only from recorded
+runs:
+
+- `never_run`: no run recorded on this machine.
+- `running`: the latest run started and hasn't finished.
+- `interrupted`: the latest run never finished and started 15+ minutes ago
+  (the process most likely died).
+- `failed`: the latest run finished with an error.
+- `idle`: the latest run finished OK. Agents run on demand, so this is the
+  normal resting state.
+
+## Agents page
+
+`/app/agents` (member sidebar: **Agents**) is a read-only view of the ledger:
+
+- Summary tiles: agents known and how many have run here, last pass, current
+  (non-expired) findings, and how many are critical or warning.
+- One card per agent: state, purpose, last activity, run count, the latest
+  run's findings by severity, and the error text when a run failed.
+- Findings: newest first, filterable by agent and severity, with each
+  finding's evidence fields and a link to the app page it came from (Live
+  Board, Risk Board). Expired findings are hidden unless "Show expired" is on.
+- Audit queue: audit-triage findings grouped into problems, recommended
+  changes and implementation steps, labelled *identified, not tracked*.
+- Local model narrator: on/off and which model, nothing more.
+
+Not built yet: audit task states (queued, working, awaiting review, verified)
+and a record of the changes and checks behind each fix. Today the audit agent
+only lists work, so the page says so instead of implying progress tracking.
+
+The page has no control that runs agents, edits code or trades. Run agents with
+`scripts/run_local_agents.py`; the page refreshes every 30 seconds while
+visible, or on demand with Refresh.
+
+The audit agent parses one specific layout (`## B. Ranked UX problems` with
+`### P0`/`### P1`/`### P2`, `## C. Exact recommended changes` table, `## E.
+Smallest coherent implementation sequence`). None of the audit documents
+currently in the repository use that layout, so the queue stays empty until an
+`AUDIT.md` in that format is passed with `--audit-file`.
+
 ## Local model settings
 
 Use paid OpenAI or Claude models to design and review the system if useful, but

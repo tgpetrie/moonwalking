@@ -9,6 +9,7 @@ import { DataProvider, useData } from "../context/DataContext.jsx";
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
 import PortfolioRiskBoard from "../components/PortfolioRiskBoard.jsx";
+import AgentsPage from "./AgentsPage.jsx";
 import ScorecardRedesignPage from "../components/ScorecardRedesignPage.jsx";
 import "../styles/mvp-shell.css";
 
@@ -20,6 +21,7 @@ const PUBLIC_RISK_PATH = "/risk-board";
 const APP_SCORECARD_PATH = "/app/scorecard";
 const APP_SCORECARD_REDESIGN_PATH = "/app/scorecard-redesign";
 const APP_SCORECARD_COMPARE_PATH = "/app/scorecard-compare";
+const APP_AGENTS_PATH = "/app/agents";
 const APP_SETTINGS_PATH = "/app/settings";
 const PUBLIC_SCORECARD_PATH = "/scorecard";
 const PUBLIC_SCORECARD_REDESIGN_PATH = "/scorecard-redesign";
@@ -33,6 +35,7 @@ const protectedPaths = new Set([
   APP_SCORECARD_PATH,
   APP_SCORECARD_REDESIGN_PATH,
   APP_SCORECARD_COMPARE_PATH,
+  APP_AGENTS_PATH,
   APP_SETTINGS_PATH,
 ]);
 
@@ -1208,6 +1211,7 @@ function MemberShell({
     { label: "Portfolio", to: APP_PORTFOLIO_PATH },
     { label: "Risk Board", to: APP_RISK_PATH },
     { label: "Scorecard", to: APP_SCORECARD_PATH },
+    { label: "Agents", to: APP_AGENTS_PATH },
     { label: "Settings", to: APP_SETTINGS_PATH },
   ];
 
@@ -2438,6 +2442,8 @@ export default function MvpApp() {
         );
       case APP_PORTFOLIO_PATH:
         return <PortfolioModePage />;
+      case APP_AGENTS_PATH:
+        return <AgentsPage />;
       case APP_RISK_PATH:
       case PUBLIC_RISK_PATH:
         return <PortfolioRiskBoard key={session?.email || session?.id || "guest"} />;

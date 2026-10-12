@@ -643,6 +643,12 @@
   color: var(--mw-text);
 }
 
+/* Optional note line under a KPI value. */
+.mw-stat-card small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .mw-stat-card span,
 .mw-list__row span,
 .mw-panel__header span,
