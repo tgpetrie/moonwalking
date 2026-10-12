@@ -1,11 +1,18 @@
 """
-Shared pytest fixtures for sentiment aggregator tests.
+Shared pytest fixtures and backend import bootstrap.
 """
 
+import os
+import sys
 import pytest
 import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
+
+
+BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 
 # ============================================================================

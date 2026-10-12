@@ -11809,6 +11809,56 @@ def get_risk_levels_status():
         return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
 
 
+@app.get("/api/agents/status")
+def get_agents_status():
+    """Read-only status for the local agent observation ledger."""
+    try:
+        from agents.store import AgentStore
+        from local_ai.client import LocalLLMConfig
+
+        store = AgentStore()
+        llm_config = LocalLLMConfig.from_env()
+        payload = {
+            "status": "live",
+            **store.status(),
+            "local_llm": {
+                "enabled": llm_config.enabled,
+                "provider": llm_config.provider,
+                "base_url": llm_config.base_url,
+                "model": llm_config.model or None,
+                "allow_remote": llm_config.allow_remote,
+            },
+        }
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
+@app.get("/api/agents/observations")
+def get_agent_observations():
+    """Return recent local agent observations without running any agent."""
+    try:
+        from agents.store import AgentStore
+
+        raw_limit = request.args.get("limit", "100")
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "error": "Invalid limit."}), 400
+        agent = request.args.get("agent") or None
+        symbol = request.args.get("symbol") or None
+        if symbol and not re.fullmatch(r"[A-Za-z0-9-]{1,24}", symbol):
+            return jsonify({"status": "error", "error": "Invalid symbol."}), 400
+        rows = AgentStore().latest(limit=limit, agent=agent, symbol=symbol)
+        response = jsonify({"status": "live", "observations": rows})
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except Exception as exc:
+        return jsonify({"status": "degraded", "error": str(exc)[:300]}), 200
+
+
 _ICON_BATCH_SYMBOL_LIMIT = 250
 _ICON_BATCH_RESOLVE_CAP = 8  # bounded synchronous CoinGecko lookups per request
 
