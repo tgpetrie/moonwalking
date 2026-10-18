@@ -34,7 +34,19 @@ import sqlite3
 import threading
 import time
 
+from storage_retention import (
+    Throttle,
+    delete_old_rows,
+    enable_incremental_vacuum_if_new,
+    release_free_pages,
+    retention_days,
+)
+
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "control_dry_run.sqlite"
+
+# Observations older than this are deleted so the file cannot fill the disk.
+# Override with MW_CONTROL_DRY_RUN_RETENTION_DAYS; 0 keeps everything.
+DEFAULT_RETENTION_DAYS = 30
 
 # Frozen dry-run configuration. Recorded with every observation so a later
 # reading cannot be attributed to the wrong settings, and so changing a caliper
@@ -81,6 +93,7 @@ class ControlDryRunStore:
         configured = os.getenv("MW_CONTROL_DRY_RUN_DB")
         self.db_path = Path(db_path or configured or DEFAULT_DB_PATH)
         self._init_lock = threading.Lock()
+        self._prune_throttle = Throttle(3600)
         self.ensure_db()
 
     def _connect(self):
@@ -197,6 +210,9 @@ class ControlDryRunStore:
         with self._init_lock:
             conn = self._connect()
             try:
+                # A brand-new file returns freed pages to the disk as old
+                # observations expire; an existing file is left as it is.
+                enable_incremental_vacuum_if_new(conn)
                 conn.execute("PRAGMA journal_mode=WAL")
                 archived = self._migrate_incompatible_table(conn)
                 if archived:
@@ -254,6 +270,16 @@ class ControlDryRunStore:
                     f"CREATE INDEX IF NOT EXISTS {self._INDEX_NAME} "
                     "ON dry_run_observations(rung, config_version)"
                 )
+                try:
+                    # Lets expiry find old rows without scanning the table.
+                    conn.execute(
+                        "CREATE INDEX IF NOT EXISTS ix_dry_run_observed "
+                        "ON dry_run_observations(observed_ts)"
+                    )
+                except sqlite3.OperationalError:
+                    # Building it on a very large, nearly full volume can
+                    # fail; the store still works, expiry is just slower.
+                    logging.warning("control_dry_run: could not build observed_ts index")
                 conn.commit()
             finally:
                 conn.close()
@@ -536,9 +562,47 @@ class ControlDryRunStore:
                         )
                         written += 1
             conn.commit()
+            self._expire_old(conn, int(captured_ts))
         finally:
             conn.close()
         return written
+
+    def _expire_old(
+        self, conn: sqlite3.Connection, now_ts: float, *, force: bool = False
+    ) -> int:
+        """Delete observations older than the retention window (throttled)."""
+        if not force and not self._prune_throttle.due():
+            return 0
+        days = retention_days(
+            "MW_CONTROL_DRY_RUN_RETENTION_DAYS", DEFAULT_RETENTION_DAYS, 1
+        )
+        if not days:
+            return 0
+        try:
+            removed = delete_old_rows(
+                conn,
+                "dry_run_observations",
+                "observed_ts",
+                now_ts - days * 86400,
+                where="1 = 1",
+            )
+            conn.commit()
+            if removed:
+                release_free_pages(conn)
+            return removed
+        except sqlite3.Error:
+            conn.rollback()
+            return 0
+
+    def expire_old(self, now_ts: float | None = None) -> int:
+        """Apply the retention window immediately (maintenance and tests)."""
+        conn = self._connect()
+        try:
+            return self._expire_old(
+                conn, time.time() if now_ts is None else now_ts, force=True
+            )
+        finally:
+            conn.close()
 
     # -- reporting --------------------------------------------------------
 

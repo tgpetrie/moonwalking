@@ -13,6 +13,12 @@ import time
 
 from live_ranking import build_feature_snapshot
 from outcome_gaps import HEARTBEAT_TABLE_SQL, INTERRUPTED, GapDetector, open_across_gap
+from storage_retention import (
+    Throttle,
+    clear_old_feature_snapshots,
+    delete_old_rows,
+    retention_days,
+)
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
@@ -128,6 +134,7 @@ class SignalOutcomeStore:
             300, int(os.getenv("MW_OUTCOME_HORIZON_SECONDS", "3600"))
         )
         self._gaps = GapDetector("signal_outcomes")
+        self._prune_throttle = Throttle()
         self._init_lock = threading.Lock()
         self._history_lock = threading.Lock()
         self._history_cache: dict[
@@ -404,10 +411,53 @@ class SignalOutcomeStore:
                 )
             self._gaps.beat(conn, now_ts)
             conn.commit()
+            self._prune_storage(conn, now_ts)
         finally:
             conn.close()
         with self._history_lock:
             self._history_cache.clear()
+
+    def _prune_storage(
+        self, conn: sqlite3.Connection, now_ts: float, *, force: bool = False
+    ) -> None:
+        """Keep the database from growing without bound.
+
+        Finished rows lose their feature-snapshot JSON after
+        ``MW_FEATURE_SNAPSHOT_RETENTION_DAYS`` (default 14; the JSON is
+        write-only research context, so no published statistic changes). Whole
+        finished rows are only deleted when ``MW_SIGNAL_OUTCOME_RETENTION_DAYS``
+        is set, because they are what the scorecard counts. ``0`` disables
+        either limit. Errors here never stop outcome grading.
+        """
+        if not force and not self._prune_throttle.due():
+            return
+        try:
+            snapshot_days = retention_days("MW_FEATURE_SNAPSHOT_RETENTION_DAYS", 14, 1)
+            row_days = retention_days("MW_SIGNAL_OUTCOME_RETENTION_DAYS", 0, 30)
+            if snapshot_days:
+                clear_old_feature_snapshots(
+                    conn,
+                    "signal_outcomes",
+                    "started_ts",
+                    now_ts - snapshot_days * 86400,
+                )
+            if row_days:
+                delete_old_rows(
+                    conn, "signal_outcomes", "started_ts", now_ts - row_days * 86400
+                )
+            conn.commit()
+        except sqlite3.Error:
+            conn.rollback()
+
+    def prune_storage(self, now_ts: float | None = None) -> None:
+        """Run the retention limits immediately (maintenance and tests)."""
+        conn = self._connect()
+        try:
+            self._prune_storage(
+                conn, time.time() if now_ts is None else now_ts, force=True
+            )
+        finally:
+            conn.close()
 
     def history_for(self, event: dict[str, Any]) -> dict[str, Any]:
         read = event.get("the_read") if isinstance(event.get("the_read"), dict) else {}
