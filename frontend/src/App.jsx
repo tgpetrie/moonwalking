@@ -6,6 +6,7 @@ import DashboardShell from "./components/DashboardShell.jsx";
 import MvpApp from "./mvp/MvpApp.jsx";
 
 const mvpRouteSet = new Set([
+  "/design-system",
   "/login",
   "/signup",
   "/app/dashboard",

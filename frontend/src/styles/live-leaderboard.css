@@ -126,7 +126,7 @@
 }
 
 .lb-dist-legend b {
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   color: rgba(255, 255, 255, 0.6);
   font-weight: 600;
   margin-right: 3px;
@@ -238,7 +238,7 @@
 .lb-row__rank {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.3);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 .lb-row__symbol {
@@ -251,8 +251,9 @@
 .lb-row__score {
   font-size: 0.9rem;
   font-weight: 700;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-row__label {
@@ -272,15 +273,16 @@
 .lb-row__quality {
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.3);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   text-align: right;
 }
 
 .lb-row__price {
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.55);
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-row__chevron {
@@ -373,7 +375,7 @@
 .lb-comp__val {
   font-size: 0.7rem;
   font-weight: 600;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
   width: 24px;
   text-align: right;
   flex-shrink: 0;
@@ -408,7 +410,7 @@
   font-size: 0.68rem;
   padding: 2px 8px;
   border-radius: 999px;
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: var(--font-numeric);
 }
 
 .lb-chip--reason {

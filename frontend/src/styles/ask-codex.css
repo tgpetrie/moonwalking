@@ -167,7 +167,7 @@
   border: 1px solid rgba(168, 85, 247, 0.20);
   border-radius: 6px;
   padding: 9px 12px;
-  font-family: 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-numeric);
   font-size: 12px;
   line-height: 1.6;
   color: rgba(216, 180, 254, 0.90);
@@ -314,7 +314,7 @@
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: var(--font-numeric);
   font-size: 11px;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -346,7 +346,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: var(--font-numeric);
   font-size: 11px;
   color: rgba(255, 255, 255, 0.55);
 }

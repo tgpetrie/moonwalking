@@ -8,8 +8,16 @@ import {
 import { getBackendBase } from "../config/api.js";
 import PortfolioModePage from "./PortfolioModePage.jsx";
 import ScorecardPage from "../components/ScorecardPage.jsx";
+import DesignSystemPage from "../components/ui/DesignSystemPage.jsx";
+import {
+  UiButton,
+  UiCard,
+  UiCheckbox,
+  UiField,
+} from "../components/ui/DesignSystem.jsx";
 import "../styles/mvp-shell.css";
 
+const DESIGN_SYSTEM_PATH = "/design-system";
 const APP_DASHBOARD_PATH = "/app/dashboard";
 const APP_WATCHLISTS_PATH = "/app/watchlists";
 const APP_PORTFOLIO_PATH = "/app/portfolio";
@@ -331,6 +339,7 @@ function matchRoute(pathname) {
   if (
     protectedPaths.has(pathname) ||
     pathname === "/" ||
+    pathname === DESIGN_SYSTEM_PATH ||
     pathname === "/login" ||
     pathname === "/signup" ||
     Object.prototype.hasOwnProperty.call(legacyMemberRouteMap, pathname)
@@ -372,12 +381,14 @@ function useRouter() {
   return { pathname, navigate };
 }
 
-function AppLink({ to, navigate, className, children, accent = false, external = false }) {
+function AppLink({ to, navigate, className, children, accent = false, external = false, onClick, ...props }) {
   return (
     <a
+      {...props}
       href={to}
       className={classNames(className, accent && "mw-link-accent")}
       onClick={(event) => {
+        onClick?.(event);
         if (
           external ||
           event.defaultPrevented ||
@@ -433,21 +444,21 @@ function PublicHeader({ navigate, session, currentPath }) {
       <div className="mw-public-actions">
         {session.isAuthenticated ? (
           <>
-            <AppLink to={APP_WATCHLISTS_PATH} navigate={navigate} className="mw-button mw-button--ghost">
+            <UiButton as={AppLink} to={APP_WATCHLISTS_PATH} navigate={navigate} variant="ghost">
               Watchlists
-            </AppLink>
-            <button type="button" className="mw-button mw-button--primary">
+            </UiButton>
+            <UiButton variant="primary">
               {session.plan}
-            </button>
+            </UiButton>
           </>
         ) : (
           <>
-            <AppLink to="/login" navigate={navigate} className="mw-button mw-button--ghost">
+            <UiButton as={AppLink} to="/login" navigate={navigate} variant="ghost">
               Login
-            </AppLink>
-            <AppLink to="/signup" navigate={navigate} className="mw-button mw-button--primary" accent>
+            </UiButton>
+            <UiButton as={AppLink} to="/signup" navigate={navigate} variant="primary" accent>
               Sign Up
-            </AppLink>
+            </UiButton>
           </>
         )}
       </div>
@@ -483,12 +494,12 @@ function HomePage({ navigate }) {
             where you left off from another connected browser.
           </p>
           <div className="mw-hero-actions">
-            <AppLink to="/signup" navigate={navigate} className="mw-button mw-button--primary" accent>
+            <UiButton as={AppLink} to="/signup" navigate={navigate} variant="primary" accent>
               Get Started
-            </AppLink>
-            <a href="#public-tier" className="mw-button mw-button--ghost">
+            </UiButton>
+            <UiButton as="a" href="#public-tier" variant="ghost">
               Explore Public Tier
-            </a>
+            </UiButton>
           </div>
         </div>
         <div className="mw-hero-rail">
@@ -634,9 +645,9 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
 
   return (
     <section className="mw-auth-layout">
-      <div className="mw-auth-card">
+      <UiCard as="div" className="mw-auth-card" padding="lg">
         <p className="mw-eyebrow">{isSignup ? "Create your account" : "Welcome back"}</p>
-        <h1>{isSignup ? "Save watchlists to your Moonwalking account." : "Return to your dashboard."}</h1>
+        <h1>{isSignup ? "Create your account" : "Log in"}</h1>
         <p>
           {isSignup
             ? "Sign up, then move straight into the live board and saved watchlists."
@@ -644,79 +655,68 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
         </p>
         <form className="mw-auth-form" onSubmit={handleSubmit}>
           {isSignup ? (
-            <label className="mw-field">
-              <span>Full Name</span>
-              <input
-                type="text"
-                placeholder="Jane Doe"
-                value={formState.name}
-                onChange={handleChange("name")}
-                required
-              />
-            </label>
+            <UiField
+              label="Full Name"
+              type="text"
+              placeholder="Jane Doe"
+              value={formState.name}
+              onChange={handleChange("name")}
+              required
+            />
           ) : null}
-          <label className="mw-field">
-            <span>Email</span>
-            <input
-              type="email"
-              placeholder="jane@example.com"
-              value={formState.email}
-              onChange={handleChange("email")}
-              required
-            />
-          </label>
-          <label className="mw-field">
-            <span>Password</span>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={formState.password}
-              onChange={handleChange("password")}
-              required
-            />
-          </label>
+          <UiField
+            label="Email"
+            type="email"
+            placeholder="jane@example.com"
+            value={formState.email}
+            onChange={handleChange("email")}
+            required
+          />
+          <UiField
+            label="Password"
+            type="password"
+            placeholder="Enter your password"
+            value={formState.password}
+            onChange={handleChange("password")}
+            required
+          />
           {isSignup ? (
-            <label className="mw-field">
-              <span>Confirm Password</span>
-              <input
-                type="password"
-                placeholder="Confirm your password"
-                value={formState.confirmPassword}
-                onChange={handleChange("confirmPassword")}
-                required
-              />
-            </label>
+            <UiField
+              label="Confirm Password"
+              type="password"
+              placeholder="Confirm your password"
+              value={formState.confirmPassword}
+              onChange={handleChange("confirmPassword")}
+              required
+            />
           ) : null}
 
           <div className="mw-checkbox-group">
             {isSignup ? (
-              <label className="mw-check">
-                <input
-                  type="checkbox"
-                  checked={formState.acceptTerms}
-                  onChange={handleChange("acceptTerms")}
-                />
-                <span>I agree to the terms and privacy policy.</span>
-              </label>
+              <UiCheckbox
+                label="I agree to the terms and privacy policy."
+                checked={formState.acceptTerms}
+                onChange={handleChange("acceptTerms")}
+              />
             ) : (
-              <label className="mw-check">
-                <input
-                  type="checkbox"
-                  checked={formState.remember}
-                  onChange={handleChange("remember")}
-                />
-                <span>Remember me on this device.</span>
-              </label>
+              <UiCheckbox
+                label="Remember me on this device."
+                checked={formState.remember}
+                onChange={handleChange("remember")}
+              />
             )}
           </div>
 
-          <button
+          <UiButton
             type="submit"
-            className="mw-button mw-button--primary mw-button--block"
+            variant="primary"
+            block
+            loading={isSubmitting}
+            loadingLabel="Saving..."
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Saving..." : isSignup ? "Create Account" : "Log In"}
-          </button>
+            {isSignup ? "Create Account" : "Log In"}
+          </UiButton>
           {errorMessage ? <p className="mw-auth-feedback mw-auth-feedback--error">{errorMessage}</p> : null}
         </form>
         <div className="mw-auth-links">
@@ -739,19 +739,19 @@ function AuthPage({ mode, navigate, onSubmit, isSubmitting = false, errorMessage
             </>
           )}
         </div>
-      </div>
+      </UiCard>
 
       <aside className="mw-auth-side">
-        <article className="mw-surface">
+        <UiCard as="article">
           <span className="mw-surface__eyebrow">Core value</span>
           <h3>Watchlists tied to your account</h3>
           <p>Your saved assets follow your login across browsers connected to this server.</p>
-        </article>
-        <article className="mw-surface">
+        </UiCard>
+        <UiCard as="article">
           <span className="mw-surface__eyebrow">Product loop</span>
           <h3>Live signals become saved context</h3>
           <p>Move from the real-time board to persistent tracking without losing your baseline.</p>
-        </article>
+        </UiCard>
       </aside>
     </section>
   );
@@ -1779,6 +1779,7 @@ export default function MvpApp() {
 
   const isPublicRoute =
     route.name === "/" ||
+    route.name === DESIGN_SYSTEM_PATH ||
     route.name === "/login" ||
     route.name === "/signup" ||
     route.name === "/u/:username" ||
@@ -1788,6 +1789,8 @@ export default function MvpApp() {
     switch (route.name) {
       case "/":
         return <HomePage navigate={navigate} />;
+      case DESIGN_SYSTEM_PATH:
+        return <DesignSystemPage />;
       case "/login":
         return (
           <AuthPage
