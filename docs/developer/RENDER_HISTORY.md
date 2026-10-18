@@ -171,9 +171,9 @@ Rules the consumer can rely on:
 - Prices are in the quote currency, volume in the base currency. Never
   compare RNDR-EUR prices with USD series without saying so.
 - `stitched` is always `false` and `provenance.authenticated` always `false`.
-  Joining RNDR to RENDER is a presentation choice for the chart; if made, show
-  them as two labelled series (the overlap and ratio are in
-  `coverage.json` -> `lineage`).
+  RNDR and RENDER are not joined, by decision (see 5a). The chart may place
+  them on one axis only as two labelled series (the overlap and ratio are in
+  `coverage.json` -> `lineage`). Indicators are computed per series.
 - `lowest_daily_low.is_all_time_low` is `false` and must stay false until a
   file proves full-life coverage. Label by `scope`.
 - Methodology strings are versioned. A change to how a series is derived
@@ -209,6 +209,12 @@ transcriptions, not exchange data.
   TradingView source must carry RNDR history. Joining RNDR-USD before
   2024-02-19 to RENDER-USD gives 3.6734. That figure is a comparison only and
   is not published as a series.
+- **Decision (Tom, 2026-10-18): the series stay separate.** No joined
+  RNDR→RENDER series will be built, so SMA200 is unavailable for RENDER-USD.
+  The chart should show it as unavailable, with the reason (138 of 200 weeks),
+  and not substitute another value. It first becomes computable on its own for
+  the week of 2027-12-13, the 200th complete week counting from the first
+  full week (2024-02-19). That week closes on 2027-12-19.
 - The review's acceptance target "SMA within 0.05% of the video values"
   cannot hold across venues. Hold indicator parity to identical input closes
   instead: `indicator_fixture` in `reference_parity.json` has the last 100
