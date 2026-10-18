@@ -1,0 +1,79 @@
+{
+  "schema_version": "moonwalking.video-reference/v1",
+  "reference_id": "fet-june-july-2026",
+  "reviewed_on": "2026-10-18",
+  "evidence_kind": "analyst-video-reference",
+  "is_market_history": false,
+  "review_scope": "Both automatic transcripts, displayed upload dates, June 3:27 and July 0:31 chart frames. Not a complete frame-by-frame audit.",
+  "instrument": {
+    "display_symbol": "FET",
+    "display_product": "FETUSD",
+    "quote_currency": "USD",
+    "timeframe": "1w",
+    "visible_provider_label": "CRYPTO",
+    "execution_venue": null,
+    "chain_and_contract": null
+  },
+  "original": {
+    "video_id": "M2yA9fJ_5j8",
+    "url": "https://www.youtube.com/watch?v=M2yA9fJ_5j8",
+    "published_on": "2026-06-26",
+    "publication_time_utc": null,
+    "recording_time_utc": null,
+    "level_claim": {
+      "role": "opportunity-support",
+      "price": 0.145,
+      "quote_currency": "USD",
+      "time_seconds": 201,
+      "range_bounds": null,
+      "evidence": "Spoken level at 3:21-3:28; visible green area has no verified numeric boundaries."
+    },
+    "resistance": {
+      "approximate_prices": [0.3, 0.305],
+      "time_seconds": 231,
+      "note": "Nearby spoken approximations, not a verified exact zone."
+    },
+    "conditional_next_level": { "price": 0.8, "time_seconds": 238 },
+    "macro_target": { "approximate_price": 7, "time_seconds": 21 },
+    "conservative_target_upper": null,
+    "conservative_target_note": "Upper bound in the automatic caption near 5:18 is ambiguous; do not silently use the later video's number.",
+    "numeric_stop": null,
+    "forecast_deadline": null,
+    "broad_market_condition": "Broader market and liquidity support required; 2:24-3:00.",
+    "structure": "Analyst's ascending macro channel with A/B/C/D and hypothetical E. Exact anchor coordinates not established."
+  },
+  "follow_up": {
+    "video_id": "LS93M0qDZ4I",
+    "url": "https://www.youtube.com/watch?v=LS93M0qDZ4I",
+    "published_on": "2026-07-23",
+    "publication_time_utc": null,
+    "recording_time_utc": null,
+    "level_claim": {
+      "role": "opportunity-support",
+      "price": 0.145,
+      "quote_currency": "USD",
+      "time_seconds": 14,
+      "range_bounds": null,
+      "evidence": "Prior level repeated at 0:14-0:23; price described as near 0.15 at 0:32-0:49."
+    },
+    "visible_current_quote": { "price": 0.15351, "time_seconds": 31, "precision": "Manual reading of displayed quote, not an exchange-verified fill." },
+    "visible_cursor_price": { "approximate_price": 0.14446, "time_seconds": 31, "is_traded_price_evidence": false },
+    "conservative_target": { "range": [1.8, 2.75], "time_seconds": 118 },
+    "macro_target": { "range": [5.5, 6.5], "time_seconds": 125 },
+    "stop_condition": { "time_seconds": 57, "description": "Optional stop below the indicated low; narrator describes risk under 10%.", "numeric_stop": null },
+    "entry_fill": null,
+    "post_entry_return": null,
+    "exact_level_touch": "not established by reviewed evidence",
+    "support_held": "not established by reviewed evidence",
+    "rebound_success": "not established by reviewed evidence"
+  },
+  "engine_comparison": {
+    "calculation_commit": "e1b7e530b125a320d018fa8dfdb43c4bdd9fe261",
+    "settings_retuned": false,
+    "fet_history_replayed": false,
+    "reason": "No matching FET history export has been supplied to this review. Video labels are not exchange candle data.",
+    "automatic_ABCDE_available": false,
+    "exact_channel_anchors_verified": false,
+    "profitability_grade": null
+  }
+}
