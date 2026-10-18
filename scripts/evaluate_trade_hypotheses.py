@@ -44,18 +44,23 @@ class Candle:
     volume: float
 
 
-def candle_from_row(row):
+def candle_from_row(row, *, granularity_seconds=HOUR):
     values = [
-        number(row.get(k))
-        for k in ("hour_ts", "open", "high", "low", "close", "base_volume")
+        number(row.get(k)) for k in ("open", "high", "low", "close", "base_volume")
     ]
+    values.insert(0, number(row.get("candle_ts", row.get("hour_ts"))))
     # Production volume_hour extrema are minute-close samples, not OHLC.
     # Coverage alone cannot turn them into exchange candle observations.
-    if any(v is None for v in values) or row.get("source") != "coinbase_exchange_ohlcv":
+    if (
+        any(v is None for v in values)
+        or row.get("source") != "coinbase_exchange_ohlcv"
+        or row.get("granularity_seconds", HOUR) != granularity_seconds
+        or granularity_seconds not in (900, HOUR)
+    ):
         return None
     ts, open_, high, low, close, volume = values
     if (
-        ts % HOUR
+        ts % granularity_seconds
         or not (0 < low <= min(open_, close) <= max(open_, close) <= high)
         or volume < 0
     ):
@@ -63,7 +68,7 @@ def candle_from_row(row):
     return Candle(int(ts), open_, high, low, close, volume)
 
 
-def load_export(path):
+def load_export(path, *, candle_granularity_seconds=HOUR):
     """Collapse transitions deterministically, before looking at future prices."""
     signals, candles = {}, defaultdict(dict)
     audit = Counter()
@@ -101,12 +106,15 @@ def load_export(path):
                     signals[key] = row
             elif kind == "candle":
                 product = row["product_id"]
-                bar = candle_from_row(row)
-                key = (product, row.get("hour_ts"))
+                bar = candle_from_row(
+                    row, granularity_seconds=candle_granularity_seconds
+                )
+                candle_ts = row.get("candle_ts", row.get("hour_ts"))
+                key = (product, candle_ts)
                 if bar is None or key in invalid_candles or bar.ts in candles[product]:
                     audit["invalid_or_duplicate_candle"] += 1
                     invalid_candles.add(key)
-                    candles[product].pop(row.get("hour_ts"), None)
+                    candles[product].pop(candle_ts, None)
                     continue
                 candles[product][bar.ts] = bar
     if (
@@ -117,14 +125,16 @@ def load_export(path):
         raise ValueError("Incomplete export or count mismatch")
     if manifest.get("schema_version") != 1:
         raise ValueError("Unsupported export schema")
+    if manifest.get("candle_granularity_seconds", HOUR) != candle_granularity_seconds:
+        raise ValueError("Candle granularity does not match requested analysis")
     audit["product_hour_decisions"] = len(signals)
     audit["signal_products"] = len({p for p, _ in signals})
     audit["valid_candles"] = sum(map(len, candles.values()))
     return signals, candles, dict(audit), manifest
 
 
-def consecutive(bars, start, count):
-    result = [bars.get(start + i * HOUR) for i in range(count)]
+def consecutive(bars, start, count, *, granularity_seconds=HOUR):
+    result = [bars.get(start + i * granularity_seconds) for i in range(count)]
     return result if all(bar is not None for bar in result) else None
 
 
@@ -196,10 +206,33 @@ def first_touch(bars, entry, direction, stop, target):
     return {"status": "neither", "bar_ts": None, "gap": False}
 
 
-def measure(bars, ts, entry, direction, atr, stop, target, horizon, cost_pct):
-    if horizon % HOUR:
+def measure(
+    bars,
+    ts,
+    entry,
+    direction,
+    atr,
+    stop,
+    target,
+    horizon,
+    cost_pct,
+    *,
+    granularity_seconds=HOUR,
+):
+    if granularity_seconds not in (900, HOUR):
+        raise ValueError("Only native 15m and hourly paths are supported")
+    if horizon <= 0:
+        raise ValueError("A positive forward horizon is required")
+    if ts % granularity_seconds:
+        return {"available": False, "reason": "entry_not_aligned_to_path_bar"}
+    if horizon % granularity_seconds:
         return {"available": False, "reason": "hourly_candles_cannot_measure_15m"}
-    future = consecutive(bars, ts, horizon // HOUR)
+    future = consecutive(
+        bars,
+        ts,
+        horizon // granularity_seconds,
+        granularity_seconds=granularity_seconds,
+    )
     if future is None:
         return {"available": False, "reason": "missing_or_incomplete_future_candle"}
     favorable = (
@@ -250,6 +283,22 @@ def split_for(ts, start, end):
     return "test"
 
 
+def opportunity_action(features):
+    """Unvalidated research gates shared by replay and cost sensitivity."""
+    if (
+        features["risk_pct"] <= 0
+        or features["invalid"] <= 0
+        or features["net_reward_risk"] is None
+        or features["net_reward_risk"] < 1
+    ):
+        return "NO_TRADE", "insufficient_net_reward_before_structure"
+    if features["extension_atr"] > 2.4:
+        return "WAIT_FOR_PULLBACK", "extension_exceeds_research_cap"
+    if len(features["confirmation_families"]) < 2:
+        return "WAIT", "independent_confirmation_missing"
+    return "RESEARCH_CANDIDATE", "unvalidated_geometry_and_confirmation_pass"
+
+
 def build_decision(signal, ts, bars, btc_bars, lookback, cost_pct):
     direction = {"up": 1, "down": -1}.get(signal.get("direction"))
     result = {
@@ -294,24 +343,7 @@ def build_decision(signal, ts, bars, btc_bars, lookback, cost_pct):
         btc = consecutive(btc_bars, ts - n * HOUR, n)
         context[name] = (btc[-1].close / btc[0].open - 1) * 100 if btc else None
     result["context"] = context
-    if (
-        features["risk_pct"] <= 0
-        or features["invalid"] <= 0
-        or features["net_reward_risk"] is None
-        or features["net_reward_risk"] < 1
-    ):
-        result["reason"] = "insufficient_net_reward_before_structure"
-    elif features["extension_atr"] > 2.4:
-        result.update(
-            action="WAIT_FOR_PULLBACK", reason="extension_exceeds_research_cap"
-        )
-    elif len(features["confirmation_families"]) < 2:
-        result.update(action="WAIT", reason="independent_confirmation_missing")
-    else:
-        result.update(
-            action="RESEARCH_CANDIDATE",
-            reason="unvalidated_geometry_and_confirmation_pass",
-        )
+    result["action"], result["reason"] = opportunity_action(features)
     for horizon in HORIZONS:
         result["outcomes"][str(horizon)] = measure(
             bars,

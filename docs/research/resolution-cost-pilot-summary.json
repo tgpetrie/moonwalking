@@ -1,0 +1,2213 @@
+{
+  "methodology": "hourly-entry-15m-path-costs-v1",
+  "outcome_validated": false,
+  "entry_policy": "latest_signal_per_product_hour_then_next_hour_open",
+  "feature_granularity_seconds": 3600,
+  "path_granularity_seconds": 900,
+  "lookback": 49,
+  "split": {
+    "start": 1784307600,
+    "end": 1792350000,
+    "train_end": 1789133040,
+    "validation_end": 1790741520,
+    "purge_seconds": 86400
+  },
+  "matched_controls": false,
+  "hourly_input_sha256": "658bade43fca936fa04be7b2c0a2cd4356175ce019db007efd68683eb43e0a0e",
+  "fine_input_sha256": "7107c1c2f208adabf643113c20a9c521a26f5250e36946fe5d870eab9255a7ed",
+  "hourly_audit": {
+    "manifest": 1,
+    "signal": 25236,
+    "candle": 9220,
+    "counts": 1,
+    "product_hour_decisions": 4410,
+    "signal_products": 4,
+    "valid_candles": 9220
+  },
+  "fine_audit": {
+    "manifest": 1,
+    "signal": 25236,
+    "candle": 36880,
+    "counts": 1,
+    "product_hour_decisions": 4410,
+    "signal_products": 4,
+    "valid_candles": 36880
+  },
+  "entry_open_disagreements": 0,
+  "resolution_comparison": {
+    "900": {
+      "paired_decisions": 0,
+      "hourly_atr_first_touch_counts": {},
+      "fine_atr_first_touch_counts": {},
+      "hourly_ambiguous_to_fine_status": {},
+      "atr_status_transitions": {},
+      "geometry_paired_decisions": 0,
+      "hourly_geometry_first_touch_counts": {},
+      "fine_geometry_first_touch_counts": {},
+      "hourly_geometry_ambiguous_to_fine_status": {},
+      "max_abs_close_return_difference_pct": null,
+      "max_abs_mfe_difference_atr": null,
+      "max_abs_mae_difference_atr": null
+    },
+    "3600": {
+      "paired_decisions": 4406,
+      "hourly_atr_first_touch_counts": {
+        "stop_first": 595,
+        "target_first": 588,
+        "neither": 3191,
+        "ambiguous": 32
+      },
+      "fine_atr_first_touch_counts": {
+        "stop_first": 607,
+        "target_first": 603,
+        "neither": 3191,
+        "ambiguous": 5
+      },
+      "hourly_ambiguous_to_fine_status": {
+        "target_first": 15,
+        "stop_first": 12,
+        "ambiguous": 5
+      },
+      "atr_status_transitions": {
+        "stop_first->stop_first": 595,
+        "target_first->target_first": 588,
+        "neither->neither": 3191,
+        "ambiguous->target_first": 15,
+        "ambiguous->stop_first": 12,
+        "ambiguous->ambiguous": 5
+      },
+      "geometry_paired_decisions": 4403,
+      "hourly_geometry_first_touch_counts": {
+        "neither": 3967,
+        "target_first": 288,
+        "stop_first": 148
+      },
+      "fine_geometry_first_touch_counts": {
+        "neither": 3967,
+        "target_first": 288,
+        "stop_first": 148
+      },
+      "hourly_geometry_ambiguous_to_fine_status": {},
+      "max_abs_close_return_difference_pct": 0.0,
+      "max_abs_mfe_difference_atr": 0.0,
+      "max_abs_mae_difference_atr": 0.0
+    },
+    "14400": {
+      "paired_decisions": 4400,
+      "hourly_atr_first_touch_counts": {
+        "stop_first": 1581,
+        "target_first": 1598,
+        "neither": 1165,
+        "ambiguous": 56
+      },
+      "fine_atr_first_touch_counts": {
+        "stop_first": 1602,
+        "target_first": 1627,
+        "neither": 1165,
+        "ambiguous": 6
+      },
+      "hourly_ambiguous_to_fine_status": {
+        "target_first": 29,
+        "stop_first": 21,
+        "ambiguous": 6
+      },
+      "atr_status_transitions": {
+        "stop_first->stop_first": 1581,
+        "target_first->target_first": 1598,
+        "neither->neither": 1165,
+        "ambiguous->target_first": 29,
+        "ambiguous->stop_first": 21,
+        "ambiguous->ambiguous": 6
+      },
+      "geometry_paired_decisions": 4397,
+      "hourly_geometry_first_touch_counts": {
+        "neither": 3385,
+        "target_first": 584,
+        "stop_first": 428
+      },
+      "fine_geometry_first_touch_counts": {
+        "neither": 3385,
+        "target_first": 584,
+        "stop_first": 428
+      },
+      "hourly_geometry_ambiguous_to_fine_status": {},
+      "max_abs_close_return_difference_pct": 0.0,
+      "max_abs_mfe_difference_atr": 0.0,
+      "max_abs_mae_difference_atr": 0.0
+    },
+    "43200": {
+      "paired_decisions": 4378,
+      "hourly_atr_first_touch_counts": {
+        "stop_first": 1991,
+        "target_first": 2080,
+        "neither": 242,
+        "ambiguous": 65
+      },
+      "fine_atr_first_touch_counts": {
+        "stop_first": 2014,
+        "target_first": 2115,
+        "neither": 242,
+        "ambiguous": 7
+      },
+      "hourly_ambiguous_to_fine_status": {
+        "target_first": 35,
+        "stop_first": 23,
+        "ambiguous": 7
+      },
+      "atr_status_transitions": {
+        "stop_first->stop_first": 1991,
+        "target_first->target_first": 2080,
+        "neither->neither": 242,
+        "ambiguous->target_first": 35,
+        "ambiguous->stop_first": 23,
+        "ambiguous->ambiguous": 7
+      },
+      "geometry_paired_decisions": 4375,
+      "hourly_geometry_first_touch_counts": {
+        "neither": 2536,
+        "target_first": 989,
+        "stop_first": 850
+      },
+      "fine_geometry_first_touch_counts": {
+        "neither": 2536,
+        "target_first": 989,
+        "stop_first": 850
+      },
+      "hourly_geometry_ambiguous_to_fine_status": {},
+      "max_abs_close_return_difference_pct": 0.0,
+      "max_abs_mfe_difference_atr": 0.0,
+      "max_abs_mae_difference_atr": 0.0
+    },
+    "86400": {
+      "paired_decisions": 4354,
+      "hourly_atr_first_touch_counts": {
+        "stop_first": 2074,
+        "target_first": 2156,
+        "neither": 59,
+        "ambiguous": 65
+      },
+      "fine_atr_first_touch_counts": {
+        "stop_first": 2096,
+        "target_first": 2191,
+        "neither": 59,
+        "ambiguous": 8
+      },
+      "hourly_ambiguous_to_fine_status": {
+        "target_first": 35,
+        "stop_first": 22,
+        "ambiguous": 8
+      },
+      "atr_status_transitions": {
+        "stop_first->stop_first": 2074,
+        "target_first->target_first": 2156,
+        "neither->neither": 59,
+        "ambiguous->target_first": 35,
+        "ambiguous->stop_first": 22,
+        "ambiguous->ambiguous": 8
+      },
+      "geometry_paired_decisions": 4351,
+      "hourly_geometry_first_touch_counts": {
+        "neither": 1826,
+        "stop_first": 1234,
+        "target_first": 1291
+      },
+      "fine_geometry_first_touch_counts": {
+        "neither": 1826,
+        "stop_first": 1234,
+        "target_first": 1291
+      },
+      "hourly_geometry_ambiguous_to_fine_status": {},
+      "max_abs_close_return_difference_pct": 0.0,
+      "max_abs_mfe_difference_atr": 0.0,
+      "max_abs_mae_difference_atr": 0.0
+    }
+  },
+  "source_report_sha256": "9ea53468963dd068a3ecdea53df50790c0a420bdb7ed63a6068c0e5e361f32c6",
+  "cost_scenarios": {
+    "0.0": {
+      "round_trip_bps": 0.0,
+      "splits": {
+        "train": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": 0.018782401777493494,
+              "mean_net_forward_return_atr": 0.03020207128109842,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5039313795568263,
+              "median_mfe_atr": 0.20102945439891437,
+              "median_mae_atr": -0.19536536682732006,
+              "atr_first_touch_counts": {
+                "stop_first": 62,
+                "target_first": 103,
+                "neither": 2632,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": 0.010771793868302685,
+              "mean_net_forward_return_atr": 0.022296504154961545,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.4921372408863474,
+              "median_mfe_atr": 0.3909004098866861,
+              "median_mae_atr": -0.37394650567866117,
+              "atr_first_touch_counts": {
+                "stop_first": 382,
+                "target_first": 396,
+                "neither": 2019,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": 0.039681426018482055,
+              "mean_net_forward_return_atr": 0.10028407551761506,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5189421015010722,
+              "median_mfe_atr": 0.8422923733635477,
+              "median_mae_atr": -0.7582238593776444,
+              "atr_first_touch_counts": {
+                "stop_first": 988,
+                "target_first": 1080,
+                "neither": 729,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": 0.0748327006205996,
+              "mean_net_forward_return_atr": 0.16222334500496682,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5185847033595425,
+              "median_mfe_atr": 1.470676466500501,
+              "median_mae_atr": -1.379967367963896,
+              "atr_first_touch_counts": {
+                "stop_first": 1263,
+                "target_first": 1401,
+                "neither": 133,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": 0.09403919102120172,
+              "mean_net_forward_return_atr": 0.21265817153965627,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.4992852037169407,
+              "median_mfe_atr": 2.0840415906495195,
+              "median_mae_atr": -2.038683086141101,
+              "atr_first_touch_counts": {
+                "stop_first": 1308,
+                "target_first": 1456,
+                "neither": 33,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 1487,
+            "WAIT_FOR_PULLBACK": 491,
+            "WAIT": 689,
+            "RESEARCH_CANDIDATE": 131
+          }
+        },
+        "validation": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": 0.0012673947583950144,
+              "mean_net_forward_return_atr": 0.0001822933818579311,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.4818435754189944,
+              "median_mfe_atr": 0.21915355569186995,
+              "median_mae_atr": -0.2003603465214987,
+              "atr_first_touch_counts": {
+                "target_first": 21,
+                "stop_first": 13,
+                "ambiguous": 3,
+                "neither": 679
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.007859456537398859,
+              "mean_net_forward_return_atr": 0.0036364077714506407,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5125698324022346,
+              "median_mfe_atr": 0.39099041262820095,
+              "median_mae_atr": -0.38497523876901435,
+              "atr_first_touch_counts": {
+                "target_first": 92,
+                "stop_first": 100,
+                "ambiguous": 3,
+                "neither": 521
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.0420612886098276,
+              "mean_net_forward_return_atr": -0.04726975785205504,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5041899441340782,
+              "median_mfe_atr": 0.7781485940527093,
+              "median_mae_atr": -0.7645764033717767,
+              "atr_first_touch_counts": {
+                "target_first": 245,
+                "stop_first": 261,
+                "ambiguous": 4,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.042508623208086335,
+              "mean_net_forward_return_atr": -0.12442181896320277,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.48743016759776536,
+              "median_mfe_atr": 1.3369314157306456,
+              "median_mae_atr": -1.4510017852256942,
+              "atr_first_touch_counts": {
+                "target_first": 323,
+                "stop_first": 334,
+                "ambiguous": 4,
+                "neither": 55
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.1442483156074287,
+              "mean_net_forward_return_atr": -0.2568250944815153,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.4958100558659218,
+              "median_mfe_atr": 1.847066529043229,
+              "median_mae_atr": -2.206272222237814,
+              "atr_first_touch_counts": {
+                "target_first": 339,
+                "stop_first": 351,
+                "ambiguous": 4,
+                "neither": 22
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 347,
+            "RESEARCH_CANDIDATE": 35,
+            "WAIT": 195,
+            "WAIT_FOR_PULLBACK": 139
+          }
+        },
+        "test": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": 0.009986725196174974,
+              "mean_net_forward_return_atr": 0.014788511155908513,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.4840686274509804,
+              "median_mfe_atr": 0.1931141004875283,
+              "median_mae_atr": -0.20243926740798335,
+              "atr_first_touch_counts": {
+                "neither": 775,
+                "target_first": 26,
+                "stop_first": 15
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.010488761450436406,
+              "mean_net_forward_return_atr": -0.008710879400122008,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.47794117647058826,
+              "median_mfe_atr": 0.38185076571534327,
+              "median_mae_atr": -0.39099650349651416,
+              "atr_first_touch_counts": {
+                "stop_first": 115,
+                "target_first": 112,
+                "neither": 589
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 820,
+              "measured": 810,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.015412583917888594,
+              "mean_net_forward_return_atr": -0.027740580946532926,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.49135802469135803,
+              "median_mfe_atr": 0.810929594004185,
+              "median_mae_atr": -0.8472558858118191,
+              "atr_first_touch_counts": {
+                "stop_first": 323,
+                "target_first": 281,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 820,
+              "measured": 788,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.05626545790756805,
+              "mean_net_forward_return_atr": -0.055674386666403786,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.49746192893401014,
+              "median_mfe_atr": 1.3311403508771917,
+              "median_mae_atr": -1.401316819554952,
+              "atr_first_touch_counts": {
+                "stop_first": 373,
+                "target_first": 363,
+                "neither": 52
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 820,
+              "measured": 764,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.22122097047966052,
+              "mean_net_forward_return_atr": -0.2751409100481279,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.47513089005235604,
+              "median_mfe_atr": 1.9394299910343964,
+              "median_mae_atr": -2.2538754156688547,
+              "atr_first_touch_counts": {
+                "stop_first": 393,
+                "target_first": 367,
+                "neither": 4
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 390,
+            "WAIT": 201,
+            "RESEARCH_CANDIDATE": 32,
+            "WAIT_FOR_PULLBACK": 197
+          }
+        },
+        "purged": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.06630139084467201,
+              "mean_net_forward_return_atr": -0.07680194239420347,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5131578947368421,
+              "median_mfe_atr": 0.1727881833409503,
+              "median_mae_atr": -0.20861069081066624,
+              "atr_first_touch_counts": {
+                "neither": 75,
+                "stop_first": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.11253163191716253,
+              "mean_net_forward_return_atr": 0.18293417127272707,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5131578947368421,
+              "median_mfe_atr": 0.39461134181823204,
+              "median_mae_atr": -0.42396358765194303,
+              "atr_first_touch_counts": {
+                "neither": 62,
+                "target_first": 3,
+                "stop_first": 10,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.23192485357788573,
+              "mean_net_forward_return_atr": 0.4122911834208599,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5131578947368421,
+              "median_mfe_atr": 0.8319838609858698,
+              "median_mae_atr": -0.823722932009776,
+              "atr_first_touch_counts": {
+                "neither": 24,
+                "stop_first": 30,
+                "target_first": 21,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.04699305865473472,
+              "mean_net_forward_return_atr": 0.18832643456987666,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.5,
+              "median_mfe_atr": 1.5047715826569654,
+              "median_mae_atr": -1.652714605559992,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 28,
+                "neither": 2,
+                "ambiguous": 2
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.5214371218828637,
+              "mean_net_forward_return_atr": 0.8069538416152278,
+              "median_cost_in_atr": 0.0,
+              "fraction_positive_after_assumed_cost": 0.618421052631579,
+              "median_mfe_atr": 3.2556827948771896,
+              "median_mae_atr": -2.2963979416809615,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 29,
+                "ambiguous": 3
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "RESEARCH_CANDIDATE": 7,
+            "NO_TRADE": 32,
+            "WAIT": 18,
+            "WAIT_FOR_PULLBACK": 19
+          }
+        }
+      }
+    },
+    "20.0": {
+      "round_trip_bps": 20.0,
+      "splits": {
+        "train": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.18121759822250652,
+              "mean_net_forward_return_atr": -0.34716944399448496,
+              "median_cost_in_atr": 0.33179248239399084,
+              "fraction_positive_after_assumed_cost": 0.16190135811293782,
+              "median_mfe_atr": 0.20102945439891437,
+              "median_mae_atr": -0.19536536682732006,
+              "atr_first_touch_counts": {
+                "stop_first": 62,
+                "target_first": 103,
+                "neither": 2632,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.1892282061316973,
+              "mean_net_forward_return_atr": -0.3550750111206218,
+              "median_cost_in_atr": 0.33179248239399084,
+              "fraction_positive_after_assumed_cost": 0.2666190135811294,
+              "median_mfe_atr": 0.3909004098866861,
+              "median_mae_atr": -0.37394650567866117,
+              "atr_first_touch_counts": {
+                "stop_first": 382,
+                "target_first": 396,
+                "neither": 2019,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.16031857398151794,
+              "mean_net_forward_return_atr": -0.2770874397579683,
+              "median_cost_in_atr": 0.33179248239399084,
+              "fraction_positive_after_assumed_cost": 0.38098641887062185,
+              "median_mfe_atr": 0.8422923733635477,
+              "median_mae_atr": -0.7582238593776444,
+              "atr_first_touch_counts": {
+                "stop_first": 988,
+                "target_first": 1080,
+                "neither": 729,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.1251672993794004,
+              "mean_net_forward_return_atr": -0.21514817027061653,
+              "median_cost_in_atr": 0.33179248239399084,
+              "fraction_positive_after_assumed_cost": 0.4388849177984274,
+              "median_mfe_atr": 1.470676466500501,
+              "median_mae_atr": -1.379967367963896,
+              "atr_first_touch_counts": {
+                "stop_first": 1263,
+                "target_first": 1401,
+                "neither": 133,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.1059608089787983,
+              "mean_net_forward_return_atr": -0.16471334373592708,
+              "median_cost_in_atr": 0.33179248239399084,
+              "fraction_positive_after_assumed_cost": 0.4506790564689064,
+              "median_mfe_atr": 2.0840415906495195,
+              "median_mae_atr": -2.038683086141101,
+              "atr_first_touch_counts": {
+                "stop_first": 1308,
+                "target_first": 1456,
+                "neither": 33,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 1664,
+            "WAIT_FOR_PULLBACK": 360,
+            "WAIT": 652,
+            "RESEARCH_CANDIDATE": 122
+          }
+        },
+        "validation": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.198732605241605,
+              "mean_net_forward_return_atr": -0.28234986767813597,
+              "median_cost_in_atr": 0.2333263187423712,
+              "fraction_positive_after_assumed_cost": 0.19553072625698323,
+              "median_mfe_atr": 0.21915355569186995,
+              "median_mae_atr": -0.2003603465214987,
+              "atr_first_touch_counts": {
+                "target_first": 21,
+                "stop_first": 13,
+                "ambiguous": 3,
+                "neither": 679
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.20785945653739885,
+              "mean_net_forward_return_atr": -0.2788957532885432,
+              "median_cost_in_atr": 0.2333263187423712,
+              "fraction_positive_after_assumed_cost": 0.3128491620111732,
+              "median_mfe_atr": 0.39099041262820095,
+              "median_mae_atr": -0.38497523876901435,
+              "atr_first_touch_counts": {
+                "target_first": 92,
+                "stop_first": 100,
+                "ambiguous": 3,
+                "neither": 521
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.2420612886098276,
+              "mean_net_forward_return_atr": -0.3298019189120489,
+              "median_cost_in_atr": 0.2333263187423712,
+              "fraction_positive_after_assumed_cost": 0.38966480446927376,
+              "median_mfe_atr": 0.7781485940527093,
+              "median_mae_atr": -0.7645764033717767,
+              "atr_first_touch_counts": {
+                "target_first": 245,
+                "stop_first": 261,
+                "ambiguous": 4,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.24250862320808636,
+              "mean_net_forward_return_atr": -0.40695398002319666,
+              "median_cost_in_atr": 0.2333263187423712,
+              "fraction_positive_after_assumed_cost": 0.45251396648044695,
+              "median_mfe_atr": 1.3369314157306456,
+              "median_mae_atr": -1.4510017852256942,
+              "atr_first_touch_counts": {
+                "target_first": 323,
+                "stop_first": 334,
+                "ambiguous": 4,
+                "neither": 55
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.34424831560742875,
+              "mean_net_forward_return_atr": -0.5393572555415093,
+              "median_cost_in_atr": 0.2333263187423712,
+              "fraction_positive_after_assumed_cost": 0.4720670391061452,
+              "median_mfe_atr": 1.847066529043229,
+              "median_mae_atr": -2.206272222237814,
+              "atr_first_touch_counts": {
+                "target_first": 339,
+                "stop_first": 351,
+                "ambiguous": 4,
+                "neither": 22
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 389,
+            "RESEARCH_CANDIDATE": 33,
+            "WAIT": 190,
+            "WAIT_FOR_PULLBACK": 104
+          }
+        },
+        "test": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.19001327480382504,
+              "mean_net_forward_return_atr": -0.3388294872767826,
+              "median_cost_in_atr": 0.2938067029248955,
+              "fraction_positive_after_assumed_cost": 0.16053921568627452,
+              "median_mfe_atr": 0.1931141004875283,
+              "median_mae_atr": -0.20243926740798335,
+              "atr_first_touch_counts": {
+                "neither": 775,
+                "target_first": 26,
+                "stop_first": 15
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.2104887614504364,
+              "mean_net_forward_return_atr": -0.3623288778328131,
+              "median_cost_in_atr": 0.2938067029248955,
+              "fraction_positive_after_assumed_cost": 0.2696078431372549,
+              "median_mfe_atr": 0.38185076571534327,
+              "median_mae_atr": -0.39099650349651416,
+              "atr_first_touch_counts": {
+                "stop_first": 115,
+                "target_first": 112,
+                "neither": 589
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 820,
+              "measured": 810,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.2154125839178886,
+              "mean_net_forward_return_atr": -0.38156443328999823,
+              "median_cost_in_atr": 0.2940179785946158,
+              "fraction_positive_after_assumed_cost": 0.39012345679012345,
+              "median_mfe_atr": 0.810929594004185,
+              "median_mae_atr": -0.8472558858118191,
+              "atr_first_touch_counts": {
+                "stop_first": 323,
+                "target_first": 281,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 820,
+              "measured": 788,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.25626545790756805,
+              "mean_net_forward_return_atr": -0.4088281637096101,
+              "median_cost_in_atr": 0.2920562411437878,
+              "fraction_positive_after_assumed_cost": 0.43147208121827413,
+              "median_mfe_atr": 1.3311403508771917,
+              "median_mae_atr": -1.401316819554952,
+              "atr_first_touch_counts": {
+                "stop_first": 373,
+                "target_first": 363,
+                "neither": 52
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 820,
+              "measured": 764,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.42122097047966056,
+              "mean_net_forward_return_atr": -0.6270666713438026,
+              "median_cost_in_atr": 0.28970208436914313,
+              "fraction_positive_after_assumed_cost": 0.4476439790575916,
+              "median_mfe_atr": 1.9394299910343964,
+              "median_mae_atr": -2.2538754156688547,
+              "atr_first_touch_counts": {
+                "stop_first": 393,
+                "target_first": 367,
+                "neither": 4
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 426,
+            "WAIT": 197,
+            "RESEARCH_CANDIDATE": 30,
+            "WAIT_FOR_PULLBACK": 167
+          }
+        },
+        "purged": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.266301390844672,
+              "mean_net_forward_return_atr": -0.3354632788601848,
+              "median_cost_in_atr": 0.22624711155378474,
+              "fraction_positive_after_assumed_cost": 0.10526315789473684,
+              "median_mfe_atr": 0.1727881833409503,
+              "median_mae_atr": -0.20861069081066624,
+              "atr_first_touch_counts": {
+                "neither": 75,
+                "stop_first": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.08746836808283748,
+              "mean_net_forward_return_atr": -0.07572716519325423,
+              "median_cost_in_atr": 0.22624711155378474,
+              "fraction_positive_after_assumed_cost": 0.32894736842105265,
+              "median_mfe_atr": 0.39461134181823204,
+              "median_mae_atr": -0.42396358765194303,
+              "atr_first_touch_counts": {
+                "neither": 62,
+                "target_first": 3,
+                "stop_first": 10,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.03192485357788572,
+              "mean_net_forward_return_atr": 0.1536298469548786,
+              "median_cost_in_atr": 0.22624711155378474,
+              "fraction_positive_after_assumed_cost": 0.47368421052631576,
+              "median_mfe_atr": 0.8319838609858698,
+              "median_mae_atr": -0.823722932009776,
+              "atr_first_touch_counts": {
+                "neither": 24,
+                "stop_first": 30,
+                "target_first": 21,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.1530069413452653,
+              "mean_net_forward_return_atr": -0.07033490189610465,
+              "median_cost_in_atr": 0.22624711155378474,
+              "fraction_positive_after_assumed_cost": 0.3815789473684211,
+              "median_mfe_atr": 1.5047715826569654,
+              "median_mae_atr": -1.652714605559992,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 28,
+                "neither": 2,
+                "ambiguous": 2
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.3214371218828638,
+              "mean_net_forward_return_atr": 0.5482925051492464,
+              "median_cost_in_atr": 0.22624711155378474,
+              "fraction_positive_after_assumed_cost": 0.5526315789473685,
+              "median_mfe_atr": 3.2556827948771896,
+              "median_mae_atr": -2.2963979416809615,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 29,
+                "ambiguous": 3
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "RESEARCH_CANDIDATE": 7,
+            "NO_TRADE": 40,
+            "WAIT": 18,
+            "WAIT_FOR_PULLBACK": 11
+          }
+        }
+      }
+    },
+    "50.0": {
+      "round_trip_bps": 50.0,
+      "splits": {
+        "train": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.4812175982225065,
+              "mean_net_forward_return_atr": -0.91322671690786,
+              "median_cost_in_atr": 0.8294812059849772,
+              "fraction_positive_after_assumed_cost": 0.04253037884203002,
+              "median_mfe_atr": 0.20102945439891437,
+              "median_mae_atr": -0.19536536682732006,
+              "atr_first_touch_counts": {
+                "stop_first": 62,
+                "target_first": 103,
+                "neither": 2632,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.4892282061316973,
+              "mean_net_forward_return_atr": -0.9211322840339968,
+              "median_cost_in_atr": 0.8294812059849772,
+              "fraction_positive_after_assumed_cost": 0.10221586847748391,
+              "median_mfe_atr": 0.3909004098866861,
+              "median_mae_atr": -0.37394650567866117,
+              "atr_first_touch_counts": {
+                "stop_first": 382,
+                "target_first": 396,
+                "neither": 2019,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.46031857398151793,
+              "mean_net_forward_return_atr": -0.8431447126713433,
+              "median_cost_in_atr": 0.8294812059849772,
+              "fraction_positive_after_assumed_cost": 0.2383845604002859,
+              "median_mfe_atr": 0.8422923733635477,
+              "median_mae_atr": -0.7582238593776444,
+              "atr_first_touch_counts": {
+                "stop_first": 988,
+                "target_first": 1080,
+                "neither": 729,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.4251672993794004,
+              "mean_net_forward_return_atr": -0.7812054431839915,
+              "median_cost_in_atr": 0.8294812059849772,
+              "fraction_positive_after_assumed_cost": 0.33416726233023586,
+              "median_mfe_atr": 1.470676466500501,
+              "median_mae_atr": -1.379967367963896,
+              "atr_first_touch_counts": {
+                "stop_first": 1263,
+                "target_first": 1401,
+                "neither": 133,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.40596080897879827,
+              "mean_net_forward_return_atr": -0.7307706166493021,
+              "median_cost_in_atr": 0.8294812059849772,
+              "fraction_positive_after_assumed_cost": 0.3788420300214439,
+              "median_mfe_atr": 2.0840415906495195,
+              "median_mae_atr": -2.038683086141101,
+              "atr_first_touch_counts": {
+                "stop_first": 1308,
+                "target_first": 1456,
+                "neither": 33,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 1916,
+            "WAIT_FOR_PULLBACK": 214,
+            "WAIT": 569,
+            "RESEARCH_CANDIDATE": 99
+          }
+        },
+        "validation": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.498732605241605,
+              "mean_net_forward_return_atr": -0.7061481092681268,
+              "median_cost_in_atr": 0.5833157968559279,
+              "fraction_positive_after_assumed_cost": 0.061452513966480445,
+              "median_mfe_atr": 0.21915355569186995,
+              "median_mae_atr": -0.2003603465214987,
+              "atr_first_touch_counts": {
+                "target_first": 21,
+                "stop_first": 13,
+                "ambiguous": 3,
+                "neither": 679
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.5078594565373988,
+              "mean_net_forward_return_atr": -0.702693994878534,
+              "median_cost_in_atr": 0.5833157968559279,
+              "fraction_positive_after_assumed_cost": 0.1424581005586592,
+              "median_mfe_atr": 0.39099041262820095,
+              "median_mae_atr": -0.38497523876901435,
+              "atr_first_touch_counts": {
+                "target_first": 92,
+                "stop_first": 100,
+                "ambiguous": 3,
+                "neither": 521
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.5420612886098276,
+              "mean_net_forward_return_atr": -0.7536001605020397,
+              "median_cost_in_atr": 0.5833157968559279,
+              "fraction_positive_after_assumed_cost": 0.2639664804469274,
+              "median_mfe_atr": 0.7781485940527093,
+              "median_mae_atr": -0.7645764033717767,
+              "atr_first_touch_counts": {
+                "target_first": 245,
+                "stop_first": 261,
+                "ambiguous": 4,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.5425086232080863,
+              "mean_net_forward_return_atr": -0.8307522216131875,
+              "median_cost_in_atr": 0.5833157968559279,
+              "fraction_positive_after_assumed_cost": 0.3784916201117318,
+              "median_mfe_atr": 1.3369314157306456,
+              "median_mae_atr": -1.4510017852256942,
+              "atr_first_touch_counts": {
+                "target_first": 323,
+                "stop_first": 334,
+                "ambiguous": 4,
+                "neither": 55
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.6442483156074287,
+              "mean_net_forward_return_atr": -0.9631554971315,
+              "median_cost_in_atr": 0.5833157968559279,
+              "fraction_positive_after_assumed_cost": 0.4106145251396648,
+              "median_mfe_atr": 1.847066529043229,
+              "median_mae_atr": -2.206272222237814,
+              "atr_first_touch_counts": {
+                "target_first": 339,
+                "stop_first": 351,
+                "ambiguous": 4,
+                "neither": 22
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 426,
+            "RESEARCH_CANDIDATE": 28,
+            "WAIT": 177,
+            "WAIT_FOR_PULLBACK": 85
+          }
+        },
+        "test": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.490013274803825,
+              "mean_net_forward_return_atr": -0.8692564849258192,
+              "median_cost_in_atr": 0.7345167573122389,
+              "fraction_positive_after_assumed_cost": 0.03431372549019608,
+              "median_mfe_atr": 0.1931141004875283,
+              "median_mae_atr": -0.20243926740798335,
+              "atr_first_touch_counts": {
+                "neither": 775,
+                "target_first": 26,
+                "stop_first": 15
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.5104887614504364,
+              "mean_net_forward_return_atr": -0.8927558754818498,
+              "median_cost_in_atr": 0.7345167573122389,
+              "fraction_positive_after_assumed_cost": 0.11151960784313726,
+              "median_mfe_atr": 0.38185076571534327,
+              "median_mae_atr": -0.39099650349651416,
+              "atr_first_touch_counts": {
+                "stop_first": 115,
+                "target_first": 112,
+                "neither": 589
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 820,
+              "measured": 810,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.5154125839178886,
+              "mean_net_forward_return_atr": -0.9123002118051962,
+              "median_cost_in_atr": 0.7350449464865395,
+              "fraction_positive_after_assumed_cost": 0.24320987654320989,
+              "median_mfe_atr": 0.810929594004185,
+              "median_mae_atr": -0.8472558858118191,
+              "atr_first_touch_counts": {
+                "stop_first": 323,
+                "target_first": 281,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 820,
+              "measured": 788,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.5562654579075681,
+              "mean_net_forward_return_atr": -0.9385588292744196,
+              "median_cost_in_atr": 0.7301406028594695,
+              "fraction_positive_after_assumed_cost": 0.3362944162436548,
+              "median_mfe_atr": 1.3311403508771917,
+              "median_mae_atr": -1.401316819554952,
+              "atr_first_touch_counts": {
+                "stop_first": 373,
+                "target_first": 363,
+                "neither": 52
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 820,
+              "measured": 764,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.7212209704796605,
+              "mean_net_forward_return_atr": -1.1549553132873145,
+              "median_cost_in_atr": 0.7242552109228579,
+              "fraction_positive_after_assumed_cost": 0.39659685863874344,
+              "median_mfe_atr": 1.9394299910343964,
+              "median_mae_atr": -2.2538754156688547,
+              "atr_first_touch_counts": {
+                "stop_first": 393,
+                "target_first": 367,
+                "neither": 4
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 513,
+            "WAIT": 172,
+            "RESEARCH_CANDIDATE": 25,
+            "WAIT_FOR_PULLBACK": 110
+          }
+        },
+        "purged": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.566301390844672,
+              "mean_net_forward_return_atr": -0.7234552835591567,
+              "median_cost_in_atr": 0.5656177788844619,
+              "fraction_positive_after_assumed_cost": 0,
+              "median_mfe_atr": 0.1727881833409503,
+              "median_mae_atr": -0.20861069081066624,
+              "atr_first_touch_counts": {
+                "neither": 75,
+                "stop_first": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.38746836808283747,
+              "mean_net_forward_return_atr": -0.4637191698922262,
+              "median_cost_in_atr": 0.5656177788844619,
+              "fraction_positive_after_assumed_cost": 0.14473684210526316,
+              "median_mfe_atr": 0.39461134181823204,
+              "median_mae_atr": -0.42396358765194303,
+              "atr_first_touch_counts": {
+                "neither": 62,
+                "target_first": 3,
+                "stop_first": 10,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.2680751464221143,
+              "mean_net_forward_return_atr": -0.23436215774409333,
+              "median_cost_in_atr": 0.5656177788844619,
+              "fraction_positive_after_assumed_cost": 0.3684210526315789,
+              "median_mfe_atr": 0.8319838609858698,
+              "median_mae_atr": -0.823722932009776,
+              "atr_first_touch_counts": {
+                "neither": 24,
+                "stop_first": 30,
+                "target_first": 21,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.45300694134526526,
+              "mean_net_forward_return_atr": -0.4583269065950766,
+              "median_cost_in_atr": 0.5656177788844619,
+              "fraction_positive_after_assumed_cost": 0.2894736842105263,
+              "median_mfe_atr": 1.5047715826569654,
+              "median_mae_atr": -1.652714605559992,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 28,
+                "neither": 2,
+                "ambiguous": 2
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": 0.021437121882863775,
+              "mean_net_forward_return_atr": 0.16030050045027452,
+              "median_cost_in_atr": 0.5656177788844619,
+              "fraction_positive_after_assumed_cost": 0.4605263157894737,
+              "median_mfe_atr": 3.2556827948771896,
+              "median_mae_atr": -2.2963979416809615,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 29,
+                "ambiguous": 3
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "RESEARCH_CANDIDATE": 7,
+            "NO_TRADE": 44,
+            "WAIT": 17,
+            "WAIT_FOR_PULLBACK": 8
+          }
+        }
+      }
+    },
+    "90.0": {
+      "round_trip_bps": 90.0,
+      "splits": {
+        "train": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.8812175982225064,
+              "mean_net_forward_return_atr": -1.6679697474590267,
+              "median_cost_in_atr": 1.493066170772959,
+              "fraction_positive_after_assumed_cost": 0.011794138670478913,
+              "median_mfe_atr": 0.20102945439891437,
+              "median_mae_atr": -0.19536536682732006,
+              "atr_first_touch_counts": {
+                "stop_first": 62,
+                "target_first": 103,
+                "neither": 2632,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.8892282061316973,
+              "mean_net_forward_return_atr": -1.6758753145851635,
+              "median_cost_in_atr": 1.493066170772959,
+              "fraction_positive_after_assumed_cost": 0.046104360257326664,
+              "median_mfe_atr": 0.3909004098866861,
+              "median_mae_atr": -0.37394650567866117,
+              "atr_first_touch_counts": {
+                "stop_first": 382,
+                "target_first": 396,
+                "neither": 2019,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.8603185739815179,
+              "mean_net_forward_return_atr": -1.59788774322251,
+              "median_cost_in_atr": 1.493066170772959,
+              "fraction_positive_after_assumed_cost": 0.13116511794138672,
+              "median_mfe_atr": 0.8422923733635477,
+              "median_mae_atr": -0.7582238593776444,
+              "atr_first_touch_counts": {
+                "stop_first": 988,
+                "target_first": 1080,
+                "neither": 729,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.8251672993794004,
+              "mean_net_forward_return_atr": -1.5359484737351583,
+              "median_cost_in_atr": 1.493066170772959,
+              "fraction_positive_after_assumed_cost": 0.22337383845604003,
+              "median_mfe_atr": 1.470676466500501,
+              "median_mae_atr": -1.379967367963896,
+              "atr_first_touch_counts": {
+                "stop_first": 1263,
+                "target_first": 1401,
+                "neither": 133,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -0.8059608089787983,
+              "mean_net_forward_return_atr": -1.4855136472004689,
+              "median_cost_in_atr": 1.493066170772959,
+              "fraction_positive_after_assumed_cost": 0.2930664760543245,
+              "median_mfe_atr": 2.0840415906495195,
+              "median_mae_atr": -2.038683086141101,
+              "atr_first_touch_counts": {
+                "stop_first": 1308,
+                "target_first": 1456,
+                "neither": 33,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 2165,
+            "WAIT_FOR_PULLBACK": 128,
+            "WAIT": 434,
+            "RESEARCH_CANDIDATE": 71
+          }
+        },
+        "validation": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.8987326052416049,
+              "mean_net_forward_return_atr": -1.2712124313881146,
+              "median_cost_in_atr": 1.0499684343406703,
+              "fraction_positive_after_assumed_cost": 0.013966480446927373,
+              "median_mfe_atr": 0.21915355569186995,
+              "median_mae_atr": -0.2003603465214987,
+              "atr_first_touch_counts": {
+                "target_first": 21,
+                "stop_first": 13,
+                "ambiguous": 3,
+                "neither": 679
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.9078594565373989,
+              "mean_net_forward_return_atr": -1.2677583169985218,
+              "median_cost_in_atr": 1.0499684343406703,
+              "fraction_positive_after_assumed_cost": 0.05726256983240224,
+              "median_mfe_atr": 0.39099041262820095,
+              "median_mae_atr": -0.38497523876901435,
+              "atr_first_touch_counts": {
+                "target_first": 92,
+                "stop_first": 100,
+                "ambiguous": 3,
+                "neither": 521
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.9420612886098275,
+              "mean_net_forward_return_atr": -1.3186644826220275,
+              "median_cost_in_atr": 1.0499684343406703,
+              "fraction_positive_after_assumed_cost": 0.16899441340782123,
+              "median_mfe_atr": 0.7781485940527093,
+              "median_mae_atr": -0.7645764033717767,
+              "atr_first_touch_counts": {
+                "target_first": 245,
+                "stop_first": 261,
+                "ambiguous": 4,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -0.9425086232080864,
+              "mean_net_forward_return_atr": -1.395816543733175,
+              "median_cost_in_atr": 1.0499684343406703,
+              "fraction_positive_after_assumed_cost": 0.27932960893854747,
+              "median_mfe_atr": 1.3369314157306456,
+              "median_mae_atr": -1.4510017852256942,
+              "atr_first_touch_counts": {
+                "target_first": 323,
+                "stop_first": 334,
+                "ambiguous": 4,
+                "neither": 55
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.0442483156074287,
+              "mean_net_forward_return_atr": -1.5282198192514878,
+              "median_cost_in_atr": 1.0499684343406703,
+              "fraction_positive_after_assumed_cost": 0.3505586592178771,
+              "median_mfe_atr": 1.847066529043229,
+              "median_mae_atr": -2.206272222237814,
+              "atr_first_touch_counts": {
+                "target_first": 339,
+                "stop_first": 351,
+                "ambiguous": 4,
+                "neither": 22
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 488,
+            "RESEARCH_CANDIDATE": 23,
+            "WAIT": 146,
+            "WAIT_FOR_PULLBACK": 59
+          }
+        },
+        "test": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.890013274803825,
+              "mean_net_forward_return_atr": -1.5764924817912014,
+              "median_cost_in_atr": 1.32213016316203,
+              "fraction_positive_after_assumed_cost": 0.007352941176470588,
+              "median_mfe_atr": 0.1931141004875283,
+              "median_mae_atr": -0.20243926740798335,
+              "atr_first_touch_counts": {
+                "neither": 775,
+                "target_first": 26,
+                "stop_first": 15
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.9104887614504363,
+              "mean_net_forward_return_atr": -1.599991872347232,
+              "median_cost_in_atr": 1.32213016316203,
+              "fraction_positive_after_assumed_cost": 0.04656862745098039,
+              "median_mfe_atr": 0.38185076571534327,
+              "median_mae_atr": -0.39099650349651416,
+              "atr_first_touch_counts": {
+                "stop_first": 115,
+                "target_first": 112,
+                "neither": 589
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 820,
+              "measured": 810,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.9154125839178886,
+              "mean_net_forward_return_atr": -1.6199479164921267,
+              "median_cost_in_atr": 1.3230809036757711,
+              "fraction_positive_after_assumed_cost": 0.1382716049382716,
+              "median_mfe_atr": 0.810929594004185,
+              "median_mae_atr": -0.8472558858118191,
+              "atr_first_touch_counts": {
+                "stop_first": 323,
+                "target_first": 281,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 820,
+              "measured": 788,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -0.956265457907568,
+              "mean_net_forward_return_atr": -1.6448663833608321,
+              "median_cost_in_atr": 1.314253085147045,
+              "fraction_positive_after_assumed_cost": 0.23604060913705585,
+              "median_mfe_atr": 1.3311403508771917,
+              "median_mae_atr": -1.401316819554952,
+              "atr_first_touch_counts": {
+                "stop_first": 373,
+                "target_first": 363,
+                "neither": 52
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 820,
+              "measured": 764,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.1212209704796605,
+              "mean_net_forward_return_atr": -1.8588068358786636,
+              "median_cost_in_atr": 1.3036593796611442,
+              "fraction_positive_after_assumed_cost": 0.31151832460732987,
+              "median_mfe_atr": 1.9394299910343964,
+              "median_mae_atr": -2.2538754156688547,
+              "atr_first_touch_counts": {
+                "stop_first": 393,
+                "target_first": 367,
+                "neither": 4
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 610,
+            "WAIT": 141,
+            "RESEARCH_CANDIDATE": 14,
+            "WAIT_FOR_PULLBACK": 55
+          }
+        },
+        "purged": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.966301390844672,
+              "mean_net_forward_return_atr": -1.2407779564911192,
+              "median_cost_in_atr": 1.0181120019920313,
+              "fraction_positive_after_assumed_cost": 0,
+              "median_mfe_atr": 0.1727881833409503,
+              "median_mae_atr": -0.20861069081066624,
+              "atr_first_touch_counts": {
+                "neither": 75,
+                "stop_first": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.7874683680828375,
+              "mean_net_forward_return_atr": -0.9810418428241887,
+              "median_cost_in_atr": 1.0181120019920313,
+              "fraction_positive_after_assumed_cost": 0.06578947368421052,
+              "median_mfe_atr": 0.39461134181823204,
+              "median_mae_atr": -0.42396358765194303,
+              "atr_first_touch_counts": {
+                "neither": 62,
+                "target_first": 3,
+                "stop_first": 10,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.6680751464221143,
+              "mean_net_forward_return_atr": -0.7516848306760558,
+              "median_cost_in_atr": 1.0181120019920313,
+              "fraction_positive_after_assumed_cost": 0.21052631578947367,
+              "median_mfe_atr": 0.8319838609858698,
+              "median_mae_atr": -0.823722932009776,
+              "atr_first_touch_counts": {
+                "neither": 24,
+                "stop_first": 30,
+                "target_first": 21,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.8530069413452652,
+              "mean_net_forward_return_atr": -0.9756495795270391,
+              "median_cost_in_atr": 1.0181120019920313,
+              "fraction_positive_after_assumed_cost": 0.18421052631578946,
+              "median_mfe_atr": 1.5047715826569654,
+              "median_mae_atr": -1.652714605559992,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 28,
+                "neither": 2,
+                "ambiguous": 2
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.3785628781171362,
+              "mean_net_forward_return_atr": -0.35702217248168805,
+              "median_cost_in_atr": 1.0181120019920313,
+              "fraction_positive_after_assumed_cost": 0.3815789473684211,
+              "median_mfe_atr": 3.2556827948771896,
+              "median_mae_atr": -2.2963979416809615,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 29,
+                "ambiguous": 3
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "RESEARCH_CANDIDATE": 6,
+            "NO_TRADE": 50,
+            "WAIT": 15,
+            "WAIT_FOR_PULLBACK": 5
+          }
+        }
+      }
+    },
+    "120.0": {
+      "round_trip_bps": 120.0,
+      "splits": {
+        "train": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -1.1812175982225064,
+              "mean_net_forward_return_atr": -2.2340270203724018,
+              "median_cost_in_atr": 1.990754894363945,
+              "fraction_positive_after_assumed_cost": 0.006433166547533953,
+              "median_mfe_atr": 0.20102945439891437,
+              "median_mae_atr": -0.19536536682732006,
+              "atr_first_touch_counts": {
+                "stop_first": 62,
+                "target_first": 103,
+                "neither": 2632,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -1.1892282061316972,
+              "mean_net_forward_return_atr": -2.2419325874985385,
+              "median_cost_in_atr": 1.990754894363945,
+              "fraction_positive_after_assumed_cost": 0.02501786990707648,
+              "median_mfe_atr": 0.3909004098866861,
+              "median_mae_atr": -0.37394650567866117,
+              "atr_first_touch_counts": {
+                "stop_first": 382,
+                "target_first": 396,
+                "neither": 2019,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -1.1603185739815178,
+              "mean_net_forward_return_atr": -2.163945016135885,
+              "median_cost_in_atr": 1.990754894363945,
+              "fraction_positive_after_assumed_cost": 0.0825589706933524,
+              "median_mfe_atr": 0.8422923733635477,
+              "median_mae_atr": -0.7582238593776444,
+              "atr_first_touch_counts": {
+                "stop_first": 988,
+                "target_first": 1080,
+                "neither": 729,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -1.1251672993794004,
+              "mean_net_forward_return_atr": -2.1020057466485333,
+              "median_cost_in_atr": 1.990754894363945,
+              "fraction_positive_after_assumed_cost": 0.16619013581129377,
+              "median_mfe_atr": 1.470676466500501,
+              "median_mae_atr": -1.379967367963896,
+              "atr_first_touch_counts": {
+                "stop_first": 1263,
+                "target_first": 1401,
+                "neither": 133,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 2798,
+              "measured": 2798,
+              "calendar_weeks": 9,
+              "mean_net_forward_return_pct": -1.1059608089787982,
+              "mean_net_forward_return_atr": -2.0515709201138437,
+              "median_cost_in_atr": 1.990754894363945,
+              "fraction_positive_after_assumed_cost": 0.24588992137240887,
+              "median_mfe_atr": 2.0840415906495195,
+              "median_mae_atr": -2.038683086141101,
+              "atr_first_touch_counts": {
+                "stop_first": 1308,
+                "target_first": 1456,
+                "neither": 33,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 2315,
+            "WAIT": 342,
+            "RESEARCH_CANDIDATE": 56,
+            "WAIT_FOR_PULLBACK": 85
+          }
+        },
+        "validation": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.198732605241605,
+              "mean_net_forward_return_atr": -1.6950106729781054,
+              "median_cost_in_atr": 1.399957912454227,
+              "fraction_positive_after_assumed_cost": 0.00558659217877095,
+              "median_mfe_atr": 0.21915355569186995,
+              "median_mae_atr": -0.2003603465214987,
+              "atr_first_touch_counts": {
+                "target_first": 21,
+                "stop_first": 13,
+                "ambiguous": 3,
+                "neither": 679
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.2078594565373988,
+              "mean_net_forward_return_atr": -1.6915565585885126,
+              "median_cost_in_atr": 1.399957912454227,
+              "fraction_positive_after_assumed_cost": 0.02653631284916201,
+              "median_mfe_atr": 0.39099041262820095,
+              "median_mae_atr": -0.38497523876901435,
+              "atr_first_touch_counts": {
+                "target_first": 92,
+                "stop_first": 100,
+                "ambiguous": 3,
+                "neither": 521
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.2420612886098277,
+              "mean_net_forward_return_atr": -1.7424627242120183,
+              "median_cost_in_atr": 1.399957912454227,
+              "fraction_positive_after_assumed_cost": 0.12150837988826815,
+              "median_mfe_atr": 0.7781485940527093,
+              "median_mae_atr": -0.7645764033717767,
+              "atr_first_touch_counts": {
+                "target_first": 245,
+                "stop_first": 261,
+                "ambiguous": 4,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.2425086232080864,
+              "mean_net_forward_return_atr": -1.819614785323166,
+              "median_cost_in_atr": 1.399957912454227,
+              "fraction_positive_after_assumed_cost": 0.23324022346368714,
+              "median_mfe_atr": 1.3369314157306456,
+              "median_mae_atr": -1.4510017852256942,
+              "atr_first_touch_counts": {
+                "target_first": 323,
+                "stop_first": 334,
+                "ambiguous": 4,
+                "neither": 55
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 716,
+              "measured": 716,
+              "calendar_weeks": 4,
+              "mean_net_forward_return_pct": -1.3442483156074287,
+              "mean_net_forward_return_atr": -1.9520180608414786,
+              "median_cost_in_atr": 1.399957912454227,
+              "fraction_positive_after_assumed_cost": 0.3170391061452514,
+              "median_mfe_atr": 1.847066529043229,
+              "median_mae_atr": -2.206272222237814,
+              "atr_first_touch_counts": {
+                "target_first": 339,
+                "stop_first": 351,
+                "ambiguous": 4,
+                "neither": 22
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 520,
+            "WAIT": 131,
+            "WAIT_FOR_PULLBACK": 45,
+            "RESEARCH_CANDIDATE": 20
+          }
+        },
+        "test": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.190013274803825,
+              "mean_net_forward_return_atr": -2.106919479440238,
+              "median_cost_in_atr": 1.7628402175493731,
+              "fraction_positive_after_assumed_cost": 0.003676470588235294,
+              "median_mfe_atr": 0.1931141004875283,
+              "median_mae_atr": -0.20243926740798335,
+              "atr_first_touch_counts": {
+                "neither": 775,
+                "target_first": 26,
+                "stop_first": 15
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 820,
+              "measured": 816,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.2104887614504363,
+              "mean_net_forward_return_atr": -2.1304188699962685,
+              "median_cost_in_atr": 1.7628402175493731,
+              "fraction_positive_after_assumed_cost": 0.028186274509803922,
+              "median_mfe_atr": 0.38185076571534327,
+              "median_mae_atr": -0.39099650349651416,
+              "atr_first_touch_counts": {
+                "stop_first": 115,
+                "target_first": 112,
+                "neither": 589
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 820,
+              "measured": 810,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.2154125839178886,
+              "mean_net_forward_return_atr": -2.1506836950073245,
+              "median_cost_in_atr": 1.7641078715676946,
+              "fraction_positive_after_assumed_cost": 0.09259259259259259,
+              "median_mfe_atr": 0.810929594004185,
+              "median_mae_atr": -0.8472558858118191,
+              "atr_first_touch_counts": {
+                "stop_first": 323,
+                "target_first": 281,
+                "neither": 206
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 820,
+              "measured": 788,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.256265457907568,
+              "mean_net_forward_return_atr": -2.1745970489256417,
+              "median_cost_in_atr": 1.7523374468627266,
+              "fraction_positive_after_assumed_cost": 0.19289340101522842,
+              "median_mfe_atr": 1.3311403508771917,
+              "median_mae_atr": -1.401316819554952,
+              "atr_first_touch_counts": {
+                "stop_first": 373,
+                "target_first": 363,
+                "neither": 52
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 820,
+              "measured": 764,
+              "calendar_weeks": 3,
+              "mean_net_forward_return_pct": -1.4212209704796606,
+              "mean_net_forward_return_atr": -2.3866954778221756,
+              "median_cost_in_atr": 1.7382125062148588,
+              "fraction_positive_after_assumed_cost": 0.2604712041884817,
+              "median_mfe_atr": 1.9394299910343964,
+              "median_mae_atr": -2.2538754156688547,
+              "atr_first_touch_counts": {
+                "stop_first": 393,
+                "target_first": 367,
+                "neither": 4
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "NO_TRADE": 667,
+            "WAIT": 116,
+            "WAIT_FOR_PULLBACK": 27,
+            "RESEARCH_CANDIDATE": 10
+          }
+        },
+        "purged": {
+          "fixed_cohort_horizons": {
+            "900": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -1.266301390844672,
+              "mean_net_forward_return_atr": -1.6287699611900912,
+              "median_cost_in_atr": 1.3574826693227084,
+              "fraction_positive_after_assumed_cost": 0,
+              "median_mfe_atr": 0.1727881833409503,
+              "median_mae_atr": -0.20861069081066624,
+              "atr_first_touch_counts": {
+                "neither": 75,
+                "stop_first": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "3600": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -1.0874683680828374,
+              "mean_net_forward_return_atr": -1.3690338475231607,
+              "median_cost_in_atr": 1.3574826693227084,
+              "fraction_positive_after_assumed_cost": 0.06578947368421052,
+              "median_mfe_atr": 0.39461134181823204,
+              "median_mae_atr": -0.42396358765194303,
+              "atr_first_touch_counts": {
+                "neither": 62,
+                "target_first": 3,
+                "stop_first": 10,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "14400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.9680751464221142,
+              "mean_net_forward_return_atr": -1.139676835375028,
+              "median_cost_in_atr": 1.3574826693227084,
+              "fraction_positive_after_assumed_cost": 0.14473684210526316,
+              "median_mfe_atr": 0.8319838609858698,
+              "median_mae_atr": -0.823722932009776,
+              "atr_first_touch_counts": {
+                "neither": 24,
+                "stop_first": 30,
+                "target_first": 21,
+                "ambiguous": 1
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "43200": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -1.1530069413452653,
+              "mean_net_forward_return_atr": -1.3636415842260112,
+              "median_cost_in_atr": 1.3574826693227084,
+              "fraction_positive_after_assumed_cost": 0.18421052631578946,
+              "median_mfe_atr": 1.5047715826569654,
+              "median_mae_atr": -1.652714605559992,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 28,
+                "neither": 2,
+                "ambiguous": 2
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            },
+            "86400": {
+              "decisions": 76,
+              "measured": 76,
+              "calendar_weeks": 2,
+              "mean_net_forward_return_pct": -0.6785628781171362,
+              "mean_net_forward_return_atr": -0.74501417718066,
+              "median_cost_in_atr": 1.3574826693227084,
+              "fraction_positive_after_assumed_cost": 0.32894736842105265,
+              "median_mfe_atr": 3.2556827948771896,
+              "median_mae_atr": -2.2963979416809615,
+              "atr_first_touch_counts": {
+                "stop_first": 44,
+                "target_first": 29,
+                "ambiguous": 3
+              },
+              "weekly_cluster_bootstrap_95_interval": null
+            }
+          },
+          "cost_dependent_action_counts": {
+            "RESEARCH_CANDIDATE": 4,
+            "NO_TRADE": 53,
+            "WAIT": 15,
+            "WAIT_FOR_PULLBACK": 4
+          }
+        }
+      }
+    }
+  }
+}

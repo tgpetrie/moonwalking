@@ -19,14 +19,17 @@ from urllib.request import Request, urlopen
 from evaluate_trade_hypotheses import HOUR, candle_from_row, load_export
 
 
-def fetch_window(product, start, end, cache_dir):
-    cache = Path(cache_dir) / f"{product}-{start}-{end}.json"
+def fetch_window(product, start, end, cache_dir, *, granularity_seconds=HOUR):
+    if granularity_seconds not in (900, HOUR):
+        raise ValueError("Only native 15m and hourly candles supported")
+    suffix = "" if granularity_seconds == HOUR else f"-g{granularity_seconds}"
+    cache = Path(cache_dir) / f"{product}-{start}-{end}{suffix}.json"
     if cache.exists():
         response = json.loads(cache.read_text(encoding="utf-8"))
     else:
         params = urlencode(
             {
-                "granularity": HOUR,
+                "granularity": granularity_seconds,
                 "start": datetime.fromtimestamp(start, timezone.utc).isoformat(),
                 "end": datetime.fromtimestamp(end, timezone.utc).isoformat(),
             }
@@ -67,12 +70,13 @@ def fetch_window(product, start, end, cache_dir):
             raise ValueError("Unexpected candle schema")
         ts, low, high, open_, close, volume = values
         # Coinbase can return candles before the requested start.
-        if not start <= ts < end or ts + HOUR > response["fetched_ts"]:
+        if not start <= ts < end or ts + granularity_seconds > response["fetched_ts"]:
             continue
         row = {
             "kind": "candle",
             "product_id": product,
-            "hour_ts": ts,
+            "candle_ts": ts,
+            "granularity_seconds": granularity_seconds,
             "open": open_,
             "high": high,
             "low": low,
@@ -80,13 +84,15 @@ def fetch_window(product, start, end, cache_dir):
             "base_volume": volume,
             "source": "coinbase_exchange_ohlcv",
         }
-        if candle_from_row(row) is None:
+        if granularity_seconds == HOUR:
+            row["hour_ts"] = ts  # Compatibility for existing hourly exports.
+        if candle_from_row(row, granularity_seconds=granularity_seconds) is None:
             raise ValueError("Malformed exchange candle")
         rows.append(row)
     return rows
 
 
-def backfill(input_path, output_path, products, cache_dir):
+def backfill(input_path, output_path, products, cache_dir, *, granularity_seconds=HOUR):
     if Path(output_path).exists():
         raise FileExistsError("Choose a new export path")
     if not products or any(
@@ -104,11 +110,15 @@ def backfill(input_path, output_path, products, cache_dir):
     )
     rows = {}
     for product in sorted(set(products)):
-        for window_start in range(start, end, 299 * HOUR):
+        for window_start in range(start, end, 299 * granularity_seconds):
             for row in fetch_window(
-                product, window_start, min(end, window_start + 299 * HOUR), cache_dir
+                product,
+                window_start,
+                min(end, window_start + 299 * granularity_seconds),
+                cache_dir,
+                granularity_seconds=granularity_seconds,
             ):
-                key = (row["product_id"], row["hour_ts"])
+                key = (row["product_id"], row["candle_ts"])
                 if key in rows and rows[key] != row:
                     raise ValueError("Conflicting exchange candles")
                 rows[key] = row
@@ -127,6 +137,7 @@ def backfill(input_path, output_path, products, cache_dir):
             "pilot_products": sorted(set(products)),
             "backfilled_ts": int(time.time()),
             "candle_source": "coinbase_exchange_ohlcv",
+            "candle_granularity_seconds": granularity_seconds,
             "raw_response_cache": str(Path(cache_dir).resolve()),
         }
     )
@@ -154,5 +165,14 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--products", required=True, nargs="+")
     parser.add_argument("--cache-dir", required=True, type=Path)
+    parser.add_argument("--granularity", choices=(900, HOUR), type=int, default=HOUR)
     args = parser.parse_args()
-    print(backfill(args.input, args.output, args.products, args.cache_dir))
+    print(
+        backfill(
+            args.input,
+            args.output,
+            args.products,
+            args.cache_dir,
+            granularity_seconds=args.granularity,
+        )
+    )

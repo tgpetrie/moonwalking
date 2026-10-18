@@ -3,6 +3,10 @@
 Status: offline research only. No production engine, notification, scoring,
 frontend, account, or deployment changes. No predictive edge established.
 
+Follow-up: [`15M_COST_PILOT_2026-10-18.md`](15M_COST_PILOT_2026-10-18.md)
+adds native 15m future paths and a fixed-cohort cost grid. The unavailable 15m
+results described below refer to this original hourly-only run.
+
 Branch: `codex/trade-hypothesis-evaluation`, based on
 `origin/claude/retention-hotfix` at `ba11b062`.
 

@@ -1,5 +1,19 @@
 # Moonwalking / BHABIT Handoff
 
+## Session 2026-10-18: native 15m paths and fixed-cohort costs
+
+Continued `codex/trade-hypothesis-evaluation` with 36,880 native 15m candles
+for the same four-product pilot, preserving hourly features and next-hour entry.
+The new `scripts/evaluate_resolution_costs.py` compares outcome resolutions and
+0/20/50/90/120-bps round-trip cost assumptions on identical cohorts. At 4h,
+50 of 56 hourly ATR-boundary ambiguities resolve, with unchanged paired close
+returns/MFE/MAE and no entry-open disagreements. This establishes no edge.
+
+See `docs/research/15M_COST_PILOT_2026-10-18.md` and the adjacent
+`resolution-cost-pilot-summary.json`. 94 relevant tests pass. The existing
+Scorecard guardrail failure remains. No runtime/frontend/deployment changes;
+the owner's year-long archive pull and matched-control work were untouched.
+
 ## Session 2026-10-18: offline trade-hypothesis evaluator
 
 Branch `codex/trade-hypothesis-evaluation`, based on `ba11b062` (retention
