@@ -1,5 +1,27 @@
 # Moonwalking / BHABIT Handoff
 
+## Session 2026-10-18: offline trade-hypothesis evaluator
+
+Branch `codex/trade-hypothesis-evaluation`, based on `ba11b062` (retention
+hotfix). The report and reproduction steps are in
+`docs/research/TRADE_HYPOTHESIS_PILOT_2026-10-18.md`; aggregate results are in the
+adjacent `trade-hypothesis-pilot-summary.json`. Three standard-library scripts
+provide a market-only read-only export, separate cached native-candle backfill,
+and offline geometry/confirmation/outcome evaluation with chronological purging.
+No runtime, frontend, scoring, notification, or production deployment changed.
+
+The four-product pilot has 4,410 product/hour decisions from 25,236 transitions;
+it establishes no threshold edge. Stored `volume_hour` extrema are minute-close
+samples, so this evaluator rejects them as native OHLC. Confidence stays a
+separate uncalibrated legacy score; calibrated opportunity remains null while
+geometry is explicit. 76 relevant tests pass. Guardrails have an existing
+ScorecardPage placeholder violation, documented in the report.
+
+This work is separate from `claude/demote-weak-reads` (`dc4dc97`, unavailable
+locally) and the owner's year-long archive pull under `~/.moonwalking/analysis`.
+Neither was taken over or modified. Raw exports and replay ledgers remain in
+this worktree's ignored `.runtime/research/`; the aggregate and code go in Git.
+
 ## Snapshot
 
 - Date: 2026-07-20
