@@ -15,16 +15,21 @@ EVENT_RULE_VERSION = "event-evolution-v1-2026-07-14"
 DEFAULT_EVENT_GAP_SECONDS = 10 * 60
 DEFAULT_EVENT_RETENTION_SECONDS = 20 * 60
 
-# Reads that measured worse than an unconditional entry on the same coins.
-# Over 369,611 production signals followed for ~24h (2026-09-05..10-11, 1 ATR
-# stop / 2 ATR target, net of a 0.2% round trip) "QUIET FLOW BUILDING" lost
-# 0.09-0.20 R and "MIXED - NO CLEAR EDGE" 0.23-0.32 R more than a random entry
-# in the same direction. They stay visible and keep being measured, but they
-# sort below every other read and never trigger a notification.
+# Reads that carry no measurable edge. This is a noise-reduction choice, NOT a
+# claim that they do worse than chance.
+# Compared with matched same-coin controls (same direction, similar volatility,
+# same BTC trend bucket, 1-7 days away, 24h ATR geometry, 0.2% cost, 6 weeks
+# 2026-09-05..10-11), "QUIET FLOW BUILDING" and "MIXED - NO CLEAR EDGE" show an
+# excess of -0.08..+0.02 R, none significant. An earlier comparison against
+# all coins looked much worse (-0.09..-0.32 R) but that only reflected which
+# coins produce those reads. Neither read had a positive edge, and the same is
+# true of every other read, so this demotes the two with the least to say.
+# They stay visible and keep being measured, but they sort below every other
+# read and never trigger a notification.
 # MW_DEMOTE_WEAK_READS=0 restores the previous behaviour.
 DEMOTED_READ_LABELS = frozenset({"QUIET FLOW BUILDING", "MIXED — NO CLEAR EDGE"})
 DEMOTION_REASON = (
-    "Past results for this kind of read were worse than a random entry, "
+    "This kind of read has not shown any measurable edge in past results, "
     "so it is shown for context only."
 )
 

@@ -2,20 +2,27 @@
 
 ## Why
 
-Over 369,611 production signals followed for about 24 hours
-(2026-09-05 to 2026-10-11, hourly Coinbase candles, 1 ATR stop / 2 ATR target,
-net of a 0.2% round trip), compared with 187,206 unconditional entries on the
-same coins:
+**Correction (2026-10-18).** An earlier version of this note said these two
+reads did measurably *worse than a random entry*. That does not survive a
+stricter control and has been withdrawn.
 
-| Read | Net R vs a random entry, same direction |
+Compared with **matched same-coin controls** (each signal against other hours of
+the same coin, same direction, similar volatility, same BTC 4h trend bucket,
+1-7 days away so outcome windows never overlap; 24h, 1 ATR stop / 2 ATR target,
+0.2% round trip; 62,468 matched signals, 93% of those tried; only 6 weeks):
+
+| Read | Net R excess over matched controls |
 |---|---|
-| QUIET FLOW BUILDING | up -0.20 R, down -0.09 R |
-| MIXED - NO CLEAR EDGE | up -0.23 R, down -0.32 R |
+| QUIET FLOW BUILDING | up -0.010, down +0.011 (not significant) |
+| MIXED - NO CLEAR EDGE | up -0.080, down +0.023 (not significant) |
 
-Together they were about 35% of de-duplicated signals. No read had a positive
-net expectancy, so this is about removing the clearly worse ones, not about
-finding a winner. Caveats: five weeks in a falling/choppy market, hourly
-candles, and z-scores that overstate certainty because coins move together.
+The earlier "-0.09 to -0.32 R worse" came from comparing against all coins, and
+only reflected which coins produce these reads. Across the board, no read
+outperformed its matched controls, so this change is a **noise-reduction
+choice**: demote the two reads that say the least, without claiming they are
+worse than chance. Caveats: six weeks, a falling/choppy market, hourly candles,
+the 7% of signals with no match are the most volatile, and the live-flow inputs
+(order book, spot flow) cannot be replayed from candles.
 
 ## What changed
 

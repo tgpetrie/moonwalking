@@ -92,7 +92,8 @@ def test_quiet_flow_and_mixed_reads_are_flagged_as_demoted():
     )
     assert quiet["label"] == "QUIET FLOW BUILDING" and quiet["demoted"] is True
     assert mixed["label"] == "MIXED — NO CLEAR EDGE" and mixed["demoted"] is True
-    assert "random entry" in quiet["demotion_reason"]
+    assert "no" in quiet["demotion_reason"].lower() and "edge" in quiet["demotion_reason"]
+    assert "worse than" not in quiet["demotion_reason"]  # not a claim we can support
 
 
 @pytest.mark.parametrize("state,conf,fams,mods,evidence", [
