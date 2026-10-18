@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { WatchlistProvider, useWatchlist } from "./context/WatchlistContext.jsx";
 import { IntelligenceProvider } from "./context/IntelligenceContext.jsx";
 import { DataProvider } from "./context/DataContext.jsx";
 import DashboardShell from "./components/DashboardShell.jsx";
 import MvpApp from "./mvp/MvpApp.jsx";
+import { SentimentProvider } from "./context/SentimentContext.jsx";
+
+const MacroChartPage = lazy(() => import("./mvp/MacroChartPage.jsx"));
 
 const mvpRouteSet = new Set([
   "/design-system",
@@ -82,9 +85,9 @@ export default function App() {
     };
   }, []);
 
-  if (isMvpRoute(pathname)) {
-    return <MvpApp />;
+  if (pathname === "/chart-map") {
+    return <Suspense fallback={<p role="status">Loading chart map…</p>}><MacroChartPage /></Suspense>;
   }
 
-  return <LegacyDashboardApp />;
+  return <SentimentProvider>{isMvpRoute(pathname) ? <MvpApp /> : <LegacyDashboardApp />}</SentimentProvider>;
 }

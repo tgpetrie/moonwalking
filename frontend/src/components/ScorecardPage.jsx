@@ -772,7 +772,7 @@ export default function ScorecardPage() {
               className="sc-coin-form__input"
               value={coinSymbol}
               onChange={(e) => setCoinSymbol(e.target.value)}
-              placeholder="BTC or BTC-USD"
+              placeholder="BTC"
               inputMode="text"
               autoComplete="off"
             />
