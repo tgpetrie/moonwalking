@@ -3,6 +3,17 @@
 Date: 2026-10-18
 Branch: `codex/design-system-integration`
 
+## Production compatibility
+
+The candidate on `codex/design-system-production` combines the foundation
+with the production release at `6235e2d2`. The merge is clean and preserves
+the release's existing backend files byte-for-byte. Its frontend verification
+passes 427 tests in 37 files. Five additional font shorthands in the release's
+risk panels also use Raleway through `--font-numeric`.
+
+Claude's six-file retention hotfix is independent and is not included here.
+No production deployment was made.
+
 ## Automated checks
 
 - Clean frontend install: `npm ci --ignore-scripts` passed.

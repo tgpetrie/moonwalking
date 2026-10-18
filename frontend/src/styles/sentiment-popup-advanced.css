@@ -3536,7 +3536,7 @@ a.news-item-title:hover {
 .risk-levels-compact__grid strong,
 .risk-history__counts strong {
     color: rgba(255, 255, 255, 0.84);
-    font: 600 0.82rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+    font: 600 0.82rem/1.2 var(--font-numeric);
 }
 
 .risk-levels-compact > p {
@@ -3592,7 +3592,7 @@ a.news-item-title:hover {
 
 .risk-levels-score strong {
     color: rgba(255, 255, 255, 0.9);
-    font: 700 1.15rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+    font: 700 1.15rem/1.2 var(--font-numeric);
 }
 
 .risk-levels-grid {
@@ -3621,7 +3621,7 @@ a.news-item-title:hover {
 .risk-level-card > strong {
     margin: 10px 0 7px;
     color: rgba(255, 255, 255, 0.9);
-    font: 700 1rem/1.2 "JetBrains Mono", "Fira Code", monospace;
+    font: 700 1rem/1.2 var(--font-numeric);
 }
 
 .risk-level-card--stop > strong,
@@ -3677,7 +3677,7 @@ a.news-item-title:hover {
 
 .risk-levels-zone {
     color: var(--sentiment-pos);
-    font: 700 1rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+    font: 700 1rem/1.3 var(--font-numeric);
 }
 
 .risk-levels-explain article > p {
@@ -3710,7 +3710,7 @@ a.news-item-title:hover {
 .risk-levels-explain dd {
     margin: 0;
     color: rgba(255, 255, 255, 0.75);
-    font: 600 0.75rem/1.3 "JetBrains Mono", "Fira Code", monospace;
+    font: 600 0.75rem/1.3 var(--font-numeric);
 }
 
 .risk-history__head p {
