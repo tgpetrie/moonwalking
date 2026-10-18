@@ -1,0 +1,1400 @@
+{
+  "format": "moonwalking-figma-manifest-v1",
+  "description": "Adapter manifest for Figma Plugin API; not a native Figma import file. Rem conversion uses a 16px root.",
+  "variables": [
+    {
+      "name": "color/primitive/void",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-bg-void)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.0196078431372549,
+        "g": 0.011764705882352941,
+        "b": 0.03137254901960784,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/mint",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-mint)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.06274509803921569,
+        "g": 0.6823529411764706,
+        "b": 0.6078431372549019,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/amber",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-amber)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 0.7019607843137254,
+        "b": 0.2784313725490196,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/violet",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-violet)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.7529411764705882,
+        "g": 0.5176470588235295,
+        "b": 0.9882352941176471,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/violetStrong",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-violet-strong)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.6588235294117647,
+        "g": 0.3333333333333333,
+        "b": 0.9686274509803922,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/rose",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-rose)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 0.6235294117647059,
+        "b": 0.7058823529411765,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/ink",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-ink)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.9254901960784314,
+        "g": 0.9058823529411765,
+        "b": 0.8745098039215686,
+        "a": 0.92
+      }
+    },
+    {
+      "name": "color/primitive/white92",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--white-92)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.92
+      }
+    },
+    {
+      "name": "color/primitive/white58",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--white-58)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.58
+      }
+    },
+    {
+      "name": "color/primitive/white35",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--white-35)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.35
+      }
+    },
+    {
+      "name": "color/primitive/surfacePanel",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-surface-panel)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.0392156862745098,
+        "g": 0.03137254901960784,
+        "b": 0.058823529411764705,
+        "a": 0.78
+      }
+    },
+    {
+      "name": "color/primitive/surfaceRaised",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-surface-raised)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.06666666666666667,
+        "g": 0.050980392156862744,
+        "b": 0.09411764705882353,
+        "a": 0.92
+      }
+    },
+    {
+      "name": "color/primitive/textInverse",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-text-inverse)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.11372549019607843,
+        "g": 0.0784313725490196,
+        "b": 0.023529411764705882,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/primitive/borderDefault",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-border-default)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.12
+      }
+    },
+    {
+      "name": "color/primitive/borderStrong",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-border-strong)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.2
+      }
+    },
+    {
+      "name": "color/primitive/focusRing",
+      "collection": "Primitives",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--color-focus-ring)"
+      },
+      "scopes": [],
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.7529411764705882,
+        "g": 0.5176470588235295,
+        "b": 0.9882352941176471,
+        "a": 0.34
+      }
+    },
+    {
+      "name": "color/semantic/surfaceVoid",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--surface-void)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/void",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.0196078431372549,
+        "g": 0.011764705882352941,
+        "b": 0.03137254901960784,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/surfacePanel",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--surface-panel)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/surfacePanel",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.0392156862745098,
+        "g": 0.03137254901960784,
+        "b": 0.058823529411764705,
+        "a": 0.78
+      }
+    },
+    {
+      "name": "color/semantic/surfaceRaised",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--surface-raised)"
+      },
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/surfaceRaised",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.06666666666666667,
+        "g": 0.050980392156862744,
+        "b": 0.09411764705882353,
+        "a": 0.92
+      }
+    },
+    {
+      "name": "color/semantic/textPrimary",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--text-primary)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "alias": "color/primitive/ink",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.9254901960784314,
+        "g": 0.9058823529411765,
+        "b": 0.8745098039215686,
+        "a": 0.92
+      }
+    },
+    {
+      "name": "color/semantic/textMuted",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--text-muted)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "alias": "color/primitive/white58",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.58
+      }
+    },
+    {
+      "name": "color/semantic/textFaint",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--text-faint)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "alias": "color/primitive/white35",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.35
+      }
+    },
+    {
+      "name": "color/semantic/textInverse",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--text-inverse)"
+      },
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "alias": "color/primitive/textInverse",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.11372549019607843,
+        "g": 0.0784313725490196,
+        "b": 0.023529411764705882,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/accent",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--accent-primary)"
+      },
+      "scopes": [
+        "TEXT_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/violet",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.7529411764705882,
+        "g": 0.5176470588235295,
+        "b": 0.9882352941176471,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/accentStrong",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--accent-primary-strong)"
+      },
+      "scopes": [
+        "TEXT_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/violetStrong",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.6588235294117647,
+        "g": 0.3333333333333333,
+        "b": 0.9686274509803922,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/positive",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--signal-positive)"
+      },
+      "scopes": [
+        "TEXT_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/amber",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 0.7019607843137254,
+        "b": 0.2784313725490196,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/negative",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--signal-negative)"
+      },
+      "scopes": [
+        "TEXT_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/violet",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.7529411764705882,
+        "g": 0.5176470588235295,
+        "b": 0.9882352941176471,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/danger",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--danger)"
+      },
+      "scopes": [
+        "TEXT_FILL",
+        "SHAPE_FILL"
+      ],
+      "alias": "color/primitive/rose",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 0.6235294117647059,
+        "b": 0.7058823529411765,
+        "a": 1
+      }
+    },
+    {
+      "name": "color/semantic/borderDefault",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--border-default)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "alias": "color/primitive/borderDefault",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.12
+      }
+    },
+    {
+      "name": "color/semantic/borderStrong",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--border-strong)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "alias": "color/primitive/borderStrong",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.2
+      }
+    },
+    {
+      "name": "color/semantic/focusRing",
+      "collection": "Semantic",
+      "mode": "Midnight",
+      "codeSyntax": {
+        "WEB": "var(--focus-ring)"
+      },
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "alias": "color/primitive/focusRing",
+      "resolvedType": "COLOR",
+      "value": {
+        "r": 0.7529411764705882,
+        "g": 0.5176470588235295,
+        "b": 0.9882352941176471,
+        "a": 0.34
+      }
+    },
+    {
+      "name": "radius/xs",
+      "collection": "Shape",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--r-1)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 2,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "radius/control",
+      "collection": "Shape",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--r-2)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 4,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "radius/surface",
+      "collection": "Shape",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--r-3)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 6,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "radius/raised",
+      "collection": "Shape",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--r-4)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 8,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "radius/full",
+      "collection": "Shape",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--r-full)"
+      },
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 999,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/1",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-1)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 4,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/2",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-2)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 8,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/3",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-3)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 12,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/4",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-4)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 16,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/5",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-5)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 20,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/6",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-6)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 24,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/7",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-7)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 28,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "spacing/8",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-8)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 32,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "typography/family/sans",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--font-sans)"
+      },
+      "scopes": [
+        "FONT_FAMILY"
+      ],
+      "resolvedType": "STRING",
+      "value": "Raleway"
+    },
+    {
+      "name": "typography/family/numeric",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--font-numeric)"
+      },
+      "scopes": [
+        "FONT_FAMILY"
+      ],
+      "alias": "typography/family/sans",
+      "resolvedType": "STRING",
+      "value": "Raleway"
+    },
+    {
+      "name": "typography/family/numericLegacy",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--font-mono-numeric)"
+      },
+      "scopes": [
+        "FONT_FAMILY"
+      ],
+      "alias": "typography/family/numeric",
+      "resolvedType": "STRING",
+      "value": "Raleway"
+    },
+    {
+      "name": "typography/size/2xs",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-2xs)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 10.88,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/xs",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-xs)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 12,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/sm",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-sm)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 13.12,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/base",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-base)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 14.4,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/md",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-md)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 15.68,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/lg",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-lg)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 17.28,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/xl",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-xl)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 20.8,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/2xl",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-2xl)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 24.8,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/size/3xl",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--text-3xl)"
+      },
+      "scopes": [
+        "FONT_SIZE"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 33.6,
+      "sourceUnit": "rem"
+    },
+    {
+      "name": "typography/tracking/compact",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--label-tracking-compact)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 0.08,
+      "sourceUnit": "em"
+    },
+    {
+      "name": "typography/tracking/comfortable",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--label-tracking-comfortable)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 0.14,
+      "sourceUnit": "em"
+    },
+    {
+      "name": "typography/weight/regular",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--weight-regular)"
+      },
+      "scopes": [
+        "FONT_WEIGHT"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 400
+    },
+    {
+      "name": "typography/weight/semibold",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--weight-semibold)"
+      },
+      "scopes": [
+        "FONT_WEIGHT"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 600
+    },
+    {
+      "name": "typography/weight/bold",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--weight-bold)"
+      },
+      "scopes": [
+        "FONT_WEIGHT"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 700
+    },
+    {
+      "name": "typography/weight/display",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--weight-display)"
+      },
+      "scopes": [
+        "FONT_WEIGHT"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 800
+    },
+    {
+      "name": "typography/lineHeight/tight",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--leading-tight)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 1.2
+    },
+    {
+      "name": "typography/lineHeight/body",
+      "collection": "Typography",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--leading-body)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 1.6
+    },
+    {
+      "name": "density/compactX",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-compact-x)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/3",
+      "resolvedType": "FLOAT",
+      "value": 12,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "density/compactY",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-compact-y)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/2",
+      "resolvedType": "FLOAT",
+      "value": 8,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "density/comfortable",
+      "collection": "Spacing",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--space-comfortable)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/4",
+      "resolvedType": "FLOAT",
+      "value": 16,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "layout/sidebar",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--layout-sidebar-w)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "resolvedType": "FLOAT",
+      "value": 248,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "layout/gutter",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--layout-gutter)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/6",
+      "resolvedType": "FLOAT",
+      "value": 24,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "layout/sectionGap",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--layout-section-gap)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/5",
+      "resolvedType": "FLOAT",
+      "value": 20,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "layout/panelPadding",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--layout-panel-pad)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/5",
+      "resolvedType": "FLOAT",
+      "value": 20,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "layout/gridGap",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--layout-grid-gap)"
+      },
+      "scopes": [
+        "GAP"
+      ],
+      "alias": "spacing/4",
+      "resolvedType": "FLOAT",
+      "value": 16,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "motion/duration/fast",
+      "collection": "Motion",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--motion-fast)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 160,
+      "sourceUnit": "ms"
+    },
+    {
+      "name": "motion/duration/base",
+      "collection": "Motion",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--motion-base)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 240,
+      "sourceUnit": "ms"
+    },
+    {
+      "name": "motion/duration/reveal",
+      "collection": "Motion",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--motion-reveal)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 420,
+      "sourceUnit": "ms"
+    },
+    {
+      "name": "zIndex/base",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--z-base)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 0
+    },
+    {
+      "name": "zIndex/raised",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--z-raised)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 10
+    },
+    {
+      "name": "zIndex/sticky",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--z-sticky)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 50
+    },
+    {
+      "name": "zIndex/overlay",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--z-overlay)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 900
+    },
+    {
+      "name": "zIndex/modal",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--z-modal)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 9999
+    },
+    {
+      "name": "breakpoint/sm",
+      "collection": "Breakpoints",
+      "mode": "Value",
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 480,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "breakpoint/md",
+      "collection": "Breakpoints",
+      "mode": "Value",
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 640,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "breakpoint/lg",
+      "collection": "Breakpoints",
+      "mode": "Value",
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 900,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "breakpoint/xl",
+      "collection": "Breakpoints",
+      "mode": "Value",
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 1120,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "control/small",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--control-sm)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 36,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "control/medium",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--control-md)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 44,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "control/large",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--control-lg)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 48,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "control/checkbox",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--control-checkbox)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 16,
+      "sourceUnit": "px"
+    },
+    {
+      "name": "control/border",
+      "collection": "Layout",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--border-width)"
+      },
+      "scopes": [],
+      "resolvedType": "FLOAT",
+      "value": 1,
+      "sourceUnit": "px"
+    }
+  ],
+  "styleTokens": [
+    {
+      "name": "motion/easing/standard",
+      "collection": "Motion",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--ease-standard)"
+      },
+      "scopes": [],
+      "type": "cubicBezier",
+      "value": [
+        0.2,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "shadow/surface",
+      "collection": "Effects",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--shadow-surface)"
+      },
+      "scopes": [],
+      "type": "shadow",
+      "value": {
+        "color": {
+          "colorSpace": "srgb",
+          "components": [
+            0,
+            0,
+            0
+          ],
+          "alpha": 0.24
+        },
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 22,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 60,
+          "unit": "px"
+        },
+        "spread": {
+          "value": 0,
+          "unit": "px"
+        }
+      }
+    },
+    {
+      "name": "shadow/focus",
+      "collection": "Effects",
+      "mode": "Value",
+      "codeSyntax": {
+        "WEB": "var(--shadow-focus)"
+      },
+      "scopes": [],
+      "type": "shadow",
+      "value": {
+        "color": {
+          "colorSpace": "srgb",
+          "components": [
+            0.7529411764705882,
+            0.5176470588235295,
+            0.9882352941176471
+          ],
+          "alpha": 0.18
+        },
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 0,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 0,
+          "unit": "px"
+        },
+        "spread": {
+          "value": 3,
+          "unit": "px"
+        }
+      }
+    }
+  ]
+}

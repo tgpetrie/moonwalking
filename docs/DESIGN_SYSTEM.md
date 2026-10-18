@@ -7,10 +7,14 @@ and how to style something new so it stays consistent — for a human or an
 AI agent picking this up cold.
 
 **Token values live in code, not here.** The source of truth is
-[`frontend/src/styles/design-tokens.css`](../frontend/src/styles/design-tokens.css).
+[`frontend/src/design-system/tokens.json`](../frontend/src/design-system/tokens.json).
 This document explains *why* those values are what they are and *how* to
-use them; if the two ever disagree, the CSS file is correct and this file
-is stale — fix this file to match it.
+use them. Generate CSS and the Figma adapter manifest with `npm run tokens:build`.
+Verification rejects stale generated files and invalid aliases.
+
+The token types follow the [DTCG 2025.10 format](https://www.designtokens.org/tr/2025.10/format/).
+The local generator validates the token types used in this repository; it is
+not intended to accept every possible DTCG extension or reference syntax.
 
 **This document does not replace the existing home-board specs.** It sits
 above them:
@@ -19,7 +23,7 @@ above them:
 |---|---|---|
 | `docs/FRONTEND_UI_RULES.md` | Home board (`/`) — grid, spacing, motion, the BHABIT bunny layer | Authoritative for the home board, unchanged by this doc |
 | `docs/UI_CONTRACT.md` | Home board — row/rail layout contract for token-like rows (tables, the *legacy* watchlist widget, intelligence log) | Authoritative for those components, unchanged by this doc. See the gap noted in §4 below — it predates the Moonwalking `/app/*` watchlist and does not govern it |
-| **This document** | Shared tokens + hierarchy across **both** systems; the Moonwalking `/app/*` shell's own conventions, which had no written spec before this | New |
+| **This document** | Shared tokens + hierarchy across **both** systems; the Moonwalking `/app/*` shell's own conventions, which had no written spec before this | Canonical |
 
 Read `docs/ai/AI_INDEX.md` first, as always, for which files are active
 vs. legacy before touching anything.
@@ -97,28 +101,38 @@ color.
 
 ### Radius
 
-One knob drives every corner: `--radius-base: 2px`, then `--r-1`
-(×1) through `--r-4` (×4). `--r-4` was added by this token file — it was
-referenced by `.mw-watchlist-asset`'s `border-radius` before this file
-existed but never defined anywhere, so that card had square corners
-instead of the intended rounded ones. If you find another `var(--r-N)`
-with no matching value, that's the same bug class — check
-`design-tokens.css` defines it, and if not, that's a real fix, not a
-style preference.
+Migrated surfaces use `--r-1` through `--r-4` at 2, 4, 6, and 8px.
+The active `/app` shell aliases `--mw-radius` to `--r-3`,
+so panels and cards share the same 6px corner treatment. Command controls
+(buttons, inputs, and navigation links) use `--r-2` at 4px. Reserve full
+pill radii for compact semantic elements such as status chips, tags,
+filters, and toggles; CTAs and containers must remain rectangular. Older
+CSS still contains raw radius values; migrate those when the component is
+actively edited instead of performing a blind global replacement. If a new
+`var(--r-N)` reference has no matching definition in
+`design-tokens.css`, treat that as a real bug.
+
+### Shape and spacing hierarchy
+
+- Commands use 4px corners; cards, panels, headers, and other containers use
+  6px corners. A container must not look like a giant pill.
+- Full pill corners are semantic: status chips, tags, filters, toggles, and
+  compact state labels only.
+- Outer page gutters use `--space-7` on wide public pages and `--space-4`
+  on phones. Panels use `--layout-panel-pad`; card grids use
+  `--layout-grid-gap`; stacked page sections use `--layout-section-gap`.
+- Do not introduce a one-off gap when the nearest 4px spacing token expresses
+  the same hierarchy. Larger space belongs between sections, medium space
+  inside containers, and small space between a label and its value.
 
 ### Type
 
 - `--font-sans` — Raleway, the UI/body font for both systems.
-- `--font-mono-numeric` — JetBrains Mono, for tabular numbers (prices,
-  scores, timestamps, KPI values). Both systems already named this face in
-  a dozen stylesheets, but **it was never actually loaded** — it rendered
-  only for viewers who had it installed locally, and everyone else got a
-  fallback, so the same number looked different per machine.
-  `frontend/index.html` now loads it from Google Fonts at weights
-  400/500/600/700; use those weights only (anything else gets faux-bolded).
-  Monospace digits are wider than Raleway's — if a number-heavy element
-  suddenly crowds its neighbor after switching to this token, the layout
-  was relying on narrow digits and needs room, not a narrower font.
+- `--font-numeric` aliases `--font-sans`: Raleway is the chosen numeric
+  font as well. Numeric columns keep right alignment and
+  `font-variant-numeric: tabular-nums`. JetBrains Mono and Fragment Mono
+  are not loaded or selected in active styles. `--font-mono-numeric` remains
+  only as a compatibility alias to Raleway for older consumers.
 - `--text-2xs` through `--text-3xl` — a rationalized 9-step size scale.
   **This did not exist before this file.** Auditing `mvp-shell.css` alone
   turned up 25+ distinct `font-size` values with no consistent ladder
@@ -136,7 +150,7 @@ style preference.
   | `--text-lg` | 1.08rem | card/list price, subheads |
   | `--text-xl` | 1.3rem | section headings |
   | `--text-2xl` | 1.55rem | page subheads |
-  | `--text-3xl` | `clamp(1.5rem, 3vw, 2.1rem)` | page h1 (matches the Risk Board's existing h1 clamp) |
+  | `--text-3xl` | `2.1rem` | page h1 |
 
   **Existing declarations still use their own literal `rem` values and are
   unaffected** — this scale is for new or actively-migrated CSS, not a
@@ -190,13 +204,12 @@ sidebar padding 28/22px, sections and panels 24px).
 | List row | `.mw-list__row` (also `.mw-mini-list__row`, `.mw-session-row`) | left `div` stacks name (`strong`) over detail (`span`, `--text-xs`); trailing `span` = tabular mono `--text-xs` |
 | Eyebrow | `.mw-eyebrow` | `--text-2xs`, 800 weight, `--label-tracking-comfortable`, accent color |
 
-**Cards vs. List (watchlist and any future asset grid):** Cards view is the
-*comfortable* layout — it stacks identity over price and change at every
-width, because a ~370px card can't hold a name, a price and a monospace
-change row side by side without the numbers squeezing the name. List view
-is the *dense*, board-style layout — full-width rows with identity left and
-numbers pinned right. Don't try to make a card behave like a row; offer
-both views.
+**Responsive data surfaces:** the current `/app/watchlists` route uses a
+table inside `.mw-table-shell`, not the card/compact/list modes that lived
+on the unmerged portfolio-risk branch. Preserve the table's horizontal
+scroll behavior at narrow widths. If asset cards are introduced later,
+use comfortable density for cards and compact density for full-width rows;
+do not copy selectors from an old branch without the matching live JSX.
 
 ### Z-index
 
@@ -225,9 +238,9 @@ have installed. So these are values to type literally, not live tokens:
 
 ```
 480px   one narrow phone column
-650px   card grids collapse to one column (the watchlist's existing breakpoint)
+640px   compact phone layouts and narrow card grids
 900px   two-column layouts collapse to one
-1100px  desktop-wide layouts (the risk board's expanded-card breakpoint)
+1120px  desktop-wide app-shell layouts
 ```
 
 Auditing every `@media max-width` in the app found 30+ distinct values
@@ -252,7 +265,7 @@ its own decision.
    (BHABIT's convention). Roomy/readable → `--space-comfortable` +
    `--label-tracking-comfortable`.
 3. **Numbers that should line up in a column** (prices, percentages,
-   scores, timestamps) get `--font-mono-numeric` and
+   scores, timestamps) get `--font-numeric` and
    `font-variant-numeric: tabular-nums`. This is already the convention in
    both systems' price displays; it's just not centralized before this.
 4. **Use the type scale**, not a new `rem` value, unless you've checked
@@ -264,7 +277,48 @@ its own decision.
 
 ---
 
-## 4. The Moonwalking `/app/*` watchlist and `UI_CONTRACT.md`
+## 4. Component source of truth
+
+The v1 component layer lives in
+`frontend/src/components/ui/DesignSystem.jsx`, with its visual contract in
+`frontend/src/styles/ui-system.css`. The executable specimen is available at
+`/design-system`.
+
+| Component | Variants and states |
+|---|---|
+| `UiButton` | primary, secondary, ghost, danger; small, medium, large; disabled and loading |
+| `UiCard` | default, subtle, raised; none, small, medium, large padding |
+| `UiField` | input or textarea; hint, error, disabled, focus |
+| `UiCheckbox` | checked, unchecked, disabled, focus |
+| `UiChip` | neutral, accent, positive, negative, danger; active |
+| `UiStack` / `UiCluster` | spacing steps 1 through 8 |
+
+Use these components for new `/app` and public-shell work. Existing `mw-*`
+controls are migration compatibility, not a reason to create another local
+button or field pattern.
+
+The platform-neutral token source is
+`frontend/src/design-system/tokens.json`. Run `npm run tokens:build` after
+editing it; `npm run verify` fails when the generated CSS is stale. The Figma
+collection, scope, component-property, and Code Syntax mapping is documented in
+`docs/design-system/FIGMA_LIBRARY_SPEC.md`.
+
+### Migration coverage
+
+| Surface | Status |
+|---|---|
+| Shared foundations | JSON source generates CSS and a Figma Plugin API adapter manifest; both checked in CI |
+| Active numerical styles | Raleway through `--font-numeric`; no separate monospace family |
+| Public navigation, Login, Signup | Use v1 Button, Card, Field, and Checkbox primitives |
+| `/design-system` | Executable examples of the locked v1 inventory |
+| Dashboard, Watchlists, Portfolio | Shared shell tokens and rectangular shape rules; legacy component markup remains for incremental migration |
+| Figma library publication | Not performed; token source, adapter manifest, and construction contract are ready |
+
+Do not describe this foundation release as a completed page-by-page rebuild.
+New pages and edited controls should consume the shared primitives. Existing
+board geometry and route behavior retain their own contracts.
+
+## 5. The Moonwalking `/app/*` watchlist and `UI_CONTRACT.md`
 
 `docs/UI_CONTRACT.md` requires token-like rows (tables, the watchlist
 widget, intelligence log) to share one left/right rail layout and states
@@ -274,55 +328,43 @@ board's** watchlist widget (`frontend/src/components/WatchlistPanel.jsx`
 / the legacy `Watchlist.jsx` family — see `docs/ai/AI_INDEX.md` for which
 of those are actually live).
 
-It does not govern, and predates, the **Moonwalking app shell's**
-watchlist at `/app/watchlists`
-(`frontend/src/mvp/MvpApp.jsx`'s `WatchlistsPage`, styled by
-`.mw-watchlist-*` in `mvp-shell.css`). That page deliberately does
-compress into a multi-column card grid (`Cards` view — `Compact` and
-`List` are the other two view modes it offers), which is a real
-divergence from `UI_CONTRACT.md`'s rule, not an oversight to silently
-"fix" by cramming it back into the old rail contract. If the two
-watchlists should look and behave the same, that's a product decision
-(which one wins, or do both stay) — flag it rather than pick silently.
+The **Moonwalking app shell's** watchlist at `/app/watchlists`
+(`frontend/src/mvp/MvpApp.jsx`'s `WatchlistsPage`) is a separate account
+management surface. On current `main` it renders a responsive HTML table
+with editable notes inside `.mw-table-shell`; it does not offer the card,
+compact, or list view modes that existed on the unmerged
+`codex/portfolio-risk-board` branch. The home-board rail contract therefore
+does not govern this route pixel-for-pixel, but both surfaces should retain
+the same principles: stable identity and numeric columns, truthful empty
+states, and no overlapping content. Any future view-mode redesign is a
+product decision and must ship with matching JSX, CSS, and mobile tests.
 
 ---
 
-## 5. Known gaps and cleanup flagged, not fixed, by this pass
+## 6. Tooling decision and remaining migration
 
-- **Two conflicting Tailwind configs.** `frontend/tailwind.config.js` and
-  `frontend/tailwind.config.cjs` both exist, with different, contradictory
-  theme extensions (different color palettes; `.js` sets the font family
-  to "Saira", which isn't loaded anywhere and isn't used by any real
-  component — every component that sets a font explicitly uses Raleway).
-  **Bigger finding: neither is actually active.** There is no
-  `@tailwind` directive anywhere in `frontend/src`, so Tailwind's
-  base/components/utilities layers are never generated at all, despite
-  the PostCSS plugin being configured
-  (`frontend/postcss.config.cjs`). Every Tailwind utility class name used
-  across the codebase — `bg-purple-700`, `font-mono`, `text-orange-400`,
-  etc., including in live, currently-rendered components like
-  `CodexPanel.jsx` and `AlertsIndicator.jsx` — currently produces zero
-  CSS. This is either dead tooling to remove (delete both configs, the
-  `tailwindcss`/`autoprefixer` devDependencies, and stop writing Tailwind
-  classes) or a real capability someone meant to wire up and never did
-  (add `@tailwind base; @tailwind components; @tailwind utilities;` to
-  `index.css`, pick one config, delete the other, and audit whether the
-  now-real utility classes collide with anything). Either is a reasonable
-  call; making it silently is not, since it either deletes working
-  config files or newly activates hundreds of previously-inert class
-  names across the app. Flagged for a deliberate decision.
-- **`--r-4` and `--mw-success`** were both referenced before being
-  defined anywhere — fixed by `design-tokens.css`, but if you find another
-  `var(--x)` with nothing defining `--x`, treat it the same way: a silent
-  bug (the property computed to its initial value, invisibly), not a
-  style choice.
+- **The active frontend is CSS-first, not Tailwind.** The conflicting
+  Tailwind configs and inactive PostCSS plugin were removed during the
+  2026-10-18 integration because no `@tailwind` layers were generated and
+  current entry points are styled by the CSS files listed in
+  `docs/ai/AI_INDEX.md`. Utility-looking class strings remain in inactive
+  legacy components such as `AppRoot.jsx` and `SymbolPanel.jsx`; they are
+  not a styling contract. If one of those components is promoted into an
+  active route, migrate it to the shared CSS system or make Tailwind a
+  separately reviewed build decision. Do not quietly reactivate Tailwind
+  across the entire repository.
+- **Migration is intentionally incremental.** The live app shell now uses
+  shared layout, radius, typography, spacing, and semantic color aliases.
+  Many older component rules still contain literal values. Move them onto
+  tokens while editing those components, with visual verification, rather
+  than doing a repository-wide search-and-replace.
 
 ---
 
-## 6. Maintenance
+## 7. Maintenance
 
 If you add, rename, or repurpose a token: update
-`frontend/src/styles/design-tokens.css` (the values) **and** this file's
-§2 (the reasoning and table row) in the same change. A token that exists
-in one and not the other is exactly the kind of silent drift this
-document exists to prevent.
+`frontend/src/design-system/tokens.json`, regenerate both outputs with
+`npm run tokens:build`, and update the relevant contract here. Run
+`npm run verify` before committing. The frontend uses npm and
+`frontend/package-lock.json` as its dependency contract.

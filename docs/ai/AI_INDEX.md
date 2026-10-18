@@ -11,12 +11,17 @@ Read in this order before implementation:
 5. The relevant files under `docs/`
 6. Touching CSS, colors, spacing, typography, or anything visual on any
    page: `docs/DESIGN_SYSTEM.md` first. It's the cross-system token
-   reference (values live in `frontend/src/styles/design-tokens.css`) and
+   reference (source values live in `frontend/src/design-system/tokens.json`
+   and generate `frontend/src/styles/design-tokens.css`) and
    says where the home board and the Moonwalking `/app/*` shell already
-   agree, where they genuinely still disagree on purpose, and known gaps
-   flagged but not silently fixed. `docs/FRONTEND_UI_RULES.md` and
+   agree, the migration status of active surfaces, and decisions that
+   future work must preserve. `docs/FRONTEND_UI_RULES.md` and
    `docs/UI_CONTRACT.md` remain authoritative for the home board's own
-   grid/row/motion rules specifically.
+   grid/row/motion rules specifically. For Figma variables, component
+   properties, scopes, and Code Syntax, read
+   `docs/design-system/FIGMA_LIBRARY_SPEC.md`.
+   Foundation release coverage and checks are recorded in
+   `docs/design-system/VERIFICATION.md`.
 
 ## Canonical runtime
 
@@ -37,6 +42,8 @@ There is no active bridge service. Ports 5001, 5002, 5100, and 8002 are legacy.
 - Single board poller: `frontend/src/context/DataContext.jsx`
 - Guest/auth watchlists: `frontend/src/context/WatchlistContext.jsx`
 - Product routes: `frontend/src/mvp/MvpApp.jsx`
+- UI primitives: `frontend/src/components/ui/DesignSystem.jsx`
+- UI specimen route: `/design-system`
 
 Do not treat `frontend/src/Dashboard.jsx`, `legacy913`, playgrounds, backups, or original files as the active board.
 
