@@ -7,12 +7,52 @@ from datetime import datetime, timezone
 from typing import Any, Iterable
 import hashlib
 import math
+import os
 import time
 
 
 EVENT_RULE_VERSION = "event-evolution-v1-2026-07-14"
 DEFAULT_EVENT_GAP_SECONDS = 10 * 60
 DEFAULT_EVENT_RETENTION_SECONDS = 20 * 60
+
+# Reads that measured worse than an unconditional entry on the same coins.
+# Over 369,611 production signals followed for ~24h (2026-09-05..10-11, 1 ATR
+# stop / 2 ATR target, net of a 0.2% round trip) "QUIET FLOW BUILDING" lost
+# 0.09-0.20 R and "MIXED - NO CLEAR EDGE" 0.23-0.32 R more than a random entry
+# in the same direction. They stay visible and keep being measured, but they
+# sort below every other read and never trigger a notification.
+# MW_DEMOTE_WEAK_READS=0 restores the previous behaviour.
+DEMOTED_READ_LABELS = frozenset({"QUIET FLOW BUILDING", "MIXED — NO CLEAR EDGE"})
+DEMOTION_REASON = (
+    "Past results for this kind of read were worse than a random entry, "
+    "so it is shown for context only."
+)
+
+
+def weak_read_demotion_enabled() -> bool:
+    return str(os.getenv("MW_DEMOTE_WEAK_READS", "1")).strip().lower() not in {
+        "0",
+        "false",
+        "off",
+        "no",
+    }
+
+
+def is_demoted_read(read: Any) -> bool:
+    return isinstance(read, dict) and bool(read.get("demoted"))
+
+
+def demoted_last(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stable partition: every non-demoted event first, demoted reads after.
+
+    Enrichment can change a label after the feed was first ordered, so the
+    API re-applies this once enrichment is done. Relative order inside each
+    group is preserved.
+    """
+    rows = list(events or [])
+    return [e for e in rows if not e.get("read_demoted")] + [
+        e for e in rows if e.get("read_demoted")
+    ]
 
 _SEVERITY_RANK = {"info": 1, "low": 2, "medium": 3, "high": 4, "critical": 5}
 _STATE_BASE = {
@@ -441,7 +481,8 @@ def derive_event_read(
     elif liquidity == "wide":
         risk_note = "The wider spread raises slippage and execution risk."
 
-    return {
+    demoted = label in DEMOTED_READ_LABELS and weak_read_demotion_enabled()
+    result = {
         "label": label,
         "tone": tone,
         "condition": condition,
@@ -451,7 +492,11 @@ def derive_event_read(
         "history": _read_history(evidence),
         "risk_note": risk_note,
         "is_directional_advice": False,
+        "demoted": demoted,
     }
+    if demoted:
+        result["demotion_reason"] = DEMOTION_REASON
+    return result
 
 
 def enrich_event(
@@ -479,6 +524,12 @@ def enrich_event(
         conflicting_directions=bool(evidence.get("conflicting_directions")),
         context=context,
     )
+    # Context can change the read (spot pressure, market relation), so the
+    # demotion is re-derived here rather than trusted from the earlier build.
+    out["read_demoted"] = is_demoted_read(out["the_read"])
+    if out["read_demoted"]:
+        out["notify_eligible"] = False
+        out["delivery_tier"] = "signal"
     return out
 
 
@@ -549,9 +600,10 @@ def _build_event(
         message += f" with {modifier.lower()} confirmation"
     message += f" ({len(alerts)} detection{'s' if len(alerts) != 1 else ''}, confidence {confidence})"
 
-    notify_eligible = confidence >= 85 or (
-        state == "Reversal Risk" and confidence >= 80
-    )
+    read_demoted = is_demoted_read(event_read)
+    notify_eligible = (
+        confidence >= 85 or (state == "Reversal Risk" and confidence >= 80)
+    ) and not read_demoted
     expires_ms = last_ts + (int(retention_seconds) * 1000)
     expires_at = datetime.fromtimestamp(
         expires_ms / 1000.0, tz=timezone.utc
@@ -600,6 +652,7 @@ def _build_event(
         or f"https://www.coinbase.com/advanced-trade/spot/{symbol}",
         "delivery_tier": "notify" if notify_eligible else "signal",
         "notify_eligible": notify_eligible,
+        "read_demoted": read_demoted,
         "the_read": event_read,
     }
 
@@ -646,6 +699,7 @@ def build_event_evolution(
 
     events.sort(
         key=lambda item: (
+            not item.get("read_demoted"),  # demoted reads sort after all others
             int(item.get("confidence") or 0),
             int(item.get("last_seen_ts_ms") or 0),
         ),
@@ -673,6 +727,10 @@ def notification_candidates(
     out: list[dict[str, Any]] = []
     for event in events or []:
         row = dict(event)
+        # A demoted read never notifies, including for coins you hold: it
+        # measured worse than a random entry, so it is context, not an alert.
+        if row.get("read_demoted") or is_demoted_read(row.get("the_read")):
+            continue
         base = str(row.get("symbol") or "").split("-")[0].upper()
         is_priority = base in priority
         if is_priority:

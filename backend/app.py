@@ -205,6 +205,7 @@ from interpretation_engine import add_interpretation
 from alert_events import (
     EVENT_RULE_VERSION,
     build_event_evolution,
+    demoted_last,
     enrich_event,
     notification_candidates,
 )
@@ -13320,7 +13321,8 @@ def _enrich_signal_events(events, *, include_history=True):
                 historical_result=history,
             )
         )
-    return enriched
+    # Context can turn a read into a demoted one after the feed was ordered.
+    return demoted_last(enriched)
 
 
 def _rows_from_component(comp):

@@ -28,6 +28,28 @@ CHECKPOINTS = (
     (3600, "return_60m"),
 )
 
+# Extended tracking: directional return at 4h / 12h / 24h plus the best and
+# worst excursion over the full 24h. It is additive. A row keeps its 1-hour
+# grading and its ``complete`` flag exactly as before; this only adds columns
+# once the row has finished that hour. A checkpoint is recorded only if it is
+# read within the tolerance of its due time, never filled in late, so a gap
+# in collection leaves NULL rather than a wrong return. Excursions are sampled
+# about once a minute, so they are slightly conservative.
+EXTENDED_CHECKPOINTS = (
+    (14400, "return_4h"),
+    (43200, "return_12h"),
+    (86400, "return_24h"),
+)
+EXTENDED_HORIZON_SECONDS = 86400
+EXTENDED_COLUMNS = (
+    "return_4h REAL",
+    "return_12h REAL",
+    "return_24h REAL",
+    "max_favorable_24h REAL",
+    "max_adverse_24h REAL",
+    "extended_complete INTEGER NOT NULL DEFAULT 0",
+)
+
 # --- Methodology versioning -------------------------------------------------
 #
 # Every row records the methodology that produced it.  A rate may only be
@@ -133,6 +155,13 @@ class SignalOutcomeStore:
             300, int(os.getenv("MW_OUTCOME_HORIZON_SECONDS", "3600"))
         )
         self._prune_throttle = Throttle()
+        self.extended_enabled = str(
+            os.getenv("MW_EXTENDED_OUTCOMES", "1")
+        ).strip().lower() not in {"0", "false", "off", "no"}
+        self.extended_tolerance_seconds = max(
+            60, int(os.getenv("MW_EXTENDED_CHECKPOINT_TOLERANCE_SECONDS", "600"))
+        )
+        self._extended_throttle = Throttle(60)
         self._init_lock = threading.Lock()
         self._history_lock = threading.Lock()
         self._history_cache: dict[
@@ -199,6 +228,7 @@ class SignalOutcomeStore:
                     "feature_schema_version TEXT",
                     "feature_snapshot_json TEXT",
                     "methodology_version TEXT",
+                    *EXTENDED_COLUMNS,
                 ):
                     if col_def.split()[0] not in existing:
                         conn.execute(
@@ -391,11 +421,124 @@ class SignalOutcomeStore:
                     [*updates.values(), row["signal_id"]],
                 )
             conn.commit()
+            self._advance_extended(conn, prices, now_ts)
             self._prune_storage(conn, now_ts)
         finally:
             conn.close()
         with self._history_lock:
             self._history_cache.clear()
+
+    def _advance_extended(
+        self,
+        conn: sqlite3.Connection,
+        prices: dict[str, Any],
+        now_ts: int,
+        *,
+        force: bool = False,
+    ) -> None:
+        """Record 4h/12h/24h returns and 24h excursions for finished-hour rows.
+
+        Runs about once a minute and only looks at rows from the last day, so
+        it stays cheap. Errors never stop the 1-hour grading above.
+        """
+        if not self.extended_enabled:
+            return
+        if not force and not self._extended_throttle.due():
+            return
+        tolerance = self.extended_tolerance_seconds
+        try:
+            rows = conn.execute(
+                "SELECT signal_id, product_id, direction, start_price, started_ts, "
+                "max_favorable_pct, max_adverse_pct, return_4h, return_12h, "
+                "return_24h, max_favorable_24h, max_adverse_24h "
+                "FROM signal_outcomes "
+                "WHERE complete = 1 AND extended_complete = 0 "
+                "AND started_ts >= ? AND started_ts <= ?",
+                (now_ts - EXTENDED_HORIZON_SECONDS - tolerance, now_ts),
+            ).fetchall()
+            for row in rows:
+                age = max(0, int(now_ts) - int(row["started_ts"]))
+                product_id = str(row["product_id"])
+                current = _number(
+                    prices.get(product_id)
+                    if product_id in prices
+                    else prices.get(product_id.split("-")[0])
+                )
+                updates: dict[str, Any] = {}
+                if current is not None and current > 0:
+                    directional = self._directional_return(
+                        row["direction"], float(row["start_price"]), current
+                    )
+                    favorable = (
+                        row["max_favorable_24h"]
+                        if row["max_favorable_24h"] is not None
+                        else float(row["max_favorable_pct"] or 0)
+                    )
+                    adverse = (
+                        row["max_adverse_24h"]
+                        if row["max_adverse_24h"] is not None
+                        else float(row["max_adverse_pct"] or 0)
+                    )
+                    if age <= EXTENDED_HORIZON_SECONDS:
+                        favorable = max(float(favorable), directional)
+                        adverse = min(float(adverse), directional)
+                    if favorable != row["max_favorable_24h"]:
+                        updates["max_favorable_24h"] = favorable
+                    if adverse != row["max_adverse_24h"]:
+                        updates["max_adverse_24h"] = adverse
+                    for seconds, column in EXTENDED_CHECKPOINTS:
+                        if (
+                            row[column] is None
+                            and age >= seconds
+                            and age - seconds <= tolerance
+                        ):
+                            updates[column] = directional
+                if age >= EXTENDED_HORIZON_SECONDS:
+                    updates["extended_complete"] = 1
+                if not updates:
+                    continue
+                assignments = ", ".join(f"{key} = ?" for key in updates)
+                conn.execute(
+                    f"UPDATE signal_outcomes SET {assignments} WHERE signal_id = ?",
+                    [*updates.values(), row["signal_id"]],
+                )
+            conn.commit()
+        except sqlite3.Error:
+            conn.rollback()
+
+    def advance_extended(
+        self, prices: dict[str, Any], now_ts: int | None = None
+    ) -> None:
+        """Run the extended pass immediately (maintenance and tests)."""
+        conn = self._connect()
+        try:
+            self._advance_extended(
+                conn, prices or {}, int(now_ts or time.time()), force=True
+            )
+        finally:
+            conn.close()
+
+    def extended_status(self) -> dict[str, Any]:
+        """How much extended (4h/12h/24h) evidence has been collected."""
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) AS rows_finished, "
+                "SUM(CASE WHEN return_4h IS NOT NULL THEN 1 ELSE 0 END) AS with_4h, "
+                "SUM(CASE WHEN return_12h IS NOT NULL THEN 1 ELSE 0 END) AS with_12h, "
+                "SUM(CASE WHEN return_24h IS NOT NULL THEN 1 ELSE 0 END) AS with_24h "
+                "FROM signal_outcomes WHERE extended_complete = 1"
+            ).fetchone()
+            return {
+                "enabled": self.extended_enabled,
+                "tolerance_seconds": self.extended_tolerance_seconds,
+                "rows_finished": int(row["rows_finished"] or 0),
+                "with_4h": int(row["with_4h"] or 0),
+                "with_12h": int(row["with_12h"] or 0),
+                "with_24h": int(row["with_24h"] or 0),
+            }
+        finally:
+            conn.close()
 
     def _prune_storage(
         self, conn: sqlite3.Connection, now_ts: float, *, force: bool = False

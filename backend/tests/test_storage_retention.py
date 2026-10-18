@@ -9,9 +9,15 @@ a graded return is never altered.
 from __future__ import annotations
 
 import sqlite3
+import sys
 import time
+from pathlib import Path
 
 import pytest
+
+# The stores import their siblings by flat name, so make this file runnable
+# on its own instead of depending on another test having set the path.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 try:
     from board_outcomes import BoardOutcomeStore, TABLE_NAME as BOARD_TABLE
