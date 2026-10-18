@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "moonwalking.market-history/v1",
+  "title": "Moonwalking market-history series",
+  "description": "One venue, one product, one granularity. Series are never merged; lineage between series is described in coverage.json, not in the candles.",
+  "type": "object",
+  "required": ["contract", "series_id", "as_of", "asset", "market", "interval", "candles", "coverage", "provenance"],
+  "properties": {
+    "contract": { "const": "moonwalking.market-history/v1" },
+    "series_id": { "type": "string", "pattern": "^[a-z0-9-]+:[A-Z0-9-]+:(1m|1h|1d|1w)$" },
+    "as_of": { "type": "string", "format": "date-time", "description": "Cut-off. A bucket whose period ends after as_of is open and has complete=false." },
+    "asset": {
+      "type": "object",
+      "required": ["symbol", "name", "chain", "contract", "coingecko_id"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "name": { "type": "string" },
+        "chain": { "type": "string" },
+        "contract": { "type": ["string", "null"] },
+        "coingecko_id": { "type": ["string", "null"] }
+      }
+    },
+    "market": {
+      "type": "object",
+      "required": ["venue", "product_id", "base_currency", "quote_currency", "quote_kind", "status", "price_unit", "volume_unit"],
+      "properties": {
+        "venue": { "type": "string" },
+        "product_id": { "type": "string" },
+        "base_currency": { "type": "string" },
+        "quote_currency": { "type": "string" },
+        "quote_kind": { "enum": ["fiat", "stablecoin", "crypto"] },
+        "status": { "enum": ["online", "delisted", "offline"] },
+        "price_unit": { "type": "string", "description": "Always the quote currency." },
+        "volume_unit": { "type": "string", "description": "Always the base currency." }
+      }
+    },
+    "interval": {
+      "type": "object",
+      "required": ["granularity", "seconds", "bucket_timestamp", "alignment"],
+      "properties": {
+        "granularity": { "enum": ["1m", "1h", "1d", "1w"] },
+        "seconds": { "type": "integer" },
+        "bucket_timestamp": { "const": "open" },
+        "alignment": { "type": "string" }
+      }
+    },
+    "candles": {
+      "type": "array",
+      "description": "Ascending by t, no duplicates. Absent buckets are not filled: for an exchange series an absent bucket means no trades.",
+      "items": {
+        "type": "object",
+        "required": ["t", "o", "h", "l", "c", "v", "complete", "flags"],
+        "properties": {
+          "t": { "type": "string", "format": "date-time", "description": "Bucket open, UTC." },
+          "o": { "type": "number", "exclusiveMinimum": 0 },
+          "h": { "type": "number", "exclusiveMinimum": 0 },
+          "l": { "type": "number", "exclusiveMinimum": 0 },
+          "c": { "type": "number", "exclusiveMinimum": 0 },
+          "v": { "type": "number", "minimum": 0 },
+          "complete": { "type": "boolean" },
+          "flags": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "open_period",
+                "starts_before_first_candle",
+                "series_ends_mid_week",
+                "no_trade_days_inside_week",
+                "large_move_vs_prev_close",
+                "zero_volume"
+              ]
+            }
+          },
+          "week_end": { "type": "string", "description": "1w only: Sunday UTC date." },
+          "days_present": { "type": "integer", "minimum": 1, "maximum": 7, "description": "1w only: daily candles that fed the week." }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["first_candle", "last_candle", "candle_count", "last_closed_day", "no_trade_ranges", "probed_back_to", "empty_probe_before_first_candle", "lowest_daily_low"],
+      "properties": {
+        "first_candle": { "type": "string" },
+        "last_candle": { "type": "string" },
+        "candle_count": { "type": "integer" },
+        "last_closed_day": { "type": "string" },
+        "no_trade_ranges": { "type": "array", "items": { "type": "object", "required": ["from", "to", "days"] } },
+        "probed_back_to": { "type": "string", "description": "Earliest instant requested from the source." },
+        "empty_probe_before_first_candle": { "type": "boolean", "description": "True when the source answered OK with no rows for the span before first_candle." },
+        "lowest_daily_low": {
+          "type": "object",
+          "required": ["price", "day", "scope", "is_all_time_low"],
+          "properties": {
+            "price": { "type": "number" },
+            "day": { "type": "string" },
+            "scope": { "type": "string", "description": "What span the minimum was measured over." },
+            "is_all_time_low": { "const": false, "description": "Must stay false unless a future file proves full-life coverage; consumers must label this value by its scope." }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "endpoint", "authenticated", "fetched_at", "raw_file", "methodology", "stitched", "derived_from"],
+      "properties": {
+        "source": { "type": "string" },
+        "endpoint": { "type": "string" },
+        "authenticated": { "const": false },
+        "fetched_at": { "type": "string" },
+        "raw_file": { "type": "object", "required": ["path", "sha256"] },
+        "methodology": { "type": "string", "description": "coinbase-native-daily-v1 or weekly-from-daily-v1. Bump when the derivation changes." },
+        "stitched": { "const": false },
+        "derived_from": { "type": ["string", "null"], "description": "series_id of the finer series a derived series was built from." },
+        "absent_day_means": { "type": "string" }
+      }
+    }
+  }
+}

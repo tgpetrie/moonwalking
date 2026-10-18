@@ -1,0 +1,264 @@
+{
+ "as_of": "2026-10-18T00:00:00Z",
+ "last_closed_day": "2026-10-17",
+ "products": {
+  "RENDER-USD": {
+   "venue": "coinbase-exchange",
+   "status": "online",
+   "first_candle": "2024-02-15",
+   "last_candle": "2026-10-18",
+   "daily_candles": 977,
+   "complete_daily_candles": 976,
+   "no_trade_days_inside_span": 0,
+   "no_trade_ranges": [],
+   "probed_back_to": "2021-11-13T00:00:00Z",
+   "empty_probe_before_first_candle": true,
+   "span_is_product_lifetime_on_venue": true,
+   "lowest_daily_low": {
+    "price": 0.651,
+    "day": "2025-10-10",
+    "scope": "this venue product, first candle through last candle in this file",
+    "is_all_time_low": false,
+    "why_not_all_time": "Covers one product on one venue; the asset traded elsewhere before and after, and the pre-Coinbase low is not in this data."
+   },
+   "highest_daily_high": {
+    "price": 13.649,
+    "day": "2024-03-17"
+   },
+   "weekly": {
+    "weeks": 140,
+    "complete_weeks": 138,
+    "incomplete_weeks": [
+     {
+      "t": "2024-02-12",
+      "flags": [
+       "starts_before_first_candle"
+      ]
+     },
+     {
+      "t": "2026-10-12",
+      "flags": [
+       "open_period"
+      ]
+     }
+    ]
+   }
+  },
+  "RNDR-USD": {
+   "venue": "coinbase-exchange",
+   "status": "delisted",
+   "first_candle": "2022-02-03",
+   "last_candle": "2025-06-26",
+   "daily_candles": 1240,
+   "complete_daily_candles": 1240,
+   "no_trade_days_inside_span": 0,
+   "no_trade_ranges": [],
+   "probed_back_to": "2020-03-23T00:00:00Z",
+   "empty_probe_before_first_candle": true,
+   "span_is_product_lifetime_on_venue": true,
+   "lowest_daily_low": {
+    "price": 0.27,
+    "day": "2022-06-18",
+    "scope": "this venue product, first candle through last candle in this file",
+    "is_all_time_low": false,
+    "why_not_all_time": "Covers one product on one venue; the asset traded elsewhere before and after, and the pre-Coinbase low is not in this data."
+   },
+   "highest_daily_high": {
+    "price": 13.6292,
+    "day": "2024-03-17"
+   },
+   "weekly": {
+    "weeks": 178,
+    "complete_weeks": 176,
+    "incomplete_weeks": [
+     {
+      "t": "2022-01-31",
+      "flags": [
+       "starts_before_first_candle"
+      ]
+     },
+     {
+      "t": "2025-06-23",
+      "flags": [
+       "series_ends_mid_week"
+      ]
+     }
+    ]
+   }
+  },
+  "RNDR-USDT": {
+   "venue": "coinbase-exchange",
+   "status": "delisted",
+   "first_candle": "2022-02-03",
+   "last_candle": "2025-06-26",
+   "daily_candles": 1240,
+   "complete_daily_candles": 1240,
+   "no_trade_days_inside_span": 0,
+   "no_trade_ranges": [],
+   "probed_back_to": "2020-03-23T00:00:00Z",
+   "empty_probe_before_first_candle": true,
+   "span_is_product_lifetime_on_venue": true,
+   "lowest_daily_low": {
+    "price": 0.28,
+    "day": "2022-06-18",
+    "scope": "this venue product, first candle through last candle in this file",
+    "is_all_time_low": false,
+    "why_not_all_time": "Covers one product on one venue; the asset traded elsewhere before and after, and the pre-Coinbase low is not in this data."
+   },
+   "highest_daily_high": {
+    "price": 13.633,
+    "day": "2024-03-17"
+   },
+   "weekly": {
+    "weeks": 178,
+    "complete_weeks": 176,
+    "incomplete_weeks": [
+     {
+      "t": "2022-01-31",
+      "flags": [
+       "starts_before_first_candle"
+      ]
+     },
+     {
+      "t": "2025-06-23",
+      "flags": [
+       "series_ends_mid_week"
+      ]
+     }
+    ]
+   }
+  },
+  "RNDR-EUR": {
+   "venue": "coinbase-exchange",
+   "status": "delisted",
+   "first_candle": "2022-02-03",
+   "last_candle": "2025-06-26",
+   "daily_candles": 1239,
+   "complete_daily_candles": 1239,
+   "no_trade_days_inside_span": 1,
+   "no_trade_ranges": [
+    {
+     "from": "2023-01-01",
+     "to": "2023-01-01",
+     "days": 1
+    }
+   ],
+   "probed_back_to": "2020-03-23T00:00:00Z",
+   "empty_probe_before_first_candle": true,
+   "span_is_product_lifetime_on_venue": true,
+   "lowest_daily_low": {
+    "price": 0.27,
+    "day": "2022-06-18",
+    "scope": "this venue product, first candle through last candle in this file",
+    "is_all_time_low": false,
+    "why_not_all_time": "Covers one product on one venue; the asset traded elsewhere before and after, and the pre-Coinbase low is not in this data."
+   },
+   "highest_daily_high": {
+    "price": 12.5129,
+    "day": "2024-03-17"
+   },
+   "weekly": {
+    "weeks": 178,
+    "complete_weeks": 176,
+    "incomplete_weeks": [
+     {
+      "t": "2022-01-31",
+      "flags": [
+       "starts_before_first_candle"
+      ]
+     },
+     {
+      "t": "2025-06-23",
+      "flags": [
+       "series_ends_mid_week"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "lineage": {
+  "stitched": false,
+  "predecessor": {
+   "series_id": "coinbase-exchange:RNDR-USD:1d",
+   "token": "RNDR (Ethereum)",
+   "first": "2022-02-03",
+   "last": "2025-06-26"
+  },
+  "successor": {
+   "series_id": "coinbase-exchange:RENDER-USD:1d",
+   "token": "RENDER (Solana)",
+   "first": "2024-02-15",
+   "last": "2026-10-18"
+  },
+  "overlap_days": 498,
+  "overlap_first": "2024-02-15",
+  "overlap_last": "2025-06-26",
+  "close_ratio_render_over_rndr": {
+   "median": 1.000258,
+   "p05": 0.967256,
+   "p95": 1.005295
+  },
+  "note": "Two tokens and two order books traded side by side. A chart may place them on one axis only as separate, labelled series."
+ },
+ "intraday_archive": {
+  "source": "coinbase-exchange-candles",
+  "methodology": "exchange-candles-v1",
+  "absent_interval_means": "no trades in that interval (inside a fetched window)",
+  "RENDER-USD": {
+   "1h": {
+    "candles": 9020,
+    "first": "2025-10-01T12:00:00Z",
+    "last": "2026-10-12T17:00:00Z",
+    "fetched_ranges": [
+     {
+      "from": "2025-10-01T12:00:00Z",
+      "to": "2026-10-11T11:00:00Z"
+     }
+    ],
+    "no_trade_hour_gaps": [
+     {
+      "from": "2025-10-25T16:00:00Z",
+      "to": "2025-10-25T20:00:00Z",
+      "hours": 5
+     },
+     {
+      "from": "2026-05-08T02:00:00Z",
+      "to": "2026-05-08T06:00:00Z",
+      "hours": 5
+     }
+    ],
+    "candles_outside_fetched_windows": {
+     "count": 30,
+     "first": "2026-10-11T12:00:00Z",
+     "last": "2026-10-12T17:00:00Z",
+     "note": "present in the archive but not recorded in fetched_windows; absence of a candle there does not prove a no-trade hour"
+    }
+   },
+   "1m": {
+    "candles": 37109,
+    "fetched_ranges": [
+     {
+      "from": "2026-09-06T12:00:00Z",
+      "to": "2026-09-23T13:59:00Z"
+     },
+     {
+      "from": "2026-09-24T05:00:00Z",
+      "to": "2026-10-12T17:59:00Z"
+     }
+    ],
+    "note": "minute candles exist only for the ranges listed; a minute with no candle inside a fetched range had no trades"
+   }
+  },
+  "other_products_in_archive": "RNDR-* products are not in the archive; the archive holds current USD-quoted Coinbase products only"
+ },
+ "all_time_low": {
+  "established": false,
+  "reason": "No single source covers the asset's whole life. Coinbase starts in 2022 (RNDR) and 2024 (RENDER); CoinGecko's aggregate record cites an earlier low that this dataset does not contain.",
+  "external_reference_unverified": {
+   "source": "coingecko /coins/render-token market_data.atl",
+   "price_usd": 0.03665669,
+   "date": "2020-06-16"
+  }
+ }
+}

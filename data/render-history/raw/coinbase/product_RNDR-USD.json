@@ -1,0 +1,26 @@
+{
+ "fetched_at": "2026-10-18T22:33:53Z",
+ "http_status": 200,
+ "response": {
+  "auction_mode": false,
+  "base_currency": "RNDR",
+  "base_increment": "0.01",
+  "cancel_only": false,
+  "display_name": "RNDR-USD",
+  "fx_stablecoin": false,
+  "high_bid_limit_percentage": "",
+  "id": "RNDR-USD",
+  "limit_only": false,
+  "margin_enabled": false,
+  "max_slippage_percentage": "0.03000000",
+  "min_market_funds": "1",
+  "post_only": false,
+  "quote_currency": "USD",
+  "quote_increment": "0.0001",
+  "status": "delisted",
+  "status_message": "",
+  "trading_disabled": true
+ },
+ "sha256": "3fd7477e2b109e7bbf6f97d98fb48d3742824c443c7d95e1911f98fa80b4df1f",
+ "url": "https://api.exchange.coinbase.com/products/RNDR-USD"
+}

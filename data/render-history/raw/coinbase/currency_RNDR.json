@@ -1,0 +1,47 @@
+{
+ "fetched_at": "2026-10-18T22:33:59Z",
+ "http_status": 200,
+ "response": {
+  "convertible_to": [],
+  "default_network": "ethereum",
+  "details": {
+   "crypto_address_link": "https://etherscan.io/token/0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24?a={{address}}",
+   "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+   "display_name": null,
+   "group_types": [],
+   "max_withdrawal_amount": 7729000,
+   "min_withdrawal_amount": 1e-08,
+   "network_confirmations": 14,
+   "processing_time_seconds": null,
+   "push_payment_methods": [],
+   "sort_order": null,
+   "symbol": null,
+   "type": "crypto"
+  },
+  "display_name": "RNDR",
+  "id": "RNDR",
+  "max_precision": "0.00000001",
+  "message": "",
+  "min_size": "0.00000001",
+  "name": "Render Token",
+  "status": "delisted",
+  "supported_networks": [
+   {
+    "contract_address": "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+    "crypto_address_link": "https://etherscan.io/token/0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24?a={{address}}",
+    "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+    "destination_tag_regex": null,
+    "id": "ethereum",
+    "is_evm_network": true,
+    "max_withdrawal_amount": 7729000,
+    "min_withdrawal_amount": 1e-08,
+    "name": "Ethereum",
+    "network_confirmations": 14,
+    "processing_time_seconds": null,
+    "status": "delisted"
+   }
+  ]
+ },
+ "sha256": "3004cf07872908eb267967876b9533d457e8fccea94c34250594fe7908f70068",
+ "url": "https://api.exchange.coinbase.com/currencies/RNDR"
+}

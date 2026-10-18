@@ -1,0 +1,91 @@
+{
+ "asset": {
+  "name": "Render Network",
+  "coingecko_id": "render-token",
+  "coingecko_symbol": "render",
+  "note": "CoinGecko treats the Ethereum RNDR token and the Solana RENDER token as one asset. Coinbase lists them as two separate currencies with different contracts, and both traded on Coinbase at the same time, so Moonwalking keeps them as separate series."
+ },
+ "tokens": [
+  {
+   "symbol": "RNDR",
+   "name": "Render Token",
+   "chain": "ethereum",
+   "coinbase_currency_status": "delisted",
+   "contract": "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+   "contract_source": "coinbase /currencies",
+   "coingecko_contract": "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+   "coinbase_contract_matches_coingecko": true
+  },
+  {
+   "symbol": "RENDER",
+   "name": "Render Network",
+   "chain": "solana",
+   "coinbase_currency_status": "online",
+   "contract": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
+   "contract_source": "coinbase /currencies",
+   "coingecko_contract": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
+   "coinbase_contract_matches_coingecko": true
+  }
+ ],
+ "markets": [
+  {
+   "venue": "coinbase-exchange",
+   "product_id": "RENDER-USD",
+   "base_currency": "RENDER",
+   "quote_currency": "USD",
+   "quote_kind": "fiat",
+   "status": "online",
+   "trading_disabled": false
+  },
+  {
+   "venue": "coinbase-exchange",
+   "product_id": "RNDR-USD",
+   "base_currency": "RNDR",
+   "quote_currency": "USD",
+   "quote_kind": "fiat",
+   "status": "delisted",
+   "trading_disabled": true
+  },
+  {
+   "venue": "coinbase-exchange",
+   "product_id": "RNDR-USDT",
+   "base_currency": "RNDR",
+   "quote_currency": "USDT",
+   "quote_kind": "stablecoin",
+   "status": "delisted",
+   "trading_disabled": true
+  },
+  {
+   "venue": "coinbase-exchange",
+   "product_id": "RNDR-EUR",
+   "base_currency": "RNDR",
+   "quote_currency": "EUR",
+   "quote_kind": "fiat",
+   "status": "delisted",
+   "trading_disabled": true
+  }
+ ],
+ "other_venues_checked": [
+  {
+   "venue": "binance",
+   "symbols": [
+    "RENDERUSDT",
+    "RNDRUSDT"
+   ],
+   "result": "HTTP 451 from this location on api.binance.com; no data obtained and none sought by other means"
+  }
+ ],
+ "probed_coinbase_product_ids_not_found": [
+  "RNDR-BTC",
+  "RENDER-USDC",
+  "RENDER-USDT",
+  "RENDER-BTC",
+  "RENDER-EUR",
+  "RENDER-GBP"
+ ],
+ "sources": [
+  "coinbase /products/{id}",
+  "coinbase /currencies/{RENDER,RNDR}",
+  "coingecko /coins/render-token"
+ ]
+}

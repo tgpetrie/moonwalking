@@ -1,0 +1,68 @@
+{
+ "contract": "moonwalking.market-history/v1",
+ "as_of": "2026-10-18T00:00:00Z",
+ "generated_by": "scripts/render_history/build_datasets.py",
+ "requests_made": 39,
+ "series": [
+  {
+   "series_id": "coinbase-exchange:RENDER-USD:1d",
+   "file": "series/coinbase_RENDER-USD_1d.json",
+   "candles": 977,
+   "first": "2024-02-15",
+   "last": "2026-10-18"
+  },
+  {
+   "series_id": "coinbase-exchange:RENDER-USD:1w",
+   "file": "weekly/coinbase_RENDER-USD_1w.json",
+   "candles": 140,
+   "first": "2024-02-12",
+   "last": "2026-10-12"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-USD:1d",
+   "file": "series/coinbase_RNDR-USD_1d.json",
+   "candles": 1240,
+   "first": "2022-02-03",
+   "last": "2025-06-26"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-USD:1w",
+   "file": "weekly/coinbase_RNDR-USD_1w.json",
+   "candles": 178,
+   "first": "2022-01-31",
+   "last": "2025-06-23"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-USDT:1d",
+   "file": "series/coinbase_RNDR-USDT_1d.json",
+   "candles": 1240,
+   "first": "2022-02-03",
+   "last": "2025-06-26"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-USDT:1w",
+   "file": "weekly/coinbase_RNDR-USDT_1w.json",
+   "candles": 178,
+   "first": "2022-01-31",
+   "last": "2025-06-23"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-EUR:1d",
+   "file": "series/coinbase_RNDR-EUR_1d.json",
+   "candles": 1239,
+   "first": "2022-02-03",
+   "last": "2025-06-26"
+  },
+  {
+   "series_id": "coinbase-exchange:RNDR-EUR:1w",
+   "file": "weekly/coinbase_RNDR-EUR_1w.json",
+   "candles": 178,
+   "first": "2022-01-31",
+   "last": "2025-06-23"
+  }
+ ],
+ "identity": "identity.json",
+ "coverage": "coverage.json",
+ "validation": "validation.json",
+ "raw": "raw/"
+}

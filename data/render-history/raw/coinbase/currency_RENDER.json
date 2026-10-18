@@ -1,0 +1,49 @@
+{
+ "fetched_at": "2026-10-18T22:33:57Z",
+ "http_status": 200,
+ "response": {
+  "convertible_to": [],
+  "default_network": "solana",
+  "details": {
+   "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+   "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+   "display_name": null,
+   "group_types": [],
+   "max_withdrawal_amount": 90000,
+   "min_withdrawal_amount": 1e-08,
+   "network_confirmations": 31,
+   "processing_time_seconds": null,
+   "push_payment_methods": [
+    "crypto"
+   ],
+   "sort_order": 500,
+   "symbol": null,
+   "type": "crypto"
+  },
+  "display_name": "RENDER",
+  "id": "RENDER",
+  "max_precision": "0.00000001",
+  "message": "",
+  "min_size": "0.00000001",
+  "name": "Render Network",
+  "status": "online",
+  "supported_networks": [
+   {
+    "contract_address": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
+    "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+    "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+    "destination_tag_regex": null,
+    "id": "solana",
+    "is_evm_network": false,
+    "max_withdrawal_amount": 90000,
+    "min_withdrawal_amount": 1e-08,
+    "name": "Solana",
+    "network_confirmations": 31,
+    "processing_time_seconds": null,
+    "status": "online"
+   }
+  ]
+ },
+ "sha256": "22ce4810eda88fe822ebc5909ea4a8b1bb3e01b607d4a11fd30e5175192fcc3b",
+ "url": "https://api.exchange.coinbase.com/currencies/RENDER"
+}

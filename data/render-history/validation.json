@@ -1,0 +1,62 @@
+{
+ "as_of": "2026-10-18T00:00:00Z",
+ "passed": true,
+ "products": {
+  "RENDER-USD": {
+   "http_all_200": true,
+   "rows_after_dedupe": 977,
+   "boundary_duplicates_identical": 3,
+   "boundary_duplicates_conflicting": [],
+   "row_problems": [],
+   "large_moves": [],
+   "zero_volume_days": [],
+   "passed": true,
+   "daily_vs_archived_hourly": {
+    "days_compared": 374,
+    "ohlc_days_matching": 374,
+    "ohlc_mismatches": [],
+    "volume_days_differing": 18,
+    "volume_max_rel_diff": 0.0059753685212355755,
+    "volume_median_rel_diff": 9.159618620897746e-05,
+    "volume_differences_over_1pct": [],
+    "days_native_missing_but_hourly_present": [],
+    "days_hourly_missing_but_native_present": [],
+    "price_rel_tol": 1e-09,
+    "volume_exact_rel_tol": 1e-06,
+    "volume_warn_rel": 0.01,
+    "reading": "OHLC must match exactly. Volume may differ slightly because the exchange builds hourly and daily candles at different times; differences above volume_warn_rel are listed.",
+    "passed": true
+   }
+  },
+  "RNDR-USD": {
+   "http_all_200": true,
+   "rows_after_dedupe": 1240,
+   "boundary_duplicates_identical": 4,
+   "boundary_duplicates_conflicting": [],
+   "row_problems": [],
+   "large_moves": [],
+   "zero_volume_days": [],
+   "passed": true
+  },
+  "RNDR-USDT": {
+   "http_all_200": true,
+   "rows_after_dedupe": 1240,
+   "boundary_duplicates_identical": 4,
+   "boundary_duplicates_conflicting": [],
+   "row_problems": [],
+   "large_moves": [],
+   "zero_volume_days": [],
+   "passed": true
+  },
+  "RNDR-EUR": {
+   "http_all_200": true,
+   "rows_after_dedupe": 1239,
+   "boundary_duplicates_identical": 4,
+   "boundary_duplicates_conflicting": [],
+   "row_problems": [],
+   "large_moves": [],
+   "zero_volume_days": [],
+   "passed": true
+  }
+ }
+}

@@ -1,0 +1,7 @@
+{
+ "end": "2026-10-18T00:00:00Z",
+ "floor": "2020-01-01T00:00:00Z",
+ "note": "38 requests by the full pull (2 Binance answered 451) + 1 CoinGecko identity record",
+ "requests": 39,
+ "user_agent": "moonwalking-render-history/1.0 (read-only public data)"
+}
