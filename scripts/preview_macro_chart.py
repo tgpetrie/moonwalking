@@ -7,6 +7,7 @@ Run the frontend Vite server and open the printed relative URL.
 
 import argparse
 import hashlib
+import html
 import json
 from pathlib import Path
 
@@ -29,7 +30,9 @@ def build_preview(input_path: Path) -> Path:
     frontend = Path(__file__).resolve().parents[1] / "frontend"
     output_dir = frontend / ".runtime"
     output_dir.mkdir(exist_ok=True)
-    output = output_dir / f"macro-preview-{digest[:12]}.html"
+    output = output_dir / f"macro-preview-v2-{digest[:12]}.html"
+    symbol = data.get("instrument", {}).get("symbol") or data.get("asset", {}).get("symbol") or "Historical"
+    title = html.escape(str(symbol), quote=True)
     # The JSON is data, not executable JS. Escape HTML delimiters so strings in
     # source metadata cannot close the inert script element.
     encoded = json.dumps(data, ensure_ascii=True).replace("<", "\\u003c").replace(
@@ -39,7 +42,7 @@ def build_preview(input_path: Path) -> Path:
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="history-sha256" content="{digest}">
-<title>RENDER chart map · local research preview</title>
+<title>{title} chart map · local research preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&display=swap" rel="stylesheet">
