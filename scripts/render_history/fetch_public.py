@@ -74,8 +74,7 @@ def record(url: str, status: int, body: bytes, payload) -> dict:
 
 def save(path: Path, obj) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="
-")
+    path.write_text(json.dumps(obj, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
 def fetch_json(url: str):

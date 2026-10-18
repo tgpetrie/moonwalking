@@ -12450,7 +12450,7 @@
   "fetched_at": "2026-10-18T22:34:18Z",
   "raw_file": {
    "path": "raw/coinbase/candles_1d_RNDR-USD.json",
-   "sha256": "5f6a7bfea67eb63f38842e4b2bf84e6fa8b8a03b22d05264b16775bb4db091e6"
+   "sha256": "dba024f7a1355a11bb3a072b87a0a43f8c00fce449c51402330b831b1404ce31"
   },
   "methodology": "coinbase-native-daily-v1",
   "stitched": false,

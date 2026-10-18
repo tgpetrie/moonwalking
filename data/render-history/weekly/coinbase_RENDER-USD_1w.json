@@ -1734,7 +1734,7 @@
   "fetched_at": "2026-10-18T22:34:07Z",
   "raw_file": {
    "path": "raw/coinbase/candles_1d_RENDER-USD.json",
-   "sha256": "3d95f993bf7494030ae9289c34b294b74450c5d227ab515a0e4088a71b038952"
+   "sha256": "1c8fbcdd6bb9f0fc09edc7b21206751603d3bbaea151c842a455ea3ecb43cdbb"
   },
   "methodology": "weekly-from-daily-v1",
   "stitched": false,
