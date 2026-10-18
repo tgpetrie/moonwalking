@@ -907,10 +907,13 @@
       "codeSyntax": {
         "WEB": "var(--label-tracking-compact)"
       },
-      "scopes": [],
+      "scopes": [
+        "LETTER_SPACING"
+      ],
       "resolvedType": "FLOAT",
-      "value": 0.08,
-      "sourceUnit": "em"
+      "value": 8,
+      "sourceUnit": "em",
+      "figmaUnit": "PERCENT"
     },
     {
       "name": "typography/tracking/comfortable",
@@ -919,10 +922,13 @@
       "codeSyntax": {
         "WEB": "var(--label-tracking-comfortable)"
       },
-      "scopes": [],
+      "scopes": [
+        "LETTER_SPACING"
+      ],
       "resolvedType": "FLOAT",
-      "value": 0.14,
-      "sourceUnit": "em"
+      "value": 14.000000000000002,
+      "sourceUnit": "em",
+      "figmaUnit": "PERCENT"
     },
     {
       "name": "typography/weight/regular",
@@ -983,9 +989,12 @@
       "codeSyntax": {
         "WEB": "var(--leading-tight)"
       },
-      "scopes": [],
+      "scopes": [
+        "LINE_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
-      "value": 1.2
+      "value": 120,
+      "figmaUnit": "PERCENT"
     },
     {
       "name": "typography/lineHeight/body",
@@ -994,9 +1003,12 @@
       "codeSyntax": {
         "WEB": "var(--leading-body)"
       },
-      "scopes": [],
+      "scopes": [
+        "LINE_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
-      "value": 1.6
+      "value": 160,
+      "figmaUnit": "PERCENT"
     },
     {
       "name": "density/compactX",
@@ -1051,7 +1063,7 @@
         "WEB": "var(--layout-sidebar-w)"
       },
       "scopes": [
-        "GAP"
+        "WIDTH_HEIGHT"
       ],
       "resolvedType": "FLOAT",
       "value": 248,
@@ -1251,7 +1263,9 @@
       "codeSyntax": {
         "WEB": "var(--control-sm)"
       },
-      "scopes": [],
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
       "value": 36,
       "sourceUnit": "px"
@@ -1263,7 +1277,9 @@
       "codeSyntax": {
         "WEB": "var(--control-md)"
       },
-      "scopes": [],
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
       "value": 44,
       "sourceUnit": "px"
@@ -1275,7 +1291,9 @@
       "codeSyntax": {
         "WEB": "var(--control-lg)"
       },
-      "scopes": [],
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
       "value": 48,
       "sourceUnit": "px"
@@ -1287,7 +1305,9 @@
       "codeSyntax": {
         "WEB": "var(--control-checkbox)"
       },
-      "scopes": [],
+      "scopes": [
+        "WIDTH_HEIGHT"
+      ],
       "resolvedType": "FLOAT",
       "value": 16,
       "sourceUnit": "px"
@@ -1299,7 +1319,9 @@
       "codeSyntax": {
         "WEB": "var(--border-width)"
       },
-      "scopes": [],
+      "scopes": [
+        "STROKE_FLOAT"
+      ],
       "resolvedType": "FLOAT",
       "value": 1,
       "sourceUnit": "px"

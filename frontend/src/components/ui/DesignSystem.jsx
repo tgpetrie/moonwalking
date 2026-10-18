@@ -43,7 +43,10 @@ export function UiButton({
     componentProps.disabled = disabled || loading;
   } else if (disabled || loading) {
     componentProps["aria-disabled"] = "true";
+    componentProps.role = props.role || "link";
     componentProps.tabIndex = -1;
+    componentProps.href = undefined;
+    componentProps.to = undefined;
   }
 
   return (

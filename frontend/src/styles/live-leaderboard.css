@@ -253,6 +253,7 @@
   font-weight: 700;
   font-family: var(--font-numeric);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-row__label {
@@ -281,6 +282,7 @@
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-numeric);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .lb-row__chevron {
