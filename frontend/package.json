@@ -5,6 +5,7 @@
   "private": false,
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run -s tokens:check",
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",

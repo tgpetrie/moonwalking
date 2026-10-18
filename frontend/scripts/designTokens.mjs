@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tokenPath = path.join(frontendRoot, "src/design-system/tokens.json");
+const lockPath = path.join(frontendRoot, "src/design-system/.tokens-build.lock");
 
 export function collectTokens(node, pathParts = [], result = new Map(), inheritedType) {
   if (!node || typeof node !== "object" || Array.isArray(node)) return result;
@@ -142,6 +143,10 @@ export function renderFigmaManifest(source) {
       entry.resolvedType = "FLOAT";
       entry.value = typeof value === "number" ? value : value.value * (value.unit === "rem" ? 16 : value.unit === "s" ? 1000 : 1);
       entry.sourceUnit = extensions["com.moonwalking.cssUnit"] || value.unit;
+      if (extensions["com.moonwalking.figmaUnit"] === "PERCENT") {
+        entry.value *= 100;
+        entry.figmaUnit = "PERCENT";
+      }
     }
     variables.push(entry);
   }
@@ -153,18 +158,50 @@ export function renderFigmaManifest(source) {
   }, null, 2) + "\n";
 }
 
+function publishOutputs(outputs, sourceSnapshot) {
+  const lock = fs.openSync(lockPath, "wx");
+  fs.writeFileSync(lock, String(process.pid));
+  const staged = outputs.map(([relativePath, expected]) => {
+    const output = path.join(frontendRoot, relativePath);
+    return { output, expected, temporary: `${output}.tmp-${process.pid}`, previous: fs.existsSync(output) ? fs.readFileSync(output) : undefined };
+  });
+  let published = false;
+  try {
+    for (const entry of staged) fs.writeFileSync(entry.temporary, entry.expected);
+    if (fs.readFileSync(tokenPath, "utf8") !== sourceSnapshot) throw new Error("Token source changed during generation. Run tokens:build again.");
+    published = true;
+    for (const entry of staged) fs.renameSync(entry.temporary, entry.output);
+  } catch (error) {
+    if (published) {
+      for (const entry of staged) {
+        if (entry.previous !== undefined) fs.writeFileSync(entry.output, entry.previous);
+        else fs.rmSync(entry.output, { force: true });
+      }
+    }
+    throw error;
+  } finally {
+    for (const entry of staged) fs.rmSync(entry.temporary, { force: true });
+    fs.closeSync(lock);
+    fs.rmSync(lockPath);
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const source = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
+  // A process killed between publications leaves this marker; checks and builds
+  // must refuse that partial generation until it has been regenerated.
+  if (fs.existsSync(lockPath)) throw new Error("Token generation is running or was interrupted. Confirm no tokens:build process is running, remove src/design-system/.tokens-build.lock, then regenerate.");
+  const sourceSnapshot = fs.readFileSync(tokenPath, "utf8");
+  const source = JSON.parse(sourceSnapshot);
   const mode = process.argv[2] || "build";
   if (!["build", "check"].includes(mode)) throw new Error(`Unknown mode: ${mode}`);
   const outputs = [
     ["src/styles/design-tokens.css", renderTokenCss(source)],
     ["src/design-system/tokens.figma.json", renderFigmaManifest(source)],
   ];
-  for (const [relativePath, expected] of outputs) {
+  if (mode === "build") publishOutputs(outputs, sourceSnapshot);
+  else for (const [relativePath, expected] of outputs) {
     const output = path.join(frontendRoot, relativePath);
-    if (mode === "build") fs.writeFileSync(output, expected);
-    else if (!fs.existsSync(output) || fs.readFileSync(output, "utf8").replaceAll("\r\n", "\n") !== expected) {
+    if (!fs.existsSync(output) || fs.readFileSync(output, "utf8").replaceAll("\r\n", "\n") !== expected) {
       throw new Error(`${relativePath} is stale. Run npm run tokens:build.`);
     }
   }

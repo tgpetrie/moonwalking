@@ -32,8 +32,17 @@
 .ui-button:focus-visible,
 .ui-field__control:focus-visible,
 .ui-checkbox input:focus-visible {
-  outline: none;
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
   box-shadow: var(--shadow-focus);
+}
+
+@media (forced-colors: active) {
+  .ui-button:focus-visible,
+  .ui-field__control:focus-visible,
+  .ui-checkbox input:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 .ui-button:disabled,

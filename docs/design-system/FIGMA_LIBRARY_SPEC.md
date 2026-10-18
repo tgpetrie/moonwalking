@@ -146,6 +146,9 @@ interface text and `--font-numeric` for numbers; both resolve to Raleway.
 The generated manifest converts rem to pixels at a 16px root. CSS retains rem
 units for browser font scaling. Typography tracking tokens carry their source
 em units and require conversion to percent when applied to Figma text styles.
+The generated manifest performs that conversion and marks `figmaUnit=PERCENT`:
+bind tracking and line-height variables after setting that unit on the text
+node. Sidebar and control sizes use `WIDTH_HEIGHT`; spacing uses `GAP`.
 
 ## Reconciliation checklist
 

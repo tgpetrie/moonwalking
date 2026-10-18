@@ -368,3 +368,9 @@ If you add, rename, or repurpose a token: update
 `npm run tokens:build`, and update the relevant contract here. Run
 `npm run verify` before committing. The frontend uses npm and
 `frontend/package-lock.json` as its dependency contract.
+
+Token generation stages both outputs under an exclusive lock, checks that the
+source has not changed, then publishes them with rollback on normal write
+failures. An interrupted process leaves `.tokens-build.lock` to block builds.
+After confirming the generator has stopped, remove that marker and run
+`npm run tokens:build` to recover. Production builds also run `tokens:check`.

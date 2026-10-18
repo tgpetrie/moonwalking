@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { UiButton, UiCard, UiCheckbox, UiField } from "./DesignSystem.jsx";
 
@@ -16,8 +16,9 @@ describe("Moonwalking design system primitives", () => {
     render(<UiField label="Email" hint="Account email" error="Required" />);
     const input = screen.getByLabelText("Email");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input.getAttribute("aria-describedby")).toContain("hint");
-    expect(input.getAttribute("aria-describedby")).toContain("error");
+    const descriptions = input.getAttribute("aria-describedby").split(" ");
+    expect(descriptions).toEqual([screen.getByText("Account email").id, screen.getByText("Required").id]);
+    expect(input).toHaveAccessibleDescription("Account email Required");
   });
 
   it("forwards checkbox changes through the labeled control", () => {
@@ -35,11 +36,21 @@ describe("Moonwalking design system primitives", () => {
   it("blocks disabled links and forwards clicks for active links", () => {
     const onClick = vi.fn();
     const { rerender } = render(<UiButton as="a" href="#target" disabled onClick={onClick}>Open</UiButton>);
-    fireEvent.click(screen.getByRole("link", { name: "Open" }));
+    const disabledLink = screen.getByRole("link", { name: "Open" });
+    const click = createEvent.click(disabledLink);
+    fireEvent(disabledLink, click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(disabledLink).not.toHaveAttribute("href");
     expect(onClick).not.toHaveBeenCalled();
     expect(screen.getByRole("link")).toHaveAttribute("aria-disabled", "true");
     rerender(<UiButton as="a" href="#target" onClick={onClick}>Open</UiButton>);
     fireEvent.click(screen.getByRole("link", { name: "Open" }));
     expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it("removes a custom router link's destination while loading", () => {
+    const RoutedLink = ({ to, ...props }) => <a href={to} {...props} />;
+    render(<UiButton as={RoutedLink} to="/target" loading>Open</UiButton>);
+    expect(screen.getByRole("link", { name: "Open" })).not.toHaveAttribute("href");
   });
 });

@@ -7,7 +7,7 @@ Branch: `codex/design-system-integration`
 
 - Clean frontend install: `npm ci --ignore-scripts` passed.
 - `npm run verify` passed: generated CSS and Figma manifest match their source,
-  production build succeeded, and all 334 tests in 31 files passed.
+  production build succeeded, and all 336 tests in 31 files passed.
 - Repository `npm run guardrails` passed.
 - `git diff --check` passed.
 - CI now runs token verification, production build, and the frontend suite.

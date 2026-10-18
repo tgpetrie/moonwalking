@@ -31,4 +31,15 @@ describe("design token pipeline", () => {
   it("gives every source token a resolved type", () => {
     expect([...collectTokens(source).values()].every((token) => token.$type)).toBe(true);
   });
+
+  it("exports Figma geometry and text bindings with the correct scopes and units", () => {
+    const { variables } = JSON.parse(renderFigmaManifest(source));
+    expect(variables.find((entry) => entry.name === "layout/sidebar").scopes).toEqual(["WIDTH_HEIGHT"]);
+    expect(variables.find((entry) => entry.name === "layout/gutter").scopes).toEqual(["GAP"]);
+    const tracking = variables.find((entry) => entry.name === "typography/tracking/compact");
+    expect(tracking.scopes).toEqual(["LETTER_SPACING"]);
+    expect(tracking.value).toBeCloseTo(8);
+    expect(tracking.figmaUnit).toBe("PERCENT");
+    expect(renderTokenCss(source)).toContain("--label-tracking-compact: 0.08em");
+  });
 });
