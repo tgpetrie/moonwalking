@@ -175,3 +175,36 @@ def test_identity_contracts_match_between_sources():
     ident = json.loads((DATA / "identity.json").read_text())
     assert {t["symbol"] for t in ident["tokens"]} == {"RENDER", "RNDR"}
     assert all(t["coinbase_contract_matches_coingecko"] for t in ident["tokens"])
+
+
+# ---- reference parity / indicator fixture --------------------------------
+
+import reference_parity as rp  # noqa: E402
+
+
+def test_indicator_basics():
+    closes = [float(i) for i in range(1, 61)]
+    rows = rp.indicators(closes)
+    assert rows[48]["sma50"] is None and rows[49]["sma50"] == sum(range(1, 51)) / 50
+    assert rows[-1]["sma200"] is None
+    assert rows[0]["macd"] == 0.0  # both EMAs seeded with the first close
+    assert rows[-1]["rsi14"] == 100.0  # only up moves
+    assert rows[-1]["macd_hist"] == rows[-1]["macd"] - rows[-1]["macd_signal"]
+
+
+def test_rma_seeds_with_sma():
+    out = rp.rma([1, 2, 3, 4, 5], 3)
+    assert out[:2] == [None, None] and out[2] == 2.0 and out[3] == (2.0 * 2 + 4) / 3
+
+
+@pytest.mark.skipif(not (DATA / "reference_parity.json").exists(), reason="parity file not built")
+def test_parity_file_never_publishes_a_joined_sma200_as_render():
+    doc = json.loads((DATA / "reference_parity.json").read_text())
+    ind = doc["indicators_at_recording_bar"]
+    assert ind["coinbase_render_usd_only"]["sma200"] is None
+    assert "warning" in ind["comparison_only_rndr_then_render"]
+    fixture = doc["indicator_fixture"]["rows"]
+    weekly = json.loads((DATA / "weekly" / "coinbase_RENDER-USD_1w.json").read_text())["candles"]
+    complete = {c["t"] for c in weekly if c["complete"]}
+    times = [r["t"] for r in fixture]
+    assert len(fixture) == 100 and times == sorted(times) and set(times) <= complete

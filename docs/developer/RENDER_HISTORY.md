@@ -179,6 +179,44 @@ Rules the consumer can rely on:
 - Methodology strings are versioned. A change to how a series is derived
   bumps them.
 
+## 5a. Parity with the chart-methodology review
+
+The review "RENDER Chart Methodology Review" (Gemini, from the video) gives
+TradingView readings. `scripts/render_history/reference_parity.py` compares
+them with Coinbase RENDER-USD weeks and writes
+`data/render-history/reference_parity.json`. These are a reviewer's
+transcriptions, not exchange data.
+
+- **Several of the review's bar dates are wrong.** Its "current bar, Mon 12
+  Oct '26" (O 1.9750 H 2.1995 L 1.7609 C 1.9960) is Coinbase's week of
+  **5 Oct** to within 0.25% on every field. Its "local wave (5) high 2.4395,
+  11 May '26" is the week of **25 May** on Coinbase (high 2.435). Its
+  "17 Aug '26" bar fits no week well. Re-check dates against the video before
+  using them as test fixtures.
+- **Where dates line up, highs and lows mostly agree** (macro high 13.6352
+  vs 13.649, Feb 2026 low 1.1238 vs 1.122, May 2025 bar within 0.07%). Several
+  opens and closes are 4 to 18% off, which points to misreadings or a
+  different price source.
+- **The Oct 2025 liquidation wick depends on the venue.** Coinbase printed
+  0.651 (2025-10-10). The review reads ~0.80 to 0.90. Any anchor or wave rule
+  that uses wicks will give different answers per venue.
+- **Indicators on the 5 Oct week, Coinbase RENDER-USD complete weeks:**
+  SMA50 1.7048 (review 1.6998), SMA100 3.1839 (3.1332), MACD -0.0021 /
+  signal -0.0898 / hist 0.0877 (-0.0018 / -0.0995 / 0.0977), Stoch RSI
+  %K 94.29, %D 92.01 (inside the review's ranges).
+- **SMA200 cannot be computed from RENDER-USD**: it has 138 complete weeks.
+  The review's 3.7009 needs about four years of weekly closes, so the
+  TradingView source must carry RNDR history. Joining RNDR-USD before
+  2024-02-19 to RENDER-USD gives 3.6734. That figure is a comparison only and
+  is not published as a series.
+- The review's acceptance target "SMA within 0.05% of the video values"
+  cannot hold across venues. Hold indicator parity to identical input closes
+  instead: `indicator_fixture` in `reference_parity.json` has the last 100
+  complete weeks with SMA50/100/200, MACD(12,26,9), RSI14 and Stoch RSI
+  (3,3,14,14). Conventions are listed in the file. The EMA warm-up seed is the
+  Pine reference example's convention. TradingView's built-in may differ in
+  the first bars; this is not verified.
+
 ## 6. Reproducing
 
 ```powershell
@@ -189,6 +227,7 @@ $py = "$env:USERPROFILE\.moonwalking\venv\Scripts\python.exe"
 & $py -I -c "import sqlite3; s=sqlite3.connect('file:'+r'C:\Users\<you>\.moonwalking\data\candle_archive.sqlite'+'?mode=ro',uri=True); d=sqlite3.connect('archive_copy.sqlite'); s.backup(d)"
 # 3. Build
 & $py -I scripts\render_history\build_datasets.py --raw data\render-history\raw --out data\render-history --archive archive_copy.sqlite
+& $py -I scripts\render_history\reference_parity.py --data data\render-history
 & $py -I -m pytest scripts\render_history -q
 ```
 
