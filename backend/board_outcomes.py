@@ -19,6 +19,8 @@ import time
 from typing import Any
 
 from live_ranking import build_feature_snapshot
+from storage_retention import Throttle, clear_old_feature_snapshots
+from storage_retention import retention_days as _env_days
 
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "data" / "signal_outcomes.sqlite"
@@ -89,6 +91,7 @@ class BoardOutcomeStore:
             30, int(os.getenv("MW_BOARD_MIN_INDEPENDENT_SAMPLES", "100"))
         )
         self.minimum_span_days = max(1, int(os.getenv("MW_BOARD_MIN_SPAN_DAYS", "14")))
+        self._prune_throttle = Throttle()
         self._init_lock = threading.Lock()
         self._summary_lock = threading.Lock()
         self._summary_cache: tuple[float, dict[str, Any]] | None = None
@@ -319,6 +322,38 @@ class BoardOutcomeStore:
             return "reversal"
         return "noise"
 
+    def _prune_feature_snapshots(
+        self, conn: sqlite3.Connection, now_ts: float, *, force: bool = False
+    ) -> None:
+        """Blank old feature-snapshot JSON on finished rows (throttled).
+
+        The JSON is write-only research context, so graded returns and every
+        published statistic are unchanged. ``MW_FEATURE_SNAPSHOT_RETENTION_DAYS``
+        sets the window (default 14); ``0`` disables it.
+        """
+        if not force and not self._prune_throttle.due():
+            return
+        days = _env_days("MW_FEATURE_SNAPSHOT_RETENTION_DAYS", 14, 1)
+        if not days:
+            return
+        try:
+            clear_old_feature_snapshots(
+                conn, TABLE_NAME, "entered_ts", now_ts - days * 86400
+            )
+        except sqlite3.Error:
+            pass  # housekeeping must never stop outcome grading
+
+    def prune_storage(self, now_ts: float | None = None) -> None:
+        """Run the retention limits immediately (maintenance and tests)."""
+        conn = self._connect()
+        try:
+            with conn:
+                self._prune_feature_snapshots(
+                    conn, time.time() if now_ts is None else now_ts, force=True
+                )
+        finally:
+            conn.close()
+
     def observe(
         self,
         boards: dict[str, list[dict[str, Any]] | None],
@@ -531,6 +566,7 @@ class BoardOutcomeStore:
                     f"DELETE FROM {TABLE_NAME} WHERE complete = 1 AND entered_ts < ?",
                     (now_ts - retention_days * 86400,),
                 )
+                self._prune_feature_snapshots(conn, now_ts)
         finally:
             conn.close()
         # Outcome summaries are deliberately allowed to lag the scanner by at
