@@ -10,7 +10,7 @@ const HISTORY_RIGHT = 855;
 const LEVEL_RIGHT = 1008;
 
 export default function MacroPriceChart({ candles, pivots, scenario, macro = null, historical = [], future = null,
-  latestCandle, currency, interval, scale = 'log' }) {
+  latestCandle, referenceLevels = [], nested = [], currency, interval, scale = 'log' }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState(null);
   if (!candles.length) return null;
@@ -70,6 +70,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
               <title>50–78.6% recovery reference from the selected macro high and low; no forecast date</title>
             </rect>
             {macroBand.map((price) => <line key={price} x1={HISTORY_RIGHT} x2={LEVEL_RIGHT} y1={y(price)} y2={y(price)} />)}
+            {macroBand.map((price, i) => <text className="macro-chart-level-label" key={`label-${price}`} x={HISTORY_RIGHT + 5} y={y(price) + (i ? -7 : 14)}>{i ? '78.6%' : '50%'} {priceText(price, currency)}</text>)}
           </g>}
           {valid && <>
             <rect className="macro-chart-zone macro-chart-zone--pullback" x={LEFT} width={LEVEL_RIGHT - LEFT}
@@ -91,6 +92,10 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
           {visiblePivots.map((pivot) => <circle className="macro-chart-pivot" key={pivot.id} cx={x(pivot.time)} cy={y(pivot.price)} r={3}>
             <title>{pivot.type} {dateText(pivot.extreme_time ?? pivot.time)} · Confirmed {dateText(pivot.confirmed_at)}</title>
           </circle>)}
+          {referenceLevels.map((p, i) => <g className="macro-chart-reference" key={p.label}>
+            <line x1={Math.max(LEFT, x(p.time))} x2={LEVEL_RIGHT} y1={y(p.price)} y2={y(p.price)} />
+            <text className="macro-chart-level-label" x={HISTORY_RIGHT + 5} y={y(p.price) + (i ? -7 : 15)}>{p.label} {priceText(p.price, currency)}</text>
+          </g>)}
           {valid && !historical.length && <polyline className="macro-chart-anchors" points={scenario.anchors.map((anchor) => `${x(anchor.time)},${y(anchor.price)}`).join(' ')} />}
           {valid && !historical.length && scenario.anchors.map((anchor, index) => <g key={anchor.id}>
             <circle className="macro-chart-anchor" cx={x(anchor.time)} cy={y(anchor.price)} r={5} />
@@ -102,6 +107,9 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
             <circle className="macro-chart-anchor" cx={x(p.time)} cy={y(p.price)} r={5} />
             <text className="macro-chart-anchor-label" x={x(p.time)} y={y(p.price) + (p.type === 'high' ? -15 : 23)} textAnchor="middle">{p.label}</text>
           </g>)}
+          {nested.length > 0 && <polyline className="macro-chart-nested" points={nested.map((p) => `${x(p.time)},${y(p.price)}`).join(' ')} />}
+          {nested.filter((p) => p.time >= first && p.time <= last).map((p) => <text key={p.label} className="macro-nested-label"
+            x={x(p.time) + 7} y={y(p.price) + (p.type === 'high' ? -8 : 18)}>{p.label}<title>{p.label} · {dateText(p.extreme_time ?? p.time)} · {priceText(p.price, currency)} · Confirmed {dateText(p.confirmed_at)}</title></text>)}
           {futurePath && <g className="macro-chart-future">
             <title>Hypothetical E? at {priceText(futurePath.price, currency)} · {futurePath.ratio} of selected macro range · No estimated date or probability</title>
             <line x1={x(latestCandle.time)} y1={y(latestCandle.close)} x2={LEVEL_RIGHT - 22} y2={y(futurePath.price)} />

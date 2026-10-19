@@ -105,6 +105,20 @@ secrets, downloaded prices, dependencies or generated build output are staged.
 
 ## Remaining implementation sequence toward entering any coin
 
+Automatic-search slice: `/chart-map` now searches real Coinbase USD products
+and loads daily history itself. AMP was tested end to end in the browser;
+uploads and anchor choices are no longer required. The page explains recent
+levels, recovery/downside references and whether the selected case exceeds the
+highest price in available history. Optional small a–d labels distinguish the
+recent scale from macro A–D. Local overlays and manual controls are optional.
+See [source boundary, behavior and verification](COIN_SEARCH_AND_EXPLANATIONS_2026-10-18.md).
+This completes the first provider adapter, not universal coin coverage,
+migration resolution, proven pattern matching or probability estimates.
+Final checks: **528 tests in 43 files**, token sync/build, guardrails and
+whitespace checks pass. AMP browser search/load, unsupported search retaining
+AMP, numeric levels, larger/smaller labels, both high-comparison cases and
+responsive containment pass; browser errors are empty. No production changes.
+
 Historical/future display update: solid macro A–D labels now render separately
 from local A/B/C validity. The selected high/low become C/D, with preceding
 lowest-low B and preceding highest-high A where available. The evidence list

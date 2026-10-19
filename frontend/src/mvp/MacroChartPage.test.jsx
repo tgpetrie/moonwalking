@@ -6,17 +6,27 @@ import MacroChartPage from './MacroChartPage.jsx';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+// Existing manual-geometry checks exercise the optional tools explicitly.
+function renderWithTools(ui) {
+  const view = render(ui);
+  for (const name of ['Adjust historical anchors', 'Optional: measure a smaller move', 'Details of the local measurement']) {
+    fireEvent.click(screen.getByText(name, { selector: 'summary' }));
+  }
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show local measurement' }));
+  return view;
+}
+
 describe('local long-term chart workspace', () => {
   it('starts with an honest empty state and makes no API requests', () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     render(<MacroChartPage />);
-    expect(screen.getByRole('heading', { name: 'Build a map from real price history' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Search a coin to build its price map' })).toBeVisible();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('plots completed weekly candles and exposes data coverage and scenario limits', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     expect(container.querySelectorAll('.macro-candle')).toHaveLength(30);
     expect(screen.getByText('Low in analysed history')).toBeVisible();
     expect(screen.getByText('High in analysed history')).toBeVisible();
@@ -25,11 +35,11 @@ describe('local long-term chart workspace', () => {
     expect(screen.getByRole('combobox', { name: 'Anchor A' }).value).toMatch(/^low-/);
     expect(screen.getByText('Conditional scenario')).toBeVisible();
     expect(screen.queryByLabelText('Load price history')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Change history file' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Change history file' })).not.toBeInTheDocument();
   });
 
   it('changes timeframe and withholds future candles and anchors during replay', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     fireEvent.click(screen.getByRole('button', { name: 'Daily', exact: true }));
     expect(container.querySelectorAll('.macro-candle')).toHaveLength(160);
     fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
@@ -39,7 +49,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('rejects incompatible anchor ordering while retaining the historical chart', () => {
-    render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const a = screen.getByRole('combobox', { name: 'Anchor A' });
     fireEvent.change(screen.getByRole('combobox', { name: 'Anchor B' }), { target: { value: a.value } });
     expect(screen.getByRole('status')).toHaveTextContent('Anchor dates must follow A, then B, then C.');
@@ -47,7 +57,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('changes the display scale without changing the selected anchors or level prices', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const levels = container.querySelector('.macro-scenario-grid').textContent;
     const a = screen.getByRole('combobox', { name: 'Anchor A' }).value;
     const macroLevels = container.querySelector('.macro-range-result').textContent;
@@ -60,7 +70,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('edits and resets the macro range independently of local A/B/C geometry', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const a = screen.getByRole('combobox', { name: 'Anchor A' }).value;
     const localLevels = container.querySelector('.macro-scenario-grid').textContent;
     const macroLow = screen.getByRole('combobox', { name: 'Macro low' });
@@ -80,7 +90,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('toggles the macro band and removes future anchors during replay', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const toggle = screen.getByRole('checkbox', { name: 'Show macro band' });
     expect(container.querySelector('.macro-chart-recovery')).toBeInTheDocument();
     fireEvent.click(toggle);
@@ -96,7 +106,7 @@ describe('local long-term chart workspace', () => {
   it('shows historical anchor labels even when local geometry does not qualify', () => {
     const input = syntheticHistory();
     input.candles.slice(14, 21).forEach((row) => { for (const key of ['open', 'high', 'low', 'close']) row[key] += 10; });
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(input)} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(input)} />);
     const before = [...container.querySelectorAll('.macro-history-anchor text')].map((p) => p.textContent);
     expect(before).toEqual(['A', 'B', 'C', 'D']);
     fireEvent.change(screen.getByRole('combobox', { name: 'Anchor B' }), {
@@ -109,7 +119,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('keeps future E? opt-in, separate from observed anchors, and resets it in replay', () => {
-    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const history = container.querySelector('.macro-chart-history').getAttribute('points');
     expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
     const future = screen.getByRole('checkbox', { name: 'Show future scenario' });
@@ -139,24 +149,25 @@ describe('local long-term chart workspace', () => {
   it('loads real-data-shaped files locally and retains the last good chart on invalid import', async () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     render(<MacroChartPage />);
+    fireEvent.click(screen.getByText('Advanced: use a saved history file', { selector: 'summary' }));
     const input = screen.getByLabelText('Load price history');
     fireEvent.change(input, { target: { files: [{ size: 5000, text: async () => JSON.stringify(syntheticHistory()) }] } });
     await waitFor(() => expect(screen.getByText('TEST history loaded')).toBeVisible());
     expect(screen.queryByLabelText('Load price history')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Change history file' }));
     fireEvent.change(screen.getByLabelText('Replace price history'), { target: { files: [{ size: 5, text: async () => '{bad' }] } });
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('not valid JSON'));
     expect(screen.getByText('TEST history loaded')).toBeVisible();
     expect(screen.getByRole('img')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Close file picker' }));
-    expect(screen.queryByLabelText('Replace price history')).not.toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Advanced: use a saved history file', { selector: 'summary' }));
+    expect(screen.getByLabelText('Replace price history')).not.toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent('not valid JSON');
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('ignores an earlier import that finishes after a later selection', async () => {
     let finish;
     render(<MacroChartPage />);
+    fireEvent.click(screen.getByText('Advanced: use a saved history file', { selector: 'summary' }));
     const input = screen.getByLabelText('Load price history');
     fireEvent.change(input, { target: { files: [{ size: 100, text: () => new Promise((resolve) => { finish = resolve; }) }] } });
     // A direct change can arrive even while the first input is disabled.
@@ -169,7 +180,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('offers a keyboard-readable candle inspection surface', () => {
-    render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const chart = screen.getByRole('img');
     fireEvent.keyDown(chart, { key: 'Home' });
     expect(screen.getByText('2024-01-01', { selector: 'figcaption strong' })).toBeVisible();
@@ -178,7 +189,7 @@ describe('local long-term chart workspace', () => {
   });
 
   it('renders a named unavailable state when replay has no completed weeks', () => {
-    render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     fireEvent.change(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-02' } });
     expect(screen.getByRole('heading', { name: 'No completed candles in this view' })).toBeVisible();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();

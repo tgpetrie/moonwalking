@@ -52,6 +52,29 @@ export function historicalMacro(pivots, range, { asOf } = {}) {
     interpretation: 'Historical anchor sequence; not a validated wave count.' };
 }
 
+export function recentSwingSequence(pivots, { asOf } = {}) {
+  const alternating = [];
+  for (const p of [...pivots].filter((p) => timestamp(asOf) && timestamp(p.confirmed_at)
+    && p.confirmed_at <= asOf).sort((a, b) => a.time - b.time)) {
+    const last = alternating.at(-1);
+    if (last?.type === p.type) {
+      if (p.type === 'high' ? p.price > last.price : p.price < last.price) alternating[alternating.length - 1] = p;
+    } else alternating.push(p);
+  }
+  return alternating.slice(-4).map((p, i) => ({ ...p, label: 'abcd'[i] }));
+}
+
+export function highComparison(range, referencePrice, lastClose, observedHigh = range?.anchors?.[0]?.price) {
+  if (range?.error || !positive(range?.anchors?.[0]?.price) || !positive(referencePrice) || !positive(lastClose)) return null;
+  if (!positive(observedHigh)) return null;
+  const previousHigh = observedHigh;
+  return { previous_high: previousHigh, reference: referencePrice,
+    relation: referencePrice > previousHigh ? 'above' : referencePrice < previousHigh ? 'below' : 'at',
+    percent_from_high: (referencePrice / previousHigh - 1) * 100,
+    already_above: lastClose > previousHigh,
+    explanation: 'A recovery below the old high and an extension above it are different scenarios. Neither is assigned a likelihood by this geometry.' };
+}
+
 export function structurePivots(candles, { mode = 'wick', left = 2, right = 2, interval = WEEK } = {}) {
   if (!['wick', 'body'].includes(mode)) throw new Error('Choose wick or body anchors.');
   const input = mode === 'wick' ? candles : candles.map((c) => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY, chartAt, confirmedPivots, parseHistory } from './macroChart.js';
-import { defaultMacroAnchors, historicalMacro, macroRange, structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
+import { defaultMacroAnchors, highComparison, historicalMacro, macroRange, recentSwingSequence, structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
 import { syntheticHistory } from '../test/macroHistory.test.fixture.js';
 
 // All arithmetic fixtures in this file are illustrative, not market observations.
@@ -9,6 +9,27 @@ const anchors = [
   { time: 20 * DAY, price: 4, confirmed_at: 22 * DAY, wick_price: 4, body_price: 4.4 },
 ];
 const options = { asOf: 22 * DAY };
+
+describe('different scales and high comparisons', () => {
+  it('restarts small letters for the latest four alternating confirmed swings', () => {
+    const pivots = [1, 2, 3, 4, 5, 6].map((n) => ({ id: n, time: n * DAY, confirmed_at: (n + 2) * DAY,
+      type: n % 2 ? 'low' : 'high', price: n }));
+    const result = recentSwingSequence(pivots, { asOf: 7 * DAY });
+    expect(result.map((p) => p.id)).toEqual([2, 3, 4, 5]);
+    expect(result.map((p) => p.label)).toEqual(['a', 'b', 'c', 'd']);
+    expect(recentSwingSequence(pivots)).toEqual([]);
+  });
+  it('distinguishes recovering below an old high, retesting it and exceeding it without odds', () => {
+    const range = { anchors: [{ price: 20 }] };
+    expect(highComparison(range, 15, 10)).toMatchObject({ relation: 'below', percent_from_high: -25, already_above: false });
+    expect(highComparison(range, 20, 10)).toMatchObject({ relation: 'at' });
+    expect(highComparison(range, 30, 21)).toMatchObject({ relation: 'above', percent_from_high: 50, already_above: true });
+    expect(highComparison({ error: 'missing' }, 15, 10)).toBeNull();
+    expect(highComparison(range, Infinity, 10)).toBeNull();
+    expect(highComparison(range, 30, 10).explanation).toMatch(/Neither is assigned a likelihood/);
+    expect(highComparison(range, 22, 10, 25)).toMatchObject({ relation: 'below', previous_high: 25 });
+  });
+});
 
 describe('macro drawdown range', () => {
   const high = { id: 'high', type: 'high', time: 10 * DAY, price: 20, confirmed_at: 12 * DAY };
