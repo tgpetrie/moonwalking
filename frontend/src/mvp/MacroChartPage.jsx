@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { UiButton, UiCard, UiChip, UiField } from '../components/ui/DesignSystem.jsx';
 import MacroPriceChart from '../components/charts/MacroPriceChart.jsx';
 import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
+import { defaultMacroAnchors, macroRange } from '../utils/chartStructure.js';
 import '../styles/macro-chart.css';
 
 const STATUS = {
@@ -47,12 +48,16 @@ function ChartWorkspace({ history }) {
 function ScenarioWorkspace({ chart, pivots, instrument }) {
   const [scale, setScale] = useState('log');
   const [anchorIds, setAnchorIds] = useState(() => defaultAnchors(pivots));
+  const [macroIds, setMacroIds] = useState(() => defaultMacroAnchors(pivots));
+  const [showMacro, setShowMacro] = useState(true);
   const [count, setCount] = useState(Math.min(160, Math.max(20, chart.candles.length)));
   const [offset, setOffset] = useState(0);
   const end = chart.candles.length - offset;
   const displayed = chart.candles.slice(Math.max(0, end - count), end);
   const anchors = anchorIds.map((id) => pivots.find((pivot) => pivot.id === id));
   const scenario = fibScenario(anchors, chart.candles);
+  const macroAnchors = macroIds.map((id) => pivots.find((p) => p.id === id));
+  const macro = macroRange(...macroAnchors, { asOf: chart.as_of });
   const valid = !scenario.error;
   const format = (price) => priceText(price, instrument.quote_currency);
   const low = chart.candles.length ? chart.candles.reduce((a, b) => a.low < b.low ? a : b) : null;
@@ -67,11 +72,30 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
       <UiCard><span className="macro-label">Low in analysed history</span><strong>{format(low.low)}</strong><small>{dateText(low.low_time ?? low.time)} · Available venue history</small></UiCard>
       <UiCard><span className="macro-label">High in analysed history</span><strong>{format(high.high)}</strong><small>{dateText(high.high_time ?? high.time)} · Available venue history</small></UiCard>
     </div>
+    <UiCard className="macro-range-panel">
+      <div className="macro-range-header"><div><span className="macro-label">Historical drawdown reference</span><h2>Macro price range</h2></div>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showMacro} onChange={(event) => setShowMacro(event.target.checked)} />Show macro band</label></div>
+      <div className="macro-range-grid">
+        {['High', 'Low'].map((name, index) => <label className="macro-select" key={name}>{name} · Confirmed swing
+          <select aria-label={`Macro ${name.toLowerCase()}`} value={macroIds[index]} onChange={(event) => setMacroIds((current) => current.map((id, i) => i === index ? event.target.value : id))}>
+            <option value="">Select a confirmed {name.toLowerCase()}</option>
+            {pivots.filter((p) => p.type === name.toLowerCase()).map((p) => <option key={p.id} value={p.id}>{dateText(p.extreme_time ?? p.time)} · {format(p.price)}</option>)}
+          </select>
+          {macroAnchors[index] && <small>Confirmable {dateText(macroAnchors[index].confirmed_at)}</small>}
+        </label>)}
+        <div className="macro-range-result">{macro.error ? <p className="macro-muted">{macro.error}</p> : <>
+          <span className="macro-label">50–78.6% recovery reference</span><strong>{format(macro.recovery_band[0])}–{format(macro.recovery_band[1])}</strong>
+          <small>Available from {dateText(macro.available_at)}</small>
+        </>}</div>
+      </div>
+      <div className="macro-range-description"><UiButton size="sm" onClick={() => setMacroIds(defaultMacroAnchors(pivots))}>Use observed range</UiButton>
+        <p>Default: highest confirmed high, then the lowest confirmed low after it. Linear-price Fibonacci levels describe this selected range; they do not establish a wave count or a likely destination.</p></div>
+    </UiCard>
     <div className="macro-workspace">
       <UiCard className="macro-chart-panel" padding="none">
         <div className="macro-chart-heading"><div><span className="macro-label">{instrument.symbol} / {instrument.quote_currency}</span><h2>The larger move</h2></div>
           <UiChip tone={valid && scenario.status === 'invalidated' ? 'danger' : 'neutral'}>{valid ? STATUS[scenario.status] : 'Historical structure'}</UiChip></div>
-        <MacroPriceChart candles={displayed} pivots={pivots} scenario={scenario} currency={instrument.quote_currency} interval={chart.interval_seconds} scale={scale} />
+        <MacroPriceChart candles={displayed} pivots={pivots} scenario={scenario} macro={showMacro ? macro : null} currency={instrument.quote_currency} interval={chart.interval_seconds} scale={scale} />
         <div className="macro-chart-navigation">
           <label className="macro-select">Price display
             <select aria-label="Price display" value={scale} onChange={(event) => setScale(event.target.value)}>
@@ -83,7 +107,7 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
           <UiButton size="sm" onClick={() => { setOffset(0); setCount(Math.min(400, chart.candles.length)); }}>Fit history</UiButton>
           {chart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, chart.candles.length)} value={Math.min(count, chart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
-        <div className="macro-chart-legend"><span>Solid: historical swings</span><span>Dashed: linear-price Fibonacci levels</span><span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
+        <div className="macro-chart-legend"><span>Solid: historical swings</span><span>Dashed: linear-price Fibonacci levels</span>{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <span className="macro-label">Choose the structure</span><h2>Three swing anchors</h2>

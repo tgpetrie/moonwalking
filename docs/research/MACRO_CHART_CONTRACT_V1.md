@@ -110,6 +110,32 @@ only subsequent completed bars whose starts are at/after that instant. Target
 and invalidation touches are reported separately, without claiming first-touch
 ordering, execution, or outcome validation.
 
+## Independent macro drawdown reference
+
+The macro high/low controls are separate from the local A/B/C controls. By
+default, select the highest confirmed high in the replay prefix, then the
+lowest confirmed low after that high (earliest timestamp breaks equal-price
+ties). An unavailable later low leaves the range unavailable. This is an
+explicit selection convention, not an inferred cycle or an all-time range.
+
+`macroRange` requires a high followed by a lower low, positive finite prices,
+valid timestamps, and both confirmations at/before an explicit replay cutoff.
+For low L and high H, compute `P(r) = L + r*(H-L)` for
+`0/.236/.309/.382/.5/.618/.702/.786/1/1.618/2.618/3.618/4.236`.
+The UI displays only the .5–.786 recovery band, its selected anchors and its
+availability date. Other ratios are calculation outputs, not additional
+rendered targets. Display scale does not alter these linear-price calculations.
+
+The mint band appears only in the LEVELS ONLY strip; it has no forecast date
+and does not paint the selected range back over earlier history. Anchor
+availability is the later confirmation, not the low's historical date. Macro
+selection and its reset button do not change A/B/C. Replay/timeframe/
+confirmation/import changes reset both selections from the new prefix. The
+band toggle changes display only. A valid macro band can coexist with invalid
+local geometry. No entry, stop, probability or outcome grade follows from it.
+
+See [macro-band verification and latest review audit](MACRO_RANGE_REVIEW_2026-10-18.md).
+
 ## Ownership and next integration
 
 - Claude: verified RENDER/RNDR history and source/coverage manifest.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY, chartAt, confirmedPivots, parseHistory } from './macroChart.js';
-import { structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
+import { defaultMacroAnchors, macroRange, structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
 import { syntheticHistory } from '../test/macroHistory.test.fixture.js';
 
 // All arithmetic fixtures in this file are illustrative, not market observations.
@@ -9,6 +9,69 @@ const anchors = [
   { time: 20 * DAY, price: 4, confirmed_at: 22 * DAY, wick_price: 4, body_price: 4.4 },
 ];
 const options = { asOf: 22 * DAY };
+
+describe('macro drawdown range', () => {
+  const high = { id: 'high', type: 'high', time: 10 * DAY, price: 20, confirmed_at: 12 * DAY };
+  const low = { id: 'low', type: 'low', time: 20 * DAY, price: 10, confirmed_at: 22 * DAY };
+  it('calculates linear-price levels independently of the chart display scale', () => {
+    const result = macroRange(high, low, options);
+    expect(result.error).toBeUndefined();
+    expect(result.recovery_band[0]).toBe(15);
+    expect(result.recovery_band[1]).toBeCloseTo(17.86, 12);
+    for (const [ratio, price] of [[0, 10], [0.309, 13.09], [0.702, 17.02], [1, 20], [1.618, 26.18]]) {
+      expect(result.levels.find((p) => p.ratio === ratio).price).toBeCloseTo(price, 12);
+    }
+    expect(result.available_at).toBe(low.confirmed_at);
+    expect(result.interpretation).toMatch(/no forecast date or measured probability/);
+  });
+  it('chooses the highest confirmed high then the lowest subsequent low, without mutating input', () => {
+    const before = { ...low, id: 'before', time: DAY, price: 1 };
+    const later = { ...low, id: 'later', time: 30 * DAY, price: 11 };
+    const input = [later, low, before, high];
+    const original = [...input];
+    expect(defaultMacroAnchors(input)).toEqual(['high', 'low']);
+    expect(input).toEqual(original);
+    expect(defaultMacroAnchors([before, high])).toEqual(['high', '']);
+    expect(defaultMacroAnchors([before])).toEqual(['', '']);
+    expect(defaultMacroAnchors([{ ...high, id: 'tie', time: 11 * DAY }, low, high])).toEqual(['high', 'low']);
+    expect(defaultMacroAnchors([{ ...low, id: 'tie', time: 21 * DAY }, low, high])).toEqual(['high', 'low']);
+  });
+  it.each([
+    ['missing anchor', undefined, low],
+    ['wrong type', { ...high, type: 'low' }, low],
+    ['earlier low', high, { ...low, time: high.time - DAY }],
+    ['same time', high, { ...low, time: high.time }],
+    ['higher low', high, { ...low, price: 21 }],
+    ['nonpositive low', high, { ...low, price: 0 }],
+    ['infinite high', { ...high, price: Infinity }, low],
+    ['missing confirmation', high, { ...low, confirmed_at: undefined }],
+    ['impossible confirmation', high, { ...low, confirmed_at: low.time - DAY }],
+    ['future confirmation', high, { ...low, confirmed_at: 23 * DAY }],
+  ])('withholds %s', (_, a, b) => {
+    expect(macroRange(a, b, options)).toHaveProperty('error');
+  });
+  it('requires an explicit cutoff and rejects overflowing extension arithmetic', () => {
+    expect(macroRange(high, low)).toHaveProperty('error');
+    expect(macroRange({ ...high, price: Number.MAX_VALUE }, low, options).error).toMatch(/numeric limits/);
+  });
+  it('matches a physically truncated export at every replay cutoff', () => {
+    const source = syntheticHistory();
+    const parsed = parseHistory(source);
+    for (const c of chartAt(parsed).candles) {
+      const replay = chartAt(parsed, '1w', c.end);
+      const truncated = chartAt(parseHistory({ ...source, captured_at: c.end,
+        candles: source.candles.filter((row) => row.end <= c.end) }));
+      const calculate = (chart) => {
+        const pivots = confirmedPivots(chart.candles).pivots;
+        const ids = defaultMacroAnchors(pivots);
+        return macroRange(...ids.map((id) => pivots.find((p) => p.id === id)), { asOf: chart.as_of });
+      };
+      expect(calculate(replay)).toEqual(calculate(truncated));
+      const result = calculate(replay);
+      if (!result.error) expect(result.available_at).toBeLessThanOrEqual(c.end);
+    }
+  });
+});
 
 describe('trendline calculation and information timing', () => {
   it('passes through both anchor prices exactly within floating point tolerance', () => {

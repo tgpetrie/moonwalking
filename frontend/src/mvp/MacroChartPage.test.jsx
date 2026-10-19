@@ -48,11 +48,47 @@ describe('local long-term chart workspace', () => {
     const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const levels = container.querySelector('.macro-scenario-grid').textContent;
     const a = screen.getByRole('combobox', { name: 'Anchor A' }).value;
+    const macroLevels = container.querySelector('.macro-range-result').textContent;
     expect(screen.getByRole('combobox', { name: 'Price display' })).toHaveValue('log');
     fireEvent.change(screen.getByRole('combobox', { name: 'Price display' }), { target: { value: 'linear' } });
     expect(screen.getByText('COMPLETED PRICE HISTORY · LINEAR SCALE')).toBeVisible();
     expect(container.querySelector('.macro-scenario-grid').textContent).toBe(levels);
     expect(screen.getByRole('combobox', { name: 'Anchor A' })).toHaveValue(a);
+    expect(container.querySelector('.macro-range-result').textContent).toBe(macroLevels);
+  });
+
+  it('edits and resets the macro range independently of local A/B/C geometry', () => {
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const a = screen.getByRole('combobox', { name: 'Anchor A' }).value;
+    const localLevels = container.querySelector('.macro-scenario-grid').textContent;
+    const macroLow = screen.getByRole('combobox', { name: 'Macro low' });
+    const originalLow = macroLow.value;
+    const originalBand = container.querySelector('.macro-range-result').textContent;
+    expect(container.querySelector('.macro-chart-recovery')).toBeInTheDocument();
+    fireEvent.change(macroLow, { target: { value: '' } });
+    expect(screen.getByText('Select a confirmed high and a later confirmed low.')).toBeVisible();
+    expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
+    fireEvent.change(macroLow, { target: { value: macroLow.options[1].value } });
+    expect(screen.getByText('The macro range needs a high followed by a lower low.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Use observed range' }));
+    expect(macroLow).toHaveValue(originalLow);
+    expect(container.querySelector('.macro-range-result').textContent).toBe(originalBand);
+    expect(screen.getByRole('combobox', { name: 'Anchor A' })).toHaveValue(a);
+    expect(container.querySelector('.macro-scenario-grid').textContent).toBe(localLevels);
+  });
+
+  it('toggles the macro band and removes future anchors during replay', () => {
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const toggle = screen.getByRole('checkbox', { name: 'Show macro band' });
+    expect(container.querySelector('.macro-chart-recovery')).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(container.querySelector('.macro-chart-recovery')).toBeInTheDocument();
+    fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
+    expect(screen.getByRole('combobox', { name: 'Macro high' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Macro low' })).toHaveValue('');
+    expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
   });
 
   it('loads real-data-shaped files locally and retains the last good chart on invalid import', async () => {

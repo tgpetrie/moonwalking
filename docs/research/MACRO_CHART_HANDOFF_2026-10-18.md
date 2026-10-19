@@ -105,6 +105,13 @@ secrets, downloaded prices, dependencies or generated build output are staged.
 
 ## Remaining implementation sequence toward entering any coin
 
+Update: [macro-range slice](MACRO_RANGE_REVIEW_2026-10-18.md) adds an independent
+confirmed high/low recovery band and replay audit across 397 real weekly
+cutoffs. Latest verification: **506 frontend tests in 41 files**, token check
+and build pass. The .5–.786 band is visible, editable and separate from A/B/C;
+automatic support/resistance boxes, wave classification and indicators below
+remain outstanding.
+
 1. **Instrument resolver and history adapter.** Search verified products;
    resolve chain/contract, venue, quote, listing/delisting and migration identity.
    Acquire/cache a versioned export through reviewed public-source rules.

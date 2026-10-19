@@ -9,13 +9,15 @@ const BOTTOM = 448;
 const HISTORY_RIGHT = 855;
 const LEVEL_RIGHT = 1008;
 
-export default function MacroPriceChart({ candles, pivots, scenario, currency, interval, scale = 'log' }) {
+export default function MacroPriceChart({ candles, pivots, scenario, macro = null, currency, interval, scale = 'log' }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState(null);
   if (!candles.length) return null;
   const valid = scenario && !scenario.error;
   const projected = valid ? [...scenario.levels, ...scenario.targets].map((row) => row.price) : [];
-  const axis = priceScale(candles.flatMap((row) => [row.low, row.high]).concat(valid ? [scenario.invalidation, ...projected] : []), scale);
+  const macroBand = macro && !macro.error ? macro.recovery_band : null;
+  const axis = priceScale(candles.flatMap((row) => [row.low, row.high])
+    .concat(valid ? [scenario.invalidation, ...projected] : []).concat(macroBand || []), scale);
   const first = candles[0].time;
   const last = candles.at(-1).time;
   const duration = Math.max(interval, last - first + interval);
@@ -60,6 +62,12 @@ export default function MacroPriceChart({ candles, pivots, scenario, currency, i
         <text className="macro-chart-note" x={HISTORY_RIGHT + 8} y={22}>LEVELS ONLY</text>
         <line className="macro-chart-boundary" x1={HISTORY_RIGHT} y1={TOP} x2={HISTORY_RIGHT} y2={BOTTOM} />
         <g clipPath={`url(#${id}-clip)`}>
+          {macroBand && <g className="macro-chart-recovery">
+            <rect x={HISTORY_RIGHT} width={LEVEL_RIGHT - HISTORY_RIGHT} y={y(macroBand[1])} height={Math.max(1, y(macroBand[0]) - y(macroBand[1]))}>
+              <title>50–78.6% recovery reference from the selected macro high and low; no forecast date</title>
+            </rect>
+            {macroBand.map((price) => <line key={price} x1={HISTORY_RIGHT} x2={LEVEL_RIGHT} y1={y(price)} y2={y(price)} />)}
+          </g>}
           {valid && <>
             <rect className="macro-chart-zone macro-chart-zone--pullback" x={LEFT} width={LEVEL_RIGHT - LEFT}
               y={y(scenario.pullback_zone[1])} height={y(scenario.pullback_zone[0]) - y(scenario.pullback_zone[1])} />
