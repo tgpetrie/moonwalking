@@ -19,6 +19,10 @@ describe('next run reference scope', () => {
     expect(map.below.every((p) => p.price < map.reference.close)).toBe(true);
     expect(map.above.map((p) => p.price)).toEqual(map.above.map((p) => p.price).sort((a, b) => a - b));
     expect(map.below.map((p) => p.price)).toEqual(map.below.map((p) => p.price).sort((a, b) => b - a));
+    expect(map.above.map((p) => p.label)).toEqual(['H1', 'H2', 'H3'].slice(0, map.above.length));
+    expect(map.below.map((p) => p.label)).toEqual(['L1', 'L2', 'L3'].slice(0, map.below.length));
+    expect(map.above[0].display_label).toBe('Prior high 1');
+    expect(map.below[0].display_label).toBe('Prior low 1');
     expect([...map.above, ...map.below].every((p) => p.time >= map.start && p.confirmed_at <= map.end)).toBe(true);
   });
   it('matches physical prefix replay even with poisoned future candles', () => {

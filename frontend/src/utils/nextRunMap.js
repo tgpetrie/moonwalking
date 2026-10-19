@@ -12,13 +12,14 @@ export function nextRunMap(candles, { asOf, confirmation = 2, lookbackDays = 365
   const unique = (list) => [...new Map([...list].sort((a, b) => a.confirmed_at - b.confirmed_at)
     .map((p) => [p.price, p])).values()];
   const decorate = (rows, prefix) => rows.slice(0, 3).map((p, i) => ({ ...p,
-    label: `${prefix}${i + 1}`, distance_percent: (p.price / close.close - 1) * 100 }));
+    label: `${prefix}${i + 1}`, display_label: `Prior ${p.type} ${i + 1}`,
+    distance_percent: (p.price / close.close - 1) * 100 }));
   return { reference: close, start, end: close.end, lookback_days: lookbackDays,
     confirmation, ambiguous: detected.ambiguous,
     above: decorate(unique(eligible.filter((p) => p.type === 'high' && p.price > close.close))
-      .sort((a, b) => a.price - b.price), 'R'),
+      .sort((a, b) => a.price - b.price), 'H'),
     below: decorate(unique(eligible.filter((p) => p.type === 'low' && p.price < close.close))
-      .sort((a, b) => b.price - a.price), 'S'),
+      .sort((a, b) => b.price - a.price), 'L'),
     at: unique(eligible.filter((p) => p.price === close.close)),
   };
 }

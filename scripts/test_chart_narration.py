@@ -3,6 +3,7 @@ import copy
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import unittest
 from unittest import mock
@@ -91,7 +92,7 @@ class CatalogPlanTests(unittest.TestCase):
                 self.assert_rejected(plan)
 
     def test_required_context_cannot_be_omitted(self):
-        for index, fact_id in ((0, 'reference'), (0, 'recent-low'), (1, 'basis'), (2, 'coverage'), (2, 'limits')):
+        for index, fact_id in ((0, 'reference'), (0, 'recent-low'), (1, 'basis'), (2, 'coverage'), (2, 'limits'), (2, 'study-limits')):
             plan = copy.deepcopy(self.plan)
             plan['paragraphs'][index]['fact_ids'].remove(fact_id)
             with self.subTest(missing=fact_id):
@@ -221,17 +222,17 @@ class NextRunNarrationTests(unittest.TestCase):
         plan = narration.default_plan(facts)
         narration.validate_plan(plan, facts)
         text = ' '.join(p['text'] for p in narration.render(plan, facts))
-        self.assertIn('R1: prior daily high $3.3, +10.0%', text)
-        self.assertIn('S1: prior daily low $2.8', text)
+        self.assertIn('Prior high 1: daily observation $3.3, +10.0%', text)
+        self.assertIn('Prior low 1: daily observation $2.8', text)
         self.assertIn('not predict', text)
-        plan['paragraphs'][1]['fact_ids'].remove('next-R1')
+        plan['paragraphs'][1]['fact_ids'].remove('next-H1')
         with self.assertRaisesRegex(ValueError, 'required context'):
             narration.validate_plan(plan, facts)
 
     def test_cannot_skip_a_closer_level_to_select_farther_level(self):
         facts = narration.catalog(self.packet())
         plan = narration.default_plan(facts)
-        plan['paragraphs'][1]['fact_ids'] = ['basis', 'next-R1', 'next-S1', 'next-R3']
+        plan['paragraphs'][1]['fact_ids'] = ['basis', 'next-H1', 'next-L1', 'next-H3']
         with self.assertRaisesRegex(ValueError, 'closer reference'):
             narration.validate_plan(plan, facts)
 
@@ -265,8 +266,117 @@ class NextRunNarrationTests(unittest.TestCase):
         choices = branches[1]['properties']['fact_ids']['enum']
         self.assertTrue(choices)
         for ids in choices:
-            self.assertTrue({'basis', 'next-R1', 'next-S1'}.issubset(ids))
-            self.assertFalse('next-R3' in ids and 'next-R2' not in ids)
+            self.assertTrue({'basis', 'next-H1', 'next-L1'}.issubset(ids))
+            self.assertFalse('next-H3' in ids and 'next-H2' not in ids)
+        self.assertTrue(all('study-limits' in ids for ids in branches[2]['properties']['fact_ids']['enum']))
+
+    def test_saved_rs_labels_are_normalized_without_changing_prices_or_sources(self):
+        old_packet = self.packet()
+        renamed_packet = copy.deepcopy(old_packet)
+        for side, prefix in (('above', 'H'), ('below', 'L')):
+            for rank, row in enumerate(renamed_packet['evidence']['next_run'][side], 1):
+                row['label'] = prefix + str(rank)
+        self.assertEqual(narration.catalog(old_packet), narration.catalog(renamed_packet))
+
+    def test_study_limitation_is_mandatory_in_success_fallback_and_cached_output(self):
+        facts = narration.catalog(self.packet())
+        expected, sources = narration.study_disclosure(daily=True)
+        self.assertIn('has not been tested directly', expected)
+        self.assertEqual(facts['study-limits']['text'], expected)
+        accepted = narration.narrate(self.packet(), requester=lambda f: (narration.default_plan(f), 'test'))
+        self.assertIn(expected, accepted['paragraphs'][2]['text'])
+        self.assertTrue(set(sources).issubset(accepted['paragraphs'][2]['sources']))
+        incomplete = narration.default_plan(facts)
+        incomplete['paragraphs'][2]['fact_ids'].remove('study-limits')
+        rejected = narration.narrate(self.packet(), requester=lambda f: (incomplete, 'test'))
+        self.assertEqual(rejected['state'], 'fallback')
+        self.assertIn(expected, rejected['paragraphs'][2]['text'])
+        previous = copy.deepcopy(accepted)
+        previous['paragraphs'][2]['fact_ids'].remove('study-limits')
+        requester = mock.Mock(side_effect=TimeoutError())
+        rebuilt = narration.narrate(self.packet(), previous, requester=requester)
+        requester.assert_called_once()
+        self.assertEqual(rebuilt['state'], 'fallback')
+        self.assertIn(expected, rebuilt['paragraphs'][2]['text'])
+
+    def test_reviewed_copy_change_invalidates_the_narration_cache(self):
+        packet = self.packet()
+        accepted = narration.narrate(packet, requester=lambda f: (narration.default_plan(f), 'test'))
+        requester = mock.Mock(side_effect=TimeoutError())
+        text, sources = narration.study_disclosure(daily=True)
+        with mock.patch.object(narration, 'study_disclosure', return_value=(text + ' Updated scope.', sources)):
+            result = narration.narrate(packet, accepted, requester=requester)
+        requester.assert_called_once()
+        self.assertNotEqual(result['evidence_sha256'], accepted['evidence_sha256'])
+        self.assertIn('Updated scope.', result['paragraphs'][2]['text'])
+
+
+# Regression check over trusted prepared copy, not a runtime filter or a proof
+# of semantics. Only reviewed negative clauses are allowed; "not" elsewhere
+# must never exempt an affirmative claim later in the same sentence.
+APPROVED_NEGATIVE_COPY = (
+    'not validated support/resistance',
+    'not proven support/resistance',
+    'No probability or price-arrival date is established',
+    'not a predicted destination',
+    'do not predict',
+)
+CLAIM_PATTERNS = (
+    r'\btarget(?:s|ed)?\b', r'\bforecast(?:s|ed|ing)?\b',
+    r'\bpredict(?:s|ed|ing|ion|ions)?\b', r'\bprobab(?:le|ility|ilities)\b',
+    r'\blikely\b', r'\bbullish\b', r'\bbearish\b', r'\bnext stop\b',
+    r'\bwill (?:reach|hit|hold|break|bounce|rally|continue)\b',
+    r'\bexpect(?:ed|ing)? to\b', r'\bodds\b',
+    r'\bsupport\b', r'\bresistance\b', r'\bmagnet(?:s)?\b', r'\bhighway(?:s)?\b',
+)
+
+
+def copy_claims(text):
+    for phrase in APPROVED_NEGATIVE_COPY:
+        text = re.sub(r'\b' + re.escape(phrase) + r'\b', '', text, flags=re.IGNORECASE)
+    return [m.group(0) for pattern in CLAIM_PATTERNS for m in re.finditer(pattern, text, re.IGNORECASE)]
+
+
+class PreparedCopyTests(unittest.TestCase):
+    def test_every_catalog_fact_passes_the_wording_check_in_all_availability_states(self):
+        packets = [synthetic_packet(), NextRunNarrationTests().packet()]
+        for original in list(packets):
+            empty = copy.deepcopy(original)
+            missing = copy.deepcopy(original)
+            if 'next_run' in empty['evidence']:
+                empty['evidence']['next_run'].update(above=[], below=[])
+                missing['evidence']['next_run']['reference'] = None
+                for side in ('above', 'below'):
+                    one_sided = copy.deepcopy(original)
+                    one_sided['evidence']['next_run'][side] = []
+                    packets.append(one_sided)
+            else:
+                empty['evidence']['macro_levels'] = []
+                missing['reference_close'] = None
+                for close in (1, 2, 8):
+                    relation = copy.deepcopy(original)
+                    relation['reference_close']['price'] = close
+                    packets.append(relation)
+            packets.extend([empty, missing])
+        for packet in packets:
+            facts = narration.catalog(packet)
+            for id_, fact in facts.items():
+                with self.subTest(fact=id_, text=fact['text']):
+                    self.assertEqual(copy_claims(fact['text']), [])
+            rendered = narration.render(narration.default_plan(facts), facts)
+            self.assertEqual(copy_claims(' '.join(p['text'] for p in rendered)), [])
+
+    def test_required_negation_is_allowed_without_exempting_an_affirmative_claim(self):
+        self.assertEqual(copy_claims('These references are not validated support/resistance.'), [])
+        for sentence in (
+            'These references are not validated support/resistance, but the next target is $11.',
+            'These references are not validated support/resistance. Price will rally.',
+            'The level is a magnet and will hold.',
+            'A bullish breakout is likely; expect to reach the next stop.',
+            'The odds of support holding establish a forecast probability.',
+        ):
+            with self.subTest(sentence=sentence):
+                self.assertTrue(copy_claims(sentence))
 
 
 class FakeOpener:

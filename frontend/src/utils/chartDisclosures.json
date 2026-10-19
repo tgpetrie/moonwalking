@@ -1,0 +1,5 @@
+{
+  "daily_pivot_study": "This daily pivot rule has not been tested directly. Weekly-scale equivalents behaved like arbitrary lines at similar distances in Coinbase USD products from 2022 to 2026. These references are not validated support/resistance.",
+  "weekly_level_study": "Weekly-scale levels behaved like arbitrary lines at similar distances in Coinbase USD products from 2022 to 2026. These observations are not validated support/resistance.",
+  "study_source": "https://github.com/tgpetrie/moonwalking/blob/09011e3c35a6125c8df66b48bec28ba184669f36/docs/developer/LEVEL_STUDY.md"
+}

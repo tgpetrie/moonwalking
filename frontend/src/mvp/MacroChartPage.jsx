@@ -11,8 +11,8 @@ import { nextRunMap } from '../utils/nextRunMap.js';
 import '../styles/macro-chart.css';
 
 const STATUS = {
-  conditional: 'Conditional scenario', invalidated: 'Invalidation touched',
-  target_touched: 'First extension touched', both_touched_order_unknown: 'Target and invalidation touched · order ungraded',
+  conditional: 'Conditional scenario', invalidated: 'A anchor touched',
+  target_touched: 'First extension touched', both_touched_order_unknown: 'Extension and A anchor touched · order ungraded',
 };
 
 function ChartWorkspace({ history }) {
@@ -132,9 +132,9 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
       <UiCard><span className="macro-label">High in analysed history</span><strong>{format(high.high)}</strong><small>{dateText(high.high_time ?? high.time)} · Available venue history</small></UiCard>
     </div>
     <UiCard className="macro-reading" tone="subtle"><span className="macro-label">Your price map</span><h2>Focus on the next recovery</h2>
-      <p>Start with confirmed daily turning points near the latest daily close. An overhead level is a place to watch for a reaction; a close above it followed by a hold on a retest would clear that reference. A rejection keeps it overhead.</p>
+      <p>Start with confirmed daily turning points near the latest daily close. These references show where price turned in the recorded history and how far each observation is from the dated daily close.</p>
       <p>Clearing one reference only exceeds that particular prior high; other recent highs may still be overhead. It would not establish a return to the old cycle peak or a new high across the full history. We have not established the next run's final high.</p>
-      {priorHigh && chart.candles.at(-1).close > priorHigh.high && <p>The last completed close is already above the previous historical high of {format(priorHigh.high)} in this view. That selected range needs reviewing; do not treat old recovery math as an unachieved next target.</p>}
+      {priorHigh && chart.candles.at(-1).close > priorHigh.high && <p>The last completed close is already above the previous historical high of {format(priorHigh.high)} in this view. Old recovery ratios still describe their original historical range.</p>}
       <a className="macro-timing-link" href="#macro-future">See the next-run checkpoints</a>
     </UiCard>
     <div ref={guideRef}><ChartLevelGuide macro={macro} nextRun={nextRun} evidence={evidence} latest={chart.candles.at(-1)}
@@ -199,7 +199,7 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
           <UiButton size="sm" onClick={() => { onResetFocus(); setOffset(0); setCount(Math.min(400, chart.candles.length)); if (focusRange) { setShowMacro(false); setShowHistory(true); setShowFuture(false); } }}>Fit history</UiButton>
           {displayChart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, displayChart.candles.length)} value={Math.min(count, displayChart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
-        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>R/S: prior daily turning references</span>{showLocal && valid && <span>Dashed horizontals: local Fibonacci levels</span>}{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
+        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>H/L: prior daily highs and lows</span>{showLocal && valid && <span>Dashed horizontals: local Fibonacci levels</span>}{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <details className="macro-advanced"><summary>Optional: measure a smaller move</summary>
@@ -223,7 +223,7 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
     <details className="macro-advanced"><summary>Details of the local measurement</summary>{valid ? <div className="macro-scenario-grid">
       <UiCard><span className="macro-label">Pullback reference · 38.2–61.8%</span><h2>{format(scenario.pullback_zone[0])}–{format(scenario.pullback_zone[1])}</h2><p>Measured within A → B. C retraced {(scenario.retracement * 100).toFixed(1)}% of that move.</p></UiCard>
       <UiCard><span className="macro-label">{scenario.direction === 'up' ? 'Upside' : 'Downside'} extension · 1–1.618×</span><h2>{format(scenario.target_zone[0])}–{format(scenario.target_zone[1])}</h2><p>Projected from C using the length of A → B. A price scenario, with no forecast date or measured success rate.</p></UiCard>
-      <UiCard><span className="macro-label">Structural invalidation</span><h2>{scenario.direction === 'up' ? 'At or below' : 'At or above'} {format(scenario.invalidation)}</h2><p>Scenario available from {dateText(scenario.available_at)}. Touches are checked only on subsequent completed candles; their order is ungraded.</p></UiCard>
+      <UiCard><span className="macro-label">Selected A anchor</span><h2>{format(scenario.invalidation)}</h2><p>Measurement available from {dateText(scenario.available_at)}. Anchor touches are recorded only on subsequent completed candles; their order is ungraded.</p></UiCard>
     </div> : <UiCard tone="subtle"><h2>No qualifying local measurement</h2><p role="status">{scenario.error}</p><p>The automatic historical map and larger recovery references remain available. You do not need to choose anchors.</p></UiCard>}</details>
   </>;
 }

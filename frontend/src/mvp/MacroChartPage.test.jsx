@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { syntheticHistory } from '../test/macroHistory.test.fixture.js';
 import { parseHistory } from '../utils/macroChart.js';
+import disclosures from '../utils/chartDisclosures.json';
 import MacroChartPage from './MacroChartPage.jsx';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -18,6 +19,24 @@ function renderWithTools(ui) {
 }
 
 describe('local long-term chart workspace', () => {
+  it('names prior observations and discloses the untested daily rule before any explanation is selected', () => {
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    expect(screen.getByText(disclosures.daily_pivot_study, { exact: false })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Study scope and limitations' })).toHaveAttribute('href', disclosures.study_source);
+    expect(screen.getByRole('heading', { name: 'Prior highs above the close' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Prior lows below the close' })).toBeVisible();
+    const button = screen.getByRole('button', { name: 'Explain Prior high 1' });
+    fireEvent.click(button);
+    expect(screen.getByRole('heading', { name: /Prior high 1 ·/ })).toBeVisible();
+    expect(container.querySelector('.macro-chart-reference text')).toHaveTextContent(/^[HL][123] /);
+    expect(container.querySelector('.macro-next-run-grid').textContent).not.toMatch(/\b[RS][123]\b/);
+    expect(container.querySelector('.macro-chart-legend')).toHaveTextContent('H/L: prior daily highs and lows');
+    fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
+    expect(screen.getByText(disclosures.daily_pivot_study, { exact: false })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: /Prior high 1 ·/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Explain Prior high 1' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('starts with an honest empty state and makes no API requests', () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     render(<MacroChartPage />);
@@ -35,6 +54,10 @@ describe('local long-term chart workspace', () => {
     expect(screen.getByText(/A full Elliott Wave count has not been established/)).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Anchor A' }).value).toMatch(/^low-/);
     expect(screen.getByText('Conditional scenario')).toBeVisible();
+    expect(screen.getByText('Selected A anchor')).toBeVisible();
+    expect(screen.getByText('Selected A anchor').closest('.ui-card').querySelector('h2').textContent)
+      .toBe(screen.getByRole('combobox', { name: 'Anchor A' }).selectedOptions[0].textContent.split(' · ').at(-1));
+    expect(screen.queryByText('Structural invalidation')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Load price history')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Change history file' })).not.toBeInTheDocument();
   });

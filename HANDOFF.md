@@ -367,3 +367,27 @@ a running browser or deployed to production.
 For resuming this exact work on the owner's Windows AI PC—including the
 read-only boundary, formulas, coverage limits, PowerShell/WSL setup, and transfer
 state—read `WINDOWS_AI_PC_HANDOFF.md` next.
+
+## Chart research wording correction, 2026-10-19
+
+Branch: `codex/chart-evidence-wording-20261019`, based on chart checkpoint
+`fb59304a`. The guide names prior highs/lows; the plot uses H1-H3/L1-L3.
+UI and Python share a required, sourced disclosure that the daily pivot rule
+has not been directly tested and weekly-scale equivalents behaved like arbitrary
+lines in Coinbase USD 2022-2026. Model and fallback plans must include it;
+older labels and cached selections cannot bypass the new requirement.
+
+Prepared copy remains descriptive, with a negation-aware wording test over all
+catalog availability states. Local-measurement text names the selected A anchor;
+calculation fields, replay rules, prices, and touch grading stay unchanged.
+The existing evidence-ID/Python renderer remains the narration architecture.
+
+Verification: full frontend suite 559 passed with two workers, 51 offline Python
+checks, four packet tests, token/Figma synchronization, production build, repository
+guardrails, whitespace check, 138 real RENDER replay cutoffs, and desktop/390px
+browser inspection. Existing build/test warnings and the initial concurrency
+timeout are recorded in `docs/research/NEXT_RUN_MAP_2026-10-19.md`.
+
+No main merge, deployment, model download, new agent, or installed-task/live-store
+change. Integrate `scripts/chart_narration.py` and the shared
+`frontend/src/utils/chartDisclosures.json` together when updating the chart worker.

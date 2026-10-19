@@ -11,6 +11,14 @@ import urllib.request
 MODEL = 'qwen3.5:9b'
 SCHEMA = 'moonwalking.chart-narration/v1'
 ENDPOINT = 'http://127.0.0.1:11434'
+DISCLOSURE_PATH = Path(__file__).resolve().parents[1] / 'frontend/src/utils/chartDisclosures.json'
+
+
+def study_disclosure(daily=False):
+    # Shared with the visible guide. Reading per catalog build also refreshes the
+    # fact fingerprint if reviewed copy changes while a worker process is alive.
+    copy = json.loads(DISCLOSURE_PATH.read_text(encoding='utf-8'))
+    return copy['daily_pivot_study' if daily else 'weekly_level_study'], [copy['study_source']]
 
 
 def canonical(value):
@@ -47,7 +55,7 @@ def catalog(packet):
             relation = 'above' if p['price'] > close['price'] else 'below' if p['price'] < close['price'] else 'at'
             distance = abs((p['price'] / close['price'] - 1) * 100)
             text = f"The prior {p['type']} at {price(p['price'])} is {distance:.1f}% {relation} that close; its extreme occurred {p['extreme_date_utc']} and it confirmed {day(p['confirmed_at_utc'])} UTC. "
-            text += ('Price is below this reference; watch for a regain and whether subsequent completed candles hold above it.' if relation == 'above' else 'Price is above this reference; watch whether a pullback holds it or closes below it.' if relation == 'below' else 'Subsequent completed candles can show which side price holds.')
+            text += ('The dated close is below this historical observation.' if relation == 'above' else 'The dated close is above this historical observation.' if relation == 'below' else 'The dated close equals this historical observation.')
             add('recent-' + p['type'], 'position', text, ['evidence.recent_references:' + p['id'], 'reference_close'])
         anchors = packet['evidence'].get('macro_anchors', [])
         levels = packet['evidence'].get('macro_levels', [])
@@ -63,13 +71,15 @@ def catalog(packet):
             ids = levels[0]['anchor_ids']
             by_id = {p['id']: p for p in anchors}
             high, low = [by_id[i] for i in ids]
-            add('basis', 'levels', f"The range uses the confirmed high {price(high['price'])} on {high['extreme_date_utc']} and later low {price(low['price'])} on {low['extreme_date_utc']}. A move below that low weakens a recovery anchored there. The selected high can differ from the highest observed price in the available history.", ['evidence.macro_anchors:' + i for i in ids])
+            add('basis', 'levels', f"The range uses the confirmed high {price(high['price'])} on {high['extreme_date_utc']} and later low {price(low['price'])} on {low['extreme_date_utc']}. The calculation is anchored to that macro low. The selected high can differ from the highest observed price in the available history.", ['evidence.macro_anchors:' + i for i in ids])
         else:
             add('unavailable', 'levels', 'There is no qualifying confirmed high-to-low range in this view, so no recovery or extension calculation is available.', ['evidence.macro_unavailable_reason'])
     else:
         add('reference', 'position', 'No completed analysis candle is available at this cutoff.', ['reference_close'])
         add('unavailable', 'levels', 'More completed history is needed before this view can provide price references.', ['reference_close'])
-    add('limits', 'limits', 'These historical observations and conditional calculations do not establish which move is most likely, a probability, a price-arrival date, or a trading instruction.', ['blocked_claims'])
+    add('limits', 'limits', 'No probability or price-arrival date is established. These historical observations and conditional calculations are not trading instructions.', ['blocked_claims'])
+    text, sources = study_disclosure()
+    add('study-limits', 'limits', text, sources)
     gaps = packet.get('coverage', {}).get('internal_missing_daily_intervals', 0)
     add('coverage', 'limits', f"The supplied history has {gaps} missing daily intervals inside its observed span. A checksum verifies this evidence packet's identity, not the exchange's accuracy or predictive value.", ['coverage.internal_missing_daily_intervals', 'source'])
     return facts
@@ -87,18 +97,23 @@ def next_run_catalog(packet):
         start = dt.datetime.fromtimestamp(view['start'], dt.timezone.utc).date()
         add('basis', 'levels', f"The next-recovery map uses confirmed daily turning points from {start} through {through} UTC, with {view['confirmation']} completed daily candles each side. References are ranked by price distance, not likelihood. The up-to-{view['lookback_days']}-day scope is a display choice, not a tested edge; old cycle Fibonacci calculations are excluded.", ['evidence.next_run'])
         for side in ('above', 'below'):
-            for p in view[side]:
+            for rank, p in enumerate(view[side], 1):
                 delta = (p['price'] / close['close'] - 1) * 100
-                action = ('A daily close above it, then holding on a retest, would clear that reference; a rejection keeps it overhead.' if side == 'above' else 'Watch whether a pullback holds this prior low. A daily close below it puts lower references in focus; it is not a proven floor.')
-                add('next-' + p['label'], 'levels', f"{p['label']}: prior daily {p['type']} {price(p['price'])}, {delta:+.1f}% from the dated daily close. Extreme {p['extreme_date_utc']}; confirmed {day(p['confirmed_at_utc'])} UTC. {action}", ['evidence.next_run.' + side + ':' + p['id']])
+                # Derive neutral names from side/rank, including older packets
+                # whose saved labels still use R/S. Never echo that old wording.
+                code = ('H' if side == 'above' else 'L') + str(rank)
+                label = f"Prior {'high' if side == 'above' else 'low'} {rank}"
+                add('next-' + code, 'levels', f"{label}: daily observation {price(p['price'])}, {delta:+.1f}% from the dated daily close. Extreme {p['extreme_date_utc']}; confirmed {day(p['confirmed_at_utc'])} UTC. This is an observed reference, not evidence of a future reaction.", ['evidence.next_run.' + side + ':' + p['id']])
         if not view['above']:
             add('no-upside', 'position', 'No confirmed daily high above the close exists in this scope. No next-run upside reference is established; an old macro calculation is not a substitute.', ['evidence.next_run.above'])
         if not view['below']:
-            add('no-downside', 'position', 'No confirmed daily low below the close exists in this scope. Downside support is unestablished.', ['evidence.next_run.below'])
+            add('no-downside', 'position', 'No confirmed daily low below the close exists in this scope. No downside reference is available.', ['evidence.next_run.below'])
     else:
         add('reference', 'position', 'No completed daily candle is available at this cutoff.', ['evidence.next_run.reference'])
         add('unavailable', 'levels', 'More completed history is needed before this view can provide price references.', ['evidence.next_run'])
-    add('limits', 'limits', 'These checkpoints do not predict the next run’s peak, a guaranteed pullback, a probability, or a price-arrival date. Clearing one reference only exceeds that particular prior high; other recent highs may still be overhead. Clearing it would not establish a return to the old cycle peak. The final high of the next run is unestablished.', ['blocked_claims'])
+    add('limits', 'limits', 'No probability or price-arrival date is established. These checkpoints do not predict the next run’s peak or a guaranteed pullback. Exceeding one reference only exceeds that particular prior high; other recent highs may still be overhead. It would not establish a return to the old cycle peak.', ['blocked_claims'])
+    text, sources = study_disclosure(daily=True)
+    add('study-limits', 'limits', text, sources)
     gaps = packet.get('coverage', {}).get('internal_missing_daily_intervals', 0)
     add('coverage', 'limits', f"The supplied history has {gaps} missing daily intervals inside its observed span. Prior highs and lows are observations, not proven support/resistance or trading instructions.", ['coverage.internal_missing_daily_intervals'])
     return facts
@@ -109,12 +124,12 @@ def default_plan(facts):
     if 'basis' not in facts:
         levels = ['unavailable']
     elif any(id_.startswith('next-') for id_ in facts) or 'no-upside' in facts:
-        levels = ['basis'] + [id_ for id_ in ('next-R1', 'next-S1', 'next-R2', 'next-S2', 'next-R3', 'next-S3') if id_ in facts][:3]
+        levels = ['basis'] + [id_ for id_ in ('next-H1', 'next-L1', 'next-H2', 'next-L2', 'next-H3', 'next-L3') if id_ in facts][:3]
     else:
         levels = ['basis', 'macro-0.5', 'macro-0.786']
     return {'paragraphs': [{'topic': 'position', 'fact_ids': positions},
                            {'topic': 'levels', 'fact_ids': levels},
-                           {'topic': 'limits', 'fact_ids': ['limits', 'coverage']}]}
+                           {'topic': 'limits', 'fact_ids': [id_ for id_, f in facts.items() if f['topic'] == 'limits']}]}
 
 
 def validate_plan(plan, facts):
@@ -133,14 +148,14 @@ def validate_plan(plan, facts):
             seen.add(id_)
         required = {id_ for id_, f in facts.items() if f['topic'] == topic} if topic in ('position', 'limits') else {'basis'} if 'basis' in facts else {'unavailable'}
         if topic == 'levels':
-            required |= {id_ for id_ in ('next-R1', 'next-S1') if id_ in facts}
+            required |= {id_ for id_ in ('next-H1', 'next-L1') if id_ in facts}
         if not required.issubset(ids):
             raise ValueError('Model output omits required context')
         if topic == 'levels' and 'basis' in facts and len(ids) < 2 and any(id_.startswith(('macro-', 'next-')) for id_ in facts):
             raise ValueError('Model output omits price references')
         if 'macro-1.618' in ids and 'macro-1' not in ids:
             raise ValueError('Beyond-high case requires the selected-high reference')
-        for prefix in ('next-R', 'next-S'):
+        for prefix in ('next-H', 'next-L'):
             for rank in (2, 3):
                 if prefix + str(rank) in ids and prefix + str(rank - 1) not in ids:
                     raise ValueError('Farther references require the closer reference')
@@ -193,7 +208,7 @@ def request_plan(facts, model=MODEL, timeout=45):
                                            'items': {'anyOf': branches}}}}
     prompt = ('Organize a chart explanation using only fact IDs. Return JSON with paragraphs in topic order position,levels,limits. '
               'Include ALL position facts in position and ALL limits facts in limits. NEVER put macro IDs in limits. '
-              'For levels use the schema count and include basis. Include next-R1 and next-S1 whenever available. Never choose R3 without R2 or S3 without S2. '
+              'For levels use the schema count and include basis. Include next-H1 and next-L1 whenever available. Never choose H3 without H2 or L3 without L2. '
               'For old packets choose TWO macro references with basis. If selecting macro-1.618 you must also select macro-1. If basis is unavailable choose unavailable. '
               'No text, prices, predictions, new evidence, tools or additional keys are allowed. Every selected sentence is already verified. '
               'Avoid presenting references as a promised sequence. Facts: ' + json.dumps(facts) + ' JSON schema: ' + json.dumps(schema))

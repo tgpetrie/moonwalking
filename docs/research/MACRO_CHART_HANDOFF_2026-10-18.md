@@ -259,3 +259,19 @@ included in offline packets, worker fingerprints and local narration. No forecas
 peak, probability or arrival date is inferred. See NEXT_RUN_MAP_2026-10-19.md for
 selection rules, actual AMP values, verification and limitations. Checks: 558 frontend
 tests/build/token sync, 46 Python tests, four packet tests and guardrails passed.
+
+## Checked research wording correction — 2026-10-19
+
+Branch `codex/chart-evidence-wording-20261019` implements the next-run review
+requests: Prior high/low guide labels and H/L plot labels, a required sourced
+study limitation shared by UI and Python, and a negation-aware catalog wording
+test. The model still selects prepared IDs; missing limitations reject the plan
+and fallback includes them. Old R/S evidence is normalized, and copy changes
+invalidate cached narration. A-anchor and macro-low wording replaces trade-plan
+framing without changing the arithmetic or touch-grading fields.
+
+See [next-run map](NEXT_RUN_MAP_2026-10-19.md) for final behavior and verification:
+559 frontend tests, 51 Python checks, four packet tests, token/build/guardrails,
+138 RENDER weekly replay cutoffs, and desktop/phone browser inspection. These
+are code, timing, and copy checks, not predictive validation. No production
+deployment, task update, model download, or main merge was performed.

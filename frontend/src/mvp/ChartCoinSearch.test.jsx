@@ -21,7 +21,7 @@ describe('coin-to-chart workflow', () => {
     source.candles.slice(-7).forEach((row) => { for (const key of ['open', 'high', 'low', 'close']) row[key] += 20; });
     render(<MacroChartPage initialHistory={parseHistory(source)} />);
     expect(screen.getByText(/last completed close is already above/)).toBeVisible();
-    expect(screen.getByText(/That selected range needs reviewing/)).toBeVisible();
+    expect(screen.getByText(/Old recovery ratios still describe their original historical range/)).toBeVisible();
   });
   it('loads and explains a selected coin without any file or manual anchors', async () => {
     const client = { search: vi.fn(async () => [match]), history: vi.fn(async () => ampFixture()) };

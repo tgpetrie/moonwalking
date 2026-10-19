@@ -51,6 +51,6 @@ export default function ChartTimingPanel({ macroAnchors, recentAnchors, levels, 
         </>}
       </div>;
     })}</div>
-    <p className="macro-timing-limit">Future arrival window: not estimated from this map yet. Historical leg durations and seven-day reviews are reference points, not independent trade results or a promise of when resistance will be reached. Daily candles cannot establish intraday touch order or continuous time spent near a level.</p>
+    <p className="macro-timing-limit">Future arrival window: not estimated from this map yet. Historical leg durations and seven-day reviews are reference points, not independent trade results or a promise of when a reference price will be reached. Daily candles cannot establish intraday touch order or continuous time spent near a level.</p>
   </UiCard>;
 }
