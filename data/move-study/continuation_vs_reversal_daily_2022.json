@@ -1,0 +1,5956 @@
+{
+ "absolute_note": "mean_excess_pct in this section is the plain mean forward return of the event coin (1% winsorised), not relative to peers. baseline_mean_pct is the average liquid coin over the same period. Cost columns subtract an assumed round trip for a long-only buy at the event-day close.",
+ "absolute": [
+  {
+   "direction": "up",
+   "horizon_days": 1,
+   "discovery": {
+    "events": 4861,
+    "dates": 943,
+    "mean_excess_pct": -1.45,
+    "ci95_pct": [
+     -1.93,
+     -0.95
+    ],
+    "median_excess_pct": -2.25,
+    "share_positive": 0.36,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "baseline_mean_pct": -0.07,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.95,
+     "1.0%": -2.45,
+     "2.0%": -3.45
+    }
+   },
+   "test": {
+    "events": 4168,
+    "dates": 625,
+    "mean_excess_pct": -1.66,
+    "ci95_pct": [
+     -2.69,
+     -0.72
+    ],
+    "median_excess_pct": -2.24,
+    "share_positive": 0.364,
+    "p_raw": 0.0005,
+    "top_coin_share": 0.007,
+    "distinct_coins": 418,
+    "baseline_mean_pct": -0.28,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.16,
+     "1.0%": -2.66,
+     "2.0%": -3.66
+    }
+   }
+  },
+  {
+   "direction": "up",
+   "horizon_days": 3,
+   "discovery": {
+    "events": 4849,
+    "dates": 941,
+    "mean_excess_pct": -2.11,
+    "ci95_pct": [
+     -3.12,
+     -1.1
+    ],
+    "median_excess_pct": -3.53,
+    "share_positive": 0.362,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "baseline_mean_pct": -0.05,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.61,
+     "1.0%": -3.11,
+     "2.0%": -4.11
+    }
+   },
+   "test": {
+    "events": 4154,
+    "dates": 623,
+    "mean_excess_pct": -2.69,
+    "ci95_pct": [
+     -4.5,
+     -0.98
+    ],
+    "median_excess_pct": -4.11,
+    "share_positive": 0.347,
+    "p_raw": 0.003,
+    "top_coin_share": 0.007,
+    "distinct_coins": 418,
+    "baseline_mean_pct": -0.73,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -3.19,
+     "1.0%": -3.69,
+     "2.0%": -4.69
+    }
+   }
+  },
+  {
+   "direction": "up",
+   "horizon_days": 7,
+   "discovery": {
+    "events": 4821,
+    "dates": 936,
+    "mean_excess_pct": -1.45,
+    "ci95_pct": [
+     -3.43,
+     0.38
+    ],
+    "median_excess_pct": -4.21,
+    "share_positive": 0.392,
+    "p_raw": 0.124,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "baseline_mean_pct": 0.1,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.95,
+     "1.0%": -2.45,
+     "2.0%": -3.45
+    }
+   },
+   "test": {
+    "events": 4132,
+    "dates": 619,
+    "mean_excess_pct": -4.63,
+    "ci95_pct": [
+     -6.89,
+     -2.4
+    ],
+    "median_excess_pct": -6.68,
+    "share_positive": 0.308,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 417,
+    "baseline_mean_pct": -1.56,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -5.13,
+     "1.0%": -5.63,
+     "2.0%": -6.63
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 1,
+   "discovery": {
+    "events": 3890,
+    "dates": 616,
+    "mean_excess_pct": -1.35,
+    "ci95_pct": [
+     -2.79,
+     0.09
+    ],
+    "median_excess_pct": -1.13,
+    "share_positive": 0.435,
+    "p_raw": 0.071,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "baseline_mean_pct": -0.07,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.85,
+     "1.0%": -2.35,
+     "2.0%": -3.35
+    }
+   },
+   "test": {
+    "events": 3469,
+    "dates": 479,
+    "mean_excess_pct": -0.18,
+    "ci95_pct": [
+     -1.13,
+     0.92
+    ],
+    "median_excess_pct": -0.54,
+    "share_positive": 0.451,
+    "p_raw": 0.691,
+    "top_coin_share": 0.006,
+    "distinct_coins": 418,
+    "baseline_mean_pct": -0.28,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -0.68,
+     "1.0%": -1.18,
+     "2.0%": -2.18
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 3,
+   "discovery": {
+    "events": 3881,
+    "dates": 613,
+    "mean_excess_pct": -0.96,
+    "ci95_pct": [
+     -2.75,
+     0.98
+    ],
+    "median_excess_pct": -1.7,
+    "share_positive": 0.435,
+    "p_raw": 0.339,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "baseline_mean_pct": -0.05,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.46,
+     "1.0%": -1.96,
+     "2.0%": -2.96
+    }
+   },
+   "test": {
+    "events": 3463,
+    "dates": 477,
+    "mean_excess_pct": 0.51,
+    "ci95_pct": [
+     -1.51,
+     2.6
+    ],
+    "median_excess_pct": -0.27,
+    "share_positive": 0.479,
+    "p_raw": 0.688,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "baseline_mean_pct": -0.73,
+    "net_of_assumed_cost_pct": {
+     "0.5%": 0.01,
+     "1.0%": -0.49,
+     "2.0%": -1.49
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 7,
+   "discovery": {
+    "events": 3863,
+    "dates": 608,
+    "mean_excess_pct": -0.34,
+    "ci95_pct": [
+     -2.37,
+     1.8
+    ],
+    "median_excess_pct": -1.71,
+    "share_positive": 0.436,
+    "p_raw": 0.768,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "baseline_mean_pct": 0.1,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -0.84,
+     "1.0%": -1.34,
+     "2.0%": -2.34
+    }
+   },
+   "test": {
+    "events": 3432,
+    "dates": 474,
+    "mean_excess_pct": -2.36,
+    "ci95_pct": [
+     -4.56,
+     -0.05
+    ],
+    "median_excess_pct": -4.23,
+    "share_positive": 0.356,
+    "p_raw": 0.0475,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "baseline_mean_pct": -1.56,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.86,
+     "1.0%": -3.36,
+     "2.0%": -4.36
+    }
+   }
+  }
+ ],
+ "design": {
+  "move": 0.1,
+  "horizons": [
+   1,
+   3,
+   7
+  ],
+  "cooldown_days": 7,
+  "block_days": 7,
+  "bootstrap": 4000,
+  "seed": 20261018,
+  "days": [
+   "2022-01-03",
+   "2026-10-17"
+  ],
+  "split_day": "2025-01-01",
+  "tests_per_adjustment": 78,
+  "discovery_survivors": {
+   "market_adjusted": 41,
+   "volatility_matched": 42
+  },
+  "liquidity": {
+   "event_usd_volume_min": 100000,
+   "median_usd_volume_min": 50000
+  },
+  "features": {
+   "volume_spike": "event-day $ volume >= 3x its 20-day median",
+   "uptrend_into_event": "prior 7-day return >= 0",
+   "near_prior_high": "close within 10% of the prior 30-day high",
+   "closed_at_extreme": "close in the move's direction: top 25% of range (up) / bottom 25% (down)",
+   "broad_market_day": "share of liquid coins with a positive day >= 60%",
+   "btc_up_day": "BTC-USD close-to-close return >= 0"
+  },
+  "replicates_means": "Bonferroni p<0.05 over all tests in discovery, AND Bonferroni p<0.05 in test over only the discovery survivors, AND same sign",
+  "post_hoc": "The volatility_matched adjustment and the stricter test-period family were added after the first run, which showed up and down moves both lagging the market average.",
+  "p_floor": "p-values cannot go below 1/bootstrap resamples"
+ },
+ "panel": {
+  "products": 492,
+  "coin_days": 472362
+ },
+ "event_counts": {
+  "up": 9034,
+  "down": 7366
+ },
+ "results": [
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 4861,
+    "dates": 943,
+    "mean_excess_pct": -1.42,
+    "ci95_pct": [
+     -1.69,
+     -1.18
+    ],
+    "median_excess_pct": -2.09,
+    "share_positive": 0.33,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4168,
+    "dates": 625,
+    "mean_excess_pct": -1.35,
+    "ci95_pct": [
+     -1.71,
+     -1.02
+    ],
+    "median_excess_pct": -1.75,
+    "share_positive": 0.353,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 418,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 4847,
+    "dates": 941,
+    "mean_excess_pct": -1.39,
+    "ci95_pct": [
+     -1.65,
+     -1.14
+    ],
+    "median_excess_pct": -2.1,
+    "share_positive": 0.329,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4155,
+    "dates": 623,
+    "mean_excess_pct": -1.34,
+    "ci95_pct": [
+     -1.69,
+     -1.04
+    ],
+    "median_excess_pct": -1.55,
+    "share_positive": 0.348,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 417,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 4849,
+    "dates": 941,
+    "mean_excess_pct": -2.21,
+    "ci95_pct": [
+     -2.61,
+     -1.81
+    ],
+    "median_excess_pct": -3.28,
+    "share_positive": 0.32,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4154,
+    "dates": 623,
+    "mean_excess_pct": -2.1,
+    "ci95_pct": [
+     -2.64,
+     -1.57
+    ],
+    "median_excess_pct": -3.04,
+    "share_positive": 0.325,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 418,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 4835,
+    "dates": 939,
+    "mean_excess_pct": -2.18,
+    "ci95_pct": [
+     -2.59,
+     -1.78
+    ],
+    "median_excess_pct": -3.18,
+    "share_positive": 0.322,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4141,
+    "dates": 621,
+    "mean_excess_pct": -2.03,
+    "ci95_pct": [
+     -2.55,
+     -1.55
+    ],
+    "median_excess_pct": -2.85,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 417,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 4821,
+    "dates": 936,
+    "mean_excess_pct": -1.9,
+    "ci95_pct": [
+     -2.41,
+     -1.41
+    ],
+    "median_excess_pct": -4.13,
+    "share_positive": 0.336,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4132,
+    "dates": 619,
+    "mean_excess_pct": -2.35,
+    "ci95_pct": [
+     -3.03,
+     -1.75
+    ],
+    "median_excess_pct": -4.05,
+    "share_positive": 0.331,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 417,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "all events",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 4807,
+    "dates": 934,
+    "mean_excess_pct": -1.9,
+    "ci95_pct": [
+     -2.4,
+     -1.45
+    ],
+    "median_excess_pct": -3.92,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 4119,
+    "dates": 617,
+    "mean_excess_pct": -2.2,
+    "ci95_pct": [
+     -2.79,
+     -1.64
+    ],
+    "median_excess_pct": -3.71,
+    "share_positive": 0.337,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 416,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2386,
+    "dates": 872,
+    "mean_excess_pct": -2.4,
+    "ci95_pct": [
+     -2.73,
+     -2.06
+    ],
+    "median_excess_pct": -3.47,
+    "share_positive": 0.28,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1959,
+    "dates": 591,
+    "mean_excess_pct": -2.5,
+    "ci95_pct": [
+     -2.98,
+     -2.03
+    ],
+    "median_excess_pct": -3.56,
+    "share_positive": 0.296,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2380,
+    "dates": 870,
+    "mean_excess_pct": -2.37,
+    "ci95_pct": [
+     -2.68,
+     -2.06
+    ],
+    "median_excess_pct": -3.44,
+    "share_positive": 0.284,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 292,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1956,
+    "dates": 590,
+    "mean_excess_pct": -2.5,
+    "ci95_pct": [
+     -2.97,
+     -2.04
+    ],
+    "median_excess_pct": -3.41,
+    "share_positive": 0.297,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2380,
+    "dates": 870,
+    "mean_excess_pct": -3.57,
+    "ci95_pct": [
+     -4.11,
+     -3.03
+    ],
+    "median_excess_pct": -5.34,
+    "share_positive": 0.287,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1950,
+    "dates": 589,
+    "mean_excess_pct": -3.64,
+    "ci95_pct": [
+     -4.32,
+     -2.92
+    ],
+    "median_excess_pct": -4.84,
+    "share_positive": 0.286,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2374,
+    "dates": 868,
+    "mean_excess_pct": -3.57,
+    "ci95_pct": [
+     -4.11,
+     -3.06
+    ],
+    "median_excess_pct": -5.29,
+    "share_positive": 0.288,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 292,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1947,
+    "dates": 588,
+    "mean_excess_pct": -3.68,
+    "ci95_pct": [
+     -4.37,
+     -3.01
+    ],
+    "median_excess_pct": -4.73,
+    "share_positive": 0.285,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2367,
+    "dates": 865,
+    "mean_excess_pct": -3.04,
+    "ci95_pct": [
+     -3.75,
+     -2.36
+    ],
+    "median_excess_pct": -6.13,
+    "share_positive": 0.302,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 292,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1939,
+    "dates": 585,
+    "mean_excess_pct": -4.04,
+    "ci95_pct": [
+     -4.97,
+     -3.1
+    ],
+    "median_excess_pct": -6.33,
+    "share_positive": 0.287,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 403,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2361,
+    "dates": 863,
+    "mean_excess_pct": -3.14,
+    "ci95_pct": [
+     -3.87,
+     -2.44
+    ],
+    "median_excess_pct": -5.96,
+    "share_positive": 0.303,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 291,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1936,
+    "dates": 584,
+    "mean_excess_pct": -4.04,
+    "ci95_pct": [
+     -4.97,
+     -3.11
+    ],
+    "median_excess_pct": -6.21,
+    "share_positive": 0.281,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.007,
+    "distinct_coins": 403,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2475,
+    "dates": 559,
+    "mean_excess_pct": -0.48,
+    "ci95_pct": [
+     -0.74,
+     -0.23
+    ],
+    "median_excess_pct": -1.29,
+    "share_positive": 0.379,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 286,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2209,
+    "dates": 420,
+    "mean_excess_pct": -0.32,
+    "ci95_pct": [
+     -0.66,
+     -0.03
+    ],
+    "median_excess_pct": -0.92,
+    "share_positive": 0.404,
+    "p_raw": 0.028,
+    "top_coin_share": 0.013,
+    "distinct_coins": 366,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2467,
+    "dates": 557,
+    "mean_excess_pct": -0.45,
+    "ci95_pct": [
+     -0.7,
+     -0.21
+    ],
+    "median_excess_pct": -1.21,
+    "share_positive": 0.373,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 286,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2199,
+    "dates": 419,
+    "mean_excess_pct": -0.31,
+    "ci95_pct": [
+     -0.61,
+     -0.05
+    ],
+    "median_excess_pct": -0.93,
+    "share_positive": 0.393,
+    "p_raw": 0.0145,
+    "top_coin_share": 0.013,
+    "distinct_coins": 365,
+    "p_bonferroni": 0.609
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2469,
+    "dates": 557,
+    "mean_excess_pct": -0.89,
+    "ci95_pct": [
+     -1.3,
+     -0.51
+    ],
+    "median_excess_pct": -2.11,
+    "share_positive": 0.352,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 286,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2204,
+    "dates": 418,
+    "mean_excess_pct": -0.73,
+    "ci95_pct": [
+     -1.31,
+     -0.2
+    ],
+    "median_excess_pct": -2.07,
+    "share_positive": 0.36,
+    "p_raw": 0.0085,
+    "top_coin_share": 0.013,
+    "distinct_coins": 366,
+    "p_bonferroni": 0.3485
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2461,
+    "dates": 555,
+    "mean_excess_pct": -0.84,
+    "ci95_pct": [
+     -1.23,
+     -0.47
+    ],
+    "median_excess_pct": -1.94,
+    "share_positive": 0.354,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 286,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2194,
+    "dates": 417,
+    "mean_excess_pct": -0.56,
+    "ci95_pct": [
+     -1.04,
+     -0.09
+    ],
+    "median_excess_pct": -1.79,
+    "share_positive": 0.376,
+    "p_raw": 0.018,
+    "top_coin_share": 0.013,
+    "distinct_coins": 365,
+    "p_bonferroni": 0.756
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2454,
+    "dates": 553,
+    "mean_excess_pct": -0.8,
+    "ci95_pct": [
+     -1.44,
+     -0.19
+    ],
+    "median_excess_pct": -2.56,
+    "share_positive": 0.369,
+    "p_raw": 0.01,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.78
+   },
+   "test": {
+    "events": 2193,
+    "dates": 416,
+    "mean_excess_pct": -0.86,
+    "ci95_pct": [
+     -1.49,
+     -0.18
+    ],
+    "median_excess_pct": -2.58,
+    "share_positive": 0.37,
+    "p_raw": 0.0105,
+    "top_coin_share": 0.013,
+    "distinct_coins": 364,
+    "p_bonferroni": 0.4305
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "volume_spike=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2446,
+    "dates": 551,
+    "mean_excess_pct": -0.71,
+    "ci95_pct": [
+     -1.31,
+     -0.13
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.362,
+    "p_raw": 0.0165,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2183,
+    "dates": 415,
+    "mean_excess_pct": -0.57,
+    "ci95_pct": [
+     -1.1,
+     0.08
+    ],
+    "median_excess_pct": -2.22,
+    "share_positive": 0.386,
+    "p_raw": 0.087,
+    "top_coin_share": 0.013,
+    "distinct_coins": 363,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1892,
+    "dates": 620,
+    "mean_excess_pct": -1.48,
+    "ci95_pct": [
+     -1.82,
+     -1.1
+    ],
+    "median_excess_pct": -2.54,
+    "share_positive": 0.326,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 288,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1170,
+    "dates": 386,
+    "mean_excess_pct": -1.19,
+    "ci95_pct": [
+     -1.8,
+     -0.65
+    ],
+    "median_excess_pct": -1.97,
+    "share_positive": 0.359,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 367,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1887,
+    "dates": 617,
+    "mean_excess_pct": -1.51,
+    "ci95_pct": [
+     -1.84,
+     -1.13
+    ],
+    "median_excess_pct": -2.52,
+    "share_positive": 0.323,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 287,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1164,
+    "dates": 383,
+    "mean_excess_pct": -1.22,
+    "ci95_pct": [
+     -1.79,
+     -0.69
+    ],
+    "median_excess_pct": -2.06,
+    "share_positive": 0.354,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 366,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1888,
+    "dates": 618,
+    "mean_excess_pct": -2.1,
+    "ci95_pct": [
+     -2.71,
+     -1.48
+    ],
+    "median_excess_pct": -3.87,
+    "share_positive": 0.332,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 288,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1170,
+    "dates": 386,
+    "mean_excess_pct": -1.94,
+    "ci95_pct": [
+     -2.75,
+     -1.24
+    ],
+    "median_excess_pct": -3.28,
+    "share_positive": 0.34,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 367,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1883,
+    "dates": 615,
+    "mean_excess_pct": -2.19,
+    "ci95_pct": [
+     -2.78,
+     -1.57
+    ],
+    "median_excess_pct": -3.9,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 287,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1164,
+    "dates": 383,
+    "mean_excess_pct": -1.99,
+    "ci95_pct": [
+     -2.72,
+     -1.3
+    ],
+    "median_excess_pct": -3.33,
+    "share_positive": 0.335,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 366,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1878,
+    "dates": 614,
+    "mean_excess_pct": -1.47,
+    "ci95_pct": [
+     -2.24,
+     -0.66
+    ],
+    "median_excess_pct": -4.5,
+    "share_positive": 0.353,
+    "p_raw": 0.001,
+    "top_coin_share": 0.01,
+    "distinct_coins": 285,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 1162,
+    "dates": 382,
+    "mean_excess_pct": -2.45,
+    "ci95_pct": [
+     -3.46,
+     -1.46
+    ],
+    "median_excess_pct": -5.21,
+    "share_positive": 0.314,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 365,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1873,
+    "dates": 611,
+    "mean_excess_pct": -1.63,
+    "ci95_pct": [
+     -2.41,
+     -0.85
+    ],
+    "median_excess_pct": -4.17,
+    "share_positive": 0.351,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 284,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1156,
+    "dates": 379,
+    "mean_excess_pct": -2.36,
+    "ci95_pct": [
+     -3.33,
+     -1.44
+    ],
+    "median_excess_pct": -4.81,
+    "share_positive": 0.312,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 364,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2969,
+    "dates": 731,
+    "mean_excess_pct": -1.39,
+    "ci95_pct": [
+     -1.76,
+     -1.07
+    ],
+    "median_excess_pct": -1.88,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2998,
+    "dates": 541,
+    "mean_excess_pct": -1.41,
+    "ci95_pct": [
+     -1.87,
+     -1.0
+    ],
+    "median_excess_pct": -1.68,
+    "share_positive": 0.351,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 406,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2960,
+    "dates": 730,
+    "mean_excess_pct": -1.32,
+    "ci95_pct": [
+     -1.67,
+     -1.02
+    ],
+    "median_excess_pct": -1.8,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2991,
+    "dates": 539,
+    "mean_excess_pct": -1.39,
+    "ci95_pct": [
+     -1.84,
+     -1.02
+    ],
+    "median_excess_pct": -1.49,
+    "share_positive": 0.345,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 405,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2961,
+    "dates": 729,
+    "mean_excess_pct": -2.27,
+    "ci95_pct": [
+     -2.83,
+     -1.79
+    ],
+    "median_excess_pct": -3.05,
+    "share_positive": 0.313,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2984,
+    "dates": 538,
+    "mean_excess_pct": -2.16,
+    "ci95_pct": [
+     -2.91,
+     -1.48
+    ],
+    "median_excess_pct": -2.91,
+    "share_positive": 0.319,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 406,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2952,
+    "dates": 728,
+    "mean_excess_pct": -2.17,
+    "ci95_pct": [
+     -2.69,
+     -1.71
+    ],
+    "median_excess_pct": -2.85,
+    "share_positive": 0.314,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2977,
+    "dates": 536,
+    "mean_excess_pct": -2.04,
+    "ci95_pct": [
+     -2.75,
+     -1.44
+    ],
+    "median_excess_pct": -2.7,
+    "share_positive": 0.332,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 405,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2943,
+    "dates": 722,
+    "mean_excess_pct": -2.18,
+    "ci95_pct": [
+     -2.88,
+     -1.58
+    ],
+    "median_excess_pct": -3.95,
+    "share_positive": 0.325,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2970,
+    "dates": 534,
+    "mean_excess_pct": -2.32,
+    "ci95_pct": [
+     -3.13,
+     -1.62
+    ],
+    "median_excess_pct": -3.61,
+    "share_positive": 0.338,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 404,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2934,
+    "dates": 721,
+    "mean_excess_pct": -2.08,
+    "ci95_pct": [
+     -2.73,
+     -1.49
+    ],
+    "median_excess_pct": -3.75,
+    "share_positive": 0.322,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2963,
+    "dates": 532,
+    "mean_excess_pct": -2.14,
+    "ci95_pct": [
+     -2.9,
+     -1.49
+    ],
+    "median_excess_pct": -3.31,
+    "share_positive": 0.346,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 403,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1878,
+    "dates": 594,
+    "mean_excess_pct": -1.41,
+    "ci95_pct": [
+     -1.75,
+     -1.09
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.338,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1188,
+    "dates": 382,
+    "mean_excess_pct": -0.97,
+    "ci95_pct": [
+     -1.57,
+     -0.44
+    ],
+    "median_excess_pct": -1.59,
+    "share_positive": 0.382,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 352,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1878,
+    "dates": 594,
+    "mean_excess_pct": -1.44,
+    "ci95_pct": [
+     -1.78,
+     -1.12
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.335,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1188,
+    "dates": 382,
+    "mean_excess_pct": -1.06,
+    "ci95_pct": [
+     -1.62,
+     -0.55
+    ],
+    "median_excess_pct": -1.52,
+    "share_positive": 0.381,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 352,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1878,
+    "dates": 594,
+    "mean_excess_pct": -2.07,
+    "ci95_pct": [
+     -2.63,
+     -1.46
+    ],
+    "median_excess_pct": -3.62,
+    "share_positive": 0.335,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1187,
+    "dates": 382,
+    "mean_excess_pct": -1.55,
+    "ci95_pct": [
+     -2.47,
+     -0.71
+    ],
+    "median_excess_pct": -2.8,
+    "share_positive": 0.374,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1878,
+    "dates": 594,
+    "mean_excess_pct": -2.09,
+    "ci95_pct": [
+     -2.67,
+     -1.49
+    ],
+    "median_excess_pct": -3.46,
+    "share_positive": 0.338,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1187,
+    "dates": 382,
+    "mean_excess_pct": -1.76,
+    "ci95_pct": [
+     -2.63,
+     -1.0
+    ],
+    "median_excess_pct": -2.92,
+    "share_positive": 0.367,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1877,
+    "dates": 593,
+    "mean_excess_pct": -1.25,
+    "ci95_pct": [
+     -2.08,
+     -0.4
+    ],
+    "median_excess_pct": -4.5,
+    "share_positive": 0.351,
+    "p_raw": 0.0035,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.273
+   },
+   "test": {
+    "events": 1172,
+    "dates": 378,
+    "mean_excess_pct": -1.66,
+    "ci95_pct": [
+     -2.86,
+     -0.65
+    ],
+    "median_excess_pct": -4.31,
+    "share_positive": 0.341,
+    "p_raw": 0.002,
+    "top_coin_share": 0.011,
+    "distinct_coins": 349,
+    "p_bonferroni": 0.082
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1877,
+    "dates": 593,
+    "mean_excess_pct": -1.37,
+    "ci95_pct": [
+     -2.21,
+     -0.53
+    ],
+    "median_excess_pct": -4.44,
+    "share_positive": 0.354,
+    "p_raw": 0.0015,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.117
+   },
+   "test": {
+    "events": 1172,
+    "dates": 378,
+    "mean_excess_pct": -1.9,
+    "ci95_pct": [
+     -3.02,
+     -0.95
+    ],
+    "median_excess_pct": -4.38,
+    "share_positive": 0.338,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 349,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2983,
+    "dates": 751,
+    "mean_excess_pct": -1.43,
+    "ci95_pct": [
+     -1.8,
+     -1.1
+    ],
+    "median_excess_pct": -1.95,
+    "share_positive": 0.326,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 297,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2980,
+    "dates": 567,
+    "mean_excess_pct": -1.5,
+    "ci95_pct": [
+     -1.93,
+     -1.14
+    ],
+    "median_excess_pct": -1.85,
+    "share_positive": 0.342,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 409,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2969,
+    "dates": 748,
+    "mean_excess_pct": -1.36,
+    "ci95_pct": [
+     -1.71,
+     -1.06
+    ],
+    "median_excess_pct": -1.91,
+    "share_positive": 0.326,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 297,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2967,
+    "dates": 565,
+    "mean_excess_pct": -1.45,
+    "ci95_pct": [
+     -1.86,
+     -1.12
+    ],
+    "median_excess_pct": -1.62,
+    "share_positive": 0.334,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 408,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2971,
+    "dates": 748,
+    "mean_excess_pct": -2.29,
+    "ci95_pct": [
+     -2.87,
+     -1.81
+    ],
+    "median_excess_pct": -3.17,
+    "share_positive": 0.311,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 297,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2967,
+    "dates": 564,
+    "mean_excess_pct": -2.32,
+    "ci95_pct": [
+     -2.98,
+     -1.75
+    ],
+    "median_excess_pct": -3.11,
+    "share_positive": 0.306,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 409,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2957,
+    "dates": 745,
+    "mean_excess_pct": -2.23,
+    "ci95_pct": [
+     -2.76,
+     -1.78
+    ],
+    "median_excess_pct": -2.95,
+    "share_positive": 0.311,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 297,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2954,
+    "dates": 562,
+    "mean_excess_pct": -2.13,
+    "ci95_pct": [
+     -2.77,
+     -1.61
+    ],
+    "median_excess_pct": -2.82,
+    "share_positive": 0.319,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 408,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2944,
+    "dates": 742,
+    "mean_excess_pct": -2.32,
+    "ci95_pct": [
+     -3.03,
+     -1.67
+    ],
+    "median_excess_pct": -3.93,
+    "share_positive": 0.327,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2960,
+    "dates": 562,
+    "mean_excess_pct": -2.63,
+    "ci95_pct": [
+     -3.42,
+     -1.91
+    ],
+    "median_excess_pct": -3.92,
+    "share_positive": 0.327,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 409,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "near_prior_high=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2930,
+    "dates": 739,
+    "mean_excess_pct": -2.24,
+    "ci95_pct": [
+     -2.91,
+     -1.66
+    ],
+    "median_excess_pct": -3.67,
+    "share_positive": 0.319,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2947,
+    "dates": 560,
+    "mean_excess_pct": -2.32,
+    "ci95_pct": [
+     -2.97,
+     -1.69
+    ],
+    "median_excess_pct": -3.57,
+    "share_positive": 0.336,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 408,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2762,
+    "dates": 651,
+    "mean_excess_pct": -0.86,
+    "ci95_pct": [
+     -1.17,
+     -0.58
+    ],
+    "median_excess_pct": -1.4,
+    "share_positive": 0.368,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 285,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2516,
+    "dates": 463,
+    "mean_excess_pct": -0.39,
+    "ci95_pct": [
+     -0.77,
+     -0.05
+    ],
+    "median_excess_pct": -0.92,
+    "share_positive": 0.407,
+    "p_raw": 0.0235,
+    "top_coin_share": 0.01,
+    "distinct_coins": 388,
+    "p_bonferroni": 0.9635
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2755,
+    "dates": 649,
+    "mean_excess_pct": -0.86,
+    "ci95_pct": [
+     -1.17,
+     -0.57
+    ],
+    "median_excess_pct": -1.42,
+    "share_positive": 0.365,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 285,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2511,
+    "dates": 463,
+    "mean_excess_pct": -0.42,
+    "ci95_pct": [
+     -0.76,
+     -0.12
+    ],
+    "median_excess_pct": -0.95,
+    "share_positive": 0.399,
+    "p_raw": 0.008,
+    "top_coin_share": 0.01,
+    "distinct_coins": 387,
+    "p_bonferroni": 0.336
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2756,
+    "dates": 649,
+    "mean_excess_pct": -1.4,
+    "ci95_pct": [
+     -1.86,
+     -0.97
+    ],
+    "median_excess_pct": -2.37,
+    "share_positive": 0.345,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 285,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2512,
+    "dates": 461,
+    "mean_excess_pct": -0.73,
+    "ci95_pct": [
+     -1.34,
+     -0.16
+    ],
+    "median_excess_pct": -1.86,
+    "share_positive": 0.372,
+    "p_raw": 0.0125,
+    "top_coin_share": 0.01,
+    "distinct_coins": 388,
+    "p_bonferroni": 0.5125
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2749,
+    "dates": 647,
+    "mean_excess_pct": -1.38,
+    "ci95_pct": [
+     -1.84,
+     -0.96
+    ],
+    "median_excess_pct": -2.29,
+    "share_positive": 0.346,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 285,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2507,
+    "dates": 461,
+    "mean_excess_pct": -0.69,
+    "ci95_pct": [
+     -1.23,
+     -0.16
+    ],
+    "median_excess_pct": -1.76,
+    "share_positive": 0.38,
+    "p_raw": 0.0105,
+    "top_coin_share": 0.01,
+    "distinct_coins": 387,
+    "p_bonferroni": 0.441
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2744,
+    "dates": 645,
+    "mean_excess_pct": -1.15,
+    "ci95_pct": [
+     -1.76,
+     -0.54
+    ],
+    "median_excess_pct": -3.04,
+    "share_positive": 0.357,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2501,
+    "dates": 459,
+    "mean_excess_pct": -0.78,
+    "ci95_pct": [
+     -1.44,
+     -0.12
+    ],
+    "median_excess_pct": -2.66,
+    "share_positive": 0.369,
+    "p_raw": 0.021,
+    "top_coin_share": 0.01,
+    "distinct_coins": 387,
+    "p_bonferroni": 0.861
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2737,
+    "dates": 643,
+    "mean_excess_pct": -1.19,
+    "ci95_pct": [
+     -1.78,
+     -0.63
+    ],
+    "median_excess_pct": -2.96,
+    "share_positive": 0.35,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2496,
+    "dates": 459,
+    "mean_excess_pct": -0.7,
+    "ci95_pct": [
+     -1.28,
+     -0.09
+    ],
+    "median_excess_pct": -2.42,
+    "share_positive": 0.377,
+    "p_raw": 0.0215,
+    "top_coin_share": 0.01,
+    "distinct_coins": 386,
+    "p_bonferroni": 0.903
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2099,
+    "dates": 812,
+    "mean_excess_pct": -2.16,
+    "ci95_pct": [
+     -2.57,
+     -1.76
+    ],
+    "median_excess_pct": -3.26,
+    "share_positive": 0.281,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1652,
+    "dates": 580,
+    "mean_excess_pct": -2.81,
+    "ci95_pct": [
+     -3.16,
+     -2.44
+    ],
+    "median_excess_pct": -3.85,
+    "share_positive": 0.271,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 373,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2092,
+    "dates": 810,
+    "mean_excess_pct": -2.1,
+    "ci95_pct": [
+     -2.47,
+     -1.72
+    ],
+    "median_excess_pct": -3.25,
+    "share_positive": 0.283,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1644,
+    "dates": 578,
+    "mean_excess_pct": -2.74,
+    "ci95_pct": [
+     -3.1,
+     -2.37
+    ],
+    "median_excess_pct": -3.73,
+    "share_positive": 0.269,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 372,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2093,
+    "dates": 811,
+    "mean_excess_pct": -3.27,
+    "ci95_pct": [
+     -3.92,
+     -2.66
+    ],
+    "median_excess_pct": -5.08,
+    "share_positive": 0.288,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1642,
+    "dates": 578,
+    "mean_excess_pct": -4.2,
+    "ci95_pct": [
+     -4.82,
+     -3.51
+    ],
+    "median_excess_pct": -5.44,
+    "share_positive": 0.253,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 373,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2086,
+    "dates": 809,
+    "mean_excess_pct": -3.22,
+    "ci95_pct": [
+     -3.85,
+     -2.62
+    ],
+    "median_excess_pct": -4.98,
+    "share_positive": 0.29,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 283,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1634,
+    "dates": 576,
+    "mean_excess_pct": -4.08,
+    "ci95_pct": [
+     -4.7,
+     -3.43
+    ],
+    "median_excess_pct": -5.1,
+    "share_positive": 0.261,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 372,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2077,
+    "dates": 805,
+    "mean_excess_pct": -2.89,
+    "ci95_pct": [
+     -3.8,
+     -2.03
+    ],
+    "median_excess_pct": -5.86,
+    "share_positive": 0.308,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 282,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1631,
+    "dates": 574,
+    "mean_excess_pct": -4.77,
+    "ci95_pct": [
+     -5.73,
+     -3.81
+    ],
+    "median_excess_pct": -6.96,
+    "share_positive": 0.273,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 372,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2070,
+    "dates": 803,
+    "mean_excess_pct": -2.85,
+    "ci95_pct": [
+     -3.68,
+     -2.01
+    ],
+    "median_excess_pct": -5.51,
+    "share_positive": 0.31,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 282,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1623,
+    "dates": 572,
+    "mean_excess_pct": -4.5,
+    "ci95_pct": [
+     -5.38,
+     -3.59
+    ],
+    "median_excess_pct": -6.3,
+    "share_positive": 0.275,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 371,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3529,
+    "dates": 414,
+    "mean_excess_pct": -0.73,
+    "ci95_pct": [
+     -0.99,
+     -0.49
+    ],
+    "median_excess_pct": -1.49,
+    "share_positive": 0.358,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 294,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2990,
+    "dates": 239,
+    "mean_excess_pct": -0.55,
+    "ci95_pct": [
+     -0.9,
+     -0.26
+    ],
+    "median_excess_pct": -1.16,
+    "share_positive": 0.388,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 394,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3523,
+    "dates": 414,
+    "mean_excess_pct": -0.72,
+    "ci95_pct": [
+     -0.98,
+     -0.49
+    ],
+    "median_excess_pct": -1.47,
+    "share_positive": 0.357,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 294,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2983,
+    "dates": 239,
+    "mean_excess_pct": -0.55,
+    "ci95_pct": [
+     -0.87,
+     -0.3
+    ],
+    "median_excess_pct": -1.12,
+    "share_positive": 0.38,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 393,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3526,
+    "dates": 414,
+    "mean_excess_pct": -1.14,
+    "ci95_pct": [
+     -1.51,
+     -0.79
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.351,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 294,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2989,
+    "dates": 239,
+    "mean_excess_pct": -0.9,
+    "ci95_pct": [
+     -1.46,
+     -0.39
+    ],
+    "median_excess_pct": -2.19,
+    "share_positive": 0.355,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 394,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3520,
+    "dates": 414,
+    "mean_excess_pct": -1.15,
+    "ci95_pct": [
+     -1.51,
+     -0.79
+    ],
+    "median_excess_pct": -2.31,
+    "share_positive": 0.351,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 294,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 2982,
+    "dates": 239,
+    "mean_excess_pct": -0.86,
+    "ci95_pct": [
+     -1.36,
+     -0.4
+    ],
+    "median_excess_pct": -2.07,
+    "share_positive": 0.362,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 393,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3514,
+    "dates": 413,
+    "mean_excess_pct": -0.66,
+    "ci95_pct": [
+     -1.2,
+     -0.14
+    ],
+    "median_excess_pct": -2.99,
+    "share_positive": 0.369,
+    "p_raw": 0.012,
+    "top_coin_share": 0.01,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.936
+   },
+   "test": {
+    "events": 2973,
+    "dates": 237,
+    "mean_excess_pct": -1.0,
+    "ci95_pct": [
+     -1.65,
+     -0.38
+    ],
+    "median_excess_pct": -2.97,
+    "share_positive": 0.359,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 394,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3508,
+    "dates": 413,
+    "mean_excess_pct": -0.72,
+    "ci95_pct": [
+     -1.24,
+     -0.22
+    ],
+    "median_excess_pct": -2.82,
+    "share_positive": 0.363,
+    "p_raw": 0.0025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.195
+   },
+   "test": {
+    "events": 2966,
+    "dates": 237,
+    "mean_excess_pct": -0.9,
+    "ci95_pct": [
+     -1.48,
+     -0.34
+    ],
+    "median_excess_pct": -2.73,
+    "share_positive": 0.366,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 393,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": false
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1332,
+    "dates": 529,
+    "mean_excess_pct": -3.26,
+    "ci95_pct": [
+     -3.71,
+     -2.8
+    ],
+    "median_excess_pct": -4.94,
+    "share_positive": 0.257,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 268,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1178,
+    "dates": 386,
+    "mean_excess_pct": -3.37,
+    "ci95_pct": [
+     -3.93,
+     -2.84
+    ],
+    "median_excess_pct": -5.1,
+    "share_positive": 0.266,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 362,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1324,
+    "dates": 527,
+    "mean_excess_pct": -3.17,
+    "ci95_pct": [
+     -3.59,
+     -2.74
+    ],
+    "median_excess_pct": -4.65,
+    "share_positive": 0.256,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 267,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1172,
+    "dates": 384,
+    "mean_excess_pct": -3.34,
+    "ci95_pct": [
+     -3.89,
+     -2.81
+    ],
+    "median_excess_pct": -4.95,
+    "share_positive": 0.265,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 362,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1323,
+    "dates": 527,
+    "mean_excess_pct": -5.06,
+    "ci95_pct": [
+     -5.82,
+     -4.32
+    ],
+    "median_excess_pct": -6.97,
+    "share_positive": 0.24,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 266,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1165,
+    "dates": 384,
+    "mean_excess_pct": -5.18,
+    "ci95_pct": [
+     -5.99,
+     -4.37
+    ],
+    "median_excess_pct": -6.79,
+    "share_positive": 0.25,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 362,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1315,
+    "dates": 525,
+    "mean_excess_pct": -4.94,
+    "ci95_pct": [
+     -5.63,
+     -4.24
+    ],
+    "median_excess_pct": -6.77,
+    "share_positive": 0.243,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 265,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1159,
+    "dates": 382,
+    "mean_excess_pct": -5.04,
+    "ci95_pct": [
+     -5.85,
+     -4.26
+    ],
+    "median_excess_pct": -6.67,
+    "share_positive": 0.259,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 362,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1307,
+    "dates": 523,
+    "mean_excess_pct": -5.23,
+    "ci95_pct": [
+     -6.25,
+     -4.14
+    ],
+    "median_excess_pct": -8.11,
+    "share_positive": 0.248,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 264,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1159,
+    "dates": 382,
+    "mean_excess_pct": -5.83,
+    "ci95_pct": [
+     -6.93,
+     -4.7
+    ],
+    "median_excess_pct": -8.34,
+    "share_positive": 0.261,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 359,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "broad_market_day=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1299,
+    "dates": 521,
+    "mean_excess_pct": -5.1,
+    "ci95_pct": [
+     -6.11,
+     -4.07
+    ],
+    "median_excess_pct": -7.95,
+    "share_positive": 0.253,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 262,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1153,
+    "dates": 380,
+    "mean_excess_pct": -5.55,
+    "ci95_pct": [
+     -6.66,
+     -4.47
+    ],
+    "median_excess_pct": -8.02,
+    "share_positive": 0.26,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 359,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3700,
+    "dates": 505,
+    "mean_excess_pct": -0.93,
+    "ci95_pct": [
+     -1.21,
+     -0.67
+    ],
+    "median_excess_pct": -1.69,
+    "share_positive": 0.35,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3180,
+    "dates": 315,
+    "mean_excess_pct": -0.76,
+    "ci95_pct": [
+     -1.12,
+     -0.46
+    ],
+    "median_excess_pct": -1.29,
+    "share_positive": 0.379,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 400,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3692,
+    "dates": 504,
+    "mean_excess_pct": -0.92,
+    "ci95_pct": [
+     -1.19,
+     -0.68
+    ],
+    "median_excess_pct": -1.61,
+    "share_positive": 0.348,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3172,
+    "dates": 315,
+    "mean_excess_pct": -0.76,
+    "ci95_pct": [
+     -1.09,
+     -0.47
+    ],
+    "median_excess_pct": -1.24,
+    "share_positive": 0.373,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 399,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3697,
+    "dates": 505,
+    "mean_excess_pct": -1.43,
+    "ci95_pct": [
+     -1.84,
+     -1.04
+    ],
+    "median_excess_pct": -2.62,
+    "share_positive": 0.342,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3172,
+    "dates": 314,
+    "mean_excess_pct": -1.14,
+    "ci95_pct": [
+     -1.67,
+     -0.64
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.347,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 400,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3689,
+    "dates": 504,
+    "mean_excess_pct": -1.42,
+    "ci95_pct": [
+     -1.83,
+     -1.04
+    ],
+    "median_excess_pct": -2.45,
+    "share_positive": 0.342,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3164,
+    "dates": 314,
+    "mean_excess_pct": -1.07,
+    "ci95_pct": [
+     -1.56,
+     -0.62
+    ],
+    "median_excess_pct": -2.22,
+    "share_positive": 0.356,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 399,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3679,
+    "dates": 503,
+    "mean_excess_pct": -1.16,
+    "ci95_pct": [
+     -1.72,
+     -0.63
+    ],
+    "median_excess_pct": -3.44,
+    "share_positive": 0.351,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 291,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3157,
+    "dates": 312,
+    "mean_excess_pct": -1.24,
+    "ci95_pct": [
+     -1.85,
+     -0.65
+    ],
+    "median_excess_pct": -3.12,
+    "share_positive": 0.354,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 400,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3671,
+    "dates": 502,
+    "mean_excess_pct": -1.19,
+    "ci95_pct": [
+     -1.73,
+     -0.67
+    ],
+    "median_excess_pct": -3.24,
+    "share_positive": 0.346,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 291,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 3149,
+    "dates": 312,
+    "mean_excess_pct": -1.12,
+    "ci95_pct": [
+     -1.69,
+     -0.59
+    ],
+    "median_excess_pct": -2.85,
+    "share_positive": 0.363,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 399,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1161,
+    "dates": 438,
+    "mean_excess_pct": -3.0,
+    "ci95_pct": [
+     -3.46,
+     -2.56
+    ],
+    "median_excess_pct": -4.46,
+    "share_positive": 0.267,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 275,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 988,
+    "dates": 310,
+    "mean_excess_pct": -3.22,
+    "ci95_pct": [
+     -3.82,
+     -2.64
+    ],
+    "median_excess_pct": -4.64,
+    "share_positive": 0.27,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1155,
+    "dates": 437,
+    "mean_excess_pct": -2.9,
+    "ci95_pct": [
+     -3.33,
+     -2.46
+    ],
+    "median_excess_pct": -4.19,
+    "share_positive": 0.27,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 272,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 983,
+    "dates": 308,
+    "mean_excess_pct": -3.22,
+    "ci95_pct": [
+     -3.81,
+     -2.64
+    ],
+    "median_excess_pct": -4.67,
+    "share_positive": 0.268,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1152,
+    "dates": 436,
+    "mean_excess_pct": -4.7,
+    "ci95_pct": [
+     -5.52,
+     -3.89
+    ],
+    "median_excess_pct": -6.45,
+    "share_positive": 0.249,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 273,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 982,
+    "dates": 309,
+    "mean_excess_pct": -5.2,
+    "ci95_pct": [
+     -6.09,
+     -4.32
+    ],
+    "median_excess_pct": -6.77,
+    "share_positive": 0.254,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1146,
+    "dates": 435,
+    "mean_excess_pct": -4.61,
+    "ci95_pct": [
+     -5.34,
+     -3.86
+    ],
+    "median_excess_pct": -6.42,
+    "share_positive": 0.256,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 270,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 977,
+    "dates": 307,
+    "mean_excess_pct": -5.12,
+    "ci95_pct": [
+     -5.99,
+     -4.24
+    ],
+    "median_excess_pct": -6.76,
+    "share_positive": 0.259,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 351,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1142,
+    "dates": 433,
+    "mean_excess_pct": -4.27,
+    "ci95_pct": [
+     -5.44,
+     -3.12
+    ],
+    "median_excess_pct": -7.35,
+    "share_positive": 0.287,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 271,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 975,
+    "dates": 307,
+    "mean_excess_pct": -5.95,
+    "ci95_pct": [
+     -7.19,
+     -4.68
+    ],
+    "median_excess_pct": -8.15,
+    "share_positive": 0.256,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 348,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "up",
+   "split": "btc_up_day=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1136,
+    "dates": 432,
+    "mean_excess_pct": -4.2,
+    "ci95_pct": [
+     -5.31,
+     -3.08
+    ],
+    "median_excess_pct": -7.1,
+    "share_positive": 0.291,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 268,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 970,
+    "dates": 305,
+    "mean_excess_pct": -5.72,
+    "ci95_pct": [
+     -6.99,
+     -4.53
+    ],
+    "median_excess_pct": -8.04,
+    "share_positive": 0.252,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.009,
+    "distinct_coins": 348,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": true
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3890,
+    "dates": 616,
+    "mean_excess_pct": -0.35,
+    "ci95_pct": [
+     -0.56,
+     -0.14
+    ],
+    "median_excess_pct": -0.77,
+    "share_positive": 0.407,
+    "p_raw": 0.001,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 3469,
+    "dates": 479,
+    "mean_excess_pct": -0.14,
+    "ci95_pct": [
+     -0.35,
+     0.05
+    ],
+    "median_excess_pct": -0.39,
+    "share_positive": 0.446,
+    "p_raw": 0.161,
+    "top_coin_share": 0.006,
+    "distinct_coins": 418,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3880,
+    "dates": 614,
+    "mean_excess_pct": -0.3,
+    "ci95_pct": [
+     -0.5,
+     -0.12
+    ],
+    "median_excess_pct": -0.59,
+    "share_positive": 0.415,
+    "p_raw": 0.0005,
+    "top_coin_share": 0.008,
+    "distinct_coins": 300,
+    "p_bonferroni": 0.039
+   },
+   "test": {
+    "events": 3448,
+    "dates": 476,
+    "mean_excess_pct": -0.04,
+    "ci95_pct": [
+     -0.25,
+     0.14
+    ],
+    "median_excess_pct": -0.36,
+    "share_positive": 0.453,
+    "p_raw": 0.6335,
+    "top_coin_share": 0.006,
+    "distinct_coins": 418,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3881,
+    "dates": 613,
+    "mean_excess_pct": -0.06,
+    "ci95_pct": [
+     -0.41,
+     0.28
+    ],
+    "median_excess_pct": -0.98,
+    "share_positive": 0.435,
+    "p_raw": 0.775,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3463,
+    "dates": 477,
+    "mean_excess_pct": -0.36,
+    "ci95_pct": [
+     -0.76,
+     -0.03
+    ],
+    "median_excess_pct": -0.85,
+    "share_positive": 0.437,
+    "p_raw": 0.0285,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3871,
+    "dates": 611,
+    "mean_excess_pct": -0.07,
+    "ci95_pct": [
+     -0.35,
+     0.22
+    ],
+    "median_excess_pct": -0.91,
+    "share_positive": 0.432,
+    "p_raw": 0.646,
+    "top_coin_share": 0.008,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3442,
+    "dates": 474,
+    "mean_excess_pct": -0.23,
+    "ci95_pct": [
+     -0.6,
+     0.08
+    ],
+    "median_excess_pct": -0.77,
+    "share_positive": 0.441,
+    "p_raw": 0.152,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3863,
+    "dates": 608,
+    "mean_excess_pct": -0.24,
+    "ci95_pct": [
+     -0.69,
+     0.17
+    ],
+    "median_excess_pct": -1.38,
+    "share_positive": 0.42,
+    "p_raw": 0.2605,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3432,
+    "dates": 474,
+    "mean_excess_pct": -0.62,
+    "ci95_pct": [
+     -1.22,
+     -0.15
+    ],
+    "median_excess_pct": -1.89,
+    "share_positive": 0.406,
+    "p_raw": 0.0095,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 0.3895
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "all events",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3854,
+    "dates": 606,
+    "mean_excess_pct": -0.18,
+    "ci95_pct": [
+     -0.58,
+     0.19
+    ],
+    "median_excess_pct": -1.21,
+    "share_positive": 0.427,
+    "p_raw": 0.3185,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3411,
+    "dates": 471,
+    "mean_excess_pct": -0.25,
+    "ci95_pct": [
+     -0.71,
+     0.15
+    ],
+    "median_excess_pct": -1.62,
+    "share_positive": 0.421,
+    "p_raw": 0.2145,
+    "top_coin_share": 0.006,
+    "distinct_coins": 415,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1048,
+    "dates": 474,
+    "mean_excess_pct": -1.58,
+    "ci95_pct": [
+     -2.05,
+     -1.15
+    ],
+    "median_excess_pct": -1.79,
+    "share_positive": 0.295,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 267,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 938,
+    "dates": 373,
+    "mean_excess_pct": -0.54,
+    "ci95_pct": [
+     -1.25,
+     0.07
+    ],
+    "median_excess_pct": -1.28,
+    "share_positive": 0.405,
+    "p_raw": 0.094,
+    "top_coin_share": 0.011,
+    "distinct_coins": 345,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1045,
+    "dates": 473,
+    "mean_excess_pct": -1.41,
+    "ci95_pct": [
+     -1.85,
+     -0.99
+    ],
+    "median_excess_pct": -1.74,
+    "share_positive": 0.306,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 266,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 937,
+    "dates": 373,
+    "mean_excess_pct": -0.44,
+    "ci95_pct": [
+     -1.13,
+     0.11
+    ],
+    "median_excess_pct": -1.16,
+    "share_positive": 0.402,
+    "p_raw": 0.1365,
+    "top_coin_share": 0.011,
+    "distinct_coins": 345,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1044,
+    "dates": 473,
+    "mean_excess_pct": -1.32,
+    "ci95_pct": [
+     -2.11,
+     -0.55
+    ],
+    "median_excess_pct": -2.65,
+    "share_positive": 0.369,
+    "p_raw": 0.001,
+    "top_coin_share": 0.011,
+    "distinct_coins": 267,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 935,
+    "dates": 372,
+    "mean_excess_pct": -1.14,
+    "ci95_pct": [
+     -2.38,
+     0.04
+    ],
+    "median_excess_pct": -2.28,
+    "share_positive": 0.4,
+    "p_raw": 0.059,
+    "top_coin_share": 0.011,
+    "distinct_coins": 342,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1041,
+    "dates": 472,
+    "mean_excess_pct": -1.13,
+    "ci95_pct": [
+     -1.87,
+     -0.39
+    ],
+    "median_excess_pct": -2.22,
+    "share_positive": 0.37,
+    "p_raw": 0.002,
+    "top_coin_share": 0.012,
+    "distinct_coins": 266,
+    "p_bonferroni": 0.156
+   },
+   "test": {
+    "events": 934,
+    "dates": 372,
+    "mean_excess_pct": -0.85,
+    "ci95_pct": [
+     -2.13,
+     0.27
+    ],
+    "median_excess_pct": -1.83,
+    "share_positive": 0.419,
+    "p_raw": 0.1475,
+    "top_coin_share": 0.011,
+    "distinct_coins": 342,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1038,
+    "dates": 469,
+    "mean_excess_pct": -1.83,
+    "ci95_pct": [
+     -2.76,
+     -0.94
+    ],
+    "median_excess_pct": -3.06,
+    "share_positive": 0.376,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.012,
+    "distinct_coins": 267,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 928,
+    "dates": 369,
+    "mean_excess_pct": -2.34,
+    "ci95_pct": [
+     -3.94,
+     -0.93
+    ],
+    "median_excess_pct": -3.36,
+    "share_positive": 0.365,
+    "p_raw": 0.001,
+    "top_coin_share": 0.011,
+    "distinct_coins": 340,
+    "p_bonferroni": 0.041
+   },
+   "replicates": true
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1035,
+    "dates": 468,
+    "mean_excess_pct": -1.5,
+    "ci95_pct": [
+     -2.37,
+     -0.64
+    ],
+    "median_excess_pct": -2.46,
+    "share_positive": 0.396,
+    "p_raw": 0.001,
+    "top_coin_share": 0.012,
+    "distinct_coins": 266,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 927,
+    "dates": 369,
+    "mean_excess_pct": -1.69,
+    "ci95_pct": [
+     -3.16,
+     -0.39
+    ],
+    "median_excess_pct": -2.79,
+    "share_positive": 0.387,
+    "p_raw": 0.006,
+    "top_coin_share": 0.011,
+    "distinct_coins": 340,
+    "p_bonferroni": 0.252
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2842,
+    "dates": 364,
+    "mean_excess_pct": 0.1,
+    "ci95_pct": [
+     -0.12,
+     0.34
+    ],
+    "median_excess_pct": -0.33,
+    "share_positive": 0.449,
+    "p_raw": 0.3695,
+    "top_coin_share": 0.009,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2531,
+    "dates": 349,
+    "mean_excess_pct": 0.01,
+    "ci95_pct": [
+     -0.19,
+     0.21
+    ],
+    "median_excess_pct": -0.23,
+    "share_positive": 0.461,
+    "p_raw": 0.9495,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2835,
+    "dates": 363,
+    "mean_excess_pct": 0.1,
+    "ci95_pct": [
+     -0.08,
+     0.31
+    ],
+    "median_excess_pct": -0.3,
+    "share_positive": 0.455,
+    "p_raw": 0.2905,
+    "top_coin_share": 0.009,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2511,
+    "dates": 342,
+    "mean_excess_pct": 0.11,
+    "ci95_pct": [
+     -0.07,
+     0.3
+    ],
+    "median_excess_pct": -0.17,
+    "share_positive": 0.472,
+    "p_raw": 0.253,
+    "top_coin_share": 0.007,
+    "distinct_coins": 403,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2837,
+    "dates": 362,
+    "mean_excess_pct": 0.4,
+    "ci95_pct": [
+     0.05,
+     0.78
+    ],
+    "median_excess_pct": -0.48,
+    "share_positive": 0.46,
+    "p_raw": 0.024,
+    "top_coin_share": 0.009,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2528,
+    "dates": 348,
+    "mean_excess_pct": -0.08,
+    "ci95_pct": [
+     -0.4,
+     0.24
+    ],
+    "median_excess_pct": -0.63,
+    "share_positive": 0.451,
+    "p_raw": 0.5975,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2830,
+    "dates": 361,
+    "mean_excess_pct": 0.33,
+    "ci95_pct": [
+     0.02,
+     0.64
+    ],
+    "median_excess_pct": -0.58,
+    "share_positive": 0.454,
+    "p_raw": 0.037,
+    "top_coin_share": 0.009,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2508,
+    "dates": 341,
+    "mean_excess_pct": 0.0,
+    "ci95_pct": [
+     -0.3,
+     0.3
+    ],
+    "median_excess_pct": -0.59,
+    "share_positive": 0.449,
+    "p_raw": 0.9625,
+    "top_coin_share": 0.007,
+    "distinct_coins": 403,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2825,
+    "dates": 358,
+    "mean_excess_pct": 0.35,
+    "ci95_pct": [
+     -0.08,
+     0.79
+    ],
+    "median_excess_pct": -0.97,
+    "share_positive": 0.436,
+    "p_raw": 0.1185,
+    "top_coin_share": 0.009,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2504,
+    "dates": 346,
+    "mean_excess_pct": 0.02,
+    "ci95_pct": [
+     -0.51,
+     0.54
+    ],
+    "median_excess_pct": -1.47,
+    "share_positive": 0.421,
+    "p_raw": 0.9785,
+    "top_coin_share": 0.007,
+    "distinct_coins": 404,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "volume_spike=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2819,
+    "dates": 357,
+    "mean_excess_pct": 0.31,
+    "ci95_pct": [
+     -0.09,
+     0.69
+    ],
+    "median_excess_pct": -1.04,
+    "share_positive": 0.438,
+    "p_raw": 0.1245,
+    "top_coin_share": 0.009,
+    "distinct_coins": 294,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2484,
+    "dates": 339,
+    "mean_excess_pct": 0.28,
+    "ci95_pct": [
+     -0.18,
+     0.75
+    ],
+    "median_excess_pct": -1.24,
+    "share_positive": 0.434,
+    "p_raw": 0.2405,
+    "top_coin_share": 0.007,
+    "distinct_coins": 403,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2135,
+    "dates": 563,
+    "mean_excess_pct": -0.66,
+    "ci95_pct": [
+     -0.95,
+     -0.4
+    ],
+    "median_excess_pct": -0.93,
+    "share_positive": 0.376,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 293,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1826,
+    "dates": 433,
+    "mean_excess_pct": -0.22,
+    "ci95_pct": [
+     -0.54,
+     0.13
+    ],
+    "median_excess_pct": -0.63,
+    "share_positive": 0.424,
+    "p_raw": 0.2015,
+    "top_coin_share": 0.008,
+    "distinct_coins": 390,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2131,
+    "dates": 561,
+    "mean_excess_pct": -0.61,
+    "ci95_pct": [
+     -0.88,
+     -0.35
+    ],
+    "median_excess_pct": -0.97,
+    "share_positive": 0.382,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 291,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 1814,
+    "dates": 430,
+    "mean_excess_pct": -0.12,
+    "ci95_pct": [
+     -0.43,
+     0.18
+    ],
+    "median_excess_pct": -0.58,
+    "share_positive": 0.428,
+    "p_raw": 0.4655,
+    "top_coin_share": 0.008,
+    "distinct_coins": 389,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2126,
+    "dates": 560,
+    "mean_excess_pct": -0.16,
+    "ci95_pct": [
+     -0.73,
+     0.37
+    ],
+    "median_excess_pct": -1.34,
+    "share_positive": 0.423,
+    "p_raw": 0.592,
+    "top_coin_share": 0.011,
+    "distinct_coins": 292,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1822,
+    "dates": 431,
+    "mean_excess_pct": -0.55,
+    "ci95_pct": [
+     -1.16,
+     0.0
+    ],
+    "median_excess_pct": -1.16,
+    "share_positive": 0.413,
+    "p_raw": 0.052,
+    "top_coin_share": 0.008,
+    "distinct_coins": 388,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2122,
+    "dates": 558,
+    "mean_excess_pct": -0.1,
+    "ci95_pct": [
+     -0.6,
+     0.38
+    ],
+    "median_excess_pct": -1.14,
+    "share_positive": 0.418,
+    "p_raw": 0.7115,
+    "top_coin_share": 0.011,
+    "distinct_coins": 290,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1810,
+    "dates": 428,
+    "mean_excess_pct": -0.37,
+    "ci95_pct": [
+     -0.89,
+     0.13
+    ],
+    "median_excess_pct": -0.95,
+    "share_positive": 0.424,
+    "p_raw": 0.156,
+    "top_coin_share": 0.008,
+    "distinct_coins": 387,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2111,
+    "dates": 555,
+    "mean_excess_pct": -0.8,
+    "ci95_pct": [
+     -1.56,
+     -0.12
+    ],
+    "median_excess_pct": -2.26,
+    "share_positive": 0.389,
+    "p_raw": 0.0215,
+    "top_coin_share": 0.011,
+    "distinct_coins": 289,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1803,
+    "dates": 428,
+    "mean_excess_pct": -1.18,
+    "ci95_pct": [
+     -1.98,
+     -0.47
+    ],
+    "median_excess_pct": -2.62,
+    "share_positive": 0.38,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 387,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2108,
+    "dates": 553,
+    "mean_excess_pct": -0.6,
+    "ci95_pct": [
+     -1.27,
+     0.04
+    ],
+    "median_excess_pct": -1.9,
+    "share_positive": 0.406,
+    "p_raw": 0.064,
+    "top_coin_share": 0.011,
+    "distinct_coins": 288,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1791,
+    "dates": 425,
+    "mean_excess_pct": -0.57,
+    "ci95_pct": [
+     -1.3,
+     0.06
+    ],
+    "median_excess_pct": -2.09,
+    "share_positive": 0.4,
+    "p_raw": 0.077,
+    "top_coin_share": 0.008,
+    "distinct_coins": 386,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1755,
+    "dates": 204,
+    "mean_excess_pct": 0.02,
+    "ci95_pct": [
+     -0.27,
+     0.32
+    ],
+    "median_excess_pct": -0.36,
+    "share_positive": 0.446,
+    "p_raw": 0.8875,
+    "top_coin_share": 0.009,
+    "distinct_coins": 290,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1643,
+    "dates": 236,
+    "mean_excess_pct": -0.06,
+    "ci95_pct": [
+     -0.3,
+     0.16
+    ],
+    "median_excess_pct": -0.19,
+    "share_positive": 0.47,
+    "p_raw": 0.5905,
+    "top_coin_share": 0.008,
+    "distinct_coins": 391,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1749,
+    "dates": 203,
+    "mean_excess_pct": 0.07,
+    "ci95_pct": [
+     -0.16,
+     0.32
+    ],
+    "median_excess_pct": -0.3,
+    "share_positive": 0.455,
+    "p_raw": 0.5655,
+    "top_coin_share": 0.009,
+    "distinct_coins": 289,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1634,
+    "dates": 233,
+    "mean_excess_pct": 0.04,
+    "ci95_pct": [
+     -0.19,
+     0.23
+    ],
+    "median_excess_pct": -0.12,
+    "share_positive": 0.482,
+    "p_raw": 0.7225,
+    "top_coin_share": 0.008,
+    "distinct_coins": 389,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1755,
+    "dates": 204,
+    "mean_excess_pct": 0.06,
+    "ci95_pct": [
+     -0.31,
+     0.42
+    ],
+    "median_excess_pct": -0.64,
+    "share_positive": 0.45,
+    "p_raw": 0.737,
+    "top_coin_share": 0.009,
+    "distinct_coins": 290,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1641,
+    "dates": 236,
+    "mean_excess_pct": -0.16,
+    "ci95_pct": [
+     -0.57,
+     0.26
+    ],
+    "median_excess_pct": -0.55,
+    "share_positive": 0.464,
+    "p_raw": 0.4025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 390,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1749,
+    "dates": 203,
+    "mean_excess_pct": -0.03,
+    "ci95_pct": [
+     -0.36,
+     0.31
+    ],
+    "median_excess_pct": -0.66,
+    "share_positive": 0.448,
+    "p_raw": 0.9005,
+    "top_coin_share": 0.009,
+    "distinct_coins": 289,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1632,
+    "dates": 233,
+    "mean_excess_pct": -0.08,
+    "ci95_pct": [
+     -0.49,
+     0.29
+    ],
+    "median_excess_pct": -0.56,
+    "share_positive": 0.46,
+    "p_raw": 0.6565,
+    "top_coin_share": 0.008,
+    "distinct_coins": 388,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 1752,
+    "dates": 203,
+    "mean_excess_pct": 0.45,
+    "ci95_pct": [
+     -0.15,
+     1.03
+    ],
+    "median_excess_pct": -0.61,
+    "share_positive": 0.458,
+    "p_raw": 0.1465,
+    "top_coin_share": 0.009,
+    "distinct_coins": 289,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1629,
+    "dates": 234,
+    "mean_excess_pct": -0.01,
+    "ci95_pct": [
+     -0.73,
+     0.67
+    ],
+    "median_excess_pct": -1.17,
+    "share_positive": 0.433,
+    "p_raw": 0.9365,
+    "top_coin_share": 0.008,
+    "distinct_coins": 390,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "uptrend_into_event=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 1746,
+    "dates": 202,
+    "mean_excess_pct": 0.33,
+    "ci95_pct": [
+     -0.2,
+     0.83
+    ],
+    "median_excess_pct": -0.7,
+    "share_positive": 0.451,
+    "p_raw": 0.211,
+    "top_coin_share": 0.009,
+    "distinct_coins": 288,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 1620,
+    "dates": 231,
+    "mean_excess_pct": 0.09,
+    "ci95_pct": [
+     -0.52,
+     0.65
+    ],
+    "median_excess_pct": -1.1,
+    "share_positive": 0.444,
+    "p_raw": 0.7665,
+    "top_coin_share": 0.008,
+    "distinct_coins": 387,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "test": {
+    "events": 0,
+    "note": "fewer than 20 events"
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3890,
+    "dates": 616,
+    "mean_excess_pct": -0.35,
+    "ci95_pct": [
+     -0.57,
+     -0.14
+    ],
+    "median_excess_pct": -0.77,
+    "share_positive": 0.407,
+    "p_raw": 0.001,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 3469,
+    "dates": 479,
+    "mean_excess_pct": -0.14,
+    "ci95_pct": [
+     -0.36,
+     0.05
+    ],
+    "median_excess_pct": -0.39,
+    "share_positive": 0.446,
+    "p_raw": 0.1645,
+    "top_coin_share": 0.006,
+    "distinct_coins": 418,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3880,
+    "dates": 614,
+    "mean_excess_pct": -0.3,
+    "ci95_pct": [
+     -0.49,
+     -0.12
+    ],
+    "median_excess_pct": -0.59,
+    "share_positive": 0.415,
+    "p_raw": 0.0005,
+    "top_coin_share": 0.008,
+    "distinct_coins": 300,
+    "p_bonferroni": 0.039
+   },
+   "test": {
+    "events": 3448,
+    "dates": 476,
+    "mean_excess_pct": -0.04,
+    "ci95_pct": [
+     -0.24,
+     0.14
+    ],
+    "median_excess_pct": -0.36,
+    "share_positive": 0.453,
+    "p_raw": 0.676,
+    "top_coin_share": 0.006,
+    "distinct_coins": 418,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3881,
+    "dates": 613,
+    "mean_excess_pct": -0.06,
+    "ci95_pct": [
+     -0.4,
+     0.27
+    ],
+    "median_excess_pct": -0.98,
+    "share_positive": 0.435,
+    "p_raw": 0.717,
+    "top_coin_share": 0.008,
+    "distinct_coins": 301,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3463,
+    "dates": 477,
+    "mean_excess_pct": -0.36,
+    "ci95_pct": [
+     -0.77,
+     -0.02
+    ],
+    "median_excess_pct": -0.85,
+    "share_positive": 0.437,
+    "p_raw": 0.035,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3871,
+    "dates": 611,
+    "mean_excess_pct": -0.07,
+    "ci95_pct": [
+     -0.36,
+     0.23
+    ],
+    "median_excess_pct": -0.91,
+    "share_positive": 0.432,
+    "p_raw": 0.6775,
+    "top_coin_share": 0.008,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3442,
+    "dates": 474,
+    "mean_excess_pct": -0.23,
+    "ci95_pct": [
+     -0.59,
+     0.07
+    ],
+    "median_excess_pct": -0.77,
+    "share_positive": 0.441,
+    "p_raw": 0.1615,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3863,
+    "dates": 608,
+    "mean_excess_pct": -0.24,
+    "ci95_pct": [
+     -0.7,
+     0.18
+    ],
+    "median_excess_pct": -1.38,
+    "share_positive": 0.42,
+    "p_raw": 0.2575,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3432,
+    "dates": 474,
+    "mean_excess_pct": -0.62,
+    "ci95_pct": [
+     -1.2,
+     -0.15
+    ],
+    "median_excess_pct": -1.89,
+    "share_positive": 0.406,
+    "p_raw": 0.0065,
+    "top_coin_share": 0.006,
+    "distinct_coins": 416,
+    "p_bonferroni": 0.2665
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "near_prior_high=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3854,
+    "dates": 606,
+    "mean_excess_pct": -0.18,
+    "ci95_pct": [
+     -0.58,
+     0.19
+    ],
+    "median_excess_pct": -1.21,
+    "share_positive": 0.427,
+    "p_raw": 0.331,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3411,
+    "dates": 471,
+    "mean_excess_pct": -0.25,
+    "ci95_pct": [
+     -0.74,
+     0.13
+    ],
+    "median_excess_pct": -1.62,
+    "share_positive": 0.421,
+    "p_raw": 0.2135,
+    "top_coin_share": 0.006,
+    "distinct_coins": 415,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2922,
+    "dates": 552,
+    "mean_excess_pct": -0.27,
+    "ci95_pct": [
+     -0.5,
+     -0.05
+    ],
+    "median_excess_pct": -0.62,
+    "share_positive": 0.42,
+    "p_raw": 0.016,
+    "top_coin_share": 0.009,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2907,
+    "dates": 454,
+    "mean_excess_pct": -0.03,
+    "ci95_pct": [
+     -0.27,
+     0.19
+    ],
+    "median_excess_pct": -0.32,
+    "share_positive": 0.452,
+    "p_raw": 0.8515,
+    "top_coin_share": 0.007,
+    "distinct_coins": 413,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2915,
+    "dates": 551,
+    "mean_excess_pct": -0.24,
+    "ci95_pct": [
+     -0.44,
+     -0.06
+    ],
+    "median_excess_pct": -0.58,
+    "share_positive": 0.427,
+    "p_raw": 0.0115,
+    "top_coin_share": 0.009,
+    "distinct_coins": 295,
+    "p_bonferroni": 0.897
+   },
+   "test": {
+    "events": 2892,
+    "dates": 451,
+    "mean_excess_pct": 0.06,
+    "ci95_pct": [
+     -0.16,
+     0.27
+    ],
+    "median_excess_pct": -0.29,
+    "share_positive": 0.458,
+    "p_raw": 0.54,
+    "top_coin_share": 0.007,
+    "distinct_coins": 413,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2913,
+    "dates": 549,
+    "mean_excess_pct": -0.06,
+    "ci95_pct": [
+     -0.4,
+     0.3
+    ],
+    "median_excess_pct": -1.1,
+    "share_positive": 0.427,
+    "p_raw": 0.779,
+    "top_coin_share": 0.009,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2903,
+    "dates": 452,
+    "mean_excess_pct": -0.3,
+    "ci95_pct": [
+     -0.72,
+     0.04
+    ],
+    "median_excess_pct": -0.8,
+    "share_positive": 0.44,
+    "p_raw": 0.09,
+    "top_coin_share": 0.007,
+    "distinct_coins": 411,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2906,
+    "dates": 548,
+    "mean_excess_pct": -0.07,
+    "ci95_pct": [
+     -0.38,
+     0.25
+    ],
+    "median_excess_pct": -1.02,
+    "share_positive": 0.425,
+    "p_raw": 0.668,
+    "top_coin_share": 0.009,
+    "distinct_coins": 294,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2888,
+    "dates": 449,
+    "mean_excess_pct": -0.17,
+    "ci95_pct": [
+     -0.53,
+     0.15
+    ],
+    "median_excess_pct": -0.68,
+    "share_positive": 0.444,
+    "p_raw": 0.328,
+    "top_coin_share": 0.007,
+    "distinct_coins": 411,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 2899,
+    "dates": 544,
+    "mean_excess_pct": -0.22,
+    "ci95_pct": [
+     -0.71,
+     0.23
+    ],
+    "median_excess_pct": -1.38,
+    "share_positive": 0.421,
+    "p_raw": 0.3715,
+    "top_coin_share": 0.009,
+    "distinct_coins": 293,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2873,
+    "dates": 449,
+    "mean_excess_pct": -0.53,
+    "ci95_pct": [
+     -1.05,
+     -0.07
+    ],
+    "median_excess_pct": -1.87,
+    "share_positive": 0.405,
+    "p_raw": 0.0185,
+    "top_coin_share": 0.007,
+    "distinct_coins": 411,
+    "p_bonferroni": 0.7585
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 2893,
+    "dates": 543,
+    "mean_excess_pct": -0.14,
+    "ci95_pct": [
+     -0.57,
+     0.26
+    ],
+    "median_excess_pct": -1.26,
+    "share_positive": 0.424,
+    "p_raw": 0.487,
+    "top_coin_share": 0.009,
+    "distinct_coins": 292,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2858,
+    "dates": 446,
+    "mean_excess_pct": -0.14,
+    "ci95_pct": [
+     -0.61,
+     0.26
+    ],
+    "median_excess_pct": -1.55,
+    "share_positive": 0.424,
+    "p_raw": 0.519,
+    "top_coin_share": 0.007,
+    "distinct_coins": 410,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 968,
+    "dates": 215,
+    "mean_excess_pct": -0.6,
+    "ci95_pct": [
+     -1.04,
+     -0.21
+    ],
+    "median_excess_pct": -0.93,
+    "share_positive": 0.37,
+    "p_raw": 0.001,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 562,
+    "dates": 154,
+    "mean_excess_pct": -0.73,
+    "ci95_pct": [
+     -1.62,
+     -0.26
+    ],
+    "median_excess_pct": -0.94,
+    "share_positive": 0.413,
+    "p_raw": 0.0005,
+    "top_coin_share": 0.012,
+    "distinct_coins": 300,
+    "p_bonferroni": 0.0205
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 965,
+    "dates": 213,
+    "mean_excess_pct": -0.48,
+    "ci95_pct": [
+     -0.92,
+     -0.13
+    ],
+    "median_excess_pct": -0.76,
+    "share_positive": 0.378,
+    "p_raw": 0.007,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 0.546
+   },
+   "test": {
+    "events": 556,
+    "dates": 151,
+    "mean_excess_pct": -0.59,
+    "ci95_pct": [
+     -1.39,
+     -0.15
+    ],
+    "median_excess_pct": -0.73,
+    "share_positive": 0.428,
+    "p_raw": 0.003,
+    "top_coin_share": 0.013,
+    "distinct_coins": 299,
+    "p_bonferroni": 0.126
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 968,
+    "dates": 215,
+    "mean_excess_pct": -0.06,
+    "ci95_pct": [
+     -0.91,
+     0.66
+    ],
+    "median_excess_pct": -0.66,
+    "share_positive": 0.461,
+    "p_raw": 0.898,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 560,
+    "dates": 154,
+    "mean_excess_pct": -0.68,
+    "ci95_pct": [
+     -2.47,
+     0.28
+    ],
+    "median_excess_pct": -1.26,
+    "share_positive": 0.425,
+    "p_raw": 0.1895,
+    "top_coin_share": 0.013,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 965,
+    "dates": 213,
+    "mean_excess_pct": -0.04,
+    "ci95_pct": [
+     -0.86,
+     0.59
+    ],
+    "median_excess_pct": -0.46,
+    "share_positive": 0.453,
+    "p_raw": 0.897,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 554,
+    "dates": 151,
+    "mean_excess_pct": -0.56,
+    "ci95_pct": [
+     -2.3,
+     0.36
+    ],
+    "median_excess_pct": -1.17,
+    "share_positive": 0.428,
+    "p_raw": 0.2895,
+    "top_coin_share": 0.013,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 964,
+    "dates": 213,
+    "mean_excess_pct": -0.3,
+    "ci95_pct": [
+     -1.35,
+     0.71
+    ],
+    "median_excess_pct": -1.12,
+    "share_positive": 0.417,
+    "p_raw": 0.512,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 559,
+    "dates": 154,
+    "mean_excess_pct": -1.08,
+    "ci95_pct": [
+     -3.27,
+     0.14
+    ],
+    "median_excess_pct": -2.09,
+    "share_positive": 0.406,
+    "p_raw": 0.0885,
+    "top_coin_share": 0.013,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "closed_at_extreme=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 961,
+    "dates": 211,
+    "mean_excess_pct": -0.3,
+    "ci95_pct": [
+     -1.28,
+     0.57
+    ],
+    "median_excess_pct": -1.02,
+    "share_positive": 0.434,
+    "p_raw": 0.4555,
+    "top_coin_share": 0.01,
+    "distinct_coins": 274,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 553,
+    "dates": 151,
+    "mean_excess_pct": -0.85,
+    "ci95_pct": [
+     -2.92,
+     0.34
+    ],
+    "median_excess_pct": -2.05,
+    "share_positive": 0.405,
+    "p_raw": 0.1825,
+    "top_coin_share": 0.013,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 241,
+    "dates": 165,
+    "mean_excess_pct": -1.8,
+    "ci95_pct": [
+     -2.61,
+     -0.95
+    ],
+    "median_excess_pct": -2.55,
+    "share_positive": 0.315,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.025,
+    "distinct_coins": 131,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 216,
+    "dates": 129,
+    "mean_excess_pct": -1.54,
+    "ci95_pct": [
+     -2.69,
+     -0.27
+    ],
+    "median_excess_pct": -2.5,
+    "share_positive": 0.338,
+    "p_raw": 0.017,
+    "top_coin_share": 0.023,
+    "distinct_coins": 151,
+    "p_bonferroni": 0.697
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 239,
+    "dates": 164,
+    "mean_excess_pct": -1.59,
+    "ci95_pct": [
+     -2.39,
+     -0.71
+    ],
+    "median_excess_pct": -2.47,
+    "share_positive": 0.322,
+    "p_raw": 0.0005,
+    "top_coin_share": 0.025,
+    "distinct_coins": 131,
+    "p_bonferroni": 0.039
+   },
+   "test": {
+    "events": 214,
+    "dates": 128,
+    "mean_excess_pct": -1.32,
+    "ci95_pct": [
+     -2.37,
+     -0.15
+    ],
+    "median_excess_pct": -2.34,
+    "share_positive": 0.327,
+    "p_raw": 0.027,
+    "top_coin_share": 0.023,
+    "distinct_coins": 150,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 240,
+    "dates": 165,
+    "mean_excess_pct": -2.65,
+    "ci95_pct": [
+     -4.03,
+     -1.07
+    ],
+    "median_excess_pct": -4.63,
+    "share_positive": 0.321,
+    "p_raw": 0.001,
+    "top_coin_share": 0.025,
+    "distinct_coins": 131,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 216,
+    "dates": 129,
+    "mean_excess_pct": -2.64,
+    "ci95_pct": [
+     -4.19,
+     -0.89
+    ],
+    "median_excess_pct": -3.49,
+    "share_positive": 0.375,
+    "p_raw": 0.004,
+    "top_coin_share": 0.023,
+    "distinct_coins": 151,
+    "p_bonferroni": 0.164
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 238,
+    "dates": 164,
+    "mean_excess_pct": -2.39,
+    "ci95_pct": [
+     -3.71,
+     -0.85
+    ],
+    "median_excess_pct": -4.51,
+    "share_positive": 0.319,
+    "p_raw": 0.002,
+    "top_coin_share": 0.025,
+    "distinct_coins": 131,
+    "p_bonferroni": 0.156
+   },
+   "test": {
+    "events": 214,
+    "dates": 128,
+    "mean_excess_pct": -2.21,
+    "ci95_pct": [
+     -3.68,
+     -0.57
+    ],
+    "median_excess_pct": -2.6,
+    "share_positive": 0.393,
+    "p_raw": 0.0075,
+    "top_coin_share": 0.023,
+    "distinct_coins": 150,
+    "p_bonferroni": 0.315
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 234,
+    "dates": 163,
+    "mean_excess_pct": -4.07,
+    "ci95_pct": [
+     -6.19,
+     -1.97
+    ],
+    "median_excess_pct": -6.48,
+    "share_positive": 0.299,
+    "p_raw": 0.001,
+    "top_coin_share": 0.026,
+    "distinct_coins": 127,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 215,
+    "dates": 128,
+    "mean_excess_pct": -5.12,
+    "ci95_pct": [
+     -7.34,
+     -3.05
+    ],
+    "median_excess_pct": -5.28,
+    "share_positive": 0.307,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.023,
+    "distinct_coins": 150,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 232,
+    "dates": 162,
+    "mean_excess_pct": -3.69,
+    "ci95_pct": [
+     -5.74,
+     -1.65
+    ],
+    "median_excess_pct": -5.51,
+    "share_positive": 0.315,
+    "p_raw": 0.001,
+    "top_coin_share": 0.026,
+    "distinct_coins": 127,
+    "p_bonferroni": 0.078
+   },
+   "test": {
+    "events": 213,
+    "dates": 127,
+    "mean_excess_pct": -3.9,
+    "ci95_pct": [
+     -6.03,
+     -1.91
+    ],
+    "median_excess_pct": -4.31,
+    "share_positive": 0.319,
+    "p_raw": 0.001,
+    "top_coin_share": 0.023,
+    "distinct_coins": 149,
+    "p_bonferroni": 0.042
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3649,
+    "dates": 451,
+    "mean_excess_pct": -0.26,
+    "ci95_pct": [
+     -0.47,
+     -0.04
+    ],
+    "median_excess_pct": -0.7,
+    "share_positive": 0.414,
+    "p_raw": 0.0175,
+    "top_coin_share": 0.008,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3253,
+    "dates": 350,
+    "mean_excess_pct": -0.05,
+    "ci95_pct": [
+     -0.26,
+     0.15
+    ],
+    "median_excess_pct": -0.32,
+    "share_positive": 0.453,
+    "p_raw": 0.6445,
+    "top_coin_share": 0.006,
+    "distinct_coins": 414,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3641,
+    "dates": 450,
+    "mean_excess_pct": -0.22,
+    "ci95_pct": [
+     -0.4,
+     -0.04
+    ],
+    "median_excess_pct": -0.52,
+    "share_positive": 0.421,
+    "p_raw": 0.0155,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3234,
+    "dates": 348,
+    "mean_excess_pct": 0.04,
+    "ci95_pct": [
+     -0.16,
+     0.22
+    ],
+    "median_excess_pct": -0.27,
+    "share_positive": 0.462,
+    "p_raw": 0.6745,
+    "top_coin_share": 0.006,
+    "distinct_coins": 414,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3641,
+    "dates": 448,
+    "mean_excess_pct": 0.11,
+    "ci95_pct": [
+     -0.21,
+     0.46
+    ],
+    "median_excess_pct": -0.83,
+    "share_positive": 0.443,
+    "p_raw": 0.53,
+    "top_coin_share": 0.008,
+    "distinct_coins": 299,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3247,
+    "dates": 348,
+    "mean_excess_pct": -0.21,
+    "ci95_pct": [
+     -0.59,
+     0.09
+    ],
+    "median_excess_pct": -0.78,
+    "share_positive": 0.441,
+    "p_raw": 0.1905,
+    "top_coin_share": 0.006,
+    "distinct_coins": 412,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3633,
+    "dates": 447,
+    "mean_excess_pct": 0.09,
+    "ci95_pct": [
+     -0.2,
+     0.38
+    ],
+    "median_excess_pct": -0.81,
+    "share_positive": 0.439,
+    "p_raw": 0.5725,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3228,
+    "dates": 346,
+    "mean_excess_pct": -0.1,
+    "ci95_pct": [
+     -0.44,
+     0.2
+    ],
+    "median_excess_pct": -0.71,
+    "share_positive": 0.444,
+    "p_raw": 0.5585,
+    "top_coin_share": 0.007,
+    "distinct_coins": 412,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3629,
+    "dates": 445,
+    "mean_excess_pct": 0.01,
+    "ci95_pct": [
+     -0.42,
+     0.44
+    ],
+    "median_excess_pct": -1.15,
+    "share_positive": 0.428,
+    "p_raw": 0.9645,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3217,
+    "dates": 346,
+    "mean_excess_pct": -0.32,
+    "ci95_pct": [
+     -0.85,
+     0.13
+    ],
+    "median_excess_pct": -1.72,
+    "share_positive": 0.412,
+    "p_raw": 0.1665,
+    "top_coin_share": 0.007,
+    "distinct_coins": 412,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "broad_market_day=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3622,
+    "dates": 444,
+    "mean_excess_pct": 0.04,
+    "ci95_pct": [
+     -0.31,
+     0.41
+    ],
+    "median_excess_pct": -1.06,
+    "share_positive": 0.434,
+    "p_raw": 0.8025,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3198,
+    "dates": 344,
+    "mean_excess_pct": -0.01,
+    "ci95_pct": [
+     -0.47,
+     0.36
+    ],
+    "median_excess_pct": -1.45,
+    "share_positive": 0.428,
+    "p_raw": 0.9395,
+    "top_coin_share": 0.007,
+    "distinct_coins": 411,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 394,
+    "dates": 236,
+    "mean_excess_pct": -1.49,
+    "ci95_pct": [
+     -2.17,
+     -0.81
+    ],
+    "median_excess_pct": -2.4,
+    "share_positive": 0.343,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.018,
+    "distinct_coins": 172,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 435,
+    "dates": 194,
+    "mean_excess_pct": -1.18,
+    "ci95_pct": [
+     -1.95,
+     -0.38
+    ],
+    "median_excess_pct": -2.08,
+    "share_positive": 0.356,
+    "p_raw": 0.004,
+    "top_coin_share": 0.016,
+    "distinct_coins": 232,
+    "p_bonferroni": 0.164
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 391,
+    "dates": 234,
+    "mean_excess_pct": -1.36,
+    "ci95_pct": [
+     -2.02,
+     -0.67
+    ],
+    "median_excess_pct": -2.14,
+    "share_positive": 0.35,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.018,
+    "distinct_coins": 171,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 431,
+    "dates": 193,
+    "mean_excess_pct": -0.97,
+    "ci95_pct": [
+     -1.69,
+     -0.21
+    ],
+    "median_excess_pct": -1.82,
+    "share_positive": 0.367,
+    "p_raw": 0.013,
+    "top_coin_share": 0.016,
+    "distinct_coins": 231,
+    "p_bonferroni": 0.546
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 393,
+    "dates": 236,
+    "mean_excess_pct": -1.7,
+    "ci95_pct": [
+     -3.01,
+     -0.34
+    ],
+    "median_excess_pct": -3.68,
+    "share_positive": 0.351,
+    "p_raw": 0.0155,
+    "top_coin_share": 0.018,
+    "distinct_coins": 172,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 433,
+    "dates": 193,
+    "mean_excess_pct": -2.34,
+    "ci95_pct": [
+     -3.51,
+     -1.17
+    ],
+    "median_excess_pct": -2.76,
+    "share_positive": 0.36,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.016,
+    "distinct_coins": 230,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 390,
+    "dates": 234,
+    "mean_excess_pct": -1.44,
+    "ci95_pct": [
+     -2.63,
+     -0.2
+    ],
+    "median_excess_pct": -3.63,
+    "share_positive": 0.369,
+    "p_raw": 0.0225,
+    "top_coin_share": 0.018,
+    "distinct_coins": 171,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 429,
+    "dates": 192,
+    "mean_excess_pct": -1.94,
+    "ci95_pct": [
+     -3.0,
+     -0.87
+    ],
+    "median_excess_pct": -2.17,
+    "share_positive": 0.382,
+    "p_raw": 0.001,
+    "top_coin_share": 0.016,
+    "distinct_coins": 229,
+    "p_bonferroni": 0.042
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 386,
+    "dates": 234,
+    "mean_excess_pct": -2.83,
+    "ci95_pct": [
+     -4.61,
+     -1.17
+    ],
+    "median_excess_pct": -4.78,
+    "share_positive": 0.337,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.018,
+    "distinct_coins": 169,
+    "p_bonferroni": 0.0195
+   },
+   "test": {
+    "events": 432,
+    "dates": 192,
+    "mean_excess_pct": -3.6,
+    "ci95_pct": [
+     -5.21,
+     -2.06
+    ],
+    "median_excess_pct": -4.52,
+    "share_positive": 0.333,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.016,
+    "distinct_coins": 230,
+    "p_bonferroni": 0.0103
+   },
+   "replicates": true
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=yes",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 383,
+    "dates": 232,
+    "mean_excess_pct": -2.49,
+    "ci95_pct": [
+     -4.18,
+     -0.84
+    ],
+    "median_excess_pct": -3.93,
+    "share_positive": 0.355,
+    "p_raw": 0.0025,
+    "top_coin_share": 0.018,
+    "distinct_coins": 168,
+    "p_bonferroni": 0.195
+   },
+   "test": {
+    "events": 428,
+    "dates": 191,
+    "mean_excess_pct": -2.71,
+    "ci95_pct": [
+     -4.26,
+     -1.29
+    ],
+    "median_excess_pct": -4.29,
+    "share_positive": 0.346,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.016,
+    "distinct_coins": 229,
+    "p_bonferroni": 0.0105
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 1,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3496,
+    "dates": 380,
+    "mean_excess_pct": -0.23,
+    "ci95_pct": [
+     -0.44,
+     -0.0
+    ],
+    "median_excess_pct": -0.68,
+    "share_positive": 0.415,
+    "p_raw": 0.0485,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3034,
+    "dates": 285,
+    "mean_excess_pct": 0.01,
+    "ci95_pct": [
+     -0.2,
+     0.2
+    ],
+    "median_excess_pct": -0.25,
+    "share_positive": 0.459,
+    "p_raw": 0.931,
+    "top_coin_share": 0.007,
+    "distinct_coins": 407,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 1,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3489,
+    "dates": 380,
+    "mean_excess_pct": -0.18,
+    "ci95_pct": [
+     -0.37,
+     0.0
+    ],
+    "median_excess_pct": -0.5,
+    "share_positive": 0.422,
+    "p_raw": 0.0515,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3017,
+    "dates": 283,
+    "mean_excess_pct": 0.09,
+    "ci95_pct": [
+     -0.11,
+     0.27
+    ],
+    "median_excess_pct": -0.22,
+    "share_positive": 0.466,
+    "p_raw": 0.387,
+    "top_coin_share": 0.007,
+    "distinct_coins": 407,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 3,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3488,
+    "dates": 377,
+    "mean_excess_pct": 0.12,
+    "ci95_pct": [
+     -0.2,
+     0.48
+    ],
+    "median_excess_pct": -0.78,
+    "share_positive": 0.445,
+    "p_raw": 0.4695,
+    "top_coin_share": 0.008,
+    "distinct_coins": 298,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3030,
+    "dates": 284,
+    "mean_excess_pct": -0.08,
+    "ci95_pct": [
+     -0.46,
+     0.23
+    ],
+    "median_excess_pct": -0.71,
+    "share_positive": 0.448,
+    "p_raw": 0.6145,
+    "top_coin_share": 0.007,
+    "distinct_coins": 407,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 3,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3481,
+    "dates": 377,
+    "mean_excess_pct": 0.09,
+    "ci95_pct": [
+     -0.21,
+     0.4
+    ],
+    "median_excess_pct": -0.79,
+    "share_positive": 0.439,
+    "p_raw": 0.536,
+    "top_coin_share": 0.008,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3013,
+    "dates": 282,
+    "mean_excess_pct": 0.01,
+    "ci95_pct": [
+     -0.34,
+     0.31
+    ],
+    "median_excess_pct": -0.64,
+    "share_positive": 0.449,
+    "p_raw": 0.9765,
+    "top_coin_share": 0.007,
+    "distinct_coins": 407,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 7,
+   "adjustment": "market_adjusted",
+   "discovery": {
+    "events": 3477,
+    "dates": 374,
+    "mean_excess_pct": 0.05,
+    "ci95_pct": [
+     -0.37,
+     0.48
+    ],
+    "median_excess_pct": -1.09,
+    "share_positive": 0.429,
+    "p_raw": 0.8465,
+    "top_coin_share": 0.008,
+    "distinct_coins": 297,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 3000,
+    "dates": 282,
+    "mean_excess_pct": -0.19,
+    "ci95_pct": [
+     -0.71,
+     0.27
+    ],
+    "median_excess_pct": -1.57,
+    "share_positive": 0.416,
+    "p_raw": 0.408,
+    "top_coin_share": 0.007,
+    "distinct_coins": 407,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  },
+  {
+   "direction": "down",
+   "split": "btc_up_day=no",
+   "horizon_days": 7,
+   "adjustment": "volatility_matched",
+   "discovery": {
+    "events": 3471,
+    "dates": 374,
+    "mean_excess_pct": 0.07,
+    "ci95_pct": [
+     -0.28,
+     0.45
+    ],
+    "median_excess_pct": -1.05,
+    "share_positive": 0.434,
+    "p_raw": 0.697,
+    "top_coin_share": 0.008,
+    "distinct_coins": 296,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "events": 2983,
+    "dates": 280,
+    "mean_excess_pct": 0.1,
+    "ci95_pct": [
+     -0.37,
+     0.5
+    ],
+    "median_excess_pct": -1.33,
+    "share_positive": 0.432,
+    "p_raw": 0.6785,
+    "top_coin_share": 0.007,
+    "distinct_coins": 406,
+    "p_bonferroni": 1.0
+   },
+   "replicates": false
+  }
+ ]
+}

@@ -99,10 +99,19 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
   run; this is disclosed in the doc.
 - Allowed in the UI: describe as an observed tendency in this sample, with
   scope and dates. Not allowed: a probability, target or date for a coin.
-- **Pending:** an extended run on native daily candles for all 492 Coinbase USD
-  products since 2022 (including 89 delisted), at 1 request per second.
-  Settings fixed beforehand (discovery 2022 to 2024, test 2025 to 2026-10-17).
-  Do not wire study numbers into the chart until that run reports.
+- **Extended run, done:** native daily candles for all 492 Coinbase USD
+  products since 2022 (89 delisted included), settings fixed beforehand
+  (discovery 2022 to 2024, test 2025 to 2026-10-17). The finding holds on 4x
+  the events: after a +10% day, coins trail volatility-matched peers by about
+  1.4%, 2.1% and 2.1% at 1, 3 and 7 days, in both periods and in every
+  calendar year. Delisted products fade more (7-day -4.1% vs -1.7%). Buying at
+  the close of such a day averaged -1.5% to -1.7% the next day before costs.
+  Down-moves: still no pattern. Details in `MOVE_STUDY.md`.
+- Still relative to similar coins, before real costs, one exchange and one
+  cycle, and not causal. Safe copy for the UI: "In Coinbase USD products
+  2022 to 2026, coins that rose 10%+ in a day have tended to trail similar
+  coins over the next 1 to 7 days." No probabilities, targets or dates. Do not
+  show it as a per-coin prediction.
 
 ## 7. Open items
 
@@ -112,5 +121,5 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
 - A true all-time low needs a second source covering 2020 onward, as a
   separate labelled series. Not started.
 - Hourly or minute RENDER-USD export to the contract: not done, on request.
-- Study next steps: extended run, then causes, then a second event type
+- Study next steps: causes, thin-coin spreads, then a second event type
   (arrival at a confirmed high or low).
