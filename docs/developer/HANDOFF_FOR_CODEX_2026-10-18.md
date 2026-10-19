@@ -133,3 +133,22 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
 - Hourly or minute RENDER-USD export to the contract: not done, on request.
 - Study next steps: causes, thin-coin spreads, then a second event type
   (arrival at a confirmed high or low).
+
+## 8. Update 2026-10-19: what the studies mean for the chart
+
+- **Level study (`LEVEL_STUDY.md`, preregistered):** confirmed weekly highs and
+  lows, macro anchors and Fibonacci 0.5 / 0.618 / 0.786 levels behave like
+  placebo lines at a similar distance (0 of 24 tests survive). Keep levels as
+  historical reference. Do not call them support or resistance, and do not
+  imply a reaction is likely there.
+- **Move study, after robustness checks (`MOVE_STUDY.md`):** the give-back
+  after +10% days is real but concentrated in thin coins (under $1M a day) and
+  high-volume, coin-specific spikes. Low-volume, market-driven rises barely
+  fade. Rising into any line shows the same give-back, so it is about the
+  approach, not the line.
+- If the panel adds context, the defensible wording is about the approach:
+  "sharp, high-volume rises in thinly traded coins have tended to give back
+  part of the move over the following days (Coinbase USD, 2022 to 2026)". No
+  probabilities, targets or dates.
+- The cause categories from the Gemini table should not be shown: the split
+  disappears once only same-day sources count.
