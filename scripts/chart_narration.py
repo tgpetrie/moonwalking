@@ -1,6 +1,7 @@
 """Bounded local narration: model chooses evidence IDs; trusted code renders all text."""
 import datetime as dt
 import hashlib
+from itertools import combinations
 import json
 import math
 from pathlib import Path
@@ -33,6 +34,8 @@ def day(value):
 def catalog(packet):
     if packet.get('schema_version') != 'moonwalking.chart-evidence/v1':
         raise ValueError('Unsupported narration evidence')
+    if 'next_run' in packet['evidence']:
+        return next_run_catalog(packet)
     close = packet.get('reference_close')
     facts = {}
     def add(id_, topic, text, sources):
@@ -72,9 +75,43 @@ def catalog(packet):
     return facts
 
 
+def next_run_catalog(packet):
+    view = packet['evidence']['next_run']
+    facts = {}
+    def add(id_, topic, text, sources):
+        facts[id_] = {'topic': topic, 'text': text, 'sources': sources}
+    close = view['reference']
+    if close:
+        through = dt.datetime.fromtimestamp(close['end'] - 1, dt.timezone.utc).date()
+        add('reference', 'position', f"{packet['instrument']['product_id']} has a completed daily close of {price(close['close'])} through {through} UTC. This is the reference for the next-recovery map, not a live quote.", ['evidence.next_run.reference'])
+        start = dt.datetime.fromtimestamp(view['start'], dt.timezone.utc).date()
+        add('basis', 'levels', f"The next-recovery map uses confirmed daily turning points from {start} through {through} UTC, with {view['confirmation']} completed daily candles each side. References are ranked by price distance, not likelihood. The up-to-{view['lookback_days']}-day scope is a display choice, not a tested edge; old cycle Fibonacci calculations are excluded.", ['evidence.next_run'])
+        for side in ('above', 'below'):
+            for p in view[side]:
+                delta = (p['price'] / close['close'] - 1) * 100
+                action = ('A daily close above it, then holding on a retest, would clear that reference; a rejection keeps it overhead.' if side == 'above' else 'Watch whether a pullback holds this prior low. A daily close below it puts lower references in focus; it is not a proven floor.')
+                add('next-' + p['label'], 'levels', f"{p['label']}: prior daily {p['type']} {price(p['price'])}, {delta:+.1f}% from the dated daily close. Extreme {p['extreme_date_utc']}; confirmed {day(p['confirmed_at_utc'])} UTC. {action}", ['evidence.next_run.' + side + ':' + p['id']])
+        if not view['above']:
+            add('no-upside', 'position', 'No confirmed daily high above the close exists in this scope. No next-run upside reference is established; an old macro calculation is not a substitute.', ['evidence.next_run.above'])
+        if not view['below']:
+            add('no-downside', 'position', 'No confirmed daily low below the close exists in this scope. Downside support is unestablished.', ['evidence.next_run.below'])
+    else:
+        add('reference', 'position', 'No completed daily candle is available at this cutoff.', ['evidence.next_run.reference'])
+        add('unavailable', 'levels', 'More completed history is needed before this view can provide price references.', ['evidence.next_run'])
+    add('limits', 'limits', 'These checkpoints do not predict the next run’s peak, a guaranteed pullback, a probability, or a price-arrival date. Clearing one reference only exceeds that particular prior high; other recent highs may still be overhead. Clearing it would not establish a return to the old cycle peak. The final high of the next run is unestablished.', ['blocked_claims'])
+    gaps = packet.get('coverage', {}).get('internal_missing_daily_intervals', 0)
+    add('coverage', 'limits', f"The supplied history has {gaps} missing daily intervals inside its observed span. Prior highs and lows are observations, not proven support/resistance or trading instructions.", ['coverage.internal_missing_daily_intervals'])
+    return facts
+
+
 def default_plan(facts):
     positions = [id_ for id_, f in facts.items() if f['topic'] == 'position']
-    levels = ['basis', 'macro-0.5', 'macro-0.786'] if 'basis' in facts else ['unavailable']
+    if 'basis' not in facts:
+        levels = ['unavailable']
+    elif any(id_.startswith('next-') for id_ in facts) or 'no-upside' in facts:
+        levels = ['basis'] + [id_ for id_ in ('next-R1', 'next-S1', 'next-R2', 'next-S2', 'next-R3', 'next-S3') if id_ in facts][:3]
+    else:
+        levels = ['basis', 'macro-0.5', 'macro-0.786']
     return {'paragraphs': [{'topic': 'position', 'fact_ids': positions},
                            {'topic': 'levels', 'fact_ids': levels},
                            {'topic': 'limits', 'fact_ids': ['limits', 'coverage']}]}
@@ -95,12 +132,18 @@ def validate_plan(plan, facts):
                 raise ValueError('Model output cites unknown, repeated or wrong-topic evidence')
             seen.add(id_)
         required = {id_ for id_, f in facts.items() if f['topic'] == topic} if topic in ('position', 'limits') else {'basis'} if 'basis' in facts else {'unavailable'}
+        if topic == 'levels':
+            required |= {id_ for id_ in ('next-R1', 'next-S1') if id_ in facts}
         if not required.issubset(ids):
             raise ValueError('Model output omits required context')
-        if topic == 'levels' and 'basis' in facts and len(ids) < 2:
+        if topic == 'levels' and 'basis' in facts and len(ids) < 2 and any(id_.startswith(('macro-', 'next-')) for id_ in facts):
             raise ValueError('Model output omits price references')
         if 'macro-1.618' in ids and 'macro-1' not in ids:
             raise ValueError('Beyond-high case requires the selected-high reference')
+        for prefix in ('next-R', 'next-S'):
+            for rank in (2, 3):
+                if prefix + str(rank) in ids and prefix + str(rank - 1) not in ids:
+                    raise ValueError('Farther references require the closer reference')
     return plan
 
 
@@ -129,18 +172,29 @@ def request_plan(facts, model=MODEL, timeout=45):
     branches = []
     for topic in ('position', 'levels', 'limits'):
         ids = [id_ for id_, f in facts.items() if f['topic'] == topic]
-        count = 3 if topic == 'levels' and 'basis' in facts else len(ids)
+        count = min(4, len(ids)) if topic == 'levels' and any(id_.startswith('next-') for id_ in facts) else 3 if topic == 'levels' and 'basis' in facts and 'macro-0.5' in facts else len(ids)
+        allowed = []
+        for chosen in combinations(ids, count):
+            candidate = default_plan(facts)
+            candidate['paragraphs'][('position', 'levels', 'limits').index(topic)]['fact_ids'] = list(chosen)
+            try:
+                validate_plan(candidate, facts)
+            except ValueError:
+                continue
+            allowed.append(list(chosen))
+        if not allowed:
+            raise ValueError('No valid bounded selection exists')
         branches.append({'type': 'object', 'additionalProperties': False,
             'required': ['topic', 'fact_ids'], 'properties': {'topic': {'const': topic},
             'fact_ids': {'type': 'array', 'minItems': count, 'maxItems': count,
-                         'items': {'type': 'string', 'enum': ids}}}})
+                         'enum': allowed, 'items': {'type': 'string', 'enum': ids}}}})
     schema = {'type': 'object', 'additionalProperties': False, 'required': ['paragraphs'],
               'properties': {'paragraphs': {'type': 'array', 'minItems': 3, 'maxItems': 3,
                                            'items': {'anyOf': branches}}}}
     prompt = ('Organize a chart explanation using only fact IDs. Return JSON with paragraphs in topic order position,levels,limits. '
               'Include ALL position facts in position and ALL limits facts in limits. NEVER put macro IDs in limits. '
-              'For levels include basis and choose exactly TWO calculated price references, not every reference; '
-              'if selecting macro-1.618 you must also select macro-1. If basis is unavailable choose unavailable. '
+              'For levels use the schema count and include basis. Include next-R1 and next-S1 whenever available. Never choose R3 without R2 or S3 without S2. '
+              'For old packets choose TWO macro references with basis. If selecting macro-1.618 you must also select macro-1. If basis is unavailable choose unavailable. '
               'No text, prices, predictions, new evidence, tools or additional keys are allowed. Every selected sentence is already verified. '
               'Avoid presenting references as a promised sequence. Facts: ' + json.dumps(facts) + ' JSON schema: ' + json.dumps(schema))
     body = {'model': model, 'stream': False, 'think': False, 'keep_alive': '1m', 'format': schema,

@@ -30,6 +30,13 @@ test('packet provides dated provenance, signed distances and explicit blocked cl
   }
   assert.equal(p.blocked_claims.probabilities, null);
   assert.equal(p.blocked_claims.model_or_live_agent_integration, false);
+  const next = p.evidence.next_run;
+  assert.equal(next.reference.close, p.reference_close.price);
+  for (const row of [...next.above, ...next.below]) {
+    assert.ok(row.confirmed_at <= next.reference.end);
+    assert.ok(row.time >= next.start);
+    assert.equal(row.distance_percent, (row.price / next.reference.close - 1) * 100);
+  }
 });
 
 test('physical prefix and future-price poisoning cannot change retained numerical evidence', () => {

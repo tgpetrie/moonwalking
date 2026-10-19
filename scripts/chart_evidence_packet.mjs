@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { DAY, parseHistory, chartAt, confirmedPivots } from '../frontend/src/utils/macroChart.js';
 import { defaultMacroAnchors, macroRange, historicalMacro, recentSwingSequence } from '../frontend/src/utils/chartStructure.js';
 import { historicalLegs, levelEpisodes } from '../frontend/src/utils/chartTiming.js';
+import { nextRunMap } from '../frontend/src/utils/nextRunMap.js';
 
 const iso = (seconds) => new Date(seconds * 1000).toISOString();
 const datedAnchor = (p) => ({ ...p, bucket_start_utc: iso(p.time),
@@ -26,6 +27,7 @@ export function buildEvidencePacket(bytes, { asOf, interval = '1w', confirmation
   const daily = chartAt(history, '1d', requested);
   const { pivots, ambiguous } = confirmedPivots(chart.candles, { left: confirmation, right: confirmation, interval: chart.interval_seconds });
   const close = chart.candles.at(-1);
+  const nextRun = nextRunMap(daily.candles, { asOf: chart.as_of, confirmation });
   const ids = defaultMacroAnchors(pivots);
   const range = macroRange(...ids.map((id) => pivots.find((p) => p.id === id)), { asOf: chart.as_of });
   const macro = historicalMacro(pivots, range, { asOf: chart.as_of });
@@ -48,7 +50,9 @@ export function buildEvidencePacket(bytes, { asOf, interval = '1w', confirmation
     coverage: { completed_analysis_candles: chart.candles.length, completed_daily_candles: daily.candles.length,
       internal_missing_daily_intervals: chart.missing_days, excluded_incomplete_weeks: chart.excluded_weeks,
       ambiguous_pivots_excluded: ambiguous, scope: 'Missing intervals are measured between first and last retained complete daily candles.' },
-    evidence: { pivots: pivots.map(datedAnchor), recent_sequence: recent.map(datedAnchor), recent_references: references,
+    evidence: { next_run: { ...nextRun, above: nextRun.above.map(datedAnchor), below: nextRun.below.map(datedAnchor),
+        at: nextRun.at.map(datedAnchor) },
+      pivots: pivots.map(datedAnchor), recent_sequence: recent.map(datedAnchor), recent_references: references,
       historical_legs: historicalLegs(recent, chart.as_of), macro_anchors: macro.anchors.map(datedAnchor),
       macro_unavailable_reason: range.error ?? null,
       macro_levels: range.error ? [] : range.levels.map((p) => ({ id: `macro-${p.ratio}`, ...p,

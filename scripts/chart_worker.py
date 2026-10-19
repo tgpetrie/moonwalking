@@ -41,7 +41,8 @@ def digest(value):
 
 def engine_fingerprint():
     paths = ['scripts/chart_evidence_packet.mjs', 'frontend/src/utils/macroChart.js',
-             'frontend/src/utils/chartStructure.js', 'frontend/src/utils/chartTiming.js']
+             'frontend/src/utils/chartStructure.js', 'frontend/src/utils/chartTiming.js',
+             'frontend/src/utils/nextRunMap.js']
     return digest({p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in paths})
 
 
@@ -169,7 +170,7 @@ def evidence(history, node=None):
 
 
 def analysis_fingerprint(packet):
-    return digest({k: packet.get(k) for k in ('reference_close',)} | {
+    return digest({'next_run': packet['evidence'].get('next_run')} | {k: packet.get(k) for k in ('reference_close',)} | {
         k: packet['evidence'][k] for k in ('pivots', 'recent_sequence', 'macro_anchors', 'macro_levels', 'macro_unavailable_reason')})
 
 

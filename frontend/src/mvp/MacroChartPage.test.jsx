@@ -13,6 +13,7 @@ function renderWithTools(ui) {
     fireEvent.click(screen.getByText(name, { selector: 'summary' }));
   }
   fireEvent.click(screen.getByRole('checkbox', { name: 'Show local measurement' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Show long-range macro band' }));
   return view;
 }
 
@@ -91,7 +92,7 @@ describe('local long-term chart workspace', () => {
 
   it('toggles the macro band and removes future anchors during replay', () => {
     const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
-    const toggle = screen.getByRole('checkbox', { name: 'Show macro band' });
+    const toggle = screen.getByRole('checkbox', { name: 'Show long-range macro band' });
     expect(container.querySelector('.macro-chart-recovery')).toBeInTheDocument();
     fireEvent.click(toggle);
     expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
@@ -118,12 +119,14 @@ describe('local long-term chart workspace', () => {
     expect(container.querySelectorAll('.macro-history-anchor')).toHaveLength(0);
   });
 
-  it('shows future levels by default, separate from observed anchors, and withholds them when replay has no range', () => {
+  it('keeps macro projection opt-in, separate from next-run references, and withholds it during replay', () => {
     const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const history = container.querySelector('.macro-chart-history').getAttribute('points');
-    expect(screen.getByRole('heading', { name: 'Where price could go next' })).toBeVisible();
-    const future = screen.getByRole('checkbox', { name: 'Show future scenario' });
-    expect(future).toBeChecked();
+    expect(screen.getByRole('heading', { name: 'Levels to watch on the next recovery' })).toBeVisible();
+    const future = screen.getByRole('checkbox', { name: 'Show long-range macro scenario' });
+    expect(future).not.toBeChecked();
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    fireEvent.click(future);
     expect(container.querySelector('.macro-chart-future text')).toHaveTextContent('E?');
     expect(screen.getByText('SCENARIO · NO DATE')).toBeVisible();
     const y = container.querySelector('.macro-chart-future circle').getAttribute('cy');
@@ -140,8 +143,8 @@ describe('local long-term chart workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Later', exact: true }));
     expect(container.querySelector('.macro-chart-future')).toBeInTheDocument();
     fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
-    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Show long-range macro scenario' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show long-range macro scenario' })).toBeDisabled();
     expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
   });
 

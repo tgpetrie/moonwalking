@@ -199,6 +199,76 @@ class NarrateTests(unittest.TestCase):
         self.assertIn('$4 through', result['paragraphs'][0]['text'])
 
 
+class NextRunNarrationTests(unittest.TestCase):
+    def packet(self):
+        packet = synthetic_packet()
+        # Illustrative fixture: the distant macro range must never enter this catalog.
+        packet['evidence']['next_run'] = {'reference': {'close': 3, 'end': 1792368000},
+            'start': 1760832000, 'confirmation': 2, 'lookback_days': 365,
+            'above': [{'id': 'high-a', 'label': 'R1', 'type': 'high', 'price': 3.3,
+                       'extreme_date_utc': '2026-10-01', 'confirmed_at_utc': '2026-10-04T00:00:00Z'},
+                      {'id': 'high-b', 'label': 'R2', 'type': 'high', 'price': 3.6,
+                       'extreme_date_utc': '2026-09-01', 'confirmed_at_utc': '2026-09-04T00:00:00Z'},
+                      {'id': 'high-c', 'label': 'R3', 'type': 'high', 'price': 3.9,
+                       'extreme_date_utc': '2026-08-01', 'confirmed_at_utc': '2026-08-04T00:00:00Z'}],
+            'below': [{'id': 'low-a', 'label': 'S1', 'type': 'low', 'price': 2.8,
+                       'extreme_date_utc': '2026-10-02', 'confirmed_at_utc': '2026-10-05T00:00:00Z'}]}
+        return packet
+
+    def test_next_run_excludes_macro_math_and_requires_nearest_references(self):
+        facts = narration.catalog(self.packet())
+        self.assertFalse(any(id_.startswith('macro-') for id_ in facts))
+        plan = narration.default_plan(facts)
+        narration.validate_plan(plan, facts)
+        text = ' '.join(p['text'] for p in narration.render(plan, facts))
+        self.assertIn('R1: prior daily high $3.3, +10.0%', text)
+        self.assertIn('S1: prior daily low $2.8', text)
+        self.assertIn('not predict', text)
+        plan['paragraphs'][1]['fact_ids'].remove('next-R1')
+        with self.assertRaisesRegex(ValueError, 'required context'):
+            narration.validate_plan(plan, facts)
+
+    def test_cannot_skip_a_closer_level_to_select_farther_level(self):
+        facts = narration.catalog(self.packet())
+        plan = narration.default_plan(facts)
+        plan['paragraphs'][1]['fact_ids'] = ['basis', 'next-R1', 'next-S1', 'next-R3']
+        with self.assertRaisesRegex(ValueError, 'closer reference'):
+            narration.validate_plan(plan, facts)
+
+    def test_no_levels_and_missing_close_never_fall_back_to_macro(self):
+        packet = self.packet()
+        packet['evidence']['next_run'].update(above=[], below=[])
+        facts = narration.catalog(packet)
+        self.assertIn('No next-run upside reference', facts['no-upside']['text'])
+        narration.validate_plan(narration.default_plan(facts), facts)
+        packet['evidence']['next_run']['reference'] = None
+        facts = narration.catalog(packet)
+        self.assertNotIn('basis', facts)
+        narration.validate_plan(narration.default_plan(facts), facts)
+
+    def test_new_scope_invalidates_previous_macro_cache_and_uses_fallback_on_failure(self):
+        old = narration.narrate(synthetic_packet(), requester=lambda facts: (narration.default_plan(facts), 'test'))
+        result = narration.narrate(self.packet(), old, requester=mock.Mock(side_effect=TimeoutError()))
+        self.assertEqual(result['state'], 'fallback')
+        self.assertNotEqual(result['evidence_sha256'], old['evidence_sha256'])
+        self.assertNotIn('macro-', json.dumps(result['paragraphs']))
+
+    def test_request_schema_enumerates_only_context_complete_next_run_plans(self):
+        facts = narration.catalog(self.packet())
+        tags = {'models': [{'name': narration.MODEL, 'digest': 'synthetic'}]}
+        response = {'done': True, 'model': narration.MODEL,
+                    'message': {'content': json.dumps(narration.default_plan(facts))}}
+        opener = FakeOpener(tags, response)
+        with mock.patch.object(narration.urllib.request, 'build_opener', return_value=opener):
+            narration.request_plan(facts)
+        branches = json.loads(opener.calls[1][0].data)['format']['properties']['paragraphs']['items']['anyOf']
+        choices = branches[1]['properties']['fact_ids']['enum']
+        self.assertTrue(choices)
+        for ids in choices:
+            self.assertTrue({'basis', 'next-R1', 'next-S1'}.issubset(ids))
+            self.assertFalse('next-R3' in ids and 'next-R2' not in ids)
+
+
 class FakeOpener:
     def __init__(self, tags, response):
         self.tags, self.response = tags, response

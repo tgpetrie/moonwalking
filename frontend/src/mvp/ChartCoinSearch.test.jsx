@@ -31,17 +31,21 @@ describe('coin-to-chart workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Analyse AMP/ }));
     await screen.findByText('AMP history loaded');
     expect(client.history.mock.calls[0][0]).toBe('AMP-USD');
-    expect(screen.getByRole('heading', { name: 'What the history shows' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Would this make a new high?' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Focus on the next recovery' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Levels to watch on the next recovery' })).toBeVisible();
     expect(screen.getByLabelText('Macro high')).not.toBeVisible();
-    expect(container.querySelectorAll('.macro-chart-reference')).toHaveLength(2);
+    expect(container.querySelector('.next-run-baseline')).toHaveTextContent('Daily close');
+    expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show long-range macro band' }));
     expect(container.querySelector('.macro-chart-recovery text')).toHaveTextContent('50%');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show smaller a–d' }));
     expect(container.querySelectorAll('.macro-nested-label')).toHaveLength(4);
-    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeChecked();
+    const future = screen.getByRole('checkbox', { name: 'Show long-range macro scenario' });
+    expect(future).not.toBeChecked();
+    fireEvent.click(future);
     fireEvent.change(screen.getByRole('combobox', { name: 'Future reference level' }), { target: { value: '1.618' } });
-    expect(screen.getByText(/would be .* above the earlier high/)).toBeVisible();
-    expect(screen.getByText(/history has not confirmed that breakout/)).toBeVisible();
+    expect(container.querySelector('.macro-chart-future')).toBeInTheDocument();
+    expect(screen.getByText(/would not establish a return to the old cycle peak/)).toBeVisible();
   });
   it('keeps the current chart on a failed download and explains unsupported searches', async () => {
     const client = { search: vi.fn(async () => [match]), history: vi.fn(async () => { throw new Error('Provider unavailable'); }) };

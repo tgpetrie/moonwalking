@@ -36,7 +36,7 @@ describe('timing context and chart navigation', () => {
     expect(container.querySelectorAll('.macro-candle').length).toBeLessThan(160);
     expect(container.querySelector('.macro-reading').textContent).toBe(reading);
     expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Show long-range macro scenario' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Fit history', exact: true }));
     expect(container.querySelector('.macro-focus-note')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.macro-candle')).toHaveLength(30);

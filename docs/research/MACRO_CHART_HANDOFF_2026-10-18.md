@@ -249,3 +249,13 @@ accepted local AI output; an unchanged repeat used the cache. Full frontend veri
 agent reviewed the implementation; no new Claude/Gemini review this turn. See
 LOCAL_CHART_NARRATION_2026-10-19.md for request limits, observations and limitations.
 No production deployment or main merge.
+
+## Next-recovery scope correction — 2026-10-19
+
+The primary price map now uses nearby confirmed daily highs/lows within a disclosed
+365-day scope, ranked by distance from the latest completed daily close. Distant
+macro ratios are collapsed and their chart overlays default off. The shared map is
+included in offline packets, worker fingerprints and local narration. No forecast
+peak, probability or arrival date is inferred. See NEXT_RUN_MAP_2026-10-19.md for
+selection rules, actual AMP values, verification and limitations. Checks: 558 frontend
+tests/build/token sync, 46 Python tests, four packet tests and guardrails passed.

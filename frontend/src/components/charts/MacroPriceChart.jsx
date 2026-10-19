@@ -20,12 +20,19 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
   const futurePath = future && candles.at(-1).time === latestCandle?.time ? future : null;
   const axis = priceScale(candles.flatMap((row) => [row.low, row.high])
     .concat(valid ? [scenario.invalidation, ...projected] : []).concat(macroBand || [])
-    .concat(futurePath ? [futurePath.price] : []), scale);
+    .concat(futurePath ? [futurePath.price] : []).concat(referenceLevels.map((p) => p.price)), scale);
   const first = candles[0].time;
   const last = candles.at(-1).time;
   const duration = Math.max(interval, last - first + interval);
   const x = (time) => LEFT + ((time - first + interval / 2) / duration) * (HISTORY_RIGHT - LEFT);
   const y = (price) => BOTTOM - axis.position(price) * (BOTTOM - TOP);
+  const referenceLabels = referenceLevels.filter((p) => (p.extreme_time ?? p.time) < candles.at(-1).end)
+    .sort((a, b) => b.price - a.price).map((p) => ({ ...p, labelY: y(p.price) }));
+  // Keep clustered daily references readable without moving their actual price lines.
+  referenceLabels.forEach((p, i) => { p.labelY = Math.max(TOP + 12, p.labelY, i ? referenceLabels[i - 1].labelY + 18 : TOP + 12); });
+  for (let i = referenceLabels.length - 1; i >= 0; i -= 1) {
+    referenceLabels[i].labelY = Math.min(referenceLabels[i].labelY, i === referenceLabels.length - 1 ? BOTTOM - 5 : referenceLabels[i + 1].labelY - 18);
+  }
   const candleWidth = Math.max(1, Math.min(13, ((HISTORY_RIGHT - LEFT) * interval / duration) * 0.65));
   const selected = candles[Math.max(0, Math.min(candles.length - 1, hover ?? candles.length - 1))];
   const visiblePivots = pivots.filter((pivot) => pivot.time >= first && pivot.time <= last);
@@ -54,7 +61,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
           setHover((current) => event.key === 'Home' ? 0 : event.key === 'End' ? candles.length - 1
             : Math.max(0, Math.min(candles.length - 1, (current ?? candles.length - 1) + (event.key === 'ArrowLeft' ? -1 : 1))));
         }}>
-        <title id={`${id}-title`}>Historical price candles and conditional Fibonacci levels</title>
+        <title id={`${id}-title`}>Historical price candles and price references</title>
         <desc id={`${id}-description`}>Solid candles and A–D anchor labels describe historical prices, not a validated wave count. An optional dashed E? path is hypothetical with no forecast date. Use the left and right arrow keys to inspect candles.</desc>
         <defs><clipPath id={`${id}-clip`}><rect x={LEFT} y={TOP} width={LEVEL_RIGHT - LEFT} height={BOTTOM - TOP} /></clipPath></defs>
         {ticks.map((price) => <g key={price} className="macro-chart-grid">
@@ -97,9 +104,11 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
           {visiblePivots.map((pivot) => <circle className="macro-chart-pivot" key={pivot.id} cx={x(pivot.time)} cy={y(pivot.price)} r={3}>
             <title>{pivot.type} {dateText(pivot.extreme_time ?? pivot.time)} · Confirmed {dateText(pivot.confirmed_at)}</title>
           </circle>)}
-          {referenceLevels.filter((p) => (p.extreme_time ?? p.time) <= last).map((p, i) => <g className="macro-chart-reference" key={p.label}>
+          {referenceLabels.map((p) => <g className="macro-chart-reference" key={p.label}>
+            <title>{p.label} · Prior daily {p.type} · {priceText(p.price, currency)} · {dateText(p.extreme_time ?? p.time)} · Confirmed {dateText(p.confirmed_at)}</title>
             <line x1={Math.max(LEFT, x(p.extreme_time ?? p.time))} x2={LEVEL_RIGHT} y1={y(p.price)} y2={y(p.price)} />
-            <text className="macro-chart-level-label" x={HISTORY_RIGHT + 5} y={y(p.price) + (i ? -7 : 15)}>{p.label} {priceText(p.price, currency)}</text>
+            <line x1={HISTORY_RIGHT} x2={HISTORY_RIGHT + 8} y1={y(p.price)} y2={p.labelY - 4} />
+            <text className="macro-chart-level-label" x={HISTORY_RIGHT + 10} y={p.labelY}>{p.label} {priceText(p.price, currency)}</text>
           </g>)}
           {valid && !historical.length && <polyline className="macro-chart-anchors" points={scenario.anchors.map((anchor) => `${x(anchor.time)},${y(anchor.price)}`).join(' ')} />}
           {valid && !historical.length && scenario.anchors.map((anchor, index) => <g key={anchor.id}>

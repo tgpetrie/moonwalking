@@ -1,5 +1,10 @@
 # Local chart narration connected — 2026-10-19
 
+Later update: new packets now narrate the daily next-recovery map and exclude
+macro ratios. Required nearest references and valid-plan schema enumeration are
+described in [NEXT_RUN_MAP_2026-10-19.md](NEXT_RUN_MAP_2026-10-19.md). The macro
+selection description below records the initial connection and applies to legacy packets.
+
 The AMP scheduled worker now uses the already installed Ollama base model
 `qwen3.5:9b`. The inspected local server reported version 0.40.6 and model digest
 `6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7`.

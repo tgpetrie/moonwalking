@@ -18,6 +18,7 @@ describe('price reference explanations', () => {
     const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const baseline = container.querySelector('.macro-guide-baseline').textContent;
     const cutoff = screen.getByLabelText('Replay through (UTC)').value;
+    fireEvent.click(screen.getByText('Long-range macro calculations (separate from the next run)', { selector: 'summary' }));
     fireEvent.click(screen.getByRole('button', { name: 'Explain Historical C' }));
     const details = container.querySelector('#macro-level-explanation');
     expect(details).toHaveTextContent('Actual extreme');
@@ -35,13 +36,22 @@ describe('price reference explanations', () => {
     expect(screen.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true');
     expect(container.querySelector('.macro-guide-baseline').textContent).toBe(baseline);
     expect(details.textContent).toBe(explanation);
-    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Show long-range macro scenario' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Fit history' }));
     expect(container.querySelectorAll('.macro-evidence-candle')).toHaveLength(2);
     // Replaying before either anchor existed must remove the old explanation.
     fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
     expect(container.querySelector('#macro-level-explanation')).not.toHaveTextContent('0.618 ×');
     expect(screen.queryByRole('button', { name: 'Explain 61.8% recovery' })).not.toBeInTheDocument();
+  });
+  it('keeps distant macro math collapsed and the next-run map separate by default', () => {
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    expect(container.querySelector('.macro-long-range')).not.toHaveAttribute('open');
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
+    expect(container.querySelector('.next-run-baseline')).toHaveTextContent('Daily close');
+    expect(screen.getByText(/We have not established the next run/)).toBeVisible();
+    expect(screen.getByRole('checkbox', { name: 'Show long-range macro scenario' })).not.toBeChecked();
   });
   it('uses the weekly completed close even when daily data extends further', () => {
     const input = syntheticHistory();

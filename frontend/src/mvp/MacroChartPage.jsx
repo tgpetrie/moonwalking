@@ -6,7 +6,8 @@ import ChartTimingPanel from './ChartTimingPanel.jsx';
 import ChartLevelGuide, { guideEvidence } from './ChartLevelGuide.jsx';
 import ChartWorkerStatus from './ChartWorkerStatus.jsx';
 import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
-import { defaultMacroAnchors, highComparison, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
+import { defaultMacroAnchors, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
+import { nextRunMap } from '../utils/nextRunMap.js';
 import '../styles/macro-chart.css';
 
 const STATUS = {
@@ -50,14 +51,14 @@ function ChartWorkspace({ history }) {
     </div>
     {detected.ambiguous > 0 && <p className="macro-muted">{detected.ambiguous} candles were both a local high and low. Their swing order is ambiguous and they were excluded.</p>}
     <ScenarioWorkspace key={`${timeframe}-${date}-${confirmation}`} chart={chart} pivots={detected.pivots} instrument={instrument}
-      dailyCandles={daily} displayChart={displayChart} focusRange={focusRange}
+      dailyCandles={daily} confirmation={confirmation} displayChart={displayChart} focusRange={focusRange}
       onResetFocus={() => setFocusRange(null)} onInspect={(start, end) => {
         setFocusRange({ start, end, interval: end - start > 360 * DAY ? '1w' : '1d' });
       }} />
   </>;
 }
 
-function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayChart, focusRange, onInspect, onResetFocus }) {
+function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmation, displayChart, focusRange, onInspect, onResetFocus }) {
   const plotRef = useRef(null);
   const guideRef = useRef(null);
   const [selectedEvidenceId, setSelectedEvidenceId] = useState(null);
@@ -65,19 +66,19 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
   const [scale, setScale] = useState('log');
   const [anchorIds, setAnchorIds] = useState(() => defaultAnchors(pivots));
   const [macroIds, setMacroIds] = useState(() => defaultMacroAnchors(pivots));
-  const [showMacro, setShowMacro] = useState(true);
+  const [showMacro, setShowMacro] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
-  const [showFuture, setShowFuture] = useState(true);
+  const [showFuture, setShowFuture] = useState(false);
   const [showRecent, setShowRecent] = useState(false);
   const [showLocal, setShowLocal] = useState(false);
   const [futureRatio, setFutureRatio] = useState(0.786);
-  const [count, setCount] = useState(Math.min(displayChart.interval_seconds === 7 * DAY ? 400 : 160, Math.max(20, displayChart.candles.length)));
+  const [count, setCount] = useState(Math.min(displayChart.interval_seconds === 7 * DAY ? 52 : 160, Math.max(20, displayChart.candles.length)));
   const [offset, setOffset] = useState(0);
   useEffect(() => {
     if (!focusRange || !displayChart.candles.length) {
       if (wasFocused.current) {
         setOffset(0); setCount(Math.min(400, displayChart.candles.length));
-        setShowMacro(true); setShowHistory(true); setShowFuture(true);
+        setShowMacro(false); setShowHistory(true); setShowFuture(false);
       }
       wasFocused.current = false;
       return;
@@ -106,15 +107,15 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
   const format = (price) => priceText(price, instrument.quote_currency);
   const low = chart.candles.length ? chart.candles.reduce((a, b) => a.low < b.low ? a : b) : null;
   const high = chart.candles.length ? chart.candles.reduce((a, b) => a.high > b.high ? a : b) : null;
-  const priorHigh = chart.candles.slice(0, -1).reduce((a, b) => !a || b.high > a.high ? b : a, null) || high;
-  const comparison = highComparison(macro, futureLevel?.price, chart.candles.at(-1)?.close, priorHigh?.high);
+  const priorHigh = chart.candles.slice(0, -1).reduce((a, b) => !a || b.high > a.high ? b : a, null);
+  const nextRun = nextRunMap(dailyCandles, { asOf: chart.as_of, confirmation });
   const recentLevels = ['low', 'high'].flatMap((type) => {
     const p = pivots.filter((row) => row.type === type).at(-1);
     return p ? [{ ...p, label: `Recent ${type}` }] : [];
   });
 
-  const evidence = guideEvidence(macro, recentLevels, structure.anchors || []);
-  const selectedEvidence = [...evidence.observed, ...evidence.anchors, ...evidence.calculated].find((p) => p.id === selectedEvidenceId);
+  const evidence = guideEvidence(macro, recentLevels, structure.anchors || [], nextRun);
+  const selectedEvidence = [...evidence.nearby, ...evidence.observed, ...evidence.anchors, ...evidence.calculated].find((p) => p.id === selectedEvidenceId);
   const selectEvidence = (id) => {
     setSelectedEvidenceId(id);
     if (id.startsWith('ratio:')) { setFutureRatio(Number(id.slice(6))); if (!focusRange) setShowFuture(true); }
@@ -130,29 +131,18 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
       <UiCard><span className="macro-label">Low in analysed history</span><strong>{format(low.low)}</strong><small>{dateText(low.low_time ?? low.time)} · Available venue history</small></UiCard>
       <UiCard><span className="macro-label">High in analysed history</span><strong>{format(high.high)}</strong><small>{dateText(high.high_time ?? high.time)} · Available venue history</small></UiCard>
     </div>
-    <UiCard className="macro-reading" tone="subtle"><span className="macro-label">Your price map</span><h2>What the history shows</h2>
-      <p>The letters mark earlier turning points. The levels below measure past moves and possible recoveries. They explain where the numbers come from; they do not establish where price will go next.</p>
-      <a className="macro-timing-link" href="#macro-future">See possible future price levels</a>
-      <div className="macro-scenario-grid">
-        <div><h3>Levels already seen</h3>{recentLevels.length ? recentLevels.map((p) => <p key={p.type}><strong>{p.label}: {format(p.price)}</strong> · {dateText(p.extreme_time ?? p.time)}</p>) : <p>More completed candles are needed to confirm turning points.</p>}<small>Previous turning points, not guaranteed support or resistance.</small></div>
-        <div><h3>Possible recovery</h3>{macro.error ? <p>No confirmed large decline is available to measure yet.</p> : <><strong>{format(macro.recovery_band[0])}–{format(macro.recovery_band[1])}</strong><p>This would recover half to roughly three quarters of the measured fall from {format(macro.anchors[0].price)} to {format(macro.anchors[1].price)}. The possible future levels are listed below.</p><small>The lower edge is {Math.abs((macro.recovery_band[0] / chart.candles.at(-1).close - 1) * 100).toLocaleString('en-US', { maximumFractionDigits: 1 })}% {macro.recovery_band[0] >= chart.candles.at(-1).close ? 'above' : 'below'} the last completed close. This is a measured reference, not an expected return.</small></>}</div>
-        <div><h3>If price falls instead</h3>{macro.error ? <p>A downside reference is unavailable until a later low confirms.</p> : <><strong>Watch {format(macro.anchors[1].price)}</strong><p>{chart.candles.at(-1).close < macro.anchors[1].price ? 'The last completed close is already below this selected low. A recovery is not confirmed.' : 'A move below this selected historical low would weaken a recovery from it. This is a reference, not an automatic sell instruction.'}</p></>}</div>
-      </div>
-      {comparison && <div className="macro-high-explanation"><h3>Would this make a new high?</h3>
-        <p>{comparison.already_above ? `The last completed close is already above the selected earlier high of ${format(comparison.previous_high)}. That selected range needs reviewing.`
-          : comparison.relation === 'above' ? `The selected extension at ${format(comparison.reference)} would be ${Math.abs(comparison.percent_from_high).toFixed(1)}% above the earlier high of ${format(comparison.previous_high)}. It is calculated by extending the old range; history has not confirmed that breakout. Price would have to exceed the earlier high first.`
-            : comparison.relation === 'at' ? `This reference returns to the earlier high of ${format(comparison.previous_high)}. It does not exceed it.`
-              : `The selected recovery at ${format(comparison.reference)} is ${Math.abs(comparison.percent_from_high).toFixed(1)}% below the earlier high of ${format(comparison.previous_high)}. That is because it recovers only part of the old decline. It does not mean price cannot later go higher.`}</p>
-        <small>The comparison uses the highest price before the latest completed candle ({dateText(priorHigh.high_time ?? priorHigh.time)}), which can differ from the selected confirmed swing. We have not established which case is most likely, or what caused the past moves. Similar shapes alone do not settle that.</small>
-      </div>}
-      {structure.complete && <p className="macro-cycle-note">Comparing the larger swings: high C was {Math.abs((structure.anchors[2].price / structure.anchors[0].price - 1) * 100).toFixed(1)}% {structure.anchors[2].price >= structure.anchors[0].price ? 'above' : 'below'} high A. The fall from A to B was {((1 - structure.anchors[1].price / structure.anchors[0].price) * 100).toFixed(1)}%; C to D was {((1 - structure.anchors[3].price / structure.anchors[2].price) * 100).toFixed(1)}%. These are historical comparisons, not a prediction that the next leg repeats them.</p>}
+    <UiCard className="macro-reading" tone="subtle"><span className="macro-label">Your price map</span><h2>Focus on the next recovery</h2>
+      <p>Start with confirmed daily turning points near the latest daily close. An overhead level is a place to watch for a reaction; a close above it followed by a hold on a retest would clear that reference. A rejection keeps it overhead.</p>
+      <p>Clearing one reference only exceeds that particular prior high; other recent highs may still be overhead. It would not establish a return to the old cycle peak or a new high across the full history. We have not established the next run's final high.</p>
+      {priorHigh && chart.candles.at(-1).close > priorHigh.high && <p>The last completed close is already above the previous historical high of {format(priorHigh.high)} in this view. That selected range needs reviewing; do not treat old recovery math as an unachieved next target.</p>}
+      <a className="macro-timing-link" href="#macro-future">See the next-run checkpoints</a>
     </UiCard>
-    <div ref={guideRef}><ChartLevelGuide macro={macro} evidence={evidence} latest={chart.candles.at(-1)}
+    <div ref={guideRef}><ChartLevelGuide macro={macro} nextRun={nextRun} evidence={evidence} latest={chart.candles.at(-1)}
       currency={instrument.quote_currency} interval={chart.interval_seconds} selectedId={selectedEvidenceId}
       onSelect={selectEvidence} onInspect={onInspect} focusRange={focusRange} /></div>
     <UiCard className="macro-range-panel">
       <div className="macro-range-header"><div><span className="macro-label">Historical drawdown reference</span><h2>Macro price range</h2></div>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showMacro} disabled={!!focusRange} onChange={(event) => setShowMacro(event.target.checked)} />Show macro band</label></div>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showMacro} disabled={!!focusRange} onChange={(event) => setShowMacro(event.target.checked)} />Show long-range macro band</label></div>
       <details className="macro-advanced"><summary>Adjust historical anchors</summary><div className="macro-range-grid">
         {['High', 'Low'].map((name, index) => <label className="macro-select" key={name}>{name} · Confirmed swing
           <select aria-label={`Macro ${name.toLowerCase()}`} value={macroIds[index]} onChange={(event) => setMacroIds((current) => current.map((id, i) => i === index ? event.target.value : id))}>
@@ -172,8 +162,8 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
       <div className="macro-structure-controls">
         <label className="macro-range-toggle"><input type="checkbox" checked={showHistory} disabled={!!focusRange} onChange={(event) => setShowHistory(event.target.checked)} />Show historical A–D</label>
         <label className="macro-range-toggle"><input type="checkbox" checked={showRecent} disabled={!!focusRange} onChange={(event) => setShowRecent(event.target.checked)} />Show smaller a–d</label>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showFuture && !macro.error} disabled={!!macro.error || !!focusRange} onChange={(event) => setShowFuture(event.target.checked)} />Show future scenario</label>
-        {showFuture && futureLevel && <label className="macro-select">Future E? reference
+        <label className="macro-range-toggle"><input type="checkbox" checked={showFuture && !macro.error} disabled={!!macro.error || !!focusRange} onChange={(event) => setShowFuture(event.target.checked)} />Show long-range macro scenario</label>
+        {showFuture && futureLevel && <label className="macro-select">Long-range E? reference
           <select aria-label="Future reference level" value={futureRatio} onChange={(event) => { setFutureRatio(Number(event.target.value)); setSelectedEvidenceId(`ratio:${event.target.value}`); }}>
             {[0.5, 0.618, 0.786, 1, 1.618].map((r) => <option key={r} value={r}>{r === 1.618 ? '1.618× extension' : `${(r * 100).toFixed(1)}% recovery`} · {format(macro.levels.find((p) => p.ratio === r).price)}</option>)}
           </select>
@@ -190,7 +180,7 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
       <UiCard className="macro-chart-panel" padding="none">
         <div className="macro-chart-heading"><div><span className="macro-label">{instrument.symbol} / {instrument.quote_currency}</span><h2>The larger move</h2></div>
           <UiChip tone={showLocal && valid && scenario.status === 'invalidated' ? 'danger' : 'neutral'}>{showLocal && valid ? STATUS[scenario.status] : 'Historical structure'}</UiChip></div>
-        <MacroPriceChart candles={displayed} pivots={pivots} scenario={showLocal ? scenario : null} macro={showMacro ? macro : null} referenceLevels={recentLevels}
+        <MacroPriceChart candles={displayed} pivots={pivots} scenario={showLocal ? scenario : null} macro={showMacro ? macro : null} referenceLevels={[...nextRun.above, ...nextRun.below]}
           historical={showHistory ? structure.anchors : []} future={showFuture ? futureLevel : null}
           nested={showRecent ? recentStructure : []}
           selectedEvidence={selectedEvidence} onSelectAnchor={(p) => explainFromChart(`anchor:${p.id}`)}
@@ -206,10 +196,10 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayCha
           </label>
           <UiButton size="sm" disabled={end <= Math.min(count, displayChart.candles.length)} onClick={() => setOffset(Math.min(displayChart.candles.length - count, offset + Math.ceil(count / 3)))}>Earlier</UiButton>
           <UiButton size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - Math.ceil(count / 3)))}>Later</UiButton>
-          <UiButton size="sm" onClick={() => { onResetFocus(); setOffset(0); setCount(Math.min(400, chart.candles.length)); if (focusRange) { setShowMacro(true); setShowHistory(true); setShowFuture(true); } }}>Fit history</UiButton>
+          <UiButton size="sm" onClick={() => { onResetFocus(); setOffset(0); setCount(Math.min(400, chart.candles.length)); if (focusRange) { setShowMacro(false); setShowHistory(true); setShowFuture(false); } }}>Fit history</UiButton>
           {displayChart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, displayChart.candles.length)} value={Math.min(count, displayChart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
-        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>Dashed horizontals: Fibonacci levels</span>{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
+        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>R/S: prior daily turning references</span>{showLocal && valid && <span>Dashed horizontals: local Fibonacci levels</span>}{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <details className="macro-advanced"><summary>Optional: measure a smaller move</summary>
