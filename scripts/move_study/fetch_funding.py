@@ -172,6 +172,26 @@ def main() -> int:
             print(f"binance funding {done}/{len(todo_b)} requests={COUNT}", flush=True)
     for sym in todo_k:
         save_zip_csv(f"{VISION}/data/futures/um/monthly/klines/{sym}/1d/{sym}-1d-{k_jobs[sym]}.zip", out / "binance" / f"klines-{sym}.csv")
+    # The median event month can predate the perp listing (klines 404). Fall back to the
+    # median month among event months that do have a funding file, so the check uses
+    # a month when the perp traded. Chosen before any funding was joined to outcomes.
+    for sym in k_jobs:
+        if (out / "binance" / f"klines-{sym}.csv").exists():
+            continue
+        months = sorted(mo for s, mo in b_jobs if s == sym and (out / "binance" / f"{s}-{mo}.csv").exists())
+        if not months:
+            continue
+        mo = months[len(months) // 2]
+        dest = out / "binance" / f"klines-{sym}.csv"
+        if mo != k_jobs[sym] and not dest.with_suffix(f".{mo}.missing").exists():
+            r = get(f"{VISION}/data/futures/um/monthly/klines/{sym}/1d/{sym}-1d-{mo}.zip")
+            if r.status_code == 404:
+                dest.with_suffix(f".{mo}.missing").write_text("404")
+                continue
+            r.raise_for_status()
+            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                dest.write_bytes(z.read(z.namelist()[0]))
+            print(f"klines fallback {sym} {k_jobs[sym]} -> {mo}", flush=True)
     print(f"binance klines done requests={COUNT}", flush=True)
     for i, (coin, dy) in enumerate(todo_h, 1):
         r = post({"type": "fundingHistory", "coin": coin, "startTime": dy * DAY * 1000 + 1, "endTime": (dy + 1) * DAY * 1000})
