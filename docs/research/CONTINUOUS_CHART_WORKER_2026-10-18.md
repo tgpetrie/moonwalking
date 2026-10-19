@@ -1,5 +1,9 @@
 # Continuous local chart pilot — AMP-USD
 
+Update 2026-10-19: bounded local narration is now connected; see
+[LOCAL_CHART_NARRATION_2026-10-19.md](LOCAL_CHART_NARRATION_2026-10-19.md).
+Earlier no-model statements below record the initial pilot stage and are superseded.
+
 Tom authorized a continuous local pilot and assistance from Claude/Gemini, then
 selected AMP. No FET or RENDER series is used as AMP history. Production, other
 worktrees and existing owner data stores remain untouched.

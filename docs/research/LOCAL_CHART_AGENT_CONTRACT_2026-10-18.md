@@ -1,5 +1,9 @@
 # Local chart evidence contract
 
+Update 2026-10-19: the offline evidence CLI remains deterministic; the continuous
+worker now adds bounded local narration as a separate consumer. See
+[LOCAL_CHART_NARRATION_2026-10-19.md](LOCAL_CHART_NARRATION_2026-10-19.md).
+
 The first local workflow is a deterministic, offline evidence producer. It does
 not install a model, run an autonomous agent, call a service or trade. No API
 keys are needed. Optional explanation agents can subsequently consume its JSON.

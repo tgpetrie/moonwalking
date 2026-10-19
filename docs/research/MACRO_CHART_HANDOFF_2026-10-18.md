@@ -237,3 +237,15 @@ CONTINUOUS_CHART_WORKER_2026-10-18.md for ownership, schedule, stop command, lim
 and checks: 549 frontend tests/build/token sync,18 worker tests,4 packet tests passed.
 No production or other worktree integration. Scheduled task reads this checkout;
 preserve it or remove the task before moving/removing the worktree.
+
+## Local narration integration — 2026-10-19
+
+Supersedes the earlier no-local-LLM status: the AMP worker now connects to installed
+Ollama qwen3.5:9b. The model selects evidence IDs; trusted code renders the explanation.
+Strict validation, deterministic fallback and unchanged-evidence caching are connected
+to the worker and status UI. An actual scheduled-task run completed with result 0 and
+accepted local AI output; an unchanged repeat used the cache. Full frontend verify
+553 tests/build/token sync, 41 offline Python tests and guardrails passed. A local
+agent reviewed the implementation; no new Claude/Gemini review this turn. See
+LOCAL_CHART_NARRATION_2026-10-19.md for request limits, observations and limitations.
+No production deployment or main merge.

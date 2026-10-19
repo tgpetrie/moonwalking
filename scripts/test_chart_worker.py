@@ -59,6 +59,10 @@ def packet(history):
                          'macro_levels': [], 'macro_unavailable_reason': 'Synthetic test fixture'}}
 
 
+def fake_narrator(packet, previous=None):
+    return {'state': 'fallback', 'paragraphs': []}
+
+
 class WorkerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -69,7 +73,7 @@ class WorkerTests(unittest.TestCase):
         self.temp.cleanup()
 
     def run_worker(self, client=None, now=NOW):
-        return worker.run_once(self.store, client=client or FakeClient(), clock=lambda: now, producer=packet)
+        return worker.run_once(self.store, narrator=fake_narrator, client=client or FakeClient(), clock=lambda: now, producer=packet)
 
     def test_initial_refresh_persists_history_evidence_and_status(self):
         status = self.run_worker()
@@ -305,10 +309,10 @@ class EvidenceBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = worker.Store(Path(directory) / 'own', 'AMP-USD')
             try:
-                worker.run_once(store, client=FakeClient(), clock=lambda: NOW, producer=packet)
+                worker.run_once(store, narrator=fake_narrator, client=FakeClient(), clock=lambda: NOW, producer=packet)
                 produce = mock.Mock(side_effect=packet)
                 with mock.patch.object(worker, 'engine_fingerprint', return_value='synthetic-new-engine'):
-                    status = worker.run_once(store, client=FakeClient(), clock=lambda: NOW + 3600, producer=produce)
+                    status = worker.run_once(store, narrator=fake_narrator, client=FakeClient(), clock=lambda: NOW + 3600, producer=produce)
                 produce.assert_called_once()
                 self.assertFalse(status['changed'])
                 self.assertTrue(status['analysis_changed'])

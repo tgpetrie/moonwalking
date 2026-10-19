@@ -9,4 +9,8 @@
 .chart-worker-status__dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .chart-worker-status__dates dd { margin: var(--space-1) 0 0; font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .chart-worker-status__action { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+.chart-worker-status__narration { margin-block: var(--space-4); border-top: 1px solid var(--text-faint); padding-top: var(--space-4); overflow-wrap: anywhere; }
+.chart-worker-status__paragraph h4 { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-sm); }
+.chart-worker-status__paragraph p { margin-top: var(--space-1); }
+.chart-worker-status__stale-explanation { color: var(--danger); }
 @media (max-width: 640px) { .chart-worker-status__dates { grid-template-columns: 1fr; } }

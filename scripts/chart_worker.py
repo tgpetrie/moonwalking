@@ -18,6 +18,7 @@ import urllib.request
 import uuid
 
 from snapshot_coinbase_daily import DAY, normalize
+from chart_narration import narrate
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = 'https://api.exchange.coinbase.com'
@@ -250,7 +251,7 @@ class Store:
             raise
 
 
-def run_once(store, *, seed=None, client=None, clock=time.time, producer=evidence, node=None):
+def run_once(store, *, seed=None, client=None, clock=time.time, producer=evidence, node=None, narrator=narrate):
     now = clock()
     token = store.claim(now)
     if token is None:
@@ -294,13 +295,15 @@ def run_once(store, *, seed=None, client=None, clock=time.time, producer=evidenc
         last_day = updated['candles'][-1]['start']
         if last_day + DAY < updated['captured_at']:
             summaries.append('Provider history trails the latest closed UTC day; check candle coverage before interpreting freshness.')
+        narration_detail = narrator(packet, old_status.get('narration_detail'))
         finished = clock()
         status = {'schema_version': SCHEMA, 'product_id': store.product, 'state': 'ok',
                   'generation_id': str(uuid.uuid4()), 'last_attempt_at': iso(now), 'last_success_at': iso(finished),
                   'next_run_at': iso(now + PERIOD), 'last_error': None, 'candle_through_utc': iso(last_day)[:10],
                   'reference_close': packet['reference_close'], 'changed': changed, 'analysis_changed': numerical_changed,
                   'change_summary': summaries, 'run_count': old_status.get('run_count', 0) + 1,
-                  'narration': 'deterministic', 'history_path': '/.runtime/chart-worker/history.json'}
+                  'narration': narration_detail['state'], 'narration_detail': narration_detail,
+                  'history_path': '/.runtime/chart-worker/history.json'}
         status['engine_sha256'] = engine_hash
         status['completed_daily_sha256'] = digest(updated['candles'])
         status['weekly_evidence_sha256'] = analysis_fingerprint(packet)

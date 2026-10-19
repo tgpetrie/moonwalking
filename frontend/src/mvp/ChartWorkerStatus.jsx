@@ -8,6 +8,24 @@ const HISTORY_URL = '/.runtime/chart-worker/history.json';
 const SCHEMA = 'moonwalking.chart-worker-status/v1';
 const STATES = { idle: 'Waiting for its first run', running: 'Refreshing history', ok: 'Last run completed', error: 'Last run failed' };
 const iso = (value) => value === null || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value)));
+const boundedText = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
+const TOPICS = { position: 'Current position', levels: 'Price references', limits: 'What this cannot establish' };
+
+function validNarration(value) {
+  if (value == null) return true; // Older worker files remain readable.
+  return value.schema_version === 'moonwalking.chart-narration/v1'
+    && ['local_ai', 'cached', 'fallback'].includes(value.state)
+    && boundedText(value.model, 120) && iso(value.generated_at)
+    && typeof value.evidence_sha256 === 'string' && /^[a-f0-9]{64}$/i.test(value.evidence_sha256)
+    && (value.reason === null || boundedText(value.reason, 1000))
+    && (value.elapsed_seconds === null || (typeof value.elapsed_seconds === 'number'
+      && Number.isFinite(value.elapsed_seconds) && value.elapsed_seconds >= 0 && value.elapsed_seconds <= 86400))
+    && Array.isArray(value.paragraphs) && value.paragraphs.length > 0 && value.paragraphs.length <= 6
+    && value.paragraphs.every((paragraph) => paragraph && Object.hasOwn(TOPICS, paragraph.topic)
+      && boundedText(paragraph.text, 4000) && Array.isArray(paragraph.fact_ids)
+      && paragraph.fact_ids.length > 0 && paragraph.fact_ids.length <= 20
+      && paragraph.fact_ids.every((id) => boundedText(id, 160)));
+}
 
 function checkedStatus(value) {
   if (!value || value.schema_version !== SCHEMA || !/^[A-Z0-9]{1,20}-USD$/.test(value.product_id)
@@ -18,6 +36,7 @@ function checkedStatus(value) {
     || !(value.history_sha256 == null || (typeof value.history_sha256 === 'string' && /^[a-f0-9]{64}$/i.test(value.history_sha256)))
     || !(value.generation_id == null || (typeof value.generation_id === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.generation_id)))
     || ![value.changed, value.analysis_changed].every((v) => v === null || typeof v === 'boolean')
+    || !validNarration(value.narration_detail)
     || !Array.isArray(value.change_summary) || value.change_summary.some((line) => typeof line !== 'string')) {
     throw new Error('The local worker status file is invalid.');
   }
@@ -64,6 +83,7 @@ export default function ChartWorkerStatus({ onHistory }) {
   if (!import.meta.env.DEV) return null;
   const overdue = status?.next_run_at && Date.parse(status.next_run_at) < Date.now() - 60000;
   const stale = Boolean(error || status?.state === 'error' || overdue);
+  const narration = status?.narration_detail;
   async function openHistory() {
     historyRequest.current?.abort();
     const controller = new AbortController();
@@ -103,7 +123,9 @@ export default function ChartWorkerStatus({ onHistory }) {
   return <UiCard className="chart-worker-status" aria-label="Local chart worker">
     <div className="chart-worker-status__heading"><div><span className="macro-label">Local single-coin pilot</span><h2>Automatic chart updates</h2></div>
       <span className="chart-worker-status__badge">{!status ? error ? 'Worker unavailable' : 'Checking worker' : stale ? 'Stale · check worker' : STATES[status.state]}</span></div>
-    <p>This PC refreshes completed candles and calculates evidence. Explanations are deterministic; no language model is connected.</p>
+    <p>This PC refreshes completed candles and calculates evidence. {narration
+      ? 'A local model can select which verified facts to emphasize.'
+      : 'Explanations are deterministic; no language model is connected.'}</p>
     {!status && !error && <p role="status">Looking for the local worker status…</p>}
     {error && <p role="alert">Local status unavailable: {error}{status ? ' Showing the last status received; it may be out of date.' : ' Start the local worker to create its status file.'}</p>}
     {status && <>
@@ -118,6 +140,17 @@ export default function ChartWorkerStatus({ onHistory }) {
       </dl>
       <p>{status.run_count} run{status.run_count === 1 ? '' : 's'} recorded. {status.analysis_changed === true ? 'Chart analysis changed on the last run.' : status.analysis_changed === false ? 'No chart analysis change on the last run.' : 'No analysis comparison recorded yet.'}</p>
       {status.change_summary.length > 0 && <ul>{status.change_summary.map((line, index) => <li key={index}>{line}</li>)}</ul>}
+      {narration && <section className="chart-worker-status__narration" aria-label="Saved worker explanation">
+        <h3>{narration.state === 'fallback' ? 'Chart explanation · fallback' : 'Local AI chart explanation'}</h3>
+        <p>{status.product_id} · Saved worker explanation{narration.generated_at ? ` · ${timestamp(narration.generated_at)}` : ' · Generation time not recorded'}.</p>
+        {stale ? <p className="chart-worker-status__stale-explanation">This explanation comes from the last saved worker output. The status is stale; a refreshed explanation is not confirmed.</p>
+          : status.state === 'running' && <p>A check is running. This saved explanation has not been refreshed by that check yet.</p>}
+        {narration.state === 'fallback' ? <p>The local AI did not produce an accepted selection. Showing the deterministic evidence explanation.{narration.reason ? ` Reason: ${narration.reason}` : ''}</p>
+          : <p>Local AI selects emphasis; prices and wording are verified templates. Model: {narration.model}.{narration.state === 'cached' ? ' Reused for unchanged evidence.' : ''}</p>}
+        {narration.paragraphs.map((paragraph, index) => <div key={index} className="chart-worker-status__paragraph">
+          <h4>{TOPICS[paragraph.topic]}</h4><p>{paragraph.text}</p>
+        </div>)}
+      </section>}
       <small>Last status read: {timestamp(readAt)}. Planned checks may start late if this PC is asleep or a run takes longer. This checks a local file every 30 seconds; it does not start or control the worker.</small>
       {onHistory && <div className="chart-worker-status__action"><UiButton onClick={openHistory} loading={opening} disabled={!status.last_success_at} loadingLabel="Opening worker chart…">Open worker chart</UiButton><small>Opens the saved worker history when you choose; background runs do not replace your current chart.</small></div>}
       {historyError && <p role="alert">{historyError}</p>}

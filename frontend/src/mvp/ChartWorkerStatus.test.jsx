@@ -12,6 +12,11 @@ const status = () => ({ schema_version: 'moonwalking.chart-worker-status/v1', pr
   change_summary: ['Completed history advanced by one day.'], run_count: 2, analysis_changed: false,
   history_path: 'https://untrusted.example/history.json' });
 const response = (value) => ({ ok: true, json: async () => value, text: async () => JSON.stringify(value) });
+const narration = () => ({ schema_version: 'moonwalking.chart-narration/v1', state: 'local_ai', model: 'qwen3.5:9b',
+  generated_at: '2026-10-18T18:00:00Z', evidence_sha256: 'a'.repeat(64), reason: null, elapsed_seconds: 1.5,
+  paragraphs: [{ topic: 'position', fact_ids: ['position.close'], text: 'The completed close is below the selected high.' },
+    { topic: 'levels', fact_ids: ['levels.recovery'], text: 'The recovery band is a conditional price reference.' },
+    { topic: 'limits', fact_ids: ['limits.probability'], text: 'The map does not establish a probability of arrival.' }] });
 async function settle() { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); }
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-18T18:15:00Z')); vi.stubEnv('DEV', true);
@@ -119,5 +124,48 @@ describe('local chart worker status', () => {
     vi.stubGlobal('fetch', fetch); render(<ChartWorkerStatus />); await settle();
     expect(screen.getByRole('alert')).toHaveTextContent('status file is invalid');
     expect(screen.queryByText('TEST-USD · Last run completed')).not.toBeInTheDocument();
+  });
+  it('shows local AI fact selection with templated wording and cached evidence honestly', async () => {
+    const detail = narration();
+    const fetch = vi.fn().mockResolvedValue(response({ ...status(), narration_detail: detail })); vi.stubGlobal('fetch', fetch);
+    render(<ChartWorkerStatus />); await settle();
+    expect(screen.getByRole('heading', { name: 'Local AI chart explanation' })).toBeVisible();
+    expect(screen.getByText(/Local AI selects emphasis; prices and wording are verified templates/)).toHaveTextContent('qwen3.5:9b');
+    expect(screen.getByText(detail.paragraphs[0].text)).toBeVisible();
+    expect(screen.queryByText(/no language model is connected/)).not.toBeInTheDocument();
+    fetch.mockResolvedValue(response({ ...status(), narration_detail: { ...detail, state: 'cached' } }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(screen.getByText(/Reused for unchanged evidence/)).toBeVisible();
+  });
+  it('labels fallback and preserves a visibly stale last explanation on worker or status failure', async () => {
+    const detail = { ...narration(), state: 'fallback', reason: 'Local model returned an unsupported fact ID.' };
+    const fetch = vi.fn().mockResolvedValue(response({ ...status(), narration_detail: detail })); vi.stubGlobal('fetch', fetch);
+    render(<ChartWorkerStatus />); await settle();
+    expect(screen.getByRole('heading', { name: 'Chart explanation · fallback' })).toBeVisible();
+    expect(screen.getByText(/Showing the deterministic evidence explanation/)).toHaveTextContent(detail.reason);
+    fetch.mockResolvedValueOnce(response({ ...status(), state: 'error', last_error: 'Download stopped', narration_detail: detail }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(screen.getByText(/refreshed explanation is not confirmed/)).toBeVisible();
+    fetch.mockRejectedValueOnce(new Error('Unavailable'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(screen.getByText(detail.paragraphs[0].text)).toBeVisible();
+    expect(screen.getByText(/refreshed explanation is not confirmed/)).toBeVisible();
+  });
+  it('rejects malformed narration without replacing the last valid worker status', async () => {
+    const detail = narration();
+    const fetch = vi.fn().mockResolvedValue(response({ ...status(), narration_detail: detail })); vi.stubGlobal('fetch', fetch);
+    render(<ChartWorkerStatus />); await settle();
+    fetch.mockResolvedValueOnce(response({ ...status(), narration_detail: { ...detail, paragraphs: [{ topic: 'prediction', text: 'Invalid', fact_ids: [] }] } }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(screen.getByRole('alert')).toHaveTextContent('status file is invalid');
+    expect(screen.getByText(detail.paragraphs[0].text)).toBeVisible();
+    expect(screen.getByText(/refreshed explanation is not confirmed/)).toBeVisible();
+  });
+  it('renders narrative content as plain text, never HTML', async () => {
+    const detail = narration(); const text = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
+    detail.paragraphs[0].text = text;
+    const fetch = vi.fn().mockResolvedValue(response({ ...status(), narration_detail: detail })); vi.stubGlobal('fetch', fetch);
+    const { container } = render(<ChartWorkerStatus />); await settle();
+    expect(screen.getByText(text)).toBeVisible(); expect(container.querySelector('img, script')).toBeNull();
   });
 });
