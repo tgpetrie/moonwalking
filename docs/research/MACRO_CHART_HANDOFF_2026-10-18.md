@@ -187,3 +187,20 @@ The first slice does not implement indicators, an automatic full wave count,
 trendline breakout signals, historical profitability, live data refresh,
 portfolio integration or a production chart-data API. These are explicit
 remaining work rather than implied completed acceptance criteria.
+
+## Future-level visibility follow-up
+
+The future overlay now defaults on when a confirmed macro range exists. A permanent
+"Where price could go next" section before the chart lists recent confirmed levels,
+50/61.8/78.6% recovery references, the selected swing high, a 1.618 extension, and
+the downside anchor. These are arithmetic conditional references, without arrival
+dates or probabilities. No move-study findings are wired into the UI.
+
+Historical inspection hides chart overlays but keeps the price list available;
+Fit history restores the future overlay. Replay without a confirmed range withholds
+calculated references. The E? chart label now includes its numeric price.
+
+Read Claude's handoff at origin/claude/render-history-data commit 1504be4.
+RNDR/RENDER remain separate; validated files remain the RENDER acceptance source.
+Verification: npm run verify (538 tests, token sync, production build passed),
+browser FET preview visibly checked. Existing build-size/Browserslist/act warnings remain.

@@ -114,7 +114,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
             <title>Hypothetical E? at {priceText(futurePath.price, currency)} · {futurePath.ratio} of selected macro range · No estimated date or probability</title>
             <line x1={x(latestCandle.time)} y1={y(latestCandle.close)} x2={LEVEL_RIGHT - 22} y2={y(futurePath.price)} />
             <circle cx={LEVEL_RIGHT - 22} cy={y(futurePath.price)} r={5} />
-            <text x={LEVEL_RIGHT - 22} y={y(futurePath.price) - 13} textAnchor="middle">E?</text>
+            <text x={LEVEL_RIGHT - 22} y={y(futurePath.price) - 13} textAnchor="middle">E? {priceText(futurePath.price, currency)}</text>
           </g>}
           {hover !== null && <line className="macro-chart-crosshair" x1={x(selected.time)} x2={x(selected.time)} y1={TOP} y2={BOTTOM} />}
         </g>

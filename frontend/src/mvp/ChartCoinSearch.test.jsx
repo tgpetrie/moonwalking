@@ -38,7 +38,7 @@ describe('coin-to-chart workflow', () => {
     expect(container.querySelector('.macro-chart-recovery text')).toHaveTextContent('50%');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show smaller a–d' }));
     expect(container.querySelectorAll('.macro-nested-label')).toHaveLength(4);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show future scenario' }));
+    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeChecked();
     fireEvent.change(screen.getByRole('combobox', { name: 'Future reference level' }), { target: { value: '1.618' } });
     expect(screen.getByText(/would be .* above the earlier high/)).toBeVisible();
     expect(screen.getByText(/history has not confirmed that breakout/)).toBeVisible();

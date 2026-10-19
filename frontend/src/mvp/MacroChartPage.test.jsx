@@ -118,13 +118,12 @@ describe('local long-term chart workspace', () => {
     expect(container.querySelectorAll('.macro-history-anchor')).toHaveLength(0);
   });
 
-  it('keeps future E? opt-in, separate from observed anchors, and resets it in replay', () => {
+  it('shows future levels by default, separate from observed anchors, and withholds them when replay has no range', () => {
     const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const history = container.querySelector('.macro-chart-history').getAttribute('points');
-    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Where price could go next' })).toBeVisible();
     const future = screen.getByRole('checkbox', { name: 'Show future scenario' });
-    expect(future).not.toBeChecked();
-    fireEvent.click(future);
+    expect(future).toBeChecked();
     expect(container.querySelector('.macro-chart-future text')).toHaveTextContent('E?');
     expect(screen.getByText('SCENARIO · NO DATE')).toBeVisible();
     const y = container.querySelector('.macro-chart-future circle').getAttribute('cy');
