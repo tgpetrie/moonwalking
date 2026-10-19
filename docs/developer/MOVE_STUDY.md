@@ -176,7 +176,7 @@ does not beat peers.
 $py = "$env:USERPROFILE\.moonwalking\venv\Scripts\python.exe"
 & $py -I scripts\move_study\continuation_vs_reversal.py --archive archive_copy.sqlite --out data\move-study
 # Extended run (needs the daily pull from fetch_daily_all.py)
-& $py -I scripts\move_studyetch_daily_all.py --out daily_all
+& $py -I scripts\move_study\fetch_daily_all.py --out daily_all
 & $py -I scripts\move_study\continuation_vs_reversal.py --daily-dir daily_all --out data\move-study --first-day 2022-01-03 --last-day 2026-10-17 --split-day 2025-01-01 --tag _daily_2022
 & $py -I -m pytest scripts\move_study -q
 ```
