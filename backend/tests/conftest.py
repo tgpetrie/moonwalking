@@ -334,3 +334,9 @@ def enable_controls():
         return store
 
     return _enable
+
+
+@pytest.fixture(autouse=True)
+def _no_pit_log_writes(monkeypatch):
+    """Keep tests from writing the real point-in-time log; tests opt in with a tmp path."""
+    monkeypatch.setenv("MW_PIT_LOG_DISABLED", "1")

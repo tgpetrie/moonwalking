@@ -22,6 +22,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+try:
+    import pit_log as _pit_log
+except ImportError:
+    try:
+        from backend import pit_log as _pit_log
+    except ImportError:  # pragma: no cover - the log is optional context
+        _pit_log = None
+
 logger = logging.getLogger("derivatives_positioning")
 
 HYPERLIQUID_BASE_URL = "https://api.hyperliquid.xyz"
@@ -206,6 +214,22 @@ async def get_symbol_positioning(
 
     bias_key, funding_label = classify_funding(funding)
     read, tone = positioning_read(price_change_pct, funding, oi_change_pct)
+
+    if _pit_log is not None:
+        # Point-in-time record, at most one per coin per 5 minutes (never raises).
+        open_interest_usd = (
+            open_interest * mark_price if open_interest is not None and mark_price is not None else None
+        )
+        await asyncio.to_thread(
+            _pit_log.safe_record_positioning,
+            [{
+                "exchange": "hyperliquid", "symbol": asset, "base_asset": asset,
+                "funding_rate": funding, "funding_interval_hours": HYPERLIQUID_FUNDING_INTERVAL_HOURS,
+                "open_interest": open_interest, "open_interest_usd": open_interest_usd,
+                "mark_price": mark_price, "oracle_price": _safe_float(ctx.get("oraclePx")),
+            }],
+            scope="coin",
+        )
 
     return {
         "available": True,

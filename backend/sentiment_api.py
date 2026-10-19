@@ -18,6 +18,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 from pydantic import BaseModel, Field
 
+try:
+    from backend import pit_log as _pit_log
+except Exception:  # pragma: no cover - the log is optional context
+    _pit_log = None
 from backend.sentiment.providers import get_provider
 from backend.sentiment.source_loader import load_sources, SentimentSourceLoaderError
 
@@ -961,6 +965,11 @@ async def _get_derivatives_positioning_payload() -> Optional[Dict[str, Any]]:
     ]
     source_errors = [error for _, error in results if error]
     valid_symbols = [item for item, _ in results if item]
+    if _pit_log is not None:
+        # Point-in-time record of each fresh fetch (never raises; see pit_log.py).
+        await asyncio.to_thread(
+            _pit_log.safe_record_positioning, valid_symbols, source_errors, scope="market"
+        )
     if valid_symbols:
         # Coinalyze is only "configured" when a key is present, so coverage math
         # stays honest (e.g. 4/4 without a key, 5/5 with one).

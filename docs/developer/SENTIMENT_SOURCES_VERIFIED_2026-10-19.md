@@ -81,7 +81,7 @@ the advice not to work around region blocks.
 Free first. Each step is a small change, behind the existing `data_status`
 contract.
 
-1. **Point-in-time log (new SQLite file, separate from the live stores).**
+1. **Point-in-time log (new SQLite file, separate from the live stores).** Built: see `PIT_LOG.md` (steps 1 to 3).
    One append-only table along the lines of Gemini's `pit_context_log`
    (`product_id`, `source_id`, `event_type`, `source_published_utc`,
    `first_seen_utc`, values, `source_url`, `payload_sha256`,
