@@ -34,6 +34,24 @@ export function macroRange(high, low, { asOf } = {}) {
     interpretation: 'Conditional recovery reference; no forecast date or measured probability.' };
 }
 
+// A–D are descriptive anchor names, not an Elliott-wave classification.
+export function historicalMacro(pivots, range, { asOf } = {}) {
+  const checked = macroRange(range?.anchors?.[0], range?.anchors?.[1], { asOf });
+  if (checked.error) return { error: checked.error, anchors: [] };
+  const [c, d] = checked.anchors;
+  const eligible = pivots.filter((p) => timestamp(p.time) && positive(p.price)
+    && timestamp(p.confirmed_at) && p.confirmed_at >= p.time && p.confirmed_at <= asOf)
+    .sort((a, b) => a.time - b.time);
+  const b = eligible.filter((p) => p.type === 'low' && p.time < c.time)
+    .reduce((best, p) => !best || p.price < best.price ? p : best, null);
+  const a = b && eligible.filter((p) => p.type === 'high' && p.time < b.time)
+    .reduce((best, p) => !best || p.price > best.price ? p : best, null);
+  const anchors = [a, b, c, d].flatMap((p, i) => p ? [{ ...p, label: 'ABCD'[i] }] : []);
+  return { anchors, complete: !!a && !!b,
+    available_at: Math.max(...anchors.map((p) => p.confirmed_at)),
+    interpretation: 'Historical anchor sequence; not a validated wave count.' };
+}
+
 export function structurePivots(candles, { mode = 'wick', left = 2, right = 2, interval = WEEK } = {}) {
   if (!['wick', 'body'].includes(mode)) throw new Error('Choose wick or body anchors.');
   const input = mode === 'wick' ? candles : candles.map((c) => ({

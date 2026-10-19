@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { chartAt, confirmedPivots, parseHistory } from '../frontend/src/utils/macroChart.js';
-import { defaultMacroAnchors, macroRange } from '../frontend/src/utils/chartStructure.js';
+import { defaultMacroAnchors, historicalMacro, macroRange } from '../frontend/src/utils/chartStructure.js';
 
 const paths = process.argv.slice(2);
 assert.ok(paths.length, 'Usage: node scripts/verify_macro_range.mjs DAILY.json [DAILY.json ...]');
@@ -23,6 +23,10 @@ for (const path of paths) {
     const result = select(pivots, candle.end);
     assert.deepEqual(result, select(confirmedPivots(prefix.candles).pivots, candle.end));
     assert.deepEqual(result, select(fullPivots.filter((p) => p.confirmed_at <= candle.end), candle.end));
+    const structure = historicalMacro(pivots, result, { asOf: candle.end });
+    assert.deepEqual(structure, historicalMacro(confirmedPivots(prefix.candles).pivots, result, { asOf: candle.end }));
+    assert.deepEqual(structure, historicalMacro(fullPivots.filter((p) => p.confirmed_at <= candle.end), result, { asOf: candle.end }));
+    assert.ok(structure.anchors.every((p) => p.confirmed_at <= candle.end));
     if (!result.error) {
       assert.ok(result.available_at <= candle.end);
       assert.ok(result.anchors.every((p) => p.confirmed_at <= candle.end));
@@ -33,6 +37,6 @@ for (const path of paths) {
   console.log(JSON.stringify({ product_id: history.instrument.product_id,
     input_sha256: createHash('sha256').update(bytes).digest('hex'),
     weekly_cutoffs_checked: chart.candles.length, cutoffs_with_macro_range: valid,
-    final_range: final, result: 'pass',
+    final_range: final, historical_structure: historicalMacro(fullPivots, final, { asOf: chart.as_of }), result: 'pass',
     limitation: 'Bar-based information timing and arithmetic only. No predictive or historical vendor-availability claim.' }, null, 2));
 }

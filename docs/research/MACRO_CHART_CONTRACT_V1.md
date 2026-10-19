@@ -101,7 +101,8 @@ changing display scale does not change anchors or Fibonacci prices.
 No future date, probability, liquidity
 estimate, fee-adjusted return, order instruction or success rate is inferred.
 The chart's right-hand strip is a display area for horizontal levels, not a
-forecast time axis. A/B/C are anchor names; full Elliott counts require a
+forecast time axis. The optional dashed future price path also uses this
+undated strip. A/B/C are anchor names; full Elliott counts require a
 separate reviewed implementation and validation. Gemini's supplied parameters
 are proposals, not earned thresholds or permission to reclassify old pivots.
 
@@ -135,6 +136,44 @@ band toggle changes display only. A valid macro band can coexist with invalid
 local geometry. No entry, stop, probability or outcome grade follows from it.
 
 See [macro-band verification and latest review audit](MACRO_RANGE_REVIEW_2026-10-18.md).
+
+## Historical A–D and optional future reference
+
+Historical macro labels are independent of the local three-anchor geometry.
+The selected macro high/low are C/D. B is the lowest confirmed low before C;
+A is the highest confirmed high before B. Earliest timestamps break price
+ties. Only pivots confirmed by the explicit replay cutoff qualify. Missing
+earlier points remain missing (for example C/D only); no history is borrowed
+from a predecessor instrument. The sequence's availability is the maximum
+confirmation time of its present anchors. This retrospective naming convention
+can change when new extremes confirm or selections change; it is not a frozen
+historical trading signal or validated Elliott-wave interpretation.
+
+Historical labels are on by default, connected with a solid line, and listed
+with actual extremum dates, prices and confirmation dates. Weekly views start
+with up to 400 bars so FET's older A/B points are visible; daily views retain
+the 160-bar initial window. Panning can take anchors out of view; the evidence
+list remains. Local A/B/C plot labels are suppressed while macro labels are
+shown to avoid assigning two meanings to the same chart letter. Their separate
+measurement controls and levels remain available.
+
+**Show future scenario** is off by default. When enabled, choose a .5/.618/
+.786/1/1.618 reference from the selected macro range (default .786). A dashed
+line connects the latest completed close to an open E? endpoint in the undated
+strip. It appears only when that latest candle is visible. Endpoint horizontal
+position is fixed layout, with no date, path probability, expected arrival or
+automatic channel/wave forecast. The point is not appended to historical
+anchors and is never graded as an observed outcome. The selected reference
+also works when the local A/B/C scenario is invalid. Replay/timeframe/
+confirmation/import changes reset the future option to off.
+
+The existing read-only verifier now compares the macro A–D sequence against
+both truncated input and confirmation-filtered full pivots at every cutoff.
+All 259 FET and 138 RENDER weekly cutoffs pass on the unchanged snapshots
+identified in the macro-range review. FET yields A 2021-09-07 / 1.2,
+B 2022-11-22 / .0524, C 2024-03-28 / 3.485, D 2026-02-06 / .1338.
+RENDER has C/D only under this convention and export coverage. No predictive
+edge or complete cycle classification follows from these checks.
 
 ## Ownership and next integration
 

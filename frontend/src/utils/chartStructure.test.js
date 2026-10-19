@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY, chartAt, confirmedPivots, parseHistory } from './macroChart.js';
-import { defaultMacroAnchors, macroRange, structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
+import { defaultMacroAnchors, historicalMacro, macroRange, structurePivots, trendlineAt, trendlineSensitivity } from './chartStructure.js';
 import { syntheticHistory } from '../test/macroHistory.test.fixture.js';
 
 // All arithmetic fixtures in this file are illustrative, not market observations.
@@ -69,7 +69,40 @@ describe('macro drawdown range', () => {
       expect(calculate(replay)).toEqual(calculate(truncated));
       const result = calculate(replay);
       if (!result.error) expect(result.available_at).toBeLessThanOrEqual(c.end);
+      const expected = historicalMacro(confirmedPivots(truncated.candles).pivots, calculate(truncated), { asOf: c.end });
+      expect(historicalMacro(confirmedPivots(replay.candles).pivots, result, { asOf: c.end })).toEqual(expected);
     }
+  });
+});
+
+describe('historical macro anchor names', () => {
+  const p = (id, type, day, price) => ({ id, type, time: day * DAY, price, confirmed_at: (day + 2) * DAY });
+  const a = p('a', 'high', 2, 8);
+  const b = p('b', 'low', 4, 1);
+  const c = p('c', 'high', 10, 20);
+  const d = p('d', 'low', 20, 10);
+  const range = macroRange(c, d, options);
+  it('labels four ordered historical extrema independently of a local three-swing scenario', () => {
+    const result = historicalMacro([d, b, p('other-high', 'high', 1, 7), c, a, p('other-low', 'low', 7, 5)], range, options);
+    expect(result.anchors.map(({ id, label }) => [id, label])).toEqual([['a', 'A'], ['b', 'B'], ['c', 'C'], ['d', 'D']]);
+    expect(result.complete).toBe(true);
+    expect(result.available_at).toBe(d.confirmed_at);
+    expect(result.interpretation).toMatch(/not a validated wave count/);
+    expect(result.anchors.some((row) => row.label === 'E')).toBe(false);
+  });
+  it('does not invent absent earlier cycles or renumber C/D', () => {
+    expect(historicalMacro([c, d], range, options)).toMatchObject({ complete: false });
+    expect(historicalMacro([c, d], range, options).anchors.map((row) => row.label)).toEqual(['C', 'D']);
+    expect(historicalMacro([b, c, d], range, options).anchors.map((row) => row.label)).toEqual(['B', 'C', 'D']);
+  });
+  it('excludes earlier extrema that were not yet confirmable at the cutoff', () => {
+    const futureKnown = { ...a, id: 'future', price: 100, confirmed_at: 30 * DAY };
+    expect(historicalMacro([futureKnown, a, b, c, d], range, options).anchors[0].id).toBe('a');
+    expect(historicalMacro([a, b, c, d], range, { asOf: 21 * DAY }).anchors).toEqual([]);
+  });
+  it('returns no historical structure for an invalid selected range', () => {
+    expect(historicalMacro([a, b], { error: 'unavailable' }, options)).toHaveProperty('error');
+    expect(historicalMacro([a, b], range).anchors).toEqual([]);
   });
 });
 

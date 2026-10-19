@@ -82,6 +82,15 @@
 .macro-range-result small { color: var(--text-muted); font-size: var(--text-2xs); }
 .macro-range-description { display: flex; align-items: center; gap: var(--space-4); }
 .macro-range-description button { flex-shrink: 0; }
+.macro-structure-controls, .macro-structure-evidence { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.macro-structure-controls .macro-select { min-width: 180px; }
+.macro-structure-evidence > span { flex: 1 1 180px; font-size: var(--text-xs); }
+.macro-structure-evidence strong { color: var(--accent-primary); margin-right: var(--space-2); }
+.macro-structure-evidence small { display: block; color: var(--text-muted); margin-top: var(--space-1); font-size: var(--text-2xs); }
+.macro-chart-history { fill: none; stroke: var(--accent-primary); stroke-width: 2; }
+.macro-chart-future line { stroke: var(--color-mint); stroke-width: 2; stroke-dasharray: 7 5; }
+.macro-chart-future circle { fill: var(--surface-void); stroke: var(--color-mint); stroke-width: 2; }
+.macro-chart-future text { fill: var(--color-mint); font-family: var(--font-sans); font-size: 14px; font-weight: var(--weight-bold); }
 .macro-price-chart .macro-chart-recovery rect { fill: var(--color-mint); fill-opacity: 0.18; }
 .macro-chart-recovery line { stroke: var(--color-mint); stroke-width: 1; stroke-dasharray: 5 4; }
 @media (max-width: 680px) { .macro-range-grid { grid-template-columns: minmax(0, 1fr); } .macro-range-description { align-items: start; flex-direction: column; } }

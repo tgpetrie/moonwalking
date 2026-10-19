@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { UiButton, UiCard, UiChip, UiField } from '../components/ui/DesignSystem.jsx';
 import MacroPriceChart from '../components/charts/MacroPriceChart.jsx';
 import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
-import { defaultMacroAnchors, macroRange } from '../utils/chartStructure.js';
+import { defaultMacroAnchors, historicalMacro, macroRange } from '../utils/chartStructure.js';
 import '../styles/macro-chart.css';
 
 const STATUS = {
@@ -50,7 +50,10 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
   const [anchorIds, setAnchorIds] = useState(() => defaultAnchors(pivots));
   const [macroIds, setMacroIds] = useState(() => defaultMacroAnchors(pivots));
   const [showMacro, setShowMacro] = useState(true);
-  const [count, setCount] = useState(Math.min(160, Math.max(20, chart.candles.length)));
+  const [showHistory, setShowHistory] = useState(true);
+  const [showFuture, setShowFuture] = useState(false);
+  const [futureRatio, setFutureRatio] = useState(0.786);
+  const [count, setCount] = useState(Math.min(chart.interval_seconds === 7 * DAY ? 400 : 160, Math.max(20, chart.candles.length)));
   const [offset, setOffset] = useState(0);
   const end = chart.candles.length - offset;
   const displayed = chart.candles.slice(Math.max(0, end - count), end);
@@ -58,6 +61,8 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
   const scenario = fibScenario(anchors, chart.candles);
   const macroAnchors = macroIds.map((id) => pivots.find((p) => p.id === id));
   const macro = macroRange(...macroAnchors, { asOf: chart.as_of });
+  const structure = historicalMacro(pivots, macro, { asOf: chart.as_of });
+  const futureLevel = !macro.error ? macro.levels.find((p) => p.ratio === futureRatio) : null;
   const valid = !scenario.error;
   const format = (price) => priceText(price, instrument.quote_currency);
   const low = chart.candles.length ? chart.candles.reduce((a, b) => a.low < b.low ? a : b) : null;
@@ -90,12 +95,29 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
       </div>
       <div className="macro-range-description"><UiButton size="sm" onClick={() => setMacroIds(defaultMacroAnchors(pivots))}>Use observed range</UiButton>
         <p>Default: highest confirmed high, then the lowest confirmed low after it. Linear-price Fibonacci levels describe this selected range; they do not establish a wave count or a likely destination.</p></div>
+      <div className="macro-structure-controls">
+        <label className="macro-range-toggle"><input type="checkbox" checked={showHistory} onChange={(event) => setShowHistory(event.target.checked)} />Show historical A–D</label>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showFuture} disabled={!!macro.error} onChange={(event) => setShowFuture(event.target.checked)} />Show future scenario</label>
+        {showFuture && futureLevel && <label className="macro-select">Future E? reference
+          <select aria-label="Future reference level" value={futureRatio} onChange={(event) => setFutureRatio(Number(event.target.value))}>
+            {[0.5, 0.618, 0.786, 1, 1.618].map((r) => <option key={r} value={r}>{r === 1.618 ? '1.618× extension' : `${(r * 100).toFixed(1)}% recovery`} · {format(macro.levels.find((p) => p.ratio === r).price)}</option>)}
+          </select>
+        </label>}
+      </div>
+      {showHistory && !structure.error && <>
+        <div className="macro-structure-evidence" aria-label="Historical macro anchors">{structure.anchors.map((p) => <span key={p.label}><strong>{p.label}</strong> {dateText(p.extreme_time ?? p.time)} · {format(p.price)}<small>Confirmed {dateText(p.confirmed_at)}</small></span>)}</div>
+        <p>Historical anchor names, not a validated wave count. A is the highest confirmed high before B; B is the lowest confirmed low before the selected macro high C; D is the selected later low.{!structure.complete && ' Earlier A/B anchors are incomplete in this view.'}</p>
+      </>}
+      {showFuture && futureLevel && <p className="macro-future-note">E? is a hypothetical price reference at {format(futureLevel.price)}, drawn from the last completed close when that candle is visible. Its horizontal position does not estimate a date or probability.</p>}
     </UiCard>
     <div className="macro-workspace">
       <UiCard className="macro-chart-panel" padding="none">
         <div className="macro-chart-heading"><div><span className="macro-label">{instrument.symbol} / {instrument.quote_currency}</span><h2>The larger move</h2></div>
           <UiChip tone={valid && scenario.status === 'invalidated' ? 'danger' : 'neutral'}>{valid ? STATUS[scenario.status] : 'Historical structure'}</UiChip></div>
-        <MacroPriceChart candles={displayed} pivots={pivots} scenario={scenario} macro={showMacro ? macro : null} currency={instrument.quote_currency} interval={chart.interval_seconds} scale={scale} />
+        <MacroPriceChart candles={displayed} pivots={pivots} scenario={scenario} macro={showMacro ? macro : null}
+          historical={showHistory ? structure.anchors : []} future={showFuture ? futureLevel : null}
+          latestCandle={chart.candles.at(-1)}
+          currency={instrument.quote_currency} interval={chart.interval_seconds} scale={scale} />
         <div className="macro-chart-navigation">
           <label className="macro-select">Price display
             <select aria-label="Price display" value={scale} onChange={(event) => setScale(event.target.value)}>
@@ -107,7 +129,7 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
           <UiButton size="sm" onClick={() => { setOffset(0); setCount(Math.min(400, chart.candles.length)); }}>Fit history</UiButton>
           {chart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, chart.candles.length)} value={Math.min(count, chart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
-        <div className="macro-chart-legend"><span>Solid: historical swings</span><span>Dashed: linear-price Fibonacci levels</span>{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
+        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>Dashed horizontals: Fibonacci levels</span>{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <span className="macro-label">Choose the structure</span><h2>Three swing anchors</h2>

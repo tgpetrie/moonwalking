@@ -93,6 +93,49 @@ describe('local long-term chart workspace', () => {
     expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();
   });
 
+  it('shows historical anchor labels even when local geometry does not qualify', () => {
+    const input = syntheticHistory();
+    input.candles.slice(14, 21).forEach((row) => { for (const key of ['open', 'high', 'low', 'close']) row[key] += 10; });
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(input)} />);
+    const before = [...container.querySelectorAll('.macro-history-anchor text')].map((p) => p.textContent);
+    expect(before).toEqual(['A', 'B', 'C', 'D']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Anchor B' }), {
+      target: { value: screen.getByRole('combobox', { name: 'Anchor A' }).value },
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Anchor dates must follow');
+    expect([...container.querySelectorAll('.macro-history-anchor text')].map((p) => p.textContent)).toEqual(before);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show historical A–D' }));
+    expect(container.querySelectorAll('.macro-history-anchor')).toHaveLength(0);
+  });
+
+  it('keeps future E? opt-in, separate from observed anchors, and resets it in replay', () => {
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
+    const history = container.querySelector('.macro-chart-history').getAttribute('points');
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    const future = screen.getByRole('checkbox', { name: 'Show future scenario' });
+    expect(future).not.toBeChecked();
+    fireEvent.click(future);
+    expect(container.querySelector('.macro-chart-future text')).toHaveTextContent('E?');
+    expect(screen.getByText('SCENARIO · NO DATE')).toBeVisible();
+    const y = container.querySelector('.macro-chart-future circle').getAttribute('cy');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Future reference level' }), { target: { value: '1.618' } });
+    expect(container.querySelector('.macro-chart-future circle').getAttribute('cy')).not.toBe(y);
+    expect(container.querySelector('.macro-chart-history').getAttribute('points')).not.toBeNull();
+    fireEvent.click(future);
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    expect(container.querySelector('.macro-chart-history').getAttribute('points')).toBe(history);
+    fireEvent.click(future);
+    fireEvent.change(screen.getByRole('slider', { name: 'Visible candles' }), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier', exact: true }));
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Later', exact: true }));
+    expect(container.querySelector('.macro-chart-future')).toBeInTheDocument();
+    fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
+    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show future scenario' })).toBeDisabled();
+    expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();
+  });
+
   it('loads real-data-shaped files locally and retains the last good chart on invalid import', async () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     render(<MacroChartPage />);

@@ -105,6 +105,19 @@ secrets, downloaded prices, dependencies or generated build output are staged.
 
 ## Remaining implementation sequence toward entering any coin
 
+Historical/future display update: solid macro A–D labels now render separately
+from local A/B/C validity. The selected high/low become C/D, with preceding
+lowest-low B and preceding highest-high A where available. The evidence list
+exposes dates/prices/confirmation; absent earlier anchors remain absent. Weekly
+views initially show up to 400 candles. An opt-in **Show future scenario**
+control adds a dashed E? reference from the latest close, with selectable Fib
+level and no forecast time axis. It resets off on replay changes and is not
+an automatic Elliott count. See the contract for the precise convention.
+Verification: **512 tests in 41 files**, token sync/build and all **397** real
+weekly prefix checks pass. Browser checks cover FET A–D plus E?, reference
+selection, phone containment and an empty error log. Screenshots are ignored
+under `frontend/.runtime/fet-historical-abcd-future.jpg`. No new market requests.
+
 Loaded-state UX correction: when a snapshot is already loaded, the preview
 shows the symbol/venue and a collapsed **Change history file** control instead
 of a persistent empty file picker. A successful replacement closes the picker;
