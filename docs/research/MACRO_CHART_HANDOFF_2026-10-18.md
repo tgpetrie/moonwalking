@@ -105,6 +105,14 @@ secrets, downloaded prices, dependencies or generated build output are staged.
 
 ## Remaining implementation sequence toward entering any coin
 
+Loaded-state UX correction: when a snapshot is already loaded, the preview
+shows the symbol/venue and a collapsed **Change history file** control instead
+of a persistent empty file picker. A successful replacement closes the picker;
+invalid imports retain the chart and expose the error. The empty route still
+requires a file until instrument lookup is implemented. Verification: all 11
+chart-page tests, token sync and build pass; browser open/close and narrow-view
+checks pass with no console errors. No data acquisition behavior changed.
+
 Update: [macro-range slice](MACRO_RANGE_REVIEW_2026-10-18.md) adds an independent
 confirmed high/low recovery band and replay audit across 397 real weekly
 cutoffs. Latest verification: **506 frontend tests in 41 files**, token check

@@ -24,6 +24,8 @@ describe('local long-term chart workspace', () => {
     expect(screen.getByText(/A full Elliott Wave count has not been established/)).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Anchor A' }).value).toMatch(/^low-/);
     expect(screen.getByText('Conditional scenario')).toBeVisible();
+    expect(screen.queryByLabelText('Load price history')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change history file' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('changes timeframe and withholds future candles and anchors during replay', () => {
@@ -97,10 +99,15 @@ describe('local long-term chart workspace', () => {
     const input = screen.getByLabelText('Load price history');
     fireEvent.change(input, { target: { files: [{ size: 5000, text: async () => JSON.stringify(syntheticHistory()) }] } });
     await waitFor(() => expect(screen.getByText('TEST history loaded')).toBeVisible());
-    fireEvent.change(input, { target: { files: [{ size: 5, text: async () => '{bad' }] } });
+    expect(screen.queryByLabelText('Load price history')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change history file' }));
+    fireEvent.change(screen.getByLabelText('Replace price history'), { target: { files: [{ size: 5, text: async () => '{bad' }] } });
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('not valid JSON'));
     expect(screen.getByText('TEST history loaded')).toBeVisible();
     expect(screen.getByRole('img')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Close file picker' }));
+    expect(screen.queryByLabelText('Replace price history')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 

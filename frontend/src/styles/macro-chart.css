@@ -13,6 +13,8 @@
 .macro-import { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(0, 1.6fr); gap: var(--space-6); align-items: center; }
 .macro-import .ui-field__control { width: 100%; padding: var(--space-2); font-size: var(--text-xs); }
 .macro-import strong { display: block; margin-bottom: var(--space-1); font-size: var(--text-sm); }
+.macro-import--loaded { grid-template-columns: minmax(0, 1fr) auto; }
+.macro-import--loaded .ui-field { grid-column: 1 / -1; }
 .macro-controls { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-5); }
 .macro-segment { display: flex; gap: var(--space-2); align-self: center; }
 .macro-controls .ui-field { min-width: 180px; }

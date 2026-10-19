@@ -135,6 +135,7 @@ export default function MacroChartPage({ initialHistory = null }) {
   const [history, setHistory] = useState(initialHistory);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showImporter, setShowImporter] = useState(false);
   const [revision, setRevision] = useState(0);
   const loadId = useRef(0);
   const load = async (event) => {
@@ -145,7 +146,7 @@ export default function MacroChartPage({ initialHistory = null }) {
     try {
       if (file.size > 10 * 1024 * 1024) throw new Error('Choose a history file smaller than 10 MB.');
       const parsed = parseHistory(JSON.parse(await file.text()));
-      if (id === loadId.current) { setHistory(parsed); setRevision((current) => current + 1); }
+      if (id === loadId.current) { setHistory(parsed); setRevision((current) => current + 1); setShowImporter(false); }
     } catch (failure) {
       if (id === loadId.current) setError(failure instanceof SyntaxError ? 'This file is not valid JSON. Your previous chart has been kept.' : failure.message);
     } finally {
@@ -156,8 +157,15 @@ export default function MacroChartPage({ initialHistory = null }) {
     <nav className="macro-topbar" aria-label="Chart navigation"><a href="/">BHABIT / Moonwalking</a><a href="/design-system">Design system</a></nav>
     <main className="macro-main">
       <header className="macro-intro"><div><p className="mw-eyebrow">Long-term chart map</p><h1>Read the larger move.</h1><p>Historical turning points, measured pullbacks, and conditional price zones.</p></div><UiChip tone="accent">Research preview</UiChip></header>
-      <UiCard className="macro-import" tone="subtle"><UiField type="file" accept="application/json,.json" label="Load price history" onChange={load} disabled={loading} hint="Your file is read in this browser. Prices are not uploaded." />
-        <div><strong>{history ? `${history.instrument.symbol} history loaded` : 'Start with a verified daily history file'}</strong><p>{history ? 'Load another history file to change the instrument.' : 'The chart stays empty until real historical prices are available.'}</p></div></UiCard>
+      <UiCard className={`macro-import${history ? ' macro-import--loaded' : ''}`} tone="subtle">
+        {history ? <>
+          <div><strong>{history.instrument.symbol} history loaded</strong><p>Saved historical snapshot · {history.instrument.venue}</p></div>
+          <UiButton size="sm" aria-expanded={showImporter} disabled={loading}
+            onClick={() => { setShowImporter((open) => !open); setError(''); }}>{showImporter ? 'Close file picker' : 'Change history file'}</UiButton>
+        </> : <div><strong>Start with a verified daily history file</strong><p>The chart stays empty until real historical prices are available.</p></div>}
+        {(!history || showImporter) && <UiField type="file" accept="application/json,.json" label={history ? 'Replace price history' : 'Load price history'}
+          onChange={load} disabled={loading} hint="Your file is read in this browser. Prices are not uploaded." />}
+      </UiCard>
       {loading && <p role="status">Checking historical prices…</p>}
       {error && <p className="macro-error" role="alert">{error}</p>}
       {history ? <ChartWorkspace key={`${history.instrument.product_id}-${history.captured_at}-${revision}`} history={history} />
