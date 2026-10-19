@@ -163,3 +163,6 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
   breakdowns by about 1 point over 14 days in both periods, but on data that
   had already suggested it. If shown, label it as a small historical tendency
   awaiting confirmation on new data.
+- **Study 2d (`PROFILE_SHAPE_STUDY.md`):** P/b profile shapes, three-day
+  balance breakouts and volume ledges show nothing (0 of 22). Do not label
+  profile shapes or balance breakouts as continuation signals.

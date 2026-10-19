@@ -71,3 +71,47 @@ computed.
 ## Results
 
 (Added after the run, below this line.)
+
+### Run of 2026-10-19 (`scripts/move_study/profile_shape_study.py`, `data/move-study/profile_shape_study.json`)
+
+**Primary result: nothing survives.** 0 of 22 tests pass in discovery, so
+nothing can replicate. Positive = continued in the event's direction (S1,
+S2) or turned back from the level (S3).
+
+| Test | Discovery | Test (95%) |
+| --- | --- | --- |
+| S1 P-shape minus bottom-heavy rally, 1 / 3 d (n 414 vs 834) | -0.17 / **-0.67** | +0.02 / -0.15 (both intervals across zero) |
+| S1 b-shape minus top-heavy drop, 1 / 3 d (n 808 vs 998) | +0.24 / -0.32 | +0.71 (+0.27 to +1.22) / +0.85 (-0.05 to +1.86) |
+| S2h hourly-VA balance breakout up, 1 / 3 / 7 d | -0.24 / -0.05 / -0.34 | -0.24 / -0.14 / -0.39 |
+| S2h breakout down, 1 / 3 / 7 d | +0.07 / +0.32 / +0.54 | -0.02 / -0.09 / -0.78 |
+| S2d daily-range balance breakout up, 1 / 3 / 7 d | +0.14 / +0.14 / +0.13 | -0.11 / -0.31 / -0.56 |
+| S2d breakout down, 1 / 3 / 7 d | -0.08 / -0.07 / -0.09 | -0.20 / -0.38 / -0.44 |
+| S3 volume ledge minus placebo, from below, 1 / 3 / 7 d | -0.09 / -0.04 / +0.05 | -0.08 / 0.00 / +0.22 |
+| S3 volume ledge minus placebo, from above, 1 / 3 / 7 d | 0.00 / +0.08 / 0.00 | +0.08 / +0.02 / +0.05 |
+
+- **S1, profile shape:** P-shape rallies did *not* continue better than
+  rallies with volume stuck at the lows; in discovery they did slightly
+  worse at 3 days. b-shape drops look better than top-heavy drops in the test
+  half only (+0.71 at 1 day), but not in discovery, so it is not a finding.
+- **S2, balance breakouts:** breaking out of a three-day balance, by hourly
+  value areas or by daily ranges, does no better than a same-size move
+  without a balance before it. In 2025 to 2026 the daily-range breakouts did
+  slightly *worse* (down-breakouts bounced: -0.20 to -0.44), which is the
+  opposite of the trend claim, and absent in discovery.
+- **S3, volume ledges:** the steepest edges of high-volume nodes behave like
+  placebo lines, from either side.
+
+Counts: 874 P-shape, 1,642 bottom-heavy, 1,591 b-shape, 1,707 top-heavy days;
+1,986 / 2,879 hourly-VA breakouts up / down; 32,235 / 36,463 daily-range
+breakouts up / down; 9,941 ledge first touches.
+
+**Limits.** One year of hourly data for S1 and S2h; 20 bins per day from
+hourly candles (not tick data); Coinbase only. No order-book, delta or
+trade-side data was used. Those are what the video says actually matter, and
+they cannot be reconstructed from candles.
+
+**Conclusion of the price-only track (Studies 2 to 2d).** Levels, profiles,
+profile shapes, balance breakouts and candle-pattern triggers built from
+Coinbase candles add little or nothing beyond price and volume. The open
+questions now need data candles do not have (taker side, book depth), which
+the PIT log has started to collect for Hyperliquid (impact prices).

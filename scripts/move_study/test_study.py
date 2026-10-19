@@ -209,3 +209,20 @@ def test_hl_window_and_8h_scaling(tmp_path):
             {"fundingRate": "0.5", "time": (day * 86400) * 1000}]
     (tmp_path / "hl" / f"X-{day}.json").write_text(json.dumps(data))
     assert abs(fs.hl_day_funding(tmp_path, "X", day) - 0.00016) < 1e-12
+
+
+# ---- profile shape study ---------------------------------------------------
+
+import profile_shape_study as ps  # noqa: E402
+
+
+def test_match_weights_reproduce_the_event_move_mix():
+    ev_ = pd.DataFrame({"ret1": [0.05, 0.05, 0.09]})
+    ctl = pd.DataFrame({"ret1": [0.051, 0.052, 0.053, 0.091, 0.15]})
+    w = ps.match_weights(ev_, ctl).w.values
+    assert np.allclose(w[:3], 2 / 3) and w[3] == 1.0 and w[4] == 0.0   # 2 events in the 4-6% bin, 1 in 8-10%, none in 14-16%
+
+
+def test_cooldown_keeps_first_event_per_coin_and_type():
+    df = pd.DataFrame({"product": ["A", "A", "A", "B"], "day": [10, 15, 18, 11], "etype": ["P", "P", "P", "P"]})
+    assert list(ps.cooldown(df).day) == [10, 11, 18]
