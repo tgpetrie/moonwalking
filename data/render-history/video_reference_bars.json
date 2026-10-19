@@ -1,0 +1,1528 @@
+{
+ "source": "macro render.mp4 (TradingView Render \u00b7 1W \u00b7 CRYPTO)",
+ "transcribed_by": "Claude, from 1 fps ffmpeg frames; seconds are approximate (\u00b11 s)",
+ "recorded": "2026-10-13, about 21:00 to 22:00 UTC (live week of 2026-10-12, countdown 5d 2h)",
+ "chart": {
+  "symbol": "RENDERUSD",
+  "title": "Render \u00b7 1W \u00b7 CRYPTO",
+  "timeframe": "1W",
+  "price_axis": "log",
+  "series_note": "TradingView's aggregated CRYPTO index; it shows bars from 2023 (RNDR era), so it joins RNDR history. Moonwalking does not."
+ },
+ "live_bar": {
+  "week": "2026-10-12",
+  "o": 1.9961,
+  "h": 2.2258,
+  "l": 1.9706,
+  "c_range": [
+   2.0322,
+   2.0355
+  ],
+  "complete": false
+ },
+ "indicators_on_screen": {
+  "2026-10-05": {
+   "second": 86,
+   "sma50": 1.7049,
+   "sma100": 3.1838,
+   "sma200": 3.693,
+   "stoch_k": 94.46,
+   "stoch_d": 92.06,
+   "macd_hist": 0.0877,
+   "macd": -0.0018,
+   "macd_signal": -0.0895
+  },
+  "2026-10-12 (live, close 2.0322)": {
+   "second": 104,
+   "sma50": 1.6997,
+   "sma100": 3.1332,
+   "sma200": 3.7009,
+   "stoch_k": 93.24,
+   "stoch_d": 94.87,
+   "macd_hist": 0.0906,
+   "macd": 0.0238,
+   "macd_signal": -0.0668
+  }
+ },
+ "bars": [
+  {
+   "week": "2023-09-04",
+   "video_second": 282,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.362,
+    1.5261,
+    1.3329,
+    1.4794
+   ],
+   "coinbase_product": "RNDR-USD",
+   "coinbase_ohlc": [
+    1.3591,
+    1.5404,
+    1.3308,
+    1.4778
+   ],
+   "coinbase_vs_video_pct": [
+    -0.21,
+    0.94,
+    -0.16,
+    -0.11
+   ]
+  },
+  {
+   "week": "2024-02-26",
+   "video_second": 225,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    7.2138,
+    8.2878,
+    6.9486,
+    7.5636
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    7.213,
+    8.292,
+    7.036,
+    7.606
+   ],
+   "coinbase_vs_video_pct": [
+    -0.01,
+    0.05,
+    1.26,
+    0.56
+   ]
+  },
+  {
+   "week": "2024-03-04",
+   "video_second": 130,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    7.5636,
+    12.7353,
+    5.8815,
+    11.3825
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    7.608,
+    12.752,
+    6.143,
+    11.45
+   ],
+   "coinbase_vs_video_pct": [
+    0.59,
+    0.13,
+    4.45,
+    0.59
+   ]
+  },
+  {
+   "week": "2024-03-11",
+   "video_second": 223,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    11.3823,
+    13.6271,
+    9.934,
+    13.1381
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    11.563,
+    13.649,
+    9.985,
+    13.214
+   ],
+   "coinbase_vs_video_pct": [
+    1.59,
+    0.16,
+    0.51,
+    0.58
+   ]
+  },
+  {
+   "week": "2024-03-25",
+   "video_second": 237,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    10.9234,
+    12.0118,
+    10.4384,
+    10.6575
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    10.758,
+    11.7,
+    10.144,
+    10.394
+   ],
+   "coinbase_vs_video_pct": [
+    -1.51,
+    -2.6,
+    -2.82,
+    -2.47
+   ]
+  },
+  {
+   "week": "2024-04-01",
+   "video_second": 3,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    10.6575,
+    10.6882,
+    8.7737,
+    9.7663
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    10.369,
+    10.52,
+    8.7,
+    9.606
+   ],
+   "coinbase_vs_video_pct": [
+    -2.71,
+    -1.57,
+    -0.84,
+    -1.64
+   ]
+  },
+  {
+   "week": "2024-04-08",
+   "video_second": 236,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    9.7668,
+    10.5404,
+    6.2795,
+    8.9852
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    9.572,
+    10.16,
+    6.5,
+    8.638
+   ],
+   "coinbase_vs_video_pct": [
+    -1.99,
+    -3.61,
+    3.51,
+    -3.86
+   ]
+  },
+  {
+   "week": "2024-05-13",
+   "video_second": 1,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    10.8176,
+    11.4738,
+    9.7685,
+    10.0515
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    10.403,
+    10.95,
+    9.503,
+    9.941
+   ],
+   "coinbase_vs_video_pct": [
+    -3.83,
+    -4.57,
+    -2.72,
+    -1.1
+   ]
+  },
+  {
+   "week": "2024-05-27",
+   "video_second": 4,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    9.9856,
+    10.6359,
+    9.7469,
+    9.924
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    9.815,
+    10.391,
+    9.365,
+    9.503
+   ],
+   "coinbase_vs_video_pct": [
+    -1.71,
+    -2.3,
+    -3.92,
+    -4.24
+   ]
+  },
+  {
+   "week": "2024-08-05",
+   "video_second": 240,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.5267,
+    5.1221,
+    3.4261,
+    4.482
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.525,
+    5.133,
+    3.41,
+    4.484
+   ],
+   "coinbase_vs_video_pct": [
+    -0.04,
+    0.21,
+    -0.47,
+    0.04
+   ]
+  },
+  {
+   "week": "2024-08-12",
+   "video_second": 5,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.4815,
+    4.9583,
+    4.3083,
+    4.4972
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.488,
+    4.968,
+    4.305,
+    4.499
+   ],
+   "coinbase_vs_video_pct": [
+    0.15,
+    0.2,
+    -0.08,
+    0.04
+   ]
+  },
+  {
+   "week": "2024-08-26",
+   "video_second": 38,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    6.3179,
+    6.581,
+    4.8046,
+    4.8245
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    6.324,
+    6.58,
+    4.801,
+    4.825
+   ],
+   "coinbase_vs_video_pct": [
+    0.1,
+    -0.02,
+    -0.07,
+    0.01
+   ]
+  },
+  {
+   "week": "2024-09-02",
+   "video_second": 239,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.8245,
+    5.2016,
+    4.458,
+    4.8722
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.825,
+    5.204,
+    4.452,
+    4.874
+   ],
+   "coinbase_vs_video_pct": [
+    0.01,
+    0.05,
+    -0.13,
+    0.04
+   ]
+  },
+  {
+   "week": "2024-09-30",
+   "video_second": 238,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    6.6736,
+    6.7828,
+    5.0323,
+    5.4336
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    6.673,
+    6.792,
+    5.01,
+    5.424
+   ],
+   "coinbase_vs_video_pct": [
+    -0.01,
+    0.14,
+    -0.44,
+    -0.18
+   ]
+  },
+  {
+   "week": "2024-11-04",
+   "video_second": 57,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.4478,
+    5.9634,
+    4.1182,
+    5.638
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.437,
+    5.981,
+    4.116,
+    5.636
+   ],
+   "coinbase_vs_video_pct": [
+    -0.24,
+    0.3,
+    -0.05,
+    -0.04
+   ]
+  },
+  {
+   "week": "2024-11-18",
+   "video_second": 155,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    7.0863,
+    8.2962,
+    6.9773,
+    8.052
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    7.083,
+    8.311,
+    6.966,
+    8.049
+   ],
+   "coinbase_vs_video_pct": [
+    -0.05,
+    0.18,
+    -0.16,
+    -0.04
+   ]
+  },
+  {
+   "week": "2025-02-17",
+   "video_second": 6,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.4728,
+    4.6826,
+    3.963,
+    4.1636
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.474,
+    4.683,
+    3.955,
+    4.163
+   ],
+   "coinbase_vs_video_pct": [
+    0.03,
+    0.01,
+    -0.2,
+    -0.01
+   ]
+  },
+  {
+   "week": "2025-02-24",
+   "video_second": 232,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.1638,
+    4.47,
+    3.3499,
+    4.4242
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.164,
+    4.481,
+    3.348,
+    4.425
+   ],
+   "coinbase_vs_video_pct": [
+    0.0,
+    0.25,
+    -0.06,
+    0.02
+   ]
+  },
+  {
+   "week": "2025-03-24",
+   "video_second": 168,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    3.4696,
+    4.2107,
+    3.3886,
+    3.4122
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    3.469,
+    4.214,
+    3.386,
+    3.412
+   ],
+   "coinbase_vs_video_pct": [
+    -0.02,
+    0.08,
+    -0.08,
+    -0.01
+   ]
+  },
+  {
+   "week": "2025-03-31",
+   "video_second": 171,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    3.4125,
+    3.8221,
+    2.7181,
+    2.7823
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    3.415,
+    3.832,
+    2.715,
+    2.781
+   ],
+   "coinbase_vs_video_pct": [
+    0.07,
+    0.26,
+    -0.11,
+    -0.05
+   ]
+  },
+  {
+   "week": "2025-04-14",
+   "video_second": 169,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    3.7771,
+    4.4717,
+    3.576,
+    4.3483
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    3.779,
+    4.478,
+    3.572,
+    4.348
+   ],
+   "coinbase_vs_video_pct": [
+    0.05,
+    0.14,
+    -0.11,
+    -0.01
+   ]
+  },
+  {
+   "week": "2025-05-12",
+   "video_second": 8,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    5.2075,
+    5.5111,
+    4.3706,
+    4.6812
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    5.211,
+    5.513,
+    4.368,
+    4.68
+   ],
+   "coinbase_vs_video_pct": [
+    0.07,
+    0.03,
+    -0.06,
+    -0.03
+   ]
+  },
+  {
+   "week": "2025-07-28",
+   "video_second": 69,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    4.3331,
+    4.4412,
+    3.3434,
+    3.5698
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    4.334,
+    4.442,
+    3.342,
+    3.573
+   ],
+   "coinbase_vs_video_pct": [
+    0.02,
+    0.02,
+    -0.04,
+    0.09
+   ]
+  },
+  {
+   "week": "2025-10-06",
+   "video_second": 173,
+   "date_shown_on_screen": false,
+   "video_ohlc": [
+    3.4844,
+    3.6706,
+    0.5454,
+    2.7328
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    3.483,
+    3.67,
+    0.651,
+    2.733
+   ],
+   "coinbase_vs_video_pct": [
+    -0.04,
+    -0.02,
+    19.36,
+    0.01
+   ]
+  },
+  {
+   "week": "2025-10-13",
+   "video_second": 148,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.7328,
+    3.0912,
+    2.3009,
+    2.5348
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.736,
+    3.093,
+    2.297,
+    2.533
+   ],
+   "coinbase_vs_video_pct": [
+    0.12,
+    0.06,
+    -0.17,
+    -0.07
+   ]
+  },
+  {
+   "week": "2025-10-27",
+   "video_second": 2,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.5771,
+    2.6264,
+    2.1573,
+    2.2915
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.58,
+    2.626,
+    2.156,
+    2.291
+   ],
+   "coinbase_vs_video_pct": [
+    0.11,
+    -0.02,
+    -0.06,
+    -0.02
+   ]
+  },
+  {
+   "week": "2025-11-03",
+   "video_second": 172,
+   "date_shown_on_screen": false,
+   "video_ohlc": [
+    2.2915,
+    2.9287,
+    1.7309,
+    2.4057
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.292,
+    2.936,
+    1.729,
+    2.41
+   ],
+   "coinbase_vs_video_pct": [
+    0.02,
+    0.25,
+    -0.11,
+    0.18
+   ]
+  },
+  {
+   "week": "2025-11-10",
+   "video_second": 39,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.4056,
+    2.7652,
+    1.9606,
+    2.0128
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.41,
+    2.785,
+    1.958,
+    2.012
+   ],
+   "coinbase_vs_video_pct": [
+    0.18,
+    0.72,
+    -0.13,
+    -0.04
+   ]
+  },
+  {
+   "week": "2025-12-08",
+   "video_second": 164,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.5774,
+    1.78,
+    1.4592,
+    1.4777
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.573,
+    1.781,
+    1.458,
+    1.477
+   ],
+   "coinbase_vs_video_pct": [
+    -0.28,
+    0.06,
+    -0.08,
+    -0.05
+   ]
+  },
+  {
+   "week": "2025-12-15",
+   "video_second": 7,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.4777,
+    1.5291,
+    1.179,
+    1.2719
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.477,
+    1.529,
+    1.178,
+    1.273
+   ],
+   "coinbase_vs_video_pct": [
+    -0.05,
+    -0.01,
+    -0.08,
+    0.09
+   ]
+  },
+  {
+   "week": "2025-12-29",
+   "video_second": 174,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3211,
+    2.0095,
+    1.2781,
+    1.9899
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.318,
+    2.014,
+    1.282,
+    1.99
+   ],
+   "coinbase_vs_video_pct": [
+    -0.23,
+    0.22,
+    0.31,
+    0.01
+   ]
+  },
+  {
+   "week": "2026-01-12",
+   "video_second": 166,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.5801,
+    2.6464,
+    2.0703,
+    2.0744
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.579,
+    2.646,
+    2.069,
+    2.073
+   ],
+   "coinbase_vs_video_pct": [
+    -0.04,
+    -0.02,
+    -0.06,
+    -0.07
+   ]
+  },
+  {
+   "week": "2026-01-19",
+   "video_second": 132,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.0743,
+    2.1522,
+    1.8243,
+    1.8694
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.072,
+    2.152,
+    1.823,
+    1.87
+   ],
+   "coinbase_vs_video_pct": [
+    -0.11,
+    -0.01,
+    -0.07,
+    0.03
+   ]
+  },
+  {
+   "week": "2026-01-26",
+   "video_second": 165,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.8694,
+    2.0054,
+    1.394,
+    1.4958
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.869,
+    2.005,
+    1.384,
+    1.496
+   ],
+   "coinbase_vs_video_pct": [
+    -0.02,
+    -0.02,
+    -0.72,
+    0.01
+   ]
+  },
+  {
+   "week": "2026-02-02",
+   "video_second": 10,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.4958,
+    1.6586,
+    1.1236,
+    1.3498
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.496,
+    1.659,
+    1.122,
+    1.351
+   ],
+   "coinbase_vs_video_pct": [
+    0.01,
+    0.02,
+    -0.14,
+    0.09
+   ]
+  },
+  {
+   "week": "2026-02-09",
+   "video_second": 275,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3495,
+    1.5475,
+    1.2335,
+    1.4326
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.35,
+    1.555,
+    1.234,
+    1.432
+   ],
+   "coinbase_vs_video_pct": [
+    0.04,
+    0.48,
+    0.04,
+    -0.04
+   ]
+  },
+  {
+   "week": "2026-02-16",
+   "video_second": 31,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.4327,
+    1.5423,
+    1.3559,
+    1.417
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.432,
+    1.543,
+    1.356,
+    1.416
+   ],
+   "coinbase_vs_video_pct": [
+    -0.05,
+    0.05,
+    0.01,
+    -0.07
+   ]
+  },
+  {
+   "week": "2026-02-23",
+   "video_second": 40,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.4172,
+    1.5517,
+    1.2982,
+    1.3387
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.416,
+    1.552,
+    1.298,
+    1.338
+   ],
+   "coinbase_vs_video_pct": [
+    -0.08,
+    0.02,
+    -0.02,
+    -0.05
+   ]
+  },
+  {
+   "week": "2026-03-02",
+   "video_second": 289,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3387,
+    1.4549,
+    1.3128,
+    1.3517
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.339,
+    1.458,
+    1.312,
+    1.352
+   ],
+   "coinbase_vs_video_pct": [
+    0.02,
+    0.21,
+    -0.06,
+    0.02
+   ]
+  },
+  {
+   "week": "2026-03-09",
+   "video_second": 0,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3517,
+    1.949,
+    1.3507,
+    1.8971
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.351,
+    1.952,
+    1.35,
+    1.896
+   ],
+   "coinbase_vs_video_pct": [
+    -0.05,
+    0.15,
+    -0.05,
+    -0.06
+   ]
+  },
+  {
+   "week": "2026-03-16",
+   "video_second": 92,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.8971,
+    1.9882,
+    1.5997,
+    1.6101
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.897,
+    1.988,
+    1.6,
+    1.61
+   ],
+   "coinbase_vs_video_pct": [
+    -0.01,
+    -0.01,
+    0.02,
+    -0.01
+   ]
+  },
+  {
+   "week": "2026-03-23",
+   "video_second": 152,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.6099,
+    1.9105,
+    1.5719,
+    1.6512
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.613,
+    1.912,
+    1.572,
+    1.653
+   ],
+   "coinbase_vs_video_pct": [
+    0.19,
+    0.08,
+    0.01,
+    0.11
+   ]
+  },
+  {
+   "week": "2026-03-30",
+   "video_second": 9,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.6511,
+    1.9639,
+    1.6481,
+    1.9034
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.653,
+    1.963,
+    1.647,
+    1.905
+   ],
+   "coinbase_vs_video_pct": [
+    0.12,
+    -0.05,
+    -0.07,
+    0.08
+   ]
+  },
+  {
+   "week": "2026-04-06",
+   "video_second": 288,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.9034,
+    2.1204,
+    1.8463,
+    1.8856
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.905,
+    2.129,
+    1.846,
+    1.886
+   ],
+   "coinbase_vs_video_pct": [
+    0.08,
+    0.41,
+    -0.02,
+    0.02
+   ]
+  },
+  {
+   "week": "2026-04-20",
+   "video_second": 94,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.7282,
+    1.8713,
+    1.7279,
+    1.823
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.729,
+    1.871,
+    1.727,
+    1.826
+   ],
+   "coinbase_vs_video_pct": [
+    0.05,
+    -0.02,
+    -0.05,
+    0.16
+   ]
+  },
+  {
+   "week": "2026-05-04",
+   "video_second": 147,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.8251,
+    2.0839,
+    1.8075,
+    2.0152
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.827,
+    2.086,
+    1.807,
+    2.014
+   ],
+   "coinbase_vs_video_pct": [
+    0.1,
+    0.1,
+    -0.03,
+    -0.06
+   ]
+  },
+  {
+   "week": "2026-05-11",
+   "video_second": 153,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.015,
+    2.0199,
+    1.7398,
+    1.792
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.014,
+    2.019,
+    1.738,
+    1.792
+   ],
+   "coinbase_vs_video_pct": [
+    -0.05,
+    -0.04,
+    -0.1,
+    0.0
+   ]
+  },
+  {
+   "week": "2026-05-18",
+   "video_second": 67,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.7919,
+    2.0993,
+    1.7316,
+    2.017
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.793,
+    2.1,
+    1.731,
+    2.018
+   ],
+   "coinbase_vs_video_pct": [
+    0.06,
+    0.03,
+    -0.03,
+    0.05
+   ]
+  },
+  {
+   "week": "2026-05-25",
+   "video_second": 220,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.0171,
+    2.4331,
+    1.9313,
+    2.0859
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.018,
+    2.435,
+    1.93,
+    2.087
+   ],
+   "coinbase_vs_video_pct": [
+    0.04,
+    0.08,
+    -0.07,
+    0.05
+   ]
+  },
+  {
+   "week": "2026-06-01",
+   "video_second": 46,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.0859,
+    2.2661,
+    1.5487,
+    1.6798
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.088,
+    2.269,
+    1.549,
+    1.682
+   ],
+   "coinbase_vs_video_pct": [
+    0.1,
+    0.13,
+    0.02,
+    0.13
+   ]
+  },
+  {
+   "week": "2026-06-22",
+   "video_second": 219,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.6526,
+    1.7151,
+    1.4478,
+    1.542
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.653,
+    1.716,
+    1.445,
+    1.54
+   ],
+   "coinbase_vs_video_pct": [
+    0.02,
+    0.05,
+    -0.19,
+    -0.13
+   ]
+  },
+  {
+   "week": "2026-06-29",
+   "video_second": 45,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.5416,
+    1.6374,
+    1.4692,
+    1.6172
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.539,
+    1.64,
+    1.469,
+    1.616
+   ],
+   "coinbase_vs_video_pct": [
+    -0.17,
+    0.16,
+    -0.01,
+    -0.07
+   ]
+  },
+  {
+   "week": "2026-08-03",
+   "video_second": 34,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3837,
+    1.3856,
+    1.2968,
+    1.2985
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.381,
+    1.381,
+    1.295,
+    1.297
+   ],
+   "coinbase_vs_video_pct": [
+    -0.2,
+    -0.33,
+    -0.14,
+    -0.12
+   ]
+  },
+  {
+   "week": "2026-08-10",
+   "video_second": 113,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.2985,
+    1.3106,
+    1.2262,
+    1.2547
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.296,
+    1.311,
+    1.226,
+    1.254
+   ],
+   "coinbase_vs_video_pct": [
+    -0.19,
+    0.03,
+    -0.02,
+    -0.06
+   ]
+  },
+  {
+   "week": "2026-08-17",
+   "video_second": 85,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.2547,
+    1.6364,
+    1.2455,
+    1.513
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.257,
+    1.6383,
+    1.246,
+    1.5138
+   ],
+   "coinbase_vs_video_pct": [
+    0.18,
+    0.12,
+    0.04,
+    0.05
+   ]
+  },
+  {
+   "week": "2026-08-24",
+   "video_second": 36,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.513,
+    1.5843,
+    1.3828,
+    1.4002
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.5139,
+    1.5846,
+    1.381,
+    1.3983
+   ],
+   "coinbase_vs_video_pct": [
+    0.06,
+    0.02,
+    -0.13,
+    -0.14
+   ]
+  },
+  {
+   "week": "2026-09-07",
+   "video_second": 65,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.5636,
+    1.6017,
+    1.3507,
+    1.3654
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.5637,
+    1.6029,
+    1.3498,
+    1.3669
+   ],
+   "coinbase_vs_video_pct": [
+    0.01,
+    0.07,
+    -0.07,
+    0.11
+   ]
+  },
+  {
+   "week": "2026-09-14",
+   "video_second": 41,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.3655,
+    1.7561,
+    1.2849,
+    1.732
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.3681,
+    1.7611,
+    1.2829,
+    1.7322
+   ],
+   "coinbase_vs_video_pct": [
+    0.19,
+    0.28,
+    -0.16,
+    0.01
+   ]
+  },
+  {
+   "week": "2026-09-21",
+   "video_second": 37,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.7319,
+    2.0931,
+    1.6701,
+    2.0534
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.733,
+    2.096,
+    1.6657,
+    2.0534
+   ],
+   "coinbase_vs_video_pct": [
+    0.06,
+    0.14,
+    -0.26,
+    0.0
+   ]
+  },
+  {
+   "week": "2026-09-28",
+   "video_second": 35,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    2.0534,
+    2.0896,
+    1.8602,
+    1.9751
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    2.0571,
+    2.0906,
+    1.86,
+    1.971
+   ],
+   "coinbase_vs_video_pct": [
+    0.18,
+    0.05,
+    -0.01,
+    -0.21
+   ]
+  },
+  {
+   "week": "2026-10-05",
+   "video_second": 49,
+   "date_shown_on_screen": true,
+   "video_ohlc": [
+    1.975,
+    2.1995,
+    1.7609,
+    1.996
+   ],
+   "coinbase_product": "RENDER-USD",
+   "coinbase_ohlc": [
+    1.9703,
+    2.1997,
+    1.76,
+    1.996
+   ],
+   "coinbase_vs_video_pct": [
+    -0.24,
+    0.01,
+    -0.05,
+    0.0
+   ]
+  }
+ ],
+ "summary": {
+  "bars_read": 61,
+  "render_usd_bars_compared": 60,
+  "median_abs_close_diff_pct": 0.05,
+  "max_abs_close_diff_pct": 4.24
+ },
+ "gemini_review_corrections": {
+  "current bar": "Mon 12 Oct '26 O1.9750 H2.1995 L1.7609 C1.9960: these are the 5 Oct bar's values",
+  "macro peak": "Mon 11 Mar '24 O9.8118 H13.6352 L9.5931 C12.6952: video shows O11.3823 H13.6271 L9.9340 C13.1381",
+  "wave A low": "Mon 05 Aug '24 O4.8265 H5.2071 L3.3982 C4.6800: video shows O4.5267 H5.1221 L3.4261 C4.4820",
+  "Oct 2025 wick": "about 0.80 to 0.90: video shows L0.5454 (week of 2025-10-06)",
+  "local wave (5) high 2.4395, 11 May '26": "the 2.43 high is the week of 2026-05-25 (H2.4331); 11 May '26 has H2.0199",
+  "MACD at current bar -0.0018 / -0.0995 / hist 0.0977": "those are the 5 Oct values misread: hist 0.0877, MACD -0.0018, signal -0.0895"
+ },
+ "use": "Reference only. Not a test fixture for prices (different source); dates here are verified against the screen."
+}

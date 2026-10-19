@@ -181,6 +181,9 @@ Rules the consumer can rely on:
 
 ## 5a. Parity with the chart-methodology review
 
+**Superseded in part by 5b**, which reads the video directly. The SMA and
+MACD comparisons below were made against the wrong bar.
+
 The review "RENDER Chart Methodology Review" (Gemini, from the video) gives
 TradingView readings. `scripts/render_history/reference_parity.py` compares
 them with Coinbase RENDER-USD weeks and writes
@@ -222,6 +225,61 @@ transcriptions, not exchange data.
   (3,3,14,14). Conventions are listed in the file. The EMA warm-up seed is the
   Pine reference example's convention. TradingView's built-in may differ in
   the first bars; this is not verified.
+
+## 5b. The video itself (read 2026-10-19, supersedes the review's readings)
+
+`scripts/render_history/video_reference.py` holds 61 weekly bars read
+directly from frames of `macro render.mp4` (ffmpeg, 1 frame per second) and
+compares them with Coinbase. Output: `data/render-history/video_reference_bars.json`.
+
+- **What the chart is:** TradingView `RENDERUSD`, "Render · 1W · CRYPTO", an
+  aggregated index, log price axis. It shows bars back to 2023, so it **joins
+  RNDR history**. Moonwalking does not.
+- **When it was recorded:** the live bar is the week of **2026-10-12** and its
+  countdown reads "5d 2h" all the way through, so the recording is from
+  2026-10-13, roughly 21:00 to 22:00 UTC. Live bar at that time: O 1.9961,
+  H 2.2258, L 1.9706, C about 2.032 to 2.036.
+- **Match with Coinbase:** from August 2024 on, every compared bar matches
+  Coinbase RENDER-USD closely (median close difference 0.05%). From
+  February to May 2024 the index matches **RNDR-USD**, not RENDER-USD, to
+  within about 0.2%. That is the join, visible in the data.
+- **One big exception: the Oct 2025 wick.** The index's low for the week of
+  2025-10-06 is **0.5454**. Coinbase printed 0.651. Open, high and close match
+  within 0.04%. Wick-based anchors differ by venue.
+- **Indicators on screen** (the legend follows the hovered bar):
+  - Week of 5 Oct (complete): SMA50 1.7049, SMA100 3.1838, SMA200 3.6930,
+    Stoch RSI K 94.46 / D 92.06, MACD histogram 0.0877, MACD -0.0018, signal
+    -0.0895.
+  - Live week of 12 Oct (close 2.0322): SMA50 1.6997, SMA100 3.1332, SMA200
+    3.7009, Stoch RSI K 93.24 / D 94.87, MACD histogram 0.0906, MACD 0.0238,
+    signal -0.0668.
+- **Our engine against the 5 Oct values**, on Coinbase RENDER-USD complete
+  weeks: SMA50 1.7048 (-0.006%), SMA100 3.1839 (+0.003%), MACD histogram
+  0.0877 (equal), signal -0.0898, MACD -0.0021, Stoch RSI K 94.29 / D 92.01.
+  The averages are effectively identical; the small MACD and Stoch RSI gaps
+  fit a different warm-up history (the index starts in RNDR's era). SMA200 has
+  no Coinbase RENDER-USD value; the comparison-only RNDR join gives 3.6734
+  against the index's 3.6930.
+
+**Corrections to the Gemini review (and to 5a above):**
+- Its "current bar, 12 Oct" OHLC (O 1.9750 H 2.1995 L 1.7609 C 1.9960) is the
+  5 Oct bar, which the narrator hovered at about 0:49. Its SMA readings
+  (1.6998 / 3.1332 / 3.7009) are from the live 12 Oct bar. Section 5a wrongly
+  compared those SMAs against the 5 Oct week; against the right bar they
+  agree as above.
+- Its MACD "-0.0018 / -0.0995 / hist 0.0977" misreads the 5 Oct legend
+  (histogram 0.0877, MACD -0.0018, signal -0.0895).
+- Macro peak, week of 2024-03-11: video O 11.3823 H 13.6271 L 9.9340
+  C 13.1381 (review: O 9.8118 H 13.6352 L 9.5931 C 12.6952).
+- Wave A low, week of 2024-08-05: video O 4.5267 H 5.1221 L 3.4261 C 4.4820
+  (review: O 4.8265 H 5.2071 L 3.3982 C 4.6800).
+- Oct 2025 wick: 0.5454 on the index, 0.651 on Coinbase (review: 0.80 to
+  0.90).
+- The 2.43 local high is the week of 2026-05-25 (H 2.4331), not 11 May
+  (H 2.0199).
+
+Use the video's dates for references. Do not use its prices as Coinbase
+fixtures; it is a different source.
 
 ## 6. Reproducing
 

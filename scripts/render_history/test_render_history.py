@@ -208,3 +208,16 @@ def test_parity_file_never_publishes_a_joined_sma200_as_render():
     complete = {c["t"] for c in weekly if c["complete"]}
     times = [r["t"] for r in fixture]
     assert len(fixture) == 100 and times == sorted(times) and set(times) <= complete
+
+
+# ---- video reference ------------------------------------------------------
+
+@pytest.mark.skipif(not (DATA / "video_reference_bars.json").exists(), reason="video file not built")
+def test_video_bars_match_coinbase_after_render_took_over():
+    doc = json.loads((DATA / "video_reference_bars.json").read_text())
+    late = [b for b in doc["bars"] if b["week"] >= "2024-08-01" and b["coinbase_product"] == "RENDER-USD"]
+    assert len(late) >= 40
+    # closes agree within 0.5%; the Oct 2025 wick is the documented exception on the low only
+    assert all(abs(b["coinbase_vs_video_pct"][3]) < 0.5 for b in late)
+    oct25 = next(b for b in doc["bars"] if b["week"] == "2025-10-06")
+    assert oct25["video_ohlc"][2] == 0.5454 and oct25["coinbase_ohlc"][2] == 0.651

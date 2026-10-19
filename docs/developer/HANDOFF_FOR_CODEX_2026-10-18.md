@@ -65,6 +65,16 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
   TradingView's built-in may differ in early bars.
 - Joining RNDR before 2024-02-19 gives SMA200 3.6734. Comparison only, not
   published.
+- **Update 2026-10-19: the video was read directly** (61 bars, see
+  `RENDER_HISTORY.md` section 5b and `data/render-history/video_reference_bars.json`).
+  Recorded 2026-10-13 about 21:00 to 22:00 UTC; chart is TradingView's
+  aggregated `RENDERUSD` index, which uses RNDR prices until mid-2024. From
+  August 2024 it matches Coinbase RENDER-USD closely (median close difference
+  0.05%). Our indicators on the 5 Oct week equal the video's legend: SMA50
+  1.7048 vs 1.7049, SMA100 3.1839 vs 3.1838, MACD histogram 0.0877 vs 0.0877.
+  The review's "current bar" OHLC was the 5 Oct bar and its SMAs were the live
+  12 Oct bar. The Oct 2025 wick on the index is 0.5454 (Coinbase 0.651). Use
+  the video's dates for anchors; never its prices as Coinbase fixtures.
 
 ## 5. Review of your branch `codex/macro-chart-20261018` at `0198513`
 
