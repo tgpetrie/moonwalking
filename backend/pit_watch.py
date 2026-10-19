@@ -1,4 +1,4 @@
-"""Watch Coinbase's product catalogue and status page, logging changes as they happen.
+"""Watch Coinbase's product catalogue and status page, and snapshot Hyperliquid perps, logging what we see when we see it.
 
 Writes to the point-in-time log (`pit_log.py`). Unauthenticated public GETs
 only, at least 1.1 s apart.
@@ -18,6 +18,11 @@ already exist were not "listed" at that moment. Later passes record:
                          points at the earlier record)
 The status page only lists its last 50 incidents, so history before the
 first pass is limited to those.
+
+Each pass also takes one Hyperliquid `metaAndAssetCtxs` snapshot (funding,
+open interest, prices for every perp) into `positioning_snapshot`, with a
+POSITIONING_PASS row holding the response hash. `product_id` there is a ticker
+match to an existing Coinbase product, not a verified identity.
 """
 
 from __future__ import annotations
@@ -40,6 +45,7 @@ logger = logging.getLogger("pit_watch")
 
 PRODUCTS_URL = "https://api.exchange.coinbase.com/products"
 INCIDENTS_URL = "https://status.coinbase.com/api/v2/incidents.json"
+HYPERLIQUID_URL = "https://api.hyperliquid.xyz/info"
 USER_AGENT = "moonwalking-pit-watch/1.0 (read-only public data)"
 MIN_INTERVAL_SEC = 1.1
 STATE_FIELDS = ("status", "trading_disabled", "cancel_only", "limit_only", "post_only", "auction_mode", "status_message")
@@ -164,11 +170,76 @@ def poll_incidents(conn, fetch: Callable[[str], Any] = get_json) -> Dict[str, in
     return counts
 
 
+def post_json(url: str, body: Dict[str, Any]) -> Any:
+    """Throttled, unauthenticated POST (Hyperliquid's info endpoint is POST-only)."""
+    global _last_request
+    wait = MIN_INTERVAL_SEC - (time.monotonic() - _last_request)
+    if wait > 0:
+        time.sleep(wait)
+    try:
+        resp = requests.post(url, json=body, headers={"User-Agent": USER_AGENT}, timeout=20)
+    except requests.RequestException as exc:
+        raise FetchError(str(exc)) from exc
+    finally:
+        _last_request = time.monotonic()
+    if resp.status_code != 200:
+        raise FetchError(f"HTTP {resp.status_code}", resp.status_code)
+    return resp.json()
+
+
+def _f(x: Any) -> Optional[float]:
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v and v not in (float("inf"), float("-inf")) else None
+
+
+def poll_hyperliquid(conn, post: Callable[[str, Dict[str, Any]], Any] = post_json) -> Dict[str, int]:
+    """One keyless request: funding, open interest and prices for every Hyperliquid perp."""
+    source, role = "hyperliquid_perp", "market_positioning"
+    try:
+        data = post(HYPERLIQUID_URL, {"type": "metaAndAssetCtxs"})
+        meta, ctxs = data[0], data[1]
+        universe = meta.get("universe") or []
+        if not isinstance(ctxs, list) or len(ctxs) != len(universe):
+            raise FetchError("unexpected payload")
+    except FetchError as exc:
+        pit_log.set_health(conn, source, role, ok=False, http_status=exc.status, error=str(exc))
+        conn.commit()
+        raise
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        pit_log.set_health(conn, source, role, ok=False, error=f"unexpected payload: {exc}")
+        conn.commit()
+        raise FetchError("unexpected payload") from exc
+    now = pit_log.utc_now()
+    body = pit_log.canonical(data)
+    pass_id = pit_log.record(conn, source_id=source, role=role, event_type="POSITIONING_PASS",
+                             metric_primary=len(universe), label="metaAndAssetCtxs",
+                             source_url=HYPERLIQUID_URL, payload={"assets": len(universe), "response_sha256": pit_log.sha256(body)},
+                             first_seen_utc=now)
+    known = pit_log.coinbase_product_ids(conn)
+    rows = []
+    for asset, ctx in zip(universe, ctxs):
+        name = asset.get("name")
+        if not name or asset.get("isDelisted"):
+            continue
+        pid = f"{name}-USD" if f"{name}-USD" in known else None
+        rows.append((now, "hyperliquid", name, pid, _f(ctx.get("funding")), 1.0, _f(ctx.get("openInterest")),
+                     _f(ctx.get("markPx")), _f(ctx.get("oraclePx")), _f(ctx.get("premium")), _f(ctx.get("dayNtlVlm")), pass_id))
+    conn.executemany("""INSERT INTO positioning_snapshot (first_seen_utc, venue, venue_symbol, product_id, funding_rate,
+                        funding_interval_hours, open_interest, mark_price, oracle_price, premium, day_notional_volume, pass_record_id)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
+    pit_log.set_health(conn, source, role, ok=True)
+    conn.commit()
+    return {"assets": len(rows), "mapped_to_coinbase": sum(1 for r in rows if r[3])}
+
+
 def run_once(path: Optional[Path] = None) -> Dict[str, Any]:
     conn = pit_log.connect(path)
     out: Dict[str, Any] = {}
     try:
-        for name, fn in (("products", poll_products), ("incidents", poll_incidents)):
+        for name, fn in (("products", poll_products), ("incidents", poll_incidents), ("hyperliquid", poll_hyperliquid)):
             try:
                 out[name] = fn(conn)
             except FetchError as exc:

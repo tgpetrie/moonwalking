@@ -149,3 +149,27 @@ def test_to_utc_normalises_offsets_and_keeps_unknowns():
     assert pit_log.to_utc("2026-10-12T15:24:34.523-07:00") == "2026-10-12T22:24:34.523000Z"
     assert pit_log.to_utc(None) is None
     assert pit_log.to_utc("not a date") == "not a date"
+
+
+def test_hyperliquid_pass_writes_compact_rows_and_one_provenance_record(db):
+    conn = pit_log.connect(db)
+    pit_watch.poll_products(conn, fetch=lambda url: [product("RENDER-USD"), product("BTC-USD")])
+    data = [{"universe": [{"name": "BTC"}, {"name": "RENDER"}, {"name": "kPEPE"}, {"name": "OLD", "isDelisted": True}]},
+            [{"funding": "0.0000125", "openInterest": "100", "markPx": "80000", "oraclePx": "80010", "premium": "0.0001", "dayNtlVlm": "5"},
+             {"funding": "-0.00002", "openInterest": "5000", "markPx": "1.8", "oraclePx": "1.8", "premium": None, "dayNtlVlm": "1"},
+             {"funding": None, "openInterest": "1", "markPx": "0.01", "oraclePx": "0.01", "premium": "0", "dayNtlVlm": "0"},
+             {"funding": "0", "openInterest": "0", "markPx": "1", "oraclePx": "1", "premium": "0", "dayNtlVlm": "0"}]]
+    out = pit_watch.poll_hyperliquid(conn, post=lambda url, body: data)
+    assert out == {"assets": 3, "mapped_to_coinbase": 2}
+    rows = {r["venue_symbol"]: dict(r) for r in conn.execute("SELECT * FROM positioning_snapshot")}
+    assert rows["RENDER"]["product_id"] == "RENDER-USD" and rows["kPEPE"]["product_id"] is None
+    assert rows["kPEPE"]["funding_rate"] is None and rows["RENDER"]["premium"] is None
+    passes = [e for e in events(db) if e["event_type"] == "POSITIONING_PASS"]
+    assert len(passes) == 1 and all(r["pass_record_id"] == passes[0]["record_id"] for r in rows.values())
+
+
+def test_hyperliquid_bad_payload_marks_health(db):
+    conn = pit_log.connect(db)
+    with pytest.raises(pit_watch.FetchError):
+        pit_watch.poll_hyperliquid(conn, post=lambda url, body: [{"universe": [{"name": "X"}]}, []])
+    assert conn.execute("SELECT data_status FROM source_health WHERE source_id='hyperliquid_perp'").fetchone()[0] == "offline"

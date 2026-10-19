@@ -89,6 +89,24 @@ CREATE TABLE IF NOT EXISTS pit_context_log (
 CREATE INDEX IF NOT EXISTS idx_pit_product_seen ON pit_context_log(product_id, first_seen_utc);
 CREATE INDEX IF NOT EXISTS idx_pit_source_seen ON pit_context_log(source_id, first_seen_utc);
 
+-- Compact per-asset derivatives snapshots from the watcher (one row per asset per pass).
+-- Provenance for each pass (response hash, count) is a row in pit_context_log.
+CREATE TABLE IF NOT EXISTS positioning_snapshot (
+    first_seen_utc TEXT NOT NULL,
+    venue TEXT NOT NULL,
+    venue_symbol TEXT NOT NULL,
+    product_id TEXT,                 -- Coinbase product when '<symbol>-USD' exists (ticker match, see docs)
+    funding_rate REAL,               -- per the venue's own interval (Hyperliquid: 1h)
+    funding_interval_hours REAL,
+    open_interest REAL,              -- base units
+    mark_price REAL,
+    oracle_price REAL,
+    premium REAL,
+    day_notional_volume REAL,
+    pass_record_id INTEGER REFERENCES pit_context_log(record_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pos_symbol_seen ON positioning_snapshot(venue_symbol, first_seen_utc);
+
 -- Last observed state per watched item, for diffing (not history).
 CREATE TABLE IF NOT EXISTS watch_state (
     source_id TEXT NOT NULL,
