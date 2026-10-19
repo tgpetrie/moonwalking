@@ -72,6 +72,26 @@ def load_daily(archive: Path) -> pd.DataFrame:
     return d
 
 
+def load_daily_dir(folder: Path, first_day: str, last_day: str) -> pd.DataFrame:
+    """Native Coinbase daily candles pulled by fetch_daily_all.py (delisted products included)."""
+    rows = []
+    for path in sorted(folder.glob("*-USD.json")):
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        seen: dict[int, list] = {}
+        for w in doc["windows"]:
+            for ts, low, high, opn, close, vol in (w["response"] if isinstance(w["response"], list) else []):
+                seen.setdefault(int(ts), [low, high, opn, close, vol])
+        for ts, (low, high, opn, close, vol) in seen.items():
+            if ts % DAY == 0 and 0 < low <= min(opn, close) and high >= max(opn, close) and vol >= 0:
+                rows.append((doc["product_id"], ts // DAY, opn, high, low, close, vol))
+    d = pd.DataFrame(rows, columns=["product_id", "day", "open", "high", "low", "close", "vol"])
+    first = pd.Timestamp(first_day, tz="UTC").timestamp() // DAY
+    last = pd.Timestamp(last_day, tz="UTC").timestamp() // DAY
+    d = d[(d.day >= first) & (d.day <= last)].copy()
+    d["usd_vol"] = d.vol * d.close
+    return d
+
+
 def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
     days = np.arange(int(d.day.min()), int(d.day.max()) + 1)
     close = d.pivot(index="day", columns="product_id", values="close").reindex(days)
@@ -176,11 +196,21 @@ def summarise(ev: pd.DataFrame, days: np.ndarray, k: int, period: tuple[int, int
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--archive", required=True, help="read-only copy of candle_archive.sqlite")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--archive", help="read-only copy of candle_archive.sqlite (hourly)")
+    src.add_argument("--daily-dir", help="folder written by fetch_daily_all.py (native daily candles)")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--first-day", default=None)
+    ap.add_argument("--last-day", default=None)
+    ap.add_argument("--split-day", default=None)
+    ap.add_argument("--tag", default="", help="suffix for the output file name")
     args = ap.parse_args()
+    global FIRST_DAY, LAST_DAY, SPLIT_DAY
+    FIRST_DAY = args.first_day or FIRST_DAY
+    LAST_DAY = args.last_day or LAST_DAY
+    SPLIT_DAY = args.split_day or SPLIT_DAY
 
-    d = load_daily(Path(args.archive))
+    d = load_daily(Path(args.archive)) if args.archive else load_daily_dir(Path(args.daily_dir), FIRST_DAY, LAST_DAY)
     ev, days, baseline = build_panel(d)
     first, split, last = int(days[0]), int(pd.Timestamp(SPLIT_DAY, tz="UTC").timestamp() // DAY), int(days[-1])
     periods = {"discovery": (first, split - 1), "test": (split, last)}
@@ -253,7 +283,15 @@ def main() -> int:
         "results": results,
     }
     Path(args.out).mkdir(parents=True, exist_ok=True)
-    (Path(args.out) / "continuation_vs_reversal.json").write_text(json.dumps(out, indent=1, default=float) + "\n", encoding="utf-8", newline="\n")
+    (Path(args.out) / f"continuation_vs_reversal{args.tag}.json").write_text(json.dumps(out, indent=1, default=float) + "\n", encoding="utf-8", newline="\n")
+    if args.tag:
+        print(out["panel"], out["event_counts"], "tests", n_tests, "survivors", survivors)
+        for r in results:
+            if r["adjustment"] == "volatility_matched" and r["split"] == "all events":
+                a, t = r["discovery"], r["test"]
+                print(r["direction"], r["horizon_days"], a.get("events"), a.get("mean_excess_pct"), a.get("p_bonferroni"), "|",
+                      t.get("events"), t.get("mean_excess_pct"), t.get("p_bonferroni"), "REPL" if r["replicates"] else "")
+        return 0
     # Event list for outside reviewers (no forward returns, so a reviewer cannot be steered by outcomes).
     shown = ev.assign(date=pd.to_datetime(ev.day * DAY, unit="s").dt.strftime("%Y-%m-%d"), move_pct=(ev.ret1 * 100).round(1),
                       volume_vs_20d_median=ev.vol_ratio.round(1), btc_day_pct=(ev.btc_ret * 100).round(1))

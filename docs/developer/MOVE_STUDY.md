@@ -113,6 +113,17 @@ Allowed now: describe it as an observed tendency in this sample, with the
 numbers, scope and dates above.
 Not allowed: any probability, price target, or date for a specific coin.
 
+## Extended-history run: fixed before looking
+
+Native daily candles for every Coinbase USD product, including delisted ones
+(492 products, 89 not online), pulled at one request per second from
+2022-01-01. Settings fixed here, before any result from that data was seen:
+- Same events, outcomes, features, 78 hypotheses and bootstrap as above.
+- Discovery: 2022-01-01 to 2024-12-31. Test: 2025-01-01 to 2026-10-17.
+- The hourly-archive run above lies inside the test period and is not an
+  independent confirmation of it.
+- Reported whatever it shows, including if finding 1 fails.
+
 ## Next steps
 
 1. Add absolute returns and a cost/spread allowance, to see if the effect
