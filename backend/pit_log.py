@@ -103,7 +103,10 @@ CREATE TABLE IF NOT EXISTS positioning_snapshot (
     oracle_price REAL,
     premium REAL,
     day_notional_volume REAL,
-    pass_record_id INTEGER REFERENCES pit_context_log(record_id)
+    pass_record_id INTEGER REFERENCES pit_context_log(record_id),
+    mid_price REAL,
+    impact_bid_price REAL,           -- price a standard-size market sell would fill at (Hyperliquid impactPxs[0])
+    impact_ask_price REAL            -- price a standard-size market buy would fill at (impactPxs[1])
 );
 CREATE INDEX IF NOT EXISTS idx_pos_symbol_seen ON positioning_snapshot(venue_symbol, first_seen_utc);
 
@@ -151,6 +154,7 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(str(p), timeout=10)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))
     conn.execute(
         "INSERT OR IGNORE INTO meta(key, value) VALUES ('purpose', ?)",
@@ -158,6 +162,18 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     )
     conn.commit()
     return conn
+
+
+_ADDED_COLUMNS = {"positioning_snapshot": (("mid_price", "REAL"), ("impact_bid_price", "REAL"), ("impact_ask_price", "REAL"))}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after a database was created (additive only; nothing is rewritten)."""
+    for table, cols in _ADDED_COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, kind in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
 
 
 def canonical(payload: Any) -> str:

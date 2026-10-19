@@ -155,7 +155,8 @@ def test_hyperliquid_pass_writes_compact_rows_and_one_provenance_record(db):
     conn = pit_log.connect(db)
     pit_watch.poll_products(conn, fetch=lambda url: [product("RENDER-USD"), product("BTC-USD")])
     data = [{"universe": [{"name": "BTC"}, {"name": "RENDER"}, {"name": "kPEPE"}, {"name": "OLD", "isDelisted": True}]},
-            [{"funding": "0.0000125", "openInterest": "100", "markPx": "80000", "oraclePx": "80010", "premium": "0.0001", "dayNtlVlm": "5"},
+            [{"funding": "0.0000125", "openInterest": "100", "markPx": "80000", "oraclePx": "80010", "premium": "0.0001", "dayNtlVlm": "5",
+              "midPx": "80001", "impactPxs": ["79990", "80012"]},
              {"funding": "-0.00002", "openInterest": "5000", "markPx": "1.8", "oraclePx": "1.8", "premium": None, "dayNtlVlm": "1"},
              {"funding": None, "openInterest": "1", "markPx": "0.01", "oraclePx": "0.01", "premium": "0", "dayNtlVlm": "0"},
              {"funding": "0", "openInterest": "0", "markPx": "1", "oraclePx": "1", "premium": "0", "dayNtlVlm": "0"}]]
@@ -164,6 +165,8 @@ def test_hyperliquid_pass_writes_compact_rows_and_one_provenance_record(db):
     rows = {r["venue_symbol"]: dict(r) for r in conn.execute("SELECT * FROM positioning_snapshot")}
     assert rows["RENDER"]["product_id"] == "RENDER-USD" and rows["kPEPE"]["product_id"] is None
     assert rows["kPEPE"]["funding_rate"] is None and rows["RENDER"]["premium"] is None
+    assert (rows["BTC"]["mid_price"], rows["BTC"]["impact_bid_price"], rows["BTC"]["impact_ask_price"]) == (80001.0, 79990.0, 80012.0)
+    assert rows["RENDER"]["impact_bid_price"] is None  # missing impactPxs stays NULL
     passes = [e for e in events(db) if e["event_type"] == "POSITIONING_PASS"]
     assert len(passes) == 1 and all(r["pass_record_id"] == passes[0]["record_id"] for r in rows.values())
 
@@ -173,3 +176,16 @@ def test_hyperliquid_bad_payload_marks_health(db):
     with pytest.raises(pit_watch.FetchError):
         pit_watch.poll_hyperliquid(conn, post=lambda url, body: [{"universe": [{"name": "X"}]}, []])
     assert conn.execute("SELECT data_status FROM source_health WHERE source_id='hyperliquid_perp'").fetchone()[0] == "offline"
+
+
+def test_existing_database_gains_new_columns_without_losing_rows(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.sqlite"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE positioning_snapshot (first_seen_utc TEXT NOT NULL, venue TEXT NOT NULL, venue_symbol TEXT NOT NULL, product_id TEXT, funding_rate REAL, funding_interval_hours REAL, open_interest REAL, mark_price REAL, oracle_price REAL, premium REAL, day_notional_volume REAL, pass_record_id INTEGER)")
+    old.execute("INSERT INTO positioning_snapshot (first_seen_utc, venue, venue_symbol) VALUES ('t', 'hyperliquid', 'BTC')")
+    old.commit(); old.close()
+    conn = pit_log.connect(path)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(positioning_snapshot)")}
+    assert {"mid_price", "impact_bid_price", "impact_ask_price"} <= cols
+    assert conn.execute("SELECT COUNT(*) FROM positioning_snapshot").fetchone()[0] == 1

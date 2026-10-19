@@ -20,7 +20,7 @@ The status page only lists its last 50 incidents, so history before the
 first pass is limited to those.
 
 Each pass also takes one Hyperliquid `metaAndAssetCtxs` snapshot (funding,
-open interest, prices for every perp) into `positioning_snapshot`, with a
+open interest, mark/oracle/mid prices and impact prices for every perp) into `positioning_snapshot`, with a
 POSITIONING_PASS row holding the response hash. `product_id` there is a ticker
 match to an existing Coinbase product, not a verified identity.
 """
@@ -225,11 +225,15 @@ def poll_hyperliquid(conn, post: Callable[[str, Dict[str, Any]], Any] = post_jso
         if not name or asset.get("isDelisted"):
             continue
         pid = f"{name}-USD" if f"{name}-USD" in known else None
+        impact = ctx.get("impactPxs") if isinstance(ctx.get("impactPxs"), (list, tuple)) else [None, None]
+        impact = list(impact) + [None, None]
         rows.append((now, "hyperliquid", name, pid, _f(ctx.get("funding")), 1.0, _f(ctx.get("openInterest")),
-                     _f(ctx.get("markPx")), _f(ctx.get("oraclePx")), _f(ctx.get("premium")), _f(ctx.get("dayNtlVlm")), pass_id))
+                     _f(ctx.get("markPx")), _f(ctx.get("oraclePx")), _f(ctx.get("premium")), _f(ctx.get("dayNtlVlm")), pass_id,
+                     _f(ctx.get("midPx")), _f(impact[0]), _f(impact[1])))
     conn.executemany("""INSERT INTO positioning_snapshot (first_seen_utc, venue, venue_symbol, product_id, funding_rate,
-                        funding_interval_hours, open_interest, mark_price, oracle_price, premium, day_notional_volume, pass_record_id)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
+                        funding_interval_hours, open_interest, mark_price, oracle_price, premium, day_notional_volume, pass_record_id,
+                        mid_price, impact_bid_price, impact_ask_price)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
     pit_log.set_health(conn, source, role, ok=True)
     conn.commit()
     return {"assets": len(rows), "mapped_to_coinbase": sum(1 for r in rows if r[3])}

@@ -40,7 +40,8 @@ Tests always run with writes off unless they opt in with a temp path.
 | `PRODUCT_STATUS_CHANGE` | `coinbase_products` | Change in status, trading_disabled, cancel_only, limit_only, post_only, auction_mode or status_message (before and after in the payload) |
 | `PRODUCT_REMOVED` | `coinbase_products` | Product id disappeared from the catalogue (logged once) |
 | `STATUS_INCIDENT` / `_UPDATE` | `coinbase_status` | New or changed status-page incident. The page lists only its last 50 |
-| `POSITIONING_SNAPSHOT` | `hyperliquid_perp`, `okx_perp`, `coinalyze_perp`, ... | Funding (`metric_primary`) and open interest, USD where known (`metric_secondary`) |
+| `POSITIONING_SNAPSHOT` | `hyperliquid_perp`, `okx_perp`, `coinalyze_perp`, ... | From the sentiment hooks: funding (`metric_primary`) and open interest, USD where known (`metric_secondary`) |
+| `POSITIONING_PASS` | `hyperliquid_perp` | One per watcher pass: response hash and asset count. The per-asset rows are in `positioning_snapshot` (funding, open interest, mark, oracle, mid, premium, day volume, and `impact_bid_price` / `impact_ask_price` from Hyperliquid's `impactPxs`) |
 
 `source_health` keeps live / blocked / offline per source with the last
 HTTP status and error (Binance shows `blocked` 451).
@@ -53,7 +54,7 @@ $py = "$env:USERPROFILE\.moonwalking\venv\Scripts\python.exe"
 & $py backend\pit_watch.py --loop --interval 300
 ```
 
-Two unauthenticated requests per pass, 1.1 s apart.
+Three unauthenticated requests per pass, 1.1 s apart (Coinbase products, status page, Hyperliquid). `positioning_snapshot.product_id` is a ticker match to an existing Coinbase product, not a verified identity; scaled contracts such as `kPEPE` stay unmatched. Book asymmetry can be read as `(mid - impact_bid) / mid` vs `(impact_ask - mid) / mid`.
 
 **Smoke run (2026-10-19, scratch database):** first pass 842 products as
 `BASELINE` (515 online, 327 not), 50 incidents; second pass recorded nothing
