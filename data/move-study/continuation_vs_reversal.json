@@ -1,4 +1,271 @@
 {
+ "absolute_note": "mean_excess_pct in this section is the plain mean forward return of the event coin (1% winsorised), not relative to peers. baseline_mean_pct is the average liquid coin over the same period. Cost columns subtract an assumed round trip for a long-only buy at the event-day close.",
+ "absolute": [
+  {
+   "direction": "up",
+   "horizon_days": 1,
+   "discovery": {
+    "events": 1073,
+    "dates": 155,
+    "mean_excess_pct": -1.77,
+    "ci95_pct": [
+     -2.61,
+     -1.01
+    ],
+    "median_excess_pct": -2.19,
+    "share_positive": 0.311,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 311,
+    "baseline_mean_pct": -0.56,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.27,
+     "1.0%": -2.77,
+     "2.0%": -3.77
+    }
+   },
+   "test": {
+    "events": 1012,
+    "dates": 187,
+    "mean_excess_pct": -1.59,
+    "ci95_pct": [
+     -2.48,
+     -0.68
+    ],
+    "median_excess_pct": -2.56,
+    "share_positive": 0.373,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.011,
+    "distinct_coins": 302,
+    "baseline_mean_pct": -0.03,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.09,
+     "1.0%": -2.59,
+     "2.0%": -3.59
+    }
+   }
+  },
+  {
+   "direction": "up",
+   "horizon_days": 3,
+   "discovery": {
+    "events": 1069,
+    "dates": 153,
+    "mean_excess_pct": -3.3,
+    "ci95_pct": [
+     -5.57,
+     -1.21
+    ],
+    "median_excess_pct": -4.04,
+    "share_positive": 0.308,
+    "p_raw": 0.002,
+    "top_coin_share": 0.01,
+    "distinct_coins": 311,
+    "baseline_mean_pct": -1.59,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -3.8,
+     "1.0%": -4.3,
+     "2.0%": -5.3
+    }
+   },
+   "test": {
+    "events": 995,
+    "dates": 185,
+    "mean_excess_pct": -1.64,
+    "ci95_pct": [
+     -3.83,
+     0.42
+    ],
+    "median_excess_pct": -3.6,
+    "share_positive": 0.375,
+    "p_raw": 0.1245,
+    "top_coin_share": 0.011,
+    "distinct_coins": 300,
+    "baseline_mean_pct": 0.13,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.14,
+     "1.0%": -2.64,
+     "2.0%": -3.64
+    }
+   }
+  },
+  {
+   "direction": "up",
+   "horizon_days": 7,
+   "discovery": {
+    "events": 1061,
+    "dates": 149,
+    "mean_excess_pct": -5.8,
+    "ci95_pct": [
+     -9.34,
+     -2.6
+    ],
+    "median_excess_pct": -6.75,
+    "share_positive": 0.284,
+    "p_raw": 0.00025,
+    "top_coin_share": 0.01,
+    "distinct_coins": 311,
+    "baseline_mean_pct": -3.5,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -6.3,
+     "1.0%": -6.8,
+     "2.0%": -7.8
+    }
+   },
+   "test": {
+    "events": 972,
+    "dates": 181,
+    "mean_excess_pct": -1.95,
+    "ci95_pct": [
+     -5.18,
+     1.28
+    ],
+    "median_excess_pct": -5.36,
+    "share_positive": 0.36,
+    "p_raw": 0.224,
+    "top_coin_share": 0.011,
+    "distinct_coins": 293,
+    "baseline_mean_pct": 0.53,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.45,
+     "1.0%": -2.95,
+     "2.0%": -3.95
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 1,
+   "discovery": {
+    "events": 840,
+    "dates": 139,
+    "mean_excess_pct": 0.39,
+    "ci95_pct": [
+     -2.09,
+     3.73
+    ],
+    "median_excess_pct": -1.35,
+    "share_positive": 0.42,
+    "p_raw": 0.8925,
+    "top_coin_share": 0.011,
+    "distinct_coins": 303,
+    "baseline_mean_pct": -0.56,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -0.11,
+     "1.0%": -0.61,
+     "2.0%": -1.61
+    }
+   },
+   "test": {
+    "events": 641,
+    "dates": 156,
+    "mean_excess_pct": -0.33,
+    "ci95_pct": [
+     -1.37,
+     0.71
+    ],
+    "median_excess_pct": -0.44,
+    "share_positive": 0.451,
+    "p_raw": 0.521,
+    "top_coin_share": 0.014,
+    "distinct_coins": 260,
+    "baseline_mean_pct": -0.03,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -0.83,
+     "1.0%": -1.33,
+     "2.0%": -2.33
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 3,
+   "discovery": {
+    "events": 838,
+    "dates": 137,
+    "mean_excess_pct": -0.62,
+    "ci95_pct": [
+     -3.64,
+     2.25
+    ],
+    "median_excess_pct": -1.55,
+    "share_positive": 0.415,
+    "p_raw": 0.6085,
+    "top_coin_share": 0.011,
+    "distinct_coins": 303,
+    "baseline_mean_pct": -1.59,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.12,
+     "1.0%": -1.62,
+     "2.0%": -2.62
+    }
+   },
+   "test": {
+    "events": 623,
+    "dates": 154,
+    "mean_excess_pct": -1.28,
+    "ci95_pct": [
+     -3.08,
+     0.73
+    ],
+    "median_excess_pct": -2.05,
+    "share_positive": 0.414,
+    "p_raw": 0.218,
+    "top_coin_share": 0.014,
+    "distinct_coins": 259,
+    "baseline_mean_pct": 0.13,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.78,
+     "1.0%": -2.28,
+     "2.0%": -3.28
+    }
+   }
+  },
+  {
+   "direction": "down",
+   "horizon_days": 7,
+   "discovery": {
+    "events": 825,
+    "dates": 133,
+    "mean_excess_pct": -1.01,
+    "ci95_pct": [
+     -7.8,
+     4.08
+    ],
+    "median_excess_pct": -1.92,
+    "share_positive": 0.457,
+    "p_raw": 0.7265,
+    "top_coin_share": 0.01,
+    "distinct_coins": 303,
+    "baseline_mean_pct": -3.5,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -1.51,
+     "1.0%": -2.01,
+     "2.0%": -3.01
+    }
+   },
+   "test": {
+    "events": 603,
+    "dates": 150,
+    "mean_excess_pct": -1.55,
+    "ci95_pct": [
+     -3.8,
+     0.9
+    ],
+    "median_excess_pct": -3.39,
+    "share_positive": 0.388,
+    "p_raw": 0.2125,
+    "top_coin_share": 0.015,
+    "distinct_coins": 251,
+    "baseline_mean_pct": 0.53,
+    "net_of_assumed_cost_pct": {
+     "0.5%": -2.05,
+     "1.0%": -2.55,
+     "2.0%": -3.55
+    }
+   }
+  }
+ ],
  "design": {
   "move": 0.1,
   "horizons": [

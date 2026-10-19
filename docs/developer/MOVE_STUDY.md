@@ -70,14 +70,34 @@ Discovery shows a mild lag (-0.2% to -0.7%) that does not hold in the test.
 22 of 78 volatility-matched hypotheses replicate by the stated rule, all of
 them up-moves.
 
+**3. In plain returns, buying right after a spike lost money on average.**
+Mean forward return of the event coin itself (no peer adjustment, 1%
+winsorised), buying at the event-day close. The baseline is the average liquid
+coin over the same period. The cost columns subtract an *assumed* round trip
+of 0.5%, 1% and 2%. These are scenarios, not Coinbase's fee schedule.
+
+| After a +10% day | Period | Mean | 95% interval | Baseline | After 1% cost |
+| --- | --- | --- | --- | --- | --- |
+| 1 day | discovery | -1.77% | -2.61 to -1.01 | -0.56% | -2.77% |
+| 1 day | test | -1.59% | -2.48 to -0.68 | -0.03% | -2.59% |
+| 3 days | discovery | -3.30% | -5.57 to -1.21 | -1.59% | -4.30% |
+| 3 days | test | -1.64% | -3.83 to +0.42 | +0.13% | -2.64% |
+| 7 days | discovery | -5.80% | -9.34 to -2.60 | -3.50% | -6.80% |
+| 7 days | test | -1.95% | -5.18 to +1.28 | +0.53% | -2.95% |
+
+The next-day result holds in both halves. At 3 and 7 days the test half is
+negative on average but its interval includes zero, so in plain returns the
+longer horizons are not established. After a -10% day, buying the dip shows no
+edge: means are near zero or negative and every interval includes zero.
+
 ## What this does and does not show
 
-- **Relative, not absolute.** "-2% vs peers" means the coin did 2 points worse
-  than similar coins that day. It does not say the coin fell. Absolute returns
-  were not examined.
-- **Not shown to be tradable.** No fees, spreads or slippage. Spot Coinbase
-  accounts can't short, so the "sell strength" reading would need another
-  venue. A signal that is real can still not be worth acting on.
+- **Findings 1 and 2 are relative.** "-2% vs peers" means the coin did 2
+  points worse than similar coins that day. Finding 3 gives the plain returns.
+- **Not shown to be tradable.** Costs are assumed scenarios, and spreads and
+  slippage on thin coins are not measured. Spot Coinbase accounts can't short,
+  so a "sell strength" reading would need another venue. The practical use that
+  fits spot is avoiding buys right after spikes.
 - **Survivorship bias.** The archive holds only products listed today. Coins
   that spiked and then collapsed and were delisted are missing, so the true
   give-back after spikes is probably larger, not smaller.

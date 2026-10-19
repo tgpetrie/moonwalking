@@ -38,6 +38,8 @@ MIN_MEDIAN_USD_VOLUME = 50_000
 FIRST_DAY, LAST_DAY = "2025-10-02", "2026-10-10"  # days wholly inside fetched hourly ranges
 SPLIT_DAY = "2026-04-01"  # discovery < split <= test
 BLOCK = 7
+LF = chr(10)
+COSTS_PCT = (0.5, 1.0, 2.0)  # assumed round-trip cost scenarios, in percent
 BOOT = 4000
 SEED = 20261018
 
@@ -70,7 +72,7 @@ def load_daily(archive: Path) -> pd.DataFrame:
     return d
 
 
-def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
+def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
     days = np.arange(int(d.day.min()), int(d.day.max()) + 1)
     close = d.pivot(index="day", columns="product_id", values="close").reindex(days)
     high = d.pivot(index="day", columns="product_id", values="high").reindex(days)
@@ -88,13 +90,15 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
     vol20 = ret1.shift(1).rolling(20, min_periods=15).std()
     vol_q = np.floor(vol20.where(liquid).rank(axis=1, pct=True).clip(upper=0.9999) * 5)
 
-    fwd, fwd_vm = {}, {}
+    fwd, fwd_vm, fwd_abs, baseline = {}, {}, {}, {}
     for k in HORIZONS:
         raw = close.shift(-k) / close - 1
         lo, hi = raw.where(liquid).stack().quantile([0.01, 0.99])
         raw = raw.clip(lo, hi)  # winsorise: a handful of thin-coin blow-ups must not decide a result
         market = raw.where(liquid).mean(axis=1)
         fwd[k] = raw.sub(market, axis=0)
+        fwd_abs[k] = raw
+        baseline[k] = market  # average liquid coin's forward return, by day
         # same-day average forward return of liquid coins in the same volatility quintile
         matched = pd.DataFrame(np.nan, index=raw.index, columns=raw.columns)
         for q in range(5):
@@ -127,10 +131,11 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
             for k in HORIZONS:
                 rec[f"x{k}"] = fwd[k].at[day, prod]
                 rec[f"m{k}"] = fwd_vm[k].at[day, prod]
+                rec[f"a{k}"] = fwd_abs[k].at[day, prod]
             rows.append(rec)
     ev = pd.DataFrame(rows)
     ev["closed_at_extreme"] = np.where(ev.direction == "up", ev.range_pos >= 0.75, ev.range_pos <= 0.25)
-    return ev, days
+    return ev, days, baseline
 
 
 def block_bootstrap_p(sums: np.ndarray, counts: np.ndarray, rng: np.random.Generator) -> tuple[float, float, float, float]:
@@ -176,7 +181,7 @@ def main() -> int:
     args = ap.parse_args()
 
     d = load_daily(Path(args.archive))
-    ev, days = build_panel(d)
+    ev, days, baseline = build_panel(d)
     first, split, last = int(days[0]), int(pd.Timestamp(SPLIT_DAY, tz="UTC").timestamp() // DAY), int(days[-1])
     periods = {"discovery": (first, split - 1), "test": (split, last)}
     rng = np.random.default_rng(SEED)
@@ -219,7 +224,24 @@ def main() -> int:
             and np.sign(disc["mean_excess_pct"]) == np.sign(test["mean_excess_pct"])
         )
 
+    # Absolute (not relative) forward returns, with assumed round-trip cost scenarios.
+    # Costs are assumptions, not Coinbase's fee schedule: check your own tier before relying on them.
+    absolute = []
+    for direction in ("up", "down"):
+        e = ev[ev.direction == direction]
+        for k in HORIZONS:
+            row = {"direction": direction, "horizon_days": k}
+            for pname, period in periods.items():
+                a = summarise(e, days, k, period, rng, "a")
+                start, end = period
+                base_days = baseline[k].loc[start : end - k].dropna()
+                row[pname] = {**a, "baseline_mean_pct": round(float(base_days.mean()) * 100, 2),
+                              "net_of_assumed_cost_pct": {f"{c}%": round(a["mean_excess_pct"] - c, 2) for c in COSTS_PCT}} if a and "mean_excess_pct" in a else a
+            absolute.append(row)
+
     out = {
+        "absolute_note": "mean_excess_pct in this section is the plain mean forward return of the event coin (1% winsorised), not relative to peers. baseline_mean_pct is the average liquid coin over the same period. Cost columns subtract an assumed round trip for a long-only buy at the event-day close.",
+        "absolute": absolute,
         "design": {"move": MOVE, "horizons": HORIZONS, "cooldown_days": COOLDOWN_DAYS, "block_days": BLOCK, "bootstrap": BOOT, "seed": SEED,
                    "days": [FIRST_DAY, LAST_DAY], "split_day": SPLIT_DAY, "tests_per_adjustment": n_tests, "discovery_survivors": survivors,
                    "liquidity": {"event_usd_volume_min": MIN_EVENT_USD_VOLUME, "median_usd_volume_min": MIN_MEDIAN_USD_VOLUME},
@@ -232,6 +254,17 @@ def main() -> int:
     }
     Path(args.out).mkdir(parents=True, exist_ok=True)
     (Path(args.out) / "continuation_vs_reversal.json").write_text(json.dumps(out, indent=1, default=float) + "\n", encoding="utf-8", newline="\n")
+    # Event list for outside reviewers (no forward returns, so a reviewer cannot be steered by outcomes).
+    shown = ev.assign(date=pd.to_datetime(ev.day * DAY, unit="s").dt.strftime("%Y-%m-%d"), move_pct=(ev.ret1 * 100).round(1),
+                      volume_vs_20d_median=ev.vol_ratio.round(1), btc_day_pct=(ev.btc_ret * 100).round(1))
+    cols = ["date", "product", "direction", "move_pct", "volume_vs_20d_median", "btc_day_pct"]
+    shown = shown.sort_values(["date", "product"])
+    shown[cols].to_csv(Path(args.out) / "events_all.csv", index=False, lineterminator=LF)
+    biggest = shown.reindex(shown.move_pct.abs().sort_values(ascending=False).index).head(40)
+    rest = shown.drop(biggest.index)
+    sample = rest.sample(n=40, random_state=SEED)
+    pd.concat([biggest.assign(group="largest"), sample.assign(group="random")])[["group"] + cols].sort_values(["group", "date"]).to_csv(
+        Path(args.out) / "events_for_cause_review.csv", index=False, lineterminator=LF)
     print(out["panel"], out["event_counts"], "tests", n_tests)
     print("survivors", survivors)
     for r in results:
