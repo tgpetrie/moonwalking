@@ -103,7 +103,7 @@ S2) or turned back from the level (S3).
 
 Counts: 874 P-shape, 1,642 bottom-heavy, 1,591 b-shape, 1,707 top-heavy days;
 1,986 / 2,879 hourly-VA breakouts up / down; 32,235 / 36,463 daily-range
-breakouts up / down; 9,941 ledge first touches.
+breakouts up / down; 17,660 ledge first touches (50,018 placebo).
 
 **Limits.** One year of hourly data for S1 and S2h; 20 bins per day from
 hourly candles (not tick data); Coinbase only. No order-book, delta or
