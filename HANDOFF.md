@@ -367,3 +367,22 @@ a running browser or deployed to production.
 For resuming this exact work on the owner's Windows AI PC—including the
 read-only boundary, formulas, coverage limits, PowerShell/WSL setup, and transfer
 state—read `WINDOWS_AI_PC_HANDOFF.md` next.
+
+## Documentation handoff, 2026-10-19
+
+The [Master Architectural & Research Handoff for Codex](docs/developer/MASTER_HANDOFF_FOR_CODEX_2026-10-19.md)
+consolidates the supplied draft against research at `1f198332` and the separate
+chart branch at `fb59304a`. It records the proposed six-agent suite, existing
+evidence-ID narration, real sentiment proxy, source verification limits, all
+study statuses, PIT schema, and chart corrections. Proposed agents, Study 3b,
+and unverified provider terms are explicitly labelled. The exact draft numeric
+guardrail is preserved with its limitations rather than installed in runtime.
+
+Branch: `codex/master-research-handoff-20261019`, based on
+`claude/render-history-data`. Documentation only; no branch integration, model
+installation, live-store change, scheduled-task change, main merge, or deployment.
+Offline history/study/PIT checks: 59 passed. Read the dated master before relying
+on older runtime or pending-work statements elsewhere in this file.
+Documentation links/schema/arithmetic and whitespace checks pass. The global
+guardrail check still fails on the pre-existing `BTC or BTC-USD` placeholder in
+`ScorecardPage.jsx:775`; no UI source changed in this documentation branch.

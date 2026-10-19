@@ -2,6 +2,14 @@
 
 Project: BHABIT Moonwalking
 
+## Consolidated research handoff (2026-10-19)
+
+Read [Master Architectural & Research Handoff for Codex](../developer/MASTER_HANDOFF_FOR_CODEX_2026-10-19.md)
+for the six proposed local-agent roles, current sentiment routing, source
+verification limits, empirical studies, PIT schema, and chart wording rules.
+It distinguishes committed research from the separate chart branch and proposed
+runtime work; it does not authorize a main merge or deployment.
+
 Read in this order before implementation:
 
 1. `MW_SPEC.md`
