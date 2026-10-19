@@ -133,7 +133,12 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
         "prior_high30": high.shift(1).rolling(30, min_periods=20).max(),
         "close": close,
         "range_pos": (close - low) / (high - low),
+        # extras for robustness checks (robustness.py); not used by the preregistered tests
+        "med20_usd": med20,
+        "vol20": vol20,
     }
+    first_seen = close.apply(lambda s: s.first_valid_index())
+    coin_mean = {k: fwd_vm[k].where(liquid).mean() for k in HORIZONS}  # each coin's own average, whole sample
     rows = []
     for direction, mask in (("up", ret1 >= MOVE), ("down", ret1 <= -MOVE)):
         ev = (mask & liquid).stack()
@@ -152,6 +157,8 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
                 rec[f"x{k}"] = fwd[k].at[day, prod]
                 rec[f"m{k}"] = fwd_vm[k].at[day, prod]
                 rec[f"a{k}"] = fwd_abs[k].at[day, prod]
+                rec[f"coin_mean{k}"] = coin_mean[k].get(prod)
+            rec["listing_age_days"] = int(day - first_seen[prod])
             rows.append(rec)
     ev = pd.DataFrame(rows)
     ev["closed_at_extreme"] = np.where(ev.direction == "up", ev.range_pos >= 0.75, ev.range_pos <= 0.25)

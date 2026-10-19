@@ -210,6 +210,36 @@ built-in bias: articles explaining a move are more likely to be written when
 the move lasts, so "known cause" may partly mean "held up". A proper test
 needs causes logged at the time (point in time), for many more events.
 
+## Robustness: Gemini's ranked critique, checked (2026-10-19)
+
+`scripts/move_study/robustness.py`, output `data/move-study/robustness.json`.
+All post hoc. Up-moves of +10% or more, 2022 to 2026 daily data (9,034
+events) unless stated; figures are vs volatility-matched peers.
+
+Two of the critique's premises were wrong: the extended run already includes
+the 89 delisted products (rank 7), and the comparison is already
+volatility-matched, not equal-weighted (rank 8). The 7-day cooldown it asks
+for (rank 3) was already in place.
+
+| # | Objection | Result | Verdict |
+| --- | --- | --- | --- |
+| 1 | "Known cause" means "held up" | With only sources dated on or before the event day, the known/unknown gap vanishes: 7-day mean difference +1.6 points (p 0.86), median -3.1 (p 0.53) | **Confirmed.** The earlier cause hint was hindsight. |
+| 2 | Means driven by outliers | Medians and trimmed means are *more* negative than means (7 days: mean -1.9%/-2.2%, median -3.9%/-3.7%, 10% trimmed -3.4%/-3.5%). About a third of events beat peers | Refuted. The typical event fades; a few runners pull the mean up. |
+| 3 | Same-day clustering inflates N | Weighting each event day once makes it stronger: 1 day -2.4%/-2.8%, 7 days -3.7%/-4.8% (discovery/test), intervals clear of zero | Refuted. |
+| 4 | Midnight close bounce | Only 23% of the next-day relative loss comes in the first hour (00:00 to 01:00 UTC); most comes over the rest of the day (hourly archive, 2,088 events) | Mostly refuted. |
+| 5 | Thin coins drive it | Prior 20-day median volume under $1M: 1 day -1.9%/-1.9%, 7 days -2.4%/-2.7%. $1M to $10M: -0.4%/-0.1% and -0.8%/-1.0%. $10M and up: -0.7%/-0.2% and -1.5%/-1.0%, intervals touching zero in the test period | **Confirmed.** It is mostly a thin-coin effect, where trading costs are highest. |
+| 6 | Mixes shocks with beta days | High relative volume (5x+) and coin-specific size (15+ points above BTC): 1 day -3.8%/-4.4%, 7 days -5.7%/-7.3%. Low volume, beta-like: -0.3%/-0.3% and -0.3%/-0.4% (7-day intervals include zero) | **Confirmed.** The fade belongs to high-volume, coin-specific spikes. |
+| 7 | Survivorship, new listings | Already includes delisted products, which fade more (7 days -3.5%/-6.1%). New listings (under 90 days) and established coins look alike | Already handled. |
+| 8 | Coin's own drift | Subtracting each coin's own average leaves it unchanged: 1 day -1.3%/-1.3%, 7 days -1.8%/-2.2% | Refuted. |
+
+**Updated reading.** The give-back is real, typical, not a clustering or
+midnight artifact, and not each coin's usual drift. It is concentrated in
+**thin coins and high-volume, coin-specific spikes**, and close to zero for
+low-volume, market-driven +10% days. Liquid coins show only a small effect.
+Because thin coins are the costliest to trade, it is a better warning not to
+chase than a trade. The cause-based split from the Gemini table should not be
+used.
+
 ## Next steps
 
 1. Causes: first pass done (above). Next is logging causes point in time for many more events (a researcher or

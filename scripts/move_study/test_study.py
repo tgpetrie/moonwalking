@@ -42,3 +42,12 @@ def test_p_value_floor_is_one_over_resamples():
     ev, days = events(-0.5, per_day=10)
     out = cs.summarise(ev, days, 1, (int(days[0]), int(days[-1])), np.random.default_rng(0), col="m")
     assert out["p_raw"] == round(1 / cs.BOOT, 5)
+
+
+def test_robustness_stats_trims_and_winsorises():
+    import robustness as rb
+    x = pd.Series([-0.1] * 18 + [5.0, 6.0])
+    s = rb.stats(x)
+    assert s["n"] == 20 and s["median_pct"] == -10.0
+    assert s["trimmed10_pct"] == -10.0  # the two outliers are trimmed away
+    assert s["mean_pct"] > s["winsor5_pct"] > s["median_pct"]
