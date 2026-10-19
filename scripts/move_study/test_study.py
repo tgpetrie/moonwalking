@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -172,3 +173,39 @@ def test_bearish_trigger_mirror():
     o[i + 1], h[i + 1], l[i + 1], c[i + 1] = 10.2, 10.6, 9.9, 10.0
     t = ab.find_triggers(_frame(ts, o, h, l, c, v))
     assert len(t) == 1 and t[0]["direction"] == "bear" and t[0]["ref"] == 11.0
+
+
+# ---- funding study ---------------------------------------------------------
+
+import funding_study as fs  # noqa: E402
+
+
+def test_funding_regimes_and_multipliers():
+    assert fs.regime(-0.00001) == "negative" and fs.regime(0.0) == "neutral"
+    assert fs.regime(0.0002) == "neutral" and fs.regime(0.00021) == "crowded" and fs.regime(float("nan")) is None
+    assert fs.multiplier("1000PEPEUSDT") == 1e3 and fs.multiplier("1000000MOGUSDT") == 1e6
+    assert fs.multiplier("kPEPE") == 1e3 and fs.multiplier("RENDERUSDT") == 1.0
+
+
+def test_binance_window_is_the_24h_ending_at_the_close(tmp_path):
+    (tmp_path / "binance").mkdir()
+    day = 20000
+    t = lambda h: (day * 86400 + h * 3600) * 1000
+    rows = ["calc_time,funding_interval_hours,last_funding_rate",
+            f"{t(0)},8,0.9",          # exactly at the day's open: belongs to the previous day
+            f"{t(8)},8,0.0001", f"{t(16)},4,0.0001", f"{t(24)},8,0.0003",  # in window; 4h print doubles
+            f"{t(32)},8,0.9"]         # after the close
+    mo = pd.Timestamp(day * 86400, unit="s").strftime("%Y-%m")
+    (tmp_path / "binance" / f"XUSDT-{mo}.csv").write_text("\n".join(rows))
+    v = fs.binance_day_funding(tmp_path, "XUSDT", day, {})
+    assert abs(v - (0.0001 + 0.0002 + 0.0003) / 3) < 1e-12
+
+
+def test_hl_window_and_8h_scaling(tmp_path):
+    (tmp_path / "hl").mkdir()
+    day = 20000
+    data = [{"fundingRate": "0.00001", "time": (day * 86400 + 3600) * 1000},
+            {"fundingRate": "0.00003", "time": ((day + 1) * 86400) * 1000},
+            {"fundingRate": "0.5", "time": (day * 86400) * 1000}]
+    (tmp_path / "hl" / f"X-{day}.json").write_text(json.dumps(data))
+    assert abs(fs.hl_day_funding(tmp_path, "X", day) - 0.00016) < 1e-12
