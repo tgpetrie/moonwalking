@@ -126,6 +126,20 @@
 .macro-chart-future text { fill: var(--color-mint); font-family: var(--font-sans); font-size: 14px; font-weight: var(--weight-bold); }
 .macro-price-chart .macro-chart-recovery rect { fill: var(--color-mint); fill-opacity: 0.18; }
 .macro-chart-recovery line { stroke: var(--color-mint); stroke-width: 1; stroke-dasharray: 5 4; }
+.macro-level-guide { scroll-margin-top: var(--space-5); }
+.macro-page .macro-guide-baseline { margin-top: var(--space-3); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.macro-guide-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-default); }
+.macro-guide-row > div { min-width: 0; }
+.macro-guide-row strong, .macro-guide-row span { display: block; overflow-wrap: anywhere; }
+.macro-guide-row strong { color: var(--color-mint); font-size: var(--text-lg); }
+.macro-guide-row span { color: var(--text-muted); font-size: var(--text-xs); margin-top: var(--space-1); }
+.macro-guide-row button { flex-shrink: 0; }
+.macro-guide-anchors { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
+.macro-level-explanation { display: grid; gap: var(--space-3); border-top: 1px solid var(--border-default); margin-top: var(--space-4); padding-top: var(--space-4); }
+.macro-level-explanation > button { justify-self: start; }
+.macro-guide-sources { display: grid; gap: var(--space-2); }
+.macro-evidence-candle { fill: var(--accent-primary); fill-opacity: 0.18; stroke: var(--accent-primary); stroke-width: 1; }
+.macro-history-anchor, .macro-chart-future { cursor: pointer; }
 @media (max-width: 680px) { .macro-range-grid { grid-template-columns: minmax(0, 1fr); } .macro-range-description { align-items: start; flex-direction: column; } }
 @media (max-width: 680px) { .macro-price-chart svg { min-width: 680px; } .macro-mobile-hint { display: inline; } }
 @media (max-width: 1100px) { .macro-workspace { grid-template-columns: minmax(0, 1fr); } .macro-anchor-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); } .macro-anchor-panel > .macro-label, .macro-anchor-panel > h2, .macro-anchor-panel > p, .macro-anchor-panel > button { grid-column: 1 / -1; } }

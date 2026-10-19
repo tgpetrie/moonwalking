@@ -204,3 +204,21 @@ Read Claude's handoff at origin/claude/render-history-data commit 1504be4.
 RNDR/RENDER remain separate; validated files remain the RENDER acceptance source.
 Verification: npm run verify (538 tests, token sync, production build passed),
 browser FET preview visibly checked. Existing build-size/Browserslist/act warnings remain.
+
+## Price-distance explanations and local evidence producer
+
+Recent turns now have explicit signed distance from the dated analysis close,
+separate from calculated recovery and extension references. Explain controls and
+chart A–D/E? clicks show source dates/formula/conditions, highlight visible source
+candles and synchronize the selected recovery with E?. View source candles keeps
+the original analysis interval/cutoff. See CHART_LEVEL_EXPLANATIONS_2026-10-18.md.
+
+Claude and Gemini completed brief-based review assignments; links and accepted vs
+rejected suggestions are recorded there. Neither reviewed the code or executed tests.
+A local subagent implemented a network-free chart evidence packet CLI in
+scripts/chart_evidence_packet.mjs. This is not yet a model agent integration.
+The local installed Ollama status command reported upgrade in progress.
+
+Checks: full frontend verify 541 tests/build/token sync passed; final interaction/copy
+edits followed by 18 relevant tests and build passed; 4 offline CLI tests and real
+FET packet smoke passed; guardrails/diff check passed. No production change.

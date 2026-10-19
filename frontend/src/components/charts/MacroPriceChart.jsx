@@ -10,7 +10,7 @@ const HISTORY_RIGHT = 855;
 const LEVEL_RIGHT = 1008;
 
 export default function MacroPriceChart({ candles, pivots, scenario, macro = null, historical = [], future = null,
-  latestCandle, referenceLevels = [], nested = [], currency, interval, scale = 'log' }) {
+  latestCandle, referenceLevels = [], nested = [], currency, interval, scale = 'log', selectedEvidence = null, onSelectAnchor, onSelectFuture }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState(null);
   if (!candles.length) return null;
@@ -83,6 +83,11 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
             {scenario.targets.map((level) => <line key={level.ratio} className="macro-chart-target" x1={x(scenario.anchors[2].time)} x2={LEVEL_RIGHT} y1={y(level.price)} y2={y(level.price)} />)}
             <line className="macro-chart-invalidation" x1={LEFT} x2={LEVEL_RIGHT} y1={y(scenario.invalidation)} y2={y(scenario.invalidation)} />
           </>}
+          {selectedEvidence?.anchors.map((p) => {
+            const row = candles.find((c) => c.time <= (p.extreme_time ?? p.time) && c.end > (p.extreme_time ?? p.time));
+            return row ? <rect className="macro-evidence-candle" key={p.id} x={x(row.time) - Math.max(candleWidth, 7)} y={TOP}
+              width={Math.max(candleWidth, 7) * 2} height={BOTTOM - TOP}><title>Selected source candle · {dateText(p.extreme_time ?? p.time)}</title></rect> : null;
+          })}
           {candles.map((row) => <g key={row.time} className={`macro-candle macro-candle--${row.close >= row.open ? 'up' : 'down'}`}>
             <title>{dateText(row.time)} · Open {priceText(row.open, currency)} · High {priceText(row.high, currency)} · Low {priceText(row.low, currency)} · Close {priceText(row.close, currency)}</title>
             <line x1={x(row.time)} x2={x(row.time)} y1={y(row.high)} y2={y(row.low)} />
@@ -102,7 +107,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
             <text className="macro-chart-anchor-label" x={x(anchor.time)} y={y(anchor.price) + (anchor.type === 'high' ? -15 : 23)} textAnchor="middle">{'ABC'[index]}</text>
           </g>)}
           {historical.length > 0 && <polyline className="macro-chart-history" points={historical.map((p) => `${x(p.time)},${y(p.price)}`).join(' ')} />}
-          {historical.filter((p) => p.time >= first && p.time <= last).map((p) => <g className="macro-history-anchor" key={p.label}>
+          {historical.filter((p) => p.time >= first && p.time <= last).map((p) => <g className="macro-history-anchor" key={p.label} onClick={() => onSelectAnchor?.(p)}>
             <title>{p.label} · {dateText(p.extreme_time ?? p.time)} · {priceText(p.price, currency)} · Confirmed {dateText(p.confirmed_at)}</title>
             <circle className="macro-chart-anchor" cx={x(p.time)} cy={y(p.price)} r={5} />
             <text className="macro-chart-anchor-label" x={x(p.time)} y={y(p.price) + (p.type === 'high' ? -15 : 23)} textAnchor="middle">{p.label}</text>
@@ -110,7 +115,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
           {nested.length > 0 && <polyline className="macro-chart-nested" points={nested.map((p) => `${x(p.time)},${y(p.price)}`).join(' ')} />}
           {nested.filter((p) => p.time >= first && p.time <= last).map((p) => <text key={p.label} className="macro-nested-label"
             x={x(p.time) + 7} y={y(p.price) + (p.type === 'high' ? -8 : 18)}>{p.label}<title>{p.label} · {dateText(p.extreme_time ?? p.time)} · {priceText(p.price, currency)} · Confirmed {dateText(p.confirmed_at)}</title></text>)}
-          {futurePath && <g className="macro-chart-future">
+          {futurePath && <g className="macro-chart-future" onClick={() => onSelectFuture?.()}>
             <title>Hypothetical E? at {priceText(futurePath.price, currency)} · {futurePath.ratio} of selected macro range · No estimated date or probability</title>
             <line x1={x(latestCandle.time)} y1={y(latestCandle.close)} x2={LEVEL_RIGHT - 22} y2={y(futurePath.price)} />
             <circle cx={LEVEL_RIGHT - 22} cy={y(futurePath.price)} r={5} />
