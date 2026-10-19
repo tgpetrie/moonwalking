@@ -42,14 +42,29 @@ def throttle():
     COUNT += 1
 
 
+def _with_retry(call) -> requests.Response:
+    """Dropped connections, timeouts, 429 and 5xx are retried with backoff (the throttle still applies)."""
+    for wait in (10, 60, 300, None):
+        throttle()
+        try:
+            r = call()
+            if r.status_code != 429 and r.status_code < 500:
+                return r
+            err = f"HTTP {r.status_code}"
+        except (requests.ConnectionError, requests.Timeout) as e:
+            err = repr(e)
+        if wait is None:
+            raise RuntimeError(f"giving up after retries: {err}")
+        print(f"retry in {wait}s: {err}", flush=True)
+        time.sleep(wait)
+
+
 def get(url: str) -> requests.Response:
-    throttle()
-    return requests.get(url, headers={"User-Agent": UA}, timeout=30)
+    return _with_retry(lambda: requests.get(url, headers={"User-Agent": UA}, timeout=30))
 
 
 def post(body: dict) -> requests.Response:
-    throttle()
-    return requests.post(HL, json=body, headers={"User-Agent": UA}, timeout=30)
+    return _with_retry(lambda: requests.post(HL, json=body, headers={"User-Agent": UA}, timeout=30))
 
 
 def binance_symbols(out: Path) -> set[str]:

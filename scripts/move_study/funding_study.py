@@ -46,12 +46,18 @@ def read_csv_any(path: Path, names: list[str]) -> pd.DataFrame:
     return df
 
 
+def to_seconds(ts: pd.Series) -> pd.Series:
+    """Binance archives use milliseconds; some newer files use microseconds."""
+    ts = pd.to_numeric(ts)
+    return np.where(ts > 1e14, ts // 1_000_000, ts // MS)
+
+
 def verify_binance(funding: Path, sym: str, base: str, close: pd.DataFrame) -> dict:
     p = funding / "binance" / f"klines-{sym}.csv"
     if not p.exists():
         return {"verified": False, "reason": "no klines month"}
     k = read_csv_any(p, ["open_time", "open", "high", "low", "close", "volume"])
-    k["day"] = (pd.to_numeric(k["open_time"]) // (DAY * MS)).astype(int)
+    k["day"] = (to_seconds(k["open_time"]) // DAY).astype(int)
     cb = close.get(f"{base}-USD")
     if cb is None:
         return {"verified": False, "reason": "no coinbase series"}
@@ -87,7 +93,7 @@ def binance_day_funding(funding: Path, sym: str, day: int, cache: dict) -> float
         p = funding / "binance" / f"{sym}-{mo}.csv"
         if p.exists():
             f = read_csv_any(p, ["calc_time", "funding_interval_hours", "last_funding_rate"])
-            f["t"] = pd.to_numeric(f["calc_time"]) // MS
+            f["t"] = to_seconds(f["calc_time"])
             f["eq8"] = pd.to_numeric(f["last_funding_rate"]) * 8.0 / pd.to_numeric(f["funding_interval_hours"]).replace(0, np.nan)
             cache[key] = f[["t", "eq8"]].dropna()
         else:
@@ -122,6 +128,8 @@ def main() -> int:
     ap.add_argument("--daily-dir", required=True)
     ap.add_argument("--funding", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--checks-only", action="store_true",
+                    help="identity checks and coverage only; no funding is joined to outcomes")
     args = ap.parse_args()
     funding = Path(args.funding)
     rng = np.random.default_rng(SEED)
@@ -149,6 +157,16 @@ def main() -> int:
     ev["funding"] = np.where(np.isfinite(ev.funding_binance), ev.funding_binance, ev.funding_hl)
     ev["funding_source"] = np.where(np.isfinite(ev.funding_binance), "binance", np.where(np.isfinite(ev.funding_hl), "hyperliquid", None))
     ev["regime"] = [regime(f) for f in ev.funding]
+    if args.checks_only:
+        up = ev[ev.direction == "up"]
+        yr = pd.to_datetime(up.day * DAY, unit="s").dt.year
+        rep = {"identity_checks": {v: {"verified": sum(1 for x in c.values() if x["verified"]),
+                                       "failed": {b: x for b, x in c.items() if not x["verified"]}} for v, c in checks.items()},
+               "up_events_by_year_status": {str(y): g.perp_status.value_counts().to_dict() for y, g in up.groupby(yr)},
+               "up_events_by_regime": up.regime.value_counts(dropna=False).to_dict(),
+               "funding_source": up.funding_source.value_counts(dropna=False).to_dict()}
+        print(json.dumps(rep, indent=1, default=str))
+        return 0
     ev["shock"] = (ev.vol_ratio >= 5) & ((ev.ret1 - ev.btc_ret) >= 0.15)
     ev["thin"] = ev.med20_usd < 1e6
     # Binance monthly archives for the current month are not published yet; keep October 2026 out of F2.
