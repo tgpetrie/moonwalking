@@ -1,0 +1,1210 @@
+{
+ "design": "docs/developer/VOLUME_PROFILE_STUDY.md (preregistered)",
+ "legs": 14352,
+ "liquid_arrivals": 1369338,
+ "first_touches": 104516,
+ "tests": 22,
+ "discovery_survivors": 0,
+ "reaction_sign": "positive = price turned back away from the level",
+ "primary": [
+  {
+   "name": "VP1_poc",
+   "side": "below",
+   "horizon": 1,
+   "metric": "react1",
+   "discovery": {
+    "n_real": 2970,
+    "n_placebo": 23808,
+    "real_mean_pct": 1.29,
+    "placebo_mean_pct": 1.23,
+    "diff_pct": 0.06,
+    "ci95_pct": [
+     -0.14,
+     0.25
+    ],
+    "p_raw": 0.5085,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2036,
+    "n_placebo": 14009,
+    "real_mean_pct": 1.25,
+    "placebo_mean_pct": 1.23,
+    "diff_pct": 0.02,
+    "ci95_pct": [
+     -0.29,
+     0.31
+    ],
+    "p_raw": 0.89,
+    "p_bonferroni": 0.89
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "below",
+   "horizon": 3,
+   "metric": "react3",
+   "discovery": {
+    "n_real": 2969,
+    "n_placebo": 23775,
+    "real_mean_pct": 2.19,
+    "placebo_mean_pct": 1.97,
+    "diff_pct": 0.21,
+    "ci95_pct": [
+     -0.12,
+     0.52
+    ],
+    "p_raw": 0.198,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2029,
+    "n_placebo": 13942,
+    "real_mean_pct": 1.73,
+    "placebo_mean_pct": 1.77,
+    "diff_pct": -0.04,
+    "ci95_pct": [
+     -0.47,
+     0.37
+    ],
+    "p_raw": 0.897,
+    "p_bonferroni": 0.897
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "below",
+   "horizon": 7,
+   "metric": "react7",
+   "discovery": {
+    "n_real": 2959,
+    "n_placebo": 23689,
+    "real_mean_pct": 2.39,
+    "placebo_mean_pct": 1.91,
+    "diff_pct": 0.49,
+    "ci95_pct": [
+     -0.05,
+     1.02
+    ],
+    "p_raw": 0.0755,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2017,
+    "n_placebo": 13802,
+    "real_mean_pct": 1.72,
+    "placebo_mean_pct": 1.64,
+    "diff_pct": 0.09,
+    "ci95_pct": [
+     -0.59,
+     0.71
+    ],
+    "p_raw": 0.7925,
+    "p_bonferroni": 0.7925
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "below",
+   "horizon": 14,
+   "metric": "react14",
+   "discovery": {
+    "n_real": 2945,
+    "n_placebo": 23492,
+    "real_mean_pct": 2.57,
+    "placebo_mean_pct": 1.88,
+    "diff_pct": 0.69,
+    "ci95_pct": [
+     -0.02,
+     1.39
+    ],
+    "p_raw": 0.057,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2003,
+    "n_placebo": 13575,
+    "real_mean_pct": 2.38,
+    "placebo_mean_pct": 2.13,
+    "diff_pct": 0.25,
+    "ci95_pct": [
+     -0.52,
+     0.99
+    ],
+    "p_raw": 0.5585,
+    "p_bonferroni": 0.5585
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "above",
+   "horizon": 1,
+   "metric": "react1",
+   "discovery": {
+    "n_real": 2035,
+    "n_placebo": 7041,
+    "real_mean_pct": 0.03,
+    "placebo_mean_pct": -0.0,
+    "diff_pct": 0.03,
+    "ci95_pct": [
+     -0.12,
+     0.16
+    ],
+    "p_raw": 0.7355,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 1810,
+    "n_placebo": 5125,
+    "real_mean_pct": 0.25,
+    "placebo_mean_pct": 0.21,
+    "diff_pct": 0.04,
+    "ci95_pct": [
+     -0.16,
+     0.24
+    ],
+    "p_raw": 0.747,
+    "p_bonferroni": 0.747
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "above",
+   "horizon": 3,
+   "metric": "react3",
+   "discovery": {
+    "n_real": 2026,
+    "n_placebo": 7018,
+    "real_mean_pct": 0.13,
+    "placebo_mean_pct": 0.14,
+    "diff_pct": -0.02,
+    "ci95_pct": [
+     -0.27,
+     0.22
+    ],
+    "p_raw": 0.8535,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 1788,
+    "n_placebo": 5066,
+    "real_mean_pct": 0.47,
+    "placebo_mean_pct": 0.48,
+    "diff_pct": -0.01,
+    "ci95_pct": [
+     -0.37,
+     0.33
+    ],
+    "p_raw": 0.934,
+    "p_bonferroni": 0.934
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "above",
+   "horizon": 7,
+   "metric": "react7",
+   "discovery": {
+    "n_real": 2010,
+    "n_placebo": 6979,
+    "real_mean_pct": 0.18,
+    "placebo_mean_pct": 0.32,
+    "diff_pct": -0.14,
+    "ci95_pct": [
+     -0.6,
+     0.31
+    ],
+    "p_raw": 0.548,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 1772,
+    "n_placebo": 4968,
+    "real_mean_pct": 0.55,
+    "placebo_mean_pct": 0.52,
+    "diff_pct": 0.03,
+    "ci95_pct": [
+     -0.4,
+     0.44
+    ],
+    "p_raw": 0.8985,
+    "p_bonferroni": 0.8985
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP1_poc",
+   "side": "above",
+   "horizon": 14,
+   "metric": "react14",
+   "discovery": {
+    "n_real": 1952,
+    "n_placebo": 6692,
+    "real_mean_pct": 0.2,
+    "placebo_mean_pct": 0.53,
+    "diff_pct": -0.34,
+    "ci95_pct": [
+     -0.97,
+     0.27
+    ],
+    "p_raw": 0.2655,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 1723,
+    "n_placebo": 4769,
+    "real_mean_pct": 0.73,
+    "placebo_mean_pct": 0.89,
+    "diff_pct": -0.16,
+    "ci95_pct": [
+     -0.81,
+     0.41
+    ],
+    "p_raw": 0.5845,
+    "p_bonferroni": 0.5845
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_vah",
+   "side": "below",
+   "horizon": 1,
+   "metric": "react1",
+   "discovery": {
+    "n_real": 4281,
+    "n_placebo": 23808,
+    "real_mean_pct": 1.18,
+    "placebo_mean_pct": 1.23,
+    "diff_pct": -0.05,
+    "ci95_pct": [
+     -0.22,
+     0.11
+    ],
+    "p_raw": 0.575,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2408,
+    "n_placebo": 14009,
+    "real_mean_pct": 1.18,
+    "placebo_mean_pct": 1.23,
+    "diff_pct": -0.05,
+    "ci95_pct": [
+     -0.27,
+     0.14
+    ],
+    "p_raw": 0.6175,
+    "p_bonferroni": 0.6175
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_val",
+   "side": "above",
+   "horizon": 1,
+   "metric": "react1",
+   "discovery": {
+    "n_real": 2924,
+    "n_placebo": 7041,
+    "real_mean_pct": -0.02,
+    "placebo_mean_pct": -0.0,
+    "diff_pct": -0.02,
+    "ci95_pct": [
+     -0.18,
+     0.11
+    ],
+    "p_raw": 0.7035,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 3049,
+    "n_placebo": 5125,
+    "real_mean_pct": 0.07,
+    "placebo_mean_pct": 0.21,
+    "diff_pct": -0.14,
+    "ci95_pct": [
+     -0.32,
+     0.04
+    ],
+    "p_raw": 0.1135,
+    "p_bonferroni": 0.1135
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_vah",
+   "side": "below",
+   "horizon": 3,
+   "metric": "react3",
+   "discovery": {
+    "n_real": 4277,
+    "n_placebo": 23775,
+    "real_mean_pct": 1.74,
+    "placebo_mean_pct": 1.97,
+    "diff_pct": -0.23,
+    "ci95_pct": [
+     -0.47,
+     0.01
+    ],
+    "p_raw": 0.0605,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2395,
+    "n_placebo": 13942,
+    "real_mean_pct": 1.46,
+    "placebo_mean_pct": 1.77,
+    "diff_pct": -0.31,
+    "ci95_pct": [
+     -0.69,
+     0.08
+    ],
+    "p_raw": 0.1145,
+    "p_bonferroni": 0.1145
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_val",
+   "side": "above",
+   "horizon": 3,
+   "metric": "react3",
+   "discovery": {
+    "n_real": 2916,
+    "n_placebo": 7018,
+    "real_mean_pct": -0.0,
+    "placebo_mean_pct": 0.14,
+    "diff_pct": -0.15,
+    "ci95_pct": [
+     -0.41,
+     0.08
+    ],
+    "p_raw": 0.204,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 3032,
+    "n_placebo": 5066,
+    "real_mean_pct": 0.21,
+    "placebo_mean_pct": 0.48,
+    "diff_pct": -0.27,
+    "ci95_pct": [
+     -0.57,
+     0.02
+    ],
+    "p_raw": 0.063,
+    "p_bonferroni": 0.063
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_vah",
+   "side": "below",
+   "horizon": 7,
+   "metric": "react7",
+   "discovery": {
+    "n_real": 4264,
+    "n_placebo": 23689,
+    "real_mean_pct": 1.65,
+    "placebo_mean_pct": 1.91,
+    "diff_pct": -0.25,
+    "ci95_pct": [
+     -0.61,
+     0.09
+    ],
+    "p_raw": 0.1545,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2373,
+    "n_placebo": 13802,
+    "real_mean_pct": 1.74,
+    "placebo_mean_pct": 1.64,
+    "diff_pct": 0.11,
+    "ci95_pct": [
+     -0.32,
+     0.54
+    ],
+    "p_raw": 0.574,
+    "p_bonferroni": 0.574
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_val",
+   "side": "above",
+   "horizon": 7,
+   "metric": "react7",
+   "discovery": {
+    "n_real": 2904,
+    "n_placebo": 6979,
+    "real_mean_pct": -0.23,
+    "placebo_mean_pct": 0.32,
+    "diff_pct": -0.55,
+    "ci95_pct": [
+     -0.97,
+     -0.14
+    ],
+    "p_raw": 0.0125,
+    "p_bonferroni": 0.275
+   },
+   "test": {
+    "n_real": 3001,
+    "n_placebo": 4968,
+    "real_mean_pct": 0.18,
+    "placebo_mean_pct": 0.52,
+    "diff_pct": -0.34,
+    "ci95_pct": [
+     -0.8,
+     0.09
+    ],
+    "p_raw": 0.1325,
+    "p_bonferroni": 0.1325
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_vah",
+   "side": "below",
+   "horizon": 14,
+   "metric": "react14",
+   "discovery": {
+    "n_real": 4242,
+    "n_placebo": 23492,
+    "real_mean_pct": 1.9,
+    "placebo_mean_pct": 1.88,
+    "diff_pct": 0.03,
+    "ci95_pct": [
+     -0.51,
+     0.52
+    ],
+    "p_raw": 0.906,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 2330,
+    "n_placebo": 13575,
+    "real_mean_pct": 1.97,
+    "placebo_mean_pct": 2.13,
+    "diff_pct": -0.16,
+    "ci95_pct": [
+     -0.67,
+     0.43
+    ],
+    "p_raw": 0.6525,
+    "p_bonferroni": 0.6525
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP2_val",
+   "side": "above",
+   "horizon": 14,
+   "metric": "react14",
+   "discovery": {
+    "n_real": 2857,
+    "n_placebo": 6692,
+    "real_mean_pct": -0.1,
+    "placebo_mean_pct": 0.53,
+    "diff_pct": -0.64,
+    "ci95_pct": [
+     -1.14,
+     -0.14
+    ],
+    "p_raw": 0.014,
+    "p_bonferroni": 0.308
+   },
+   "test": {
+    "n_real": 2965,
+    "n_placebo": 4769,
+    "real_mean_pct": 0.09,
+    "placebo_mean_pct": 0.89,
+    "diff_pct": -0.8,
+    "ci95_pct": [
+     -1.6,
+     -0.16
+    ],
+    "p_raw": 0.0075,
+    "p_bonferroni": 0.0075
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_break",
+   "side": "below",
+   "horizon": 1,
+   "metric": "broke_f",
+   "discovery": {
+    "n_real": 1574,
+    "n_placebo": 8686,
+    "real_mean_pct": 39.33,
+    "placebo_mean_pct": 38.74,
+    "diff_pct": 0.59,
+    "ci95_pct": [
+     -2.86,
+     4.24
+    ],
+    "p_raw": 0.7695,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 973,
+    "n_placebo": 5943,
+    "real_mean_pct": 35.97,
+    "placebo_mean_pct": 35.57,
+    "diff_pct": 0.4,
+    "ci95_pct": [
+     -3.38,
+     4.3
+    ],
+    "p_raw": 0.821,
+    "p_bonferroni": 0.821
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_continuation",
+   "side": "below",
+   "horizon": 1,
+   "metric": "cont1",
+   "discovery": {
+    "n_real": 1573,
+    "n_placebo": 8685,
+    "real_mean_pct": -0.97,
+    "placebo_mean_pct": -1.24,
+    "diff_pct": 0.27,
+    "ci95_pct": [
+     -0.17,
+     0.7
+    ],
+    "p_raw": 0.224,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 973,
+    "n_placebo": 5943,
+    "real_mean_pct": -0.94,
+    "placebo_mean_pct": -1.19,
+    "diff_pct": 0.26,
+    "ci95_pct": [
+     -0.21,
+     0.79
+    ],
+    "p_raw": 0.2905,
+    "p_bonferroni": 0.2905
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_continuation",
+   "side": "below",
+   "horizon": 3,
+   "metric": "cont3",
+   "discovery": {
+    "n_real": 1572,
+    "n_placebo": 8680,
+    "real_mean_pct": -1.61,
+    "placebo_mean_pct": -2.16,
+    "diff_pct": 0.55,
+    "ci95_pct": [
+     -0.12,
+     1.25
+    ],
+    "p_raw": 0.124,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 973,
+    "n_placebo": 5914,
+    "real_mean_pct": -2.59,
+    "placebo_mean_pct": -1.97,
+    "diff_pct": -0.61,
+    "ci95_pct": [
+     -1.36,
+     0.15
+    ],
+    "p_raw": 0.1285,
+    "p_bonferroni": 0.1285
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_break",
+   "side": "above",
+   "horizon": 1,
+   "metric": "broke_f",
+   "discovery": {
+    "n_real": 915,
+    "n_placebo": 5177,
+    "real_mean_pct": 42.62,
+    "placebo_mean_pct": 40.24,
+    "diff_pct": 2.39,
+    "ci95_pct": [
+     -2.46,
+     6.91
+    ],
+    "p_raw": 0.306,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 710,
+    "n_placebo": 4445,
+    "real_mean_pct": 43.1,
+    "placebo_mean_pct": 40.74,
+    "diff_pct": 2.36,
+    "ci95_pct": [
+     -2.59,
+     7.15
+    ],
+    "p_raw": 0.3355,
+    "p_bonferroni": 0.3355
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_continuation",
+   "side": "above",
+   "horizon": 1,
+   "metric": "cont1",
+   "discovery": {
+    "n_real": 915,
+    "n_placebo": 5177,
+    "real_mean_pct": -0.16,
+    "placebo_mean_pct": 0.01,
+    "diff_pct": -0.17,
+    "ci95_pct": [
+     -0.46,
+     0.09
+    ],
+    "p_raw": 0.1815,
+    "p_bonferroni": 1.0
+   },
+   "test": {
+    "n_real": 710,
+    "n_placebo": 4436,
+    "real_mean_pct": -0.23,
+    "placebo_mean_pct": -0.12,
+    "diff_pct": -0.11,
+    "ci95_pct": [
+     -0.47,
+     0.25
+    ],
+    "p_raw": 0.476,
+    "p_bonferroni": 0.476
+   },
+   "replicates": false
+  },
+  {
+   "name": "VP3_continuation",
+   "side": "above",
+   "horizon": 3,
+   "metric": "cont3",
+   "discovery": {
+    "n_real": 907,
+    "n_placebo": 5148,
+    "real_mean_pct": -0.68,
+    "placebo_mean_pct": -0.18,
+    "diff_pct": -0.5,
+    "ci95_pct": [
+     -0.93,
+     -0.06
+    ],
+    "p_raw": 0.0295,
+    "p_bonferroni": 0.649
+   },
+   "test": {
+    "n_real": 704,
+    "n_placebo": 4385,
+    "real_mean_pct": -0.31,
+    "placebo_mean_pct": -0.36,
+    "diff_pct": 0.05,
+    "ci95_pct": [
+     -0.46,
+     0.55
+    ],
+    "p_raw": 0.8495,
+    "p_bonferroni": 0.8495
+   },
+   "replicates": false
+  }
+ ],
+ "secondary": {
+  "poc first touch": {
+   "above": {
+    "n": 3851,
+    "break_rate": 0.411,
+    "react7": {
+     "n": 3809,
+     "mean_pct": 0.33,
+     "median_pct": -0.44
+    },
+    "cont1": {
+     "n": 3850,
+     "mean_pct": -0.13,
+     "median_pct": 0.18
+    }
+   },
+   "below": {
+    "n": 5007,
+    "break_rate": 0.378,
+    "react7": {
+     "n": 4987,
+     "mean_pct": 2.13,
+     "median_pct": 3.14
+    },
+    "cont1": {
+     "n": 5007,
+     "mean_pct": -1.28,
+     "median_pct": -1.15
+    }
+   }
+  },
+  "vah first touch": {
+   "above": {
+    "n": 1426,
+    "break_rate": 0.424,
+    "react7": {
+     "n": 1401,
+     "mean_pct": 0.09,
+     "median_pct": -0.87
+    },
+    "cont1": {
+     "n": 1424,
+     "mean_pct": -0.16,
+     "median_pct": 0.23
+    }
+   },
+   "below": {
+    "n": 6690,
+    "break_rate": 0.384,
+    "react7": {
+     "n": 6652,
+     "mean_pct": 1.69,
+     "median_pct": 3.3
+    },
+    "cont1": {
+     "n": 6690,
+     "mean_pct": -1.18,
+     "median_pct": -1.36
+    }
+   }
+  },
+  "val first touch": {
+   "above": {
+    "n": 5979,
+    "break_rate": 0.395,
+    "react7": {
+     "n": 5926,
+     "mean_pct": -0.03,
+     "median_pct": -0.63
+    },
+    "cont1": {
+     "n": 5977,
+     "mean_pct": -0.03,
+     "median_pct": 0.13
+    }
+   },
+   "below": {
+    "n": 3106,
+    "break_rate": 0.37,
+    "react7": {
+     "n": 3091,
+     "mean_pct": 2.19,
+     "median_pct": 2.99
+    },
+    "cont1": {
+     "n": 3105,
+     "mean_pct": -1.2,
+     "median_pct": -1.16
+    }
+   }
+  },
+  "hvn first touch": {
+   "above": {
+    "n": 9632,
+    "break_rate": 0.405,
+    "react7": {
+     "n": 9498,
+     "mean_pct": 0.24,
+     "median_pct": -0.54
+    },
+    "cont1": {
+     "n": 9621,
+     "mean_pct": -0.05,
+     "median_pct": 0.18
+    }
+   },
+   "below": {
+    "n": 14631,
+    "break_rate": 0.374,
+    "react7": {
+     "n": 14562,
+     "mean_pct": 2.21,
+     "median_pct": 3.29
+    },
+    "cont1": {
+     "n": 14629,
+     "mean_pct": -1.22,
+     "median_pct": -1.18
+    }
+   }
+  },
+  "lvn first touch": {
+   "above": {
+    "n": 1629,
+    "break_rate": 0.427,
+    "react7": {
+     "n": 1598,
+     "mean_pct": 0.78,
+     "median_pct": -0.08
+    },
+    "cont1": {
+     "n": 1628,
+     "mean_pct": -0.19,
+     "median_pct": 0.1
+    }
+   },
+   "below": {
+    "n": 2547,
+    "break_rate": 0.38,
+    "react7": {
+     "n": 2534,
+     "mean_pct": 2.29,
+     "median_pct": 3.05
+    },
+    "cont1": {
+     "n": 2546,
+     "mean_pct": -0.96,
+     "median_pct": -1.06
+    }
+   }
+  },
+  "range_placebo first touch": {
+   "above": {
+    "n": 12188,
+    "break_rate": 0.411,
+    "react7": {
+     "n": 12013,
+     "mean_pct": 0.41,
+     "median_pct": -0.62
+    },
+    "cont1": {
+     "n": 12176,
+     "mean_pct": -0.09,
+     "median_pct": 0.22
+    }
+   },
+   "below": {
+    "n": 37830,
+    "break_rate": 0.378,
+    "react7": {
+     "n": 37606,
+     "mean_pct": 1.82,
+     "median_pct": 3.34
+    },
+    "cont1": {
+     "n": 37825,
+     "mean_pct": -1.23,
+     "median_pct": -1.31
+    }
+   }
+  },
+  "poc retest (2+)": {
+   "above": {
+    "n": 52577,
+    "mean_pct": 0.28,
+    "median_pct": -0.59
+   },
+   "below": {
+    "n": 58758,
+    "mean_pct": 0.99,
+    "median_pct": 2.02
+   }
+  },
+  "vah real by close": {
+   "closed back inside": {
+    "n": 4096,
+    "mean_pct": 1.19,
+    "median_pct": 3.03
+   },
+   "closed beyond": {
+    "n": 2556,
+    "mean_pct": 2.5,
+    "median_pct": 3.8
+   }
+  },
+  "vah placebo by close": {
+   "closed back inside": {
+    "n": 23381,
+    "mean_pct": 1.35,
+    "median_pct": 3.13
+   },
+   "closed beyond": {
+    "n": 14225,
+    "mean_pct": 2.61,
+    "median_pct": 3.73
+   }
+  },
+  "val real by close": {
+   "closed back inside": {
+    "n": 3585,
+    "mean_pct": -0.14,
+    "median_pct": -0.71
+   },
+   "closed beyond": {
+    "n": 2341,
+    "mean_pct": 0.13,
+    "median_pct": -0.38
+   }
+  },
+  "val placebo by close": {
+   "closed back inside": {
+    "n": 7058,
+    "mean_pct": 0.27,
+    "median_pct": -0.76
+   },
+   "closed beyond": {
+    "n": 4955,
+    "mean_pct": 0.61,
+    "median_pct": -0.36
+   }
+  },
+  "poc by arrival type": {
+   "above, grind": {
+    "n": 3772,
+    "mean_pct": 0.34,
+    "median_pct": -0.44
+   },
+   "above, shock": {
+    "n": 37,
+    "mean_pct": 0.19,
+    "median_pct": 2.7
+   },
+   "below, grind": {
+    "n": 3927,
+    "mean_pct": 0.6,
+    "median_pct": 2.22
+   },
+   "below, shock": {
+    "n": 1060,
+    "mean_pct": 7.8,
+    "median_pct": 10.61
+   }
+  },
+  "poc by liquidity": {
+   "above, >=$1M": {
+    "n": 1375,
+    "mean_pct": -0.03,
+    "median_pct": -0.69
+   },
+   "above, <$1M": {
+    "n": 2434,
+    "mean_pct": 0.54,
+    "median_pct": -0.32
+   },
+   "below, >=$1M": {
+    "n": 1486,
+    "mean_pct": 0.47,
+    "median_pct": 1.95
+   },
+   "below, <$1M": {
+    "n": 3501,
+    "mean_pct": 2.84,
+    "median_pct": 3.6
+   }
+  }
+ },
+ "hourly_check": {
+  "legs": 3534,
+  "hourly": {
+   "poc above": {
+    "n": 514,
+    "mean_pct": 0.82,
+    "median_pct": -0.12
+   },
+   "poc below": {
+    "n": 855,
+    "mean_pct": 0.83,
+    "median_pct": 2.01
+   },
+   "range_placebo above": {
+    "n": 1566,
+    "mean_pct": 0.17,
+    "median_pct": -0.48
+   },
+   "range_placebo below": {
+    "n": 6231,
+    "mean_pct": 1.01,
+    "median_pct": 2.36
+   },
+   "vah above": {
+    "n": 194,
+    "mean_pct": -0.67,
+    "median_pct": -0.7
+   },
+   "vah below": {
+    "n": 1095,
+    "mean_pct": 0.99,
+    "median_pct": 2.57
+   },
+   "val above": {
+    "n": 788,
+    "mean_pct": 0.19,
+    "median_pct": -0.48
+   },
+   "val below": {
+    "n": 540,
+    "mean_pct": 0.66,
+    "median_pct": 2.36
+   }
+  },
+  "daily": {
+   "poc above": {
+    "n": 534,
+    "mean_pct": 0.82,
+    "median_pct": -0.29
+   },
+   "poc below": {
+    "n": 854,
+    "mean_pct": 0.66,
+    "median_pct": 1.9
+   },
+   "vah above": {
+    "n": 196,
+    "mean_pct": -0.15,
+    "median_pct": -0.51
+   },
+   "vah below": {
+    "n": 1087,
+    "mean_pct": 1.15,
+    "median_pct": 2.83
+   },
+   "val above": {
+    "n": 775,
+    "mean_pct": 0.26,
+    "median_pct": -0.53
+   },
+   "val below": {
+    "n": 551,
+    "mean_pct": 0.8,
+    "median_pct": 2.42
+   }
+  },
+  "placebo": {
+   "above": {
+    "n": 1566,
+    "mean_pct": 0.17,
+    "median_pct": -0.48
+   },
+   "below": {
+    "n": 6231,
+    "mean_pct": 1.01,
+    "median_pct": 2.36
+   }
+  },
+  "diff_vs_placebo_7d": {
+   "hourly poc below": {
+    "n_real": 855,
+    "n_placebo": 6231,
+    "real_mean_pct": 0.83,
+    "placebo_mean_pct": 1.01,
+    "diff_pct": -0.18,
+    "ci95_pct": [
+     -1.12,
+     0.8
+    ],
+    "p_raw": 0.7045
+   },
+   "hourly poc above": {
+    "n_real": 514,
+    "n_placebo": 1566,
+    "real_mean_pct": 0.82,
+    "placebo_mean_pct": 0.17,
+    "diff_pct": 0.65,
+    "ci95_pct": [
+     -0.34,
+     1.51
+    ],
+    "p_raw": 0.169
+   },
+   "hourly vah below": {
+    "n_real": 1095,
+    "n_placebo": 6231,
+    "real_mean_pct": 0.99,
+    "placebo_mean_pct": 1.01,
+    "diff_pct": -0.02,
+    "ci95_pct": [
+     -0.78,
+     0.75
+    ],
+    "p_raw": 0.96
+   },
+   "hourly val above": {
+    "n_real": 788,
+    "n_placebo": 1566,
+    "real_mean_pct": 0.19,
+    "placebo_mean_pct": 0.17,
+    "diff_pct": 0.02,
+    "ci95_pct": [
+     -0.92,
+     0.85
+    ],
+    "p_raw": 0.981
+   },
+   "daily poc below": {
+    "n_real": 854,
+    "n_placebo": 6231,
+    "real_mean_pct": 0.66,
+    "placebo_mean_pct": 1.01,
+    "diff_pct": -0.35,
+    "ci95_pct": [
+     -1.24,
+     0.45
+    ],
+    "p_raw": 0.3985
+   },
+   "daily poc above": {
+    "n_real": 534,
+    "n_placebo": 1566,
+    "real_mean_pct": 0.82,
+    "placebo_mean_pct": 0.17,
+    "diff_pct": 0.65,
+    "ci95_pct": [
+     -0.16,
+     1.37
+    ],
+    "p_raw": 0.1145
+   },
+   "daily vah below": {
+    "n_real": 1087,
+    "n_placebo": 6231,
+    "real_mean_pct": 1.15,
+    "placebo_mean_pct": 1.01,
+    "diff_pct": 0.14,
+    "ci95_pct": [
+     -0.6,
+     0.87
+    ],
+    "p_raw": 0.695
+   },
+   "daily val above": {
+    "n_real": 775,
+    "n_placebo": 1566,
+    "real_mean_pct": 0.26,
+    "placebo_mean_pct": 0.17,
+    "diff_pct": 0.1,
+    "ci95_pct": [
+     -0.97,
+     0.99
+    ],
+    "p_raw": 0.884
+   }
+  }
+ }
+}

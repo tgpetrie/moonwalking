@@ -166,6 +166,30 @@ def describe(x: pd.DataFrame, col: str) -> dict:
             "median_pct": round(float(v.median()) * 100, 2) if len(v) else None}
 
 
+def attach_outcomes(ar: pd.DataFrame, frames: dict, days: np.ndarray) -> pd.DataFrame:
+    """Reaction, level-entry reaction, break and arrival conditions; keeps liquid arrival days only."""
+    close = frames["close"]
+    pos = {p: i for i, p in enumerate(close.columns)}
+    di = (ar.day.values - days[0]).astype(int)
+    ci = ar["product"].map(pos).values
+    get = lambda frame: frame.values[di, ci]
+    ar["liquid"] = get(frames["liquid"]).astype(bool)
+    ar["med20"] = get(frames["med20"])
+    ar["vol_ratio"] = get(frames["vol_ratio"])
+    ar["ret1"] = get(frames["ret1"])
+    ar["btc"] = frames["btc_ret"].values[di]
+    c_t = get(close)
+    sign = np.where(ar.side == "below", -1.0, 1.0)
+    for k in HORIZONS:
+        ar[f"react{k}"] = sign * get(frames["fwd_vm"][k])
+        fut = close.shift(-k).values[di, ci]
+        ar[f"react_lvl{k}"] = sign * (fut / ar.level.values - 1 - get(frames["peer"][k]))
+    ar["broke"] = np.where(ar.side == "below", c_t > ar.level, c_t < ar.level)
+    ar["shock"] = np.where(ar.side == "below", (ar.ret1 >= 0.10) & (ar.vol_ratio >= 5) & (ar.ret1 - ar.btc >= 0.15),
+                           (ar.ret1 <= -0.10) & (ar.vol_ratio >= 5) & (ar.btc - ar.ret1 >= 0.15))
+    return ar[ar.liquid].copy()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--daily-dir", required=True)
@@ -191,26 +215,7 @@ def main() -> int:
         rows += arrivals_for(product, levels, days, high[product].values, low[product].values)
     ar = pd.DataFrame(rows)
 
-    # outcomes and conditions
-    pos = {p: i for i, p in enumerate(close.columns)}
-    di = (ar.day.values - days[0]).astype(int)
-    ci = ar["product"].map(pos).values
-    get = lambda frame: frame.values[di, ci]
-    ar["liquid"] = get(frames["liquid"]).astype(bool)
-    ar["med20"] = get(frames["med20"])
-    ar["vol_ratio"] = get(frames["vol_ratio"])
-    ar["ret1"] = get(frames["ret1"])
-    ar["btc"] = frames["btc_ret"].values[di]
-    c_t = get(close)
-    sign = np.where(ar.side == "below", -1.0, 1.0)
-    for k in HORIZONS:
-        ar[f"react{k}"] = sign * get(frames["fwd_vm"][k])
-        fut = close.shift(-k).values[di, ci]
-        ar[f"react_lvl{k}"] = sign * (fut / ar.level.values - 1 - get(frames["peer"][k]))
-    ar["broke"] = np.where(ar.side == "below", c_t > ar.level, c_t < ar.level)
-    ar["shock"] = np.where(ar.side == "below", (ar.ret1 >= 0.10) & (ar.vol_ratio >= 5) & (ar.ret1 - ar.btc >= 0.15),
-                           (ar.ret1 <= -0.10) & (ar.vol_ratio >= 5) & (ar.btc - ar.ret1 >= 0.15))
-    ar = ar[ar.liquid].copy()
+    ar = attach_outcomes(ar, frames, days)
 
     split = day_of(SPLIT)
     periods = {"discovery": (int(days[0]), split - 1), "test": (split, int(days[-1]))}

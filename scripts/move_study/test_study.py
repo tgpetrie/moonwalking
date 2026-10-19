@@ -91,3 +91,42 @@ def test_macro_versions_use_only_confirmed_pivots_in_order():
     v = ls.macro_versions(piv)
     assert [(x["high"], x["low"], x["from"]) for x in v] == [(10.0, 2.0, 64), (10.0, 1.0, 104)]
     assert v[0]["until"] == 104
+
+
+# ---- volume profile study ------------------------------------------------
+
+import volume_profile_study as vp  # noqa: E402
+
+
+def test_causal_legs_keep_the_leg_as_first_drawn():
+    piv = [{"type": "low", "price": 1.0, "week": 0, "confirmed": 21},
+           {"type": "high", "price": 2.0, "week": 28, "confirmed": 49},
+           {"type": "high", "price": 3.0, "week": 56, "confirmed": 77}]   # more extreme high replaces the last
+    legs = vp.causal_legs(piv)
+    assert [(l["low"], l["high"], l["from"]) for l in legs] == [(1.0, 2.0, 49), (1.0, 3.0, 77)]
+    assert all(l["direction"] == "up" for l in legs)
+    # a less extreme same-type pivot changes nothing
+    assert len(vp.causal_legs(piv + [{"type": "high", "price": 2.5, "week": 84, "confirmed": 105}])) == 2
+
+
+def test_profile_conserves_volume_inside_the_range_and_drops_outside():
+    prof = vp.build_profile(np.array([1.0, 1.5]), np.array([2.0, 2.5]), np.array([100.0, 100.0]), 1.0, 2.0, bins=10)
+    assert abs(prof.sum() - 150.0) < 1e-9          # first bar fully inside, half of the second
+    assert abs(prof[0] - 10.0) < 1e-9 and abs(prof[9] - 20.0) < 1e-9
+
+
+def test_value_area_and_poc():
+    prof = np.array([1, 1, 2, 10, 30, 20, 5, 1, 1, 1], float)
+    assert vp.poc_index(prof) == 4
+    lo, hi = vp.value_area(prof, 0.70)
+    assert (lo, hi) == (3, 5)                      # 30 + 20 + 10 = 60 of 72 = 83% >= 70%
+
+
+def test_nodes_hvn_and_lvn_need_interior_and_flanks():
+    prof = np.linspace(1.0, 2.0, 100)  # no ties, so percentiles bite
+    prof[20:25] = 50.0   # high-volume run
+    prof[60:63] = 40.0   # second high-volume run
+    prof[40:43] = 0.1    # valley between them
+    hvn, lvn = vp.nodes(prof)
+    assert 22.0 in hvn and 61.0 in hvn
+    assert 41.0 in lvn

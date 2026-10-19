@@ -152,3 +152,7 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
   probabilities, targets or dates.
 - The cause categories from the Gemini table should not be shown: the split
   disappears once only same-day sources count.
+- **Volume profile (`VOLUME_PROFILE_STUDY.md`, preregistered):** POC, VAH,
+  VAL and high/low-volume nodes on confirmed swings also behave like placebo
+  lines (0 of 22 tests), including with hourly-built profiles. Do not label
+  them support, resistance, magnets or highways.
