@@ -92,8 +92,8 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
           {visiblePivots.map((pivot) => <circle className="macro-chart-pivot" key={pivot.id} cx={x(pivot.time)} cy={y(pivot.price)} r={3}>
             <title>{pivot.type} {dateText(pivot.extreme_time ?? pivot.time)} · Confirmed {dateText(pivot.confirmed_at)}</title>
           </circle>)}
-          {referenceLevels.map((p, i) => <g className="macro-chart-reference" key={p.label}>
-            <line x1={Math.max(LEFT, x(p.time))} x2={LEVEL_RIGHT} y1={y(p.price)} y2={y(p.price)} />
+          {referenceLevels.filter((p) => (p.extreme_time ?? p.time) <= last).map((p, i) => <g className="macro-chart-reference" key={p.label}>
+            <line x1={Math.max(LEFT, x(p.extreme_time ?? p.time))} x2={LEVEL_RIGHT} y1={y(p.price)} y2={y(p.price)} />
             <text className="macro-chart-level-label" x={HISTORY_RIGHT + 5} y={y(p.price) + (i ? -7 : 15)}>{p.label} {priceText(p.price, currency)}</text>
           </g>)}
           {valid && !historical.length && <polyline className="macro-chart-anchors" points={scenario.anchors.map((anchor) => `${x(anchor.time)},${y(anchor.price)}`).join(' ')} />}

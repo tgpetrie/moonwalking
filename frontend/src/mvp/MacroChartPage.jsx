@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { UiButton, UiCard, UiChip, UiField } from '../components/ui/DesignSystem.jsx';
 import MacroPriceChart from '../components/charts/MacroPriceChart.jsx';
 import ChartCoinSearch from './ChartCoinSearch.jsx';
+import ChartTimingPanel from './ChartTimingPanel.jsx';
 import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
 import { defaultMacroAnchors, highComparison, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
 import '../styles/macro-chart.css';
@@ -15,8 +16,12 @@ function ChartWorkspace({ history }) {
   const [timeframe, setTimeframe] = useState('1w');
   const [date, setDate] = useState(dateText(history.captured_at - 1));
   const [confirmation, setConfirmation] = useState(2);
+  const [focusRange, setFocusRange] = useState(null);
   const cutoff = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000) + DAY;
   const chart = useMemo(() => chartAt(history, timeframe, Number.isFinite(cutoff) ? cutoff : 0), [history, timeframe, cutoff]);
+  const daily = useMemo(() => chartAt(history, '1d', chart.as_of).candles, [history, chart.as_of]);
+  const displayChart = useMemo(() => focusRange ? chartAt(history, focusRange.interval, chart.as_of) : chart,
+    [history, focusRange?.interval, chart]);
   const detected = useMemo(() => confirmedPivots(chart.candles, {
     left: confirmation, right: confirmation, interval: chart.interval_seconds,
   }), [chart, confirmation]);
@@ -25,13 +30,13 @@ function ChartWorkspace({ history }) {
     <UiCard className="macro-controls">
       <div className="macro-segment" role="group" aria-label="Candle interval">
         {['1w', '1d'].map((value) => <UiButton key={value} size="sm" aria-pressed={timeframe === value}
-          variant={timeframe === value ? 'primary' : 'secondary'} onClick={() => setTimeframe(value)}>{value === '1w' ? 'Weekly' : 'Daily'}</UiButton>)}
+          variant={timeframe === value ? 'primary' : 'secondary'} onClick={() => { setFocusRange(null); setTimeframe(value); }}>{value === '1w' ? 'Weekly' : 'Daily'}</UiButton>)}
       </div>
       <UiField type="date" label="Replay through (UTC)" value={date} min={dateText(history.candles[0].time)}
-        max={dateText(history.captured_at)} onInput={(event) => setDate(event.currentTarget.value)}
-        onChange={(event) => setDate(event.target.value)} />
+        max={dateText(history.captured_at)} onInput={(event) => { setFocusRange(null); setDate(event.currentTarget.value); }}
+        onChange={(event) => { setFocusRange(null); setDate(event.target.value); }} />
       <label className="macro-select">Swing confirmation
-        <select value={confirmation} onChange={(event) => setConfirmation(Number(event.target.value))}>
+        <select value={confirmation} onChange={(event) => { setFocusRange(null); setConfirmation(Number(event.target.value)); }}>
           {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} completed bars each side</option>)}
         </select>
       </label>
@@ -42,11 +47,17 @@ function ChartWorkspace({ history }) {
       <span>{chart.missing_days} missing daily intervals · {chart.excluded_weeks} incomplete weeks excluded</span>
     </div>
     {detected.ambiguous > 0 && <p className="macro-muted">{detected.ambiguous} candles were both a local high and low. Their swing order is ambiguous and they were excluded.</p>}
-    <ScenarioWorkspace key={`${timeframe}-${date}-${confirmation}`} chart={chart} pivots={detected.pivots} instrument={instrument} />
+    <ScenarioWorkspace key={`${timeframe}-${date}-${confirmation}`} chart={chart} pivots={detected.pivots} instrument={instrument}
+      dailyCandles={daily} displayChart={displayChart} focusRange={focusRange}
+      onResetFocus={() => setFocusRange(null)} onInspect={(start, end) => {
+        setFocusRange({ start, end, interval: end - start > 360 * DAY ? '1w' : '1d' });
+      }} />
   </>;
 }
 
-function ScenarioWorkspace({ chart, pivots, instrument }) {
+function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, displayChart, focusRange, onInspect, onResetFocus }) {
+  const plotRef = useRef(null);
+  const wasFocused = useRef(false);
   const [scale, setScale] = useState('log');
   const [anchorIds, setAnchorIds] = useState(() => defaultAnchors(pivots));
   const [macroIds, setMacroIds] = useState(() => defaultMacroAnchors(pivots));
@@ -56,10 +67,29 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
   const [showRecent, setShowRecent] = useState(false);
   const [showLocal, setShowLocal] = useState(false);
   const [futureRatio, setFutureRatio] = useState(0.786);
-  const [count, setCount] = useState(Math.min(chart.interval_seconds === 7 * DAY ? 400 : 160, Math.max(20, chart.candles.length)));
+  const [count, setCount] = useState(Math.min(displayChart.interval_seconds === 7 * DAY ? 400 : 160, Math.max(20, displayChart.candles.length)));
   const [offset, setOffset] = useState(0);
-  const end = chart.candles.length - offset;
-  const displayed = chart.candles.slice(Math.max(0, end - count), end);
+  useEffect(() => {
+    if (!focusRange || !displayChart.candles.length) {
+      if (wasFocused.current) {
+        setOffset(0); setCount(Math.min(400, displayChart.candles.length));
+        setShowMacro(true); setShowHistory(true);
+      }
+      wasFocused.current = false;
+      return;
+    }
+    wasFocused.current = true;
+    const match = displayChart.candles.findIndex((c) => c.end > focusRange.start);
+    const first = Math.max(0, (match < 0 ? displayChart.candles.length - 20 : match) - 3);
+    const after = displayChart.candles.findIndex((c) => c.time > focusRange.end);
+    const endIndex = Math.min(displayChart.candles.length, (after < 0 ? displayChart.candles.length : after) + 3);
+    setCount(Math.min(400, Math.max(20, endIndex - first)));
+    setOffset(Math.max(0, displayChart.candles.length - endIndex));
+    setShowMacro(false); setShowHistory(false); setShowFuture(false); setShowRecent(false); setShowLocal(false);
+    plotRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [focusRange, displayChart.candles]);
+  const end = displayChart.candles.length - offset;
+  const displayed = displayChart.candles.slice(Math.max(0, end - count), end);
   const anchors = anchorIds.map((id) => pivots.find((pivot) => pivot.id === id));
   const scenario = fibScenario(anchors, chart.candles);
   const macroAnchors = macroIds.map((id) => pivots.find((p) => p.id === id));
@@ -89,6 +119,7 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
     </div>
     <UiCard className="macro-reading" tone="subtle"><span className="macro-label">Your price map</span><h2>What the history shows</h2>
       <p>The letters mark earlier turning points. The levels below measure past moves and possible recoveries. They explain where the numbers come from; they do not establish where price will go next.</p>
+      <a className="macro-timing-link" href="#macro-timing">Explore date ranges, move durations and reactions below the chart</a>
       <div className="macro-scenario-grid">
         <div><h3>Levels already seen</h3>{recentLevels.length ? recentLevels.map((p) => <p key={p.type}><strong>{p.label}: {format(p.price)}</strong> · {dateText(p.extreme_time ?? p.time)}</p>) : <p>More completed candles are needed to confirm turning points.</p>}<small>Previous turning points, not guaranteed support or resistance.</small></div>
         <div><h3>Possible recovery</h3>{macro.error ? <p>No confirmed large decline is available to measure yet.</p> : <><strong>{format(macro.recovery_band[0])}–{format(macro.recovery_band[1])}</strong><p>This would recover half to roughly three quarters of the measured fall from {format(macro.anchors[0].price)} to {format(macro.anchors[1].price)}. Use “Show future scenario” to explore it.</p><small>The lower edge is {Math.abs((macro.recovery_band[0] / chart.candles.at(-1).close - 1) * 100).toLocaleString('en-US', { maximumFractionDigits: 1 })}% {macro.recovery_band[0] >= chart.candles.at(-1).close ? 'above' : 'below'} the last completed close. This is a measured reference, not an expected return.</small></>}</div>
@@ -105,7 +136,7 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
     </UiCard>
     <UiCard className="macro-range-panel">
       <div className="macro-range-header"><div><span className="macro-label">Historical drawdown reference</span><h2>Macro price range</h2></div>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showMacro} onChange={(event) => setShowMacro(event.target.checked)} />Show macro band</label></div>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showMacro} disabled={!!focusRange} onChange={(event) => setShowMacro(event.target.checked)} />Show macro band</label></div>
       <details className="macro-advanced"><summary>Adjust historical anchors</summary><div className="macro-range-grid">
         {['High', 'Low'].map((name, index) => <label className="macro-select" key={name}>{name} · Confirmed swing
           <select aria-label={`Macro ${name.toLowerCase()}`} value={macroIds[index]} onChange={(event) => setMacroIds((current) => current.map((id, i) => i === index ? event.target.value : id))}>
@@ -123,9 +154,9 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
         <p>Default: highest confirmed high, then the lowest confirmed low after it. Linear-price Fibonacci levels describe this selected range; they do not establish a wave count or a likely destination.</p></div>
       </details>
       <div className="macro-structure-controls">
-        <label className="macro-range-toggle"><input type="checkbox" checked={showHistory} onChange={(event) => setShowHistory(event.target.checked)} />Show historical A–D</label>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showRecent} onChange={(event) => setShowRecent(event.target.checked)} />Show smaller a–d</label>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showFuture} disabled={!!macro.error} onChange={(event) => setShowFuture(event.target.checked)} />Show future scenario</label>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showHistory} disabled={!!focusRange} onChange={(event) => setShowHistory(event.target.checked)} />Show historical A–D</label>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showRecent} disabled={!!focusRange} onChange={(event) => setShowRecent(event.target.checked)} />Show smaller a–d</label>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showFuture} disabled={!!macro.error || !!focusRange} onChange={(event) => setShowFuture(event.target.checked)} />Show future scenario</label>
         {showFuture && futureLevel && <label className="macro-select">Future E? reference
           <select aria-label="Future reference level" value={futureRatio} onChange={(event) => setFutureRatio(Number(event.target.value))}>
             {[0.5, 0.618, 0.786, 1, 1.618].map((r) => <option key={r} value={r}>{r === 1.618 ? '1.618× extension' : `${(r * 100).toFixed(1)}% recovery`} · {format(macro.levels.find((p) => p.ratio === r).price)}</option>)}
@@ -139,7 +170,7 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
       {showFuture && futureLevel && <p className="macro-future-note">E? is a hypothetical price reference at {format(futureLevel.price)}, drawn from the last completed close when that candle is visible. Its horizontal position does not estimate a date or probability.</p>}
       {showRecent && <p>Small letters restart for the latest four alternating turns inside the larger move. They are a separate scale, not proof of a repeating pattern. Chart angles change with zoom; matching patterns would need comparisons of percentage moves and time.</p>}
     </UiCard>
-    <div className="macro-workspace">
+    <div className="macro-workspace" ref={plotRef}>
       <UiCard className="macro-chart-panel" padding="none">
         <div className="macro-chart-heading"><div><span className="macro-label">{instrument.symbol} / {instrument.quote_currency}</span><h2>The larger move</h2></div>
           <UiChip tone={showLocal && valid && scenario.status === 'invalidated' ? 'danger' : 'neutral'}>{showLocal && valid ? STATUS[scenario.status] : 'Historical structure'}</UiChip></div>
@@ -147,23 +178,24 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
           historical={showHistory ? structure.anchors : []} future={showFuture ? futureLevel : null}
           nested={showRecent ? recentStructure : []}
           latestCandle={chart.candles.at(-1)}
-          currency={instrument.quote_currency} interval={chart.interval_seconds} scale={scale} />
+          currency={instrument.quote_currency} interval={displayChart.interval_seconds} scale={scale} />
+        {focusRange && <p className="macro-focus-note">Focused on {dateText(focusRange.start)}–{dateText(focusRange.end)} UTC, with surrounding {displayChart.interval_seconds === DAY ? 'daily' : 'weekly'} candles, up to 400 at once. Replay cutoff unchanged; the original analysis and selected levels are unchanged. Large overlays are hidden for inspection. Use Fit history to return.</p>}
         <div className="macro-chart-navigation">
           <label className="macro-select">Price display
             <select aria-label="Price display" value={scale} onChange={(event) => setScale(event.target.value)}>
               <option value="log">Logarithmic</option><option value="linear">Linear</option>
             </select>
           </label>
-          <UiButton size="sm" disabled={end <= Math.min(count, chart.candles.length)} onClick={() => setOffset(Math.min(chart.candles.length - count, offset + Math.ceil(count / 3)))}>Earlier</UiButton>
+          <UiButton size="sm" disabled={end <= Math.min(count, displayChart.candles.length)} onClick={() => setOffset(Math.min(displayChart.candles.length - count, offset + Math.ceil(count / 3)))}>Earlier</UiButton>
           <UiButton size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - Math.ceil(count / 3)))}>Later</UiButton>
-          <UiButton size="sm" onClick={() => { setOffset(0); setCount(Math.min(400, chart.candles.length)); }}>Fit history</UiButton>
-          {chart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, chart.candles.length)} value={Math.min(count, chart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
+          <UiButton size="sm" onClick={() => { onResetFocus(); setOffset(0); setCount(Math.min(400, chart.candles.length)); if (focusRange) { setShowMacro(true); setShowHistory(true); } }}>Fit history</UiButton>
+          {displayChart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, displayChart.candles.length)} value={Math.min(count, displayChart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
         <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>Dashed horizontals: Fibonacci levels</span>{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <details className="macro-advanced"><summary>Optional: measure a smaller move</summary>
-        <label className="macro-range-toggle"><input type="checkbox" checked={showLocal} onChange={(event) => setShowLocal(event.target.checked)} />Show local measurement</label>
+        <label className="macro-range-toggle"><input type="checkbox" checked={showLocal} disabled={!!focusRange} onChange={(event) => setShowLocal(event.target.checked)} />Show local measurement</label>
         <span className="macro-label">Local measurement</span><h2>Three swing anchors</h2>
         <p>A → B defines the measured move. C defines the pullback or rebound.</p>
         {'ABC'.split('').map((letter, index) => <label className="macro-select" key={letter}>{letter} · {['Move starts', 'Move ends', 'Correction ends'][index]}
@@ -178,6 +210,8 @@ function ScenarioWorkspace({ chart, pivots, instrument }) {
         </details>
       </UiCard>
     </div>
+    <ChartTimingPanel macroAnchors={structure.anchors} recentAnchors={recentStructure} levels={recentLevels}
+      dailyCandles={dailyCandles} asOf={chart.as_of} currency={instrument.quote_currency} onFocus={onInspect} />
     <details className="macro-advanced"><summary>Details of the local measurement</summary>{valid ? <div className="macro-scenario-grid">
       <UiCard><span className="macro-label">Pullback reference · 38.2–61.8%</span><h2>{format(scenario.pullback_zone[0])}–{format(scenario.pullback_zone[1])}</h2><p>Measured within A → B. C retraced {(scenario.retracement * 100).toFixed(1)}% of that move.</p></UiCard>
       <UiCard><span className="macro-label">{scenario.direction === 'up' ? 'Upside' : 'Downside'} extension · 1–1.618×</span><h2>{format(scenario.target_zone[0])}–{format(scenario.target_zone[1])}</h2><p>Projected from C using the length of A → B. A price scenario, with no forecast date or measured success rate.</p></UiCard>

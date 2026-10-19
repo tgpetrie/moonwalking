@@ -105,6 +105,17 @@ secrets, downloaded prices, dependencies or generated build output are staged.
 
 ## Remaining implementation sequence toward entering any coin
 
+Timing-context slice: the reading now links to dated macro/recent-leg durations
+and post-confirmation daily reactions around recent levels. The band width is
+explicit (±0.5/1/2%); records show dates, touching-candle counts, the next daily
+candle and a seven-day close comparison or review checkpoint. Missing daily
+data is reported, never filled. Range buttons focus the chart without changing
+analysis, anchors or replay cutoff; Fit history returns to the full view.
+See [calculation definitions and real-data evidence](CHART_TIMING_CONTEXT_2026-10-18.md).
+Final checks: **538 tests in 45 files**, tokens/build, guardrails and whitespace
+pass. Both real snapshots pass 397 cutoff audits (764 level checks). Future
+price-arrival windows remain uncalibrated; no forecast dates were invented.
+
 Automatic-search slice: `/chart-map` now searches real Coinbase USD products
 and loads daily history itself. AMP was tested end to end in the browser;
 uploads and anchor choices are no longer required. The page explains recent

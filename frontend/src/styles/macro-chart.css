@@ -95,6 +95,20 @@
 .macro-reading small { display: block; margin-top: var(--space-2); }
 .macro-high-explanation { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-default); }
 .macro-cycle-note { margin-top: var(--space-4) !important; }
+.macro-timing-link { display: inline-block; color: var(--accent-primary); font-size: var(--text-xs); margin-top: var(--space-3); }
+.macro-timing-panel { display: grid; gap: var(--space-4); scroll-margin-top: var(--space-5); }
+.macro-timing-panel h3 { font-size: var(--text-sm); margin: 0 0 var(--space-3); }
+.macro-timing-moves, .macro-timing-reactions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+.macro-timing-leg { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-default); }
+.macro-timing-leg strong, .macro-timing-event strong { font-size: var(--text-xs); font-family: var(--font-numeric); }
+.macro-timing-leg button { flex-shrink: 0; }
+.macro-timing-panel small { display: block; font-size: var(--text-2xs); color: var(--text-muted); line-height: var(--leading-body); }
+.macro-timing-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+.macro-timing-level, .macro-timing-event { display: grid; align-content: start; gap: var(--space-3); min-width: 0; }
+.macro-timing-event { border-top: 1px solid var(--border-default); padding-top: var(--space-4); }
+.macro-timing-event button { justify-self: start; }
+.macro-page .macro-focus-note { padding: var(--space-3) var(--space-5); font-size: var(--text-xs); }
+@media (max-width: 680px) { .macro-timing-moves, .macro-timing-reactions { grid-template-columns: minmax(0, 1fr); } .macro-timing-leg { align-items: start; flex-wrap: wrap; } }
 .macro-chart-nested { fill: none; stroke: var(--text-primary); stroke-width: 1.5; opacity: 0.7; }
 .macro-nested-label { fill: var(--text-primary); font-family: var(--font-sans); font-size: 11px; }
 .macro-advanced summary { cursor: pointer; color: var(--text-muted); font-size: var(--text-sm); font-weight: var(--weight-semibold); padding: var(--space-3) 0; }
