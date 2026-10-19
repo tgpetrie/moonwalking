@@ -9,6 +9,10 @@ archive were read from copies; no original script or store was changed.
 Reviewed against your branch `codex/macro-chart-20261018` at `fb59304`
 (next-run map, local narration, AMP worker).
 
+Gemini's separate "master handoff" (six local agents, sentiment
+architecture, research record) is checked line by line in
+`MASTER_HANDOFF_REVIEW_2026-10-19.md`. Use that file, not Gemini's text.
+
 ## 1. What Claude built
 
 | Area | Files | State |
