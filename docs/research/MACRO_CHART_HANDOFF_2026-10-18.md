@@ -222,3 +222,18 @@ The local installed Ollama status command reported upgrade in progress.
 Checks: full frontend verify 541 tests/build/token sync passed; final interaction/copy
 edits followed by 18 relevant tests and build passed; 4 offline CLI tests and real
 FET packet smoke passed; guardrails/diff check passed. No production change.
+
+## Continuous local worker (AMP)
+
+User chose AMP for the scheduled pilot. scripts/chart_worker.py now fetches daily
+history and saves deterministic evidence in its own ignored cache. Current-user
+Windows task Moonwalking-Chart-AMP-USD is installed hourly plus sign-in and tested
+successfully (exit0). /chart-map?worker=1 shows local status and explicit checksum-
+validated Open worker chart. No background run replaces the user's active chart.
+
+Claude and Gemini reviewed the reliability/freshness brief; local Codex agents built
+status UI and offline tests. No local LLM narration yet. See
+CONTINUOUS_CHART_WORKER_2026-10-18.md for ownership, schedule, stop command, limitations
+and checks: 549 frontend tests/build/token sync,18 worker tests,4 packet tests passed.
+No production or other worktree integration. Scheduled task reads this checkout;
+preserve it or remove the task before moving/removing the worktree.

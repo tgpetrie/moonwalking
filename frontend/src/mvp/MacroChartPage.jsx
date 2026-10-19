@@ -4,6 +4,7 @@ import MacroPriceChart from '../components/charts/MacroPriceChart.jsx';
 import ChartCoinSearch from './ChartCoinSearch.jsx';
 import ChartTimingPanel from './ChartTimingPanel.jsx';
 import ChartLevelGuide, { guideEvidence } from './ChartLevelGuide.jsx';
+import ChartWorkerStatus from './ChartWorkerStatus.jsx';
 import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
 import { defaultMacroAnchors, highComparison, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
 import '../styles/macro-chart.css';
@@ -260,9 +261,10 @@ export default function MacroChartPage({ initialHistory = null, historyClient })
     }
   };
   return <div className="macro-page mw-app">
-    <nav className="macro-topbar" aria-label="Chart navigation"><a href="/">BHABIT / Moonwalking</a><a href="/design-system">Design system</a></nav>
+    <nav className="macro-topbar" aria-label="Chart navigation"><a href="/">BHABIT / Moonwalking</a>{import.meta.env.DEV && <a href="/chart-map?worker=1">Local worker</a>}<a href="/design-system">Design system</a></nav>
     <main className="macro-main">
       <header className="macro-intro"><div><p className="mw-eyebrow">Long-term chart map</p><h1>Read the larger move.</h1><p>Historical turning points, measured pullbacks, and conditional price zones.</p></div><UiChip tone="accent">Research preview</UiChip></header>
+      {import.meta.env.DEV && new URLSearchParams(window.location.search).get('worker') === '1' && <ChartWorkerStatus onHistory={(next) => { loadId.current += 1; setLoading(false); setHistory(next); setRevision((r) => r + 1); setError(''); }} />}
       <ChartCoinSearch client={historyClient} hasHistory={!!history} onBusyChange={setRemoteBusy} onBegin={() => { loadId.current += 1; setLoading(false); setError(''); }}
         onHistory={(next) => { setHistory(next); setRevision((r) => r + 1); setError(''); }} />
       {history && <div className="macro-loaded"><strong>{history.instrument.symbol} history loaded</strong><span>{history.instrument.venue} · Daily history through {dateText(history.captured_at - 1)} UTC</span></div>}
