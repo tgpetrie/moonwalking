@@ -92,7 +92,7 @@ def load_daily_dir(folder: Path, first_day: str, last_day: str) -> pd.DataFrame:
     return d
 
 
-def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
+def build_panel(d: pd.DataFrame, frames: dict | None = None) -> tuple[pd.DataFrame, np.ndarray, dict]:
     days = np.arange(int(d.day.min()), int(d.day.max()) + 1)
     close = d.pivot(index="day", columns="product_id", values="close").reindex(days)
     high = d.pivot(index="day", columns="product_id", values="high").reindex(days)
@@ -110,7 +110,7 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
     vol20 = ret1.shift(1).rolling(20, min_periods=15).std()
     vol_q = np.floor(vol20.where(liquid).rank(axis=1, pct=True).clip(upper=0.9999) * 5)
 
-    fwd, fwd_vm, fwd_abs, baseline = {}, {}, {}, {}
+    fwd, fwd_vm, fwd_abs, baseline, peer = {}, {}, {}, {}, {}
     for k in HORIZONS:
         raw = close.shift(-k) / close - 1
         lo, hi = raw.where(liquid).stack().quantile([0.01, 0.99])
@@ -126,6 +126,7 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
             avg = raw.where(cell & liquid).mean(axis=1)
             matched = matched.where(~cell, pd.DataFrame(np.tile(avg.values[:, None], (1, raw.shape[1])), index=raw.index, columns=raw.columns))
         fwd_vm[k] = raw - matched
+        peer[k] = matched
 
     feat = {
         "vol_ratio": usd / med20,
@@ -162,6 +163,9 @@ def build_panel(d: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray, dict]:
             rows.append(rec)
     ev = pd.DataFrame(rows)
     ev["closed_at_extreme"] = np.where(ev.direction == "up", ev.range_pos >= 0.75, ev.range_pos <= 0.25)
+    if frames is not None:  # panel frames for other studies (level_study.py)
+        frames.update(close=close, high=high, low=low, liquid=liquid, med20=med20, vol_ratio=usd / med20,
+                      ret1=ret1, btc_ret=btc_ret, fwd_vm=fwd_vm, peer=peer)
     return ev, days, baseline
 
 
