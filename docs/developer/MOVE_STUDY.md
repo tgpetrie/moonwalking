@@ -158,9 +158,61 @@ hypothesis replicates. Dip-buying means are small and every interval includes
 zero except the 7-day test (-2.4%), which sits next to a -1.6% baseline and
 does not beat peers.
 
+## Causes behind the 80 reviewed events (Gemini, 2026-10-19)
+
+Gemini returned one row per event:
+`data/move-study/cause_review_gemini_2026-10-19.csv`, re-quoted because three
+rows had unescaped commas. All 80 rows match the input and every category is
+from the allowed list. **Treat it as unverified research, not data.**
+
+**Checks**
+- Four high-confidence claims were confirmed in independent sources:
+  Farcaster's Clanker acquisition (2025-10-23), Binance delisting NKN and GHST
+  on 2026-02-13, the 2026-04-01 Drift hack (about $285M), and zkPass's Binance
+  listing (2026-01-07, 14:00 UTC).
+- 20 rows cite a source dated after the event day. Nine of those give a cause
+  other than "no known cause", so that cause rests on after-the-fact
+  explanation: ALCX, TNSR, ZKP, APE, ALLO, BIRB, AERGO, ESP, DEEP.
+- Two rows mark `published_before_move = yes` with a same-day source (GHST,
+  DRV). That should be "unclear".
+- Some summaries use information from after the event, which the brief
+  forbade: TNSR cites a later Coinbase deal, VELO a later merger, ZAMA a later
+  announcement, IMU a later report.
+- Gemini's own summary counts are off by one in three places. Actual counts:
+  largest has 21 no-known-cause; random has 26 no-known-cause and 9
+  market-wide.
+
+**Counts.** Of the 40 largest up-moves, 21 have no known cause, 8 protocol or
+partnership news, 3 listings, 3 delistings or warnings, and 5 other
+categories. Of the 40 random moves, 26 have no known cause and 9 track a
+market-wide Bitcoin move. Only 8 of 80 have a source dated before the move.
+
+**Joined to outcomes** (forward return vs volatility-matched peers, from the
+hourly-archive run; 79 of 80 matched, 7-day values missing for 3):
+
+| 40 largest up-moves | n | 1 day | 3 days | 7 days | 7-day median |
+| --- | --- | --- | --- | --- | --- |
+| All | 40 | -8.3% | -13.1% | -14.9% | -24.2% |
+| Known cause | 19 | -5.3% | -7.1% | -8.6% | -25.9% |
+| No known cause | 21 | -11.0% | -18.8% | -20.9% | -23.9% |
+| Protocol/partnership news | 8 | -2.1% | +5.8% | +5.6% | +6.6% |
+| Listing (3) or delisting (3) | 6 | about -15% | about -23% | about -33% | |
+
+Spikes with no known cause fell further on average, but the medians are about
+the same (-23.9% vs -25.9%). The 12-point gap in means is not significant
+(permutation p = 0.13). 37% of known-cause spikes beat their peers after 7
+days, against 10% with no known cause. Protocol-news spikes held their gains
+best; listings and delistings faded hardest. Every group here has 8 or fewer
+events.
+
+**Reading.** This is hypothesis-generating only. There is also a
+built-in bias: articles explaining a move are more likely to be written when
+the move lasts, so "known cause" may partly mean "held up". A proper test
+needs causes logged at the time (point in time), for many more events.
+
 ## Next steps
 
-1. The causes half: news and listing dates for the event days (a researcher or
+1. Causes: first pass done (above). Next is logging causes point in time for many more events (a researcher or
    Gemini can build this; it needs sources). The brief and event list are in
    `GEMINI_BRIEF_MOVE_CAUSES.md` and `events_for_cause_review.csv`.
 2. Separate liquidity effects from news effects: the give-back may be
