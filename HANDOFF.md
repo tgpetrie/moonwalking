@@ -386,3 +386,25 @@ on older runtime or pending-work statements elsewhere in this file.
 Documentation links/schema/arithmetic and whitespace checks pass. The global
 guardrail check still fails on the pre-existing `BTC or BTC-USD` placeholder in
 `ScorecardPage.jsx:775`; no UI source changed in this documentation branch.
+
+### Checked review incorporated, 2026-10-19
+
+Imported the documentation-only upstream review `09011e3c` as `3522f14c`.
+Read [MASTER_HANDOFF_REVIEW_2026-10-19.md](docs/developer/MASTER_HANDOFF_REVIEW_2026-10-19.md)
+with Claude's dated handoff before the master. The master now explicitly records
+the 0.12 aggregator default versus 0.25/0.40 planning thresholds, separates plain
+returns from peer-relative returns, keeps shock/liquidity groups separate, and
+uses "the macro low the calculation is anchored to" in place of trade-plan
+wording. The eight-item wording checklist is labelled as a synthesis, not an
+existing source list; FET arithmetic is distinguished from unverified source inputs.
+
+The six-agent suite is archived, not an implementation plan. Keep evidence-ID
+selection with Python-rendered text. Do not start the classifier, divergence
+narrator, execution badges, model downloads, or Study 3b. No Study 3a results were
+imported; upstream fetcher fixes at `d9873046` were not integrated. No runtime,
+live-store, scheduled-task, main-branch, or deployment changes were made.
+Also corrected stale routing and fabricated-fallback descriptions in
+`docs/developer/SENTIMENT_ARCHITECTURE.md`. Follow-up documentation checks
+passed (review provenance, links, embedded schema/harness, thresholds, arithmetic,
+and whitespace). Runtime code is unchanged, so the earlier 59-test result was
+not rerun. The pre-existing global guardrail failure remains documented above.

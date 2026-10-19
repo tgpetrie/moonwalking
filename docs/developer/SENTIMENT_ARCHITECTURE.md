@@ -1,71 +1,31 @@
 # Sentiment System Architecture
 
+Updated 2026-10-19 for the checked handoff. The runtime corrections below
+supersede the old enhanced-aggregator and fabricated-fallback descriptions.
+See [the checked review](MASTER_HANDOFF_REVIEW_2026-10-19.md),
+[the consolidated handoff](MASTER_HANDOFF_FOR_CODEX_2026-10-19.md), and
+[SENTIMENT_ONE_BOARD.md](SENTIMENT_ONE_BOARD.md). Provider quotas, performance
+estimates, scoring examples, and migration notes retained later in this document
+are historical design material, not verified current runtime or provider terms.
+
 ## Data Flow
 
+```text
+SentimentPopupAdvanced.jsx
+  -> Flask GET /api/sentiment/latest?symbol=BTC (backend/app.py)
+  -> FastAPI /sentiment/latest (backend/sentiment_api.py)
+  -> real market-wide sources, provenance, freshness, and failure state
+
+CoinPositioning.jsx
+  -> Flask GET /api/positioning/<symbol>
+  -> backend/derivatives_positioning.py
 ```
-Frontend (React)
-    │
-    │ Click ℹ️ icon
-    ↓
-┌─────────────────────────────────────────┐
-│  API Request                            │
-│  GET /api/sentiment/latest?symbol=BTC   │
-└─────────────────────────────────────────┘
-    │
-    ↓
-┌─────────────────────────────────────────┐
-│  Flask Backend (app.py)                 │
-│  Route: /api/sentiment/latest           │
-└─────────────────────────────────────────┘
-    │
-    │ Calls get_sentiment_for_symbol(symbol)
-    ↓
-┌─────────────────────────────────────────┐
-│  EnhancedSentimentAggregator            │
-│  (sentiment_aggregator_enhanced.py)     │
-└─────────────────────────────────────────┘
-    │
-    │ Parallel async fetch
-    ├─────────┬──────────┬─────────┐
-    ↓         ↓          ↓         ↓
-┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
-│ Fear & │ │ Coin   │ │ Reddit │ │ Cache  │
-│ Greed  │ │ Gecko  │ │ Social │ │ Layer  │
-│ Index  │ │   API  │ │   API  │ │        │
-└────────┘ └────────┘ └────────┘ └────────┘
-    │         │          │
-    │         │          │
-    │         ↓          │
-    │   ┌─────────┐     │
-    │   │CoinGecko│     │
-    │   │ID Map   │     │
-    │   └─────────┘     │
-    │                   │
-    └────────┬──────────┘
-             ↓
-    ┌─────────────────┐
-    │ Weighted Score  │
-    │  Calculation    │
-    │                 │
-    │ Tier 1: 85%    │
-    │ Tier 2: 70%    │
-    │ Tier 3: 50%    │
-    └─────────────────┘
-             ↓
-    ┌─────────────────┐
-    │ JSON Response   │
-    │ with:           │
-    │ - overall_sentiment
-    │ - sources[]     │
-    │ - coin_metrics  │
-    │ - alerts[]      │
-    └─────────────────┘
-             ↓
-    ┌─────────────────┐
-    │ Frontend Popup  │
-    │ Displays Data   │
-    └─────────────────┘
-```
+
+The requested symbol does not make market-wide mood coin-specific.
+`backend/sentiment_aggregator_enhanced.py` is a four-line deprecated shim
+re-exporting `sentiment_aggregator.get_sentiment_for_symbol`, not the active
+proxy's calculation engine. Read `sentiment_aggregator.py` when investigating
+that separate aggregation helper; do not infer its use from the shim's name.
 
 ## Component Details
 
@@ -80,7 +40,7 @@ Frontend (React)
 - Handle errors gracefully
 
 ### 2. Flask Backend
-**File:** `backend/app.py` (lines 1159-1183)
+**File:** `backend/app.py`, function `api_sentiment_latest`
 
 **Route:** `GET /api/sentiment/latest`
 
@@ -89,26 +49,23 @@ Frontend (React)
 
 **Responsibilities:**
 - Receive API requests
-- Call aggregator with symbol
-- Handle exceptions with fallback
+- Proxy the real sentiment service, preserving requested-symbol context
+- Retain last-good real data with explicit stale/offline metadata on failure
 - Return JSON response
 
-### 3. Sentiment Aggregator
-**File:** `backend/sentiment_aggregator_enhanced.py`
+### 3. Service and separate aggregation helper
 
-**Class:** `EnhancedSentimentAggregator`
+The mounted proxy reads `backend/sentiment_api.py`. Its checked cache values are
+300 seconds for Fear & Greed, 120 seconds for CoinGecko, and 30 seconds by default
+for the combined response. These differ from historical helper settings below.
 
-**Key Methods:**
-- `get_coin_sentiment(symbol)`: Main entry point
-- `fetch_fear_greed()`: Get market-wide sentiment
-- `fetch_coingecko_coin_data(symbol)`: Get coin metrics
-- `fetch_reddit_mentions(symbol)`: Get social data
-
-**Caching:**
-- In-memory cache with TTL
-- Fear & Greed: 1 hour
-- CoinGecko: 5 minutes
-- Reddit: 10 minutes
+The separate `backend/sentiment_aggregator.py` helper and
+`backend/sentiment_config.yaml` default to `divergence_threshold: 0.12`.
+`_divergence_alerts` compares tier1 with tier3: medium at the configured threshold,
+high at twice that threshold (0.24 by default). Missing tier scores produce no
+alert. The salvage plan's 0.25/0.40 values are proposals, not this implementation.
+Neither threshold family is validated against outcomes; this code inspection
+is not a claim about a deployed process or a new trading signal.
 
 ### 4. External APIs
 
@@ -178,36 +135,19 @@ overall_sentiment = 117.731 / 1.763 / 100 = 0.668
 
 ## Fallback Strategy
 
-### Scenario 1: API Timeout
-```
-API Request → Timeout (5s)
-    ↓
-Check Cache → Cache Hit?
-    ↓ Yes           ↓ No
-Return Cache   Generate Fallback
-```
+There is no MD5-seeded random sentiment fallback in current backend code.
+The former unknown-coin diagram in this document described removed behavior.
+Hashing used for cache identity is not a sentiment value generator.
 
-### Scenario 2: Unknown Coin
-```
-Symbol: "NEWCOIN"
-    ↓
-Check COINGECKO_IDS → Not Found
-    ↓
-Generate Deterministic Fallback
-    ↓
-Use MD5 hash of symbol as seed
-    ↓
-Generate consistent "random" values
-```
+- Timeout or rate limit: retain a valid last-good response with actual age,
+  success/attempt timestamps, `ok=false`, an error, and stale/offline status.
+- No valid cached response: return unavailable/null data and truthful failure
+  metadata. Never synthesize a neutral score or other replacement measurements.
+- Unknown symbol: leave missing coin-specific metrics unavailable. Any real
+  market-wide data must retain its market-wide scope and source provenance.
 
-### Scenario 3: Rate Limited
-```
-CoinGecko → 429 Too Many Requests
-    ↓
-Check Cache → Return Cached Data
-    ↓ (if no cache)
-Generate Fallback with is_fallback=true flag
-```
+These are the One-Board truth rules; consult the current route/service for its
+exact response envelope. Last-good data is not a fresh successful observation.
 
 ## Cache Architecture
 
@@ -243,38 +183,11 @@ Reddit:         600s (10 minutes)
 
 ## Error Handling
 
-### Level 1: Source-Level
-```python
-try:
-    data = await fetch_coingecko_coin_data(symbol)
-except Exception as e:
-    print(f"[Sentiment] CoinGecko error: {e}")
-    data = generate_fallback_coin_data(symbol)
-```
-
-### Level 2: Aggregator-Level
-```python
-fear_greed, coingecko, reddit = await asyncio.gather(
-    fetch_fear_greed(),
-    fetch_coingecko_coin_data(symbol),
-    fetch_reddit_mentions(symbol),
-    return_exceptions=True  # Don't crash on single failure
-)
-
-if isinstance(coingecko, Exception):
-    coingecko = generate_fallback_coin_data(symbol)
-```
-
-### Level 3: Flask Route-Level
-```python
-try:
-    data = get_sentiment_for_symbol(symbol)
-    return jsonify(data)
-except Exception as exc:
-    return jsonify(fallback_response)
-```
-
-**Result:** User NEVER sees an error page, always gets data
+Provider errors preserve missing values rather than invoking the historical
+`generate_fallback_coin_data` examples removed from this document. The Flask
+proxy returns stale last-good data when available, or an explicit offline
+response when not. Frontend code must retain provenance and failure metadata;
+never manufacture a successful response to hide a fetch error.
 
 ## Performance Characteristics
 
@@ -352,7 +265,7 @@ symbol = request.args.get('symbol', "BTC").upper()
 ## Integration & Migration History
 
 ### System Evolution
-The current architecture represents a unified system combining two previous approaches:
+The historical design combined two previous approaches; this section is not the current runtime contract:
 
 **Previous System 1: Enhanced Aggregator**
 - Coin-specific data (different results per symbol)
@@ -366,7 +279,7 @@ The current architecture represents a unified system combining two previous appr
 - Tier-based weighting system
 - Returned same sentiment for all coins (market-wide only)
 
-**Current Unified System:**
+**Historical Unified System proposal:**
 - Combines coin-specific AND market-wide sources
 - VADER sentiment analysis on all text
 - Tier-based weighting (Tier 1: 0.85, Tier 2: 0.70, Tier 3: 0.50)
@@ -413,6 +326,6 @@ The current architecture represents a unified system combining two previous appr
 
 ---
 
-**Last Updated:** 2025-12-22
-**Status:** Production Ready ✅
-**Current Version:** Unified Aggregator v2.0
+**Historical design date:** 2025-12-22
+**Runtime corrections:** 2026-10-19
+**Status:** Historical design with current routing and truth-rule corrections; use the checked handoff for implementation.

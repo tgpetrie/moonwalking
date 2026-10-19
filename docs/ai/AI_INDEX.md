@@ -4,11 +4,16 @@ Project: BHABIT Moonwalking
 
 ## Consolidated research handoff (2026-10-19)
 
-Read [Master Architectural & Research Handoff for Codex](../developer/MASTER_HANDOFF_FOR_CODEX_2026-10-19.md)
-for the six proposed local-agent roles, current sentiment routing, source
+Read the [checked master review](../developer/MASTER_HANDOFF_REVIEW_2026-10-19.md)
+from upstream `09011e3c` with
+[Claude's handoff](../developer/HANDOFF_FOR_CODEX_2026-10-19.md), then the
+[Master Architectural & Research Handoff for Codex](../developer/MASTER_HANDOFF_FOR_CODEX_2026-10-19.md)
+for the archived local-agent proposal, current sentiment routing, source
 verification limits, empirical studies, PIT schema, and chart wording rules.
 It distinguishes committed research from the separate chart branch and proposed
-runtime work; it does not authorize a main merge or deployment.
+runtime work. Keep evidence-ID selection with Python-rendered sentences;
+do not start the six-agent suite, classifier, divergence narrator, execution
+badges, or Study 3b from this documentation. No main merge or deployment.
 
 Read in this order before implementation:
 

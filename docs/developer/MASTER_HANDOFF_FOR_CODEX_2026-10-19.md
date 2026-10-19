@@ -3,8 +3,12 @@
 Date: 2026-10-19. Repository: `tgpetrie/moonwalking`.
 
 This document consolidates the supplied architectural draft with committed
-Moonwalking research and implementation records. It is a handoff and a proposed
-build contract, not a claim that every described agent or source is running.
+Moonwalking research and implementation records. Read the
+[checked review](MASTER_HANDOFF_REVIEW_2026-10-19.md) from upstream `09011e3c`
+together with [Claude's handoff](HANDOFF_FOR_CODEX_2026-10-19.md); their verified
+corrections take precedence over the original Gemini text. The six-agent suite
+is retained as an archived proposal and **must not be started**. Keep the existing
+evidence-ID selection and Python-rendered narration.
 The documentation change does not install models, change scheduled tasks,
 start studies, integrate branches, or deploy application code.
 
@@ -17,6 +21,7 @@ precedence over imported conversations. The principal records inspected are:
 | Record | Pinned revision | What it establishes |
 | --- | --- | --- |
 | `claude/render-history-data` | `1f198332a78b1788dc0e4203e048d43c519906a4` | Research, validated RENDER exports, PIT schema, and [Claude's 2026-10-19 handoff](HANDOFF_FOR_CODEX_2026-10-19.md) |
+| Checked master review | `09011e3c35a6125c8df66b48bec28ba184669f36` | [Line-by-line corrections](MASTER_HANDOFF_REVIEW_2026-10-19.md), imported as documentation only; the intervening `d9873046` research code was not integrated |
 | `codex/macro-chart-20261018` | `fb59304a` | Separate chart implementation, AMP worker, evidence-ID narration, daily next-run map |
 | Historical chart checkpoint | `0198513` | Frozen FET arithmetic reviewed in the supplied draft; not the latest chart behavior |
 | PIT impact-price update | `b379d669` | Additive mid/bid-impact/ask-impact fields |
@@ -29,10 +34,11 @@ files for broken implementation. No main merge or production release is implied.
 
 | Item | Reconciled state |
 | --- | --- |
-| Six specialized Qwen roles | Proposed suite. Do not present six deployed Modelfiles or Pydantic classes as existing files. |
+| Six specialized Qwen roles | Archived draft, not recommended or approved for implementation. Do not start the suite, social classifier, divergence narrator, or execution badges. Use deterministic status text for hygiene. |
 | Local chart narrator | Already implemented on the chart branch using `qwen3.5:9b`: the model selects fact IDs and trusted Python renders sentences. Preserve that stronger boundary. |
 | Sentiment runtime | Flask proxies `sentiment_api.py`; `sentiment_aggregator_enhanced.py` is a deprecated shim. The claimed active MD5 fallback is obsolete. |
 | Source roles | Four roles in the salvage plan, expanded to six here by adding `event_calendar` and `onchain_flow`. |
+| Divergence thresholds | `sentiment_aggregator.py` and `sentiment_config.yaml` default to 0.12 for tier1 versus tier3; high severity starts at twice that threshold. The 0.25/0.40 planning values are not implemented behavior. This is a code check, not a deployed health check. |
 | Fear & Greed / CoinGecko cache TTL | Draft proposes 1 hour / 5 minutes. Research-branch code uses 300 / 120 seconds; overall sentiment cache defaults to 30 seconds. Cache TTL and stale-display windows are different. |
 | Study 1 robustness | Post hoc, including the liquidity and shock splits; retain this qualification. |
 | Study 2b break-rate labels | Canonical study says **LVN 39.3%, HVN 38.7%** from below in discovery; the draft reverses them. |
@@ -57,7 +63,7 @@ files for broken implementation. No main merge or production release is implied.
   changes through committed diffs. Do not merge older design branches or resume
   the cancelled broad consolidation as a side effect of this handoff.
 
-## 1. Local Ollama Qwen suite: proposed roles and existing boundary
+## 1. Archived Qwen suite: preserve the existing narration boundary
 
 ### 1.1 Runtime foundation and model mapping
 
@@ -66,7 +72,9 @@ computed by deterministic code before inference. Models may classify captured
 text or select vetted explanations; they do not set prices, severity, thresholds,
 or historical study results.
 
-The draft's hardware tiers are candidates, not tested fit or latency guarantees:
+The draft's hardware tiers below are preserved for provenance only, not a
+download or upgrade plan. The machine already uses `qwen3.5:9b`; no model
+download is authorized by this handoff. These are not tested fit or latency guarantees:
 
 | Nominal memory tier | Runtime candidate | Offline development candidate |
 | --- | --- | --- |
@@ -103,7 +111,11 @@ chart narrator's recorded working configuration has thinking disabled.
 ### 1.2 Six bounded roles
 
 The following contract names and proposed Modelfile names come from the draft.
-They are design requirements, not imports available on the research branch.
+They are historical proposal details, not implementation requirements or imports
+available on the research branch. Agent 1 is superseded by bounded narration;
+Agent 2 needs deterministic text, not an LLM. Agents 3/4 lack captured inputs
+and validated scores; Agent 5's per-coin badges are not approved. Agent 6 is
+an optional personal development tool only.
 
 #### Agent 1: Runtime Chart & Diff Translator (`chart-auditor`)
 
@@ -117,10 +129,10 @@ They are design requirements, not imports available on the research branch.
   `three_date_provenance`, `math_and_invalidation`, `context_layer_note`,
   `what_changed_plain_english`.
 - Explain the weekly period, actual daily extreme, and confirmation-close
-  timestamp separately. Describe `P = L + r(H-L)` and the **selected
-  instrument's** invalidation. $0.1338 is the frozen FET example, not a
-  universal threshold. Likewise, 2.31x volume is usable only when present in
-  that snapshot, with its venue, baseline, and date.
+  timestamp separately. Describe `P = L + r(H-L)` and the **macro low the
+  calculation is anchored to**. $0.1338 is the frozen FET example, not a
+  universal threshold. The draft's 2.31x volume has no source in the checked
+  repository; do not display it without independently captured evidence.
 - Distinguish daily cache changes from completed weekly structural changes.
   Fear & Greed remains market-wide/BTC-driven context.
 
@@ -132,7 +144,7 @@ Unknown/duplicate IDs, wrong topics, omitted mandatory facts, model mismatch,
 truncation, and malformed responses are rejected. See the pinned
 [local narration record](https://github.com/tgpetrie/moonwalking/blob/fb59304a/docs/research/LOCAL_CHART_NARRATION_2026-10-19.md)
 and [next-run map](https://github.com/tgpetrie/moonwalking/blob/fb59304a/docs/research/NEXT_RUN_MAP_2026-10-19.md).
-Adapt the proposed fields to this boundary rather than exposing generated prose.
+Keep this implementation; do not add the draft free-prose fields to runtime.
 
 #### Agent 2: SQLite hygiene and revision triage (`data-hygiene-auditor`)
 
@@ -172,7 +184,8 @@ Adapt the proposed fields to this boundary rather than exposing generated prose.
 #### Agent 4: Tier divergence and positioning narrator (`divergence-auditor`)
 
 - Trigger proposal: a comparable pairwise normalized score gap >=0.25
-  (warning), or >=0.40 (critical), detected by trusted code.
+  (warning), or >=0.40 (critical), detected by trusted code. These are
+  planning values, not the 0.12 code default; do not implement this narrator.
 - Input: tier scores/weights, source reliability/freshness, funding, open
   interest, and impact-price asymmetry. The draft names
   `EnhancedSentimentAggregator`; use the current service payload instead.
@@ -205,11 +218,15 @@ Adapt the proposed fields to this boundary rather than exposing generated prose.
   do not equal completed-day study events.
 - `empirical_base_rate` is a legacy proposed field name: the cited -5.7%
   and -7.3% are **mean seven-day returns relative to peers**, not an event
-  probability. The shock bucket is not necessarily the intersection with
-  <$1M liquidity. Keep those subgroup claims separate.
+  probability. They apply to high-volume, coin-specific spikes **across all
+  liquidity tiers**. The separate <$1M/day group yields -2.4%/-2.7% at seven
+  days. Do not merge those groups or ship this
+  field or the per-coin badges; at most use the dated, scoped approach sentence
+  in Claude's handoff when its completed-day eligibility conditions apply.
 - The +6.0%/+7.8% level-arrival values use a reaction sign convention;
   they describe give-back, not positive long returns. Cite study/horizon,
-  sample scope, and post-hoc status, not a predicted return for this coin.
+  sample scope, and post-hoc status in research records only. Do not attach
+  them to individual level popovers or use them as a return for this coin.
 - The draft attributes the motivation to Chris Kmer's "Back-End
   Optimization" / removing C-game FOMO trades. This is supplied framing,
   not an independently verified empirical authority.
@@ -288,7 +305,7 @@ def verify_llm_output(text_fields: List[str], payload: Dict[str, Any]) -> List[s
     return violations
 ```
 
-Required corrections before any free-text runtime use:
+Why the draft harness is unsuitable for runtime:
 
 1. The extractor loses signs, units, and associations. A negative return can
    become positive, dollars can become percentages, and a valid number can
@@ -306,6 +323,12 @@ Required corrections before any free-text runtime use:
 5. Use constrained evidence-ID selection and deterministic templates for
    chart/triage/execution prose. Text classification is a separate bounded
    task; record its model/version, and treat spam/tone judgments as estimates.
+
+Use a revised lexical scan only as a unit/CI check on the prepared sentence
+catalog, with explicit allowances for required negated disclosures such as
+"not validated support/resistance". Keep the number provenance and semantic
+checks in the trusted renderer. This is a proposed follow-up test, not one
+implemented or run by this documentation change.
 
 Failure at any layer returns a labelled deterministic fallback or unavailable
 state. Do not publish partially accepted model prose. Any future implementation
@@ -393,16 +416,24 @@ is zero, output null. Raw tone [-1,+1], 0-100 mood, funding rates, and open
 interest are not interchangeable scores; a versioned normalization would be
 needed before applying this formula. The score affects context priority only.
 
-Pairwise gaps use normalized comparable values: >=0.25 warning, >=0.40
-critical. Explain disagreement and source coverage. Older documents mention
+The salvage plan proposes normalized pairwise gaps >=0.25 warning and >=0.40
+critical. The checked-in `sentiment_aggregator.py` helper and
+`backend/sentiment_config.yaml` instead use `divergence_threshold=0.12`:
+only tier1 versus tier3 is compared, medium severity at >=0.12 and high at
+>=0.24 by default. Configuration can change that threshold. Neither rule is
+validated against outcomes, and inspecting this helper does not establish
+that it is the mounted FastAPI proxy's divergence path. Preserve the code/
+plan distinction; no runtime threshold change is made here.
+
+Explain disagreement and source coverage only. Older documents mention
 "accumulation" or "local-top" readings; treat those as unvalidated hypotheses,
 not approved predictive copy.
 
-Reserved text lexicon (not a price model): positive terms `breakout`,
+Archived text lexicon (not a price model): positive terms `breakout`,
 `rally`, `accumulate`, `golden cross`, `adoption`; negative terms `rug pull`,
 `hack`, `liquidation`, `death cross`, `bankruptcy`; noise terms `dyor`,
-`nfa`, `gm`, `wen`. These can be classifier features without becoming
-claims in user-facing chart explanations.
+`nfa`, `gm`, `wen`. Do not surface these as chart color, labels, or explanatory
+claims. The classifier is not approved or supplied with captured inputs.
 
 ### 2.4 Source inventory and verification limits
 
@@ -514,9 +545,12 @@ There are 9,034 +10% up-events before horizon-specific exclusions, with a
 seven-day per-coin cooldown and calendar-day resampling.
 
 Seven-day relative means after +10% days: -1.90% discovery and -2.20% test.
-The extended run's first-day relative means are about -1.4% in both periods;
-the earlier hourly run's test value is -1.73%. The draft's approximate
-"-1.6% next day" mixes summaries; use the named run/horizon in any lookup.
+The extended run's first-day **peer-relative** means are -1.39% (4,847
+events) and -1.34% (4,155 events): 9,002 observations at that horizon, not
+the full 9,034-event robustness population. Counts vary by available horizon.
+The draft's approximate "-1.6% next day" is a different measure: **plain
+return from buying at the close**, -1.45% discovery / -1.66% test before
+costs. Keep plain returns separate from peer-relative returns in every lookup.
 No replicated dip-buying finding follows -10% days.
 
 The 80-event review contains 40 largest and 40 random rises from the
@@ -545,7 +579,7 @@ Eight post-hoc robustness checks are recorded:
    seven days; >=$10M -1.5%/-1.0%, with test intervals touching zero.
 6. Shocks versus market beta: >=5x prior 20-day median volume and
    `ret1 - btc_ret >= 0.15` yields -3.8%/-4.4% next day,
-   -5.7%/-7.3% seven days. Low-volume beta-like events: roughly
+   -5.7%/-7.3% seven days **across all liquidity tiers**. Low-volume beta-like events: roughly
    -0.3% next day, -0.3%/-0.4% seven days, intervals including zero.
 7. Survivorship/new listings: delisted products already included and fade
    more (-3.5%/-6.1% seven days in this robustness comparison); products
@@ -660,11 +694,15 @@ claims; they do not test every market or every possible pivot rule.
 
 ### 3.6 Study 3a: settled perp funding (pending)
 
-Preregistration `42073481`, fetch/analysis code `a4d8b112`. The supplied
-draft reports 6,256 Binance Vision funding archive files and 11,087 planned
-requests including Hyperliquid, throttled to one per 1.1 seconds. Claude's
-pinned handoff reports about 2,800 files downloaded at its observation time.
-These are reported plan/progress counts, not a current monitor or ETA.
+Preregistration `42073481`, initial fetch/analysis code `a4d8b112`. There are
+6,256 planned Binance Vision **monthly** funding archives, not monthly/daily
+funding files. The draft reports 11,087 planned requests including Hyperliquid,
+throttled to one per 1.1 seconds. The checked review reports a dropped connection
+at file 3,897, followed by retry/backoff and checks-only support in upstream
+`d9873046`. That code change is not part of this documentation-only branch.
+The user's later estimate of about two hours remaining is an estimate, not
+completion evidence. No results are present in the reviewed record; no watcher,
+rerun, model job, or outcome computation is started here.
 
 The committed design is the authority:
 
@@ -698,8 +736,10 @@ Write findings separately; do not silently alter the preregistration.
 
 ### 3.7 Candidate Study 3b: signed taker delta (not started)
 
-Create a preregistration only after the Study 3a dependency and research
-scope are resolved. The candidate uses Binance **spot or USD-M** kline
+Study 3b still needs the user's explicit go-ahead, an identity map, and a
+committed design; do not start it on the strength of this handoff. Create a
+preregistration only after that approval and the Study 3a dependency/scope are
+resolved. The candidate uses Binance **spot or USD-M** kline
 archives: one-based column 10 (zero-based index 9) is taker-buy base volume;
 column 6 (index 5) is total base volume. COIN-M columns have different
 units/layout and cannot reuse that parser blindly. The
@@ -956,8 +996,13 @@ not approximate video prices, is the test boundary.
 
 ### 5.2 Frozen FET example through 2026-07-23
 
-These supplied/reviewed chart figures are a frozen historical calculation,
-not a new Coinbase pull performed for this handoff:
+These chart-branch figures are a frozen historical calculation, not an
+independent Coinbase pull performed for this handoff. Claude's checked review
+explicitly did **not** verify these macro inputs. Their provenance is the pinned
+[macro-range record](https://github.com/tgpetrie/moonwalking/blob/fb59304a/docs/research/MACRO_RANGE_REVIEW_2026-10-18.md)
+and [frozen-close explanation record](https://github.com/tgpetrie/moonwalking/blob/fb59304a/docs/research/CHART_LEVEL_EXPLANATIONS_2026-10-18.md).
+The arithmetic below was recomputed; source-candle identity and an independent
+engine-fixture rerun remain unverified by this documentation change:
 
 | Quantity | Value / provenance |
 | --- | --- |
@@ -971,11 +1016,17 @@ not a new Coinbase pull performed for this handoff:
 The pasted +1,666.31% uses the **rounded displayed price 2.7678**; it is
 approximately +1,666.31%. Specify whether a UI formats an unrounded engine
 value or recomputes from display precision; do not turn this rounding
-difference into a conflicting fixture. $0.1338 invalidates the selected
-historical macro geometry only under the engine's disclosed condition; it
-is not an order, a guaranteed floor, or a threshold for other coins.
+difference into a conflicting fixture. Describe $0.1338 as **the macro low
+the calculation is anchored to**. Avoid presenting it as an "invalidation
+threshold" or a trade-plan instruction, guaranteed floor, or threshold for
+other coins.
 
-### 5.3 Eight wording and provenance rules
+### 5.3 Synthesized wording checklist (not an existing eight-rule contract)
+
+This eight-item checklist was assembled for this master document from the
+supplied draft and chart/research disclosures. It is not a pre-existing
+canonical list found on Claude's branch, nor evidence that all items have
+been implemented. Use the cited chart records and checked review as sources.
 
 1. A prior low above the dated analysis close is labelled **Prior Broken
    Pivot Low (Overhead Reference)**. A historical low is not automatically
@@ -990,7 +1041,7 @@ is not an order, a guaranteed floor, or a threshold for other coins.
    `(reference / close - 1)*100`; distinguish above/below from recovery ratio.
 6. Calculated macro explanations disclose `P=L+r(H-L)`, substituted anchors,
    and linear arithmetic even on a logarithmic display.
-7. Explain the selected geometry's invalidation (FET example $0.1338) and
+7. Explain the macro low the calculation is anchored to (FET example $0.1338) and
    limitations. Missing anchors/history/indicators remain unavailable.
 8. Remove affirmative support/resistance/magnet/highway/target claims from
    chart popovers and narration. Preserve honest limitation statements and
@@ -1024,11 +1075,12 @@ For low-volume market-following rises, the observed tendency was weak.
    keep results and review findings in their own documented commits.
 4. Add optional read-only PIT visibility with raw values, venue, identity
    confidence, timestamps, and health. No funding directional claims yet.
-5. Implement source capture and classifier roles incrementally behind the
-   existing truth contract. Define missing normalization, scoring, severity,
-   badge, and freshness rules before treating the six-role proposal as runnable.
-6. Preregister any Study 3b after resolving its dependency and scope; do not
-   claim it has started or create live research jobs from this document alone.
+5. Add a negation-aware catalog wording check in a separately scoped chart
+   change. Keep hygiene explanations deterministic. Do not start the six-agent
+   suite, social classifier, divergence narrator, or execution badges. Source
+   capture and empirical scoring need their own authorized, validated scope.
+6. Study 3b remains proposed and requires explicit user approval plus a committed
+   design; do not claim it has started or create live research jobs here.
 
 For code changes, run the relevant backend/frontend checks, guardrails,
 prefix/replay and failure-path tests, and a browser pass when behavior changes.
@@ -1063,6 +1115,14 @@ push is not a main merge or deployment.
   `BTC or BTC-USD`, also present at the parent revision. This documentation
   branch does not fix unrelated UI code; the repository-wide guardrail check
   remains failed until that separate correction is integrated.
+- Follow-up after the `09011e3c` review: documentation provenance, links,
+  pinned paths, exact embedded references, in-memory schema, threshold/code
+  agreement, arithmetic, and documentation-only scope checks passed. The
+  59-test result above is from the initial pass; unchanged runtime code did
+  not require repeating that suite. The catalog wording test remains a
+  separately scoped chart-branch follow-up, not a completed check here.
 
-The master document, its navigation links, and documentation validation are
-the deliverable. Proposed runtime functionality remains explicitly proposed.
+The master document, checked review, navigation links, and documentation
+validation are the deliverable. The archived six-agent design is not an
+implementation plan; runtime behavior and existing model configuration stay
+unchanged.
