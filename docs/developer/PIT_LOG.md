@@ -60,11 +60,32 @@ Two unauthenticated requests per pass, 1.1 s apart.
 new; a per-coin call logged one RENDER-USD Hyperliquid snapshot (funding
 0.0000125 per hour, open interest about $2.30M).
 
-**Not done yet:** the watcher is not scheduled. It needs to run all the time
-to be useful, for example as a scheduled task next to the always-on collector
-(never touch the collector on port 5003). The positioning hooks only write
-while the sentiment service or board is running from this code, which is not
-yet merged.
+## Always-on task (installed 2026-10-19)
+
+The watcher runs as the **"Moonwalking PIT Watch"** scheduled task, the same
+shape as the collector task but fully separate from it (it never touches
+"Moonwalking Collector" or port 5003).
+
+- Code runs from a stable copy in `%USERPROFILE%\.moonwalking\pit`
+  (`pit_log.py`, `pit_watch.py`, `run_pit_watch.ps1`, `INSTALLED.txt` with the
+  source commit), not from a worktree.
+- Writes `%USERPROFILE%\.moonwalking\data\pit_context.sqlite`.
+- Logs: `%USERPROFILE%\.moonwalking\logs\pit-watch-events.log`,
+  `pit-watch-stdout.log`, `pit-watch-stderr.log` (previous run kept as `.prev`).
+- Triggers: at logon, plus a 5-minute backstop; the launcher restarts Python
+  if it exits. One pass every 5 minutes, two requests per pass.
+- Update or reinstall: run `scripts\windows\install_pit_watch_task.ps1` from a
+  checkout, then `Stop-ScheduledTask` / `Start-ScheduledTask -TaskName "Moonwalking PIT Watch"`.
+- Stop: `Stop-ScheduledTask -TaskName "Moonwalking PIT Watch"`; remove with
+  `Unregister-ScheduledTask -TaskName "Moonwalking PIT Watch"`. Both leave the data alone.
+
+First live pass (2026-10-19 13:53 UTC): 842 products as `BASELINE`, 50 status
+incidents; both sources `live`.
+
+The positioning hooks only write while the sentiment service or board runs
+from this code. The collector runs from `Moonwalking-Runtime`, which does not
+have it yet, so positioning snapshots start once this branch is merged and the
+runtime is updated.
 
 ## Tests
 
