@@ -156,3 +156,10 @@ Tests: `python -I -m pytest scripts -q` (30 pass).
   VAL and high/low-volume nodes on confirmed swings also behave like placebo
   lines (0 of 22 tests), including with hourly-built profiles. Do not label
   them support, resistance, magnets or highways.
+- **Study 2c (`ABSORPTION_STUDY.md`):** hourly two-step absorption/exhaustion
+  candles add little (bearish: +0.1 to +0.4 points, not replicated by the
+  rule); location does not help. One preregistered hypothesis passed:
+  breakdowns through the macro low (mostly) or VAL lagged placebo
+  breakdowns by about 1 point over 14 days in both periods, but on data that
+  had already suggested it. If shown, label it as a small historical tendency
+  awaiting confirmation on new data.

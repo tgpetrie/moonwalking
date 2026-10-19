@@ -81,3 +81,74 @@ as secondary.
 ## Results
 
 (Added after the run, below this line.)
+
+### Run of 2026-10-19 (`scripts/move_study/absorption_study.py`, `data/move-study/absorption_study.json`)
+
+#### Part 1: hourly two-step triggers (19,342 liquid triggers: 8,532 bullish, 10,810 bearish)
+
+Outcome: relative return after the trigger vs volatility-matched peers,
+signed so positive means the trigger was right. Discovery Oct 2025 to Mar
+2026, test Apr to Oct 2026.
+
+| Test | Discovery | Test |
+| --- | --- | --- |
+| A1 bullish, 1 / 3 / 7 days | +0.06 / +0.01 / -0.02% | -0.01 / -0.14 / -0.21% |
+| A1 bearish, 1 / 3 / 7 days | **+0.33** / +0.28 / +0.42% | +0.11 / +0.22 / +0.33% |
+
+- **Bullish absorption: no edge.**
+- **Bearish exhaustion: a small, consistent edge that does not pass the
+  replication rule.** Only the 1-day discovery test survives Bonferroni (p
+  0.005); its test-period result is +0.11% (interval -0.00 to +0.20, p 0.06).
+  The 3- and 7-day results are positive in both halves (test p 0.026 and
+  0.007), but they did not survive in discovery, so by the preregistered rule
+  nothing replicates. Size: 0.1 to 0.4 points relative to peers, below
+  realistic trading costs for most of these coins.
+- **A2, location: no help.** Triggers near real structural levels do no
+  better than those near placebo lines or in open air, in either direction or
+  half (all 12 tests fail in discovery). Real zones were rare (697 bullish,
+  242 bearish triggers); most triggers were in open air.
+- **A3, timing on shock days: no reliable improvement.** 97 of 463 shock days
+  had a bearish trigger within 48 hours of the close. Waiting for it gave a
+  better relative exit by +4.7% in discovery (n = 45, wide interval 0.8 to
+  11, not significant after correction) and +0.4 to +0.6% in test (n = 47 to
+  49, intervals well across zero).
+
+#### Part 2: breakdowns at the macro low and VAL
+
+| 14-day, first touch from above, closed below | Real | Placebo | Difference, 95% | p |
+| --- | --- | --- | --- | --- |
+| Discovery 2022 to 2024 (n 1,601 / 3,768) | -0.27% | +0.56% | **-0.83** (-1.63 to -0.06) | 0.037 |
+| Test 2025 to 2026 (n 1,610 / 3,104) | -0.27% | +0.79% | **-1.06** (-1.94 to -0.27) | 0.012 |
+
+**The single preregistered hypothesis passes:** breakdowns through the macro
+low or VAL were followed by about 1 point more 14-day underperformance than
+breakdowns through placebo lines, in both periods.
+
+**Read it carefully.**
+- **It is not fresh data.** The hypothesis came from Studies 2 and 2b, whose
+  hint already used both periods (including 2025 to 2026). This run narrows it
+  to breakdowns and confirms it on the same years, so it is a consistency
+  check, not an independent replication. The first truly out-of-sample check
+  is data from 2026-10-18 onward.
+- **It is not specific to breakdowns.** Arrivals that *held* above the level
+  also underperformed placebo arrivals in discovery (14 days -0.58, p 0.048;
+  7 days -0.66), though not in test (-0.52, p 0.09; 7 days 0.00).
+- **It comes mostly from the macro low.** 14-day means: macro-low breakdowns
+  -0.79% (median -1.92%, n = 892), VAL -0.06% (n = 2,330); placebo pivot
+  shadows +0.27%, range placebos +0.82%.
+- **It is small.** About one point over two weeks, relative to peers.
+- The 7-day result agrees in test (-0.75, p 0.012) but not in discovery
+  (-0.19, p 0.58).
+
+**Reading for the chart.** At most, the macro low may be described as
+"price that broke below the prior cycle low has tended to keep lagging
+similar coins slightly over the next two weeks (Coinbase USD, 2022 to 2026)",
+with the caveat that this is a small effect not yet confirmed on new data.
+No support/resistance language for anything else.
+
+**Closing the price-only track.** Across Studies 2, 2b and 2c: horizontal
+levels and candle-pattern triggers add little beyond what price and volume
+already say. The consistent findings are about the approach (sharp,
+high-volume spikes in thin coins give back) and, weakly, continuation after
+breaking the macro low. Further work should use point-in-time context from
+the PIT log rather than more price geometry.

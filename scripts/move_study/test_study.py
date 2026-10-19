@@ -130,3 +130,45 @@ def test_nodes_hvn_and_lvn_need_interior_and_flanks():
     hvn, lvn = vp.nodes(prof)
     assert 22.0 in hvn and 61.0 in hvn
     assert 41.0 in lvn
+
+
+# ---- absorption study ----------------------------------------------------
+
+import absorption_study as ab  # noqa: E402
+
+
+def _hours(n=30):
+    ts = 1_790_000_000 - (1_790_000_000 % 3600) + 3600 * np.arange(n)
+    o = np.full(n, 10.0); h = np.full(n, 10.2); l = np.full(n, 9.8); c = np.full(n, 10.0); v = np.full(n, 100.0)
+    return ts, o, h, l, c, v
+
+
+def _frame(ts, o, h, l, c, v):
+    return pd.DataFrame({"ts": ts, "open": o, "high": h, "low": l, "close": c, "volume": v})
+
+
+def test_bullish_two_step_trigger_and_its_rules():
+    ts, o, h, l, c, v = _hours()
+    i = 25
+    o[i], h[i], l[i], c[i], v[i] = 9.9, 10.0, 9.0, 9.8, 300.0      # new 24h low, 3x volume, long lower wick, upper-half close
+    o[i + 1], h[i + 1], l[i + 1], c[i + 1] = 9.8, 10.1, 9.5, 10.0   # dips, holds above 9.0, closes up and above 9.8
+    t = ab.find_triggers(_frame(ts, o, h, l, c, v))
+    assert len(t) == 1 and t[0]["direction"] == "bull" and t[0]["ts"] == ts[i + 1] and t[0]["ref"] == 9.0
+    # undercutting bar 1's low before the confirming bar kills it
+    l2 = l.copy(); l2[i + 1] = 8.9
+    assert ab.find_triggers(_frame(ts, o, h, l2, c, v)) == []
+    # not enough volume: no trigger
+    v2 = v.copy(); v2[i] = 150.0
+    assert ab.find_triggers(_frame(ts, o, h, l, c, v2)) == []
+    # a gap in the prior 24 hours: no trigger
+    ts2 = ts.copy(); ts2[10:] += 3600
+    assert ab.find_triggers(_frame(ts2, o, h, l, c, v)) == []
+
+
+def test_bearish_trigger_mirror():
+    ts, o, h, l, c, v = _hours()
+    i = 25
+    o[i], h[i], l[i], c[i], v[i] = 10.1, 11.0, 10.0, 10.2, 300.0
+    o[i + 1], h[i + 1], l[i + 1], c[i + 1] = 10.2, 10.6, 9.9, 10.0
+    t = ab.find_triggers(_frame(ts, o, h, l, c, v))
+    assert len(t) == 1 and t[0]["direction"] == "bear" and t[0]["ref"] == 11.0
