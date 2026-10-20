@@ -201,6 +201,23 @@ class NarrateTests(unittest.TestCase):
 
 
 class NextRunNarrationTests(unittest.TestCase):
+    def test_latest_candle_range_is_required_context_not_a_future_destination(self):
+        packet = self.packet()
+        packet['evidence']['next_run']['reference'].update(low=2.9, high=3.8)
+        packet['evidence']['next_run']['outside_range'] = {'above': []}
+        facts = narration.catalog(packet)
+        plan = narration.default_plan(facts)
+        narration.validate_plan(plan, facts)
+        self.assertIn('already spanned', facts['daily-range']['text'])
+        self.assertIn('no future peak', facts['daily-range']['text'])
+        del packet['evidence']['next_run']['outside_range']
+        legacy = narration.catalog(packet)['daily-range']
+        self.assertIn('does not establish whether', legacy['text'])
+        self.assertNotIn('No confirmed prior daily high', legacy['text'])
+        plan['paragraphs'][0]['fact_ids'].remove('daily-range')
+        with self.assertRaisesRegex(ValueError, 'required context'):
+            narration.validate_plan(plan, facts)
+
     def packet(self):
         packet = synthetic_packet()
         # Illustrative fixture: the distant macro range must never enter this catalog.

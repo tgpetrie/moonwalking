@@ -105,7 +105,7 @@ export default function MacroPriceChart({ candles, pivots, scenario, macro = nul
             <title>{pivot.type} {dateText(pivot.extreme_time ?? pivot.time)} · Confirmed {dateText(pivot.confirmed_at)}</title>
           </circle>)}
           {referenceLabels.map((p) => <g className="macro-chart-reference" key={p.label}>
-            <title>{p.label} · Prior daily {p.type} · {priceText(p.price, currency)} · {dateText(p.extreme_time ?? p.time)} · Confirmed {dateText(p.confirmed_at)}</title>
+            <title>{p.label} · Prior {p.reference_interval ?? 'daily'} {p.type} · {priceText(p.price, currency)} · {dateText(p.extreme_time ?? p.time)} · Confirmed {dateText(p.confirmed_at)}</title>
             <line x1={Math.max(LEFT, x(p.extreme_time ?? p.time))} x2={LEVEL_RIGHT} y1={y(p.price)} y2={y(p.price)} />
             <line x1={HISTORY_RIGHT} x2={HISTORY_RIGHT + 8} y1={y(p.price)} y2={p.labelY - 4} />
             <text className="macro-chart-level-label" x={HISTORY_RIGHT + 10} y={p.labelY}>{p.label} {priceText(p.price, currency)}</text>

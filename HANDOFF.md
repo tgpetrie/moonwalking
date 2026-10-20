@@ -391,3 +391,23 @@ timeout are recorded in `docs/research/NEXT_RUN_MAP_2026-10-19.md`.
 No main merge, deployment, model download, new agent, or installed-task/live-store
 change. Integrate `scripts/chart_narration.py` and the shared
 `frontend/src/utils/chartDisclosures.json` together when updating the chart worker.
+
+## Daily and weekly current-move scope, 2026-10-20
+
+User requested both daily swing and weekly cycle views. The chart guide now shows
+separate 90-day daily and one-year complete-week reference lists with their own
+dated closes, and H/L chart lines follow the selected interval. The latest daily
+range and already-spanned prices are explicit; required narration includes range
+context and does not substitute macro arithmetic for missing nearby observations.
+Weekly references are in the evidence packet; bounded narration remains explicitly
+based on the daily map. No predictive method or video parity is claimed.
+
+AMP/COTI/PYTH were run on public Coinbase data through October 19. Reproduction,
+funding audit finding, local sentiment 503, and read-only PIT coverage are recorded
+in `docs/research/NEXT_CYCLE_COMPARISON_2026-10-20.md` with compact JSON artifacts.
+Study 3a's Binance month-end window omission is reproduced on real and synthetic
+data; the study itself has not been repaired or rerun in this branch.
+
+The installed chart checkout contains other pre-existing uncommitted A/B/C work.
+Do not copy over it. Review and integrate commits before changing its task/runtime.
+No main merge, deployment, installed-task update or live-store write occurred.

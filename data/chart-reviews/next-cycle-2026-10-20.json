@@ -1,0 +1,1103 @@
+[
+  {
+    "schema_version": "moonwalking.chart-reference-comparison/v1",
+    "instrument": {
+      "product_id": "AMP-USD",
+      "symbol": "AMP",
+      "venue": "coinbase-exchange",
+      "quote_currency": "USD"
+    },
+    "source": {
+      "sha256": "a06f4c19e4ad428bb44f41c4f6147926d82dc1f37f4eed401e1312796378e06e",
+      "fetched_at": "2026-10-20T07:13:38Z",
+      "scope": "Retrospective Coinbase product history; video-feed parity and historical vendor availability are unverified."
+    },
+    "cutoff_exclusive_utc": "2026-10-20T00:00:00.000Z",
+    "daily_reference": {
+      "date_utc": "2026-10-19",
+      "close": 0.0008167,
+      "low": 0.0007764,
+      "high": 0.00097
+    },
+    "weekly_reference": {
+      "date_utc": "2026-10-18",
+      "close": 0.0007881
+    },
+    "settings": {
+      "confirmation_bars_each_side": 2,
+      "distances_use": "latest completed daily close",
+      "weekly_lookback_days": 365,
+      "daily_turn_sequence_lookback_days": 90
+    },
+    "coverage": {
+      "daily_candles": 1958,
+      "complete_weeks": 279,
+      "missing_daily_intervals": 0,
+      "excluded_incomplete_weeks": 2
+    },
+    "daily_scopes": {
+      "90": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.000825,
+            "extreme_date_utc": "2026-10-13",
+            "confirmed_at_utc": "2026-10-16T00:00:00.000Z",
+            "distance_percent_from_daily_close": 1.0162850495898157,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.00084,
+            "extreme_date_utc": "2026-10-16",
+            "confirmed_at_utc": "2026-10-19T00:00:00.000Z",
+            "distance_percent_from_daily_close": 2.852944777764188,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.0008499,
+            "extreme_date_utc": "2026-10-08",
+            "confirmed_at_utc": "2026-10-11T00:00:00.000Z",
+            "distance_percent_from_daily_close": 4.065140198359263,
+            "inside_latest_daily_range": true
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.00062,
+            "extreme_date_utc": "2026-10-12",
+            "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+            "distance_percent_from_daily_close": -24.084731235459778,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.0006111,
+            "extreme_date_utc": "2026-10-02",
+            "confirmed_at_utc": "2026-10-05T00:00:00.000Z",
+            "distance_percent_from_daily_close": -25.174482674176566,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.0005644,
+            "extreme_date_utc": "2026-10-07",
+            "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+            "distance_percent_from_daily_close": -30.892616627892743,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.00062,
+              "extreme_date_utc": "2026-10-12",
+              "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+              "distance_percent_from_daily_close": -24.084731235459778,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0006111,
+              "extreme_date_utc": "2026-10-02",
+              "confirmed_at_utc": "2026-10-05T00:00:00.000Z",
+              "distance_percent_from_daily_close": -25.174482674176566,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0005644,
+              "extreme_date_utc": "2026-10-07",
+              "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+              "distance_percent_from_daily_close": -30.892616627892743,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      },
+      "365": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.000825,
+            "extreme_date_utc": "2026-10-13",
+            "confirmed_at_utc": "2026-10-16T00:00:00.000Z",
+            "distance_percent_from_daily_close": 1.0162850495898157,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.00084,
+            "extreme_date_utc": "2026-10-16",
+            "confirmed_at_utc": "2026-10-19T00:00:00.000Z",
+            "distance_percent_from_daily_close": 2.852944777764188,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.0008499,
+            "extreme_date_utc": "2026-10-08",
+            "confirmed_at_utc": "2026-10-11T00:00:00.000Z",
+            "distance_percent_from_daily_close": 4.065140198359263,
+            "inside_latest_daily_range": true
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.00079,
+            "extreme_date_utc": "2026-05-23",
+            "confirmed_at_utc": "2026-05-26T00:00:00.000Z",
+            "distance_percent_from_daily_close": -3.2692543161503496,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "low",
+            "price": 0.00071,
+            "extreme_date_utc": "2026-05-28",
+            "confirmed_at_utc": "2026-05-31T00:00:00.000Z",
+            "distance_percent_from_daily_close": -13.064772866413609,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.00062,
+            "extreme_date_utc": "2026-10-12",
+            "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+            "distance_percent_from_daily_close": -24.084731235459778,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [
+            {
+              "type": "high",
+              "price": 0.00098,
+              "extreme_date_utc": "2026-05-15",
+              "confirmed_at_utc": "2026-05-18T00:00:00.000Z",
+              "distance_percent_from_daily_close": 19.995102240724872,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.00118,
+              "extreme_date_utc": "2026-04-26",
+              "confirmed_at_utc": "2026-04-29T00:00:00.000Z",
+              "distance_percent_from_daily_close": 44.48389861638302,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.00127,
+              "extreme_date_utc": "2026-03-30",
+              "confirmed_at_utc": "2026-04-02T00:00:00.000Z",
+              "distance_percent_from_daily_close": 55.50385698542919,
+              "inside_latest_daily_range": false
+            }
+          ],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.00071,
+              "extreme_date_utc": "2026-05-28",
+              "confirmed_at_utc": "2026-05-31T00:00:00.000Z",
+              "distance_percent_from_daily_close": -13.064772866413609,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.00062,
+              "extreme_date_utc": "2026-10-12",
+              "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+              "distance_percent_from_daily_close": -24.084731235459778,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0006111,
+              "extreme_date_utc": "2026-10-02",
+              "confirmed_at_utc": "2026-10-05T00:00:00.000Z",
+              "distance_percent_from_daily_close": -25.174482674176566,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      }
+    },
+    "weekly_nearby_references": {
+      "above": [
+        {
+          "type": "high",
+          "price": 0.0008771,
+          "extreme_date_utc": "2026-09-26",
+          "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+          "distance_percent_from_daily_close": 7.395616505448754,
+          "inside_latest_daily_range": true
+        },
+        {
+          "type": "high",
+          "price": 0.00088,
+          "extreme_date_utc": "2026-06-04",
+          "confirmed_at_utc": "2026-06-22T00:00:00.000Z",
+          "distance_percent_from_daily_close": 7.750704052895818,
+          "inside_latest_daily_range": true
+        },
+        {
+          "type": "high",
+          "price": 0.00118,
+          "extreme_date_utc": "2026-04-26",
+          "confirmed_at_utc": "2026-05-11T00:00:00.000Z",
+          "distance_percent_from_daily_close": 44.48389861638302,
+          "inside_latest_daily_range": false
+        }
+      ],
+      "below": [
+        {
+          "type": "low",
+          "price": 0.00035,
+          "extreme_date_utc": "2026-08-19",
+          "confirmed_at_utc": "2026-09-07T00:00:00.000Z",
+          "distance_percent_from_daily_close": -57.14460634259826,
+          "inside_latest_daily_range": false
+        }
+      ]
+    },
+    "recent_daily_turns": [
+      {
+        "type": "low",
+        "price": 0.0005644,
+        "extreme_date_utc": "2026-10-07",
+        "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+        "distance_percent_from_daily_close": -30.892616627892743,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.0008499,
+        "extreme_date_utc": "2026-10-08",
+        "confirmed_at_utc": "2026-10-11T00:00:00.000Z",
+        "distance_percent_from_daily_close": 4.065140198359263,
+        "inside_latest_daily_range": true
+      },
+      {
+        "type": "low",
+        "price": 0.00062,
+        "extreme_date_utc": "2026-10-12",
+        "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+        "distance_percent_from_daily_close": -24.084731235459778,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.00084,
+        "extreme_date_utc": "2026-10-16",
+        "confirmed_at_utc": "2026-10-19T00:00:00.000Z",
+        "distance_percent_from_daily_close": 2.852944777764188,
+        "inside_latest_daily_range": true
+      }
+    ],
+    "recent_weekly_turns": [
+      {
+        "type": "low",
+        "price": 0.00082,
+        "extreme_date_utc": "2026-04-14",
+        "confirmed_at_utc": "2026-05-04T00:00:00.000Z",
+        "distance_percent_from_daily_close": 0.40406514019837303,
+        "inside_latest_daily_range": true
+      },
+      {
+        "type": "high",
+        "price": 0.00118,
+        "extreme_date_utc": "2026-04-26",
+        "confirmed_at_utc": "2026-05-11T00:00:00.000Z",
+        "distance_percent_from_daily_close": 44.48389861638302,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "low",
+        "price": 0.00035,
+        "extreme_date_utc": "2026-08-19",
+        "confirmed_at_utc": "2026-09-07T00:00:00.000Z",
+        "distance_percent_from_daily_close": -57.14460634259826,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.0008771,
+        "extreme_date_utc": "2026-09-26",
+        "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+        "distance_percent_from_daily_close": 7.395616505448754,
+        "inside_latest_daily_range": true
+      }
+    ],
+    "old_macro_half_recovery": {
+      "id": "macro-0.5",
+      "ratio": 0.5,
+      "price": 0.061675,
+      "distance_percent_from_reference_close": 7451.7325823435785,
+      "anchor_ids": [
+        "high-1623801600",
+        "low-1787097600"
+      ],
+      "available_at_utc": "2026-08-22T00:00:00.000Z"
+    },
+    "limitations": [
+      "Nearest by price is not necessarily recent in time or relevant to the next swing.",
+      "Inside the latest daily range means that day already spanned the price; it gives no intraday order or execution evidence.",
+      "References outside that range are not fresh or untested levels, and need not be reached next.",
+      "Neither scope nor these observations establishes a peak, arrival date, probability or profitable rule."
+    ]
+  },
+  {
+    "schema_version": "moonwalking.chart-reference-comparison/v1",
+    "instrument": {
+      "product_id": "COTI-USD",
+      "symbol": "COTI",
+      "venue": "coinbase-exchange",
+      "quote_currency": "USD"
+    },
+    "source": {
+      "sha256": "3c405566bbbd67d3bd087d2f6bb8f08e144c78e6a88e14c29600e552706dd35b",
+      "fetched_at": "2026-10-20T07:14:51.673831Z",
+      "scope": "Retrospective Coinbase product history; video-feed parity and historical vendor availability are unverified."
+    },
+    "cutoff_exclusive_utc": "2026-10-20T00:00:00.000Z",
+    "daily_reference": {
+      "date_utc": "2026-10-19",
+      "close": 0.010819,
+      "low": 0.010523,
+      "high": 0.010989
+    },
+    "weekly_reference": {
+      "date_utc": "2026-10-18",
+      "close": 0.010751
+    },
+    "settings": {
+      "confirmation_bars_each_side": 2,
+      "distances_use": "latest completed daily close",
+      "weekly_lookback_days": 365,
+      "daily_turn_sequence_lookback_days": 90
+    },
+    "coverage": {
+      "daily_candles": 1881,
+      "complete_weeks": 268,
+      "missing_daily_intervals": 0,
+      "excluded_incomplete_weeks": 2
+    },
+    "daily_scopes": {
+      "90": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.0128,
+            "extreme_date_utc": "2026-08-16",
+            "confirmed_at_utc": "2026-08-19T00:00:00.000Z",
+            "distance_percent_from_daily_close": 18.310379887235428,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "high",
+            "price": 0.01375,
+            "extreme_date_utc": "2026-10-12",
+            "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+            "distance_percent_from_daily_close": 27.09122839449116,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "high",
+            "price": 0.01424,
+            "extreme_date_utc": "2026-08-24",
+            "confirmed_at_utc": "2026-08-27T00:00:00.000Z",
+            "distance_percent_from_daily_close": 31.620297624549387,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.009541,
+            "extreme_date_utc": "2026-08-19",
+            "confirmed_at_utc": "2026-08-22T00:00:00.000Z",
+            "distance_percent_from_daily_close": -11.812551991866172,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [
+            {
+              "type": "high",
+              "price": 0.0128,
+              "extreme_date_utc": "2026-08-16",
+              "confirmed_at_utc": "2026-08-19T00:00:00.000Z",
+              "distance_percent_from_daily_close": 18.310379887235428,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.01375,
+              "extreme_date_utc": "2026-10-12",
+              "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+              "distance_percent_from_daily_close": 27.09122839449116,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.01424,
+              "extreme_date_utc": "2026-08-24",
+              "confirmed_at_utc": "2026-08-27T00:00:00.000Z",
+              "distance_percent_from_daily_close": 31.620297624549387,
+              "inside_latest_daily_range": false
+            }
+          ],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.009541,
+              "extreme_date_utc": "2026-08-19",
+              "confirmed_at_utc": "2026-08-22T00:00:00.000Z",
+              "distance_percent_from_daily_close": -11.812551991866172,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      },
+      "365": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.0128,
+            "extreme_date_utc": "2026-08-16",
+            "confirmed_at_utc": "2026-08-19T00:00:00.000Z",
+            "distance_percent_from_daily_close": 18.310379887235428,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "high",
+            "price": 0.0131,
+            "extreme_date_utc": "2026-05-21",
+            "confirmed_at_utc": "2026-05-24T00:00:00.000Z",
+            "distance_percent_from_daily_close": 21.083279415842494,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "high",
+            "price": 0.0132,
+            "extreme_date_utc": "2026-03-27",
+            "confirmed_at_utc": "2026-03-30T00:00:00.000Z",
+            "distance_percent_from_daily_close": 22.00757925871153,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.0103,
+            "extreme_date_utc": "2026-02-06",
+            "confirmed_at_utc": "2026-02-09T00:00:00.000Z",
+            "distance_percent_from_daily_close": -4.797116184490246,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.009541,
+            "extreme_date_utc": "2026-08-19",
+            "confirmed_at_utc": "2026-08-22T00:00:00.000Z",
+            "distance_percent_from_daily_close": -11.812551991866172,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.0093,
+            "extreme_date_utc": "2026-06-10",
+            "confirmed_at_utc": "2026-06-13T00:00:00.000Z",
+            "distance_percent_from_daily_close": -14.040114613180531,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [
+            {
+              "type": "high",
+              "price": 0.0128,
+              "extreme_date_utc": "2026-08-16",
+              "confirmed_at_utc": "2026-08-19T00:00:00.000Z",
+              "distance_percent_from_daily_close": 18.310379887235428,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.0131,
+              "extreme_date_utc": "2026-05-21",
+              "confirmed_at_utc": "2026-05-24T00:00:00.000Z",
+              "distance_percent_from_daily_close": 21.083279415842494,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.0132,
+              "extreme_date_utc": "2026-03-27",
+              "confirmed_at_utc": "2026-03-30T00:00:00.000Z",
+              "distance_percent_from_daily_close": 22.00757925871153,
+              "inside_latest_daily_range": false
+            }
+          ],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.0103,
+              "extreme_date_utc": "2026-02-06",
+              "confirmed_at_utc": "2026-02-09T00:00:00.000Z",
+              "distance_percent_from_daily_close": -4.797116184490246,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.009541,
+              "extreme_date_utc": "2026-08-19",
+              "confirmed_at_utc": "2026-08-22T00:00:00.000Z",
+              "distance_percent_from_daily_close": -11.812551991866172,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0093,
+              "extreme_date_utc": "2026-06-10",
+              "confirmed_at_utc": "2026-06-13T00:00:00.000Z",
+              "distance_percent_from_daily_close": -14.040114613180531,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      }
+    },
+    "weekly_nearby_references": {
+      "above": [
+        {
+          "type": "high",
+          "price": 0.0134,
+          "extreme_date_utc": "2026-06-01",
+          "confirmed_at_utc": "2026-06-22T00:00:00.000Z",
+          "distance_percent_from_daily_close": 23.85617894444958,
+          "inside_latest_daily_range": false
+        },
+        {
+          "type": "high",
+          "price": 0.0152,
+          "extreme_date_utc": "2026-03-17",
+          "confirmed_at_utc": "2026-04-06T00:00:00.000Z",
+          "distance_percent_from_daily_close": 40.49357611609206,
+          "inside_latest_daily_range": false
+        },
+        {
+          "type": "high",
+          "price": 0.0158,
+          "extreme_date_utc": "2026-05-13",
+          "confirmed_at_utc": "2026-06-01T00:00:00.000Z",
+          "distance_percent_from_daily_close": 46.039375173306226,
+          "inside_latest_daily_range": false
+        }
+      ],
+      "below": [
+        {
+          "type": "low",
+          "price": 0.0108,
+          "extreme_date_utc": "2026-02-23",
+          "confirmed_at_utc": "2026-03-16T00:00:00.000Z",
+          "distance_percent_from_daily_close": -0.17561697014510935,
+          "inside_latest_daily_range": true
+        },
+        {
+          "type": "low",
+          "price": 0.0103,
+          "extreme_date_utc": "2026-02-06",
+          "confirmed_at_utc": "2026-02-23T00:00:00.000Z",
+          "distance_percent_from_daily_close": -4.797116184490246,
+          "inside_latest_daily_range": false
+        },
+        {
+          "type": "low",
+          "price": 0.0072,
+          "extreme_date_utc": "2026-07-20",
+          "confirmed_at_utc": "2026-08-10T00:00:00.000Z",
+          "distance_percent_from_daily_close": -33.45041131343008,
+          "inside_latest_daily_range": false
+        }
+      ]
+    },
+    "recent_daily_turns": [
+      {
+        "type": "low",
+        "price": 0.012453,
+        "extreme_date_utc": "2026-09-29",
+        "confirmed_at_utc": "2026-10-02T00:00:00.000Z",
+        "distance_percent_from_daily_close": 15.103059432479892,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.014888,
+        "extreme_date_utc": "2026-10-02",
+        "confirmed_at_utc": "2026-10-05T00:00:00.000Z",
+        "distance_percent_from_daily_close": 37.60976060634069,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "low",
+        "price": 0.012175,
+        "extreme_date_utc": "2026-10-08",
+        "confirmed_at_utc": "2026-10-11T00:00:00.000Z",
+        "distance_percent_from_daily_close": 12.533505869303996,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.01375,
+        "extreme_date_utc": "2026-10-12",
+        "confirmed_at_utc": "2026-10-15T00:00:00.000Z",
+        "distance_percent_from_daily_close": 27.09122839449116,
+        "inside_latest_daily_range": false
+      }
+    ],
+    "recent_weekly_turns": [
+      {
+        "type": "low",
+        "price": 0.0103,
+        "extreme_date_utc": "2026-02-06",
+        "confirmed_at_utc": "2026-02-23T00:00:00.000Z",
+        "distance_percent_from_daily_close": -4.797116184490246,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.016,
+        "extreme_date_utc": "2026-04-20",
+        "confirmed_at_utc": "2026-05-11T00:00:00.000Z",
+        "distance_percent_from_daily_close": 47.88797485904428,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "low",
+        "price": 0.0072,
+        "extreme_date_utc": "2026-07-20",
+        "confirmed_at_utc": "2026-08-10T00:00:00.000Z",
+        "distance_percent_from_daily_close": -33.45041131343008,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.026681,
+        "extreme_date_utc": "2026-09-18",
+        "confirmed_at_utc": "2026-10-05T00:00:00.000Z",
+        "distance_percent_from_daily_close": 146.61244107588502,
+        "inside_latest_daily_range": false
+      }
+    ],
+    "old_macro_half_recovery": {
+      "id": "macro-0.5",
+      "ratio": 0.5,
+      "price": 0.34809999999999997,
+      "distance_percent_from_reference_close": 3117.4877530270815,
+      "anchor_ids": [
+        "high-1632528000",
+        "low-1784505600"
+      ],
+      "available_at_utc": "2026-07-23T00:00:00.000Z"
+    },
+    "limitations": [
+      "Nearest by price is not necessarily recent in time or relevant to the next swing.",
+      "Inside the latest daily range means that day already spanned the price; it gives no intraday order or execution evidence.",
+      "References outside that range are not fresh or untested levels, and need not be reached next.",
+      "Neither scope nor these observations establishes a peak, arrival date, probability or profitable rule."
+    ]
+  },
+  {
+    "schema_version": "moonwalking.chart-reference-comparison/v1",
+    "instrument": {
+      "product_id": "PYTH-USD",
+      "symbol": "PYTH",
+      "venue": "coinbase-exchange",
+      "quote_currency": "USD"
+    },
+    "source": {
+      "sha256": "53ee7db4fbad70e34f84196eb472b4ae9d3f1a544b6ea36deec5c450be0c6fe6",
+      "fetched_at": "2026-10-20T07:15:48.332514Z",
+      "scope": "Retrospective Coinbase product history; video-feed parity and historical vendor availability are unverified."
+    },
+    "cutoff_exclusive_utc": "2026-10-20T00:00:00.000Z",
+    "daily_reference": {
+      "date_utc": "2026-10-19",
+      "close": 0.07327,
+      "low": 0.07164,
+      "high": 0.07645
+    },
+    "weekly_reference": {
+      "date_utc": "2026-10-18",
+      "close": 0.0742
+    },
+    "settings": {
+      "confirmation_bars_each_side": 2,
+      "distances_use": "latest completed daily close",
+      "weekly_lookback_days": 365,
+      "daily_turn_sequence_lookback_days": 90
+    },
+    "coverage": {
+      "daily_candles": 607,
+      "complete_weeks": 86,
+      "missing_daily_intervals": 0,
+      "excluded_incomplete_weeks": 2
+    },
+    "daily_scopes": {
+      "90": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.07375,
+            "extreme_date_utc": "2026-09-22",
+            "confirmed_at_utc": "2026-09-25T00:00:00.000Z",
+            "distance_percent_from_daily_close": 0.6551112324280073,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.08186,
+            "extreme_date_utc": "2026-10-03",
+            "confirmed_at_utc": "2026-10-06T00:00:00.000Z",
+            "distance_percent_from_daily_close": 11.723761430326185,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "high",
+            "price": 0.08784,
+            "extreme_date_utc": "2026-10-09",
+            "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+            "distance_percent_from_daily_close": 19.88535553432509,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.07028,
+            "extreme_date_utc": "2026-10-07",
+            "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+            "distance_percent_from_daily_close": -4.080797051999463,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.0511,
+            "extreme_date_utc": "2026-09-16",
+            "confirmed_at_utc": "2026-09-19T00:00:00.000Z",
+            "distance_percent_from_daily_close": -30.257950047768535,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.04991,
+            "extreme_date_utc": "2026-09-11",
+            "confirmed_at_utc": "2026-09-14T00:00:00.000Z",
+            "distance_percent_from_daily_close": -31.88207997816296,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [
+            {
+              "type": "high",
+              "price": 0.08186,
+              "extreme_date_utc": "2026-10-03",
+              "confirmed_at_utc": "2026-10-06T00:00:00.000Z",
+              "distance_percent_from_daily_close": 11.723761430326185,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.08784,
+              "extreme_date_utc": "2026-10-09",
+              "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+              "distance_percent_from_daily_close": 19.88535553432509,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.08896,
+              "extreme_date_utc": "2026-09-27",
+              "confirmed_at_utc": "2026-09-30T00:00:00.000Z",
+              "distance_percent_from_daily_close": 21.413948409990446,
+              "inside_latest_daily_range": false
+            }
+          ],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.07028,
+              "extreme_date_utc": "2026-10-07",
+              "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+              "distance_percent_from_daily_close": -4.080797051999463,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0511,
+              "extreme_date_utc": "2026-09-16",
+              "confirmed_at_utc": "2026-09-19T00:00:00.000Z",
+              "distance_percent_from_daily_close": -30.257950047768535,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.04991,
+              "extreme_date_utc": "2026-09-11",
+              "confirmed_at_utc": "2026-09-14T00:00:00.000Z",
+              "distance_percent_from_daily_close": -31.88207997816296,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      },
+      "365": {
+        "above": [
+          {
+            "type": "high",
+            "price": 0.0737,
+            "extreme_date_utc": "2026-01-06",
+            "confirmed_at_utc": "2026-01-09T00:00:00.000Z",
+            "distance_percent_from_daily_close": 0.5868704790500834,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.07375,
+            "extreme_date_utc": "2026-09-22",
+            "confirmed_at_utc": "2026-09-25T00:00:00.000Z",
+            "distance_percent_from_daily_close": 0.6551112324280073,
+            "inside_latest_daily_range": true
+          },
+          {
+            "type": "high",
+            "price": 0.0738,
+            "extreme_date_utc": "2025-12-09",
+            "confirmed_at_utc": "2025-12-12T00:00:00.000Z",
+            "distance_percent_from_daily_close": 0.7233519858059312,
+            "inside_latest_daily_range": true
+          }
+        ],
+        "below": [
+          {
+            "type": "low",
+            "price": 0.07028,
+            "extreme_date_utc": "2026-10-07",
+            "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+            "distance_percent_from_daily_close": -4.080797051999463,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.07,
+            "extreme_date_utc": "2025-11-21",
+            "confirmed_at_utc": "2025-11-24T00:00:00.000Z",
+            "distance_percent_from_daily_close": -4.462945270915785,
+            "inside_latest_daily_range": false
+          },
+          {
+            "type": "low",
+            "price": 0.0662,
+            "extreme_date_utc": "2025-12-01",
+            "confirmed_at_utc": "2025-12-04T00:00:00.000Z",
+            "distance_percent_from_daily_close": -9.649242527637513,
+            "inside_latest_daily_range": false
+          }
+        ],
+        "outside_latest_range": {
+          "above": [
+            {
+              "type": "high",
+              "price": 0.0797,
+              "extreme_date_utc": "2025-11-26",
+              "confirmed_at_utc": "2025-11-29T00:00:00.000Z",
+              "distance_percent_from_daily_close": 8.775760884400153,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.08186,
+              "extreme_date_utc": "2026-10-03",
+              "confirmed_at_utc": "2026-10-06T00:00:00.000Z",
+              "distance_percent_from_daily_close": 11.723761430326185,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "high",
+              "price": 0.08784,
+              "extreme_date_utc": "2026-10-09",
+              "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+              "distance_percent_from_daily_close": 19.88535553432509,
+              "inside_latest_daily_range": false
+            }
+          ],
+          "below": [
+            {
+              "type": "low",
+              "price": 0.07028,
+              "extreme_date_utc": "2026-10-07",
+              "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+              "distance_percent_from_daily_close": -4.080797051999463,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.07,
+              "extreme_date_utc": "2025-11-21",
+              "confirmed_at_utc": "2025-11-24T00:00:00.000Z",
+              "distance_percent_from_daily_close": -4.462945270915785,
+              "inside_latest_daily_range": false
+            },
+            {
+              "type": "low",
+              "price": 0.0662,
+              "extreme_date_utc": "2025-12-01",
+              "confirmed_at_utc": "2025-12-04T00:00:00.000Z",
+              "distance_percent_from_daily_close": -9.649242527637513,
+              "inside_latest_daily_range": false
+            }
+          ]
+        }
+      }
+    },
+    "weekly_nearby_references": {
+      "above": [
+        {
+          "type": "high",
+          "price": 0.0737,
+          "extreme_date_utc": "2026-01-06",
+          "confirmed_at_utc": "2026-01-26T00:00:00.000Z",
+          "distance_percent_from_daily_close": 0.5868704790500834,
+          "inside_latest_daily_range": true
+        },
+        {
+          "type": "high",
+          "price": 0.08896,
+          "extreme_date_utc": "2026-09-27",
+          "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+          "distance_percent_from_daily_close": 21.413948409990446,
+          "inside_latest_daily_range": false
+        }
+      ],
+      "below": [
+        {
+          "type": "low",
+          "price": 0.0533,
+          "extreme_date_utc": "2025-12-18",
+          "confirmed_at_utc": "2026-01-05T00:00:00.000Z",
+          "distance_percent_from_daily_close": -27.25535689914017,
+          "inside_latest_daily_range": false
+        },
+        {
+          "type": "low",
+          "price": 0.0377,
+          "extreme_date_utc": "2026-08-18",
+          "confirmed_at_utc": "2026-09-07T00:00:00.000Z",
+          "distance_percent_from_daily_close": -48.546471953050364,
+          "inside_latest_daily_range": false
+        },
+        {
+          "type": "low",
+          "price": 0.0364,
+          "extreme_date_utc": "2026-03-29",
+          "confirmed_at_utc": "2026-04-13T00:00:00.000Z",
+          "distance_percent_from_daily_close": -50.32073154087622,
+          "inside_latest_daily_range": false
+        }
+      ]
+    },
+    "recent_daily_turns": [
+      {
+        "type": "low",
+        "price": 0.07028,
+        "extreme_date_utc": "2026-10-07",
+        "confirmed_at_utc": "2026-10-10T00:00:00.000Z",
+        "distance_percent_from_daily_close": -4.080797051999463,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.08784,
+        "extreme_date_utc": "2026-10-09",
+        "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+        "distance_percent_from_daily_close": 19.88535553432509,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "low",
+        "price": 0.07568,
+        "extreme_date_utc": "2026-10-11",
+        "confirmed_at_utc": "2026-10-14T00:00:00.000Z",
+        "distance_percent_from_daily_close": 3.289204312815608,
+        "inside_latest_daily_range": true
+      },
+      {
+        "type": "high",
+        "price": 0.1019,
+        "extreme_date_utc": "2026-10-15",
+        "confirmed_at_utc": "2026-10-18T00:00:00.000Z",
+        "distance_percent_from_daily_close": 39.07465538419543,
+        "inside_latest_daily_range": false
+      }
+    ],
+    "recent_weekly_turns": [
+      {
+        "type": "low",
+        "price": 0.0295,
+        "extreme_date_utc": "2026-06-06",
+        "confirmed_at_utc": "2026-06-22T00:00:00.000Z",
+        "distance_percent_from_daily_close": -59.73795550702881,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.0525,
+        "extreme_date_utc": "2026-07-16",
+        "confirmed_at_utc": "2026-08-03T00:00:00.000Z",
+        "distance_percent_from_daily_close": -28.347208953186843,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "low",
+        "price": 0.0377,
+        "extreme_date_utc": "2026-08-18",
+        "confirmed_at_utc": "2026-09-07T00:00:00.000Z",
+        "distance_percent_from_daily_close": -48.546471953050364,
+        "inside_latest_daily_range": false
+      },
+      {
+        "type": "high",
+        "price": 0.08896,
+        "extreme_date_utc": "2026-09-27",
+        "confirmed_at_utc": "2026-10-12T00:00:00.000Z",
+        "distance_percent_from_daily_close": 21.413948409990446,
+        "inside_latest_daily_range": false
+      }
+    ],
+    "old_macro_half_recovery": {
+      "id": "macro-0.5",
+      "ratio": 0.5,
+      "price": 0.14029999999999998,
+      "distance_percent_from_reference_close": 91.48355397843588,
+      "anchor_ids": [
+        "high-1756425600",
+        "low-1780704000"
+      ],
+      "available_at_utc": "2026-06-09T00:00:00.000Z"
+    },
+    "limitations": [
+      "Nearest by price is not necessarily recent in time or relevant to the next swing.",
+      "Inside the latest daily range means that day already spanned the price; it gives no intraday order or execution evidence.",
+      "References outside that range are not fresh or untested levels, and need not be reached next.",
+      "Neither scope nor these observations establishes a peak, arrival date, probability or profitable rule."
+    ]
+  }
+]

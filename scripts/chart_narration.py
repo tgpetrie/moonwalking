@@ -94,6 +94,16 @@ def next_run_catalog(packet):
     if close:
         through = dt.datetime.fromtimestamp(close['end'] - 1, dt.timezone.utc).date()
         add('reference', 'position', f"{packet['instrument']['product_id']} has a completed daily close of {price(close['close'])} through {through} UTC. This is the reference for the next-recovery map, not a live quote.", ['evidence.next_run.reference'])
+        if close.get('low') is not None and close.get('high') is not None:
+            text = f"The latest completed daily range is {price(close['low'])} to {price(close['high'])}. Nearby observations inside it were already spanned by that candle. "
+            outside = view.get('outside_range', {}).get('above', [])
+            sources = ['evidence.next_run.reference']
+            if 'outside_range' in view:
+                text += (f"The closest prior high beyond that daily high in this scope is {price(outside[0]['price'])}. It is another historical observation, not a predicted destination." if outside else "No confirmed prior daily high beyond that candle's high is available in this scope; no future peak is established.")
+                sources.append('evidence.next_run.outside_range')
+            else:
+                text += 'This older packet does not establish whether farther observations exist outside that range.'
+            add('daily-range', 'position', text, sources)
         start = dt.datetime.fromtimestamp(view['start'], dt.timezone.utc).date()
         add('basis', 'levels', f"The next-recovery map uses confirmed daily turning points from {start} through {through} UTC, with {view['confirmation']} completed daily candles each side. References are ranked by price distance, not likelihood. The up-to-{view['lookback_days']}-day scope is a display choice, not a tested edge; old cycle Fibonacci calculations are excluded.", ['evidence.next_run'])
         for side in ('above', 'below'):

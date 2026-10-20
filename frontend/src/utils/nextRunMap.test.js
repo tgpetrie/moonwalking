@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAY } from './macroChart.js';
+import { DAY, WEEK, aggregateWeeks } from './macroChart.js';
 import { nextRunMap } from './nextRunMap.js';
 
 // Illustrative synthetic prices only; not a market-performance fixture.
@@ -10,6 +10,19 @@ const bars = Array.from({ length: 450 }, (_, i) => {
     open: close, close, high: close + 0.2, low: close - 0.2 };
 });
 describe('next run reference scope', () => {
+  it('keeps daily and complete weekly scopes separate, with honest candle-range context', () => {
+    const daily = nextRunMap(bars, { asOf: bars.at(-1).end, lookbackDays: 90 });
+    const weeks = aggregateWeeks(bars.map((p) => ({ ...p, complete: true })));
+    const weekly = nextRunMap(weeks, { asOf: bars.at(-1).end, interval: WEEK });
+    expect(daily.lookback_days).toBe(90);
+    expect(weekly.interval_seconds).toBe(WEEK);
+    expect(weekly.reference.complete).toBe(true);
+    expect(weekly.reference.end).toBeLessThanOrEqual(daily.reference.end);
+    expect(weekly.outside_range.above.every((p) => p.price > weekly.reference.high)).toBe(true);
+    const poisoned = [...weeks, { ...weeks.at(-1), time: bars.at(-1).end, end: bars.at(-1).end + WEEK, high: 9999 }];
+    expect(nextRunMap(poisoned, { asOf: bars.at(-1).end, interval: WEEK })).toEqual(weekly);
+    expect([...daily.above, ...daily.below].every((p) => p.time >= daily.start)).toBe(true);
+  });
   it('ranks actual confirmed highs/lows by distance and excludes old macro extremes', () => {
     const input = bars.map((b, i) => i === 20 ? { ...b, high: 10000 } : b);
     const map = nextRunMap(input, { asOf: bars.at(-1).end });

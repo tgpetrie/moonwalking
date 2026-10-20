@@ -1,0 +1,30 @@
+{
+  "source_ref": "830762d5",
+  "coin": "BTCUSDT",
+  "day": "2026-01-31",
+  "current_code": 5.0665000000000004e-05,
+  "correct_window_mean": 2.288666666666667e-05,
+  "correct_window_prints": 3,
+  "sources": [
+    {
+      "url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2026-01.zip",
+      "zip_sha256": "fcdc796484f395830d418588a34a26baed8849dbef0ff2b56173247e493ff51f",
+      "first": "2026-01-01T00:00:00+00:00",
+      "last": "2026-01-31T16:00:00+00:00"
+    },
+    {
+      "url": "https://data.binance.vision/data/futures/um/monthly/fundingRate/BTCUSDT/BTCUSDT-fundingRate-2026-02.zip",
+      "zip_sha256": "80df1dd669dc1e3afc360c9da8b9a949a127fce088eedbf5bf708bd37b0a1f58",
+      "first": "2026-02-01T00:00:00+00:00",
+      "last": "2026-02-28T16:00:00+00:00"
+    }
+  ],
+  "assessment": "Window defect confirmed; full study not rerun; real BTC example stays neutral in both calculations.",
+  "synthetic_regime_example": {
+    "source_ref": "830762d5",
+    "fixture_actual": -0.0001,
+    "fixture_expected": 0.0002666666666666667,
+    "regime_changes": true,
+    "scope": "synthetic reproduction only; no full historical rerun"
+  }
+}

@@ -5,7 +5,7 @@ import ChartCoinSearch from './ChartCoinSearch.jsx';
 import ChartTimingPanel from './ChartTimingPanel.jsx';
 import ChartLevelGuide, { guideEvidence } from './ChartLevelGuide.jsx';
 import ChartWorkerStatus from './ChartWorkerStatus.jsx';
-import { DAY, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
+import { DAY, WEEK, aggregateWeeks, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
 import { defaultMacroAnchors, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
 import { nextRunMap } from '../utils/nextRunMap.js';
 import '../styles/macro-chart.css';
@@ -108,13 +108,17 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
   const low = chart.candles.length ? chart.candles.reduce((a, b) => a.low < b.low ? a : b) : null;
   const high = chart.candles.length ? chart.candles.reduce((a, b) => a.high > b.high ? a : b) : null;
   const priorHigh = chart.candles.slice(0, -1).reduce((a, b) => !a || b.high > a.high ? b : a, null);
-  const nextRun = nextRunMap(dailyCandles, { asOf: chart.as_of, confirmation });
+  const nextRun = nextRunMap(dailyCandles, { asOf: chart.as_of, confirmation, lookbackDays: 90 });
+  const weeklyRun = nextRunMap(aggregateWeeks(dailyCandles).filter((p) => p.complete), {
+    asOf: chart.as_of, confirmation, interval: WEEK, lookbackDays: 365,
+  });
+  const plotRun = chart.interval_seconds === WEEK ? weeklyRun : nextRun;
   const recentLevels = ['low', 'high'].flatMap((type) => {
     const p = pivots.filter((row) => row.type === type).at(-1);
     return p ? [{ ...p, label: `Recent ${type}` }] : [];
   });
 
-  const evidence = guideEvidence(macro, recentLevels, structure.anchors || [], nextRun);
+  const evidence = guideEvidence(macro, recentLevels, structure.anchors || [], nextRun, weeklyRun);
   const selectedEvidence = [...evidence.nearby, ...evidence.observed, ...evidence.anchors, ...evidence.calculated].find((p) => p.id === selectedEvidenceId);
   const selectEvidence = (id) => {
     setSelectedEvidenceId(id);
@@ -132,12 +136,12 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
       <UiCard><span className="macro-label">High in analysed history</span><strong>{format(high.high)}</strong><small>{dateText(high.high_time ?? high.time)} · Available venue history</small></UiCard>
     </div>
     <UiCard className="macro-reading" tone="subtle"><span className="macro-label">Your price map</span><h2>Focus on the next recovery</h2>
-      <p>Start with confirmed daily turning points near the latest daily close. These references show where price turned in the recorded history and how far each observation is from the dated daily close.</p>
+      <p>Compare the daily swing and the weekly cycle separately. The daily list uses turns from the last 90 days; the weekly list uses complete weekly turns from the last year. Neither estimates how long a move will take.</p>
       <p>Clearing one reference only exceeds that particular prior high; other recent highs may still be overhead. It would not establish a return to the old cycle peak or a new high across the full history. We have not established the next run's final high.</p>
       {priorHigh && chart.candles.at(-1).close > priorHigh.high && <p>The last completed close is already above the previous historical high of {format(priorHigh.high)} in this view. Old recovery ratios still describe their original historical range.</p>}
       <a className="macro-timing-link" href="#macro-future">See the next-run checkpoints</a>
     </UiCard>
-    <div ref={guideRef}><ChartLevelGuide macro={macro} nextRun={nextRun} evidence={evidence} latest={chart.candles.at(-1)}
+    <div ref={guideRef}><ChartLevelGuide macro={macro} nextRun={nextRun} weeklyRun={weeklyRun} evidence={evidence} latest={chart.candles.at(-1)}
       currency={instrument.quote_currency} interval={chart.interval_seconds} selectedId={selectedEvidenceId}
       onSelect={selectEvidence} onInspect={onInspect} focusRange={focusRange} /></div>
     <UiCard className="macro-range-panel">
@@ -180,7 +184,7 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
       <UiCard className="macro-chart-panel" padding="none">
         <div className="macro-chart-heading"><div><span className="macro-label">{instrument.symbol} / {instrument.quote_currency}</span><h2>The larger move</h2></div>
           <UiChip tone={showLocal && valid && scenario.status === 'invalidated' ? 'danger' : 'neutral'}>{showLocal && valid ? STATUS[scenario.status] : 'Historical structure'}</UiChip></div>
-        <MacroPriceChart candles={displayed} pivots={pivots} scenario={showLocal ? scenario : null} macro={showMacro ? macro : null} referenceLevels={[...nextRun.above, ...nextRun.below]}
+        <MacroPriceChart candles={displayed} pivots={pivots} scenario={showLocal ? scenario : null} macro={showMacro ? macro : null} referenceLevels={[...plotRun.above, ...plotRun.below].map((p) => ({ ...p, reference_interval: chart.interval_seconds === WEEK ? 'weekly' : 'daily' }))}
           historical={showHistory ? structure.anchors : []} future={showFuture ? futureLevel : null}
           nested={showRecent ? recentStructure : []}
           selectedEvidence={selectedEvidence} onSelectAnchor={(p) => explainFromChart(`anchor:${p.id}`)}
@@ -199,7 +203,7 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
           <UiButton size="sm" onClick={() => { onResetFocus(); setOffset(0); setCount(Math.min(400, chart.candles.length)); if (focusRange) { setShowMacro(false); setShowHistory(true); setShowFuture(false); } }}>Fit history</UiButton>
           {displayChart.candles.length > 20 && <label>Visible candles <input aria-label="Visible candles" type="range" min={20} max={Math.min(400, displayChart.candles.length)} value={Math.min(count, displayChart.candles.length)} onChange={(event) => { setCount(Number(event.target.value)); setOffset(0); }} /></label>}
         </div>
-        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>H/L: prior daily highs and lows</span>{showLocal && valid && <span>Dashed horizontals: local Fibonacci levels</span>}{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
+        <div className="macro-chart-legend"><span>Solid: historical swings</span>{showHistory && <span>A–D: historical macro anchors</span>}{showFuture && futureLevel && <span>Dashed E?: hypothetical future reference</span>}<span>H/L: prior {chart.interval_seconds === WEEK ? 'weekly' : 'daily'} highs and lows</span>{showLocal && valid && <span>Dashed horizontals: local Fibonacci levels</span>}{showMacro && !macro.error && <span>Mint band: selected macro recovery range</span>}<span>Future timing is not estimated</span><span className="macro-mobile-hint">Swipe the chart to inspect its full width</span></div>
       </UiCard>
       <UiCard className="macro-anchor-panel">
         <details className="macro-advanced"><summary>Optional: measure a smaller move</summary>

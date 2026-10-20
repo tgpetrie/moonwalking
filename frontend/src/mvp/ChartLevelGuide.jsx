@@ -9,7 +9,7 @@ export function distanceText(price, close) {
   return `${percent > 0 ? '+' : '−'}${Math.abs(percent).toLocaleString('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 })}% · ${percent > 0 ? 'above' : 'below'} reference close`;
 }
 
-export function guideEvidence(macro, recent, historical, nextRun) {
+export function guideEvidence(macro, recent, historical, nextRun, weeklyRun) {
   const observed = recent.map((p) => ({ id: `recent:${p.id}`, title: `Recent ${p.type}`, price: p.price, anchors: [p], kind: 'observed' }));
   const anchors = historical.map((p) => ({ id: `anchor:${p.id}`, title: `Historical ${p.label}`, price: p.price, anchors: [p], kind: 'observed' }));
   const calculated = macro.error ? [] : [0.5, 0.618, 0.786, 1, 1.618].map((ratio) => ({
@@ -21,30 +21,46 @@ export function guideEvidence(macro, recent, historical, nextRun) {
     id: `next:${p.id}`, title: p.display_label, price: p.price,
     anchors: [p], kind: 'observed', scope: 'next_run', baseline: nextRun.reference.close,
   }));
+  nearby.push(...[...(weeklyRun?.above || []), ...(weeklyRun?.below || [])].map((p) => ({
+    id: `weekly:${p.id}`, title: `Weekly ${p.display_label.toLowerCase()}`, price: p.price,
+    anchors: [p], kind: 'observed', scope: 'weekly_run', baseline: weeklyRun.reference.close,
+  })));
   return { nearby, observed, anchors, calculated };
 }
 
-export default function ChartLevelGuide({ macro, nextRun, evidence, latest, currency, interval, selectedId, onSelect, onInspect, focusRange }) {
+export default function ChartLevelGuide({ macro, nextRun, weeklyRun, evidence, latest, currency, interval, selectedId, onSelect, onInspect, focusRange }) {
   const format = (p) => priceText(p, currency);
   const all = [...evidence.nearby, ...evidence.observed, ...evidence.anchors, ...evidence.calculated];
   const selected = all.find((p) => p.id === selectedId);
   const row = (p) => <div className="macro-guide-row" key={p.id}>
-    <div><strong>{format(p.price)}</strong><span>{p.title}</span><small>{distanceText(p.price, p.baseline ?? latest.close)}</small>{p.scope === 'next_run' && <small>Turn {dateText(p.anchors[0].extreme_time ?? p.anchors[0].time)} · Confirmed {dateText(p.anchors[0].confirmed_at)} UTC</small>}</div>
+    <div><strong>{format(p.price)}</strong><span>{p.title}</span><small>{distanceText(p.price, p.baseline ?? latest.close)}</small>{['next_run', 'weekly_run'].includes(p.scope) && <><small>Turn {dateText(p.anchors[0].extreme_time ?? p.anchors[0].time)} · Confirmed {dateText(p.anchors[0].confirmed_at)} UTC</small>{nextRun.reference && nextRun.reference.low <= p.price && p.price <= nextRun.reference.high && <small>Already inside the latest completed daily range</small>}</>}</div>
     <UiButton size="sm" variant={selectedId === p.id ? 'primary' : 'secondary'} aria-label={`Explain ${p.title}`} aria-pressed={selectedId === p.id} aria-controls="macro-level-explanation" onClick={() => onSelect(p.id)}>Explain</UiButton>
   </div>;
   return <UiCard className="macro-reading macro-level-guide" tone="subtle" id="macro-future">
-    <span className="macro-label">Next run · nearby daily structure</span><h2>Levels to watch on the next recovery</h2>
+    <span className="macro-label">Daily swing and weekly cycle</span><h2>Nearby references for the current move</h2>
     <p>These are observed checkpoints above and below price, sorted by price distance. They do not predict the run’s peak, a guaranteed pullback, or when a level will be reached.</p>
     <p>{disclosures.daily_pivot_study} <a className="macro-timing-link" href={disclosures.study_source} target="_blank" rel="noreferrer">Study scope and limitations</a></p>
     {nextRun.reference && <>
+      <h3>Daily swing · recent 90-day structure</h3>
       <p className="next-run-baseline">Daily close {format(nextRun.reference.close)} · Completed through {dateText(nextRun.reference.end - 1)} UTC. Not a live quote.</p>
+      <p>Latest completed daily range: {format(nextRun.reference.low)}–{format(nextRun.reference.high)}. Prices inside this range have already been spanned by that candle.</p>
+      <p>{nextRun.outside_range.above.length ? `Prior highs beyond that daily high: ${nextRun.outside_range.above.map((p) => `${format(p.price)} (${dateText(p.extreme_time ?? p.time)})`).join(', ')}.` : 'No confirmed daily high above that candle’s high exists in the recent 90-day scope. The latest high is still a candle observation; no future peak is established.'}</p>
       <p>Scope: {dateText(nextRun.start)}–{dateText(nextRun.end - 1)} UTC · Up to {nextRun.lookback_days} days · {nextRun.confirmation} completed daily candles each side to confirm a turn. This scope is a display choice, not a tested edge. Older macro levels are separate below.</p>
       <div className="macro-scenario-grid macro-next-run-grid">
-        <div><h3>Prior highs above the close</h3><p>Prior high 1 (H1 on the chart) is the closest confirmed daily high above the dated close in this scope. Prior highs 2 and 3 are farther observations, not a promised sequence.</p>{evidence.nearby.filter((p) => p.anchors[0].type === 'high').map(row)}{!nextRun.above.length && <p>No confirmed daily high above the close in this scope. No next-run upside level is established; we do not substitute an old cycle calculation.</p>}</div>
-        <div><h3>Prior lows below the close</h3><p>Prior low 1 (L1 on the chart) is the closest confirmed daily low below the dated close. Prior lows 2 and 3 are farther observations, not proven floors.</p>{evidence.nearby.filter((p) => p.anchors[0].type === 'low').map(row)}{!nextRun.below.length && <p>No confirmed daily low below the close in this scope. No downside reference is available.</p>}</div>
+        <div><h3>Prior highs above the close</h3><p>Prior high 1 (H1 in the Daily chart view) is the closest confirmed daily high above the dated close in this scope. Prior highs 2 and 3 are farther observations, not a promised sequence.</p>{evidence.nearby.filter((p) => p.scope === 'next_run' && p.anchors[0].type === 'high').map(row)}{!nextRun.above.length && <p>No confirmed daily high above the close in this scope. No next-run upside level is established; we do not substitute an old cycle calculation.</p>}</div>
+        <div><h3>Prior lows below the close</h3><p>Prior low 1 (L1 in the Daily chart view) is the closest confirmed daily low below the dated close. Prior lows 2 and 3 are farther observations, not proven floors.</p>{evidence.nearby.filter((p) => p.scope === 'next_run' && p.anchors[0].type === 'low').map(row)}{!nextRun.below.length && <p>No confirmed daily low below the close in this scope. No downside reference is available.</p>}</div>
       </div>
       {nextRun.at.length > 0 && <p>{nextRun.at.length} confirmed turning reference(s) equal the dated close; they have no above/below distance and are excluded from the high/low ranking.</p>}
     </>}
+    {weeklyRun?.reference && <section aria-label="Weekly cycle references">
+      <h3>Weekly cycle · separate from the daily swing</h3>
+      <p>Weekly close {format(weeklyRun.reference.close)} · Completed through {dateText(weeklyRun.reference.end - 1)} UTC. Distances below use this weekly close. Scope: {dateText(weeklyRun.start)}–{dateText(weeklyRun.end - 1)} UTC; {weeklyRun.confirmation} complete weeks each side to confirm a turn. A weekly reference can already be inside the later daily range.</p>
+      <p>{disclosures.weekly_level_study}</p>
+      <div className="macro-scenario-grid">
+        <div><h3>Weekly highs above the weekly close</h3>{evidence.nearby.filter((p) => p.scope === 'weekly_run' && p.anchors[0].type === 'high').map(row)}{!weeklyRun.above.length && <p>No confirmed weekly high above this weekly close in the one-year scope.</p>}</div>
+        <div><h3>Weekly lows below the weekly close</h3>{evidence.nearby.filter((p) => p.scope === 'weekly_run' && p.anchors[0].type === 'low').map(row)}{!weeklyRun.below.length && <p>No confirmed weekly low below this weekly close in the one-year scope.</p>}</div>
+      </div>
+    </section>}
     <details className="macro-advanced macro-long-range"><summary>Long-range macro calculations (separate from the next run)</summary>
     <p>These measure the selected historical decline. They are not next-run targets. A large distance from today’s price does not become plausible simply because a Fibonacci ratio produces it.</p>
     <p className="macro-guide-baseline">Distances use {format(latest.close)} · {interval === 604800 ? 'weekly' : 'daily'} candle completed through {dateText(latest.end - 1)} UTC. This is the analysis close, not a live quote.</p>

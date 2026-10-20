@@ -19,6 +19,23 @@ function renderWithTools(ui) {
 }
 
 describe('local long-term chart workspace', () => {
+  it('shows both horizons and explains a weekly observation against its own dated close', () => {
+    const input = syntheticHistory();
+    input.candles.push(...Array.from({ length: 2 }, (_, i) => ({ start: input.captured_at + i * 86400,
+      end: input.captured_at + (i + 1) * 86400, open: 24, close: 24, high: 24.3, low: 23.8, volume: 100, complete: true })));
+    input.captured_at += 2 * 86400;
+    const { container } = render(<MacroChartPage initialHistory={parseHistory(input)} />);
+    expect(screen.getByRole('heading', { name: 'Daily swing · recent 90-day structure' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Weekly cycle references' })).toBeVisible();
+    expect(screen.getByText(/Latest completed daily range:/)).toBeVisible();
+    const button = screen.getByRole('button', { name: 'Explain Weekly prior high 1' });
+    fireEvent.click(button);
+    const explanation = container.querySelector('#macro-level-explanation');
+    expect(explanation).toHaveTextContent('Weekly prior high 1');
+    expect(explanation).toHaveTextContent('+6.1%');
+    expect(explanation).toHaveTextContent('Confirmed');
+    expect(screen.getByText(/Distances below use this weekly close/)).toBeVisible();
+  });
   it('names prior observations and discloses the untested daily rule before any explanation is selected', () => {
     const { container } = render(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     expect(screen.getByText(disclosures.daily_pivot_study, { exact: false })).toBeVisible();
@@ -30,7 +47,7 @@ describe('local long-term chart workspace', () => {
     expect(screen.getByRole('heading', { name: /Prior high 1 ·/ })).toBeVisible();
     expect(container.querySelector('.macro-chart-reference text')).toHaveTextContent(/^[HL][123] /);
     expect(container.querySelector('.macro-next-run-grid').textContent).not.toMatch(/\b[RS][123]\b/);
-    expect(container.querySelector('.macro-chart-legend')).toHaveTextContent('H/L: prior daily highs and lows');
+    expect(container.querySelector('.macro-chart-legend')).toHaveTextContent('H/L: prior weekly highs and lows');
     fireEvent.input(screen.getByLabelText('Replay through (UTC)'), { target: { value: '2024-01-14' } });
     expect(screen.getByText(disclosures.daily_pivot_study, { exact: false })).toBeVisible();
     expect(screen.queryByRole('heading', { name: /Prior high 1 ·/ })).not.toBeInTheDocument();
@@ -145,7 +162,7 @@ describe('local long-term chart workspace', () => {
   it('keeps macro projection opt-in, separate from next-run references, and withholds it during replay', () => {
     const { container } = renderWithTools(<MacroChartPage initialHistory={parseHistory(syntheticHistory())} />);
     const history = container.querySelector('.macro-chart-history').getAttribute('points');
-    expect(screen.getByRole('heading', { name: 'Levels to watch on the next recovery' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Nearby references for the current move' })).toBeVisible();
     const future = screen.getByRole('checkbox', { name: 'Show long-range macro scenario' });
     expect(future).not.toBeChecked();
     expect(container.querySelector('.macro-chart-future')).not.toBeInTheDocument();

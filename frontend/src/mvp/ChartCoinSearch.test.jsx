@@ -32,7 +32,7 @@ describe('coin-to-chart workflow', () => {
     await screen.findByText('AMP history loaded');
     expect(client.history.mock.calls[0][0]).toBe('AMP-USD');
     expect(screen.getByRole('heading', { name: 'Focus on the next recovery' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Levels to watch on the next recovery' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Nearby references for the current move' })).toBeVisible();
     expect(screen.getByLabelText('Macro high')).not.toBeVisible();
     expect(container.querySelector('.next-run-baseline')).toHaveTextContent('Daily close');
     expect(container.querySelector('.macro-chart-recovery')).not.toBeInTheDocument();

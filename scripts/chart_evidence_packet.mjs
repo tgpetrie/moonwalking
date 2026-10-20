@@ -27,7 +27,9 @@ export function buildEvidencePacket(bytes, { asOf, interval = '1w', confirmation
   const daily = chartAt(history, '1d', requested);
   const { pivots, ambiguous } = confirmedPivots(chart.candles, { left: confirmation, right: confirmation, interval: chart.interval_seconds });
   const close = chart.candles.at(-1);
-  const nextRun = nextRunMap(daily.candles, { asOf: chart.as_of, confirmation });
+  const nextRun = nextRunMap(daily.candles, { asOf: chart.as_of, confirmation, lookbackDays: 90 });
+  const weekly = chartAt(history, '1w', requested);
+  const weeklyRun = nextRunMap(weekly.candles, { asOf: chart.as_of, confirmation, interval: weekly.interval_seconds });
   const ids = defaultMacroAnchors(pivots);
   const range = macroRange(...ids.map((id) => pivots.find((p) => p.id === id)), { asOf: chart.as_of });
   const macro = historicalMacro(pivots, range, { asOf: chart.as_of });
@@ -52,6 +54,7 @@ export function buildEvidencePacket(bytes, { asOf, interval = '1w', confirmation
       ambiguous_pivots_excluded: ambiguous, scope: 'Missing intervals are measured between first and last retained complete daily candles.' },
     evidence: { next_run: { ...nextRun, above: nextRun.above.map(datedAnchor), below: nextRun.below.map(datedAnchor),
         at: nextRun.at.map(datedAnchor) },
+      weekly_run: { ...weeklyRun, above: weeklyRun.above.map(datedAnchor), below: weeklyRun.below.map(datedAnchor) },
       pivots: pivots.map(datedAnchor), recent_sequence: recent.map(datedAnchor), recent_references: references,
       historical_legs: historicalLegs(recent, chart.as_of), macro_anchors: macro.anchors.map(datedAnchor),
       macro_unavailable_reason: range.error ?? null,
