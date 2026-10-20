@@ -8,6 +8,8 @@ import ChartWorkerStatus from './ChartWorkerStatus.jsx';
 import { DAY, WEEK, aggregateWeeks, chartAt, confirmedPivots, dateText, defaultAnchors, fibScenario, parseHistory, priceText } from '../utils/macroChart.js';
 import { defaultMacroAnchors, historicalMacro, macroRange, recentSwingSequence } from '../utils/chartStructure.js';
 import { nextRunMap } from '../utils/nextRunMap.js';
+import { publicHistoryClient } from '../utils/publicChartHistory.js';
+import { historyFreshness, requireCurrentHistory } from '../utils/chartFreshness.js';
 import '../styles/macro-chart.css';
 
 const STATUS = {
@@ -232,16 +234,47 @@ function ScenarioWorkspace({ chart, pivots, instrument, dailyCandles, confirmati
   </>;
 }
 
-export default function MacroChartPage({ initialHistory = null, historyClient }) {
+export default function MacroChartPage({ initialHistory = null, historyClient = publicHistoryClient }) {
   const [history, setHistory] = useState(initialHistory);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [remoteBusy, setRemoteBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const loadId = useRef(0);
+  const refreshRequest = useRef(null);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => () => { loadId.current += 1; refreshRequest.current?.abort(); }, []);
+  const freshness = history ? historyFreshness(history, clock) : null;
+  const quote = history?.source?.latest_trade;
+  const validQuote = quote && typeof quote.price === 'number' && Number.isFinite(quote.price) && quote.price > 0
+    && Number.isFinite(Date.parse(quote.trade_at)) && Number.isFinite(Date.parse(quote.checked_at))
+    && Date.parse(quote.checked_at) <= clock + 60000 && Date.parse(quote.trade_at) <= Date.parse(quote.checked_at) + 60000;
+  const stamp = (value) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : 'Not recorded';
+  async function refreshLatest() {
+    refreshRequest.current?.abort();
+    const controller = new AbortController(); refreshRequest.current = controller;
+    const id = ++loadId.current;
+    setLoading(true); setError('');
+    try {
+      const next = await historyClient.history(history.instrument.product_id, {
+        signal: controller.signal, force: true, includeLatestTrade: true,
+      });
+      requireCurrentHistory(next, Date.now());
+      if (id === loadId.current && !controller.signal.aborted) {
+        setHistory(next); setClock(Date.now()); setRevision((r) => r + 1);
+      }
+    } catch (failure) {
+      if (id === loadId.current && failure.name !== 'AbortError') setError(`${failure.message} Your previous chart has been kept.`);
+    } finally { if (id === loadId.current) setLoading(false); }
+  }
   const load = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    refreshRequest.current?.abort();
     const id = ++loadId.current;
     setLoading(true); setError('');
     try {
@@ -259,9 +292,19 @@ export default function MacroChartPage({ initialHistory = null, historyClient })
     <main className="macro-main">
       <header className="macro-intro"><div><p className="mw-eyebrow">Long-term chart map</p><h1>Read the larger move.</h1><p>Historical turning points, measured pullbacks, and conditional price zones.</p></div><UiChip tone="accent">Research preview</UiChip></header>
       {import.meta.env.DEV && new URLSearchParams(window.location.search).get('worker') === '1' && <ChartWorkerStatus onHistory={(next) => { loadId.current += 1; setLoading(false); setHistory(next); setRevision((r) => r + 1); setError(''); }} />}
-      <ChartCoinSearch client={historyClient} hasHistory={!!history} onBusyChange={setRemoteBusy} onBegin={() => { loadId.current += 1; setLoading(false); setError(''); }}
+      <ChartCoinSearch client={historyClient} hasHistory={!!history} onBusyChange={setRemoteBusy} onBegin={() => { refreshRequest.current?.abort(); loadId.current += 1; setLoading(false); setError(''); }}
         onHistory={(next) => { setHistory(next); setRevision((r) => r + 1); setError(''); }} />
-      {history && <div className="macro-loaded"><strong>{history.instrument.symbol} history loaded</strong><span>{history.instrument.venue} · Daily history through {dateText(history.captured_at - 1)} UTC</span></div>}
+      {history && <>
+        <div className="macro-loaded"><strong>{history.instrument.symbol} history loaded</strong><span>{history.instrument.venue} · Daily history through {freshness.through_utc ?? 'unavailable'} UTC</span></div>
+        <UiCard tone="subtle" aria-label="Chart data freshness">
+          <h2>{freshness.current ? 'Latest completed daily candle present' : 'Historical snapshot · refresh required'}</h2>
+          <p>Actual candles through {freshness.through_utc ?? 'unavailable'} UTC · Expected through {freshness.expected_through_utc} UTC. The current UTC day is still forming; weekly calculations use complete weeks.</p>
+          <p>History fetched: {stamp(freshness.checked_at)}. Saved files do not refresh themselves.</p>
+          {validQuote ? <p>Latest reported trade: <strong>{priceText(quote.price, history.instrument.quote_currency)}</strong> · Trade time {stamp(quote.trade_at)} · Provider checked {stamp(quote.checked_at)}.{clock - Date.parse(quote.checked_at) > 120000 ? ' Quote check is over two minutes old; refresh to check again.' : ''} This is a trade snapshot; completed-candle calculations retain their dated closes.</p>
+            : <p>Latest reported trade is unavailable in this snapshot.{history.source?.latest_trade_error ? ` ${history.source.latest_trade_error}` : ''} Refresh to check it.</p>}
+          <UiButton disabled={loading || remoteBusy} onClick={refreshLatest}>Refresh latest data</UiButton>
+        </UiCard>
+      </>}
       {loading && <p role="status">Checking historical prices…</p>}
       {error && <p className="macro-error" role="alert">{error}</p>}
       {history ? <ChartWorkspace key={`${history.instrument.product_id}-${history.captured_at}-${revision}`} history={history} />

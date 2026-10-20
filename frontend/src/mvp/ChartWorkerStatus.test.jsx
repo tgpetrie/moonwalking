@@ -25,6 +25,13 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('local chart worker status', () => {
+  it('marks old candle coverage stale even when a task reports success on schedule', async () => {
+    const old = { ...status(), candle_through_utc: '2026-10-15' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(old)));
+    render(<ChartWorkerStatus />); await settle();
+    expect(screen.getByText('Stale · check worker')).toBeVisible();
+    expect(screen.getByText(/successful task run alone/)).toBeVisible();
+  });
   it('polls only the fixed local file and never opens history without an explicit click', async () => {
     const fetch = vi.fn().mockResolvedValue(response(status())); vi.stubGlobal('fetch', fetch);
     const onHistory = vi.fn(); render(<ChartWorkerStatus onHistory={onHistory} />); await settle();

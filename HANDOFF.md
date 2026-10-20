@@ -411,3 +411,15 @@ data; the study itself has not been repaired or rerun in this branch.
 The installed chart checkout contains other pre-existing uncommitted A/B/C work.
 Do not copy over it. Review and integrate commits before changing its task/runtime.
 No main merge, deployment, installed-task update or live-store write occurred.
+
+## Chart run freshness, 2026-10-20
+
+Read `docs/research/CHART_FRESHNESS_2026-10-20.md` for the latest run contract.
+Explicit analyses/refreshes bypass the old same-day cache and recheck recent
+candles. Browser and worker reject stale tails (including midnight cutoff rollover)
+while preserving last-good history. The UI shows actual coverage, expected coverage,
+fetch/check times and separate timestamped latest-trade context; completed-bar
+daily/weekly calculations keep their dated baselines. Saved files/replays remain
+inspectable with freshness labels. The offline comparison CLI declares snapshot
+versus replay mode. The installed AMP task is unchanged pending reviewed integration
+with the five modified files in its existing checkout.

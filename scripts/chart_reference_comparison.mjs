@@ -6,6 +6,7 @@ import { buildEvidencePacket } from './chart_evidence_packet.mjs';
 import { DAY, WEEK, parseHistory, chartAt, confirmedPivots } from '../frontend/src/utils/macroChart.js';
 import { recentSwingSequence } from '../frontend/src/utils/chartStructure.js';
 import { nextRunMap } from '../frontend/src/utils/nextRunMap.js';
+import { historyFreshness } from '../frontend/src/utils/chartFreshness.js';
 
 const date = (t) => new Date(t * 1000).toISOString().slice(0, 10);
 const distance = (price, close) => (price / close - 1) * 100;
@@ -50,6 +51,9 @@ export function compareReferenceScopes(bytes, { asOf, confirmation = 2 } = {}) {
     source: { sha256: packet.source.sha256, fetched_at: history.source?.fetched_at ?? null,
       scope: 'Retrospective Coinbase product history; video-feed parity and historical vendor availability are unverified.' },
     cutoff_exclusive_utc: packet.settings.effective_cutoff_exclusive_utc,
+    freshness: { ...historyFreshness({ ...history, captured_at: cutoff, candles: daily.candles }),
+      analysis_mode: asOf ? 'historical_replay' : 'saved_snapshot',
+      note: 'This offline command does not contact the provider or turn a saved file into live data.' },
     daily_reference: { date_utc: date(reference.time), close: reference.close, low: reference.low, high: reference.high },
     weekly_reference: weekly.candles.length ? { date_utc: date(weekly.candles.at(-1).end - 1),
       close: weekly.candles.at(-1).close } : null,

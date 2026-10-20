@@ -78,7 +78,7 @@ class PublicClient:
             if self.last is not None:
                 self.sleep(max(0, 1.05 - (self.clock() - self.last)))
             try:
-                request = urllib.request.Request(BASE + path, headers={'Accept': 'application/json', 'User-Agent': 'moonwalking-local-chart-worker/1.0'})
+                request = urllib.request.Request(BASE + path, headers={'Accept': 'application/json', 'Cache-Control': 'no-cache', 'User-Agent': 'moonwalking-local-chart-worker/1.0'})
                 with self.opener(request, timeout=20) as response:
                     body = response.read(4 * 1024 * 1024 + 1)
                 if len(body) > 4 * 1024 * 1024:
@@ -141,6 +141,8 @@ def refresh(product, previous, client, now):
     old = previous['candles'] if previous else []
     # The refreshed interval is authoritative, including newly observed missing buckets.
     candles = [c for c in old if c['start'] < start] + fresh
+    if candles[-1]['end'] < cutoff:
+        raise ValueError(f"Provider daily history ends {iso(candles[-1]['end'] - 1)[:10]} UTC; expected through {iso(cutoff - 1)[:10]} UTC. Refusing to publish a current analysis from a stale tail.")
     gaps = (candles[-1]['start'] - candles[0]['start']) // DAY + 1 - len(candles)
     return {'schema_version': 'bhabit.chart-history.v1',
             'instrument': {'product_id': product, 'symbol': base, 'venue': 'coinbase-exchange', 'quote_currency': quote},
@@ -298,6 +300,8 @@ def run_once(store, *, seed=None, client=None, clock=time.time, producer=evidenc
             summaries.append('Provider history trails the latest closed UTC day; check candle coverage before interpreting freshness.')
         narration_detail = narrator(packet, old_status.get('narration_detail'))
         finished = clock()
+        if updated['candles'][-1]['end'] < int(finished - 300) // DAY * DAY:
+            raise ValueError('The UTC daily cutoff advanced during this run; refusing to publish stale coverage as current. Retry the refresh.')
         status = {'schema_version': SCHEMA, 'product_id': store.product, 'state': 'ok',
                   'generation_id': str(uuid.uuid4()), 'last_attempt_at': iso(now), 'last_success_at': iso(finished),
                   'next_run_at': iso(now + PERIOD), 'last_error': None, 'candle_through_utc': iso(last_day)[:10],

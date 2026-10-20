@@ -19,6 +19,38 @@ function renderWithTools(ui) {
 }
 
 describe('local long-term chart workspace', () => {
+  it('refreshes explicit runs and keeps latest-trade context separate from dated candle calculations', async () => {
+    const now = Date.UTC(2026, 9, 20, 12);
+    const time = vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      const fresh = syntheticHistory();
+      const shift = Date.UTC(2026, 9, 20) / 1000 - fresh.captured_at;
+      fresh.candles = fresh.candles.map((p) => ({ ...p, start: p.start + shift, end: p.end + shift }));
+      fresh.captured_at += shift;
+      fresh.source = { fetched_at: new Date(now).toISOString(), latest_trade: {
+        price: 24.6, trade_at: '2026-10-20T11:59:00Z', checked_at: new Date(now).toISOString(),
+      } };
+      const old = { ...fresh, candles: fresh.candles.slice(0, -1), source: {} };
+      const client = { history: vi.fn().mockResolvedValue(parseHistory(fresh)) };
+      const { container } = render(<MacroChartPage initialHistory={parseHistory(old)} historyClient={client} />);
+      expect(screen.getByRole('heading', { name: 'Historical snapshot · refresh required' })).toBeVisible();
+      expect(screen.getByRole('region', { name: 'Chart data freshness' })).toHaveTextContent('Actual candles through 2026-10-18');
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh latest data' }));
+      await waitFor(() => expect(screen.getByRole('heading', { name: 'Latest completed daily candle present' })).toBeVisible());
+      expect(client.history).toHaveBeenCalledWith('TEST-USD', expect.objectContaining({ force: true, includeLatestTrade: true }));
+      expect(screen.getByRole('region', { name: 'Chart data freshness' })).toHaveTextContent('Latest reported trade: $24.60');
+      expect(container.querySelector('.next-run-baseline')).toHaveTextContent('$23.06');
+    } finally { time.mockRestore(); }
+  });
+  it('does not replace a saved chart with a stale-tail result from a refresh attempt', async () => {
+    const input = parseHistory(syntheticHistory());
+    const client = { history: vi.fn().mockResolvedValue(input) };
+    render(<MacroChartPage initialHistory={input} historyClient={client} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh latest data' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('not published'));
+    expect(screen.getByRole('alert')).toHaveTextContent('Your previous chart has been kept');
+    expect(screen.getByText('TEST history loaded')).toBeVisible();
+  });
   it('shows both horizons and explains a weekly observation against its own dated close', () => {
     const input = syntheticHistory();
     input.candles.push(...Array.from({ length: 2 }, (_, i) => ({ start: input.captured_at + i * 86400,

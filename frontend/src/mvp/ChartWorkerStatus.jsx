@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UiButton, UiCard } from '../components/ui/DesignSystem.jsx';
 import { parseHistory } from '../utils/macroChart.js';
+import { expectedDailyEnd } from '../utils/chartFreshness.js';
 import './chart-worker-status.css';
 
 const STATUS_URL = '/.runtime/chart-worker/status.json';
@@ -82,7 +83,9 @@ export default function ChartWorkerStatus({ onHistory }) {
 
   if (!import.meta.env.DEV) return null;
   const overdue = status?.next_run_at && Date.parse(status.next_run_at) < Date.now() - 60000;
-  const stale = Boolean(error || status?.state === 'error' || overdue);
+  const candleEnd = status?.candle_through_utc ? Date.parse(`${status.candle_through_utc}T00:00:00Z`) / 1000 + 86400 : NaN;
+  const dataBehind = Boolean(status?.state === 'ok' && (!Number.isFinite(candleEnd) || candleEnd < expectedDailyEnd()));
+  const stale = Boolean(error || status?.state === 'error' || overdue || dataBehind);
   const narration = status?.narration_detail;
   async function openHistory() {
     historyRequest.current?.abort();
@@ -131,6 +134,7 @@ export default function ChartWorkerStatus({ onHistory }) {
     {status && <>
       <h3>{status.product_id} · {STATES[status.state]}</h3>
       {overdue && <p>The scheduled run is overdue. The worker may be stopped or this PC may have been asleep.</p>}
+      {dataBehind && <p>The saved daily candles are behind the latest expected closed UTC day. A successful task run alone does not establish current data.</p>}
       {status.last_error && <p role="alert">Worker reported: {status.last_error}</p>}
       <dl className="chart-worker-status__dates">
         <div><dt>Last attempt</dt><dd>{timestamp(status.last_attempt_at)}</dd></div>

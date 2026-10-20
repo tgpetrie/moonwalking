@@ -116,6 +116,25 @@ class WorkerTests(unittest.TestCase):
         self.assertIn('synthetic provider failure', status['last_error'])
         self.assertEqual(self.store.read()[1:], (before_history, before_packet))
 
+    def test_stale_provider_tail_cannot_publish_success_or_replace_last_good(self):
+        good = self.run_worker()
+        before = self.store.read()[1:]
+        status = self.run_worker(FakeClient(rows(9)), NOW + 3600)
+        self.assertEqual(status['state'], 'error')
+        self.assertIn('stale tail', status['last_error'])
+        self.assertEqual(status['last_success_at'], good['last_success_at'])
+        self.assertEqual(self.store.read()[1:], before)
+
+    def test_cutoff_rollover_during_a_run_retains_last_good(self):
+        good = self.run_worker(FakeClient(rows(9)), NOW - worker.DAY)
+        before = self.store.read()[1:]
+        ticks = iter([timestamp('2026-01-20') + 299, timestamp('2026-01-20') + 301, timestamp('2026-01-20') + 301])
+        result = worker.run_once(self.store, client=FakeClient(rows(9)), clock=lambda: next(ticks), producer=packet, narrator=fake_narrator)
+        self.assertEqual(result['state'], 'error')
+        self.assertIn('cutoff advanced', result['last_error'])
+        self.assertEqual(result['last_success_at'], good['last_success_at'])
+        self.assertEqual(self.store.read()[1:], before)
+
     def test_active_duplicate_lease_skips_without_provider_call(self):
         token = self.store.claim(NOW)
         client = FakeClient()

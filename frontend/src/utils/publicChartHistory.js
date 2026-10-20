@@ -1,6 +1,7 @@
 // Public, unsigned Coinbase Exchange GETs only. No account APIs or data stores.
 // Docs: https://docs.cdp.coinbase.com/api-reference/exchange-api/rest-api/products/get-product-candles
 import { DAY, HISTORY_SCHEMA, parseHistory } from './macroChart.js';
+import { CANDLE_SETTLEMENT_SECONDS, HISTORY_RECHECK_MS, requireCurrentHistory } from './chartFreshness.js';
 
 const BASE = 'https://api.exchange.coinbase.com';
 const START = Date.UTC(2010, 0, 1) / 1000;
@@ -33,7 +34,7 @@ export function createPublicHistoryClient({ fetcher = (...args) => fetch(...args
         const timer = setTimeout(cancel, 20000);
         let response;
         try {
-          response = await fetcher(`${BASE}${path}`, { method: 'GET', credentials: 'omit', signal: controller.signal });
+          response = await fetcher(`${BASE}${path}`, { method: 'GET', cache: 'no-store', credentials: 'omit', signal: controller.signal });
           if (response.ok) return await response.json();
           if (![429, 503].includes(response.status) || attempt === 2) {
             throw new Error(`Coinbase history is unavailable (HTTP ${response.status}). Try again later.`);
@@ -55,8 +56,8 @@ export function createPublicHistoryClient({ fetcher = (...args) => fetch(...args
     queue = request.catch(() => {});
     return request;
   }
-  async function products(signal) {
-    if (catalog) return catalog;
+  async function products(signal, force = false) {
+    if (catalog && !force) return catalog;
     const rows = await get('/products', signal);
     if (!Array.isArray(rows)) throw new Error('Coinbase returned an invalid coin list.');
     catalog = rows.filter((p) => /^[A-Z0-9]{1,20}$/.test(p.base_currency)
@@ -73,18 +74,26 @@ export function createPublicHistoryClient({ fetcher = (...args) => fetch(...args
       return rows.filter((p) => p.symbol.includes(term)).sort((a, b) =>
         Number(b.symbol === term) - Number(a.symbol === term) || a.symbol.localeCompare(b.symbol)).slice(0, 12);
     },
-    async history(productId, { signal, onProgress = () => {} } = {}) {
-      const rows = await products(signal);
+    async history(productId, { signal, onProgress = () => {}, force = false, includeLatestTrade = false } = {}) {
+      const rows = await products(signal, force);
       const product = rows.find((p) => p.id === productId);
       if (!product) throw new Error('Select a coin from the search results.');
-      const end = Math.floor(now() / 1000 / DAY) * DAY;
+      const end = Math.floor((now() / 1000 - CANDLE_SETTLEMENT_SECONDS) / DAY) * DAY;
       const key = `${productId}:${end}`;
-      if (cache.has(key)) { check(signal); return cache.get(key); }
-      const total = Math.ceil((end - START) / (299 * DAY));
+      const exact = cache.get(key);
+      if (!force && !includeLatestTrade && exact && now() - Date.parse(exact.source.fetched_at) < HISTORY_RECHECK_MS) {
+        check(signal); return requireCurrentHistory(exact, now());
+      }
+      const previous = [...cache.values()].filter((p) => p.instrument.product_id === productId && p.captured_at <= end).at(-1);
+      const firstRequest = previous ? Math.max(START, previous.candles.at(-1).time - 6 * DAY) : START;
+      const total = Math.ceil((end - firstRequest) / (299 * DAY));
       if (total < 1 || total > 40) throw new Error('The requested history range is unsupported.');
       const candles = new Map();
+      for (const p of previous?.candles ?? []) {
+        if (p.time < firstRequest) candles.set(p.time, [p.time, p.low, p.high, p.open, p.close, p.volume]);
+      }
       let completed = 0;
-      for (let start = START; start < end; start += 299 * DAY) {
+      for (let start = firstRequest; start < end; start += 299 * DAY) {
         check(signal);
         const stop = Math.min(start + 299 * DAY, end);
         onProgress({ completed, total, candles: candles.size });
@@ -108,14 +117,32 @@ export function createPublicHistoryClient({ fetcher = (...args) => fetch(...args
       }
       check(signal);
       if (!candles.size) throw new Error(`No daily USD history is available for ${product.symbol} from this source.`);
-      const result = parseHistory({ schema_version: HISTORY_SCHEMA,
+      const result = requireCurrentHistory(parseHistory({ schema_version: HISTORY_SCHEMA,
         instrument: { product_id: product.id, symbol: product.symbol, venue: 'Coinbase Exchange', quote_currency: 'USD' },
         interval_seconds: DAY, captured_at: end,
         candles: [...candles.values()].map(([start, low, high, open, close, volume]) =>
           ({ start, end: start + DAY, low, high, open, close, volume, complete: true })),
         source: { contract: 'coinbase-public-browser/v1', fetched_at: new Date(now()).toISOString(),
-          requested_start: new Date(START * 1000).toISOString(), requested_end_exclusive: new Date(end * 1000).toISOString(),
-          stitched: false, scope: 'Available Coinbase USD history only; not all-time or verified token-migration coverage.' } });
+          requested_start: new Date(firstRequest * 1000).toISOString(), requested_end_exclusive: new Date(end * 1000).toISOString(),
+          reused_earlier_history: Boolean(previous),
+          stitched: false, scope: 'Available Coinbase USD history only; not all-time or verified token-migration coverage.' } }), now());
+      // A quote is separate context; it never replaces a completed-candle close.
+      if (includeLatestTrade) {
+        try {
+          const quote = await get(`/products/${encodeURIComponent(productId)}/ticker`, signal);
+          const price = Number(quote.price);
+          const tradeTime = typeof quote.time === 'string' ? Date.parse(quote.time) : NaN;
+          if (!['number', 'string'].includes(typeof quote.price) || !Number.isFinite(price) || price <= 0
+            || !Number.isFinite(tradeTime) || tradeTime > now() + 60000) throw new Error('Coinbase returned an invalid latest trade.');
+          result.source.latest_trade = { price, trade_at: quote.time, checked_at: new Date(now()).toISOString(),
+            source_url: `${BASE}/products/${encodeURIComponent(productId)}/ticker` };
+        } catch (error) {
+          check(signal);
+          result.source.latest_trade = null;
+          result.source.latest_trade_error = error.message;
+        }
+      }
+      requireCurrentHistory(result, now());
       cache.set(key, result);
       if (cache.size > 3) cache.delete(cache.keys().next().value);
       onProgress({ completed: total, total, candles: candles.size });

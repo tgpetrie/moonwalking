@@ -23,7 +23,7 @@ export default function ChartCoinSearch({ onHistory, onBegin, onBusyChange, hasH
         const found = await client.search(query, { signal: controller.signal });
         if (id === revision.current) setMatches(found);
       } else {
-        const history = await client.history(product.id, { signal: controller.signal,
+        const history = await client.history(product.id, { signal: controller.signal, force: true, includeLatestTrade: true,
           onProgress: (value) => { if (id === revision.current) setProgress(value); } });
         if (id === revision.current && !controller.signal.aborted) { onHistory(history); setMatches(null); }
       }
