@@ -1,5 +1,8 @@
 # BHABIT per-coin scoring: research brief
 
+> **Status (2026-10-24): corrected.** A dated corrections log follows the header; the
+> original text is preserved and affected statements carry `[see C#]` pointers.
+
 Research only. No code was changed. Written 2026-10-23 on branch
 `claude/scoring-research` (docs only, based on `claude/retention-hotfix`, which is
 production's release `6235e2d2` plus the storage-retention fix).
@@ -15,6 +18,145 @@ differ from what is described here). **Not verified:** vendor pricing and limits
 
 ---
 
+## Corrections log (added 2026-10-24; the original text below is preserved)
+
+**How to read this document now.** Everything below this log is the **original
+2026-10-23 text, unedited except for short `[see C#]` pointers**. Where a statement was
+shown to be wrong, incomplete, or sensitive to a method choice, this log gives the
+original claim, what the audit found, and the corrected interpretation. The audit reran
+the measurements from scratch with different code (tie-aware ranks, short horizons, clean
+controls). The scripts are in `~/.moonwalking/analysis` (`audit_ic.py`, `audit_more.py`,
+`audit_conf.py`, `audit_rest.py`; not committed). Most numbers reproduced exactly; the
+items below did not hold as written.
+
+**Reproduced exactly (no correction needed):** all code constants and thresholds
+(weights, scales, penalties, label cut-offs, confidence points, notify thresholds,
+context thresholds, range zones, ATR period, OI window); the old-aggregator facts; the
+24-hour IC figures (-0.026 overall, up -0.059/-0.060, within-coin -0.027, weekly mean
+-0.001, 2 of 9 weeks positive, component values, the data-quality buckets); the
+thin-liquidity figure (-0.253%, n = 12,706); the matched-control table as saved; the
+sell-side regime numbers (top band -0.128 / +0.267 / +0.521 ATR).
+
+### Material corrections
+
+**C1. The score is *negatively* related to the next 15-60 minutes (omitted horizon).**
+* *Original:* "no usable information about the next 24 hours", and a summary headline
+  that the score "carries no predictive value".
+* *Audit:* the document measured only 24 hours, but the score is built from 1-minute,
+  3-minute and 1-hour moves. At the horizons it was designed for the relation is clear
+  and negative. The rank correlation with the on-time directional return is **-0.093 at
+  15 minutes** (n = 737,527) and **-0.088 at 60 minutes** (n = 719,980). Within each hour
+  across coins it averages **-0.095 and is positive in only 19% of 1,453 hours**.
+  De-duplicated (one row per coin, direction and 2 hours) the 60-minute IC is
+  **-0.098**. By score decile, the mean 60-minute directional return falls from
+  **+0.098%** (lowest decile) to **-0.498%** (top decile, scores 68-99): a spread of
+  about -0.60 percentage points, gross.
+* *Corrected interpretation:* a high score tends to be followed by a *give-back* within
+  an hour, not by continuation. That fits a score that measures how extended a move
+  already is. The relation is about the size of the cost scenarios (0.2-0.9%), so it is
+  **not** shown to be a tradable edge. Caveats: outcomes start at the signal-time price
+  (a delayed fill would differ), returns are gross, and thin-coin spikes may dominate.
+  "No predictive value" is retracted in favour of: *about zero at 24 hours, clearly
+  negative at 15-60 minutes.*
+
+**C2. The 24-hour IC depends on overlapping rows.**
+* *Original:* IC -0.026 over 490,930 signals.
+* *Audit:* de-duplicated (n = 67,115) the 24-hour IC is **+0.003** (up -0.007, down
+  -0.010). The weekly pattern (2 of 9 weeks positive) is unchanged.
+* *Corrected interpretation:* the 24-hour relation is **about zero**. The -0.026 reflects
+  repeated overlapping rows and should not be quoted as a negative 24-hour effect.
+
+**C3. "Signals are worse than matched controls" depends on how controls are defined.**
+* *Original:* all signals -0.031 R below matched same-coin controls (95% CI
+  [-0.052, -0.010]); high-confidence "up" signals -0.07 to -0.09 R.
+* *Audit:* **29.2% of the 900,258 control coin-hours were themselves signal hours** (a
+  signal on that coin within the preceding 3 hours). Re-matching with clean controls only:
+
+  | Group | All controls (as originally reported) | Clean controls only |
+  |---|---|---|
+  | All signals, pooled | -0.031 R (n = 117,787) | **-0.008 R** (n = 58,856; naive SE 0.006) |
+  | Demoted reads, pooled | -0.009 R (n = 47,228) | **+0.007 R** (n = 27,473) |
+  | "Up", confidence 72-85 | -0.090 (day-clustered z -2.1) | -0.066 (z -1.4) |
+  | "Up", confidence 85-95 | -0.073 (z -1.5) | -0.037 (z -0.8) |
+  | "Up", confidence 95-101 | -0.088 (z -2.3) | -0.062 (z -1.7) |
+  | "Down", confidence 95-101 | +0.069 (z +1.7) | +0.072 (z +1.4) |
+
+* *Corrected interpretation:* the safe claim is **"no detectable incremental value over
+  matched same-coin comparable hours"**. The claim that signals are *significantly worse*
+  than controls is **withdrawn**. The "up, high-confidence" direction stays negative but
+  is not significant under clean controls. The demotion evidence (no edge for the two
+  demoted reads) is unaffected or slightly strengthened.
+  *Follow-up outside this branch:* the evidence table in
+  `docs/ops/WEAK_READS_AND_EXTENDED_OUTCOMES.md` on `claude/demote-weak-reads` still shows
+  the all-signals -0.031 row and needs the same correction.
+
+### Moderate corrections (caveats that were missing)
+
+**C4. Selection, entry and cost assumptions.** The IC was measured only on coins that
+fired a signal (not the whole universe). The outcome entry is the signal-time price,
+which is more favourable than a next-hour-open entry such as the Codex pilot's. Costs
+were an assumed 0.2% round trip; a 0.9% scenario is plausible for a retail account and is
+**unverified** for yours. The sell-side replay required 49 consecutive hourly candles,
+which drops thinly traded coins. Survivorship applies to the 407 currently listed coins.
+None of these changes a sign; all of them limit how far the numbers generalise. A
+candle-only surrogate of the score across the full universe would remove the selection
+limit.
+
+### Minor corrections
+
+**C5.** The sell-side volume-gate effect is **+0.021 ATR** (all 561,160 rows) but
+**+0.064 ATR** on the 519,133 rows that have a 30-day BTC history. Neither is
+significant; state the subset whenever the number is quoted.
+
+**C6.** The old aggregator hard-codes **79 symbols**, not "about 70".
+
+**C7.** Three remarks were stated as findings but are hypotheses or unverified: "fully
+populated rows are the more extended moves" (hypothesis); "community and developer scores
+barely change over time" (unverified); and the thin-liquidity figure is relative to the
+board's own matched control (nearest same-direction non-board mover), not a same-coin
+control. `CONTINUATION FAVORED` also requires at least two independent families, which
+the table omitted.
+
+### Additions (information not available when this was written)
+
+**C8. Derivatives coverage is narrower than implied.** The sentiment service's
+market-wide derivatives feed covers **BTC and ETH only**, from Binance, OKX, Bybit,
+Hyperliquid and (with a key) Coinalyze, and requests **funding and open interest only; no
+liquidations**. Per-coin positioning exists only through Hyperliquid and covers **133 of
+407 coins (33%)**. Hyperliquid's public `fundingHistory` is verified to serve **500 hourly
+rows per request**, with history back to 2023-05 for the earliest coin; **123 of the 133
+coins have at least a year, and the median first record is 2024-02**.
+
+**C9. Prior preregistered work by another session was not reconciled.** Branch
+`origin/claude/render-history-data` (2026-10-19) contains pre-registered daily studies
+over 492 Coinbase USD products including delisted ones (2022-01 to 2026-10; discovery
+2022-24, test 2025 onward). Its reported results, which I have **not** re-verified:
+after +10% days coins trail volatility-matched peers by about 1.4 / 2.1 / 2.1% at 1 / 3
+/ 7 days, concentrated in thin coins and high-volume coin-specific spikes; weekly pivots,
+Fibonacci levels, volume-profile levels, absorption candles and profile shapes behave
+like placebos; and **perp funding at the close of a +10% day does not separate spikes
+that hold from spikes that fade, while perp *listing* status does for thin coins**
+(+2.17 discovery, +3.26 test). These **support** C1 (short-horizon price and volume
+features mostly describe an extended move that then gives back). They add two candidate
+context features ("has a Binance or Hyperliquid perp"; "thin coin after a high-volume
+spike") and a prior that funding level alone has little incremental value. Approach A
+should include them as baselines or stratifiers.
+
+### The corrected headline claims
+
+1. Today's score is descriptive. It has **no demonstrated information at 24 hours** and
+   a **clear negative relation to the next 15-60 minutes** (a high score precedes a
+   give-back). Neither is shown to be tradable.
+2. The alert confidence shows **no detectable incremental value** over matched same-coin
+   comparable hours. High-confidence "up" signals lean negative, but not significantly so
+   under clean controls.
+3. The December 2025 aggregator remains a source of ideas, not evidence.
+4. The recommended approach (a calibrated cross-sectional rank score, kept in shadow mode)
+   is unchanged, but its evidence plan must include horizons from 15 minutes to 7 days,
+   clean controls, and the prior studies in C9 as baselines.
+
+---
+
 ## 0. Summary
 
 1. **BHABIT already has a real numeric per-coin score** (`live_score`, 1-99, model
@@ -26,11 +168,11 @@ differ from what is described here). **Not verified:** vendor pricing and limits
 2. **Measured on your production history, that score carries no usable
    information about the next 24 hours.** Rank correlation (information
    coefficient, IC) between the direction-aligned score and the 24-hour ATR return
-   is **-0.026** over 490,930 signals; the weekly mean IC is -0.001 and positive in
+   is **-0.026** over 490,930 signals; the weekly mean IC is -0.001 and positive in  **[see C1, C2]**
    only 2 of 9 weeks. Every component is within about +/-0.07 of zero (section 3).
 3. **The separate alert "confidence" is an evidence count, not a probability.**
    Against matched same-coin controls it shows no incremental value, and
-   high-confidence "up" signals are slightly worse (-0.07 to -0.09 R).
+   high-confidence "up" signals are slightly worse (-0.07 to -0.09 R).  **[see C3]**
 4. **The December 2025 aggregator is useful as a source of ideas, not as a
    baseline.** It mixes real inputs with generated ones, applies market-wide inputs
    (Fear & Greed, generic RSS headlines) to every coin, and uses unvalidated
@@ -113,19 +255,21 @@ requirements below.
 
 ## 3. What our own evidence says works
 
+> **Corrections apply to this section:** C1 (short horizons), C2, C3, C4, C5, C7 and the additions C8-C9. The table below is the original.
+
 All numbers are from your production history. Costs are assumptions: 0.2% round trip
 unless stated; Codex's pilot also uses 0.9%, which has **not** been verified against
 your account's fees.
 
 | Question | Result | Caveat |
 |---|---|---|
-| Does `live_score` predict the next 24h? | IC **-0.026** (up -0.060, down +0.009, within coin -0.027); weekly mean -0.001, sd 0.093, positive in 2/9 weeks | Measured only on coins that fired a signal; 490,930 signals; direction-aligned 24h ATR return |
+| Does `live_score` predict the next 24h? | IC **-0.026** (up -0.060, down +0.009, within coin -0.027); weekly mean -0.001, sd 0.093, positive in 2/9 weeks | Measured only on coins that fired a signal; 490,930 signals; direction-aligned 24h ATR return **[see C1, C2, C4]** |
 | Which components? | 1m -0.020, 3m -0.024, 1h trend **-0.068**, volume +0.009, confirmation -0.016, persistence -0.032 | Slightly negative trend components suggest short-horizon reversal at 24h |
-| Data quality | Rows with all 6 inputs: IC **-0.092**; rows with 3-5: +0.012 | Fully populated rows are the more extended moves |
-| Do signals beat their own coin's comparable hours? | **No.** 117,787 matched signals over 13 weeks (2026-07-17 to 10-11): all signals -0.031 R, 95% CI [-0.052, -0.010] | Matched on coin, direction, volatility, BTC 4h trend, 1-7 days away |
-| Is confidence informative? | **No.** "Up" at 72-95+: -0.07 to -0.09 R vs matched controls; "down" 95+: +0.069 R (z about 2) | 13 weeks only |
-| Are the weak reads worse than chance? | **No.** Pooled demoted reads -0.009 R, CI [-0.039, +0.021] | An earlier "worse than random" result was an artefact of comparing against all coins |
-| Sell-side thresholds | Volume gate: +0.021 ATR, day-clustered z +0.4 over a year; top-of-range effect flips with BTC's regime (falling -0.13, flat +0.27, rising +0.52); a rule frozen on the first half flipped sign in 2 of 3 regimes | 561,160 coin-hours, 370 days, hourly candles, today's 407 listed coins |
+| Data quality | Rows with all 6 inputs: IC **-0.092**; rows with 3-5: +0.012 | Fully populated rows are the more extended moves **[see C7]** |
+| Do signals beat their own coin's comparable hours? | **No.** 117,787 matched signals over 13 weeks (2026-07-17 to 10-11): all signals -0.031 R, 95% CI [-0.052, -0.010] | Matched on coin, direction, volatility, BTC 4h trend, 1-7 days away **[see C3]** |
+| Is confidence informative? | **No.** "Up" at 72-95+: -0.07 to -0.09 R vs matched controls; "down" 95+: +0.069 R (z about 2) | 13 weeks only **[see C3]** |
+| Are the weak reads worse than chance? | **No.** Pooled demoted reads -0.009 R, CI [-0.039, +0.021] | An earlier "worse than random" result was an artefact of comparing against all coins **[see C3]** |
+| Sell-side thresholds | Volume gate: +0.021 ATR, day-clustered z +0.4 over a year; top-of-range effect flips with BTC's regime (falling -0.13, flat +0.27, rising +0.52); a rule frozen on the first half flipped sign in 2 of 3 regimes | 561,160 coin-hours, 370 days, hourly candles, today's 407 listed coins **[see C5, C4]** |
 | Per-coin tuning | Rank correlation of a coin's effect between halves: -0.01 (confidence), +0.03/+0.05 (volume gate) | Per-coin tuning fits noise |
 
 **Literature context** (verified titles; see References): one well-known
@@ -243,6 +387,8 @@ sizing**, not the market view.
 ---
 
 ## 8. Evaluation plan
+
+> **Corrections apply to this section:** evaluate horizons from 15 minutes to 7 days (C1), use clean controls (C3), state selection and entry assumptions (C4), and use the prior studies in C9 as baselines. The thresholds below are heuristics; see the threshold review in `TRIAL_READY_PLAN.md`.
 
 **Labels.** Forward BTC-residual, volatility-scaled returns at 4h, 24h and 7d, plus
 a triple-barrier (target / stop / time) variant. Costs as explicit scenarios

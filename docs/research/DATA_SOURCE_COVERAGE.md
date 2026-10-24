@@ -5,6 +5,15 @@ the repository inventory (`REPOSITORY_INVENTORY.md`), the scoring research
 (`BHABIT_SCORING_RESEARCH.md`, with its audit corrections), and the separate Gemini vendor
 research (kept as written; not edited here).
 
+**Fact-type tags used from here on (added 2026-10-24).** **[V]** verified by direct check
+or measurement; **[U]** taken from a vendor or from Gemini's research and not verified;
+**[H]** a hypothesis about predictive value; **[A]** a planning assumption. Untagged
+statements in the tables below are code or repository facts verified by search, unless the
+text says otherwise. Predictive-value statements in the "Incremental value" column are
+**[H]** throughout. Independent prior work: `origin/claude/render-history-data` already
+tested perp funding and perp listing status on +10% days (see `BHABIT_SCORING_RESEARCH.md`
+C9); that is a prior for H2 in `FIRST_EXPERIMENT_SPEC.md`, not a result of this document.
+
 **Legend.** *Covered* = in the running path today. *Partial* = covers part of what the
 source would add. *Dormant* = code exists but is inert without a key or a flag.
 *Absent* = no reference anywhere in the code (verified by search of `backend/` and `frontend/`).
@@ -59,7 +68,8 @@ Glassnode, CryptoQuant, LunarCrush pricing, CryptoDataDownload, IntoTheBlock, Co
 | On-chain flows and labels | **Absent** (Arkham flag only) | Whole category |
 | Fundamentals (fees, revenue, TVL) | **Absent** | Whole category; bounded by DeFi coverage (at most 44% of coins) |
 | Wallet and position state | **Partial**: Coinbase account only | On-chain wallets absent |
-| Listing history (survivorship) | **Absent in repo**; a PIT watch task logs product status *(memory)* | Needed for any point-in-time universe |
+| Listing history (survivorship) | **Partial**: a PIT watch task logs Coinbase product status and incidents to `pit_context.sqlite` (code on `claude/render-history-data`); the daily panel includes delisted products | Forward-only log; no vendor listing-date history; hourly archive is survivorship-biased |
+| Binance perp funding history | **Absent** from BHABIT; free monthly archives exist on `data.binance.vision` *(used by the other session's fetch script; not re-verified here)* [U] | Candidate second funding source for coins not on Hyperliquid; not in the first experiment |
 
 ## 4. What this means
 

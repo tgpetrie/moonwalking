@@ -133,7 +133,8 @@ breadth thresholds (`ALERT_*`, `BREADTH_*`, `PUMP_*`); measurement
 | `Moonwalking-Runtime` | `runtime/collector` | Always-on collector |
 | `Moonwalking-Hotfix`, `-Retention` | `claude/retention-hotfix`, `claude/storage-retention` | Storage limits (pushed; hotfix is based on production's release) |
 | (this session) | `claude/demote-weak-reads`, `claude/scoring-research`, `claude/data-source-plan` | Demotion and extended outcomes; scoring research; this plan |
-| others | `claude/agents-page`, `claude/watchlist-decision-desk`, `claude/local-review`, `codex/macro-chart-20261018`, `claude/render-history-data` | Not inspected |
+| `render-historical-data-bf650f` (under `Moonwalking/.claude/worktrees`) | `claude/render-history-data` (pushed, 2026-10-19) | **Inspected for the 2026-10-24 correction.** Pre-registered daily studies over 492 Coinbase USD products including delisted ones, `scripts/move_study/`, `backend/pit_log.py`, `backend/pit_watch.py`, and a verified-sources note. Its daily panel and funding cache live in that worktree's temporary scratchpad, not in git. Results are quoted in `BHABIT_SCORING_RESEARCH.md` (C9) and **not re-verified here** |
+| others | `claude/agents-page`, `claude/watchlist-decision-desk`, `claude/local-review`, `codex/macro-chart-20261018` | Not inspected |
 
 ## 9. Observations that matter for data sourcing
 
@@ -143,9 +144,15 @@ breadth thresholds (`ALERT_*`, `BREADTH_*`, `PUMP_*`); measurement
 2. **No durable history exists for any external input.** Open-interest history is
    in memory for about 24 hours; sentiment history is not stored. Anything not collected
    forward from now cannot be backfilled later, except where a provider serves history.
-3. **No listing-history record** exists in the repo, which matters for survivorship.
+3. **Listing history is not in the main tree, but a point-in-time log exists elsewhere.**
    A scheduled "PIT watch" task logs Coinbase product status and incidents to
-   `pit_context.sqlite` *(memory)*; that file was not inspected.
+   `pit_context.sqlite` *(memory)*; its code (`backend/pit_log.py`, `pit_watch.py`) is on
+   `claude/render-history-data`. **Correction (2026-10-24):** the first version of this
+   inventory said no such record existed. The plan treats `pit_context.sqlite` as a
+   read-only input for listing and Hyperliquid snapshots; the plan's availability table
+   records what was and was not checked in it. The daily panel is survivorship-free
+   (includes delisted products); the hourly `candle_archive.sqlite` is not (currently listed coins only).
+   Binance funding history is available as keyless monthly archives (`data.binance.vision`).
 4. **Two series are deliberately separate:** RNDR and RENDER; the SMA200 for RENDER-USD
    is unavailable until 2027-12 *(memory)*.
 5. **Dormant code is a liability and an asset.** Many handlers are present but gated
