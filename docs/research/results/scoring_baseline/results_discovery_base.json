@@ -2,7 +2,7 @@
   "phase": "discovery",
   "tag": "base",
   "config_hash": "273ef7097cb21443",
-  "code_commit": "69d83c316df7336c8f1a8da4456ed80ece1f61cb",
+  "code_commit": "0297790fb50ae6b02a94963e2e343216ce93d529",
   "input": "f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71",
   "build": {
     "exclusions": {
@@ -434,22 +434,23 @@
           "share_weeks_positive": 0.9230769230769231
         }
       },
-      "by_evidence_coverage_tercile": {
-        "low": {
+      "by_evidence_coverage": {
+        "complete_100": {
           "n_blocks": 105,
-          "mean": 0.08135783716269344,
-          "lo": 0.07066026802191067,
-          "hi": 0.09103259130569295,
-          "se": 0.004551607018942054,
+          "mean": 0.0815577210414611,
+          "lo": 0.0708340850309196,
+          "hi": 0.09122443533854381,
+          "se": 0.00455527165214645,
           "n_days": 723,
-          "mean_daily_ic": 0.08101973934259533,
+          "mean_daily_ic": 0.0812229407961143,
           "share_weeks_positive": 0.9428571428571428,
+          "share_of_rows": 0.9992213248343051,
           "coverage_range": [
-            92.36363636363636,
+            100.0,
             100.0
           ]
         },
-        "mid": {
+        "below_100": {
           "n_blocks": 0,
           "mean": null,
           "lo": null,
@@ -457,17 +458,11 @@
           "n_days": 0,
           "mean_daily_ic": null,
           "share_weeks_positive": null,
-          "coverage_range": null
-        },
-        "high": {
-          "n_blocks": 0,
-          "mean": null,
-          "lo": null,
-          "hi": null,
-          "n_days": 0,
-          "mean_daily_ic": null,
-          "share_weeks_positive": null,
-          "coverage_range": null
+          "share_of_rows": 0.0007786751656948318,
+          "coverage_range": [
+            92.36363636363636,
+            99.33333333333334
+          ]
         }
       }
     },
@@ -798,7 +793,7 @@
           "hi": 0.6662728129542812
         },
         "n_weeks": 105,
-        "median_top_minus_universe_mean_pct": -2.051010788561688,
+        "median_top_quintile_minus_median_universe_pct": -0.1252040167914459,
         "net_excess_pct_cost_0.2": {
           "mean": 0.11572258918085819,
           "lo": -0.21524958436249872,
@@ -877,22 +872,23 @@
           "share_weeks_positive": 0.6923076923076923
         }
       },
-      "by_evidence_coverage_tercile": {
-        "low": {
+      "by_evidence_coverage": {
+        "complete_100": {
           "n_blocks": 105,
-          "mean": 0.04411590046078079,
-          "lo": 0.023653786965108958,
-          "hi": 0.0656333373190643,
-          "se": 0.009328608509729087,
+          "mean": 0.0441330492343216,
+          "lo": 0.023593447942942162,
+          "hi": 0.06568411864308,
+          "se": 0.009325533714566117,
           "n_days": 723,
-          "mean_daily_ic": 0.043590919129923765,
+          "mean_daily_ic": 0.04360835253041131,
           "share_weeks_positive": 0.7142857142857143,
+          "share_of_rows": 0.9992213248343051,
           "coverage_range": [
-            92.36363636363636,
+            100.0,
             100.0
           ]
         },
-        "mid": {
+        "below_100": {
           "n_blocks": 0,
           "mean": null,
           "lo": null,
@@ -900,17 +896,11 @@
           "n_days": 0,
           "mean_daily_ic": null,
           "share_weeks_positive": null,
-          "coverage_range": null
-        },
-        "high": {
-          "n_blocks": 0,
-          "mean": null,
-          "lo": null,
-          "hi": null,
-          "n_days": 0,
-          "mean_daily_ic": null,
-          "share_weeks_positive": null,
-          "coverage_range": null
+          "share_of_rows": 0.0007786751656948318,
+          "coverage_range": [
+            92.36363636363636,
+            99.33333333333334
+          ]
         }
       }
     },

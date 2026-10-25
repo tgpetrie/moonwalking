@@ -1,0 +1,470 @@
+{
+  "n_base_hours": 900258,
+  "share_base_hours_clean": 0.7089789815808357,
+  "clean_rule": "no signal on the same coin in the previous 3 hours",
+  "inputs_sha256": {
+    "recon.sqlite": "15d9def3835f74dd6bb63dc1dbbada7928f8443665066e3c9ef9cfd0ddeed9a7",
+    "signal_outcomes.sqlite": "6d358b4c1cb022dd17280e49a4befa43b28caff2308c10dd4009d59363f43ed0"
+  },
+  "reads": {
+    "CONTINUATION FAVORED (up)": {
+      "expected_sign_of_excess_if_read_is_right": 1,
+      "signals_deduplicated": 10988,
+      "matched": 4235,
+      "distinct_coins": 240,
+      "distinct_weeks": 13,
+      "largest_coin_share": 0.017237308146399056,
+      "netR21": {
+        "description": "net R (1 ATR stop / 2 ATR target, 0.2% cost)",
+        "signal_mean": -0.1576753680991373,
+        "control_mean": -0.06722123236074598,
+        "excess": {
+          "mean": -0.13086690785876468,
+          "lo": -0.28708381596193505,
+          "hi": 0.013449474418228006,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.0560478171242929,
+          "lo": -0.22401789929577917,
+          "hi": 0.10077613134260252,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.27455099864260596,
+          "lo": -0.5268586370825663,
+          "hi": -0.04191430907736865,
+          "n_blocks": 7
+        }
+      },
+      "r4": {
+        "description": "4h return in ATR",
+        "signal_mean": 0.006877836122543019,
+        "control_mean": 0.04459743301033878,
+        "excess": {
+          "mean": -0.0669146223564796,
+          "lo": -0.1811756354949361,
+          "hi": 0.03015518463720529,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.012597258594828551,
+          "lo": -0.04273668400969346,
+          "hi": 0.059790290339005965,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.23033184623831232,
+          "lo": -0.6349009360862626,
+          "hi": 0.04839007450114976,
+          "n_blocks": 7
+        }
+      },
+      "r12": {
+        "description": "12h return in ATR",
+        "signal_mean": 0.12389282580467677,
+        "control_mean": 0.19267000916968371,
+        "excess": {
+          "mean": -0.12026641528628333,
+          "lo": -0.4171861655254782,
+          "hi": 0.1809724842683196,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.005280947467722813,
+          "lo": -0.22836101485918014,
+          "hi": 0.2956549042068303,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.3796456112166357,
+          "lo": -1.0004218382241108,
+          "hi": 0.20511049805733134,
+          "n_blocks": 7
+        }
+      },
+      "r24": {
+        "description": "24h return in ATR",
+        "signal_mean": 0.2690635576155488,
+        "control_mean": 0.35478374244521244,
+        "excess": {
+          "mean": -0.14521156851093847,
+          "lo": -0.7468088857528811,
+          "hi": 0.4390914158185864,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.07955096158291,
+          "lo": -0.5477568564914983,
+          "hi": 0.724984537748189,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.6424365893708581,
+          "lo": -1.6882211034356527,
+          "hi": 0.3066112597566919,
+          "n_blocks": 7
+        }
+      }
+    },
+    "REVERSAL RISK RISING (up)": {
+      "expected_sign_of_excess_if_read_is_right": -1,
+      "signals_deduplicated": 10805,
+      "matched": 3727,
+      "distinct_coins": 231,
+      "distinct_weeks": 13,
+      "largest_coin_share": 0.021733297558357928,
+      "netR21": {
+        "description": "net R (1 ATR stop / 2 ATR target, 0.2% cost)",
+        "signal_mean": -0.09557458683472642,
+        "control_mean": -0.07190593615489194,
+        "excess": {
+          "mean": -0.053155701506164006,
+          "lo": -0.18806073814037436,
+          "hi": 0.05489816269375192,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.003245661326917952,
+          "lo": -0.10832396843427404,
+          "hi": 0.10291197055709259,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.11112870099682211,
+          "lo": -0.3057529636804603,
+          "hi": 0.05881598929912727,
+          "n_blocks": 7
+        }
+      },
+      "r4": {
+        "description": "4h return in ATR",
+        "signal_mean": 0.07371310386735967,
+        "control_mean": 0.03702707281306653,
+        "excess": {
+          "mean": 0.028213436676753627,
+          "lo": -0.0877320754580075,
+          "hi": 0.12614650764530333,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.1537797403972607,
+          "lo": 0.08917125396378146,
+          "hi": 0.22595369827789297,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.14205515306279243,
+          "lo": -0.3358957882092974,
+          "hi": 0.010750714789179603,
+          "n_blocks": 7
+        }
+      },
+      "r12": {
+        "description": "12h return in ATR",
+        "signal_mean": 0.20662784702122558,
+        "control_mean": 0.1946676553140954,
+        "excess": {
+          "mean": 0.004037626221376207,
+          "lo": -0.2798018199486483,
+          "hi": 0.29329216545182796,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.184088510088034,
+          "lo": -0.09896366089931466,
+          "hi": 0.4912432750959741,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.2354233155756511,
+          "lo": -0.5748438922600573,
+          "hi": 0.14132171437016697,
+          "n_blocks": 7
+        }
+      },
+      "r24": {
+        "description": "24h return in ATR",
+        "signal_mean": 0.338245764639091,
+        "control_mean": 0.3905928116698261,
+        "excess": {
+          "mean": -0.026811533822969063,
+          "lo": -0.5883586162498236,
+          "hi": 0.5226345102512464,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": 0.12967749828111622,
+          "lo": -0.5824521327681746,
+          "hi": 0.8412398973168815,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.3637139972604012,
+          "lo": -1.0543309083230334,
+          "hi": 0.33507839514539267,
+          "n_blocks": 7
+        }
+      }
+    },
+    "BREAKDOWN CONFIRMED (down)": {
+      "expected_sign_of_excess_if_read_is_right": 1,
+      "signals_deduplicated": 11036,
+      "matched": 3937,
+      "distinct_coins": 229,
+      "distinct_weeks": 13,
+      "largest_coin_share": 0.021082042164084328,
+      "netR21": {
+        "description": "net R (1 ATR stop / 2 ATR target, 0.2% cost)",
+        "signal_mean": -0.22481800187345377,
+        "control_mean": -0.2607893498815839,
+        "excess": {
+          "mean": 0.06256750889269602,
+          "lo": -0.07364536438153126,
+          "hi": 0.19779825031667428,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.04546128197339844,
+          "lo": -0.1964505873533718,
+          "hi": 0.07396659527038572,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.15543595515977132,
+          "lo": -0.01566690173701595,
+          "hi": 0.3160573955527883,
+          "n_blocks": 7
+        }
+      },
+      "r4": {
+        "description": "4h return in ATR",
+        "signal_mean": -0.11187168766783447,
+        "control_mean": -0.0412502898380928,
+        "excess": {
+          "mean": -0.036933570504740845,
+          "lo": -0.1406204313545587,
+          "hi": 0.09114369670084509,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.09650272388463375,
+          "lo": -0.19517589078110067,
+          "hi": 0.040485500324578046,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.057950940926358926,
+          "lo": -0.10413472825514604,
+          "hi": 0.23159339252703354,
+          "n_blocks": 7
+        }
+      },
+      "r12": {
+        "description": "12h return in ATR",
+        "signal_mean": -0.2075242528955131,
+        "control_mean": -0.2100864327993651,
+        "excess": {
+          "mean": 0.03569562494058698,
+          "lo": -0.2484788878119265,
+          "hi": 0.33933131718225945,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.15470632876576237,
+          "lo": -0.4538551666685156,
+          "hi": 0.158311621128098,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.30177676562297506,
+          "lo": -0.07725285598520777,
+          "hi": 0.6238998808955143,
+          "n_blocks": 7
+        }
+      },
+      "r24": {
+        "description": "24h return in ATR",
+        "signal_mean": -0.32958285875495424,
+        "control_mean": -0.4320499707374107,
+        "excess": {
+          "mean": 0.13642926550954226,
+          "lo": -0.4446185678485159,
+          "hi": 0.7411327908162174,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.10056231884260074,
+          "lo": -0.8284683343182415,
+          "hi": 0.6350552664999731,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.5587125629675594,
+          "lo": -0.21537439554584187,
+          "hi": 1.277458534126702,
+          "n_blocks": 7
+        }
+      }
+    },
+    "DOWNSIDE PRESSURE BUILDING (down)": {
+      "expected_sign_of_excess_if_read_is_right": 1,
+      "signals_deduplicated": 19388,
+      "matched": 8764,
+      "distinct_coins": 261,
+      "distinct_weeks": 13,
+      "largest_coin_share": 0.01882701962574167,
+      "netR21": {
+        "description": "net R (1 ATR stop / 2 ATR target, 0.2% cost)",
+        "signal_mean": -0.28193008823908344,
+        "control_mean": -0.2681933535368491,
+        "excess": {
+          "mean": -0.004156556409788044,
+          "lo": -0.11855231566962914,
+          "hi": 0.1194707557659891,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.0692261286530451,
+          "lo": -0.2049631782501582,
+          "hi": 0.07483989339125278,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.058693365997525296,
+          "lo": -0.09937671875054513,
+          "hi": 0.20698818001676794,
+          "n_blocks": 7
+        }
+      },
+      "r4": {
+        "description": "4h return in ATR",
+        "signal_mean": -0.132210119378605,
+        "control_mean": -0.040956716281829106,
+        "excess": {
+          "mean": -0.07567393518442014,
+          "lo": -0.18583606781568424,
+          "hi": 0.06241413366076319,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.08254504871574417,
+          "lo": -0.17745670951962644,
+          "hi": 0.06130676362763857,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": -0.010667860901004411,
+          "lo": -0.21854120525265947,
+          "hi": 0.2238254553981954,
+          "n_blocks": 7
+        }
+      },
+      "r12": {
+        "description": "12h return in ATR",
+        "signal_mean": -0.23940209868725282,
+        "control_mean": -0.20487058590492613,
+        "excess": {
+          "mean": -0.027619865090669486,
+          "lo": -0.281741823593736,
+          "hi": 0.23063843377591822,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.12512511330722195,
+          "lo": -0.429165033621794,
+          "hi": 0.20516235872166316,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.15738857315575636,
+          "lo": -0.1993920888915423,
+          "hi": 0.4995674805809764,
+          "n_blocks": 7
+        }
+      },
+      "r24": {
+        "description": "24h return in ATR",
+        "signal_mean": -0.3818934381348314,
+        "control_mean": -0.37253157886635474,
+        "excess": {
+          "mean": -0.03778469076902354,
+          "lo": -0.5787659335813247,
+          "hi": 0.5463237053032698,
+          "n_blocks": 13
+        },
+        "first_half": {
+          "mean": -0.2154292759748168,
+          "lo": -0.8949883703528911,
+          "hi": 0.5325621975998749,
+          "n_blocks": 7
+        },
+        "second_half": {
+          "mean": 0.37766341734934133,
+          "lo": -0.41107209770656433,
+          "hi": 1.211003690855929,
+          "n_blocks": 7
+        }
+      }
+    }
+  },
+  "short_horizon_within_signal": {
+    "CONTINUATION FAVORED (up)": {
+      "n": 64090,
+      "return_15m_pct": {
+        "n_blocks": 14,
+        "mean": -0.10751376359849187,
+        "lo": -0.1315814529632186,
+        "hi": -0.0817990200070346,
+        "se": 0.011555158096553218
+      },
+      "return_60m_pct": {
+        "n_blocks": 14,
+        "mean": -0.20089659825702694,
+        "lo": -0.2642925927548033,
+        "hi": -0.13682501271418557,
+        "se": 0.02877103317050942
+      }
+    },
+    "REVERSAL RISK RISING (up)": {
+      "n": 233203,
+      "return_15m_pct": {
+        "n_blocks": 14,
+        "mean": -0.15275727116882817,
+        "lo": -0.2168120489360871,
+        "hi": -0.08943696665560444,
+        "se": 0.028660744293692263
+      },
+      "return_60m_pct": {
+        "n_blocks": 14,
+        "mean": -0.35029244987990793,
+        "lo": -0.5007863857326561,
+        "hi": -0.22245081110877324,
+        "se": 0.06320569626671359
+      }
+    },
+    "all_up_signals_for_context": {
+      "n": 603807,
+      "return_15m_pct": {
+        "n_blocks": 14,
+        "mean": -0.08294413686187942,
+        "lo": -0.11397672903962328,
+        "hi": -0.05304359717978455,
+        "se": 0.01389532513030763
+      },
+      "return_60m_pct": {
+        "n_blocks": 14,
+        "mean": -0.17246466809732586,
+        "lo": -0.2530689575513127,
+        "hi": -0.10308461180414868,
+        "se": 0.03402201227744428
+      }
+    }
+  },
+  "limitations": [
+    "Selected population: only moments when the live rules fired, about 13 weeks, many overlapping per day.",
+    "Outcomes begin at the signal-time price; a delayed fill would differ.",
+    "15/60-minute returns have no matched non-signal comparison here; they are a within-signal contrast.",
+    "The population was inspected in earlier audits, so these results are not independent confirmation."
+  ]
+}
