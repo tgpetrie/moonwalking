@@ -1,3 +1,7 @@
-# Preserve captured public API bytes and their recorded SHA-256 digests on every OS.
-*.json -text
+# Generated reports use LF; captured API bytes retain their original hashes.
+*.json text eol=lf
+coinbase_currencies.json -text
+coinbase_products.json -text
+hyperliquid_meta_contexts.json -text
+hyperliquid_spot_meta.json -text
 monthly_prices/*.json -text
