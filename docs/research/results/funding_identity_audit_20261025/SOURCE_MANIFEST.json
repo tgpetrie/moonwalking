@@ -1,0 +1,38 @@
+[
+  {
+    "name": "hyperliquid_meta_contexts",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "metaAndAssetCtxs"
+    },
+    "fetched_at_utc": "2026-10-25T22:43:00.542810+00:00",
+    "sha256": "95a0e655e97823991c2a0f7db3503df5242d32b3d8f7507c6f2218d522e42227",
+    "bytes": 72130
+  },
+  {
+    "name": "hyperliquid_spot_meta",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "spotMeta"
+    },
+    "fetched_at_utc": "2026-10-25T22:43:00.779948+00:00",
+    "sha256": "c11dcc82bed52d1a2744177bb1681770d907acf867c26af1c9063d2a94edc3fa",
+    "bytes": 139608
+  },
+  {
+    "name": "coinbase_currencies",
+    "url": "https://api.exchange.coinbase.com/currencies",
+    "request_json": null,
+    "fetched_at_utc": "2026-10-25T22:43:00.380918+00:00",
+    "sha256": "c05b72b3f8e7f234b154bec81a37bf9a2bcbdd2793e6cc0ecd9f1aa7ef5a8bd8",
+    "bytes": 561059
+  },
+  {
+    "name": "coinbase_products",
+    "url": "https://api.exchange.coinbase.com/products",
+    "request_json": null,
+    "fetched_at_utc": "2026-10-25T22:43:00.633702+00:00",
+    "sha256": "6d1a6c3091bb90ac7c6131d7ca5308aeb43f90b783109b0201ae2d9838f72bed",
+    "bytes": 355475
+  }
+]

@@ -1,0 +1,134 @@
+product_id,coinbase_name,hyperliquid_name,price_units_per_contract,funding_rate_multiplier,hyperliquid_delisted,status,common_complete_closes,consecutive_return_pairs,fraction_within_10pct,return_correlation,median_ratio_after_fixed_conversion,benchmark_only,admissible_for_primary_research
+2Z-USD,Doublezero,2Z,1,1,False,price_correspondence_pass,12,11,1.0,0.9999154715365723,0.9989921330289748,False,True
+AAVE-USD,Aave,AAVE,1,1,False,price_correspondence_pass,40,39,1.0,0.9999902263903394,1.0002937969071035,False,True
+ADA-USD,Cardano,ADA,1,1,False,price_correspondence_pass,36,35,1.0,0.9999892060296454,0.999900548470197,False,True
+AERO-USD,Aerodrome Finance,AERO,1,1,False,price_correspondence_pass,11,10,1.0,0.9999873255595276,1.000423676452416,False,True
+AI-USD,Gensyn,AI,1,1,True,hold_short_or_nonoverlapping_history,0,0,,,,False,False
+ALGO-USD,Algorand,ALGO,1,1,False,price_correspondence_pass,23,22,1.0,0.9999469688154755,0.9999246420497362,False,True
+ALT-USD,Altlayer,ALT,1,1,False,price_correspondence_pass,19,18,1.0,0.9997017033202977,0.9982543640897755,False,True
+APE-USD,ApeCoin,APE,1,1,False,price_correspondence_pass,44,43,1.0,0.9999552944747722,0.9994944491736613,False,True
+APT-USD,Aptos,APT,1,1,False,price_correspondence_pass,40,39,1.0,0.999984297705828,1.0,False,True
+ARB-USD,Arbitrum,ARB,1,1,False,price_correspondence_pass,44,43,1.0,0.9999812995176998,0.9996564766170866,False,True
+ASTER-USD,Aster,ASTER,1,1,False,price_correspondence_pass,11,10,1.0,0.9999190055697903,1.0004282655246253,False,True
+ATOM-USD,Cosmos,ATOM,1,1,False,price_correspondence_pass,44,43,1.0,0.9999838289189008,0.9991483966361465,False,True
+AVAX-USD,Avalanche,AVAX,1,1,False,price_correspondence_pass,44,43,1.0,0.9999848630835565,0.9999039772885414,False,True
+AVNT-USD,Avantis,AVNT,1,1,False,price_correspondence_pass,13,12,1.0,0.999964079716479,0.999879781420765,False,True
+AXS-USD,Axie Infinity,AXS,1,1,False,price_correspondence_pass,9,8,1.0,0.9999646600090824,0.9993055555555554,False,True
+AZTEC-USD,Aztec,AZTEC,1,1,False,price_correspondence_pass,8,7,1.0,0.9998006922575221,1.0003332256675281,False,True
+BADGER-USD,Badger DAO,BADGER,1,1,True,price_correspondence_pass,17,16,1.0,0.9999125418070783,1.0004336043360433,False,True
+BCH-USD,Bitcoin Cash,BCH,1,1,False,price_correspondence_pass,40,39,1.0,0.9999739098358197,0.9994247284882134,False,True
+BERA-USD,Berachain,BERA,1,1,False,price_correspondence_pass,21,20,1.0,0.9999840830822818,0.998733850129199,False,True
+BIGTIME-USD,Big Time,BIGTIME,1,1,False,price_correspondence_pass,37,36,1.0,0.9998292940683293,1.000810843519303,False,True
+BIO-USD,Bio Protocol,BIO,1,1,False,price_correspondence_pass,15,14,1.0,0.9999454209216813,0.9974520951779323,False,True
+BLAST-USD,Blast,BLAST,1,1,True,price_correspondence_pass,23,22,1.0,0.9995232855068059,0.9987341772151899,False,True
+BLUR-USD,Blur,BLUR,1,1,False,price_correspondence_pass,37,36,1.0,0.9998808215780987,0.9997674526766198,False,True
+BLZ-USD,Bluzelle,BLZ,1,1,True,price_correspondence_pass,16,15,1.0,0.99976182136202,1.0003704504894273,False,True
+BNB-USD,BNB,BNB,1,1,False,price_correspondence_pass,12,11,1.0,0.9999769966197868,1.000391502675367,False,True
+BNT-USD,Bancor,BNT,1,1,True,price_correspondence_pass,18,17,1.0,0.9998793606197924,0.9999130938586327,False,True
+BONK-USD,Bonk,kBONK,1000,1,False,price_correspondence_pass,35,34,1.0,0.9999948155081068,1.0003418803418804,False,True
+BTC-USD,Bitcoin,BTC,1,1,False,price_correspondence_pass,44,43,1.0,0.9999793799110929,1.0000822500572846,True,False
+CAKE-USD,Pancakeswap,CAKE,1,1,False,price_correspondence_pass,16,15,1.0,0.9999733168684929,0.9995963599802322,False,True
+CHIP-USD,USD.AI,CHIP,1,1,False,price_correspondence_pass,6,5,1.0,0.9999519142797523,1.001814527590883,False,True
+COMP-USD,Compound,COMP,1,1,False,price_correspondence_pass,40,39,1.0,0.9999766017443137,0.9994141819686484,False,True
+CRV-USD,Curve DAO Token,CRV,1,1,False,price_correspondence_pass,42,41,1.0,0.9999765366909369,1.0000063613231553,False,True
+DASH-USD,Dash,DASH,1,1,False,price_correspondence_pass,9,8,1.0,0.999985106331944,0.9997135153353556,False,True
+DOGE-USD,Dogecoin,DOGE,1,1,False,price_correspondence_pass,43,42,1.0,0.9999940302652728,1.0,False,True
+DOOD-USD,Doodles,DOOD,1,1,True,hold_short_or_nonoverlapping_history,5,4,1.0,0.9994276360327906,1.0018309429356118,False,False
+DOT-USD,Polkadot,DOT,1,1,False,price_correspondence_pass,38,37,1.0,0.9999876514469764,0.9997930425823716,False,True
+EIGEN-USD,Eigenlayer,EIGEN,1,1,False,price_correspondence_pass,25,24,1.0,0.9999587201515325,1.0002092050209206,False,True
+ENA-USD,Ethena,ENA,1,1,False,price_correspondence_pass,17,16,1.0,0.9999950601198305,1.0002156334231807,False,True
+ENS-USD,Ethereum Name Service,ENS,1,1,False,price_correspondence_pass,34,33,1.0,0.9999624723363533,1.000050004603559,False,True
+ETC-USD,Ether Classic,ETC,1,1,False,price_correspondence_pass,34,33,1.0,0.9999660017231159,0.9997712350542538,False,True
+ETH-USD,Ether,ETH,1,1,False,price_correspondence_pass,44,43,1.0,0.9999864035818707,1.0000191051119174,False,True
+ETHFI-USD,Ether.Fi,ETHFI,1,1,False,price_correspondence_pass,21,20,1.0,0.9999247699436954,1.000092936802974,False,True
+FARTCOIN-USD,Fartcoin,FARTCOIN,1,1,False,price_correspondence_pass,16,15,1.0,0.9999879268599996,1.0012104683686125,False,True
+FET-USD,Fetch.ai,FET,1,1,False,price_correspondence_pass,36,35,1.0,0.9999834695152107,1.0000799712802269,False,True
+FIL-USD,Filecoin,FIL,1,1,False,price_correspondence_pass,36,35,1.0,0.9999881020110301,0.9999197406521465,False,True
+FLOKI-USD,Floki,kFLOKI,1000,1,False,price_correspondence_pass,23,22,1.0,0.9998854973426899,0.9989107666527022,False,True
+GMT-USD,STEPN,GMT,1,1,False,price_correspondence_pass,35,34,0.9714285714285714,0.9936128418385614,0.9989845261121856,False,True
+GRASS-USD,Grass,GRASS,1,1,False,hold_short_or_nonoverlapping_history,2,1,1.0,,0.9984906037978003,False,False
+HBAR-USD,Hedera,HBAR,1,1,False,price_correspondence_pass,30,29,1.0,0.9999955452843869,0.9998921201912359,False,True
+HYPE-USD,Hyperliquid,HYPE,1,1,False,price_correspondence_pass,9,8,1.0,0.9999902486321284,0.9999542804891989,False,True
+HYPER-USD,Hyperlane,HYPER,1,1,False,price_correspondence_pass,10,9,1.0,0.9966983943470347,1.0037348617976265,False,True
+ICP-USD,Internet Computer,ICP,1,1,False,price_correspondence_pass,11,10,1.0,0.9999770181480846,0.9994435390913788,False,True
+ILV-USD,Illuvium,ILV,1,1,True,price_correspondence_pass,17,16,1.0,0.9999178572425398,0.9995147255689425,False,True
+IMX-USD,ImmutableX,IMX,1,1,False,price_correspondence_pass,36,35,1.0,0.9999738821316698,0.9999318722611983,False,True
+INJ-USD,Injective Protocol,INJ,1,1,False,price_correspondence_pass,42,41,1.0,0.9999792611184241,0.9994833334160671,False,True
+IO-USD,Io.Net,IO,1,1,False,price_correspondence_pass,25,24,1.0,0.9998759952571118,0.9998822629069288,False,True
+IP-USD,Story,IP,1,1,True,price_correspondence_pass,16,15,1.0,0.9999834444384694,0.9997400968715389,False,True
+JTO-USD,Jito,JTO,1,1,False,price_correspondence_pass,35,34,1.0,0.9999723787636401,0.999569495694957,False,True
+KAITO-USD,Kaito,KAITO,1,1,False,price_correspondence_pass,20,19,1.0,0.9999926251403661,0.9996006893330116,False,True
+LAYER-USD,Solayer,LAYER,1,1,False,price_correspondence_pass,13,12,1.0,0.9995112695747094,0.9998266039137973,False,True
+LDO-USD,Lido DAO,LDO,1,1,False,price_correspondence_pass,42,41,1.0,0.9999785553032826,1.0002133055617501,False,True
+LINEA-USD,Linea,LINEA,1,1,False,price_correspondence_pass,12,11,1.0,0.999778717417215,0.997542396222703,False,True
+LINK-USD,Chainlink,LINK,1,1,False,price_correspondence_pass,42,41,1.0,0.9999747781681869,1.0002451055396457,False,True
+LTC-USD,Litecoin,LTC,1,1,False,price_correspondence_pass,44,43,1.0,0.9999909391281685,0.9998333626230063,False,True
+ME-USD,Magic Eden,ME,1,1,False,price_correspondence_pass,23,22,1.0,0.9996130091550977,0.9990415335463259,False,True
+MEGA-USD,MegaETH,MEGA,1,1,False,price_correspondence_pass,6,5,1.0,0.9999954539327559,1.0011313264957487,False,True
+MET-USD,Meteora,MET,1,1,False,price_correspondence_pass,12,11,1.0,0.999890223199852,0.9997596153846153,False,True
+MINA-USD,Mina,MINA,1,1,False,price_correspondence_pass,36,35,1.0,0.9998630524793655,1.000313269493844,False,True
+MON-USD,Monad,MON,1,1,False,price_correspondence_pass,11,10,1.0,0.99998140883307,1.0004640371229698,False,True
+MOODENG-USD,Moo Deng,MOODENG,1,1,False,price_correspondence_pass,23,22,1.0,0.9999670888612814,1.0001022494887526,False,True
+MORPHO-USD,Morpho,MORPHO,1,1,False,price_correspondence_pass,20,19,1.0,0.9999641556158674,0.9991865408424943,False,True
+NEAR-USD,Near Protocol,NEAR,1,1,False,price_correspondence_pass,36,35,1.0,0.9999866355202303,1.000577809398912,False,True
+OGN-USD,Origin Token,OGN,1,1,True,price_correspondence_pass,22,21,1.0,0.9999571821536736,1.0000959692898272,False,True
+ONDO-USD,Ondo Finance,ONDO,1,1,False,price_correspondence_pass,33,32,1.0,0.9999873544288658,0.9999780567014833,False,True
+OP-USD,Optimism,OP,1,1,False,price_correspondence_pass,44,43,1.0,0.9999651538470519,0.9992780186342628,False,True
+PAXG-USD,PAX Gold,PAXG,1,1,False,price_correspondence_pass,18,17,1.0,0.9998328889700496,0.9999242958562251,False,True
+PENDLE-USD,Pendle,PENDLE,1,1,False,price_correspondence_pass,19,18,1.0,0.9999939831463085,1.0002814919071077,False,True
+PENGU-USD,Pudgy Penguins,PENGU,1,1,False,price_correspondence_pass,20,19,1.0,0.9999936632824855,1.0003320894339316,False,True
+PEPE-USD,Pepe,kPEPE,1000,1,False,price_correspondence_pass,23,22,1.0,0.9999830090390384,1.0006787330316742,False,True
+PNUT-USD,Peanut The Squirrel,PNUT,1,1,False,price_correspondence_pass,21,20,1.0,0.9998380759089773,1.0002183406113536,False,True
+POL-USD,Polygon Ecosystem Token,POL,1,1,False,price_correspondence_pass,25,24,1.0,0.9999680182096434,0.9997647058823529,False,True
+PONS-USD,Pons,PONS,1,1,False,hold_short_or_nonoverlapping_history,0,0,,,,False,False
+POPCAT-USD,Popcat,POPCAT,1,1,False,price_correspondence_pass,20,19,1.0,0.9999590952014632,1.0004787193282154,False,True
+PROMPT-USD,Prompt,PROMPT,1,1,True,price_correspondence_pass,12,11,1.0,0.999981736487543,1.0007893568246886,False,True
+PROVE-USD,Succinct,PROVE,1,1,False,price_correspondence_pass,15,14,1.0,0.9999571228593289,0.9989337822671156,False,True
+PUMP-USD,Pump.fun,PUMP,1,1,False,price_correspondence_pass,15,14,1.0,0.9999830056463433,1.0,False,True
+PYTH-USD,Pyth Network,PYTH,1,1,False,price_correspondence_pass,20,19,1.0,0.9999899409248935,0.9993491959615394,False,True
+RENDER-USD,Render Network,RENDER,1,1,False,price_correspondence_pass,27,26,1.0,0.9999743047010962,0.9999403163234856,False,True
+REQ-USD,Request,REQ,1,1,True,price_correspondence_pass,22,21,1.0,0.9997986252312748,1.0000394401181527,False,True
+REZ-USD,Renzo,REZ,1,1,False,price_correspondence_pass,20,19,1.0,0.99994256364594,0.999269618899372,False,True
+RSR-USD,Reserve Rights,RSR,1,1,False,price_correspondence_pass,18,17,1.0,0.9996439872126938,0.9977686274594635,False,True
+S-USD,Sonic,S,1,1,False,price_correspondence_pass,16,15,1.0,0.9999759479187877,0.998673688607746,False,True
+SAND-USD,The Sandbox,SAND,1,1,False,price_correspondence_pass,23,22,1.0,0.9999177150109608,0.9992340992340992,False,True
+SEI-USD,Sei,SEI,1,1,False,price_correspondence_pass,39,38,1.0,0.9999861740284017,0.9997353391837303,False,True
+SHIB-USD,Shiba Inu,kSHIB,1000,1,False,price_correspondence_pass,39,38,1.0,0.9999824063105412,0.9998439937597504,False,True
+SKR-USD,Seeker,SKR,1,1,False,price_correspondence_pass,9,8,1.0,0.9999818692604793,1.0002453987730062,False,True
+SKY-USD,Sky,SKY,1,1,False,price_correspondence_pass,13,12,1.0,0.9999626401937419,0.9989391979301423,False,True
+SNX-USD,Synthetix,SNX,1,1,False,price_correspondence_pass,41,40,1.0,0.9999452886917042,0.9998571428571427,False,True
+SOL-USD,Solana,SOL,1,1,False,price_correspondence_pass,44,43,1.0,0.9999947744830578,0.9999734084986438,False,True
+SPX-USD,Spx6900,SPX,1,1,False,price_correspondence_pass,13,12,1.0,0.9999500500789436,0.9984066767830047,False,True
+STG-USD,Stargate Finance V1,STG,1,1,True,price_correspondence_pass,13,12,1.0,0.999687056570548,1.000593631948192,False,True
+STRK-USD,Starknet,STRK,1,1,False,price_correspondence_pass,32,31,1.0,0.9995684256934946,0.9999262241424457,False,True
+STX-USD,Stacks,STX,1,1,False,price_correspondence_pass,42,41,1.0,0.999977142050337,1.000099214677137,False,True
+SUI-USD,Sui,SUI,1,1,False,price_correspondence_pass,42,41,1.0,0.9999910145083615,1.0000752489494213,False,True
+SUPER-USD,SuperVerse,SUPER,1,1,False,price_correspondence_pass,35,34,1.0,0.999975326682791,0.9992881770659547,False,True
+SUSHI-USD,SushiSwap,SUSHI,1,1,False,price_correspondence_pass,36,35,1.0,0.999968299583269,0.9995329440629412,False,True
+SYRUP-USD,Maple Finance,SYRUP,1,1,False,price_correspondence_pass,16,15,1.0,0.9999858036106097,1.000514630892001,False,True
+TAO-USD,Bittensor,TAO,1,1,False,price_correspondence_pass,20,19,1.0,0.9999906200843197,0.9997281603662487,False,True
+TIA-USD,Celestia,TIA,1,1,False,price_correspondence_pass,36,35,1.0,0.9999687120579315,1.0001802836273899,False,True
+TNSR-USD,Tensor,TNSR,1,1,False,price_correspondence_pass,31,30,1.0,0.999856799534253,1.0002222222222223,False,True
+TON-USD,Toncoin,TON,1,1,True,price_correspondence_pass,7,6,1.0,0.9999885699808301,1.0004744333157616,False,True
+TRB-USD,Tellor,TRB,1,1,False,price_correspondence_pass,38,37,1.0,0.9999556768598176,1.0000825080985924,False,True
+TRUMP-USD,Official Trump,TRUMP,1,1,False,price_correspondence_pass,21,20,1.0,0.9998078043777296,0.9998176845943482,False,True
+TURBO-USD,Turbo,TURBO,1,1,False,price_correspondence_pass,23,22,1.0,0.9999717734217118,0.9990519080350795,False,True
+UMA-USD,UMA,UMA,1,1,False,price_correspondence_pass,33,32,1.0,0.9998784575021891,0.9998188405797099,False,True
+UNI-USD,Uniswap,UNI,1,1,False,price_correspondence_pass,39,38,1.0,0.9999949257156177,1.000230282095567,False,True
+USELESS-USD,Useless Coin,USELESS,1,1,False,hold_short_or_nonoverlapping_history,1,0,1.0,,1.001041016031647,False,False
+VIRTUAL-USD,Virtuals Protocol,VIRTUAL,1,1,False,price_correspondence_pass,6,5,1.0,0.9999392743456057,1.0000981345983135,False,True
+VVV-USD,Venice Token,VVV,1,1,False,price_correspondence_pass,21,20,1.0,0.9999629431171522,1.0001032631144153,False,True
+W-USD,Wormhole,W,1,1,False,price_correspondence_pass,16,15,1.0,0.99997530551001,0.999363810303412,False,True
+WCT-USD,Walletconnect Token,WCT,1,1,False,price_correspondence_pass,14,13,1.0,0.999783249320265,0.9991104746317512,False,True
+WIF-USD,Dogwifhat,WIF,1,1,False,price_correspondence_pass,23,22,1.0,0.9999486494659366,1.0004955401387514,False,True
+WLD-USD,Worldcoin,WLD,1,1,False,price_correspondence_pass,18,17,1.0,0.9999876939091292,0.9999855365924212,False,True
+WLFI-USD,World Liberty Financial,WLFI,1,1,False,price_correspondence_pass,14,13,1.0,0.999971487287025,1.0000406094597032,False,True
+XLM-USD,Stellar,XLM,1,1,False,price_correspondence_pass,23,22,1.0,0.9999799831434524,1.0000517247865177,False,True
+XPL-USD,Plasma,XPL,1,1,False,price_correspondence_pass,11,10,1.0,0.9999941037894639,1.0005853454583464,False,True
+XRP-USD,XRP,XRP,1,1,False,price_correspondence_pass,40,39,1.0,0.9999906129635497,0.999978621515307,False,True
+ZEC-USD,Zcash,ZEC,1,1,False,price_correspondence_pass,13,12,1.0,0.999994390119332,1.0002989953755381,False,True
+ZEN-USD,Horizen,ZEN,1,1,False,price_correspondence_pass,36,35,1.0,0.9999862590273838,1.0003569033395387,False,True
+ZETA-USD,Zetachain,ZETA,1,1,False,price_correspondence_pass,33,32,1.0,0.9999727752822554,0.9996201844818232,False,True
+ZK-USD,zkSync,ZK,1,1,False,price_correspondence_pass,25,24,1.0,0.9999433039226424,1.0001815046737454,False,True
+ZORA-USD,Zora,ZORA,1,1,False,price_correspondence_pass,18,17,1.0,0.9999829390129243,1.000787123787851,False,True
+ZRO-USD,Layerzero,ZRO,1,1,False,price_correspondence_pass,28,27,1.0,0.9999568381601144,0.9998700278449413,False,True

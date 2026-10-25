@@ -1,0 +1,3 @@
+# Preserve captured public API bytes and their recorded SHA-256 digests on every OS.
+*.json -text
+monthly_prices/*.json -text

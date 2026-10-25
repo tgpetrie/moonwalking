@@ -1,0 +1,208 @@
+{
+  "raw_verification": {
+    "root": "C:\\Users\\tgpet\\.moonwalking\\data\\daily_panel_2022_2026",
+    "verification": {
+      "checkpoint": "C:\\Users\\tgpet\\.moonwalking\\data\\daily_panel_2022_2026",
+      "raw_files_verified": 494,
+      "all_hashed_files_verified": 496,
+      "product_files": 492,
+      "products_with_candles": 492,
+      "total_usable_daily_candles": 473039,
+      "hourly_crosscheck": 0.9999764860797592,
+      "crosscheck_acceptance": "pass",
+      "provider_identity_status": "ticker_candidates_only_not_identity_verified"
+    },
+    "manifest_sha256": "f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71",
+    "products": 492,
+    "first_date": "2022-01-01",
+    "last_date": "2026-10-18",
+    "usable_candles": 473039
+  },
+  "raw_rebuild_matches_cache": true,
+  "rows": 421064,
+  "horizons": {
+    "1": {
+      "estimate": {
+        "n_blocks": 93,
+        "mean": 0.08704694596700184,
+        "lo": 0.07617332067625632,
+        "hi": 0.09771532287651802,
+        "se": 0.004717180808010674,
+        "moving_block": {
+          "mean": 0.08704694596700184,
+          "lo": 0.07642700824447379,
+          "hi": 0.0966561210861358,
+          "n_blocks": 93,
+          "block_weeks": 4
+        },
+        "n_days": 648,
+        "mean_daily_ic": 0.08733997372166022,
+        "share_weeks_positive": 0.967741935483871
+      },
+      "deciles_match": true,
+      "weekday_phases_match": true,
+      "bottom_actual_return_pct": -0.8387463580073881,
+      "top_actual_return_pct": 0.2180291319538341
+    },
+    "7": {
+      "estimate": {
+        "n_blocks": 93,
+        "mean": 0.05095018478510073,
+        "lo": 0.03412311049687689,
+        "hi": 0.06707739067169535,
+        "se": 0.007159586752659476,
+        "moving_block": {
+          "mean": 0.05095018478510073,
+          "lo": 0.03142608608861234,
+          "hi": 0.06925860874896295,
+          "n_blocks": 93,
+          "block_weeks": 4
+        },
+        "n_days": 648,
+        "mean_daily_ic": 0.05102332376326223,
+        "share_weeks_positive": 0.8279569892473119
+      },
+      "deciles_match": true,
+      "weekday_phases_match": true,
+      "bottom_actual_return_pct": -2.148689603211288,
+      "top_actual_return_pct": -1.3083750422528593
+    }
+  },
+  "test_continuation_events": 8319,
+  "events": {
+    "exhaustion": {
+      "events_in_period": 10575,
+      "events_matched": 8757,
+      "distinct_coins": 398,
+      "distinct_weeks": 93,
+      "largest_coin_share": 0.008678771268699327,
+      "h1_vs_clean_controls_pp": {
+        "mean": -1.161792187594347,
+        "lo": -1.4780396516133365,
+        "hi": -0.8534526201478102,
+        "n_blocks": 93
+      },
+      "h1_vs_same_day_universe_pp": {
+        "mean": -1.4356356835924369,
+        "lo": -1.7164135699322347,
+        "hi": -1.1421973988460024,
+        "n_blocks": 93
+      },
+      "h1_n_events": 8755,
+      "h7_vs_clean_controls_pp": {
+        "mean": -0.7658363572253082,
+        "lo": -1.8835382199404849,
+        "hi": 0.32878021364285176,
+        "n_blocks": 93
+      },
+      "h7_vs_same_day_universe_pp": {
+        "mean": -2.68574811451923,
+        "lo": -3.450318757891989,
+        "hi": -1.8261240610248932,
+        "n_blocks": 93
+      },
+      "h7_n_events": 8747
+    },
+    "continuation": {
+      "events_in_period": 8319,
+      "events_matched": 7088,
+      "distinct_coins": 391,
+      "distinct_weeks": 93,
+      "largest_coin_share": 0.007336343115124154,
+      "h1_vs_clean_controls_pp": {
+        "mean": 0.22563284450120544,
+        "lo": -0.006741947610989154,
+        "hi": 0.4832826584021632,
+        "n_blocks": 93
+      },
+      "h1_vs_same_day_universe_pp": {
+        "mean": -0.029652031447632014,
+        "lo": -0.17754862022380158,
+        "hi": 0.11212218853050471,
+        "n_blocks": 93
+      },
+      "h1_n_events": 7088,
+      "h7_vs_clean_controls_pp": {
+        "mean": 1.0886138456039607,
+        "lo": 0.048873630832798186,
+        "hi": 2.090488514912549,
+        "n_blocks": 93
+      },
+      "h7_vs_same_day_universe_pp": {
+        "mean": -0.3199534925365891,
+        "lo": -0.6951743175405338,
+        "hi": 0.047441822905198536,
+        "n_blocks": 93
+      },
+      "h7_n_events": 7078
+    },
+    "capitulation": {
+      "events_in_period": 8033,
+      "events_matched": 6212,
+      "distinct_coins": 396,
+      "distinct_weeks": 93,
+      "largest_coin_share": 0.010946555054732776,
+      "h1_vs_clean_controls_pp": {
+        "mean": 0.0286429385225585,
+        "lo": -0.21296299057873488,
+        "hi": 0.2933360006948506,
+        "n_blocks": 93
+      },
+      "h1_vs_same_day_universe_pp": {
+        "mean": -0.17136746878830383,
+        "lo": -0.3633894280913994,
+        "hi": 0.044266946897091305,
+        "n_blocks": 93
+      },
+      "h1_n_events": 6198,
+      "h7_vs_clean_controls_pp": {
+        "mean": 1.1101605880136776,
+        "lo": 0.07873293326596732,
+        "hi": 2.1488636431247237,
+        "n_blocks": 93
+      },
+      "h7_vs_same_day_universe_pp": {
+        "mean": -0.761811611973782,
+        "lo": -1.336592726421593,
+        "hi": -0.1564580480704172,
+        "n_blocks": 93
+      },
+      "h7_n_events": 6181
+    },
+    "downside_continuation": {
+      "events_in_period": 6537,
+      "events_matched": 5457,
+      "distinct_coins": 388,
+      "distinct_weeks": 93,
+      "largest_coin_share": 0.007146783947223749,
+      "h1_vs_clean_controls_pp": {
+        "mean": 0.3597596153773692,
+        "lo": 0.130413230872432,
+        "hi": 0.6068453381591851,
+        "n_blocks": 93
+      },
+      "h1_vs_same_day_universe_pp": {
+        "mean": 0.13183676624706936,
+        "lo": -0.0004300054866621579,
+        "hi": 0.2812983238558849,
+        "n_blocks": 93
+      },
+      "h1_n_events": 5455,
+      "h7_vs_clean_controls_pp": {
+        "mean": 1.896181548703221,
+        "lo": 0.7845151130884089,
+        "hi": 2.92686167025988,
+        "n_blocks": 93
+      },
+      "h7_vs_same_day_universe_pp": {
+        "mean": 0.0499480168233214,
+        "lo": -0.27347198521459015,
+        "hi": 0.37843545239098975,
+        "n_blocks": 93
+      },
+      "h7_n_events": 5436
+    }
+  },
+  "events_match_committed": true,
+  "elapsed_seconds": 51.32800000003772
+}

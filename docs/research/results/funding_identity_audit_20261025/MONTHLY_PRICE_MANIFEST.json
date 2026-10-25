@@ -1,0 +1,2263 @@
+[
+  {
+    "base": "2Z",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "2Z",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:38.679283+00:00",
+    "sha256": "8c9d80cc2b39573219ae53482ca20b53ef11a9d1dce4585200d298d193f72a94",
+    "bytes": 1988,
+    "rows": 14
+  },
+  {
+    "base": "AAVE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AAVE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:40.785413+00:00",
+    "sha256": "4cfeffb7a982ac7a4996810e6374950b56773bfb5539abe99dfed99f1a0eeb5f",
+    "bytes": 7958,
+    "rows": 59
+  },
+  {
+    "base": "ADA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ADA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:42.711069+00:00",
+    "sha256": "340d119bed345f3c55142a9b3663d97239db5a2f076c311261dc006991a59aa5",
+    "bytes": 7954,
+    "rows": 59
+  },
+  {
+    "base": "AERO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AERO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:44.746724+00:00",
+    "sha256": "60d8dbca23273b7e15fc45b314ac5143a954550fbb64d071ac81516b5668dc12",
+    "bytes": 3206,
+    "rows": 24
+  },
+  {
+    "base": "AI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:46.806120+00:00",
+    "sha256": "8ae4adfa159bd977ea5506319c9410bd6b2c439d8c7daa53ebe16b7bb9e88f8a",
+    "bytes": 2295,
+    "rows": 16
+  },
+  {
+    "base": "ALGO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ALGO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:48.811930+00:00",
+    "sha256": "078e149ac4adc1be2f6cf7a9c59087885fbc1c8ff65fc858f8e71597df3d03f9",
+    "bytes": 7793,
+    "rows": 59
+  },
+  {
+    "base": "ALT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ALT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:50.928751+00:00",
+    "sha256": "6d7637b562444640b1d4a2f4eff830952dc967e0be53037032ba8e0184dc54c3",
+    "bytes": 5012,
+    "rows": 35
+  },
+  {
+    "base": "APE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "APE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:52.937963+00:00",
+    "sha256": "1ee6eb3372ebad0a56ea637f562077141022f3543b3cb4075acfba0d7f2d145c",
+    "bytes": 7986,
+    "rows": 57
+  },
+  {
+    "base": "APT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "APT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:54.996206+00:00",
+    "sha256": "7bf7587b4a9c679f330372b0c0c88cd863ea7a6fc0ea9ed749ebe19d4e447070",
+    "bytes": 7001,
+    "rows": 50
+  },
+  {
+    "base": "ARB",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ARB",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:57.026605+00:00",
+    "sha256": "811fb022633f42c8b5b5dff31fc19943b10f9b68ccb6f48f18d140edd9f68f4a",
+    "bytes": 6652,
+    "rows": 45
+  },
+  {
+    "base": "ASTER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ASTER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:46:59.106852+00:00",
+    "sha256": "3056aefa79f0a12f45dc1f64c3ff1ff1c7c745626e61f84ed190d87bf001e93b",
+    "bytes": 2123,
+    "rows": 15
+  },
+  {
+    "base": "ATOM",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ATOM",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:01.131819+00:00",
+    "sha256": "f6871528885bdc0bf4d05e6af2290e503e43f988c9b047312b6b96f0b17bd709",
+    "bytes": 8256,
+    "rows": 59
+  },
+  {
+    "base": "AVAX",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AVAX",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:03.982294+00:00",
+    "sha256": "3669e3e8fc833c87c1f756fa258d177b5b0b7e2083fbd72760bfce56f209f8ae",
+    "bytes": 8263,
+    "rows": 59
+  },
+  {
+    "base": "AVNT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AVNT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:05.233631+00:00",
+    "sha256": "94f8fe7a104cd8b69e26f864d540622855b86a5d99096d57321bbd247c7c32e1",
+    "bytes": 2124,
+    "rows": 15
+  },
+  {
+    "base": "AXS",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AXS",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:07.312542+00:00",
+    "sha256": "f9f48c131790e7aeaa871eab03e04e6ce7bac21872e4c56078c3df27d1d2d139",
+    "bytes": 7370,
+    "rows": 59
+  },
+  {
+    "base": "AZTEC",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "AZTEC",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:09.302841+00:00",
+    "sha256": "156fa01ef7946a84b5aed37368eae24937cd1d4d07517f47f665088012516835",
+    "bytes": 1328,
+    "rows": 9
+  },
+  {
+    "base": "BADGER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BADGER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:11.355868+00:00",
+    "sha256": "fa1d298a7c9fb9b8d84f2952a9cae1af7c8e449a27cdcc2d2874c98b8846f07c",
+    "bytes": 2588,
+    "rows": 18
+  },
+  {
+    "base": "BCH",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BCH",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:13.415689+00:00",
+    "sha256": "731a8d57a2a1baee29c3a77e975acc2021709b0b128fd6f3ae8f604198db66b5",
+    "bytes": 7805,
+    "rows": 59
+  },
+  {
+    "base": "BERA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BERA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:15.512412+00:00",
+    "sha256": "94f09ab8016f5eb9863b903eca4eb220dd7c41eba48c01757488a23ca3300a11",
+    "bytes": 3226,
+    "rows": 22
+  },
+  {
+    "base": "BIGTIME",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BIGTIME",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:17.542286+00:00",
+    "sha256": "bfb7526d24a6fc03203249bc54bc0f79b76d5f60346d6d2d5c2f34fb7ee59a21",
+    "bytes": 5584,
+    "rows": 38
+  },
+  {
+    "base": "BIO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BIO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:19.576605+00:00",
+    "sha256": "965593966f2878f2e0a2f70d33aad1f533e03cf968b064640c8e8c000cda02fc",
+    "bytes": 3317,
+    "rows": 23
+  },
+  {
+    "base": "BLAST",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BLAST",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:21.686528+00:00",
+    "sha256": "2f085b0ded897ec27a55feb1f24813c20f73838c51c77015883fa02fb0650401",
+    "bytes": 3544,
+    "rows": 24
+  },
+  {
+    "base": "BLUR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BLUR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:23.665539+00:00",
+    "sha256": "50b3d21aad55bd01eedae4061af619961b0deb2591e154890a3dddcdc0ab251c",
+    "bytes": 6200,
+    "rows": 44
+  },
+  {
+    "base": "BLZ",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BLZ",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:25.819743+00:00",
+    "sha256": "a4b2abfd3e487fd479625ca418e59a52ddfd9e59c539957a035b368990acb272",
+    "bytes": 4933,
+    "rows": 37
+  },
+  {
+    "base": "BNB",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BNB",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:27.848192+00:00",
+    "sha256": "b97a71dc5a8743a7adca9e68e88768c5c9c15e22f9c4b1cdbc43a879bbf7c896",
+    "bytes": 7905,
+    "rows": 59
+  },
+  {
+    "base": "BNT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BNT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:29.828985+00:00",
+    "sha256": "09ef54721887ed74075a8b5c359f5f9a4b33c5f50bdd38bd0c9d45c685fa84a7",
+    "bytes": 2887,
+    "rows": 21
+  },
+  {
+    "base": "BONK",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "kBONK",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:31.850524+00:00",
+    "sha256": "132dfbc822609f4125562853f0eefdde2b223ca92bcb6e6026cff5d15ee4d22a",
+    "bytes": 5507,
+    "rows": 37
+  },
+  {
+    "base": "BTC",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "BTC",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:33.917772+00:00",
+    "sha256": "b84ca580abf799f43898b1eefe7b59d51b20c36c506fcdefb12ccaaf8a803459",
+    "bytes": 8339,
+    "rows": 59
+  },
+  {
+    "base": "CAKE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "CAKE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:36.023015+00:00",
+    "sha256": "2cfd99e8ec5e993ed2370594faf9ae5a2d48353f89e5fcf2f4dec02eab9a8d3c",
+    "bytes": 5268,
+    "rows": 37
+  },
+  {
+    "base": "CHIP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "CHIP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:38.094096+00:00",
+    "sha256": "a0509d68a7b38df1ff32640aac832c51d4033f53aa378029d92b452bef1e2e8e",
+    "bytes": 1028,
+    "rows": 7
+  },
+  {
+    "base": "COMP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "COMP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:40.092720+00:00",
+    "sha256": "2a9bb6428161896e34e20d9fe9781d607b7acb7a8b58f42051490508c6bb12d0",
+    "bytes": 7793,
+    "rows": 59
+  },
+  {
+    "base": "CRV",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "CRV",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:42.205577+00:00",
+    "sha256": "c6f925a1169c419e3ce12c5da006427c4696e060ee7e47e69a521936afa05655",
+    "bytes": 8293,
+    "rows": 59
+  },
+  {
+    "base": "DASH",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "DASH",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:44.192097+00:00",
+    "sha256": "29d729dcf3e8048b25d5d23541c8220bc5d4f2f9f4bddf96e92044bbf39dc85c",
+    "bytes": 7340,
+    "rows": 59
+  },
+  {
+    "base": "DOGE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "DOGE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:46.265862+00:00",
+    "sha256": "83fd1826996b4d2d70d21893bc280692e007a3ab44c286503724edae39a1184d",
+    "bytes": 8321,
+    "rows": 59
+  },
+  {
+    "base": "DOOD",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "DOOD",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:48.265631+00:00",
+    "sha256": "00511c15a8bff08c2b072bc8d80e9d43e6335ccf4b1a798d4ad9bb41d1ffc531",
+    "bytes": 2201,
+    "rows": 15
+  },
+  {
+    "base": "DOT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "DOT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:50.332199+00:00",
+    "sha256": "e077bc0e841d58caebd49fbc278d46a387b614291b342aa2f2937023b55fddb1",
+    "bytes": 8050,
+    "rows": 59
+  },
+  {
+    "base": "EIGEN",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "EIGEN",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:52.392205+00:00",
+    "sha256": "8f9c5f816621e18adf86ed8ddabab7a2512e140cc998bf2eb879597298d37aed",
+    "bytes": 4484,
+    "rows": 31
+  },
+  {
+    "base": "ENA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ENA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:54.410151+00:00",
+    "sha256": "5da097ea8acdff01588d30187245856e89adf6b6fcfb5361e9487210cc115bff",
+    "bytes": 4563,
+    "rows": 32
+  },
+  {
+    "base": "ENS",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ENS",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:56.496268+00:00",
+    "sha256": "87dd876a217addc3b9dd0b746acf5d2d52a0db7e7b5f91f0efdb3e8a9088e657",
+    "bytes": 7858,
+    "rows": 59
+  },
+  {
+    "base": "ETC",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ETC",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:47:58.525267+00:00",
+    "sha256": "a596b4249797c878df4758bc076e45d1bb728ea6023c2c7d03193501404bb906",
+    "bytes": 7871,
+    "rows": 59
+  },
+  {
+    "base": "ETH",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ETH",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:00.581814+00:00",
+    "sha256": "72a7561aa0172a81bcd307fb94cb0ddc501e80760b78603398c00d601ad835d0",
+    "bytes": 8270,
+    "rows": 59
+  },
+  {
+    "base": "ETHFI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ETHFI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:02.649578+00:00",
+    "sha256": "530fd51ced07e917f50bc7182f64d6ab6313b150546be7246faa73ac50b040ac",
+    "bytes": 4835,
+    "rows": 33
+  },
+  {
+    "base": "FARTCOIN",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "FARTCOIN",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:04.682562+00:00",
+    "sha256": "265f210e1836c73bb22325ea4211dab949f8dfe285dcc7bcb8495e92dc3b215e",
+    "bytes": 3673,
+    "rows": 24
+  },
+  {
+    "base": "FET",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "FET",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:06.731214+00:00",
+    "sha256": "99acde3048b997cdeccc0a5bedd00a6ab46e4b108b8db8b4dac301e6789470c7",
+    "bytes": 6393,
+    "rows": 47
+  },
+  {
+    "base": "FIL",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "FIL",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:08.882393+00:00",
+    "sha256": "57d1decf49e224dd894f44ac54f7168f2b2b43323471970b76818fac50d57737",
+    "bytes": 7980,
+    "rows": 59
+  },
+  {
+    "base": "FLOKI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "kFLOKI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:10.827146+00:00",
+    "sha256": "e6484eac7155a570d73492655a2892e2923304142e22945e013aebbf7238c061",
+    "bytes": 6134,
+    "rows": 43
+  },
+  {
+    "base": "GMT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "GMT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:12.864871+00:00",
+    "sha256": "1b81ae51224528e2af2cc64363ef3907ed1f5ef48642b8f32721dce575a4f801",
+    "bytes": 7758,
+    "rows": 57
+  },
+  {
+    "base": "GRASS",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "GRASS",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:15.136056+00:00",
+    "sha256": "49e277703b7b19539ee8c763ff3e2c8f5012b54ac28291d8b5bbce2c657a460b",
+    "bytes": 3671,
+    "rows": 25
+  },
+  {
+    "base": "HBAR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "HBAR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:17.000983+00:00",
+    "sha256": "493c6fc5dec205ad8bc6bc7fe43d1bec5feb373d104fd96d922a267038bdcf2f",
+    "bytes": 8088,
+    "rows": 59
+  },
+  {
+    "base": "HYPE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "HYPE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:19.026074+00:00",
+    "sha256": "177ecc0a5287138671a152e14f4c367f155e5b4a16789eacf9cea8cb019b249f",
+    "bytes": 3550,
+    "rows": 24
+  },
+  {
+    "base": "HYPER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "HYPER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:21.066542+00:00",
+    "sha256": "3ce5e67fce69b3d4f0347beb67b5be24bf484bc1d59d1806f0fada9b31ad2cb5",
+    "bytes": 2856,
+    "rows": 20
+  },
+  {
+    "base": "ICP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ICP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:23.116069+00:00",
+    "sha256": "d2ebd039902d011548b1736366b8cd5b3e5d204919d207011b253ae200ba1e14",
+    "bytes": 7400,
+    "rows": 59
+  },
+  {
+    "base": "ILV",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ILV",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:25.216750+00:00",
+    "sha256": "36f8e468cc575c2e2a5a8b398005efac5308ae550cdb5e39085232e7c1587391",
+    "bytes": 2416,
+    "rows": 18
+  },
+  {
+    "base": "IMX",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "IMX",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:27.196477+00:00",
+    "sha256": "c96ed1867c9e6ea253ab674fcf4d4c3ad66e222443714ed9478785e8735b5515",
+    "bytes": 7964,
+    "rows": 58
+  },
+  {
+    "base": "INJ",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "INJ",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:29.329854+00:00",
+    "sha256": "75806f4053c1369ac61d3a16ca156056f351de2946e0e662470ade1f49b6b05b",
+    "bytes": 7212,
+    "rows": 52
+  },
+  {
+    "base": "IO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "IO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:31.332700+00:00",
+    "sha256": "8b98e7b2f9cb4fcff5ab5a8e82b414a47b377d7b6d1829d2411228c023eb828e",
+    "bytes": 4335,
+    "rows": 30
+  },
+  {
+    "base": "IP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "IP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:33.426210+00:00",
+    "sha256": "a027660877174778a82c43ab5588be34e4009cca51409062b9cd62784106c8ce",
+    "bytes": 2563,
+    "rows": 18
+  },
+  {
+    "base": "JTO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "JTO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:35.419768+00:00",
+    "sha256": "f2a79da76c7fba06e5409143954ab537e219d85331b6aad1077771c1faeec573",
+    "bytes": 4954,
+    "rows": 36
+  },
+  {
+    "base": "KAITO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "KAITO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:37.521826+00:00",
+    "sha256": "47c8a24d700629cd186bfa56081ae3f6c0f9df1f342ee6725e3483d2c17009fd",
+    "bytes": 3088,
+    "rows": 22
+  },
+  {
+    "base": "LAYER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "LAYER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:39.525372+00:00",
+    "sha256": "3335c9e0c4164b40330ba6472b3a5311507e64f47d6d61533183887ab413b060",
+    "bytes": 3130,
+    "rows": 22
+  },
+  {
+    "base": "LDO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "LDO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:41.646672+00:00",
+    "sha256": "c02b140fcd8556787549519183675daf6d16c23959399791c6112efb1ac5b660",
+    "bytes": 7221,
+    "rows": 51
+  },
+  {
+    "base": "LINEA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "LINEA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:43.629553+00:00",
+    "sha256": "4e819a5480d9b7ed0f9d438942fe5764ce0024f63267e7ade009eaa10a2aff13",
+    "bytes": 2219,
+    "rows": 15
+  },
+  {
+    "base": "LINK",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "LINK",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:45.676339+00:00",
+    "sha256": "8ccafbcf317bfc54105973926a37f0f52e8ddd31bcb42e59bd91203c7f30b962",
+    "bytes": 8156,
+    "rows": 59
+  },
+  {
+    "base": "LTC",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "LTC",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:47.808899+00:00",
+    "sha256": "f38464bb444c481b298e74ad8790366ad0f952baa34a3090ca3d6bc34e6e2717",
+    "bytes": 7989,
+    "rows": 59
+  },
+  {
+    "base": "ME",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ME",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:49.771099+00:00",
+    "sha256": "f6899cd6e1ddb5f3aa0f17af76a46b2930f7c56f45c392a555734890fb02811e",
+    "bytes": 3496,
+    "rows": 24
+  },
+  {
+    "base": "MEGA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MEGA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:51.855803+00:00",
+    "sha256": "3c2275504c4e7b6d2004b8563c2c0bde6fb2b2a43c437e86014c92dfd884344e",
+    "bytes": 1861,
+    "rows": 13
+  },
+  {
+    "base": "MET",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MET",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:53.869690+00:00",
+    "sha256": "5cf07424bf8aae11d6a4cae1460326986bfd02f646fb85c2f712819713dbfdb4",
+    "bytes": 1945,
+    "rows": 14
+  },
+  {
+    "base": "MINA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MINA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:56.010161+00:00",
+    "sha256": "871505aa35135c443017ba0ada5bdba7e74d1a0835194151d7c5288b2a682179",
+    "bytes": 6365,
+    "rows": 46
+  },
+  {
+    "base": "MON",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MON",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:48:58.076488+00:00",
+    "sha256": "a6b188f9c9e812f2668121cf1be4cc277bad7a544a9386b97f6d2e96b9d54b31",
+    "bytes": 2036,
+    "rows": 14
+  },
+  {
+    "base": "MOODENG",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MOODENG",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:00.031839+00:00",
+    "sha256": "aa23fdba7811d677c98eb492587b3b5197662b9c01d13ad915a016554e93f1f1",
+    "bytes": 3827,
+    "rows": 26
+  },
+  {
+    "base": "MORPHO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "MORPHO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:02.060897+00:00",
+    "sha256": "01398a1bbe7510b308d805c66c937f26c408b46de7b5af9f35729695b7afd27c",
+    "bytes": 3596,
+    "rows": 25
+  },
+  {
+    "base": "NEAR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "NEAR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:04.194632+00:00",
+    "sha256": "0ec8bd4072e466d6783ad76afc7ec5f015954d58620a59a696a4eafb52057b6b",
+    "bytes": 8035,
+    "rows": 59
+  },
+  {
+    "base": "OGN",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "OGN",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:06.310588+00:00",
+    "sha256": "4b4083c002fb1b89212e4c26acf7ed8886fb15e4c642765b21b69338afa8b300",
+    "bytes": 5866,
+    "rows": 44
+  },
+  {
+    "base": "ONDO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ONDO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:08.217253+00:00",
+    "sha256": "734750057a977961b4f59bc50066803c0e1e3d103392e3f6e65fcb4d04b23c33",
+    "bytes": 4926,
+    "rows": 35
+  },
+  {
+    "base": "OP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "OP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:10.265505+00:00",
+    "sha256": "9178b62ad166d464b6891e42f23f4957a31359d33a9153eb9e211170e9e1cfd5",
+    "bytes": 7613,
+    "rows": 54
+  },
+  {
+    "base": "PAXG",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PAXG",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:12.313977+00:00",
+    "sha256": "9ba3d79d178ca6b302418094b46495b4f12cf18b12112d1d46e18ef64f0757ec",
+    "bytes": 2868,
+    "rows": 21
+  },
+  {
+    "base": "PENDLE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PENDLE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:14.496097+00:00",
+    "sha256": "cebfb8a247adf032770947e0414f7ce0515bfa6d5ad80a031b2be82da77fa0a1",
+    "bytes": 5666,
+    "rows": 41
+  },
+  {
+    "base": "PENGU",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PENGU",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:16.451677+00:00",
+    "sha256": "786c15f7a88a98cec1a8e2256f4b3a094909f63c77ebef19fc03d987ee944844",
+    "bytes": 3576,
+    "rows": 24
+  },
+  {
+    "base": "PEPE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "kPEPE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:18.509109+00:00",
+    "sha256": "4419a8b66703c42b9d7000ce8ada650901f0e4d0ab8cc096834541a42d299cc0",
+    "bytes": 6450,
+    "rows": 43
+  },
+  {
+    "base": "PNUT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PNUT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:20.539919+00:00",
+    "sha256": "1cdbada2763d0242828bfee8d087e7d024eeef09cae72dbc360340dfff0023ed",
+    "bytes": 3700,
+    "rows": 25
+  },
+  {
+    "base": "POL",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "POL",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:22.571098+00:00",
+    "sha256": "6b7b01f3cc7c97dc247b1c1af7e62fd7e6dc650bd34c451b0950be0cae5c6ba0",
+    "bytes": 3825,
+    "rows": 27
+  },
+  {
+    "base": "PONS",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PONS",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:24.641380+00:00",
+    "sha256": "3ba094a3644f1077682ed5ff58c8bf14125dc629aff4c1d0c208e723223c5f28",
+    "bytes": 432,
+    "rows": 3
+  },
+  {
+    "base": "POPCAT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "POPCAT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:26.675144+00:00",
+    "sha256": "d48940841916f78cf577d87ab1d7faadca4863ed2d7e62835039f649db4fb7cc",
+    "bytes": 4499,
+    "rows": 31
+  },
+  {
+    "base": "PROMPT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PROMPT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:28.735791+00:00",
+    "sha256": "48beca379fdd4f720bc53e2689d4ff157346311f2f6bbd10329577bbe5d5fad3",
+    "bytes": 2021,
+    "rows": 14
+  },
+  {
+    "base": "PROVE",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PROVE",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:30.768235+00:00",
+    "sha256": "dbf21bfd59860ccdf278ea1dfe4fc480fd9f8d23c7eae684b6af191dc91ae36d",
+    "bytes": 2265,
+    "rows": 16
+  },
+  {
+    "base": "PUMP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PUMP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:32.821922+00:00",
+    "sha256": "3d4ff68c687efa2eb74904317a7c9ea6e04614a3eed656f3c93bdbf256b3d8d9",
+    "bytes": 2546,
+    "rows": 17
+  },
+  {
+    "base": "PYTH",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "PYTH",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:34.939257+00:00",
+    "sha256": "861be1beb25f493003b17469aec768860a9da7757c1b5f47bc2b920d45fb59fc",
+    "bytes": 5269,
+    "rows": 37
+  },
+  {
+    "base": "RENDER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "RENDER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:36.970703+00:00",
+    "sha256": "2c9b98b37bfe0ccea13dc5a049c7e3d70317731395b61fb32f6cc496516313e1",
+    "bytes": 4215,
+    "rows": 29
+  },
+  {
+    "base": "REQ",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "REQ",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:38.949335+00:00",
+    "sha256": "48f1cfcbbbad69535a521d89e6048767ebc2d46c2d49191471322f83ad432af7",
+    "bytes": 3238,
+    "rows": 23
+  },
+  {
+    "base": "REZ",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "REZ",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:41.079273+00:00",
+    "sha256": "84d5d88c196d6bfc9b14fae3fe87ec7da487ceaeec232a455784d68566b1af39",
+    "bytes": 4612,
+    "rows": 32
+  },
+  {
+    "base": "RSR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "RSR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:43.084376+00:00",
+    "sha256": "bb0f46d04a097d496a4e6844d18c1409467f21a083a0ec4b6557f8806ac4f6b0",
+    "bytes": 8280,
+    "rows": 59
+  },
+  {
+    "base": "S",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "S",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:45.100796+00:00",
+    "sha256": "722ce72e0870ca2caed2e418ca65860e9a67e70a5bfa4acae66592d1abc5c994",
+    "bytes": 3229,
+    "rows": 23
+  },
+  {
+    "base": "SAND",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SAND",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:47.198803+00:00",
+    "sha256": "36d5372d400e640b9cb3de66fa6ff4fa5df3bf76cf260f86113457559fbeabed",
+    "bytes": 7816,
+    "rows": 59
+  },
+  {
+    "base": "SEI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SEI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:49.244812+00:00",
+    "sha256": "fe8fbf133b39f2c6a8c6c86542a85c451c963f6a11b8e7ef715963504acc5f12",
+    "bytes": 5692,
+    "rows": 40
+  },
+  {
+    "base": "SHIB",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "kSHIB",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:51.268632+00:00",
+    "sha256": "7d3f9f28862274448c302e3417aeaf811d4ce3370a9fe951c575f20b9177ef3e",
+    "bytes": 8487,
+    "rows": 59
+  },
+  {
+    "base": "SKR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SKR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:53.334530+00:00",
+    "sha256": "a123a6f634be6f007aadc916f728a21ed26c55411be876df88c71bdf7d6a633e",
+    "bytes": 1455,
+    "rows": 10
+  },
+  {
+    "base": "SKY",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SKY",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:55.350134+00:00",
+    "sha256": "82c815d34902166eec97c08d617892c44e75a2c747b0b708f94e344ba13a2d7e",
+    "bytes": 2165,
+    "rows": 15
+  },
+  {
+    "base": "SNX",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SNX",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:57.408472+00:00",
+    "sha256": "6488077ccd8bc6fc8ccc1f6ec2ecd42b71a1217371cedcfb9c22c7887cdea51f",
+    "bytes": 8128,
+    "rows": 59
+  },
+  {
+    "base": "SOL",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SOL",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:49:59.485515+00:00",
+    "sha256": "76274784c2d5522d2de852a235db6761e9245271f3e8b3177abc73b8bcf005ec",
+    "bytes": 8220,
+    "rows": 59
+  },
+  {
+    "base": "SPX",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SPX",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:01.637170+00:00",
+    "sha256": "3a63a630e858263c2462e564133ef64233b960c81ae0ac703c900ff3d908361f",
+    "bytes": 3503,
+    "rows": 24
+  },
+  {
+    "base": "STG",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "STG",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:03.540626+00:00",
+    "sha256": "ab2b18be31bc3d1c395ab296141b4c499787c8f1fc3813bb8680eda1d8a8adc2",
+    "bytes": 4935,
+    "rows": 37
+  },
+  {
+    "base": "STRK",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "STRK",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:05.675310+00:00",
+    "sha256": "4760f350c5aebdccbcd37026f1ebf67079a9df910ec2f726850889193330887f",
+    "bytes": 5025,
+    "rows": 34
+  },
+  {
+    "base": "STX",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "STX",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:07.669847+00:00",
+    "sha256": "d7866f7c31b3aa3260ed6c0ae71490ef85d1966975c0e63a59dd0ad4dcf5fe21",
+    "bytes": 6592,
+    "rows": 46
+  },
+  {
+    "base": "SUI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SUI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:09.893681+00:00",
+    "sha256": "5406fa18a3d02f2adeba2331f3c912bfbe4c66a2820fadf3a05f1008cd546089",
+    "bytes": 6303,
+    "rows": 43
+  },
+  {
+    "base": "SUPER",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SUPER",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:11.789690+00:00",
+    "sha256": "19c128bbe50b74438a3dfad8081406322ecaf802c3a1d72679a7a453c4012b64",
+    "bytes": 5193,
+    "rows": 37
+  },
+  {
+    "base": "SUSHI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SUSHI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:13.855333+00:00",
+    "sha256": "d15f36cf752aa901491826e90d7c8659427dc393405acf4cbc296e1394dcaee3",
+    "bytes": 8141,
+    "rows": 59
+  },
+  {
+    "base": "SYRUP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "SYRUP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:15.959030+00:00",
+    "sha256": "471c282499ede5e7dd9462a7a840a5ef9a9032cc9e23dbd1e0053a1969df465b",
+    "bytes": 2673,
+    "rows": 19
+  },
+  {
+    "base": "TAO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TAO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:17.989419+00:00",
+    "sha256": "385cd10c41c88358aa47e52e7b7dfa3f09cdd6ae703d9760b2099dd024ac70ff",
+    "bytes": 4568,
+    "rows": 33
+  },
+  {
+    "base": "TIA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TIA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:20.023132+00:00",
+    "sha256": "f08aef51c3bee844fb74250bbd85ddfb9c0b5e967fdf4ba5aa19367fd2a75430",
+    "bytes": 5436,
+    "rows": 38
+  },
+  {
+    "base": "TNSR",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TNSR",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:22.073930+00:00",
+    "sha256": "b9546c34d3b067bc66732fd2fc09bd96638758bdab489527085b3121e9b6a812",
+    "bytes": 4708,
+    "rows": 32
+  },
+  {
+    "base": "TON",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TON",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:24.166850+00:00",
+    "sha256": "10982f1176c4bd1b5af7e5826eb564b0631f119a6a7b10b21c0b7895df06ec76",
+    "bytes": 4725,
+    "rows": 33
+  },
+  {
+    "base": "TRB",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TRB",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:26.185264+00:00",
+    "sha256": "8b6498608c7d06248b8d32f188a7cc397302f0009f941586ab824a62d700f5af",
+    "bytes": 7660,
+    "rows": 59
+  },
+  {
+    "base": "TRUMP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TRUMP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:28.238097+00:00",
+    "sha256": "18425a8c6341362410a64f5372ed8ffdffa9768af7363b672bbf24fcd7151640",
+    "bytes": 3345,
+    "rows": 23
+  },
+  {
+    "base": "TURBO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "TURBO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:30.429138+00:00",
+    "sha256": "4f14ceccc373134963bc749c8d560138a0626740a47b0350304dcb07fe9d3852",
+    "bytes": 4573,
+    "rows": 31
+  },
+  {
+    "base": "UMA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "UMA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:32.330495+00:00",
+    "sha256": "4dbb083700cb7eb4d4dc62253d8bfe76d21ba25a07c89d26fd925318639316ee",
+    "bytes": 5927,
+    "rows": 43
+  },
+  {
+    "base": "UNI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "UNI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:34.358818+00:00",
+    "sha256": "94bead7996dcd9d7ace8f3a95d2124b8709e2a24ea22c97685592c2d6e5faa61",
+    "bytes": 8043,
+    "rows": 59
+  },
+  {
+    "base": "USELESS",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "USELESS",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:36.373501+00:00",
+    "sha256": "ef01b6306521618fee95028ced36f02155b41bf20f320b4ea59c990657104c3c",
+    "bytes": 290,
+    "rows": 2
+  },
+  {
+    "base": "VIRTUAL",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "VIRTUAL",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:38.396378+00:00",
+    "sha256": "07bed3d5c30af5454ec0149669e990705901eea0abe50b86947335a473e03d31",
+    "bytes": 3551,
+    "rows": 24
+  },
+  {
+    "base": "VVV",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "VVV",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:40.614826+00:00",
+    "sha256": "b5e1469bb75253834607b8a0dbf42efe6e0dc7a3075515f0d04a04f0e1232e42",
+    "bytes": 3274,
+    "rows": 23
+  },
+  {
+    "base": "W",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "W",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:42.549663+00:00",
+    "sha256": "20bc48c486328b57efadd2980847aee66a932bea799b0008a2916665e3fbfbd7",
+    "bytes": 4876,
+    "rows": 34
+  },
+  {
+    "base": "WCT",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "WCT",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:44.690728+00:00",
+    "sha256": "f8cca9d3edc9eaa780e39010f4be061dbf02fa971afcfaf7232cc03c116e75b0",
+    "bytes": 2816,
+    "rows": 20
+  },
+  {
+    "base": "WIF",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "WIF",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:46.649107+00:00",
+    "sha256": "51d99937f2cfa6bcc9a3ac752472acd08c76c710b92b8b3e243d24fa3873c2b9",
+    "bytes": 4892,
+    "rows": 35
+  },
+  {
+    "base": "WLD",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "WLD",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:48.680824+00:00",
+    "sha256": "069a1ec30d5558856d4149df6e2788240574ba674583d1cbc6054241e69e0728",
+    "bytes": 5956,
+    "rows": 41
+  },
+  {
+    "base": "WLFI",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "WLFI",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:50.902085+00:00",
+    "sha256": "e97fc81229757ab3000bbe3c0d862d4b017cada07ca0f070a14576f9d9ea56d9",
+    "bytes": 2299,
+    "rows": 16
+  },
+  {
+    "base": "XLM",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "XLM",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:52.815953+00:00",
+    "sha256": "2d0ac8b0da1a02dfe454d3f9475c67cfa3f242fca319dfd2d5a945ebea26ae6a",
+    "bytes": 7887,
+    "rows": 59
+  },
+  {
+    "base": "XPL",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "XPL",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:54.835741+00:00",
+    "sha256": "03c35fe83db8b30a89efd3f00d8196ea10b690250862952db474d143a0fc9c66",
+    "bytes": 2274,
+    "rows": 16
+  },
+  {
+    "base": "XRP",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "XRP",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:56.868695+00:00",
+    "sha256": "1826627c9345496e8266c56a7b3065637f7d4506b46b5a0116af6a0784e150e0",
+    "bytes": 7977,
+    "rows": 59
+  },
+  {
+    "base": "ZEC",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZEC",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:50:58.979458+00:00",
+    "sha256": "a0581fa538a6bff54bc21a9a2565a9221a699959780c8982926bb93251cabdee",
+    "bytes": 7459,
+    "rows": 59
+  },
+  {
+    "base": "ZEN",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZEN",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:51:00.957477+00:00",
+    "sha256": "30baf5664605a12ac8417f7ba84626539a063cedd657aac10127c8fe77f28797",
+    "bytes": 7887,
+    "rows": 59
+  },
+  {
+    "base": "ZETA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZETA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:51:03.042431+00:00",
+    "sha256": "f3c1e33e8198932612177e85f9fb606cae896b43b10d26ae53f42a5ba5df8156",
+    "bytes": 5009,
+    "rows": 34
+  },
+  {
+    "base": "ZK",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZK",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:51:05.153049+00:00",
+    "sha256": "905be2ea848a90c577f621022645642e633a6e9e79f1cc43786fdf80dd439894",
+    "bytes": 4289,
+    "rows": 30
+  },
+  {
+    "base": "ZORA",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZORA",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:51:07.086815+00:00",
+    "sha256": "0aff1fc7719eab66cc89a15881d381228bb4192517b48a76d2612aa490c41d90",
+    "bytes": 2788,
+    "rows": 19
+  },
+  {
+    "base": "ZRO",
+    "url": "https://api.hyperliquid.xyz/info",
+    "request_json": {
+      "type": "candleSnapshot",
+      "req": {
+        "coin": "ZRO",
+        "interval": "1M",
+        "startTime": 1640995200000,
+        "endTime": 1792367999999
+      }
+    },
+    "fetched_at_utc": "2026-10-25T22:51:09.186497+00:00",
+    "sha256": "0e15c2140bf81882858869ce854b60f234bdee967c85f510a847bd2085798002",
+    "bytes": 5488,
+    "rows": 39
+  }
+]

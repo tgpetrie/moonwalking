@@ -1,0 +1,764 @@
+{
+  "2Z-USD": {
+    "hyperliquid_name": "2Z",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AAVE-USD": {
+    "hyperliquid_name": "AAVE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ADA-USD": {
+    "hyperliquid_name": "ADA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AERO-USD": {
+    "hyperliquid_name": "AERO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ALGO-USD": {
+    "hyperliquid_name": "ALGO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ALT-USD": {
+    "hyperliquid_name": "ALT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "APE-USD": {
+    "hyperliquid_name": "APE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "APT-USD": {
+    "hyperliquid_name": "APT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ARB-USD": {
+    "hyperliquid_name": "ARB",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ASTER-USD": {
+    "hyperliquid_name": "ASTER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ATOM-USD": {
+    "hyperliquid_name": "ATOM",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AVAX-USD": {
+    "hyperliquid_name": "AVAX",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AVNT-USD": {
+    "hyperliquid_name": "AVNT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AXS-USD": {
+    "hyperliquid_name": "AXS",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "AZTEC-USD": {
+    "hyperliquid_name": "AZTEC",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BADGER-USD": {
+    "hyperliquid_name": "BADGER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "BCH-USD": {
+    "hyperliquid_name": "BCH",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BERA-USD": {
+    "hyperliquid_name": "BERA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BIGTIME-USD": {
+    "hyperliquid_name": "BIGTIME",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BIO-USD": {
+    "hyperliquid_name": "BIO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BLAST-USD": {
+    "hyperliquid_name": "BLAST",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "BLUR-USD": {
+    "hyperliquid_name": "BLUR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BLZ-USD": {
+    "hyperliquid_name": "BLZ",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "BNB-USD": {
+    "hyperliquid_name": "BNB",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "BNT-USD": {
+    "hyperliquid_name": "BNT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "BONK-USD": {
+    "hyperliquid_name": "kBONK",
+    "price_units_per_contract": 1000,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "CAKE-USD": {
+    "hyperliquid_name": "CAKE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "CHIP-USD": {
+    "hyperliquid_name": "CHIP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "COMP-USD": {
+    "hyperliquid_name": "COMP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "CRV-USD": {
+    "hyperliquid_name": "CRV",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "DASH-USD": {
+    "hyperliquid_name": "DASH",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "DOGE-USD": {
+    "hyperliquid_name": "DOGE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "DOT-USD": {
+    "hyperliquid_name": "DOT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "EIGEN-USD": {
+    "hyperliquid_name": "EIGEN",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ENA-USD": {
+    "hyperliquid_name": "ENA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ENS-USD": {
+    "hyperliquid_name": "ENS",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ETC-USD": {
+    "hyperliquid_name": "ETC",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ETH-USD": {
+    "hyperliquid_name": "ETH",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ETHFI-USD": {
+    "hyperliquid_name": "ETHFI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "FARTCOIN-USD": {
+    "hyperliquid_name": "FARTCOIN",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "FET-USD": {
+    "hyperliquid_name": "FET",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "FIL-USD": {
+    "hyperliquid_name": "FIL",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "FLOKI-USD": {
+    "hyperliquid_name": "kFLOKI",
+    "price_units_per_contract": 1000,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "GMT-USD": {
+    "hyperliquid_name": "GMT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "HBAR-USD": {
+    "hyperliquid_name": "HBAR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "HYPE-USD": {
+    "hyperliquid_name": "HYPE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "HYPER-USD": {
+    "hyperliquid_name": "HYPER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ICP-USD": {
+    "hyperliquid_name": "ICP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ILV-USD": {
+    "hyperliquid_name": "ILV",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "IMX-USD": {
+    "hyperliquid_name": "IMX",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "INJ-USD": {
+    "hyperliquid_name": "INJ",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "IO-USD": {
+    "hyperliquid_name": "IO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "IP-USD": {
+    "hyperliquid_name": "IP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "JTO-USD": {
+    "hyperliquid_name": "JTO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "KAITO-USD": {
+    "hyperliquid_name": "KAITO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "LAYER-USD": {
+    "hyperliquid_name": "LAYER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "LDO-USD": {
+    "hyperliquid_name": "LDO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "LINEA-USD": {
+    "hyperliquid_name": "LINEA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "LINK-USD": {
+    "hyperliquid_name": "LINK",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "LTC-USD": {
+    "hyperliquid_name": "LTC",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ME-USD": {
+    "hyperliquid_name": "ME",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MEGA-USD": {
+    "hyperliquid_name": "MEGA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MET-USD": {
+    "hyperliquid_name": "MET",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MINA-USD": {
+    "hyperliquid_name": "MINA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MON-USD": {
+    "hyperliquid_name": "MON",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MOODENG-USD": {
+    "hyperliquid_name": "MOODENG",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "MORPHO-USD": {
+    "hyperliquid_name": "MORPHO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "NEAR-USD": {
+    "hyperliquid_name": "NEAR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "OGN-USD": {
+    "hyperliquid_name": "OGN",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "ONDO-USD": {
+    "hyperliquid_name": "ONDO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "OP-USD": {
+    "hyperliquid_name": "OP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PAXG-USD": {
+    "hyperliquid_name": "PAXG",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PENDLE-USD": {
+    "hyperliquid_name": "PENDLE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PENGU-USD": {
+    "hyperliquid_name": "PENGU",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PEPE-USD": {
+    "hyperliquid_name": "kPEPE",
+    "price_units_per_contract": 1000,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PNUT-USD": {
+    "hyperliquid_name": "PNUT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "POL-USD": {
+    "hyperliquid_name": "POL",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "POPCAT-USD": {
+    "hyperliquid_name": "POPCAT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PROMPT-USD": {
+    "hyperliquid_name": "PROMPT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "PROVE-USD": {
+    "hyperliquid_name": "PROVE",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PUMP-USD": {
+    "hyperliquid_name": "PUMP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "PYTH-USD": {
+    "hyperliquid_name": "PYTH",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "RENDER-USD": {
+    "hyperliquid_name": "RENDER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "REQ-USD": {
+    "hyperliquid_name": "REQ",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "REZ-USD": {
+    "hyperliquid_name": "REZ",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "RSR-USD": {
+    "hyperliquid_name": "RSR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "S-USD": {
+    "hyperliquid_name": "S",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SAND-USD": {
+    "hyperliquid_name": "SAND",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SEI-USD": {
+    "hyperliquid_name": "SEI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SHIB-USD": {
+    "hyperliquid_name": "kSHIB",
+    "price_units_per_contract": 1000,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SKR-USD": {
+    "hyperliquid_name": "SKR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SKY-USD": {
+    "hyperliquid_name": "SKY",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SNX-USD": {
+    "hyperliquid_name": "SNX",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SOL-USD": {
+    "hyperliquid_name": "SOL",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SPX-USD": {
+    "hyperliquid_name": "SPX",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "STG-USD": {
+    "hyperliquid_name": "STG",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "STRK-USD": {
+    "hyperliquid_name": "STRK",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "STX-USD": {
+    "hyperliquid_name": "STX",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SUI-USD": {
+    "hyperliquid_name": "SUI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SUPER-USD": {
+    "hyperliquid_name": "SUPER",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SUSHI-USD": {
+    "hyperliquid_name": "SUSHI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "SYRUP-USD": {
+    "hyperliquid_name": "SYRUP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TAO-USD": {
+    "hyperliquid_name": "TAO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TIA-USD": {
+    "hyperliquid_name": "TIA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TNSR-USD": {
+    "hyperliquid_name": "TNSR",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TON-USD": {
+    "hyperliquid_name": "TON",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": true
+  },
+  "TRB-USD": {
+    "hyperliquid_name": "TRB",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TRUMP-USD": {
+    "hyperliquid_name": "TRUMP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "TURBO-USD": {
+    "hyperliquid_name": "TURBO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "UMA-USD": {
+    "hyperliquid_name": "UMA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "UNI-USD": {
+    "hyperliquid_name": "UNI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "VIRTUAL-USD": {
+    "hyperliquid_name": "VIRTUAL",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "VVV-USD": {
+    "hyperliquid_name": "VVV",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "W-USD": {
+    "hyperliquid_name": "W",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "WCT-USD": {
+    "hyperliquid_name": "WCT",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "WIF-USD": {
+    "hyperliquid_name": "WIF",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "WLD-USD": {
+    "hyperliquid_name": "WLD",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "WLFI-USD": {
+    "hyperliquid_name": "WLFI",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "XLM-USD": {
+    "hyperliquid_name": "XLM",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "XPL-USD": {
+    "hyperliquid_name": "XPL",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "XRP-USD": {
+    "hyperliquid_name": "XRP",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZEC-USD": {
+    "hyperliquid_name": "ZEC",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZEN-USD": {
+    "hyperliquid_name": "ZEN",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZETA-USD": {
+    "hyperliquid_name": "ZETA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZK-USD": {
+    "hyperliquid_name": "ZK",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZORA-USD": {
+    "hyperliquid_name": "ZORA",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  },
+  "ZRO-USD": {
+    "hyperliquid_name": "ZRO",
+    "price_units_per_contract": 1,
+    "funding_rate_multiplier": 1,
+    "hyperliquid_delisted": false
+  }
+}
