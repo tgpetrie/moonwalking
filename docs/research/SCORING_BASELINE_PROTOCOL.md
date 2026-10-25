@@ -209,3 +209,9 @@ and the distribution of trailing volatility (a feature, not an outcome) were ins
 * **A4 (2026-10-25):** discovery decision days end **2024-12-23**, so that the longest
   label (open of d+8) ends by 2024-12-31 and no discovery label window overlaps the test
   period.
+* **A5 (2026-10-25):** for the event tests (section 6) no minimum effect of interest is
+  defined in return units. The status is: *supportive* (frozen discovery sign and the
+  97.5% interval excludes zero), *sign reversed* (interval excludes zero on the other
+  side), or *inconclusive*; and the estimate is listed against each cost scenario it
+  exceeds (0.2, 0.5, 0.9, 1.2%) so that economic size is read separately from statistical
+  support.
