@@ -3,8 +3,8 @@
 Written 2026-10-25 on branch `claude/scoring-baseline` (from `codex/scoring-data-checkpoint-20261024`
 at `9630c81`). Research only: no production code, store, network call, purchase or merge is
 involved. The frozen design is [`SCORING_BASELINE_PROTOCOL.md`](SCORING_BASELINE_PROTOCOL.md)
-(committed before any outcome was computed, then amended A1-A6 before the test period was read; all
-amendments are listed there). Code and run instructions: `scripts/scoring_experiment/README.md`.
+(committed before any outcome was computed, amended A1-A6 before the test period was read, and corrected
+after Codex's review of commit `2959072` as C1-C3; all are listed there and in section 7 below). Code and run instructions: `scripts/scoring_experiment/README.md`.
 
 Legend: **[V]** measured in this run; **[H]** hypothesis or interpretation, not shown; **[A]** assumption.
 
@@ -14,27 +14,36 @@ Legend: **[V]** measured in this run; **[H]** hypothesis or interpretation, not 
    BTC-residual returns better than chance, and the result held out of sample.** Rank IC was
    +0.087 at 1 day and +0.051 at 7 days in the test period (2025-01-01 to 2026-10-10, 93 weeks), with
    week-block 97.5% intervals that exclude zero, and the same sign and similar size in discovery
-   (2023-01 to 2024-12). By the protocol's pre-set rule both are *supportive*. [V]
+   (2023-01 to 2024-12). By the protocol's pre-set rule both are *supportive*. They also hold one decision
+   weekday at a time (labels never overlap: interval excludes zero on 7 of 7 weekdays at each horizon)
+   and under a 4-week moving-block bootstrap (1 day [+0.076, +0.097], 7 days [+0.031, +0.069]). [V]
 2. **What the score captures is mostly short-term reversal, and it is asymmetric.** A one-feature
    reversal rule (`-r1`) reaches IC +0.075 at 1 day; the full model adds only +0.012 (interval
    [+0.007, +0.018]) and at 7 days is not distinguishable from reversal (+0.010, [-0.006, +0.025]).
-   The edge sits in the **lowest-scored decile**, which falls far more than the rest (1-day raw
-   return -1.23% versus -0.24% to +0.04% elsewhere; 7-day -3.05% versus -1.5% to -2.1%). The
-   highest-scored decile is **not** a group of winners: long-only top quintile minus the equal-weight
-   universe was +0.06 percentage points per week gross (interval -0.21 to +0.34) and negative after
-   every cost scenario of 0.5% or more. [V] So the score is useful as an *avoid / caution* ranking, not as a
-   buy ranking.
+   The edge sits in the **lowest-scored decile**. Actual next-day (open to open) returns: bottom decile
+   -0.84% [-1.17, -0.49], deciles 2-9 between -0.15% and -0.01%, top decile +0.22% [-0.07, +0.50]. Actual 7-day
+   returns: bottom decile -2.15% [-3.59, -0.61], deciles 2-9 between -0.93% and -1.33%, top decile -1.31% [-2.86, +0.18].
+   (In BTC-residual log-return terms the bottom decile is -1.23% and -3.05%; the first version of this
+   document mislabelled those residual figures as raw returns, see section 7.) So the top decile is
+   not distinguishable from the middle at 7 days and only weakly positive at 1 day: long-only top
+   quintile minus the equal-weight universe was +0.06 percentage points per week gross (interval
+   -0.21 to +0.34) and negative after every cost scenario of 0.5% or more. [V] The score is useful as an
+   *avoid / caution* ranking; there is no demonstrated selection edge at the top.
 3. **The effect is concentrated in small, thin coins.** About 76% of eligible coin-days are "thin"
    (20-day median Coinbase dollar volume under $1M). In the funding-candidate subset the 7-day IC is
    +0.011 ([-0.008, +0.028]) and excluding thin coins +0.004 ([-0.024, +0.033]); only the 1-day IC
    survives (+0.053 and +0.035). [V] Part of the daily reversal in thin names is likely a bid-ask
    bounce rather than a tradable move [H].
-4. **Exhaustion is supported as a negative signal; continuation is not supported.** After a sharp
-   one-day rise on heavy volume or stretched price, coins underperformed both their own clean
-   quiet days (-1.26 pp at 1 day, -1.67 pp at 7 days) and the same-day universe (-1.38 and -2.83 pp)
-   in the test period, with the sign frozen from discovery. High-momentum "continuation" days were not
-   different from the universe (+0.06 pp at 1 day, -0.13 pp at 7 days) and their apparent advantage over
-   the coin's own quiet days (+0.77 pp at 7 days) is not distinguishable from zero. [V]
+4. **Exhaustion is supported at 1 day, and at 7 days only against the universe; continuation shows no advantage
+   over the universe.** After a sharp one-day rise on heavy volume or a stretched price, coins underperformed the
+   same-day universe by -1.44 pp (1 day) and -2.69 pp (7 days), and their own clean quiet days by -1.16 pp at 1 day
+   (test period, residual returns, sign frozen in discovery). Against their own quiet days at 7 days the gap is
+   -0.77 pp with an interval that includes zero ([-1.88, +0.33]), so that cell is inconclusive (its discovery sign
+   was also positive, +0.39). Corrected **continuation** days (momentum in the top quintile, not stretched, volume between
+   the 20-day median and 3x) are no different from the universe (-0.03 pp at 1 day, -0.32 pp [-0.70, +0.05] at 7 days);
+   their advantage over the coin's own quiet days (+0.23 pp at 1 day, +1.09 pp at 7 days) is formally supportive at
+   7 days but the same +1 to +2 pp appears for every event class, which points at the quiet-day comparator being a weak
+   baseline rather than at a continuation effect [H]. [V]
 5. **The live reads do not behave as labelled.** Among recorded production signals (13 weeks,
    exploratory), `CONTINUATION FAVORED` (up) was followed by negative 15- and 60-minute
    returns (-0.11% and -0.20%) and, against clean matched same-coin hours, by a negative point
@@ -76,17 +85,18 @@ that includes inactive products but is not proven complete, and returns after a 
 are unobserved, which can flatter coins that later collapsed or were delisted [H]; (e) the next-open entry
 and cost scenarios are not an execution model.
 
-**Continuation versus exhaustion, separately.** The two comparators disagree for continuation: against
-the coin's own quiet days it looks favourable in discovery (+1.66 pp at 7 days) and is smaller and
-inconclusive in test (+0.77 pp), but against the same-day universe it is flat in both periods (-0.07 and
--0.13 pp). The simplest reading [H] is that a coin's *own quiet days* are below-average days for
-BTC-residual returns, so any active day beats them; the peer comparison is therefore the stricter test
-and shows no continuation edge. Exhaustion passes both comparisons in both periods at 1 day and in test
-at 7 days. The downside mirror ("capitulation", `r1` in the bottom decile on heavy volume) did not
-bounce reliably: +0.25 pp at 7 days versus controls (interval [-0.80, +1.35]) and negative versus the universe.
-Downside continuation is positive versus controls at 1 and 7 days and versus the universe at 1 day
-(+0.16 pp, interval excludes zero) but not at 7 days (+0.15 pp, [-0.18, +0.52]). These event rules were fixed before outcomes (protocol section 6); my prior belief
-in exhaustion came from earlier daily work on the other branch, so this is not independent support.
+**Continuation versus exhaustion, separately.** Two comparators are reported because they disagree. Against the
+same-coin clean quiet days three of four event classes look better by about +1 to +2 pp at 7 days (continuation +1.09,
+capitulation +1.11, downside continuation +1.90, but not exhaustion at -0.77); against the same-day universe only the
+exhaustion and capitulation classes differ materially from zero at 7 days (-2.69 and -0.76 pp), and
+continuation and downside continuation are flat (-0.32 and +0.05 pp). The simplest reading [H] is that a coin's own quiet
+days are below-average days for BTC-residual returns, so any active day beats them; the peer comparison is the
+stricter test. On it, exhaustion is negative at both horizons in both periods (discovery -0.96 pp and -1.99 pp;
+test -1.44 and -2.69), capitulation (bottom-decile `r1` on heavy volume or stretched) did not bounce against the universe
+(-0.17 pp at 1 day, -0.76 pp at 7 days), and neither continuation class shows a robust edge. Event rules were
+fixed before outcomes (protocol section 6), but my prior belief in exhaustion came from earlier daily work
+on the other branch, so this is not independent support. **The corrected continuation test is not a clean one-shot:** the
+test period had been read under the uncorrected rule before the volume bound was fixed (section 7).
 
 **Recorded signals versus the daily test.** The daily rules and the live reads are different things on
 different time scales; the live reads' short-horizon behaviour is consistent with the earlier finding
@@ -95,8 +105,8 @@ supports describing the live `CONTINUATION FAVORED` read as favourable.
 
 ## 4. What I did not do or could not evaluate
 
-* **Non-overlapping 7-day phase run** (protocol section 5): not implemented; the week-block bootstrap
-  handles within-week overlap but not carry-over between adjacent weeks.
+* **Overlap checks** (added in correction C3): per-weekday and moving-block checks are in the tables; they do not
+  change the primary result. They do not address cross-sectional dependence between coins on the same day.
 * **Funding.** Not started, per the handoff order; see section 6.
 * **Calibration to a probability** is intentionally absent; only bucket averages are shown.
 * **Original live score at daily scale** cannot be reconstructed from daily candles and is not invented;
@@ -112,9 +122,9 @@ supports describing the live `CONTINUATION FAVORED` read as favourable.
 Exclusion counts are in the table below. Deviations from the original protocol are recorded in its
 Amendments section (A1-A6) and are limited to: removing `BTC-USD` from the scored universe, a 0.3% daily
 volatility floor, counting 11 inputs instead of 9, ending discovery on 2024-12-23, defining event status
-without a minimum effect, and two diagnostic fixes after the first discovery run. The discovery phase
-was run twice (second run after the diagnostic fixes) with identical primary results. The test phase was run
-once. The 60-day-history sensitivity run (section 7 of the protocol) is reported in the next section.
+without a minimum effect, and two diagnostic fixes after the first discovery run. The three corrections made
+after the test results were reviewed (C1-C3) are described in section 7. The test phase was run once with the
+original code and once more after the corrections; the primary results are identical in both.
 
 ## 6. Recommended next step: funding, on the identical subset
 
@@ -133,17 +143,33 @@ claims, frozen sign) and Codex's identity check completed first, since the 133 a
 5. Thin-coin handling and whether a minimum-liquidity filter should define the primary universe.
 6. Whether the 2026 snapshot's unobserved post-delisting returns could account for the lower deciles.
 
+## 7. Corrections after Codex's review of `2959072`
+
+Found by Codex's independent check and confirmed by me against the code and data. The test period was already
+read when they were made. The model, features, penalties, scores and primary tests were not changed, and their
+reruns reproduce the earlier values exactly (+0.087 and +0.051).
+
+| | Problem | Effect of the fix |
+|---|---|---|
+| **C1** | The score-bucket tables labelled the BTC-residual log return as "raw return". | Both are now shown. Actual next-day returns: bottom decile -0.84% (was shown as -1.23%), top decile +0.22% (was +0.04%). Interpretation in section 1 rewritten: the top decile is weakly positive at 1 day but not distinguishable from zero; the asymmetry (bottom decile) stands. The quintile-versus-universe table already used actual returns. |
+| **C2** | Continuation events omitted the protocol's lower volume bound (relvol >= 0), so about half were below-median-volume days. | Test-period continuation events fall from 16,904 to 8,319. Superseded values (in git at `2959072`): continuation versus clean controls +0.77 pp [-0.36, +1.81] at 7 days, now +1.09 pp [+0.05, +2.09]; versus the universe -0.13 pp, now -0.32 pp. Discovery signs were refrozen from the corrected discovery run; **one changed: exhaustion at 7 days versus clean controls is now frozen as +1 (discovery +0.39 pp, interval including zero)**, which is why that cell is "inconclusive" in test. |
+| **C2 side effect** | Controls exclude days within 7 days of any event of the same coin. With fewer continuation events, more control days remain, so the *exhaustion* control comparisons also moved although the exhaustion rule did not change (1 day -1.26 to -1.16 pp; 7 days -1.67 [-2.90, -0.45] to -0.77 [-1.88, +0.33]). | The earlier statement that exhaustion passed both comparators at 7 days in test no longer holds against clean controls; it holds against the universe (-2.83 earlier, -2.69 now). |
+| **C3** | The protocol's non-overlapping 7-day check was not implemented (not merely uncommitted). | Implemented: per decision weekday, and a 4-week circular moving-block bootstrap. All seven weekdays exclude zero at both horizons in the test period; moving-block intervals are in the primary table. |
+
+Regression tests were added for each (volume bound, including a check that the old rule would have been caught;
+residual versus actual return columns; weekday-label non-overlap; moving-block bootstrap). All 23 tests pass.
+
 ## 8. Sensitivity: 60 days of required history instead of 90 (protocol section 7, item 6)
 
-Same code, same frozen settings, `--min-history 60` (eligible coin-days rise from 421,064 to 435,178; results in
-`results_*_hist60.json`). Test-phase model IC: **1 day +0.087 [+0.076, +0.097]** (90-day rule: +0.087), **7 day
-+0.051 [+0.036, +0.067]** (+0.051). Exhaustion remains supportive (-1.25 pp at 1 day and -1.62 pp at 7 days versus clean
-controls; -2.97 pp at 7 days versus the universe) and continuation remains inconclusive (+1.09 pp versus controls,
--0.06 pp versus the universe at 7 days). The eligibility rule does not drive the result. [V]
+Same code and frozen settings, rerun after the corrections with `--min-history 60` (results in `results_*_hist60.json`).
+Test-phase model IC: **1 day +0.087 [+0.076, +0.097]** (90-day rule: +0.087), **7 day +0.051 [+0.036, +0.067]**
+(+0.051). Exhaustion versus the universe stays negative (-1.42 pp at 1 day, -2.76 pp at 7 days); versus clean controls
+-1.14 pp at 1 day and -0.78 pp [-1.92, +0.33] at 7 days (inconclusive). Continuation versus the universe is flat
+(-0.04 pp, -0.29 pp). The eligibility rule does not drive the result. [V]
 
 ## Tables (generated by `make_report.py`; do not edit by hand)
 
-Input manifest SHA-256: `f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71`. Code commit for the test run: `c0a73a1580c70d1e6c07f1b63d5e2eb5be03c0c4`. Config hash: `273ef7097cb21443`.
+Input manifest SHA-256: `f6d35da4a7423b1b035926c951b6365b52f804a92b1c3cd194bcd898cef2ba71`. Code commit for the test run: `d48a5c2f74e9f662f563bf56ae2415c0eff9f851`. Config hash: `782717dcf276b941`.
 
 ### Eligibility and exclusions (counts of coin-days; categories overlap)
 
@@ -161,12 +187,19 @@ Days with fewer than 20 eligible coins dropped: 0 rows. Funding-candidate rows i
 
 ### Primary tests: rank IC of the score against the label (97.5% week-block interval)
 
-| Horizon | Phase | Blocks (weeks) | Mean IC [interval] | Frozen sign | Verdict |
-|---|---|---:|---|---:|---|
-| 1 day | discovery | 105 | +0.081 [+0.071, +0.092] | +1 | (sign frozen here) |
-| 1 day | test | 93 | +0.087 [+0.076, +0.098] | +1 | supportive |
-| 7 day | discovery | 105 | +0.044 [+0.023, +0.065] | +1 | (sign frozen here) |
-| 7 day | test | 93 | +0.051 [+0.034, +0.067] | +1 | supportive |
+| Horizon | Phase | Blocks (weeks) | Mean IC [interval] | 4-week moving-block interval | Weekdays with interval excluding 0 (of 7) | Frozen sign | Verdict |
+|---|---|---:|---|---|---:|---:|---|
+| 1 day | discovery | 105 | +0.081 [+0.071, +0.092] | [+0.071, +0.091] | 7 | +1 | (sign frozen here) |
+| 1 day | test | 93 | +0.087 [+0.076, +0.098] | [+0.076, +0.097] | 7 | +1 | supportive |
+| 7 day | discovery | 105 | +0.044 [+0.023, +0.065] | [+0.020, +0.069] | 6 | +1 | (sign frozen here) |
+| 7 day | test | 93 | +0.051 [+0.034, +0.067] | [+0.031, +0.069] | 7 | +1 | supportive |
+
+### Non-overlapping check: model IC for one decision weekday at a time (test phase; each weekday's labels never overlap)
+
+| Horizon | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+|---|---|---|---|---|---|---|---|
+| 1d | +0.074 [+0.047, +0.100] | +0.092 [+0.067, +0.118] | +0.057 [+0.031, +0.085] | +0.077 [+0.052, +0.101] | +0.083 [+0.055, +0.110] | +0.117 [+0.088, +0.145] | +0.111 [+0.089, +0.131] |
+| 7d | +0.046 [+0.022, +0.071] | +0.045 [+0.020, +0.070] | +0.045 [+0.020, +0.071] | +0.045 [+0.015, +0.073] | +0.048 [+0.020, +0.072] | +0.057 [+0.030, +0.084] | +0.071 [+0.045, +0.097] |
 
 ### Same-row comparison (all eligible coins): IC and model minus comparator
 
@@ -202,35 +235,35 @@ Days with fewer than 20 eligible coins dropped: 0 rows. Funding-candidate rows i
 
 ### Score buckets, 1-day label, test phase (mean over days, week-block interval)
 
-| Score | Rows | Scaled residual [interval] | Raw return % [interval] |
-|---|---:|---|---|
-| 1-10 | 20,010 | -0.192 [-0.231, -0.150] | -1.23 [-1.46, -1.01] |
-| 11-20 | 20,327 | -0.045 [-0.080, -0.004] | -0.24 [-0.42, -0.06] |
-| 21-30 | 20,192 | -0.053 [-0.093, -0.015] | -0.24 [-0.41, -0.07] |
-| 31-40 | 20,344 | -0.038 [-0.081, +0.003] | -0.18 [-0.35, +0.01] |
-| 41-50 | 20,354 | -0.019 [-0.057, +0.022] | -0.12 [-0.30, +0.05] |
-| 51-60 | 20,149 | -0.032 [-0.071, +0.005] | -0.17 [-0.34, +0.02] |
-| 61-70 | 20,268 | -0.022 [-0.060, +0.016] | -0.12 [-0.29, +0.06] |
-| 71-80 | 20,264 | -0.024 [-0.064, +0.016] | -0.11 [-0.30, +0.08] |
-| 81-90 | 20,249 | -0.021 [-0.059, +0.015] | -0.09 [-0.26, +0.08] |
-| 91-100 | 20,570 | +0.011 [-0.027, +0.049] | +0.04 [-0.13, +0.22] |
+| Score | Rows | Scaled residual [interval] | BTC-residual log return % [interval] | Actual open-to-open return % [interval] |
+|---|---:|---|---|---|
+| 1-10 | 20,010 | -0.192 [-0.231, -0.150] | -1.23 [-1.46, -1.01] | -0.84 [-1.17, -0.49] |
+| 11-20 | 20,327 | -0.045 [-0.080, -0.004] | -0.24 [-0.42, -0.06] | -0.08 [-0.38, +0.21] |
+| 21-30 | 20,192 | -0.053 [-0.093, -0.015] | -0.24 [-0.41, -0.07] | -0.15 [-0.43, +0.15] |
+| 31-40 | 20,344 | -0.038 [-0.081, +0.003] | -0.18 [-0.35, +0.01] | -0.08 [-0.38, +0.21] |
+| 41-50 | 20,354 | -0.019 [-0.057, +0.022] | -0.12 [-0.30, +0.05] | -0.03 [-0.31, +0.27] |
+| 51-60 | 20,149 | -0.032 [-0.071, +0.005] | -0.17 [-0.34, +0.02] | -0.07 [-0.37, +0.21] |
+| 61-70 | 20,268 | -0.022 [-0.060, +0.016] | -0.12 [-0.29, +0.06] | -0.04 [-0.35, +0.26] |
+| 71-80 | 20,264 | -0.024 [-0.064, +0.016] | -0.11 [-0.30, +0.08] | -0.04 [-0.35, +0.28] |
+| 81-90 | 20,249 | -0.021 [-0.059, +0.015] | -0.09 [-0.26, +0.08] | -0.01 [-0.31, +0.29] |
+| 91-100 | 20,570 | +0.011 [-0.027, +0.049] | +0.04 [-0.13, +0.22] | +0.22 [-0.07, +0.50] |
 
 Top decile minus bottom decile (scaled residual): +0.203 [+0.171, +0.236].
 
 ### Score buckets, 7-day label, test phase (mean over days, week-block interval)
 
-| Score | Rows | Scaled residual [interval] | Raw return % [interval] |
-|---|---:|---|---|
-| 1-10 | 20,005 | -0.575 [-0.787, -0.350] | -3.05 [-3.98, -2.06] |
-| 11-20 | 20,320 | -0.368 [-0.587, -0.153] | -1.72 [-2.73, -0.73] |
-| 21-30 | 20,184 | -0.359 [-0.581, -0.126] | -1.71 [-2.66, -0.72] |
-| 31-40 | 20,322 | -0.356 [-0.570, -0.140] | -1.73 [-2.77, -0.75] |
-| 41-50 | 20,328 | -0.322 [-0.544, -0.112] | -1.54 [-2.53, -0.65] |
-| 51-60 | 20,137 | -0.299 [-0.519, -0.082] | -1.46 [-2.49, -0.45] |
-| 61-70 | 20,235 | -0.323 [-0.537, -0.111] | -1.60 [-2.61, -0.56] |
-| 71-80 | 20,240 | -0.332 [-0.535, -0.144] | -1.71 [-2.62, -0.78] |
-| 81-90 | 20,218 | -0.309 [-0.493, -0.128] | -1.69 [-2.63, -0.73] |
-| 91-100 | 20,493 | -0.318 [-0.466, -0.169] | -2.12 [-3.00, -1.29] |
+| Score | Rows | Scaled residual [interval] | BTC-residual log return % [interval] | Actual open-to-open return % [interval] |
+|---|---:|---|---|---|
+| 1-10 | 20,005 | -0.575 [-0.787, -0.350] | -3.05 [-3.98, -2.06] | -2.15 [-3.59, -0.61] |
+| 11-20 | 20,320 | -0.368 [-0.587, -0.153] | -1.72 [-2.73, -0.73] | -1.09 [-2.68, +0.47] |
+| 21-30 | 20,184 | -0.359 [-0.581, -0.126] | -1.71 [-2.66, -0.72] | -1.21 [-2.88, +0.56] |
+| 31-40 | 20,322 | -0.356 [-0.570, -0.140] | -1.73 [-2.77, -0.75] | -1.33 [-2.93, +0.24] |
+| 41-50 | 20,328 | -0.322 [-0.544, -0.112] | -1.54 [-2.53, -0.65] | -1.06 [-2.73, +0.57] |
+| 51-60 | 20,137 | -0.299 [-0.519, -0.082] | -1.46 [-2.49, -0.45] | -0.93 [-2.48, +0.66] |
+| 61-70 | 20,235 | -0.323 [-0.537, -0.111] | -1.60 [-2.61, -0.56] | -1.09 [-2.75, +0.59] |
+| 71-80 | 20,240 | -0.332 [-0.535, -0.144] | -1.71 [-2.62, -0.78] | -1.17 [-2.83, +0.38] |
+| 81-90 | 20,218 | -0.309 [-0.493, -0.128] | -1.69 [-2.63, -0.73] | -1.04 [-2.60, +0.62] |
+| 91-100 | 20,493 | -0.318 [-0.466, -0.169] | -2.12 [-3.00, -1.29] | -1.31 [-2.86, +0.18] |
 
 Top decile minus bottom decile (scaled residual): +0.257 [+0.118, +0.380].
 
@@ -287,22 +320,22 @@ Each cell: event minus comparator, mean [97.5% interval over weeks]. Frozen sign
 
 | Event | Phase | Events (matched) | Coins / weeks | Horizon | vs clean same-coin controls | vs same-day universe | Frozen sign | Status (test) |
 |---|---|---|---|---|---|---|---:|---|
-| exhaustion | discovery | 8,983 (5,732) | 259 / 105 | 1d | -0.90 [-1.23, -0.57] | -1.14 [-1.40, -0.86] | -1 | - |
-| exhaustion | discovery | 8,983 (5,732) | 259 / 105 | 7d | -0.30 [-1.61, +0.99] | -2.27 [-2.82, -1.73] | -1 | - |
-| exhaustion | test | 10,575 (6,175) | 371 / 93 | 1d | -1.26 [-1.60, -0.89] | -1.38 [-1.67, -1.07] | -1 | supportive |
-| exhaustion | test | 10,575 (6,175) | 371 / 93 | 7d | -1.67 [-2.90, -0.45] | -2.83 [-3.59, -2.08] | -1 | supportive |
-| continuation | discovery | 13,521 (8,556) | 256 / 105 | 1d | +0.16 [-0.09, +0.40] | -0.05 [-0.17, +0.07] | +1 | - |
-| continuation | discovery | 13,521 (8,556) | 256 / 105 | 7d | +1.66 [+0.41, +2.97] | -0.07 [-0.45, +0.30] | +1 | - |
-| continuation | test | 16,904 (10,810) | 374 / 93 | 1d | +0.06 [-0.15, +0.28] | -0.05 [-0.16, +0.06] | +1 | inconclusive |
-| continuation | test | 16,904 (10,810) | 374 / 93 | 7d | +0.77 [-0.36, +1.81] | -0.13 [-0.54, +0.24] | +1 | inconclusive |
-| capitulation | discovery | 6,092 (3,244) | 254 / 105 | 1d | -0.13 [-0.48, +0.21] | -0.41 [-0.71, -0.11] | -1 | - |
-| capitulation | discovery | 6,092 (3,244) | 254 / 105 | 7d | +1.88 [+0.58, +3.20] | -0.10 [-0.85, +0.65] | +1 | - |
-| capitulation | test | 8,033 (4,155) | 365 / 93 | 1d | -0.18 [-0.48, +0.15] | -0.33 [-0.58, -0.07] | -1 | inconclusive |
-| capitulation | test | 8,033 (4,155) | 365 / 93 | 7d | +0.25 [-0.80, +1.35] | -0.97 [-1.62, -0.32] | +1 | inconclusive |
-| downside_continuation | discovery | 16,167 (10,881) | 256 / 105 | 1d | +0.33 [+0.08, +0.58] | +0.08 [-0.00, +0.16] | +1 | - |
-| downside_continuation | discovery | 16,167 (10,881) | 256 / 105 | 7d | +1.88 [+0.52, +3.17] | -0.09 [-0.39, +0.21] | +1 | - |
-| downside_continuation | test | 19,494 (12,142) | 376 / 93 | 1d | +0.29 [+0.09, +0.50] | +0.16 [+0.07, +0.25] | +1 | supportive |
-| downside_continuation | test | 19,494 (12,142) | 376 / 93 | 7d | +1.37 [+0.21, +2.48] | +0.15 [-0.18, +0.52] | +1 | supportive |
+| exhaustion | discovery | 8,983 (7,903) | 278 / 105 | 1d | -0.52 [-0.83, -0.21] | -0.96 [-1.19, -0.75] | -1 | - |
+| exhaustion | discovery | 8,983 (7,903) | 278 / 105 | 7d | +0.39 [-0.90, +1.64] | -1.99 [-2.47, -1.53] | +1 | - |
+| exhaustion | test | 10,575 (8,757) | 398 / 93 | 1d | -1.16 [-1.48, -0.85] | -1.44 [-1.72, -1.14] | -1 | supportive |
+| exhaustion | test | 10,575 (8,757) | 398 / 93 | 7d | -0.77 [-1.88, +0.33] | -2.69 [-3.45, -1.83] | +1 | inconclusive |
+| continuation | discovery | 7,060 (6,223) | 276 / 105 | 1d | +0.42 [+0.10, +0.73] | -0.03 [-0.20, +0.16] | +1 | - |
+| continuation | discovery | 7,060 (6,223) | 276 / 105 | 7d | +2.18 [+0.91, +3.59] | -0.18 [-0.70, +0.37] | +1 | - |
+| continuation | test | 8,319 (7,088) | 391 / 93 | 1d | +0.23 [-0.01, +0.48] | -0.03 [-0.18, +0.11] | +1 | inconclusive |
+| continuation | test | 8,319 (7,088) | 391 / 93 | 7d | +1.09 [+0.05, +2.09] | -0.32 [-0.70, +0.05] | +1 | supportive |
+| capitulation | discovery | 6,092 (4,832) | 278 / 105 | 1d | +0.13 [-0.17, +0.41] | -0.31 [-0.53, -0.10] | +1 | - |
+| capitulation | discovery | 6,092 (4,832) | 278 / 105 | 7d | +2.76 [+1.52, +4.05] | +0.33 [-0.30, +0.98] | +1 | - |
+| capitulation | test | 8,033 (6,212) | 396 / 93 | 1d | +0.03 [-0.21, +0.29] | -0.17 [-0.36, +0.04] | +1 | inconclusive |
+| capitulation | test | 8,033 (6,212) | 396 / 93 | 7d | +1.11 [+0.08, +2.15] | -0.76 [-1.34, -0.16] | +1 | supportive |
+| downside_continuation | discovery | 5,893 (5,244) | 271 / 104 | 1d | +0.61 [+0.34, +0.89] | +0.11 [-0.02, +0.25] | +1 | - |
+| downside_continuation | discovery | 5,893 (5,244) | 271 / 104 | 7d | +2.97 [+1.59, +4.36] | +0.40 [+0.03, +0.77] | +1 | - |
+| downside_continuation | test | 6,537 (5,457) | 388 / 93 | 1d | +0.36 [+0.13, +0.61] | +0.13 [-0.00, +0.28] | +1 | supportive |
+| downside_continuation | test | 6,537 (5,457) | 388 / 93 | 7d | +1.90 [+0.78, +2.93] | +0.05 [-0.27, +0.38] | +1 | supportive |
 
 ### Recorded production signals (short horizon, exploratory, selected population)
 

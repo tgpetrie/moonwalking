@@ -49,7 +49,7 @@ def main():
         f"Funding-candidate rows in the eligible set: {b['funding_rows']:,}.\n")
 
     out("### Primary tests: rank IC of the score against the label (97.5% week-block interval)\n")
-    out("| Horizon | Phase | Blocks (weeks) | Mean IC [interval] | Frozen sign | Verdict |\n|---|---|---:|---|---:|---|")
+    out("| Horizon | Phase | Blocks (weeks) | Mean IC [interval] | 4-week moving-block interval | Weekdays with interval excluding 0 (of 7) | Frozen sign | Verdict |\n|---|---|---:|---|---|---:|---:|---|")
     for h in ("h1", "h7"):
         for name, r in (("discovery", disc), ("test", test)):
             p = r["evaluation"]["primary"][h]
@@ -57,6 +57,12 @@ def main():
             out(f"| {h[1:]} day | {name} | {p['estimate']['n_blocks']} | {ci(p['estimate'])} | [{n(mb['lo'])}, {n(mb['hi'])}] | "
                 f"{p['weekday_phases_excluding_zero']} | {p['frozen_sign']:+d} | "
                 f"{p['verdict'] if name == 'test' else '(sign frozen here)'} |")
+    out("")
+    out("### Non-overlapping check: model IC for one decision weekday at a time (test phase; each weekday's labels never overlap)\n")
+    out("| Horizon | " + " | ".join(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) + " |\n|---|" + "---|" * 7)
+    for h in ("h1", "h7"):
+        ph = test["evaluation"][h]["all"]["model_by_weekday_phase"]
+        out(f"| {h[1:]}d | " + " | ".join(f"{n(ph[k]['mean'])} [{n(ph[k]['lo'])}, {n(ph[k]['hi'])}]" for k in ph) + " |")
     out("")
     out("### Same-row comparison (all eligible coins): IC and model minus comparator\n")
     out("| Horizon | Phase | Predictor | Mean IC [interval] | Model minus predictor [interval] |\n|---|---|---|---|---|")
@@ -77,7 +83,7 @@ def main():
     out("")
     for h in ("h1", "h7"):
         out(f"### Score buckets, {h[1:]}-day label, test phase (mean over days, week-block interval)\n")
-        out("| Score | Rows | Scaled residual [interval] | Raw return % [interval] |\n|---|---:|---|---|")
+        out("| Score | Rows | Scaled residual [interval] | BTC-residual log return % [interval] | Actual open-to-open return % [interval] |\n|---|---:|---|---|---|")
         for d in test["evaluation"][h]["deciles"]:
             out(f"| {d['bucket']} | {d['n_rows']:,} | {n(d['mean_scaled_residual'])} [{n(d['lo'])}, {n(d['hi'])}] | "
                 f"{n(d['mean_btc_residual_log_return_pct'], 2)} [{n(d['residual_lo_pct'], 2)}, {n(d['residual_hi_pct'], 2)}] | "
