@@ -225,3 +225,29 @@ and the distribution of trailing volatility (a feature, not an outcome) were ins
   run showed the daily pipeline working (shuffled-label null about zero) and a strong
   short-term reversal pattern; nothing was tuned on it.
 
+## Corrections made after review of the test results (2026-10-25)
+
+Found by Codex's independent review of commit `2959072` (both confirmed against the code and data
+by me). **The test period had already been read when these were made**, so the corrected
+continuation event test is no longer a clean one-shot evaluation, and the corrected tables are
+labelled accordingly. The model, features, ridge penalties, scores, primary tests and their
+verdicts are not affected and were not changed; they were recomputed and reproduce the earlier values.
+
+* **C1. Mislabelled return column.** The score-bucket tables labelled "raw return %" showed the
+  BTC-residual log return (`yraw`), not the actual open-to-open return. Both are now reported, with
+  separate columns, and the interpretation text was rewritten. (Codex's figures for the actual
+  next-day return of the 1-day bottom and top decile were about -0.84% and +0.22%.) The
+  long-only quintile-versus-universe table already used actual simple returns and is unchanged.
+* **C2. Continuation event rule omitted its lower volume bound.** Protocol section 6 requires relvol between
+  0.0 and 1.1; the code applied only the upper bound, so about half of the test-period continuation events
+  (8,762 of 17,191 rows in my count; Codex counted 8,585 of 16,904 within the evaluation window) had volume below the
+  20-day median. `continuation_relvol_min_log = 0.0` is now in `config.json` (this changes the config
+  hash, so every phase was rerun). The discovery event signs were refrozen from the corrected discovery
+  run; I record whether any sign changed in the results document.
+* **C3. Seven-day overlap checks.** Protocol section 5 promised a non-overlapping-window run and
+  was not implemented in the first version (not merely uncommitted). Now implemented: per
+  decision weekday (labels from one weekday never overlap) and a 4-week circular moving-block bootstrap over the
+  weekly IC series, for both horizons.
+* **Regression tests** added: the volume bound (and a check that the old rule would have been caught),
+  the residual versus actual return columns, weekday-phase non-overlap, and the moving-block bootstrap.
+

@@ -53,7 +53,9 @@ def main():
     for h in ("h1", "h7"):
         for name, r in (("discovery", disc), ("test", test)):
             p = r["evaluation"]["primary"][h]
-            out(f"| {h[1:]} day | {name} | {p['estimate']['n_blocks']} | {ci(p['estimate'])} | {p['frozen_sign']:+d} | "
+            mb = p["estimate"]["moving_block"]
+            out(f"| {h[1:]} day | {name} | {p['estimate']['n_blocks']} | {ci(p['estimate'])} | [{n(mb['lo'])}, {n(mb['hi'])}] | "
+                f"{p['weekday_phases_excluding_zero']} | {p['frozen_sign']:+d} | "
                 f"{p['verdict'] if name == 'test' else '(sign frozen here)'} |")
     out("")
     out("### Same-row comparison (all eligible coins): IC and model minus comparator\n")
@@ -78,6 +80,7 @@ def main():
         out("| Score | Rows | Scaled residual [interval] | Raw return % [interval] |\n|---|---:|---|---|")
         for d in test["evaluation"][h]["deciles"]:
             out(f"| {d['bucket']} | {d['n_rows']:,} | {n(d['mean_scaled_residual'])} [{n(d['lo'])}, {n(d['hi'])}] | "
+                f"{n(d['mean_btc_residual_log_return_pct'], 2)} [{n(d['residual_lo_pct'], 2)}, {n(d['residual_hi_pct'], 2)}] | "
                 f"{n(d['mean_raw_return_pct'], 2)} [{n(d['raw_lo_pct'], 2)}, {n(d['raw_hi_pct'], 2)}] |")
         sp = test["evaluation"][h]["top_decile_minus_bottom_decile_scaled_residual"]
         out(f"\nTop decile minus bottom decile (scaled residual): {ci(sp)}.\n")

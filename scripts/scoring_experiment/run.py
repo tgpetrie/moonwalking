@@ -108,7 +108,16 @@ def evaluate_phase(df, preds, scores, contribs, cfg, period, frozen, thresholds)
             sub_y, sub_p = y[m], pm[m]
             primary = daily_ic(sub_p, sub_y, cfg["min_cross_section"])
             ic_store[(h, sname, "model")] = primary
-            entry = {"model": ev.ic_summary(primary, cfg, h)}
+            entry = {"model": ev.ic_summary(primary, cfg, h, moving=True)}
+            if sname == "all":
+                # one decision weekday at a time: each phase's labels never overlap (entry d+1, exit d+1+h)
+                phases = {}
+                for w, name in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
+                    pw = primary[primary.index.dayofweek == w]
+                    phases[name] = ev.boot(pw.reset_index(drop=True), cfg, h * 10 + w)
+                entry["model_by_weekday_phase"] = phases
+                entry["phases_with_interval_excluding_zero"] = int(sum(
+                    1 for v in phases.values() if v["lo"] is not None and (v["lo"] > 0 or v["hi"] < 0)))
             for cn, cv in comparators.items():
                 ic = daily_ic(cv[m], sub_y, cfg["min_cross_section"])
                 ic_store[(h, sname, cn)] = ic
@@ -126,8 +135,13 @@ def evaluate_phase(df, preds, scores, contribs, cfg, period, frozen, thresholds)
         key = f"h{h}"
         sign = frozen.get(key) if frozen else (1 if r["all"]["model"]["mean"] and r["all"]["model"]["mean"] > 0 else -1)
         res.setdefault("primary", {})[key] = {"estimate": r["all"]["model"], "frozen_sign": int(sign),
-                                              "verdict": ev.verdict(r["all"]["model"], int(sign), mei)}
-        r["deciles"] = ev.decile_table(df[inwin], scores[h][inwin], f"y{h}", f"yraw{h}", cfg)
+                                              "verdict": ev.verdict(r["all"]["model"], int(sign), mei),
+                                              "moving_block_4w_interval_excludes_zero": bool(
+                                                  r["all"]["model"]["moving_block"]["lo"] is not None and
+                                                  (r["all"]["model"]["moving_block"]["lo"] > 0 or
+                                                   r["all"]["model"]["moving_block"]["hi"] < 0)),
+                                              "weekday_phases_excluding_zero": r["all"]["phases_with_interval_excluding_zero"]}
+        r["deciles"] = ev.decile_table(df[inwin], scores[h][inwin], f"y{h}", f"yraw{h}", f"rawret{h}", cfg)
         spread = ev.spread_series(df[inwin], scores[h][inwin], f"y{h}")
         r["top_decile_minus_bottom_decile_scaled_residual"] = ev.boot(ev.weekly(spread), cfg, h + 20)
         if h == 7:

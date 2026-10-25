@@ -39,7 +39,8 @@
     "continuation_res7_pct": 80,
     "continuation_relvol_max_log": 1.1,
     "control_min_gap_days": 7,
-    "controls_per_event": 4
+    "controls_per_event": 4,
+    "continuation_relvol_min_log": 0.0
   },
   "cost_scenarios_pct_round_trip": [
     0.2,
@@ -51,7 +52,8 @@
   "bootstrap": {
     "resamples": 2000,
     "level": 0.975,
-    "seed": 20261025
+    "seed": 20261025,
+    "moving_block_weeks": 4
   },
   "min_blocks_for_regime": 15,
   "min_vol30": 0.003

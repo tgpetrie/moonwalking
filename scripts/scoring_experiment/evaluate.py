@@ -31,6 +31,22 @@ def boot(values: pd.Series, cfg: dict, seed_offset: int = 0) -> dict:
     return out
 
 
+def boot_moving(values: pd.Series, cfg: dict, seed_offset: int = 0) -> dict:
+    """Circular moving-block bootstrap over an ordered weekly series (keeps adjacent-week dependence)."""
+    v = values.dropna().to_numpy(float)
+    n, L = len(v), int(cfg["bootstrap"]["moving_block_weeks"])
+    if n < 3 * L:
+        return {"mean": None, "lo": None, "hi": None, "n_blocks": n}
+    rng = np.random.default_rng(cfg["bootstrap"]["seed"] + 5000 + seed_offset)
+    k = int(np.ceil(n / L))
+    starts = rng.integers(0, n, size=(cfg["bootstrap"]["resamples"], k))
+    idx = (starts[:, :, None] + np.arange(L)[None, None, :]) % n
+    means = v[idx.reshape(len(starts), -1)[:, :n]].mean(axis=1)
+    a = (1 - cfg["bootstrap"]["level"]) / 2 * 100
+    lo, hi = np.percentile(means, [a, 100 - a])
+    return {"mean": float(v.mean()), "lo": float(lo), "hi": float(hi), "n_blocks": n, "block_weeks": L}
+
+
 def weekly(series: pd.Series) -> pd.Series:
     """Average a date-indexed series within ISO weeks."""
     if series.empty:
@@ -38,8 +54,10 @@ def weekly(series: pd.Series) -> pd.Series:
     return series.groupby(week_key(series.index)).mean()
 
 
-def ic_summary(ic: pd.Series, cfg: dict, seed_offset: int = 0) -> dict:
+def ic_summary(ic: pd.Series, cfg: dict, seed_offset: int = 0, moving: bool = False) -> dict:
     out = boot(weekly(ic), cfg, seed_offset)
+    if moving:
+        out["moving_block"] = boot_moving(weekly(ic).sort_index(), cfg, seed_offset)
     out.update(n_days=int(len(ic)), mean_daily_ic=float(ic.mean()) if len(ic) else None,
                share_weeks_positive=float((weekly(ic) > 0).mean()) if len(ic) else None)
     return out
@@ -58,21 +76,24 @@ def verdict(est: dict, frozen_sign: int, mei: float) -> str:
     return "inconclusive"
 
 
-def decile_table(df: pd.DataFrame, score: pd.Series, ycol: str, rawcol: str, cfg: dict) -> list[dict]:
-    d = pd.DataFrame({"s": score, "y": df[ycol], "raw": df[rawcol]}).dropna()
+def decile_table(df: pd.DataFrame, score: pd.Series, ycol: str, residual_col: str, raw_col: str, cfg: dict) -> list[dict]:
+    """Mean outcome by score bucket. `residual_col` is the BTC-residual log return; `raw_col` is the
+    actual open-to-open simple return. They are different quantities and are reported separately."""
+    d = pd.DataFrame({"s": score, "y": df[ycol], "res": df[residual_col], "raw": df[raw_col]}).dropna()
     d["bucket"] = np.minimum((d["s"] - 1) // 10, 9).astype(int) + 1
-    day = d.index.get_level_values("date")
     rows = []
     for b, g in d.groupby("bucket"):
-        per_day_y = g["y"].groupby(g.index.get_level_values("date")).mean()
-        per_day_raw = g["raw"].groupby(g.index.get_level_values("date")).mean()
-        e = boot(weekly(per_day_y), cfg, int(b))
-        e2 = boot(weekly(per_day_raw), cfg, 50 + int(b))
+        day = g.index.get_level_values("date")
+        e = boot(weekly(g["y"].groupby(day).mean()), cfg, int(b))
+        e_res = boot(weekly(g["res"].groupby(day).mean()), cfg, 50 + int(b))
+        e_raw = boot(weekly(g["raw"].groupby(day).mean()), cfg, 80 + int(b))
+        pct = lambda v: None if v is None else 100 * v
         rows.append({"bucket": f"{(b-1)*10+1}-{b*10}", "n_rows": int(len(g)),
                      "mean_scaled_residual": e["mean"], "lo": e["lo"], "hi": e["hi"],
-                     "mean_raw_return_pct": None if e2["mean"] is None else 100 * e2["mean"],
-                     "raw_lo_pct": None if e2["lo"] is None else 100 * e2["lo"],
-                     "raw_hi_pct": None if e2["hi"] is None else 100 * e2["hi"]})
+                     "mean_btc_residual_log_return_pct": pct(e_res["mean"]),
+                     "residual_lo_pct": pct(e_res["lo"]), "residual_hi_pct": pct(e_res["hi"]),
+                     "mean_raw_return_pct": pct(e_raw["mean"]),
+                     "raw_lo_pct": pct(e_raw["lo"]), "raw_hi_pct": pct(e_raw["hi"])})
     return rows
 
 
@@ -124,7 +145,7 @@ def flag_events(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     ext_hi, ext_lo = _pct(df, "ext30", e["exhaustion_ext30_pct"]), _pct(df, "ext30", 100 - e["exhaustion_ext30_pct"])
     res_hi, res_lo = _pct(df, "res7", e["continuation_res7_pct"]), _pct(df, "res7", 100 - e["continuation_res7_pct"])
     spike = df["relvol"] >= e["exhaustion_relvol_log"]
-    normal = (df["relvol"] <= e["continuation_relvol_max_log"])
+    normal = (df["relvol"] >= e["continuation_relvol_min_log"]) & (df["relvol"] <= e["continuation_relvol_max_log"])
     ex_up = (df["r1"] >= r1_hi) & (spike | (df["ext30"] >= ext_hi))
     ex_dn = (df["r1"] <= r1_lo) & (spike | (df["ext30"] <= ext_lo))
     top = df["res7"] >= res_hi

@@ -184,5 +184,71 @@ class EventTests(unittest.TestCase):
                 self.assertEqual(meta.at[c, "vq"], meta.at[i, "vq"])
 
 
+def _one_day_frame(n=100, seed=4):
+    rng = np.random.default_rng(seed)
+    idx = pd.MultiIndex.from_product([[pd.Timestamp("2025-03-03")], [f"C{i}-USD" for i in range(n)]],
+                                     names=["date", "product"])
+    return pd.DataFrame({"r1": np.zeros(n), "res7": np.linspace(-2, 2, n), "ext30": rng.normal(-1, 0.1, n),
+                         "relvol": rng.uniform(0.2, 0.9, n)}, index=idx)
+
+
+class CorrectionRegressionTests(unittest.TestCase):
+    """Added after review of the test-period results (protocol amendments C1-C3)."""
+
+    def test_continuation_requires_the_minimum_volume_bound(self):
+        df = _one_day_frame()
+        top = df["res7"] >= df["res7"].quantile(0.8)
+        # half of the top-momentum coins trade below their 20-day median volume (relvol < 0)
+        low = top & (np.arange(len(df)) % 2 == 0)
+        df.loc[low, "relvol"] = -0.4
+        events = ev.flag_events(df, CFG)
+        cont = events == "continuation"
+        self.assertTrue(cont.any())
+        self.assertFalse((cont & (df["relvol"] < CFG["event"]["continuation_relvol_min_log"])).any())
+        self.assertFalse((low & cont).any())  # the low-volume top-momentum coins are not continuation events
+        # the same data under the old (bound-free) rule does flag low-volume coins: the test would have caught the bug
+        old_cfg = {**CFG, "event": {**CFG["event"], "continuation_relvol_min_log": -9.0}}
+        self.assertTrue(((ev.flag_events(df, old_cfg) == "continuation") & low).any())
+        # and the upper bound still applies
+        df2 = _one_day_frame()
+        df2.loc[top, "relvol"] = 1.6
+        self.assertFalse((ev.flag_events(df2, CFG) == "continuation").any())
+
+    def test_decile_table_reports_actual_returns_not_btc_residuals(self):
+        n = 100
+        idx = pd.MultiIndex.from_product([pd.date_range("2025-03-03", periods=3), [f"C{i}-USD" for i in range(n)]],
+                                         names=["date", "product"])
+        score = pd.Series(np.tile(np.arange(1, n + 1), 3).astype(float), index=idx)
+        df = pd.DataFrame({"y1": 0.0, "yraw1": -0.010, "rawret1": 0.025}, index=idx)
+        rows = ev.decile_table(df, score, "y1", "yraw1", "rawret1", {**CFG, "bootstrap": {**CFG["bootstrap"], "resamples": 50}})
+        self.assertAlmostEqual(rows[0]["mean_raw_return_pct"], 2.5, places=9)
+        self.assertAlmostEqual(rows[0]["mean_btc_residual_log_return_pct"], -1.0, places=9)
+        self.assertNotAlmostEqual(rows[0]["mean_raw_return_pct"], rows[0]["mean_btc_residual_log_return_pct"])
+
+    def test_weekday_phase_labels_never_overlap(self):
+        days = pd.date_range("2025-01-01", periods=120)
+        for w in range(7):
+            phase = days[days.dayofweek == w]
+            for a, b in zip(phase[:-1], phase[1:]):
+                a_end = a + pd.Timedelta(days=1 + 7)   # open of d+8
+                b_start = b + pd.Timedelta(days=1)     # open of next phase day + 1
+                self.assertGreaterEqual(b_start, a_end)
+
+    def test_moving_block_bootstrap_brackets_the_mean_and_is_wider_for_dependent_data(self):
+        cfg = {**CFG, "bootstrap": {**CFG["bootstrap"], "resamples": 400}}
+        rng = np.random.default_rng(1)
+        iid = pd.Series(rng.normal(0.05, 1.0, 120))
+        # strongly autocorrelated series with the same marginal spread
+        ar = np.zeros(120)
+        for i in range(1, 120):
+            ar[i] = 0.9 * ar[i - 1] + rng.normal(0, 0.5)
+        dep = pd.Series(ar)
+        a, b = ev.boot_moving(iid, cfg), ev.boot_moving(dep, cfg)
+        self.assertLess(a["lo"], a["mean"])
+        self.assertGreater(a["hi"], a["mean"])
+        self.assertGreater((b["hi"] - b["lo"]) / dep.std(), (a["hi"] - a["lo"]) / iid.std())
+        self.assertIsNone(ev.boot_moving(pd.Series([1.0, 2.0, 3.0]), cfg)["lo"])
+
+
 if __name__ == "__main__":
     unittest.main()
