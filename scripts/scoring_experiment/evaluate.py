@@ -98,12 +98,13 @@ def staggered_sleeves(df: pd.DataFrame, score: pd.Series, h: int, costs: list[fl
     uni = g["raw"].mean()
     topm = d[d["s"] > 80].groupby("day")["raw"].mean()
     top_med = d[d["s"] > 80].groupby("day")["raw"].median()
+    uni_med = g["raw"].median()
     ex = (topm - uni).dropna()
     wk = week_key(ex.index)
     out = {"gross_excess_pct": {k: (None if v is None else 100 * v) for k, v in
                                 boot(ex.groupby(wk).mean(), cfg, 700).items() if k in ("mean", "lo", "hi")},
            "n_weeks": int(len(set(wk)))}
-    out["median_top_minus_universe_mean_pct"] = float(100 * (top_med - uni).dropna().mean())
+    out["median_top_quintile_minus_median_universe_pct"] = float(100 * (top_med - uni_med).dropna().mean())
     for c in costs:
         net = (ex - c / 100.0).groupby(wk).mean()
         e = boot(net, cfg, 710 + int(c * 10))

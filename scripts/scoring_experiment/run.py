@@ -147,13 +147,13 @@ def evaluate_phase(df, preds, scores, contribs, cfg, period, frozen, thresholds)
             yrs[str(yr)] = ev.ic_summary(base[base.index.year == yr], cfg, h + 40)
         r["by_calendar_year"] = yrs
         cov = df["coverage"]
-        cuts = cov[inwin].quantile([1 / 3, 2 / 3]).to_numpy()
         cb = {}
-        for name, lo, hi in (("low", -np.inf, cuts[0]), ("mid", cuts[0], cuts[1]), ("high", cuts[1], np.inf)):
-            m = inwin & (cov > lo).to_numpy() & (cov <= hi).to_numpy()
+        for name, mask in (("complete_100", (cov >= 99.999).to_numpy()), ("below_100", (cov < 99.999).to_numpy())):
+            m = inwin & mask
             cb[name] = {**ev.ic_summary(daily_ic(pm[m], y[m], cfg["min_cross_section"]), cfg, h + 50),
+                        "share_of_rows": float(mask[inwin].mean()),
                         "coverage_range": [float(cov[m].min()), float(cov[m].max())] if m.any() else None}
-        r["by_evidence_coverage_tercile"] = cb
+        r["by_evidence_coverage"] = cb
         res[f"h{h}"] = r
     # risk rank vs forward absolute residual move
     risk = df.groupby(level="date")["vol30"].rank(pct=True)

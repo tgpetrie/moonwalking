@@ -215,3 +215,13 @@ and the distribution of trailing volatility (a feature, not an outcome) were ins
   side), or *inconclusive*; and the estimate is listed against each cost scenario it
   exceeds (0.2, 0.5, 0.9, 1.2%) so that economic size is read separately from statistical
   support.
+* **A6 (2026-10-25, after the first discovery run, before the test run):** two diagnostic
+  fixes, no change to features, model, penalties, thresholds, events or primary tests.
+  (i) The evidence-coverage terciles were degenerate (almost every eligible row has
+  coverage near 100 because eligibility already requires 80 of 90 days), so the
+  diagnostic is now "coverage = 100" versus "below 100". (ii) A summary line compared the
+  median of the top quintile with the mean of the universe; it now compares medians.
+  Discovery was rerun after the fix so both phases use identical code. The first discovery
+  run showed the daily pipeline working (shuffled-label null about zero) and a strong
+  short-term reversal pattern; nothing was tuned on it.
+
