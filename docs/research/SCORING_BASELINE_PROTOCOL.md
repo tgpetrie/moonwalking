@@ -194,4 +194,18 @@ sizing, portfolio personalisation, and any statement about probabilities.
 
 ## Amendments
 
-(none yet)
+Recorded **before any label, forward return or IC was computed**; only product counts
+and the distribution of trailing volatility (a feature, not an outcome) were inspected.
+
+* **A1 (2026-10-25):** `BTC-USD` is the market benchmark; its residual label is identically
+  zero, so it is excluded from the scored universe (counted).
+* **A2 (2026-10-25):** coin-days with `vol30` below **0.003** (0.3% daily) are treated as
+  pegged or near-zero-volatility and excluded (counted), because dividing by a near-zero
+  volatility gives meaningless scaled returns. Key `min_vol30` added to `config.json`.
+* **A3 (2026-10-25):** the model has **11** inputs (the table in section 3), not 9;
+  evidence coverage uses 11. Eligibility requires only the five core inputs (`r1`, `r7`,
+  `vol30`, `beta90`, `relvol`); a missing non-core input is set to the neutral rank-normal
+  value 0 and counted in coverage.
+* **A4 (2026-10-25):** discovery decision days end **2024-12-23**, so that the longest
+  label (open of d+8) ends by 2024-12-31 and no discovery label window overlaps the test
+  period.
