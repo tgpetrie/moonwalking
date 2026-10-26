@@ -1,0 +1,527 @@
+[
+  {
+    "name": "protocols",
+    "url": "https://api.llama.fi/protocols",
+    "captured_at_utc": "2026-10-26T11:29:24.547072+00:00",
+    "http_status": 200,
+    "sha256": "9bbffe3227e04515a3ca4f70cf880dd13eb8db1a95ad9b80d14726f30d312b9b",
+    "bytes": 9386329,
+    "shape": "list 8823"
+  },
+  {
+    "name": "fees_catalog",
+    "url": "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true",
+    "captured_at_utc": "2026-10-26T11:29:24.548071+00:00",
+    "http_status": 200,
+    "sha256": "94475a95fe1863971c6eb54e6a3bb806bbc20f948322f64f1c932b6fa927559a",
+    "bytes": 5248919,
+    "shape": [
+      "totalDataChart",
+      "totalDataChartBreakdown",
+      "breakdown24h",
+      "breakdown30d",
+      "chain",
+      "allChains",
+      "total24h",
+      "total48hto24h",
+      "total7d",
+      "total14dto7d",
+      "total30d",
+      "total60dto30d",
+      "total1y",
+      "total7DaysAgo",
+      "total30DaysAgo",
+      "totalAllTime"
+    ]
+  },
+  {
+    "name": "aave_parent",
+    "url": "https://api.llama.fi/protocol/aave",
+    "captured_at_utc": "2026-10-26T11:29:24.548071+00:00",
+    "http_status": 200,
+    "sha256": "73b234b19dcdb15cbd12e4754e4582734f7c3ba1788e71b0978ab5953295c7e3",
+    "bytes": 10842910,
+    "shape": [
+      "id",
+      "name",
+      "url",
+      "description",
+      "logo",
+      "chains",
+      "gecko_id",
+      "cmcId",
+      "treasury",
+      "twitter",
+      "governanceID",
+      "wrongLiquidity",
+      "github",
+      "stablecoins",
+      "symbol",
+      "address"
+    ]
+  },
+  {
+    "name": "render_fees",
+    "url": "https://api.llama.fi/summary/fees/render",
+    "captured_at_utc": "2026-10-26T11:29:25.774539+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "AAVE_tvl",
+    "url": "https://api.llama.fi/protocol/aave",
+    "captured_at_utc": "2026-10-26T11:33:57.353450+00:00",
+    "http_status": 200,
+    "sha256": "73b234b19dcdb15cbd12e4754e4582734f7c3ba1788e71b0978ab5953295c7e3",
+    "bytes": 10842910
+  },
+  {
+    "name": "AAVE_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/aave?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:33:57.904977+00:00",
+    "http_status": 200,
+    "sha256": "b077c1b16069f0b58df3833faad68a1e3a4b96477ada4e74121b09cfe071bb57",
+    "bytes": 728277
+  },
+  {
+    "name": "AAVE_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/aave?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:33:58.455837+00:00",
+    "http_status": 200,
+    "sha256": "81d115600c5c5aecd448e427b4e8b789e7e7296ffb3ba91596159961c1e8edfe",
+    "bytes": 710812
+  },
+  {
+    "name": "UNI_tvl",
+    "url": "https://api.llama.fi/protocol/uniswap",
+    "captured_at_utc": "2026-10-26T11:33:59.053563+00:00",
+    "http_status": 200,
+    "sha256": "ac70405ebc99db42052fe2936bf1003bbbda5b7a539c727ee67975a4ca6ec3cb",
+    "bytes": 1964075
+  },
+  {
+    "name": "UNI_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/uniswap?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:33:59.604463+00:00",
+    "http_status": 200,
+    "sha256": "d5221dc3d6bed648d4233130163a4b40b38d796c00a9477100b76ca570dd5f53",
+    "bytes": 1455215
+  },
+  {
+    "name": "UNI_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/uniswap?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:00.154995+00:00",
+    "http_status": 200,
+    "sha256": "5712dea883a92e7bcff36173fac0b609740cbb3c0284a776b374ed4daa0ae7bf",
+    "bytes": 856790
+  },
+  {
+    "name": "MKR_tvl",
+    "url": "https://api.llama.fi/protocol/maker",
+    "captured_at_utc": "2026-10-26T11:34:00.705306+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "MKR_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/maker?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:01.255815+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "MKR_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/maker?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:01.806297+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "LDO_tvl",
+    "url": "https://api.llama.fi/protocol/lido",
+    "captured_at_utc": "2026-10-26T11:34:02.356762+00:00",
+    "http_status": 200,
+    "sha256": "b166f541e4bb92e091066535963d21af2862d6d9ffd06d6d435659d81293076e",
+    "bytes": 2076753
+  },
+  {
+    "name": "LDO_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/lido?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:02.907024+00:00",
+    "http_status": 200,
+    "sha256": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6",
+    "bytes": 131491
+  },
+  {
+    "name": "LDO_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/lido?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:03.457411+00:00",
+    "http_status": 200,
+    "sha256": "86c58c3261d368deebaf11af14e526395ed4ea7f3890617bdb1439de239d3b45",
+    "bytes": 125946
+  },
+  {
+    "name": "MORPHO_tvl",
+    "url": "https://api.llama.fi/protocol/morpho",
+    "captured_at_utc": "2026-10-26T11:34:04.007921+00:00",
+    "http_status": 200,
+    "sha256": "db89d87710f9c48b96a29b03be919b1e146c9da52f761a9b565f213469cb137b",
+    "bytes": 13535604
+  },
+  {
+    "name": "MORPHO_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/morpho?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:04.558102+00:00",
+    "http_status": 200,
+    "sha256": "930b62d60a2baca36328fe472172dd1f2dc627cdda4cbbe397a480489dacd25e",
+    "bytes": 447293
+  },
+  {
+    "name": "MORPHO_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/morpho?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:05.108664+00:00",
+    "http_status": 200,
+    "sha256": "ad2377183b7fb4cd080fe23e50e55507cab847514cc7e2b128e5d4616201147b",
+    "bytes": 414687
+  },
+  {
+    "name": "DRIFT_tvl",
+    "url": "https://api.llama.fi/protocol/drift",
+    "captured_at_utc": "2026-10-26T11:34:05.659046+00:00",
+    "http_status": 200,
+    "sha256": "85d1a743fec3b7a4e434957e0b5d09b008b38d37ef0fa06eb5ca4033b2a3f05b",
+    "bytes": 1702354
+  },
+  {
+    "name": "DRIFT_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/drift?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:06.211239+00:00",
+    "http_status": 200,
+    "sha256": "6216493ba0412569e7d252f627769a92bbe4664637d1d7e71c369bf08e988535",
+    "bytes": 77204
+  },
+  {
+    "name": "DRIFT_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/drift?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:06.761385+00:00",
+    "http_status": 200,
+    "sha256": "a7e0d6db1777444175eb871dadfbb5e8e7a199226b9a8b3d643d310503628d12",
+    "bytes": 75968
+  },
+  {
+    "name": "KMNO_tvl",
+    "url": "https://api.llama.fi/protocol/kamino-finance",
+    "captured_at_utc": "2026-10-26T11:34:07.357526+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "KMNO_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/kamino-finance?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:07.862029+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "KMNO_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/kamino-finance?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:08.412293+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "COMP_tvl",
+    "url": "https://api.llama.fi/protocol/compound-finance",
+    "captured_at_utc": "2026-10-26T11:34:08.964082+00:00",
+    "http_status": 200,
+    "sha256": "141d0e68ed59542a81cbf795f297adb36592e26f04fd2c57bf65933c36cc3f80",
+    "bytes": 4543523
+  },
+  {
+    "name": "COMP_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/compound-finance?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:09.514427+00:00",
+    "http_status": 200,
+    "sha256": "4a2229ecb05d25dec5ed2535fb5257278cb06a744d37241acd500e21aff1638a",
+    "bytes": 352267
+  },
+  {
+    "name": "COMP_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/compound-finance?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:10.064793+00:00",
+    "http_status": 200,
+    "sha256": "88378987ec18f2b64f2dac15446121b6e7c066bf80eb2626b1fb9503ce392062",
+    "bytes": 337387
+  },
+  {
+    "name": "PERP_tvl",
+    "url": "https://api.llama.fi/protocol/perpetual-protocol",
+    "captured_at_utc": "2026-10-26T11:34:10.615269+00:00",
+    "http_status": 200,
+    "sha256": "239f9627c58c42f9ac96aa91755a5f3a02aa558b200ca917d8a6df38dd91b4dd",
+    "bytes": 1675652
+  },
+  {
+    "name": "PERP_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/perpetual-protocol?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:11.166782+00:00",
+    "http_status": 200,
+    "sha256": "6572da00298b359e772ab2ae14b7d0f023fd94037b5b9283b27530ff314382e7",
+    "bytes": 103044
+  },
+  {
+    "name": "PERP_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/perpetual-protocol?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:11.717082+00:00",
+    "http_status": 200,
+    "sha256": "ff561eaf73b42207b9bf89b2fc41a3ac3c0b8752f997f531ca816df899f6fa59",
+    "bytes": 101311
+  },
+  {
+    "name": "ALCX_tvl",
+    "url": "https://api.llama.fi/protocol/alchemix",
+    "captured_at_utc": "2026-10-26T11:34:12.267540+00:00",
+    "http_status": 200,
+    "sha256": "ea87b23d620afddd094ddb900f45f9aef5d522e7de8100e76fb6a6028b3001c8",
+    "bytes": 1656106
+  },
+  {
+    "name": "ALCX_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/alchemix?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:12.818673+00:00",
+    "http_status": 200,
+    "sha256": "b6001008acad671c0d56dedb665da8551adf18b32aead9b3b9f8a63ed42abb95",
+    "bytes": 204671
+  },
+  {
+    "name": "ALCX_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/alchemix?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:13.370084+00:00",
+    "http_status": 200,
+    "sha256": "0b70ce2763e96107344117ccbdc8cfc9fe25edcf88b4dba96a67733c9fdcab9a",
+    "bytes": 201529
+  },
+  {
+    "name": "RENDER_tvl",
+    "url": "https://api.llama.fi/protocol/render-network-bme",
+    "captured_at_utc": "2026-10-26T11:34:13.958488+00:00",
+    "http_status": 200,
+    "sha256": "52df9144659a57de66505506d82efef3e080dded8ed5834ab3f5114ac86b2a69",
+    "bytes": 805
+  },
+  {
+    "name": "RENDER_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/render-network-bme?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:14.471999+00:00",
+    "http_status": 200,
+    "sha256": "bc5f142bf00aca05d7fb2209c5662c716f8d637dcd06aa726d202b4c2a9ec58f",
+    "bytes": 39213
+  },
+  {
+    "name": "RENDER_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/render-network-bme?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:15.022412+00:00",
+    "http_status": 200,
+    "sha256": "bc5f142bf00aca05d7fb2209c5662c716f8d637dcd06aa726d202b4c2a9ec58f",
+    "bytes": 39213
+  },
+  {
+    "name": "TRUST_tvl",
+    "url": "https://api.llama.fi/protocol/intuition",
+    "captured_at_utc": "2026-10-26T11:34:15.573136+00:00",
+    "http_status": 200,
+    "sha256": "39007b9d63fae7c9b7bb880b002c5ac2f13e044c6aa32b5873401c39a94649d2",
+    "bytes": 209830
+  },
+  {
+    "name": "BONK_tvl",
+    "url": "https://api.llama.fi/protocol/bonkfun",
+    "captured_at_utc": "2026-10-26T11:34:16.123518+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "BONK_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/bonkfun?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:16.673928+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "BONK_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/bonkfun?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:17.224477+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "SOL_tvl",
+    "url": "https://api.llama.fi/v2/historicalChainTvl/Solana",
+    "captured_at_utc": "2026-10-26T11:34:17.774802+00:00",
+    "http_status": 200,
+    "sha256": "2de2f6d73c103733f805f118eb433070249b7ebdb4ed49e18d24b11aac7d87af",
+    "bytes": 75430
+  },
+  {
+    "name": "SOL_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/solana?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:18.325236+00:00",
+    "http_status": 200,
+    "sha256": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b",
+    "bytes": 131870
+  },
+  {
+    "name": "SOL_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/solana?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:18.875652+00:00",
+    "http_status": 200,
+    "sha256": "89e479d067eb66aa057f11b52d65c0f514c82c704b2a86a46ee5cd2af56d27c7",
+    "bytes": 129768
+  },
+  {
+    "name": "NEAR_tvl",
+    "url": "https://api.llama.fi/v2/historicalChainTvl/Near",
+    "captured_at_utc": "2026-10-26T11:34:19.425992+00:00",
+    "http_status": 200,
+    "sha256": "063fad5bf0c39a081c5726f8c8cd12fc60bd6d787fc2f71cc50145cb765fdf2d",
+    "bytes": 67420
+  },
+  {
+    "name": "NEAR_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/near?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:19.976502+00:00",
+    "http_status": 200,
+    "sha256": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da",
+    "bytes": 121315
+  },
+  {
+    "name": "NEAR_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/near?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:20.527087+00:00",
+    "http_status": 200,
+    "sha256": "22aae5434b074e8b6ea731b0f8b7abb2f63ebdec950fe3c14f4430aae59b6da4",
+    "bytes": 120590
+  },
+  {
+    "name": "SUI_tvl",
+    "url": "https://api.llama.fi/v2/historicalChainTvl/Sui",
+    "captured_at_utc": "2026-10-26T11:34:21.078360+00:00",
+    "http_status": 200,
+    "sha256": "275c86a87aae04bc307d139b4aa8128f6d1ba23ebb428ab95cf8b47902c1c3b7",
+    "bytes": 45960
+  },
+  {
+    "name": "SUI_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/sui?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:21.628939+00:00",
+    "http_status": 200,
+    "sha256": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517",
+    "bytes": 46889
+  },
+  {
+    "name": "SUI_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/sui?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:22.179506+00:00",
+    "http_status": 200,
+    "sha256": "3ccce1217e989cd73cf0b3f38f40e02742b7ddb5ce6a5b995ef87157ecf59f73",
+    "bytes": 45669
+  },
+  {
+    "name": "VET_tvl",
+    "url": "https://api.llama.fi/v2/historicalChainTvl/VeChain",
+    "captured_at_utc": "2026-10-26T11:34:22.730034+00:00",
+    "http_status": 200,
+    "sha256": "0f554c2bd9c0ffdec2907d4369d73f9521d6d5903b96761cf76ff94c1fe65836",
+    "bytes": 60497
+  },
+  {
+    "name": "VET_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/vechain?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:34:23.280554+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "VET_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/vechain?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:34:23.830822+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "name": "SOL_app_fees",
+    "url": "https://api.llama.fi/overview/fees/Solana?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true",
+    "captured_at_utc": "2026-10-26T11:34:24.381196+00:00",
+    "http_status": 200,
+    "sha256": "60b3a6b80f997172c242726dff1728f16b2dc0575f42921a3714f6aef163f2c2",
+    "bytes": 617417
+  },
+  {
+    "name": "coinbase_currencies",
+    "url": "https://api.exchange.coinbase.com/currencies",
+    "captured_at_utc": "2026-10-26T11:34:24.931647+00:00",
+    "http_status": 200,
+    "sha256": "c05b72b3f8e7f234b154bec81a37bf9a2bcbdd2793e6cc0ecd9f1aa7ef5a8bd8",
+    "bytes": 561059
+  },
+  {
+    "name": "MKR_child_tvl",
+    "url": "https://api.llama.fi/protocol/sky-lending",
+    "captured_at_utc": "2026-10-26T11:39:07.224814+00:00",
+    "http_status": 200,
+    "sha256": "f41ed7e1ae3eadc9865d623fbc688843624a6f02f96c8106b9b622f781a609f6",
+    "bytes": 4441385
+  },
+  {
+    "name": "MKR_child_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/sky-lending?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:39:08.449955+00:00",
+    "http_status": 200,
+    "sha256": "b2c0bed4faa8032c4ed602c7c40c1aeaebcdf9e484e8ce4c1aaf7c8bd9d49077",
+    "bytes": 176529
+  },
+  {
+    "name": "MKR_child_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/sky-lending?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:39:10.203544+00:00",
+    "http_status": 200,
+    "sha256": "e46fe176fbe2c062e3885c23db7b4851c571e81f598626fb02fbd9cdcc67bd44",
+    "bytes": 175461
+  },
+  {
+    "name": "KMNO_child_tvl",
+    "url": "https://api.llama.fi/protocol/kamino-lend",
+    "captured_at_utc": "2026-10-26T11:39:12.145994+00:00",
+    "http_status": 200,
+    "sha256": "7fa81f1234b556d1de58ead299ba49db43d90024633bc00d1673115cecc36e17",
+    "bytes": 8139431
+  },
+  {
+    "name": "KMNO_child_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/kamino-lend?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:39:13.372968+00:00",
+    "http_status": 200,
+    "sha256": "3c5583cec98fdd682210d19defd7af2f64f2c244553b2c31a457add76589a50d",
+    "bytes": 76879
+  },
+  {
+    "name": "KMNO_child_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/kamino-lend?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:39:14.971057+00:00",
+    "http_status": 200,
+    "sha256": "6abf378c3671cfca493297d8811a5c6498afbcdcb49f59814f63f36482d36f57",
+    "bytes": 74444
+  },
+  {
+    "name": "BONK_child_tvl",
+    "url": "https://api.llama.fi/protocol/bonkbot",
+    "captured_at_utc": "2026-10-26T11:39:16.519337+00:00",
+    "http_status": 200,
+    "sha256": "00943bcf4ea5b4694980b6297aa14a62e689e63da62bbeedb7d4792c04e862b4",
+    "bytes": 848
+  },
+  {
+    "name": "BONK_child_dailyFees",
+    "url": "https://api.llama.fi/summary/fees/bonkbot?dataType=dailyFees",
+    "captured_at_utc": "2026-10-26T11:39:17.928091+00:00",
+    "http_status": 200,
+    "sha256": "a628a00a6d22832b2bec3a293cfea8b96ef9724403b59ddb4fb80bc65cdb7ed4",
+    "bytes": 72854
+  },
+  {
+    "name": "BONK_child_dailyRevenue",
+    "url": "https://api.llama.fi/summary/fees/bonkbot?dataType=dailyRevenue",
+    "captured_at_utc": "2026-10-26T11:39:19.553913+00:00",
+    "http_status": 200,
+    "sha256": "d1cc49130ba8c5e03cf4a237b624683e163694955cd5383dd760db06113b9701",
+    "bytes": 72667
+  }
+]

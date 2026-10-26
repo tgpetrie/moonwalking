@@ -3,7 +3,7 @@
 Public keyless endpoint: POST https://api.hyperliquid.xyz/info {"type":"fundingHistory","coin":...,"startTime":ms,"endTime":ms}
 (500 rows per response, pages forward). Original responses are stored byte-for-byte with request body, capture time and
 SHA-256, one file per request, so the collection is resumable and auditable. Nothing is written to Git by this script,
-to the frozen panel, or to any application store. One request per 1.1 seconds, with back-off on 429/5xx.
+to the frozen panel, or to any application store. One request per 3 seconds, with back-off on 429/5xx.
 
     python scripts/scoring_experiment/funding_fetch.py --map <APPROVED_FUNDING_MAP.json> --out <new folder> [--only AAVE-USD]
     python scripts/scoring_experiment/funding_fetch.py --summarize --out <folder>      # coverage + hashes, no network
@@ -22,7 +22,9 @@ from pathlib import Path
 
 URL = "https://api.hyperliquid.xyz/info"
 PAGE = 500
-PACE_SECONDS = 1.1
+# A 500-row fundingHistory page costs 20 + 500/20 = 45 weight.
+# 20 pages/minute use 900 of the shared 1,200 weight/minute IP limit.
+PACE_SECONDS = 3.0
 # Frozen panel's last complete UTC day is 2026-10-18, so history is requested up to 2026-10-19 00:00:00 UTC inclusive.
 END_MS = int(datetime(2026, 10, 19, tzinfo=timezone.utc).timestamp() * 1000)
 HOUR_MS = 3_600_000

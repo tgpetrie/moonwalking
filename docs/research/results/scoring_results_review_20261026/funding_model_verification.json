@@ -1,0 +1,70 @@
+{
+  "input_verification": {
+    "checkpoint": "C:\\Users\\tgpet\\.moonwalking\\data\\daily_panel_2022_2026",
+    "raw_files_verified": 494,
+    "all_hashed_files_verified": 496,
+    "product_files": 492,
+    "products_with_candles": 492,
+    "total_usable_daily_candles": 473039,
+    "hourly_crosscheck": 0.9999764860797592,
+    "crosscheck_acceptance": "pass",
+    "provider_identity_status": "ticker_candidates_only_not_identity_verified"
+  },
+  "matched_rows_before_daily_minimum": 89362,
+  "matched_rows": 88650,
+  "test_rows": 64165,
+  "matched_product_stats_match": true,
+  "horizons": {
+    "1": {
+      "increment": {
+        "n_blocks": 93,
+        "mean": 0.0007391278585991209,
+        "lo": -0.0004667639711039964,
+        "hi": 0.001953106054785546,
+        "se": 0.0005108713846475707,
+        "moving_block": {
+          "mean": 0.0007391278585991209,
+          "lo": -0.0004664807223112096,
+          "hi": 0.001808572503019054,
+          "n_blocks": 93,
+          "block_weeks": 4
+        },
+        "n_days": 648,
+        "mean_daily_ic": 0.0007263718813764799,
+        "share_weeks_positive": 0.5483870967741935,
+        "mean_ic_m1": 0.04517600022866606,
+        "mean_ic_m0": 0.04444962834728958
+      },
+      "weekday_phases_match": true,
+      "results_match": true,
+      "matched_prediction_rows": 64165,
+      "scored_days": 648
+    },
+    "7": {
+      "increment": {
+        "n_blocks": 93,
+        "mean": -0.002408594260408954,
+        "lo": -0.006622551788560416,
+        "hi": 0.0013042071592555258,
+        "se": 0.0018250277118152347,
+        "moving_block": {
+          "mean": -0.002408594260408954,
+          "lo": -0.007030450404214718,
+          "hi": 0.001494687701087202,
+          "n_blocks": 93,
+          "block_weeks": 4
+        },
+        "n_days": 648,
+        "mean_daily_ic": -0.0024126223289306806,
+        "share_weeks_positive": 0.5268817204301075,
+        "mean_ic_m1": 0.020468114186198462,
+        "mean_ic_m0": 0.022880736515129136
+      },
+      "weekday_phases_match": true,
+      "results_match": true,
+      "matched_prediction_rows": 64165,
+      "scored_days": 648
+    }
+  },
+  "elapsed_seconds": 27.81200000003446
+}

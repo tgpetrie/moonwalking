@@ -1,0 +1,26 @@
+{
+  "map_matches": true,
+  "products": 127,
+  "counts": {
+    "pages": 5416,
+    "rows": 2671366,
+    "bad_rate": 0,
+    "bad_premium": 4
+  },
+  "issues": {
+    "ZRO-USD": [
+      {
+        "page": "page_0014.json",
+        "issue": "nonfinite_premium",
+        "value": "NaN",
+        "time": 1718892000106
+      },
+      {
+        "page": "page_0014.json",
+        "issue": "nonfinite_premium",
+        "value": "NaN",
+        "time": 1718895600025
+      }
+    ]
+  }
+}
