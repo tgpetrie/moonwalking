@@ -67,6 +67,7 @@ def build_matched(base: pd.DataFrame, amap: dict, root: Path, fcfg: dict, offset
         mean, cnt = daily_series(d, fcfg["min_prints_per_day"])
         info = {**st, "first_utc": None if d.empty else str(pd.to_datetime(d.time.min(), unit="ms")),
                 "last_utc": None if d.empty else str(pd.to_datetime(d.time.max(), unit="ms")),
+                "missing_hours_estimate": 0 if d.empty else int(sum(round(g / 3_600_000) - 1 for g in np.diff(d["time"].to_numpy()) if g > 5_400_000)),
                 "days_with_valid_mean": int(mean.notna().sum()) if len(mean) else 0,
                 "days_below_print_minimum": int(((cnt > 0) & (cnt < fcfg["min_prints_per_day"])).sum()) if len(cnt) else 0}
         if not len(mean):
