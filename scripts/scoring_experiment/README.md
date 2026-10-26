@@ -52,3 +52,15 @@ Daily candles only (no intraday history is invented from them); a 2026 product-l
 snapshot that includes inactive products but is not proven complete; backfilled data is not
 a point-in-time availability record; costs are scenarios; the live BHABIT score cannot be
 reconstructed from daily candles and is compared only where it was actually recorded.
+
+## Funding comparison (separate protocol)
+
+```powershell
+python scripts/scoring_experiment/funding_fetch.py --map docs/research/results/funding_identity_audit_20261025/APPROVED_FUNDING_MAP.json --out <new folder>   # public keyless API, 1 request per 1.1 s, about 2 hours
+python scripts/scoring_experiment/funding_fetch.py --summarize --out <folder>                                                                          # coverage and hashes, no network
+python scripts/scoring_experiment/funding_run.py discovery
+python scripts/scoring_experiment/funding_run.py test                                                                                                   # refuses without a matching discovery result
+python scripts/scoring_experiment/make_funding_report.py > tables_funding.md
+```
+
+Design: `docs/research/FUNDING_COMPARISON_PROTOCOL.md`; results: `docs/research/FUNDING_COMPARISON_RESULTS.md`. Raw funding responses stay outside Git.
