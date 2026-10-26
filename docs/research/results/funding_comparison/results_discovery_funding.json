@@ -1,7 +1,7 @@
 {
   "phase": "discovery",
   "config_hash": "12132c730d407fc9",
-  "code_commit": "9b60d5c10ff5c1276968cfef3c25e2b0a4c075bb",
+  "code_commit": "e847811f27dc7557c1d81184b4b7440c5bfffff1",
   "variants": {
     "primary_lag_1d": {
       "h1": {
@@ -3433,5 +3433,99 @@
         }
       }
     ]
+  },
+  "stacked_secondary_amendment_A1": {
+    "h1": {
+      "full_baseline_score_alone": {
+        "n_blocks": 44,
+        "mean": -0.005935413451484648,
+        "lo": -0.034738209976601826,
+        "hi": 0.02479998246872774,
+        "se": 0.013536654587870553,
+        "n_days": 298,
+        "mean_daily_ic": -0.005372758573676512,
+        "share_weeks_positive": 0.45454545454545453
+      },
+      "full_baseline_score_plus_funding": {
+        "n_blocks": 44,
+        "mean": -0.008077425862422398,
+        "lo": -0.03421102672003752,
+        "hi": 0.019030509413618824,
+        "se": 0.012309485335796592,
+        "n_days": 298,
+        "mean_daily_ic": -0.004221179028477626,
+        "share_weeks_positive": 0.4090909090909091
+      },
+      "increment": {
+        "n_blocks": 44,
+        "mean": -0.002142012410937747,
+        "lo": -0.02230553160272163,
+        "hi": 0.018287059757043006,
+        "se": 0.008907763622889022,
+        "moving_block": {
+          "mean": -0.002142012410937747,
+          "lo": -0.02352562884277616,
+          "hi": 0.021775279058851366,
+          "n_blocks": 44,
+          "block_weeks": 4
+        },
+        "n_days": 298,
+        "mean_daily_ic": 0.0011515795451988837,
+        "share_weeks_positive": 0.36363636363636365,
+        "mean_ic_m1": -0.004221179028477626,
+        "mean_ic_m0": -0.005372758573676512
+      },
+      "funding_coefficient": {
+        "months": 10,
+        "mean_coef": 0.0009629,
+        "share_negative": 0.2
+      }
+    },
+    "h7": {
+      "full_baseline_score_alone": {
+        "n_blocks": 44,
+        "mean": -0.02753195566804504,
+        "lo": -0.06603688086385331,
+        "hi": 0.01248900823236827,
+        "se": 0.018289961457886035,
+        "n_days": 298,
+        "mean_daily_ic": -0.028875468289977627,
+        "share_weeks_positive": 0.45454545454545453
+      },
+      "full_baseline_score_plus_funding": {
+        "n_blocks": 44,
+        "mean": -0.014061767348049831,
+        "lo": -0.04373179369686797,
+        "hi": 0.016450908555602793,
+        "se": 0.014068109004992701,
+        "n_days": 298,
+        "mean_daily_ic": -0.01632094349775691,
+        "share_weeks_positive": 0.4318181818181818
+      },
+      "increment": {
+        "n_blocks": 44,
+        "mean": 0.013470188319995212,
+        "lo": -0.0263940309955216,
+        "hi": 0.05444334194197932,
+        "se": 0.01815903365270239,
+        "moving_block": {
+          "mean": 0.013470188319995212,
+          "lo": -0.03529776525545193,
+          "hi": 0.05802394971284717,
+          "n_blocks": 44,
+          "block_weeks": 4
+        },
+        "n_days": 298,
+        "mean_daily_ic": 0.012554524792220714,
+        "share_weeks_positive": 0.5909090909090909,
+        "mean_ic_m1": -0.01632094349775691,
+        "mean_ic_m0": -0.028875468289977627
+      },
+      "funding_coefficient": {
+        "months": 10,
+        "mean_coef": 0.053913699999999995,
+        "share_negative": 0.0
+      }
+    }
   }
 }
