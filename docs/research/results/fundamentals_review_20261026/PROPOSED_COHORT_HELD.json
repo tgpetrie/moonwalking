@@ -1,0 +1,1349 @@
+[
+  {
+    "product_id": "AAVE-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "aave"
+    },
+    "series_files": {
+      "fees": "AAVE_fees.json"
+    },
+    "series_sha256": {
+      "fees": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aave?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:39.743874+00:00",
+    "returned_metadata": {
+      "name": "Aave",
+      "id": "parent#aave",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Aave",
+        "Aave V2",
+        "Aave V3",
+        "Aave V4"
+      ],
+      "address": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+      "gecko_id": "aave",
+      "chains": [
+        "Ethereum",
+        "Polygon",
+        "Avalanche",
+        "Fantom",
+        "Arbitrum",
+        "OP Mainnet",
+        "Metis",
+        "Base",
+        "Gnosis",
+        "BSC",
+        "Scroll",
+        "ZKsync Era",
+        "Linea",
+        "Celo",
+        "Sonic",
+        "Soneium",
+        "Plasma",
+        "Mantle",
+        "MegaETH",
+        "X Layer",
+        "Monad",
+        "Arc"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "UNI-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "uniswap"
+    },
+    "series_files": {
+      "fees": "UNI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/uniswap?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:41.198791+00:00",
+    "returned_metadata": {
+      "name": "Uniswap",
+      "id": "parent#uniswap",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Uniswap",
+        "Uniswap V1",
+        "Uniswap V2",
+        "Uniswap V3",
+        "Uniswap V4"
+      ],
+      "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+      "gecko_id": "uniswap",
+      "chains": [
+        "Ethereum",
+        "Arbitrum",
+        "OP Mainnet",
+        "Polygon",
+        "Celo",
+        "BSC",
+        "ZKsync Era",
+        "Sei",
+        "Taiko",
+        "Scroll",
+        "Rootstock",
+        "Filecoin",
+        "Boba",
+        "Moonbeam",
+        "Manta",
+        "Mantle",
+        "Linea",
+        "Avalanche",
+        "Base",
+        "Zora",
+        "Blast",
+        "Polygon zkEVM",
+        "Gnosis",
+        "BOB",
+        "Lisk",
+        "Corn",
+        "Unichain",
+        "World Chain",
+        "Ink",
+        "Soneium",
+        "Hemi",
+        "Saga",
+        "LightLink",
+        "GOAT",
+        "XDC",
+        "Lens",
+        "Telos",
+        "Nibiru",
+        "Plasma",
+        "Monad",
+        "Etherlink",
+        "Sonic",
+        "X Layer",
+        "Tempo",
+        "Robinhood Chain",
+        "0G",
+        "MegaETH",
+        "Arc",
+        "Redbelly"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "LDO-USD",
+    "status": "held",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "lido"
+    },
+    "series_files": {
+      "fees": "LDO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/lido?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:42.945081+00:00",
+    "returned_metadata": {
+      "name": "Lido",
+      "id": "182",
+      "category": "Liquid Staking",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+      "gecko_id": "lido-dao",
+      "chains": [
+        "Ethereum"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "CRV-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "curve-finance"
+    },
+    "series_files": {
+      "fees": "CRV_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/curve-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:46.831353+00:00",
+    "returned_metadata": {
+      "name": "Curve Finance",
+      "id": "parent#curve-finance",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Curve Finance",
+        "Curve DEX",
+        "crvUSD",
+        "Curve LlamaLend",
+        "Curve LlamaLend V2"
+      ],
+      "address": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+      "gecko_id": "curve-dao-token",
+      "chains": [
+        "Ethereum",
+        "Polygon",
+        "OP Mainnet",
+        "Gnosis",
+        "Fantom",
+        "Arbitrum",
+        "Avalanche",
+        "Base",
+        "Celo",
+        "Mantle",
+        "BSC",
+        "Fraxtal",
+        "Sonic",
+        "Ink",
+        "Hyperliquid L1",
+        "Plasma",
+        "Unichain",
+        "Monad",
+        "Stable",
+        "Robinhood Chain",
+        "Etherlink"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "COMP-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "compound-finance"
+    },
+    "series_files": {
+      "fees": "COMP_fees.json"
+    },
+    "series_sha256": {
+      "fees": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/compound-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:49.463943+00:00",
+    "returned_metadata": {
+      "name": "Compound Finance",
+      "id": "parent#compound-finance",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Compound Finance",
+        "Compound V2",
+        "Compound V3"
+      ],
+      "address": "0xc00e94cb662c3520282e6f5717214004a7f26888",
+      "gecko_id": "compound-governance-token",
+      "chains": [
+        "Ethereum",
+        "Polygon",
+        "Scroll",
+        "Mantle",
+        "OP Mainnet",
+        "Base",
+        "Arbitrum",
+        "Linea",
+        "Unichain"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "SNX-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "synthetix"
+    },
+    "series_files": {
+      "fees": "SNX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/synthetix?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:52.042956+00:00",
+    "returned_metadata": {
+      "name": "Synthetix",
+      "id": "parent#synthetix",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Synthetix",
+        "Synthetix v1+v2",
+        "Synthetix V3",
+        "Synthetix V4"
+      ],
+      "address": "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+      "gecko_id": "havven",
+      "chains": [
+        "OP Mainnet",
+        "Ethereum",
+        "Base",
+        "Arbitrum"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "DYDX-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "dydx"
+    },
+    "series_files": {
+      "fees": "DYDX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b0889ac8eb761c4b4e255492b1de651689036b8a254471e7e798794f82c70895"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/dydx?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:54.322610+00:00",
+    "returned_metadata": {
+      "name": "dYdX",
+      "id": "parent#dydx",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "dYdX",
+        "dYdX V3",
+        "dYdX V4"
+      ],
+      "address": "0x92d6c1e31e14520e676a687f0a93788b716beff5",
+      "gecko_id": "dydx-chain",
+      "chains": [
+        "Ethereum",
+        "DYdX"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "PENDLE-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "pendle"
+    },
+    "series_files": {
+      "fees": "PENDLE_fees.json"
+    },
+    "series_sha256": {
+      "fees": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/pendle?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:56.563062+00:00",
+    "returned_metadata": {
+      "name": "Pendle",
+      "id": "parent#pendle",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Pendle",
+        "Pendle V2",
+        "Boros"
+      ],
+      "address": "0x808507121b80c02388fad14726482e061b8da827",
+      "gecko_id": "pendle",
+      "chains": [
+        "Arbitrum",
+        "Ethereum",
+        "BSC",
+        "OP Mainnet",
+        "Mantle",
+        "Base",
+        "Berachain",
+        "Sonic",
+        "Hyperliquid L1",
+        "Plasma",
+        "Monad",
+        "X Layer",
+        "Robinhood Chain"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "RPL-USD",
+    "status": "held",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "rocket-pool"
+    },
+    "series_files": {
+      "fees": "RPL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/rocket-pool?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:28:59.037039+00:00",
+    "returned_metadata": {
+      "name": "Rocket Pool",
+      "id": "900",
+      "category": "Liquid Staking",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": "0xd33526068d116ce69f19a9ee46f0bd304f21a51f",
+      "gecko_id": "rocket-pool",
+      "chains": [
+        "Ethereum"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "BAL-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "balancer"
+    },
+    "series_files": {
+      "fees": "BAL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/balancer?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:01.238462+00:00",
+    "returned_metadata": {
+      "name": "Balancer",
+      "id": "parent#balancer",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Balancer",
+        "Balancer V1",
+        "Balancer V2",
+        "Balancer V3"
+      ],
+      "address": "0xba100000625a3754423978a60c9317c58a424e3d",
+      "gecko_id": "balancer",
+      "chains": [
+        "Ethereum",
+        "Polygon",
+        "Arbitrum",
+        "OP Mainnet",
+        "Gnosis",
+        "Avalanche",
+        "Base",
+        "Polygon zkEVM",
+        "Fraxtal",
+        "Mode",
+        "Hyperliquid L1",
+        "Plasma",
+        "Monad"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "SUSHI-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "sushi"
+    },
+    "series_files": {
+      "fees": "SUSHI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sushi?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:03.251858+00:00",
+    "returned_metadata": {
+      "name": "Sushi",
+      "id": "parent#sushi",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Sushi",
+        "SushiSwap",
+        "Sushi Trident",
+        "SushiSwap V3",
+        "SushiSwap Agg",
+        "Sushi Perps",
+        "Sushi Launchpad",
+        "Sushi Spot"
+      ],
+      "address": "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
+      "gecko_id": "sushi",
+      "chains": [
+        "Ethereum",
+        "Fantom",
+        "BSC",
+        "Polygon",
+        "Gnosis",
+        "Arbitrum",
+        "Avalanche",
+        "Moonriver",
+        "Celo",
+        "Fuse",
+        "Metis",
+        "OP Mainnet",
+        "Bittorrent",
+        "Kava",
+        "Polygon zkEVM",
+        "Arbitrum Nova",
+        "ThunderCore",
+        "Boba",
+        "Linea",
+        "Base",
+        "CORE",
+        "Blast",
+        "Scroll",
+        "Sonic",
+        "Hemi",
+        "Rootstock",
+        "Katana",
+        "Mantle",
+        "Moonbeam",
+        "ZKsync Era",
+        "Hyperliquid L1",
+        "Robinhood Chain",
+        "Arc"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "1INCH-USD",
+    "status": "held",
+    "scope": null,
+    "source_ids": {
+      "fees": "1inch-network"
+    },
+    "series_files": {},
+    "series_sha256": {},
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association."
+  },
+  {
+    "product_id": "YFI-USD",
+    "status": "held",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "yearn-finance"
+    },
+    "series_files": {
+      "fees": "YFI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/yearn-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:08.075655+00:00",
+    "returned_metadata": {
+      "name": "Yearn Finance",
+      "id": "113",
+      "category": "Yield Aggregator",
+      "parentProtocol": "parent#yearn",
+      "linkedProtocols": [
+        "Yearn",
+        "Yearn Finance",
+        "Yearn Ether",
+        "Yearn Curating"
+      ],
+      "address": "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+      "gecko_id": null,
+      "chains": [
+        "Ethereum",
+        "Base",
+        "Polygon",
+        "OP Mainnet",
+        "Arbitrum",
+        "Katana"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "CVX-USD",
+    "status": "held",
+    "scope": "protocol",
+    "source_ids": {
+      "fees": "convex-finance"
+    },
+    "series_files": {
+      "fees": "CVX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/convex-finance?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:10.539623+00:00",
+    "returned_metadata": {
+      "name": "Convex Finance",
+      "id": "319",
+      "category": "Yield",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
+      "gecko_id": "convex-finance",
+      "chains": [
+        "Ethereum"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "LQTY-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "liquity"
+    },
+    "series_files": {
+      "fees": "LQTY_fees.json"
+    },
+    "series_sha256": {
+      "fees": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/liquity?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:12.931566+00:00",
+    "returned_metadata": {
+      "name": "Liquity",
+      "id": "parent#liquity",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Liquity",
+        "Liquity V1",
+        "Liquity V2"
+      ],
+      "address": "0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D",
+      "gecko_id": "liquity",
+      "chains": [
+        "Ethereum"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "JTO-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "jito"
+    },
+    "series_files": {
+      "fees": "JTO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/jito?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:15.311103+00:00",
+    "returned_metadata": {
+      "name": "Jito",
+      "id": "parent#jito",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Jito",
+        "Jito Liquid Staking",
+        "Jito MEV Tips",
+        "Jito DAO"
+      ],
+      "address": "solana:jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+      "gecko_id": "jito-governance-token",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "JUP-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "jupiter"
+    },
+    "series_files": {
+      "fees": "JUP_fees.json"
+    },
+    "series_sha256": {
+      "fees": "33044de014e150b8080ec578f4dd833e24fe339647b81f9e218ce22ab3f8513b"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/jupiter?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:17.676987+00:00",
+    "returned_metadata": {
+      "name": "Jupiter",
+      "id": "parent#jupiter",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Jupiter",
+        "Jupiter Aggregator",
+        "Jupiter Perpetual Exchange",
+        "Ape Jupiter",
+        "Jupiter Staked SOL",
+        "Jupiter DCA",
+        "Jupiter Studio",
+        "Jupiter Lend",
+        "Jupiter Prediction",
+        "Jupiter Limit",
+        "Jupiter Offerbook",
+        "Jupiter Lend DEX",
+        "Jupiter YOLO"
+      ],
+      "address": "solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+      "gecko_id": "jupiter-exchange-solana",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "RAY-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "raydium"
+    },
+    "series_files": {
+      "fees": "RAY_fees.json"
+    },
+    "series_sha256": {
+      "fees": "6fb91ff11c3a73afd7fad3b0d1756ccfb1766bcbe23974c58a2414445e2d72cc"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/raydium?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:19.472364+00:00",
+    "returned_metadata": {
+      "name": "Raydium",
+      "id": "parent#raydium",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Raydium",
+        "Raydium AMM",
+        "LaunchLab"
+      ],
+      "address": "solana:4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+      "gecko_id": "raydium",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "ORCA-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "orca"
+    },
+    "series_files": {
+      "fees": "ORCA_fees.json"
+    },
+    "series_sha256": {
+      "fees": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/orca?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:21.731034+00:00",
+    "returned_metadata": {
+      "name": "Orca",
+      "id": "parent#orca",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Orca",
+        "Orca DEX"
+      ],
+      "address": "solana:orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+      "gecko_id": "orca",
+      "chains": [
+        "Solana",
+        "Eclipse"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "AERO-USD",
+    "status": "held",
+    "scope": "parent",
+    "source_ids": {
+      "fees": "aerodrome"
+    },
+    "series_files": {
+      "fees": "AERO_fees.json"
+    },
+    "series_sha256": {
+      "fees": "9b91ad0c2a4d34bf0085cec1bddc60739534708915d6a24239a1958303e85680"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aerodrome?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:23.913102+00:00",
+    "returned_metadata": {
+      "name": "Aero",
+      "id": "parent#aero-protocol",
+      "category": null,
+      "parentProtocol": null,
+      "linkedProtocols": [
+        "Aero",
+        "Velodrome V1",
+        "Velodrome V2",
+        "Aerodrome V1",
+        "Velodrome V3",
+        "Aerodrome Slipstream",
+        "Aero Slipstream",
+        "Aero Basic"
+      ],
+      "address": null,
+      "gecko_id": null,
+      "chains": [
+        "OP Mainnet",
+        "Base",
+        "Lisk",
+        "Mode",
+        "Fraxtal",
+        "BOB",
+        "Unichain",
+        "Soneium",
+        "Ink",
+        "Swellchain",
+        "Celo",
+        "Arc",
+        "Arbitrum",
+        "Ethereum",
+        "Robinhood Chain"
+      ],
+      "protocolType": "protocol"
+    }
+  },
+  {
+    "product_id": "ETH-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "ethereum"
+    },
+    "series_files": {
+      "fees": "ETH_fees.json"
+    },
+    "series_sha256": {
+      "fees": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/ethereum?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:26.510450+00:00",
+    "returned_metadata": {
+      "name": "Ethereum",
+      "id": "chain#ethereum",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "ethereum",
+      "chains": [
+        "Ethereum"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "SOL-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "solana"
+    },
+    "series_files": {
+      "fees": "SOL_fees.json"
+    },
+    "series_sha256": {
+      "fees": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/solana?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:27.854274+00:00",
+    "returned_metadata": {
+      "name": "Solana",
+      "id": "chain#solana",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "solana",
+      "chains": [
+        "Solana"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "AVAX-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "avalanche"
+    },
+    "series_files": {
+      "fees": "AVAX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/avalanche?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:29.137508+00:00",
+    "returned_metadata": {
+      "name": "Avalanche",
+      "id": "chain#avalanche",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "avalanche-2",
+      "chains": [
+        "Avalanche"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "NEAR-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "near"
+    },
+    "series_files": {
+      "fees": "NEAR_fees.json"
+    },
+    "series_sha256": {
+      "fees": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/near?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:31.275854+00:00",
+    "returned_metadata": {
+      "name": "Near",
+      "id": "chain#near",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "near",
+      "chains": [
+        "Near"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "ARB-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "arbitrum"
+    },
+    "series_files": {
+      "fees": "ARB_fees.json"
+    },
+    "series_sha256": {
+      "fees": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/arbitrum?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:33.439177+00:00",
+    "returned_metadata": {
+      "name": "Arbitrum",
+      "id": "chain#arbitrum",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "arbitrum",
+      "chains": [
+        "Arbitrum"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "OP-USD",
+    "status": "held",
+    "scope": null,
+    "source_ids": {
+      "fees": "optimism"
+    },
+    "series_files": {},
+    "series_sha256": {},
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association."
+  },
+  {
+    "product_id": "APT-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "aptos"
+    },
+    "series_files": {
+      "fees": "APT_fees.json"
+    },
+    "series_sha256": {
+      "fees": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/aptos?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:37.280834+00:00",
+    "returned_metadata": {
+      "name": "Aptos",
+      "id": "chain#aptos",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "aptos",
+      "chains": [
+        "Aptos"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "SUI-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "sui"
+    },
+    "series_files": {
+      "fees": "SUI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sui?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:39.423719+00:00",
+    "returned_metadata": {
+      "name": "Sui",
+      "id": "chain#sui",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "sui",
+      "chains": [
+        "Sui"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "SEI-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "sei"
+    },
+    "series_files": {
+      "fees": "SEI_fees.json"
+    },
+    "series_sha256": {
+      "fees": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/sei?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:41.585570+00:00",
+    "returned_metadata": {
+      "name": "Sei",
+      "id": "chain#sei",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "sei-network",
+      "chains": [
+        "Sei"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "INJ-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "injective"
+    },
+    "series_files": {
+      "fees": "INJ_fees.json"
+    },
+    "series_sha256": {
+      "fees": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/injective?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:43.811646+00:00",
+    "returned_metadata": {
+      "name": "Injective",
+      "id": "chain#injective",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "injective-protocol",
+      "chains": [
+        "Injective"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "STX-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "stacks"
+    },
+    "series_files": {
+      "fees": "STX_fees.json"
+    },
+    "series_sha256": {
+      "fees": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/stacks?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:46.148122+00:00",
+    "returned_metadata": {
+      "name": "Stacks",
+      "id": "chain#stacks",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "blockstack",
+      "chains": [
+        "Stacks"
+      ],
+      "protocolType": "chain"
+    }
+  },
+  {
+    "product_id": "ADA-USD",
+    "status": "held",
+    "scope": "chain",
+    "source_ids": {
+      "fees": "cardano"
+    },
+    "series_files": {
+      "fees": "ADA_fees.json"
+    },
+    "series_sha256": {
+      "fees": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    },
+    "identity_evidence": null,
+    "reviewer": null,
+    "reviewed_at": null,
+    "review_note": "Candidate only: not an approved token-to-source association.",
+    "source_urls": {
+      "fees": "https://api.llama.fi/summary/fees/cardano?dataType=dailyFees"
+    },
+    "captured_at_utc": "2026-10-26T14:29:48.066404+00:00",
+    "returned_metadata": {
+      "name": "Cardano",
+      "id": "chain#cardano",
+      "category": "Chain",
+      "parentProtocol": null,
+      "linkedProtocols": null,
+      "address": null,
+      "gecko_id": "cardano",
+      "chains": [
+        "Cardano"
+      ],
+      "protocolType": "chain"
+    }
+  }
+]

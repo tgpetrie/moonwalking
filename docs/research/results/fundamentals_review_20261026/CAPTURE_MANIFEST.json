@@ -1,0 +1,336 @@
+{
+  "files": [
+    {
+      "path": "1INCH_alternative_capture.json",
+      "bytes": 251,
+      "sha256": "1c868054997e91b2e72ca9ae5e587709024e18821804cb2928e15299e399c70a"
+    },
+    {
+      "path": "1INCH_alternative_fees.json",
+      "bytes": 48364,
+      "sha256": "41015785bac20386c4e51dd34bdc9f5b7515b2238084c3ed50e14280d77bac4c"
+    },
+    {
+      "path": "1INCH_capture.json",
+      "bytes": 203,
+      "sha256": "41acd725be1688a96ae631726d020669db6f13aac15335b223b8f38ce1a1462e"
+    },
+    {
+      "path": "AAVE_capture.json",
+      "bytes": 251,
+      "sha256": "879884073e8b4be5f4833e0baf1020a6fade40c21b3a0a250c4ee67cc0f43a20"
+    },
+    {
+      "path": "AAVE_fees.json",
+      "bytes": 728277,
+      "sha256": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9"
+    },
+    {
+      "path": "ADA_capture.json",
+      "bytes": 254,
+      "sha256": "6e1a6ca5a5360523ec48ed0147c7c008c7b9172e0a43631b93ad78ff3084dc7b"
+    },
+    {
+      "path": "ADA_fees.json",
+      "bytes": 176959,
+      "sha256": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    },
+    {
+      "path": "AERO_capture.json",
+      "bytes": 256,
+      "sha256": "206203c0171784fe2101d0ed84de3f0e0ae1f87e77d641ecbb8b07b5177f6dd0"
+    },
+    {
+      "path": "AERO_fees.json",
+      "bytes": 496791,
+      "sha256": "9b91ad0c2a4d34bf0085cec1bddc60739534708915d6a24239a1958303e85680"
+    },
+    {
+      "path": "APT_capture.json",
+      "bytes": 251,
+      "sha256": "ec4d5da58b9f3e40233fa44320d366e74a3f2a595c5dab48d2143791ff8549cb"
+    },
+    {
+      "path": "APT_fees.json",
+      "bytes": 83714,
+      "sha256": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7"
+    },
+    {
+      "path": "ARB_capture.json",
+      "bytes": 255,
+      "sha256": "5a7c6f0206bcec3e09d7e27929f44cadb16f57a753edf8dd13bdd5503056c7ce"
+    },
+    {
+      "path": "ARB_fees.json",
+      "bytes": 121872,
+      "sha256": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77"
+    },
+    {
+      "path": "AVAX_capture.json",
+      "bytes": 255,
+      "sha256": "e97f29b398a926d045a873c85613702ccc71a56114c8ee595a145269a2a63c22"
+    },
+    {
+      "path": "AVAX_fees.json",
+      "bytes": 96508,
+      "sha256": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691"
+    },
+    {
+      "path": "BAL_capture.json",
+      "bytes": 255,
+      "sha256": "4dc0bfedaa33d202ffc06f64ebd0a208028a66e076a52fd1127f57495cf8ed09"
+    },
+    {
+      "path": "BAL_fees.json",
+      "bytes": 657149,
+      "sha256": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37"
+    },
+    {
+      "path": "COMP_capture.json",
+      "bytes": 263,
+      "sha256": "8b9d35ea5d25edd8099161c67a08ade7b985bcc5fd9a33ec8acd4aa1a99017ae"
+    },
+    {
+      "path": "COMP_fees.json",
+      "bytes": 352267,
+      "sha256": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d"
+    },
+    {
+      "path": "CRV_capture.json",
+      "bytes": 260,
+      "sha256": "b38936941bd138246e82848fe71d9dcd6ae6e9dad5553506dede32e690554fad"
+    },
+    {
+      "path": "CRV_fees.json",
+      "bytes": 818849,
+      "sha256": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2"
+    },
+    {
+      "path": "CVX_capture.json",
+      "bytes": 261,
+      "sha256": "ad8767a8cf75fdeb08767671990bdc8634f694239dac1311e8fac725dcc0231f"
+    },
+    {
+      "path": "CVX_fees.json",
+      "bytes": 147275,
+      "sha256": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4"
+    },
+    {
+      "path": "DYDX_capture.json",
+      "bytes": 250,
+      "sha256": "fc31d9ab99caa93eae543ff5df0197b21165006f663274127274c8ce7ba49b9e"
+    },
+    {
+      "path": "DYDX_fees.json",
+      "bytes": 76039,
+      "sha256": "b0889ac8eb761c4b4e255492b1de651689036b8a254471e7e798794f82c70895"
+    },
+    {
+      "path": "ETH_capture.json",
+      "bytes": 255,
+      "sha256": "3fc95be5d5c1625a342816436709356c955e2e8b148af57f28ad6d1d1a2216e6"
+    },
+    {
+      "path": "ETH_fees.json",
+      "bytes": 272481,
+      "sha256": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a"
+    },
+    {
+      "path": "INJ_capture.json",
+      "bytes": 256,
+      "sha256": "990fff3c0a4f64197f14098e1ee16be4be1cee11c466f5ad78481fd7e3db8939"
+    },
+    {
+      "path": "INJ_fees.json",
+      "bytes": 126575,
+      "sha256": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa"
+    },
+    {
+      "path": "JTO_capture.json",
+      "bytes": 251,
+      "sha256": "29bed05ed6a4215fbe89455c12f8c09c734bc037a93625e814f7abcf6d20d348"
+    },
+    {
+      "path": "JTO_fees.json",
+      "bytes": 162609,
+      "sha256": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18"
+    },
+    {
+      "path": "JUP_capture.json",
+      "bytes": 254,
+      "sha256": "a6f62e460c79d3ce8b133f8fca4e0c63d8731ee40868fe01d2809521760785b9"
+    },
+    {
+      "path": "JUP_fees.json",
+      "bytes": 281767,
+      "sha256": "33044de014e150b8080ec578f4dd833e24fe339647b81f9e218ce22ab3f8513b"
+    },
+    {
+      "path": "LDO_capture.json",
+      "bytes": 251,
+      "sha256": "ca0ab17afb78da482f16ed41ac2d77d6fce38af57f44efb146f86eaa45ad9926"
+    },
+    {
+      "path": "LDO_fees.json",
+      "bytes": 131491,
+      "sha256": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6"
+    },
+    {
+      "path": "LQTY_capture.json",
+      "bytes": 254,
+      "sha256": "c1b45597db22eee88c60739591f46ed84ee088fc88ff189ff9f1172c21f9fcf1"
+    },
+    {
+      "path": "LQTY_fees.json",
+      "bytes": 146033,
+      "sha256": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb"
+    },
+    {
+      "path": "NEAR_capture.json",
+      "bytes": 251,
+      "sha256": "3adf37796cc2fa5183b5e082b9cf9dfc94c3bee698bbad72d3fc34982b7aa8c1"
+    },
+    {
+      "path": "NEAR_fees.json",
+      "bytes": 121315,
+      "sha256": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da"
+    },
+    {
+      "path": "OP_alternative_capture.json",
+      "bytes": 257,
+      "sha256": "3efc0e0f2d23e952c3cd4692c948d12b0995a0b625451b0159cdcad85bed8664"
+    },
+    {
+      "path": "OP_alternative_fees.json",
+      "bytes": 123497,
+      "sha256": "ec9f1130286d261bcc9f22146cfa0cfd52d34be971aca46a15ed143dc0de0c2c"
+    },
+    {
+      "path": "OP_capture.json",
+      "bytes": 198,
+      "sha256": "dfef9e690c30d4adaa8dd6b793b4813d56e41a844e2161c373ffe5e3dae745eb"
+    },
+    {
+      "path": "ORCA_capture.json",
+      "bytes": 250,
+      "sha256": "8f804552ffaa01caf7ae53bccf206a176ac5cd7ab6d2929be917ab85476f9cc5"
+    },
+    {
+      "path": "ORCA_fees.json",
+      "bytes": 59599,
+      "sha256": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7"
+    },
+    {
+      "path": "PENDLE_capture.json",
+      "bytes": 253,
+      "sha256": "d17c83625e44117a5173595fda190ccf6e48aea93bbeb26a1ec2a2184eb8ff64"
+    },
+    {
+      "path": "PENDLE_fees.json",
+      "bytes": 299531,
+      "sha256": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28"
+    },
+    {
+      "path": "RAY_capture.json",
+      "bytes": 254,
+      "sha256": "3edf579b0ad8ae5f47848f02228382cbd0ad0841be95cddcf207eb65bb100c48"
+    },
+    {
+      "path": "RAY_fees.json",
+      "bytes": 113079,
+      "sha256": "6fb91ff11c3a73afd7fad3b0d1756ccfb1766bcbe23974c58a2414445e2d72cc"
+    },
+    {
+      "path": "RPL_capture.json",
+      "bytes": 257,
+      "sha256": "0a47b080e6f180c041527b9289e5927d1334a1271af60a0b105cb853c07659d7"
+    },
+    {
+      "path": "RPL_fees.json",
+      "bytes": 97375,
+      "sha256": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09"
+    },
+    {
+      "path": "SEI_capture.json",
+      "bytes": 249,
+      "sha256": "2b6a3fb10945a4253d96c556a4e5c20b4be4e2ed0413668e32513348ced7b610"
+    },
+    {
+      "path": "SEI_fees.json",
+      "bytes": 42916,
+      "sha256": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8"
+    },
+    {
+      "path": "SNX_capture.json",
+      "bytes": 256,
+      "sha256": "2c875e405ee25499b15103343902b5ce189357671772d3c84887290a9f799838"
+    },
+    {
+      "path": "SNX_fees.json",
+      "bytes": 245194,
+      "sha256": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea"
+    },
+    {
+      "path": "SOL_capture.json",
+      "bytes": 253,
+      "sha256": "5ef4a527dc339e8396f1a0754b8f21b82e92ab104c3dfd75d3b3d965ac22ed56"
+    },
+    {
+      "path": "SOL_fees.json",
+      "bytes": 131870,
+      "sha256": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b"
+    },
+    {
+      "path": "STX_capture.json",
+      "bytes": 252,
+      "sha256": "d70f485cc1e5ad866eb46c9676d08221713585b8f13eb9a4084724cc1b0bd0f3"
+    },
+    {
+      "path": "STX_fees.json",
+      "bytes": 31764,
+      "sha256": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3"
+    },
+    {
+      "path": "SUI_capture.json",
+      "bytes": 249,
+      "sha256": "1241b90fd32df5de5335fa252a76bf724ee732dd695f0500042780eccd8bd0d7"
+    },
+    {
+      "path": "SUI_fees.json",
+      "bytes": 46889,
+      "sha256": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517"
+    },
+    {
+      "path": "SUSHI_capture.json",
+      "bytes": 253,
+      "sha256": "262851d245b45824bacf2008bff9dae552a2e5df4555f92155a56bc5813b45fc"
+    },
+    {
+      "path": "SUSHI_fees.json",
+      "bytes": 1498260,
+      "sha256": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057"
+    },
+    {
+      "path": "UNI_capture.json",
+      "bytes": 255,
+      "sha256": "b16daeb04cbee4693e5515c6cd9f3876fe7d19074d52ac2dfdf18a647582bd26"
+    },
+    {
+      "path": "UNI_fees.json",
+      "bytes": 1455216,
+      "sha256": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922"
+    },
+    {
+      "path": "YFI_capture.json",
+      "bytes": 260,
+      "sha256": "c0bb910850074a6be5beb0ddd210dd6b4d82f085f5e65e7cd237e46966087ffe"
+    },
+    {
+      "path": "YFI_fees.json",
+      "bytes": 297333,
+      "sha256": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72"
+    }
+  ],
+  "file_count": 66,
+  "description": "32 proposed fee URLs plus 2 separately named alternate endpoint diagnostics; first captures retained."
+}

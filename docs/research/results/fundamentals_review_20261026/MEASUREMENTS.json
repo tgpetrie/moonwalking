@@ -1,0 +1,2083 @@
+{
+  "reviewed_commit": "5cfbf26fff4698c13b08447d0237b2d46ea20bec",
+  "outcomes_used": false,
+  "provenance": "retrospective_catalog_backfill_subject_to_adapter_revisions",
+  "baseline_config_sha256": "08f10ca56e1472b8e30296e5a972d559ca107b2b255c62e79c51e6357a01776d",
+  "baseline_build_metadata_sha256": "d03358738e5e654e2877ff9c5e971af7a29d4c972086c04aef762ad247c1718e",
+  "proposed_approved_products": 32,
+  "funding_map_members": 22,
+  "products": [
+    {
+      "product_id": "AAVE-USD",
+      "proposed_fee_slug": "aave",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Aave",
+        "id": "parent#aave",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Aave",
+          "Aave V2",
+          "Aave V3",
+          "Aave V4"
+        ],
+        "address": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+        "gecko_id": "aave",
+        "chains": [
+          "Ethereum",
+          "Polygon",
+          "Avalanche",
+          "Fantom",
+          "Arbitrum",
+          "OP Mainnet",
+          "Metis",
+          "Base",
+          "Gnosis",
+          "BSC",
+          "Scroll",
+          "ZKsync Era",
+          "Linea",
+          "Celo",
+          "Sonic",
+          "Soneium",
+          "Plasma",
+          "Mantle",
+          "MegaETH",
+          "X Layer",
+          "Monad",
+          "Arc"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2153,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2020-12-04",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2099,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "UNI-USD",
+      "proposed_fee_slug": "uniswap",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Uniswap",
+        "id": "parent#uniswap",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Uniswap",
+          "Uniswap V1",
+          "Uniswap V2",
+          "Uniswap V3",
+          "Uniswap V4"
+        ],
+        "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+        "gecko_id": "uniswap",
+        "chains": [
+          "Ethereum",
+          "Arbitrum",
+          "OP Mainnet",
+          "Polygon",
+          "Celo",
+          "BSC",
+          "ZKsync Era",
+          "Sei",
+          "Taiko",
+          "Scroll",
+          "Rootstock",
+          "Filecoin",
+          "Boba",
+          "Moonbeam",
+          "Manta",
+          "Mantle",
+          "Linea",
+          "Avalanche",
+          "Base",
+          "Zora",
+          "Blast",
+          "Polygon zkEVM",
+          "Gnosis",
+          "BOB",
+          "Lisk",
+          "Corn",
+          "Unichain",
+          "World Chain",
+          "Ink",
+          "Soneium",
+          "Hemi",
+          "Saga",
+          "LightLink",
+          "GOAT",
+          "XDC",
+          "Lens",
+          "Telos",
+          "Nibiru",
+          "Plasma",
+          "Monad",
+          "Etherlink",
+          "Sonic",
+          "X Layer",
+          "Tempo",
+          "Robinhood Chain",
+          "0G",
+          "MegaETH",
+          "Arc",
+          "Redbelly"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2914,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2018-11-03",
+        "last": "2026-10-26",
+        "missing_inside_span": 1
+      },
+      "feature_profile": {
+        "dates_defined": 2860,
+        "too_few_present_days": 55,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "LDO-USD",
+      "proposed_fee_slug": "lido",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1342,
+      "baseline_first": "2023-02-15",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Lido",
+        "id": "182",
+        "category": "Liquid Staking",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": "0x5a98fcbea516cf06857215779fd812ca3bef1b32",
+        "gecko_id": "lido-dao",
+        "chains": [
+          "Ethereum"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2005,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 2,
+        "first": "2021-04-30",
+        "last": "2026-10-25",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1951,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1342
+    },
+    {
+      "product_id": "CRV-USD",
+      "proposed_fee_slug": "curve-finance",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Curve Finance",
+        "id": "parent#curve-finance",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Curve Finance",
+          "Curve DEX",
+          "crvUSD",
+          "Curve LlamaLend",
+          "Curve LlamaLend V2"
+        ],
+        "address": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+        "gecko_id": "curve-dao-token",
+        "chains": [
+          "Ethereum",
+          "Polygon",
+          "OP Mainnet",
+          "Gnosis",
+          "Fantom",
+          "Arbitrum",
+          "Avalanche",
+          "Base",
+          "Celo",
+          "Mantle",
+          "BSC",
+          "Fraxtal",
+          "Sonic",
+          "Ink",
+          "Hyperliquid L1",
+          "Plasma",
+          "Unichain",
+          "Monad",
+          "Stable",
+          "Robinhood Chain",
+          "Etherlink"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2186,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2020-11-01",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2132,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "COMP-USD",
+      "proposed_fee_slug": "compound-finance",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Compound Finance",
+        "id": "parent#compound-finance",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Compound Finance",
+          "Compound V2",
+          "Compound V3"
+        ],
+        "address": "0xc00e94cb662c3520282e6f5717214004a7f26888",
+        "gecko_id": "compound-governance-token",
+        "chains": [
+          "Ethereum",
+          "Polygon",
+          "Scroll",
+          "Mantle",
+          "OP Mainnet",
+          "Base",
+          "Arbitrum",
+          "Linea",
+          "Unichain"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2729,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2019-05-08",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2675,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "SNX-USD",
+      "proposed_fee_slug": "synthetix",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Synthetix",
+        "id": "parent#synthetix",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Synthetix",
+          "Synthetix v1+v2",
+          "Synthetix V3",
+          "Synthetix V4"
+        ],
+        "address": "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+        "gecko_id": "havven",
+        "chains": [
+          "OP Mainnet",
+          "Ethereum",
+          "Base",
+          "Arbitrum"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1810,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 201,
+        "first": "2021-11-12",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1553,
+        "too_few_present_days": 54,
+        "non_positive_mean": 193,
+        "pinned_window": 10
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1459
+    },
+    {
+      "product_id": "DYDX-USD",
+      "proposed_fee_slug": "dydx",
+      "in_approved_funding_map": false,
+      "baseline_rows": 0,
+      "baseline_first": null,
+      "baseline_last": null,
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "dYdX",
+        "id": "parent#dydx",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "dYdX",
+          "dYdX V3",
+          "dYdX V4"
+        ],
+        "address": "0x92d6c1e31e14520e676a687f0a93788b716beff5",
+        "gecko_id": "dydx-chain",
+        "chains": [
+          "Ethereum",
+          "DYdX"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1068,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2023-11-14",
+        "last": "2026-10-25",
+        "missing_inside_span": 9
+      },
+      "feature_profile": {
+        "dates_defined": 1023,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 0
+    },
+    {
+      "product_id": "PENDLE-USD",
+      "proposed_fee_slug": "pendle",
+      "in_approved_funding_map": true,
+      "baseline_rows": 481,
+      "baseline_first": "2025-06-25",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Pendle",
+        "id": "parent#pendle",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Pendle",
+          "Pendle V2",
+          "Boros"
+        ],
+        "address": "0x808507121b80c02388fad14726482e061b8da827",
+        "gecko_id": "pendle",
+        "chains": [
+          "Arbitrum",
+          "Ethereum",
+          "BSC",
+          "OP Mainnet",
+          "Mantle",
+          "Base",
+          "Berachain",
+          "Sonic",
+          "Hyperliquid L1",
+          "Plasma",
+          "Monad",
+          "X Layer",
+          "Robinhood Chain"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1207,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2023-07-07",
+        "last": "2026-10-26",
+        "missing_inside_span": 1
+      },
+      "feature_profile": {
+        "dates_defined": 1154,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 481
+    },
+    {
+      "product_id": "RPL-USD",
+      "proposed_fee_slug": "rocket-pool",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1321,
+      "baseline_first": "2023-03-08",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Rocket Pool",
+        "id": "900",
+        "category": "Liquid Staking",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": "0xd33526068d116ce69f19a9ee46f0bd304f21a51f",
+        "gecko_id": "rocket-pool",
+        "chains": [
+          "Ethereum"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1395,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 1,
+        "first": "2023-01-01",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1341,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1321
+    },
+    {
+      "product_id": "BAL-USD",
+      "proposed_fee_slug": "balancer",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Balancer",
+        "id": "parent#balancer",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Balancer",
+          "Balancer V1",
+          "Balancer V2",
+          "Balancer V3"
+        ],
+        "address": "0xba100000625a3754423978a60c9317c58a424e3d",
+        "gecko_id": "balancer",
+        "chains": [
+          "Ethereum",
+          "Polygon",
+          "Arbitrum",
+          "OP Mainnet",
+          "Gnosis",
+          "Avalanche",
+          "Base",
+          "Polygon zkEVM",
+          "Fraxtal",
+          "Mode",
+          "Hyperliquid L1",
+          "Plasma",
+          "Monad"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2409,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2020-03-23",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2355,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "SUSHI-USD",
+      "proposed_fee_slug": "sushi",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Sushi",
+        "id": "parent#sushi",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Sushi",
+          "SushiSwap",
+          "Sushi Trident",
+          "SushiSwap V3",
+          "SushiSwap Agg",
+          "Sushi Perps",
+          "Sushi Launchpad",
+          "Sushi Spot"
+        ],
+        "address": "0x6b3595068778dd592e39a122f4f5a5cf09c90fe2",
+        "gecko_id": "sushi",
+        "chains": [
+          "Ethereum",
+          "Fantom",
+          "BSC",
+          "Polygon",
+          "Gnosis",
+          "Arbitrum",
+          "Avalanche",
+          "Moonriver",
+          "Celo",
+          "Fuse",
+          "Metis",
+          "OP Mainnet",
+          "Bittorrent",
+          "Kava",
+          "Polygon zkEVM",
+          "Arbitrum Nova",
+          "ThunderCore",
+          "Boba",
+          "Linea",
+          "Base",
+          "CORE",
+          "Blast",
+          "Scroll",
+          "Sonic",
+          "Hemi",
+          "Rootstock",
+          "Katana",
+          "Mantle",
+          "Moonbeam",
+          "ZKsync Era",
+          "Hyperliquid L1",
+          "Robinhood Chain",
+          "Arc"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2239,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2020-09-09",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2185,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "1INCH-USD",
+      "proposed_fee_slug": "1inch-network",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 400
+    },
+    {
+      "product_id": "YFI-USD",
+      "proposed_fee_slug": "yearn-finance",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Yearn Finance",
+        "id": "113",
+        "category": "Yield Aggregator",
+        "parentProtocol": "parent#yearn",
+        "linkedProtocols": [
+          "Yearn",
+          "Yearn Finance",
+          "Yearn Ether",
+          "Yearn Curating"
+        ],
+        "address": "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+        "gecko_id": null,
+        "chains": [
+          "Ethereum",
+          "Base",
+          "Polygon",
+          "OP Mainnet",
+          "Arbitrum",
+          "Katana"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2259,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 26,
+        "first": "2020-07-28",
+        "last": "2026-10-26",
+        "missing_inside_span": 23
+      },
+      "feature_profile": {
+        "dates_defined": 2227,
+        "too_few_present_days": 55,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "CVX-USD",
+      "proposed_fee_slug": "convex-finance",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1412,
+      "baseline_first": "2022-12-07",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Convex Finance",
+        "id": "319",
+        "category": "Yield",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": "0x4e3fbd56cd56c3e72c1403e103b45db9da5b9d2b",
+        "gecko_id": "convex-finance",
+        "chains": [
+          "Ethereum"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1988,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 1,
+        "first": "2021-05-18",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1934,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1412
+    },
+    {
+      "product_id": "LQTY-USD",
+      "proposed_fee_slug": "liquity",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1650,
+      "baseline_first": "2022-04-13",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Liquity",
+        "id": "parent#liquity",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Liquity",
+          "Liquity V1",
+          "Liquity V2"
+        ],
+        "address": "0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D",
+        "gecko_id": "liquity",
+        "chains": [
+          "Ethereum"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 2030,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 9,
+        "first": "2021-04-05",
+        "last": "2026-10-26",
+        "missing_inside_span": 1
+      },
+      "feature_profile": {
+        "dates_defined": 1977,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1650
+    },
+    {
+      "product_id": "JTO-USD",
+      "proposed_fee_slug": "jito",
+      "in_approved_funding_map": true,
+      "baseline_rows": 957,
+      "baseline_first": "2024-03-06",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Jito",
+        "id": "parent#jito",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Jito",
+          "Jito Liquid Staking",
+          "Jito MEV Tips",
+          "Jito DAO"
+        ],
+        "address": "solana:jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+        "gecko_id": "jito-governance-token",
+        "chains": [
+          "Solana"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1436,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 8,
+        "first": "2022-11-21",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1382,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 957
+    },
+    {
+      "product_id": "JUP-USD",
+      "proposed_fee_slug": "jupiter",
+      "in_approved_funding_map": false,
+      "baseline_rows": 351,
+      "baseline_first": "2022-09-21",
+      "baseline_last": "2023-09-06",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Jupiter",
+        "id": "parent#jupiter",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Jupiter",
+          "Jupiter Aggregator",
+          "Jupiter Perpetual Exchange",
+          "Ape Jupiter",
+          "Jupiter Staked SOL",
+          "Jupiter DCA",
+          "Jupiter Studio",
+          "Jupiter Lend",
+          "Jupiter Prediction",
+          "Jupiter Limit",
+          "Jupiter Offerbook",
+          "Jupiter Lend DEX",
+          "Jupiter YOLO"
+        ],
+        "address": "solana:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+        "gecko_id": "jupiter-exchange-solana",
+        "chains": [
+          "Solana"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1411,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 94,
+        "first": "2022-12-16",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1274,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 83
+      },
+      "fee_feature_baseline_rows_before_identity_review": 163
+    },
+    {
+      "product_id": "RAY-USD",
+      "proposed_fee_slug": "raydium",
+      "in_approved_funding_map": false,
+      "baseline_rows": 188,
+      "baseline_first": "2026-04-14",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Raydium",
+        "id": "parent#raydium",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Raydium",
+          "Raydium AMM",
+          "LaunchLab"
+        ],
+        "address": "solana:4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+        "gecko_id": "raydium",
+        "chains": [
+          "Solana"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1471,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2022-10-17",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1417,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 188
+    },
+    {
+      "product_id": "ORCA-USD",
+      "proposed_fee_slug": "orca",
+      "in_approved_funding_map": false,
+      "baseline_rows": 1631,
+      "baseline_first": "2022-05-02",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Orca",
+        "id": "parent#orca",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Orca",
+          "Orca DEX"
+        ],
+        "address": "solana:orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+        "gecko_id": "orca",
+        "chains": [
+          "Solana",
+          "Eclipse"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 712,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2024-11-12",
+        "last": "2026-10-26",
+        "missing_inside_span": 2
+      },
+      "feature_profile": {
+        "dates_defined": 660,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 650
+    },
+    {
+      "product_id": "AERO-USD",
+      "proposed_fee_slug": "aerodrome",
+      "in_approved_funding_map": true,
+      "baseline_rows": 896,
+      "baseline_first": "2024-05-06",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Aero",
+        "id": "parent#aero-protocol",
+        "category": null,
+        "parentProtocol": null,
+        "linkedProtocols": [
+          "Aero",
+          "Velodrome V1",
+          "Velodrome V2",
+          "Aerodrome V1",
+          "Velodrome V3",
+          "Aerodrome Slipstream",
+          "Aero Slipstream",
+          "Aero Basic"
+        ],
+        "address": null,
+        "gecko_id": null,
+        "chains": [
+          "OP Mainnet",
+          "Base",
+          "Lisk",
+          "Mode",
+          "Fraxtal",
+          "BOB",
+          "Unichain",
+          "Soneium",
+          "Ink",
+          "Swellchain",
+          "Celo",
+          "Arc",
+          "Arbitrum",
+          "Ethereum",
+          "Robinhood Chain"
+        ],
+        "protocolType": "protocol"
+      },
+      "fee_profile": {
+        "returned_dates": 1609,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2022-06-01",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1555,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 896
+    },
+    {
+      "product_id": "ETH-USD",
+      "proposed_fee_slug": "ethereum",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Ethereum",
+        "id": "chain#ethereum",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "ethereum",
+        "chains": [
+          "Ethereum"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 4099,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2015-08-07",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 4045,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "SOL-USD",
+      "proposed_fee_slug": "solana",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Solana",
+        "id": "chain#solana",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "solana",
+        "chains": [
+          "Solana"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 2108,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2021-01-17",
+        "last": "2026-10-25",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2054,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    },
+    {
+      "product_id": "AVAX-USD",
+      "proposed_fee_slug": "avalanche",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Avalanche",
+        "id": "chain#avalanche",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "avalanche-2",
+        "chains": [
+          "Avalanche"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 1449,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2022-11-08",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1395,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1385
+    },
+    {
+      "product_id": "NEAR-USD",
+      "proposed_fee_slug": "near",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1419,
+      "baseline_first": "2022-11-30",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Near",
+        "id": "chain#near",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "near",
+        "chains": [
+          "Near"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 2203,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2020-10-14",
+        "last": "2026-10-25",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 2149,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1419
+    },
+    {
+      "product_id": "ARB-USD",
+      "proposed_fee_slug": "arbitrum",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1216,
+      "baseline_first": "2023-06-21",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Arbitrum",
+        "id": "chain#arbitrum",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "arbitrum",
+        "chains": [
+          "Arbitrum"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 1868,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2021-08-10",
+        "last": "2026-10-25",
+        "missing_inside_span": 35
+      },
+      "feature_profile": {
+        "dates_defined": 1763,
+        "too_few_present_days": 140,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1130
+    },
+    {
+      "product_id": "OP-USD",
+      "proposed_fee_slug": "optimism",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1511,
+      "baseline_first": "2022-08-30",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 400
+    },
+    {
+      "product_id": "APT-USD",
+      "proposed_fee_slug": "aptos",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1371,
+      "baseline_first": "2023-01-17",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Aptos",
+        "id": "chain#aptos",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "aptos",
+        "chains": [
+          "Aptos"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 1470,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 2,
+        "first": "2022-10-18",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 1416,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1371
+    },
+    {
+      "product_id": "SUI-USD",
+      "proposed_fee_slug": "sui",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1160,
+      "baseline_first": "2023-08-16",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Sui",
+        "id": "chain#sui",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "sui",
+        "chains": [
+          "Sui"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 846,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 2,
+        "first": "2024-07-01",
+        "last": "2026-10-26",
+        "missing_inside_span": 2
+      },
+      "feature_profile": {
+        "dates_defined": 794,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 784
+    },
+    {
+      "product_id": "SEI-USD",
+      "proposed_fee_slug": "sei",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1071,
+      "baseline_first": "2023-11-13",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": false,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Sei",
+        "id": "chain#sei",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "sei-network",
+        "chains": [
+          "Sei"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 838,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 24,
+        "first": "2024-07-10",
+        "last": "2026-10-25",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 784,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 775
+    },
+    {
+      "product_id": "INJ-USD",
+      "proposed_fee_slug": "injective",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1400,
+      "baseline_first": "2022-12-19",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Injective",
+        "id": "chain#injective",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "injective-protocol",
+        "chains": [
+          "Injective"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 1916,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 10,
+        "first": "2021-07-17",
+        "last": "2026-10-24",
+        "missing_inside_span": 10
+      },
+      "feature_profile": {
+        "dates_defined": 1849,
+        "too_few_present_days": 77,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1400
+    },
+    {
+      "product_id": "STX-USD",
+      "proposed_fee_slug": "stacks",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1643,
+      "baseline_first": "2022-04-20",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Stacks",
+        "id": "chain#stacks",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "blockstack",
+        "chains": [
+          "Stacks"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 534,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2025-05-11",
+        "last": "2026-10-26",
+        "missing_inside_span": 0
+      },
+      "feature_profile": {
+        "dates_defined": 480,
+        "too_few_present_days": 54,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 470
+    },
+    {
+      "product_id": "ADA-USD",
+      "proposed_fee_slug": "cardano",
+      "in_approved_funding_map": true,
+      "baseline_rows": 1662,
+      "baseline_first": "2022-04-01",
+      "baseline_last": "2026-10-18",
+      "baseline_eligible_2023_01_01": true,
+      "http_status": 200,
+      "returned_metadata": {
+        "name": "Cardano",
+        "id": "chain#cardano",
+        "category": "Chain",
+        "parentProtocol": null,
+        "linkedProtocols": null,
+        "address": null,
+        "gecko_id": "cardano",
+        "chains": [
+          "Cardano"
+        ],
+        "protocolType": "chain"
+      },
+      "fee_profile": {
+        "returned_dates": 2944,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2018-09-23",
+        "last": "2026-10-26",
+        "missing_inside_span": 12
+      },
+      "feature_profile": {
+        "dates_defined": 2884,
+        "too_few_present_days": 72,
+        "non_positive_mean": 0,
+        "pinned_window": 0
+      },
+      "fee_feature_baseline_rows_before_identity_review": 1662
+    }
+  ],
+  "coinbase_identity_records": [
+    {
+      "id": "JUP",
+      "name": "Jupiter",
+      "min_size": "0.00000001",
+      "status": "delisted",
+      "message": "",
+      "max_precision": "0.00000001",
+      "convertible_to": [],
+      "details": {
+        "type": "crypto",
+        "symbol": null,
+        "network_confirmations": 14,
+        "sort_order": 0,
+        "crypto_address_link": "https://etherscan.io/token/0x4B1E80cAC91e2216EEb63e29B957eB91Ae9C2Be8?a={{address}}",
+        "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+        "push_payment_methods": [],
+        "group_types": [],
+        "display_name": null,
+        "processing_time_seconds": null,
+        "min_withdrawal_amount": 1e-08,
+        "max_withdrawal_amount": 56330000
+      },
+      "default_network": "ethereum",
+      "supported_networks": [
+        {
+          "id": "ethereum",
+          "name": "Ethereum",
+          "status": "delisted",
+          "contract_address": "0x4B1E80cAC91e2216EEb63e29B957eB91Ae9C2Be8",
+          "crypto_address_link": "https://etherscan.io/token/0x4B1E80cAC91e2216EEb63e29B957eB91Ae9C2Be8?a={{address}}",
+          "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+          "min_withdrawal_amount": 1e-08,
+          "max_withdrawal_amount": 56330000,
+          "network_confirmations": 14,
+          "processing_time_seconds": null,
+          "destination_tag_regex": null,
+          "is_evm_network": true
+        }
+      ],
+      "display_name": "JUP"
+    },
+    {
+      "id": "JUPITER",
+      "name": "Jupiter",
+      "min_size": "0.00000001",
+      "status": "online",
+      "message": "",
+      "max_precision": "0.000001",
+      "convertible_to": [],
+      "details": {
+        "type": "crypto",
+        "symbol": null,
+        "network_confirmations": 31,
+        "sort_order": 500,
+        "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+        "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+        "push_payment_methods": [
+          "crypto"
+        ],
+        "group_types": [],
+        "display_name": null,
+        "processing_time_seconds": null,
+        "min_withdrawal_amount": 1e-06,
+        "max_withdrawal_amount": 1610000
+      },
+      "default_network": "solana",
+      "supported_networks": [
+        {
+          "id": "solana",
+          "name": "Solana",
+          "status": "online",
+          "contract_address": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+          "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+          "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+          "min_withdrawal_amount": 1e-06,
+          "max_withdrawal_amount": 1610000,
+          "network_confirmations": 31,
+          "processing_time_seconds": null,
+          "destination_tag_regex": null,
+          "is_evm_network": false
+        }
+      ],
+      "display_name": "JUPITER"
+    },
+    {
+      "id": "PENDLE",
+      "name": "Pendle",
+      "min_size": "0.00000001",
+      "status": "online",
+      "message": "",
+      "max_precision": "0.00000001",
+      "convertible_to": [],
+      "details": {
+        "type": "crypto",
+        "symbol": null,
+        "network_confirmations": 14,
+        "sort_order": 500,
+        "crypto_address_link": "https://etherscan.io/token/0x808507121b80c02388fad14726482e061b8da827?a={{address}}",
+        "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+        "push_payment_methods": [
+          "crypto"
+        ],
+        "group_types": [],
+        "display_name": null,
+        "processing_time_seconds": null,
+        "min_withdrawal_amount": 1e-08,
+        "max_withdrawal_amount": 160000
+      },
+      "default_network": "ethereum",
+      "supported_networks": [
+        {
+          "id": "ethereum",
+          "name": "Ethereum",
+          "status": "online",
+          "contract_address": "0x808507121b80c02388fad14726482e061b8da827",
+          "crypto_address_link": "https://etherscan.io/token/0x808507121b80c02388fad14726482e061b8da827?a={{address}}",
+          "crypto_transaction_link": "https://etherscan.io/tx/0x{{txId}}",
+          "min_withdrawal_amount": 1e-08,
+          "max_withdrawal_amount": 160000,
+          "network_confirmations": 14,
+          "processing_time_seconds": null,
+          "destination_tag_regex": null,
+          "is_evm_network": true
+        }
+      ],
+      "display_name": "PENDLE"
+    },
+    {
+      "id": "RAY",
+      "name": "Raydium",
+      "min_size": "0.00000001",
+      "status": "online",
+      "message": "",
+      "max_precision": "0.000001",
+      "convertible_to": [],
+      "details": {
+        "type": "crypto",
+        "symbol": null,
+        "network_confirmations": 31,
+        "sort_order": 0,
+        "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+        "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+        "push_payment_methods": [],
+        "group_types": [],
+        "display_name": null,
+        "processing_time_seconds": null,
+        "min_withdrawal_amount": 1e-06,
+        "max_withdrawal_amount": 330000
+      },
+      "default_network": "solana",
+      "supported_networks": [
+        {
+          "id": "solana",
+          "name": "Solana",
+          "status": "online",
+          "contract_address": "4k3dyjzvzp8emzwuxbbcjevwskkk59s5icnly3qrkx6r",
+          "crypto_address_link": "https://explorer.solana.com/address/{{address}}",
+          "crypto_transaction_link": "https://explorer.solana.com/tx/{{txId}}",
+          "min_withdrawal_amount": 1e-06,
+          "max_withdrawal_amount": 330000,
+          "network_confirmations": 31,
+          "processing_time_seconds": null,
+          "destination_tag_regex": null,
+          "is_evm_network": false
+        }
+      ],
+      "display_name": "RAY"
+    }
+  ],
+  "coinbase_identity_capture_sha256": "c05b72b3f8e7f234b154bec81a37bf9a2bcbdd2793e6cc0ecd9f1aa7ef5a8bd8",
+  "price_only": {
+    "discovery": {
+      "days": 723,
+      "min": 21,
+      "max": 28,
+      "median": 26.0,
+      "days_with_20": 723
+    },
+    "test": {
+      "days": 648,
+      "min": 28,
+      "max": 30,
+      "median": 29.0,
+      "days_with_20": 648
+    }
+  },
+  "fee_intersection_unreviewed": {
+    "discovery": {
+      "days": 723,
+      "min": 15,
+      "max": 24,
+      "median": 20.0,
+      "days_with_20": 657
+    },
+    "test": {
+      "days": 648,
+      "min": 23,
+      "max": 28,
+      "median": 27.0,
+      "days_with_20": 648
+    }
+  },
+  "captures": [
+    {
+      "symbol": "AAVE",
+      "url": "https://api.llama.fi/summary/fees/aave?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:39.743874+00:00",
+      "http_status": 200,
+      "bytes": 728277,
+      "sha256": "a729a5544d8d4fbcc8dd5a3ebf7dd217f4ddd0505055af1eafd7f59130020fa9"
+    },
+    {
+      "symbol": "UNI",
+      "url": "https://api.llama.fi/summary/fees/uniswap?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:41.198791+00:00",
+      "http_status": 200,
+      "bytes": 1455216,
+      "sha256": "c6bc9134c0bc01075011bbbf8f8e87961e71c9ea317a781bab527e7afd96d922"
+    },
+    {
+      "symbol": "LDO",
+      "url": "https://api.llama.fi/summary/fees/lido?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:42.945081+00:00",
+      "http_status": 200,
+      "bytes": 131491,
+      "sha256": "ec65dbd5f5be999d6c4c248495c1453555f91957627b468c94c774f231d095c6"
+    },
+    {
+      "symbol": "CRV",
+      "url": "https://api.llama.fi/summary/fees/curve-finance?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:46.831353+00:00",
+      "http_status": 200,
+      "bytes": 818849,
+      "sha256": "c3a712c293c80e2d63600310bf17cd7826deb4bae74fbde2c105980cb2b3fff2"
+    },
+    {
+      "symbol": "COMP",
+      "url": "https://api.llama.fi/summary/fees/compound-finance?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:49.463943+00:00",
+      "http_status": 200,
+      "bytes": 352267,
+      "sha256": "602d53ea1fd3bd0dd8817ebbe0f179dd76f5b48545f2b84e30d163e81b5d490d"
+    },
+    {
+      "symbol": "SNX",
+      "url": "https://api.llama.fi/summary/fees/synthetix?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:52.042956+00:00",
+      "http_status": 200,
+      "bytes": 245194,
+      "sha256": "fe457f9ea7f6f577097ed1813c0a7091936e46f198b0b2364dc59e7d1e40ccea"
+    },
+    {
+      "symbol": "DYDX",
+      "url": "https://api.llama.fi/summary/fees/dydx?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:54.322610+00:00",
+      "http_status": 200,
+      "bytes": 76039,
+      "sha256": "b0889ac8eb761c4b4e255492b1de651689036b8a254471e7e798794f82c70895"
+    },
+    {
+      "symbol": "PENDLE",
+      "url": "https://api.llama.fi/summary/fees/pendle?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:56.563062+00:00",
+      "http_status": 200,
+      "bytes": 299531,
+      "sha256": "241726e85a0b468f97c7052bc760960f4aa2e7ec5b2599d19daede025ec5bc28"
+    },
+    {
+      "symbol": "RPL",
+      "url": "https://api.llama.fi/summary/fees/rocket-pool?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:28:59.037039+00:00",
+      "http_status": 200,
+      "bytes": 97375,
+      "sha256": "96cc0ec71aab7c64cb0f8ff3311544b59fc9d9dad8ed83bc88059e1bdaf5ad09"
+    },
+    {
+      "symbol": "BAL",
+      "url": "https://api.llama.fi/summary/fees/balancer?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:01.238462+00:00",
+      "http_status": 200,
+      "bytes": 657149,
+      "sha256": "b3efbd121b660a27a05b1d546e9f375e4fc01ab77c948f9619665959e3310d37"
+    },
+    {
+      "symbol": "SUSHI",
+      "url": "https://api.llama.fi/summary/fees/sushi?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:03.251858+00:00",
+      "http_status": 200,
+      "bytes": 1498260,
+      "sha256": "c9439f1df1ba518b6599c98ca9b54351f1804ff99eb42f95ee80d693b3b33057"
+    },
+    {
+      "symbol": "1INCH",
+      "url": "https://api.llama.fi/summary/fees/1inch-network?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:06.056179+00:00",
+      "http_status": 400,
+      "error": "HTTP Error 400: Bad Request"
+    },
+    {
+      "symbol": "YFI",
+      "url": "https://api.llama.fi/summary/fees/yearn-finance?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:08.075655+00:00",
+      "http_status": 200,
+      "bytes": 297333,
+      "sha256": "265c0c7e5ee221b96fa103889f12ad765ffe309d0c42f1123970266f80048e72"
+    },
+    {
+      "symbol": "CVX",
+      "url": "https://api.llama.fi/summary/fees/convex-finance?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:10.539623+00:00",
+      "http_status": 200,
+      "bytes": 147275,
+      "sha256": "113f61518b62fdd36c210b620541d4405f124017a5e4660b6a1864eba3d3ede4"
+    },
+    {
+      "symbol": "LQTY",
+      "url": "https://api.llama.fi/summary/fees/liquity?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:12.931566+00:00",
+      "http_status": 200,
+      "bytes": 146033,
+      "sha256": "bb5e5a433fd43e72da7d7cf4db74a7048606f3150e09a11d298e6f6614bd98bb"
+    },
+    {
+      "symbol": "JTO",
+      "url": "https://api.llama.fi/summary/fees/jito?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:15.311103+00:00",
+      "http_status": 200,
+      "bytes": 162609,
+      "sha256": "e77479a91d259a5bdb872180193f3eda03e798835823bde6110fefc43fbf2a18"
+    },
+    {
+      "symbol": "JUP",
+      "url": "https://api.llama.fi/summary/fees/jupiter?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:17.676987+00:00",
+      "http_status": 200,
+      "bytes": 281767,
+      "sha256": "33044de014e150b8080ec578f4dd833e24fe339647b81f9e218ce22ab3f8513b"
+    },
+    {
+      "symbol": "RAY",
+      "url": "https://api.llama.fi/summary/fees/raydium?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:19.472364+00:00",
+      "http_status": 200,
+      "bytes": 113079,
+      "sha256": "6fb91ff11c3a73afd7fad3b0d1756ccfb1766bcbe23974c58a2414445e2d72cc"
+    },
+    {
+      "symbol": "ORCA",
+      "url": "https://api.llama.fi/summary/fees/orca?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:21.731034+00:00",
+      "http_status": 200,
+      "bytes": 59599,
+      "sha256": "9931d46264076924aa952b284ec4714a0cb12e3f1cf19b74738597a204e0f0e7"
+    },
+    {
+      "symbol": "AERO",
+      "url": "https://api.llama.fi/summary/fees/aerodrome?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:23.913102+00:00",
+      "http_status": 200,
+      "bytes": 496791,
+      "sha256": "9b91ad0c2a4d34bf0085cec1bddc60739534708915d6a24239a1958303e85680"
+    },
+    {
+      "symbol": "ETH",
+      "url": "https://api.llama.fi/summary/fees/ethereum?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:26.510450+00:00",
+      "http_status": 200,
+      "bytes": 272481,
+      "sha256": "dc61f6d329ffb141945294cabcce9902546329c9b3eeeba1cbe78c075c19ff5a"
+    },
+    {
+      "symbol": "SOL",
+      "url": "https://api.llama.fi/summary/fees/solana?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:27.854274+00:00",
+      "http_status": 200,
+      "bytes": 131870,
+      "sha256": "654e5bea137695e6470f940ba0e869c4545bce6b89e23f9daed8dcf9fa3f1a5b"
+    },
+    {
+      "symbol": "AVAX",
+      "url": "https://api.llama.fi/summary/fees/avalanche?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:29.137508+00:00",
+      "http_status": 200,
+      "bytes": 96508,
+      "sha256": "3605f424db57e109039affbed4edd5a485e389bcd7b6db89c996c68622267691"
+    },
+    {
+      "symbol": "NEAR",
+      "url": "https://api.llama.fi/summary/fees/near?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:31.275854+00:00",
+      "http_status": 200,
+      "bytes": 121315,
+      "sha256": "2805744e4d4d057d73241eb394f165fa425203760ee8195cd8855ee2ba5581da"
+    },
+    {
+      "symbol": "ARB",
+      "url": "https://api.llama.fi/summary/fees/arbitrum?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:33.439177+00:00",
+      "http_status": 200,
+      "bytes": 121872,
+      "sha256": "b230bca9a33a75b5f2ceb4d08ce60608841f992dc7ec7e0f4da09954bbad1e77"
+    },
+    {
+      "symbol": "OP",
+      "url": "https://api.llama.fi/summary/fees/optimism?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:35.208581+00:00",
+      "http_status": 400,
+      "error": "HTTP Error 400: Bad Request"
+    },
+    {
+      "symbol": "APT",
+      "url": "https://api.llama.fi/summary/fees/aptos?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:37.280834+00:00",
+      "http_status": 200,
+      "bytes": 83714,
+      "sha256": "0bd64aff206a946601f10c629111ab65c9a017ab6dce76916d7b73a246cb68a7"
+    },
+    {
+      "symbol": "SUI",
+      "url": "https://api.llama.fi/summary/fees/sui?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:39.423719+00:00",
+      "http_status": 200,
+      "bytes": 46889,
+      "sha256": "4bce9a43887dd1ad529024bbd3bca16617530d3d887b82d453b4da1907de6517"
+    },
+    {
+      "symbol": "SEI",
+      "url": "https://api.llama.fi/summary/fees/sei?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:41.585570+00:00",
+      "http_status": 200,
+      "bytes": 42916,
+      "sha256": "64651eb25743b80a3f920d985bc5cf87f0269920c0dd8c34827cd04de9c9e1a8"
+    },
+    {
+      "symbol": "INJ",
+      "url": "https://api.llama.fi/summary/fees/injective?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:43.811646+00:00",
+      "http_status": 200,
+      "bytes": 126575,
+      "sha256": "dbffe7a2f6eb1eeba569099cdd5d4c8a11a7533ec69f7cf534426c2eeac1afaa"
+    },
+    {
+      "symbol": "STX",
+      "url": "https://api.llama.fi/summary/fees/stacks?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:46.148122+00:00",
+      "http_status": 200,
+      "bytes": 31764,
+      "sha256": "7230d91aedff83d100b682a9f68e0d73b896c2d478c9867a36fb720364026cc3"
+    },
+    {
+      "symbol": "ADA",
+      "url": "https://api.llama.fi/summary/fees/cardano?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:29:48.066404+00:00",
+      "http_status": 200,
+      "bytes": 176959,
+      "sha256": "830e1330197eece88daa9d81cb04bb2cc23a0b852e6aac2822f4b08d22c2dbea"
+    }
+  ],
+  "separate_alternative_endpoint_diagnostics": [
+    {
+      "name": "1INCH_alternative",
+      "not_used_in_32_candidate_counts": true,
+      "url": "https://api.llama.fi/summary/fees/1inch?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:38:14.963968+00:00",
+      "http_status": 200,
+      "bytes": 48364,
+      "sha256": "41015785bac20386c4e51dd34bdc9f5b7515b2238084c3ed50e14280d77bac4c",
+      "returned_metadata": {
+        "id": "parent#1inch",
+        "name": "1inch",
+        "category": null,
+        "address": "0x111111111117dc0aa78b770fa6a738034120c302",
+        "gecko_id": "1inch",
+        "linkedProtocols": [
+          "1inch",
+          "1inch Aqua"
+        ]
+      },
+      "fee_profile": {
+        "returned_dates": 98,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2026-07-20",
+        "last": "2026-10-26",
+        "missing_inside_span": 1
+      }
+    },
+    {
+      "name": "OP_alternative",
+      "not_used_in_32_candidate_counts": true,
+      "url": "https://api.llama.fi/summary/fees/op-mainnet?dataType=dailyFees",
+      "captured_at_utc": "2026-10-26T14:38:17.030393+00:00",
+      "http_status": 200,
+      "bytes": 123497,
+      "sha256": "ec9f1130286d261bcc9f22146cfa0cfd52d34be971aca46a15ed143dc0de0c2c",
+      "returned_metadata": {
+        "id": "chain#optimism",
+        "name": "OP Mainnet",
+        "category": "Chain",
+        "address": null,
+        "gecko_id": "optimism",
+        "linkedProtocols": null
+      },
+      "fee_profile": {
+        "returned_dates": 1803,
+        "duplicate_dates": 0,
+        "non_numeric": 0,
+        "zeros": 0,
+        "first": "2021-11-18",
+        "last": "2026-10-25",
+        "missing_inside_span": 0
+      }
+    }
+  ],
+  "gate_bypasses": {
+    "duplicate_product": {
+      "actual_unique_products": 1,
+      "cohort_entries": 20,
+      "reported_max_coins": 20,
+      "gate": {
+        "G1": {
+          "share_of_test_days_with_20": 1.0,
+          "required": 0.9,
+          "pass": true
+        },
+        "G2": {
+          "test_weeks_with_a_20_coin_day": 93,
+          "required": 80,
+          "pass": true
+        },
+        "G3": {
+          "counting_rows_before_2024_06_01_on_20_coin_days": 16520,
+          "required": 5000,
+          "pass": true
+        },
+        "G4": {
+          "discovery_weeks_with_a_20_coin_day": 31,
+          "required": 20,
+          "pass": true
+        },
+        "G5": {
+          "problems": [],
+          "pass": true
+        },
+        "test_period_coins_per_day": {
+          "max": 20,
+          "median": 20.0,
+          "mean": 20.0
+        },
+        "gate_passed": true
+      }
+    },
+    "missing_identity_review_fields": {
+      "fields_missing": [
+        "identity_evidence",
+        "reviewer",
+        "reviewed_at"
+      ],
+      "reported_problems": [],
+      "counting_rows": 1696
+    },
+    "training_readiness_boundary": {
+      "G3": {
+        "counting_rows_before_2024_06_01_on_20_coin_days": 5000,
+        "required": 5000,
+        "pass": true
+      },
+      "rows_before_2024_05_24_purge_cutoff": 4840
+    }
+  },
+  "unreviewed_feature_gate": {
+    "G1": {
+      "share_of_test_days_with_20": 1.0,
+      "required": 0.9,
+      "pass": true
+    },
+    "G2": {
+      "test_weeks_with_a_20_coin_day": 93,
+      "required": 80,
+      "pass": true
+    },
+    "G3": {
+      "counting_rows_before_2024_06_01_on_20_coin_days": 9165,
+      "required": 5000,
+      "pass": true
+    },
+    "G4": {
+      "discovery_weeks_with_a_20_coin_day": 31,
+      "required": 20,
+      "pass": true
+    },
+    "G5": {
+      "problems": [
+        "all proposed identities remain unapproved in this review"
+      ],
+      "pass": false
+    },
+    "test_period_coins_per_day": {
+      "max": 28,
+      "median": 27.0,
+      "mean": 26.36111111111111
+    },
+    "gate_passed": false
+  },
+  "funding_preservation": {
+    "manifest_sha256": "cf22c8f43151de4fc29a97afbef3ee299f9cfd341d990a317ced9d2de6f58d57",
+    "files": 5546,
+    "hash_or_size_failures": [],
+    "not_readonly": [],
+    "tag_target": "262df6dba979acb7feb098c670e26cadca7b4120"
+  }
+}

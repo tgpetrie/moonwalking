@@ -1,0 +1,16 @@
+{
+  "existing_research_tests_passed": 44,
+  "funding_manifest_entries_verified": 5546,
+  "primary_endpoints": 32,
+  "primary_http_200": 30,
+  "primary_http_400": 2,
+  "additional_alternative_http_200": 2,
+  "fundamentals_outcomes_evaluated": false,
+  "all_proposed_cohort_statuses": "held",
+  "checker_counterexamples_reproduced": [
+    "duplicate_product",
+    "missing_identity_review_fields",
+    "training_readiness_boundary"
+  ],
+  "real_scoring_models_fitted": 0
+}
