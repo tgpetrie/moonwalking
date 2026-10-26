@@ -22,7 +22,7 @@ import fundamentals as fd  # noqa: E402
 import panel  # noqa: E402
 
 PRIMARY_LAG = 2
-GATES = {"G1_min_coins": 20, "G1_share_of_test_days": 0.90, "G2_min_test_weeks": 80, "G3_min_rows_before": ("2024-06-01", 5000),
+GATES = {"G1_min_coins": 20, "G1_share_of_test_days": 0.90, "G2_min_test_weeks": 80, "G3_min_rows_before": ("2024-06-01", 5000), "embargo_days": 8,
          "G4_min_discovery_weeks": 20, "discovery_window": ("2024-06-01", "2024-12-23"), "test_window": ("2025-01-01", "2026-10-10")}
 
 
@@ -33,12 +33,60 @@ def eligible_index(cfg: dict) -> pd.MultiIndex:
     return df.index
 
 
+REVIEW_FIELDS = ("identity_evidence", "reviewer", "reviewed_at", "source_family")
+FEE_METRIC = "dailyFees"
+
+
+def _names(doc) -> set[str]:
+    """Every protocol/parent/child name a captured DeFiLlama response claims; used for the overlap policy."""
+    if not isinstance(doc, dict):
+        return set()
+    out = {str(doc[k]).lower() for k in ("id", "slug", "name", "defillamaId", "parentProtocol") if doc.get(k)}
+    for k in ("linkedProtocols", "childProtocols"):
+        for c in doc.get(k) or []:
+            out.add(str(c.get("name") if isinstance(c, dict) else c).lower())
+    return out
+
+
+def validate_entry(e: dict, doc) -> list[str]:
+    """Schema and provenance for an approved entry. A hash checks bytes, not meaning, so the metric and source are checked
+    against the captured response itself."""
+    pid, bad = e.get("product_id"), []
+    for f in REVIEW_FIELDS:
+        v = e.get(f)
+        if not isinstance(v, str) or not v.strip():
+            bad.append(f"{pid}: approved without nonempty {f}")
+    if e.get("reviewed_at"):
+        try:
+            pd.Timestamp(e["reviewed_at"])
+        except (ValueError, TypeError):
+            bad.append(f"{pid}: reviewed_at {e['reviewed_at']!r} is not a date")
+    if (e.get("source_metrics") or {}).get("fees") != FEE_METRIC:
+        bad.append(f"{pid}: source_metrics.fees must be {FEE_METRIC!r}")
+    url = (e.get("source_urls") or {}).get("fees") or ""
+    if f"dataType={FEE_METRIC}" not in url:
+        bad.append(f"{pid}: fee source URL does not request {FEE_METRIC}")
+    src = (e.get("source_ids") or {}).get("fees")
+    if not src:
+        bad.append(f"{pid}: no fee source id")
+    elif not isinstance(doc, dict) or src not in (doc.get("slug"), doc.get("id"), doc.get("defillamaId")):
+        bad.append(f"{pid}: fee source id {src!r} does not match the captured response's slug/id")
+    elif e.get("scope") and doc.get("id") and str(doc["id"]).startswith(("parent#", "chain#")) and             e["scope"] != str(doc["id"]).split("#")[0]:
+        bad.append(f"{pid}: scope {e['scope']!r} disagrees with captured id {doc['id']!r}")
+    return bad
+
+
 def coverage(cohort: list[dict], captures: Path, eligible: pd.MultiIndex, lag: int = PRIMARY_LAG,
              allow_unreviewed: bool = False) -> dict:
+    ids = [e.get("product_id") for e in cohort]
+    dupes = sorted({p for p in ids if ids.count(p) > 1})
+    if dupes:
+        raise ValueError(f"cohort repeats product ids {dupes}; one entry per product")
+    if eligible.has_duplicates:
+        raise ValueError("baseline eligible index has duplicate (date, product) pairs")
     per_product, rows = {}, []
     problems = []
-    elig = pd.Series(1, index=eligible)
-    seen_sources = {}
+    families = {}  # name -> product, for the source-family/parent-child overlap policy
     for e in cohort:
         pid = e["product_id"]
         st = e.get("status")
@@ -62,10 +110,18 @@ def coverage(cohort: list[dict], captures: Path, eligible: pd.MultiIndex, lag: i
         info["fees_sha256"] = got
         if want != got:
             problems.append(f"{pid}: fee series hash {'missing' if not want else 'mismatch'}")
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if st == "approved":
+            problems.extend(validate_entry(e, doc))
+        names = _names(doc) | ({str(e["source_family"]).lower()} if e.get("source_family") else set())
         src = (e.get("source_ids") or {}).get("fees")
-        if src in seen_sources:
-            problems.append(f"{pid}: fee source {src!r} also used by {seen_sources[src]}")
-        seen_sources[src] = pid
+        if src:
+            names.add(str(src).lower())
+        clash = sorted({families[n] for n in names if n in families})
+        if clash:
+            problems.append(f"{pid}: fee source family overlaps {clash}")
+        for n in names:
+            families.setdefault(n, pid)
         series, sinfo = fd.parse_series(path)
         feat, reasons = fd.trend(series)
         dec = fd.to_decision_dates(feat, lag).dropna()
@@ -76,7 +132,10 @@ def coverage(cohort: list[dict], captures: Path, eligible: pd.MultiIndex, lag: i
                     first_counting=str(hit.min().date()) if len(hit) else None, last_counting=str(hit.max().date()) if len(hit) else None)
         per_product[pid] = info
         rows.extend((d, pid) for d in hit)
-    counts = pd.Series(1, index=pd.MultiIndex.from_tuples(rows, names=["date", "product"])).groupby(level="date").size() if rows else pd.Series(dtype=int)
+    idx = pd.MultiIndex.from_tuples(rows, names=["date", "product"]) if rows else None
+    if idx is not None and idx.has_duplicates:
+        raise ValueError("matched (date, product) pairs are not unique")
+    counts = idx.to_frame(index=False).groupby("date")["product"].nunique() if rows else pd.Series(dtype=int)
     return {"per_product": per_product, "per_day_counts": counts, "problems": problems}
 
 
@@ -91,7 +150,9 @@ def evaluate_gate(counts: pd.Series, problems: list[str]) -> dict:
     weeks_ok = len(set(wk[ok_days.to_numpy()]))
     before, need = g["G3_min_rows_before"]
     allc = counts
-    rows_before = int(allc[(allc.index < pd.Timestamp(before)) & (allc >= g["G1_min_coins"])].sum())
+    # the first June fit only sees decision dates before June 1 minus the purge/embargo (labels must have resolved)
+    cutoff = pd.Timestamp(before) - pd.Timedelta(days=g["embargo_days"])
+    rows_before = int(allc[(allc.index < cutoff) & (allc >= g["G1_min_coins"])].sum())
     d0, d1 = (pd.Timestamp(x) for x in g["discovery_window"])
     disc = allc[(allc.index >= d0) & (allc.index <= d1) & (allc >= g["G1_min_coins"])]
     diso = disc.index.isocalendar() if len(disc) else None
@@ -100,7 +161,9 @@ def evaluate_gate(counts: pd.Series, problems: list[str]) -> dict:
         "G1": {"share_of_test_days_with_20": float(ok_days.mean()), "required": g["G1_share_of_test_days"],
                "pass": bool(ok_days.mean() >= g["G1_share_of_test_days"])},
         "G2": {"test_weeks_with_a_20_coin_day": weeks_ok, "required": g["G2_min_test_weeks"], "pass": weeks_ok >= g["G2_min_test_weeks"]},
-        "G3": {"counting_rows_before_2024_06_01_on_20_coin_days": rows_before, "required": need, "pass": rows_before >= need},
+        "G3": {"counting_rows_before_first_fit_cutoff_on_20_coin_days": rows_before, "first_fit_cutoff": str(cutoff.date()),
+               "required": need, "pass": rows_before >= need,
+               "note": "coverage screen: labels missing at fit time can still reduce fitting rows; certify first-fit readiness before discovery"},
         "G4": {"discovery_weeks_with_a_20_coin_day": disc_weeks, "required": g["G4_min_discovery_weeks"], "pass": disc_weeks >= g["G4_min_discovery_weeks"]},
         "G5": {"problems": problems, "pass": not problems},
         "test_period_coins_per_day": {"max": int(c.max()) if len(c) else 0, "median": float(c.median()) if len(c) else 0.0,
