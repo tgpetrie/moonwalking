@@ -119,4 +119,15 @@ experiment does not answer.
 
 ## Amendments
 
-(none)
+**A1 (2026-10-26, before any outcome).** Comparison driver `scripts/scoring_experiment/fundamentals_run.py`, frozen inputs in
+`fundamentals_config.json` (reviewed 27-approved / 5-held cohort, capture folder, lag 2 / sensitivity 7, +0.02, interval 0.95).
+Implementation choices, fixed before discovery:
+* Matched rows additionally require an out-of-sample S0 prediction for that horizon (the walk-forward would otherwise read a missing
+  S0 as zero); the 20-coin day rule is re-applied after that, and S0, S1 and every IC are computed on those identical rows.
+* "Both intervals exclude zero" means the week-block and the 4-week moving-block lower bounds are both above zero.
+* `readiness` phase (outcome-blind, label *presence* only): first month with >= 5,000 rows dated before month start minus 8 days with
+  S0, `fee_trend` and the label all present. Discovery refuses if the 7-day first fit is after 2024-06-01. Measured: **2023-12-01**
+  for both horizons (5,355 rows).
+* Every run re-checks the hardened gate and each fee file's hash, records cohort/config/combined hashes and the commit, refuses with
+  uncommitted experiment code, and the test refuses without a discovery result of the same hash and commit, or if a test result exists.
+* `revenue_trend` and `usd_tvl_change` are not run: the reviewed cohort has fee series only. Extreme-trend events are not implemented.
