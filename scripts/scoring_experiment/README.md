@@ -64,3 +64,11 @@ python scripts/scoring_experiment/make_funding_report.py > tables_funding.md
 ```
 
 Design: `docs/research/FUNDING_COMPARISON_PROTOCOL.md`; results: `docs/research/FUNDING_COMPARISON_RESULTS.md`. Raw funding responses stay outside Git.
+
+## Fundamentals (prepared, gated)
+
+```powershell
+python scripts/scoring_experiment/fundamentals_gate.py --cohort <fundamentals_cohort.json> --captures <capture folder> --out GATE_REPORT.json   # outcome-blind; exit 0 only if G1-G5 pass
+```
+
+Design: `docs/research/FUNDAMENTALS_EXPERIMENT_PROTOCOL.md`; status: `docs/research/FUNDAMENTALS_PREP_STATUS.md`. The comparison driver is built only after a reviewed cohort passes the gate.

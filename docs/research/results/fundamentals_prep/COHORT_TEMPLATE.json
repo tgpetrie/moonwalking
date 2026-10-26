@@ -1,0 +1,13 @@
+[
+ {
+  "product_id": "EXAMPLE-USD",
+  "status": "held",
+  "scope": "protocol",
+  "source_ids": {"fees": "<exact DeFiLlama slug or chain>", "revenue": "<slug>", "tvl": "<slug>"},
+  "series_files": {"fees": "<file in the capture folder>", "revenue": "<file>", "tvl": "<file>"},
+  "series_sha256": {"fees": "<sha256 of that file>", "revenue": "<sha256>", "tvl": "<sha256>"},
+  "identity_evidence": "<how the token/network link to this protocol or chain was verified; migrations resolved>",
+  "reviewer": "<name>",
+  "reviewed_at": "<YYYY-MM-DD>"
+ }
+]
