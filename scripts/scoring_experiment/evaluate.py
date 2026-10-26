@@ -210,11 +210,12 @@ def match_controls(df: pd.DataFrame, ev: pd.Series, cfg: dict, period: tuple[str
     return sub, meta, pairs
 
 
-def event_effects(df: pd.DataFrame, ev: pd.Series, cfg: dict, period: tuple[str, str], seed: int = 0) -> dict:
+def event_effects(df: pd.DataFrame, ev: pd.Series, cfg: dict, period: tuple[str, str], seed: int = 0,
+                  classes: tuple = ("exhaustion", "continuation", "capitulation", "downside_continuation")) -> dict:
     sub, meta, pairs = match_controls(df, ev, cfg, period, seed)
     out = {}
     day_mean = {h: sub.groupby(level="date")[f"yraw{h}"].transform("mean").to_numpy() for h in cfg["horizons_days"]}
-    for cls in ("exhaustion", "continuation", "capitulation", "downside_continuation"):
+    for cls in classes:
         rows = [(i, c) for i, c in pairs if meta.at[i, "ev"] == cls]
         total_events = int((meta["ev"] == cls).sum())
         res = {"events_in_period": total_events, "events_matched": len(rows)}
